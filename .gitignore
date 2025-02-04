@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# Audio & Large Files
+*.wav
+*.mp3
+vosk-model-sv/
+
+# Environments
+.env
