@@ -1,16 +1,1 @@
-2025-01-25 14:11:51,136 - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\OMAL0013\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\comtypes\\gen\\__init__.py'>
-2025-01-25 14:11:51,136 - INFO - Using writeable comtypes cache directory: 'C:\Users\OMAL0013\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\comtypes\gen'
-2025-01-25 14:12:49,943 - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\OMAL0013\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\comtypes\\gen\\__init__.py'>
-2025-01-25 14:12:49,943 - INFO - Using writeable comtypes cache directory: 'C:\Users\OMAL0013\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\comtypes\gen'
-2025-01-25 14:13:16,202 - INFO - Användaren sa: jag är trött
-2025-01-25 14:13:16,889 - INFO - Humör sparat: trött
-2025-01-25 14:13:29,079 - INFO - Användaren sa: ja ja
-2025-01-25 14:14:06,993 - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\OMAL0013\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\comtypes\\gen\\__init__.py'>
-2025-01-25 14:14:06,993 - INFO - Using writeable comtypes cache directory: 'C:\Users\OMAL0013\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\comtypes\gen'
-2025-01-25 14:15:45,900 - INFO - Användaren sa: jag mår bra
-2025-01-25 14:15:47,162 - INFO - Humör sparat: glad
-2025-01-25 14:20:02,924 - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\OMAL0013\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\comtypes\\gen\\__init__.py'>
-2025-01-25 14:20:02,932 - INFO - Using writeable comtypes cache directory: 'C:\Users\OMAL0013\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\comtypes\gen'
-2025-01-25 14:20:41,156 - INFO - ✅ Användaren sa: ge mig trött
-2025-01-25 14:20:42,426 - INFO - Humör sparat: trött
-2025-01-25 14:21:25,393 - INFO - ✅ Användaren sa: lärare
+
