@@ -46,17 +46,17 @@ def skapa_konto(mejl: str, lösenord: str) -> bool:
         return False
 
     try:
-        användarref = db.collection("användare").document(mejl)
+        användarref = db.collection("anvandare").document(mejl)
         
         if användarref.get().exists:
             logger.info("Kontot finns redan")
             return False
             
         användarref.set({
-            "lösenord": hasha_lösenord(lösenord),
+            "losenord": hasha_lösenord(lösenord),
             "skapad": datetime.now(),
             "senaste_inloggning": None,
-            "humör_historik": []
+            "humor_historik": []
         })
         logger.info("Konto skapat framgångsrikt")
         return True
@@ -69,7 +69,7 @@ def skapa_konto(mejl: str, lösenord: str) -> bool:
 def logga_in(mejl: str, lösenord: str) -> bool:
     """Autentiserar användare mot Firebase"""
     try:
-        användarref = db.collection("användare").document(mejl)
+        användarref = db.collection("anvandare").document(mejl)
         användardok = användarref.get()
         
         if not användardok.exists:
@@ -78,7 +78,7 @@ def logga_in(mejl: str, lösenord: str) -> bool:
             
         användardata = användardok.to_dict()
         
-        if verifiera_lösenord(lösenord, användardata["lösenord"]):
+        if verifiera_lösenord(lösenord, användardata["losenord"]):
             användarref.update({"senaste_inloggning": firestore.SERVER_TIMESTAMP})
             logger.info("Lyckad inloggning")
             return True
