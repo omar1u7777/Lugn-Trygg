@@ -2,6 +2,7 @@ import logging
 import sys
 import os
 
+
 def konfigurera_loggning():
     level = getattr(logging, os.getenv('LOGG_NIVÅ', 'DEBUG').upper())  # Default to DEBUG level if LOGG_NIVÅ is not defined
     format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -10,6 +11,7 @@ def konfigurera_loggning():
         logging.FileHandler("app.log")
     ]
     logging.basicConfig(level=level, format=format, handlers=handlers)
+
 
 def main():
     try:
@@ -31,6 +33,7 @@ def main():
     except Exception as e:
         logging.exception("Critical error")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     konfigurera_loggning()
