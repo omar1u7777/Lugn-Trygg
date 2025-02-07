@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "electron ."
+    "start": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\""
   },
   "dependencies": {
     "firebase": "^11.3.0",
@@ -25,6 +25,8 @@
     "globals": "^15.14.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.22.0",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "concurrently": "^7.0.0",
+    "wait-on": "^6.0.0"
   }
 }
