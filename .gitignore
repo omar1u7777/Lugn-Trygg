@@ -1,32 +1,46 @@
-# Python
+# =========================
+# 📌 Python-kompileringsfiler
+# =========================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Logs
-*.log# Python-kompileringsfiler
-__pycache__/
-*.pyc  # Python bytecode-filer
+*.pyc  # Bytecode-filer
 *.pyo  # Optimerade Python-filer
-*.pyd  # Python dynamiska moduler
+*.pyd  # Dynamiska moduler
 
-# Loggfiler
+# =========================
+# 📌 Loggfiler
+# =========================
 *.log  # Loggfiler genererade av programmet
 
-# Ljudfiler och stora filer
+# =========================
+# 📌 Ljudfiler och stora filer
+# =========================
 *.wav  # Obehandlade ljudfiler
 *.mp3  # Komprimerade ljudfiler
-vosk-model-sv/  # Röstmodell som är för stor för att versionera
+vosk-model-sv/  # Stora röstmodeller som inte versioneras
 
-# Miljöfiler
-.env  # Miljövariabler med känslig information
+# =========================
+# 📌 Miljöfiler och känsliga nycklar
+# =========================
+.env  # Miljövariabler med API-nycklar och lösenord
+serviceAccountKey.json # Firebase servicekonto-fil (känslig!)
 
+# =========================
+# 📌 Virtuella miljöer
+# =========================
+venv/  # Virtuell miljö
+.env/  # Eventuella andra miljöfiler
+.Python
+pip-log.txt  # Eventuella pip-loggar
 
-# Audio & Large Files
-*.wav
-*.mp3
-vosk-model-sv/
+# =========================
+# 📌 IDE-specifika filer
+# =========================
+.vscode/  # Inställningar för Visual Studio Code
+.idea/  # PyCharm / IntelliJ IDEA-projektfiler
+*.swp  # Vim tillfälliga filer
+.DS_Store  # macOS systemfil
 
-# Environments
-.env
+# =========================
+# 📌 Git-filer
+# =========================
+.gitignore  # Ignorera sig själv (men ska vara i repot)
