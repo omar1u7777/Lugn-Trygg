@@ -5,6 +5,9 @@ import firebase_admin
 from firebase_admin import credentials, auth
 from dotenv import load_dotenv
 
+# 🔹 Lägg till import för CORS
+from flask_cors import CORS
+
 # 🔹 Ladda miljövariabler från .env
 load_dotenv()
 
@@ -29,6 +32,15 @@ if not firebase_admin._apps:
 
 # 🔹 Starta Flask-applikationen
 app = Flask(__name__)
+
+# 🔹 Aktivera CORS för samtliga rutter
+#    (om du bara vill tillåta anrop från en specifik port, specificera origins)
+CORS(app)
+
+@app.route("/", methods=["GET"])
+def index():
+    """En enkel startsida för att visa att servern är igång."""
+    return jsonify({"message": "Välkommen till Flask-backenden!"})
 
 @app.route("/register", methods=["POST"])
 def register_user():
@@ -61,5 +73,5 @@ def register_user():
         return jsonify({"error": "Ett internt serverfel uppstod"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
-
+    # 🔹 Kör servern på port 5001 i debug-läge
+    app.run(debug=True, host="127.0.0.1", port=5001)

@@ -1,21 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { initializeApp } from "firebase/app";
 import "./styles.css";
-
-// 🔹 Importera  Firebase-konfiguration
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-// 🔹 Initiera Firebase endast om det inte redan är initierat
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 
 function App() {
   const [email, setEmail] = useState("");
@@ -66,21 +50,30 @@ function App() {
     setErrors({});
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      // OBS: Uppdaterad fetch med rätt port (5001) samt headers och body för JSON
+      const response = await fetch("http://127.0.0.1:5001/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",    // <--- Viktigt för Flask
+        },
+        body: JSON.stringify({                   // <--- Skicka JSON
+          email,
+          password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Registreringen misslyckades");
+      }
+
       setSuccessMessage("Registrering lyckades!");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      if (error.code === "auth/email-already-in-use") {
-        setErrors({ form: "E-postadressen används redan. Försök logga in istället." });
-      } else if (error.code === "auth/invalid-email") {
-        setErrors({ email: "Ogiltig e-postadress." });
-      } else if (error.code === "auth/weak-password") {
-        setErrors({ password: "Lösenordet är för svagt. Minst 6 tecken krävs." });
-      } else {
-        setErrors({ form: "Något gick fel. Försök igen." });
-      }
+      setErrors({ form: error.message });
     } finally {
       setIsSubmitting(false);
     }
