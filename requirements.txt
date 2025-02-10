@@ -1,23 +1,30 @@
-firebase-admin>=6.0.1  # Firebase Admin SDK för hantering av autentisering, Firestore och Storage
-pyttsx3==2.90  # Bibliotek för text-till-tal-konvertering
-SpeechRecognition==3.8.1  # Känner igen tal med hjälp av olika API:er
-pyaudio==0.2.13  # Python-bindningar för PortAudio, används för ljudin- och utmatning
+# 📌 Backend: API, Databas och Autentisering
+firebase-admin>=6.0.1  # Firebase Admin SDK för autentisering och Firestore
 python-dotenv==1.0.0  # Laddar miljövariabler från .env-fil
-pvporcupine==1.9.5  # Bibliotek för att upptäcka väckningsord
-playsound==1.3.0  # Enkelt bibliotek för att spela upp ljud
-python-dateutil==2.8.2  # Utökningar till standardmodulen datetime i Python
-tkinter==0.1.0  # GUI-verktyg för att bygga grafiska användargränssnitt
-numpy==1.24.2  # Grundläggande paket för numeriska beräkningar
+requests==2.28.1  # HTTP-bibliotek för API-förfrågningar
+flask==2.2.2  # Mikro-webbramverk för API och backend-logik
+werkzeug==2.2.2  # WSGI-verktyg för Flask-applikationer
+jinja2==3.1.2  # Mallmotor för rendering av HTML-sidor i Flask
+itsdangerous==2.1.2  # Säker hantering av dataöverföring i API:er
+click==8.1.3  # Kommandoradsgränssnitt för Flask-applikationer
+bcrypt==4.0.1  # Hashning av lösenord för säker lagring
+firebase==4.3.0  # Firebase Client SDK för frontend-autentisering
+
+# 📌 Frontend: Desktop UI med React & Electron
+electron>=23.1.0  # Electron för att köra frontend som desktop-applikation
+react>=18.0.0  # React.js för att bygga frontend
+vite>=6.1.0  # Snabb utvecklingsserver för React/Electron
+sass>=1.56.0  # För att skriva mer organiserad CSS
+typescript>=4.9.3  # TypeScript för frontend-utveckling
+
+# 📌 Röststyrning & Ljudhantering
+pyttsx3==2.90  # Text-till-tal-konvertering
+SpeechRecognition==3.8.1  # Taligenkänning via mikrofon
+pyaudio==0.2.13  # PortAudio-bibliotek för ljudinspelning och uppspelning
 whisper==1.1.10  # OpenAI:s system för automatisk taligenkänning (ASR)
-sounddevice==0.4.5  # Tillhandahåller bindningar för PortAudio-biblioteket
-soundfile==0.11.0  # Läser och skriver ljudfiler
-scikit-learn==1.2.2  # Maskininlärningsbibliotek för Python
-flask==2.2.2  # Mikro-webbramverk för att bygga API:er och webbapplikationer
-requests==2.28.1  # HTTP-bibliotek för att göra förfrågningar
-matplotlib==3.5.2  # Bibliotek för att skapa statiska, animerade och interaktiva visualiseringar
-pandas==1.4.3  # Verktyg för dataanalys och manipulation
-jinja2==3.1.2  # Mallmotor för Python, används med Flask
-itsdangerous==2.1.2  # Tillhandahåller olika hjälpmedel för att överföra data till osäkra miljöer
-click==8.1.3  # Kit för att skapa kommandoradsgränssnitt
-werkzeug==2.2.2  # WSGI-verktygsbibliotek för Python-webbapplikationer
-setuptools==65.5.0  # Hjälper till med installation av Python-paket
+sounddevice==0.4.5  # Bindningar för PortAudio-biblioteket
+soundfile==0.11.0  # Ljudfilsbehandling
+
+# 📌 Testning och Debugging
+pytest>=7.0.0  # Enhetstestning av backend och funktionalitet
+selenium>=4.0.0  # Automatiserad testning av UI i frontend

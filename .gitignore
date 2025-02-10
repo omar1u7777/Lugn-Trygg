@@ -1,32 +1,17 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Ignorera virtuella miljöer
+venv/
+Backend/venv/
+frontend/.env
 
-# Logs
-*.log# Python-kompileringsfiler
-__pycache__/
-*.pyc  # Python bytecode-filer
-*.pyo  # Optimerade Python-filer
-*.pyd  # Python dynamiska moduler
-
-# Loggfiler
-*.log  # Loggfiler genererade av programmet
-
-# Ljudfiler och stora filer
-*.wav  # Obehandlade ljudfiler
-*.mp3  # Komprimerade ljudfiler
-vosk-model-sv/  # Röstmodell som är för stor för att versionera
-
-# Miljöfiler
-.env  # Miljövariabler med känslig information
+# Ignorera pycache-kataloger
+**/__pycache__/
+**/*.pyc
 
 
-# Audio & Large Files
-*.wav
-*.mp3
-vosk-model-sv/
+# Ignorera känsliga nyckelfiler
+serviceAccountKey.json
+Backend/serviceAccountKey.json
 
-# Environments
+# Ignorera miljöfiler
 .env
+Backend/.env
