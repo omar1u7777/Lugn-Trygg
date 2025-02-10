@@ -15,3 +15,5 @@ Backend/serviceAccountKey.json
 # Ignorera miljöfiler
 .env
 Backend/.env
+app.log
+frontend/.vite/
