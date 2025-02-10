@@ -59,7 +59,7 @@ För fullständig lista av beroenden, se `requirements.txt`.
 5. **Starta backend-servern:**
 
    ```bash
-   python app.py
+   python register.py
    ```
 
 6. **Starta frontend-applikationen:**
