@@ -5,7 +5,7 @@ import firebase_admin
 from firebase_admin import credentials, auth
 from dotenv import load_dotenv
 
-# 🔹 Lägg till import för CORS
+# 🔹 Lägg till import för CORS m e
 from flask_cors import CORS
 
 # 🔹 Ladda miljövariabler från .env
