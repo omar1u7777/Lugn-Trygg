@@ -7,7 +7,6 @@ frontend/.env
 **/__pycache__/
 **/*.pyc
 
-
 # Ignorera känsliga nyckelfiler
 serviceAccountKey.json
 Backend/serviceAccountKey.json
@@ -17,3 +16,15 @@ Backend/serviceAccountKey.json
 Backend/.env
 app.log
 frontend/.vite/
+
+# Ignorera node_modules i frontend
+frontend/node_modules/
+
+# Ignorera byggfiler för frontend
+frontend/dist/
+frontend/build/
+frontend/.cache/
+
+# Ignorera systemfiler
+.DS_Store
+Thumbs.db

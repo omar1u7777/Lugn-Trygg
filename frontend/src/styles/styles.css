@@ -1,0 +1,254 @@
+/* 🌎 Global Stil */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Arial", sans-serif;
+  font-size: 20px;  /* Större text för bättre läsbarhet */
+  line-height: 1.6;  /* Längre radavstånd för bättre läsbarhet */
+  background-color: #eef2f3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  color: #333;
+}
+
+/* 📦 Gemensam container */
+.container {
+  max-width: 480px;
+  width: 100%;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin: 20px auto;
+  transition: transform 0.2s ease-in-out;
+}
+
+.container:hover {
+  transform: scale(1.01);
+}
+
+/* 🎯 Dashboard */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  background: #f7f9fc;
+}
+
+/* 🆕 Ta bort den extra "Dashboard"-headern */
+.dashboard-header {
+  display: none;
+}
+
+/* 🆕 Dashboard Innehåll */
+.dashboard-content {
+  width: 80%;
+  max-width: 900px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  text-align: center;
+}
+
+/* 🚪 Logout-knapp */
+.logout-btn {
+  padding: 14px 24px;  /* Större knappstorlek */
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 8px;  /* Rundade hörn */
+  cursor: pointer;
+  font-size: 18px;  /* Större text för knappen */
+  transition: background 0.3s;
+}
+
+.logout-btn:hover {
+  background-color: #c9302c;
+}
+
+
+.logout-btn:hover {
+  background-color: #c9302c;
+}
+
+/* 🎯 Navigation */
+.nav-container {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2c3e50;
+  padding: 1.5rem 2rem;  /* Större avstånd för att göra knappar lättare att trycka på */
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 🏷️ Appens namn */
+.app-name {
+  font-size: 1.6rem;  /* Större text för appens namn */
+  font-weight: bold;
+  color: white;
+}
+
+/* 📌 Navigationslänkar */
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 20px;  /* Större mellanrum mellan länkar */
+  padding: 0;
+  margin: 0;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+  font-size: 1.2rem;  /* Större text för bättre läsbarhet */
+  font-weight: 600;
+  padding: 0.8rem 1.2rem;  /* Större knappar */
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.nav-links a:hover,
+.nav-links a:focus {
+  background: #1abc9c;
+  transform: translateY(-2px);
+  outline: none;
+}
+
+/* ✅ Lyckade meddelanden */
+.success-message {
+  color: #28a745;
+  font-size: 1.2rem;  /* Större text */
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+/* 🛑 Felmeddelanden */
+.error-message {
+  color: #dc3545;
+  font-size: 1.1rem;  /* Lite större felmeddelanden */
+  padding: 1rem;
+  margin: 1rem 0;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 🌎 Standardiserad stil för login och register */
+.auth-container {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  margin: auto;
+  transition: transform 0.2s ease-in-out;
+}
+
+.auth-container:hover {
+  transform: scale(1.01);
+}
+
+/* 📋 Form */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;  /* Större mellanrum mellan fälten */
+}
+
+/* 📩 Inputfält */
+.auth-input {
+  width: 100%;
+  padding: 16px;  /* Större fält */
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 18px;  /* Större text */
+  transition: border-color 0.3s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.auth-input:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+}
+
+/* 🎨 Knappar */
+.auth-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 16px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 18px;  /* Större text */
+  font-weight: bold;
+  border-radius: 8px;
+  transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.auth-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.03);
+}
+
+.auth-button:active {
+  transform: scale(0.97);
+}
+
+.auth-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* 📱 Responsiv design */
+@media (max-width: 500px) {
+  .auth-container,
+  .nav-container,
+  .container {
+    max-width: 90%;
+  }
+
+  .auth-input,
+  .auth-button {
+    font-size: 16px;  /* Större text i små skärmar */
+    padding: 12px;
+  }
+
+  .nav-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+}
+
+/* 🌀 Animation för felmeddelanden */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

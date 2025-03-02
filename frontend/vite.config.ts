@@ -1,17 +1,33 @@
-// vite.config.ts
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    // Gör att Vitest injicerar describe, it, expect globalt
-    globals: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
 
-    // Sätter upp en JSDOM-miljö (krävs för att render, document, etc. ska fungera)
-    environment: 'jsdom',
-
-    // En fil som körs innan testerna startar
-    setupFiles: ['./src/setupTests.ts'],
-  },
+  return {
+    plugins: [react()],
+    server: {
+      port: 5000,
+      open: false,
+      strictPort: true,
+      host: true,
+      proxy: {
+        "/api": {
+          target: env.VITE_BACKEND_URL || "http://127.0.0.1:5001",  // Backend-URL till Flask
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
+      },
+    },
+    build: {
+      outDir: "dist",
+      sourcemap: mode === "development",
+      target: "esnext",
+      cssCodeSplit: true,
+    },
+    define: {
+      "import.meta.env.VITE_BACKEND_URL": JSON.stringify(env.VITE_BACKEND_URL || "http://127.0.0.1:5001"),
+    },
+  };
 });

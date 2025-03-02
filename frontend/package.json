@@ -1,40 +1,102 @@
 {
-  "name": "frontend",
-  "version": "0.0.0",
-  "main": "main.js",
+  "name": "lugn-trygg-frontend",
+  "version": "1.0.0",
+  "description": "Lugn & Trygg - En säker och användarvänlig desktop-applikation för välmående och trygghet.",
+  "author": "Lugn & Trygg Development Team",
+  "license": "MIT",
   "type": "commonjs",
+  "private": true,
+  "main": "main.js",
+  "homepage": "./",
+  "proxy": "http://localhost:5001",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "concurrently \"vite\" \"electron .\"",
+    "build": "vite build && electron-builder",
+    "build:electron": "electron-builder",
     "preview": "vite preview",
-    "start": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "test": "vitest"
+    "lint": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
+    "start": "electron ."
   },
   "dependencies": {
-    "@jest/globals": "^29.7.0",
-    "firebase": "^11.3.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "axios": "^1.6.2",
+    "electron-store": "^9.0.0",
+    "express-session": "^1.17.3",
+    "firebase": "^10.11.1",
+    "firebase-admin": "^11.10.0",
+    "js-cookie": "^3.0.5",
+    "jsonwebtoken": "^9.0.0",
+    "jwt-decode": "^4.0.0",
+    "msw": "^2.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.2.0",
+    "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
-    "@eslint/js": "^9.19.0",
+    "@electron/remote": "^2.1.2",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.2.0",
-    "@types/jest": "^29.5.14",
-    "@types/react": "^19.0.8",
-    "@types/react-dom": "^19.0.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^7.0.0",
-    "electron": "^34.1.1",
-    "eslint": "^9.19.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.18",
-    "globals": "^15.14.0",
+    "@testing-library/react": "^14.3.1",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/js-cookie": "^3.0.6",
+    "@types/jwt-decode": "^2.2.1",
+    "@types/node": "^22.13.8",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/ui": "^3.0.7",
+    "concurrently": "^8.2.0",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3",
+    "electron-updater": "^6.3.9",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
     "jsdom": "^26.0.0",
-    "typescript": "~5.7.2",
-    "typescript-eslint": "^8.22.0",
-    "vite": "^6.1.0",
-    "vitest": "^3.0.5",
-    "wait-on": "^6.0.0"
+    "prettier": "^3.2.4",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.4",
+    "vitest": "^3.0.7"
+  },
+  "build": {
+    "appId": "com.lugn.trygg",
+    "productName": "Lugn & Trygg",
+    "directories": {
+      "app": "app",
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "main.js",
+        "to": "app/main.js"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/icon.png"
+    }
   }
 }

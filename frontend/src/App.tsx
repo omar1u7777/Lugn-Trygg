@@ -1,149 +1,88 @@
-import { useState, useEffect } from "react";
-import "./styles.css";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import LoginForm from "./components/Auth/LoginForm";
+import RegisterForm from "./components/Auth/RegisterForm";
+import ProtectedRoute from "./components/Layout/ProtectedRoute";
+import Dashboard from "./components/Dashboard/Dashboard";
+import { useAuth } from "./contexts/AuthContext";
+import Navigation from "./components/Layout/Navigation"; 
+import "./styles/styles.css";
 
 function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+    const { isLoggedIn, logout, user } = useAuth(); //  Hämtar autentiseringsfunktioner och användardata
+    const navigate = useNavigate(); //  Navigeringsfunktion för att omdirigera användare
+    const [offlineMode, setOfflineMode] = useState<boolean>(!navigator.onLine); // 🌐 Kontroll av internetstatus
 
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(""), 3000);
-      return () => clearTimeout(timer);
+    //  Kontrollera om användaren är offline och uppdatera state
+    useEffect(() => {
+        const handleOfflineStatus = () => setOfflineMode(!navigator.onLine);
+
+        window.addEventListener("online", handleOfflineStatus);
+        window.addEventListener("offline", handleOfflineStatus);
+        
+        return () => {
+            window.removeEventListener("online", handleOfflineStatus);
+            window.removeEventListener("offline", handleOfflineStatus);
+        };
+    }, []); // Körs endast vid första renderingen
+
+    //  Hantera utloggning av användare
+    const handleLogout = async () => {
+        if (user) {
+            await logout(); //  Logga ut användaren och rensa autentisering
+            navigate("/login"); //  Omdirigera till inloggningssidan
+        }
+    };
+
+    //  Om användaren är offline, visa en offline-meddelande
+    if (offlineMode) {
+        return (
+            <div className="offline-screen">
+                <h2>🚫 Du är offline!</h2>
+                <p>Kontrollera din internetanslutning och försök igen.</p>
+                <button onClick={() => window.location.reload()} style={{
+                    backgroundColor: "#ff9800",
+                    color: "#fff",
+                    fontSize: "1.1rem",
+                    padding: "0.75rem",
+                    borderRadius: "5px",
+                    border: "none",
+                    cursor: "pointer",
+                    marginTop: "1rem"
+                }}>🔄 Försök igen</button>
+            </div>
+        );
     }
-  }, [successMessage]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return (
+        <>
+            {/* 📌 Navigation visas på alla sidor */}
+            <Navigation /> 
+            <main className="app-container">
+                <Routes>
+                    {/* 🏠 Huvudvägar i applikationen */}
+                    <Route path="/" element={<LoginForm />} />
+                    <Route path="/login" element={<LoginForm />} />
+                    <Route path="/register" element={<RegisterForm />} />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <ProtectedRoute> {/* 🔒 Endast inloggade användare får se Dashboard */}
+                                <Dashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+                    {/* 🚫 404-felsida för okända rutter */}
+                    <Route path="*" element={<h2 className="not-found">🚫 Sidan hittades inte!</h2>} />
+                </Routes>
 
-    if (!email) {
-      newErrors.email = "E-post krävs";
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = "Ogiltig e-postadress";
-    }
-
-    if (!password) {
-      newErrors.password = "Lösenord krävs";
-    } else if (password.length < 8) {
-      newErrors.password = "Lösenord måste vara minst 8 tecken";
-    }
-
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Lösenorden matchar inte";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-    setErrors({});
-
-    try {
-      // OBS: Uppdaterad fetch med rätt port (5001) samt headers och body för JSON
-      const response = await fetch("http://127.0.0.1:5001/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",    // <--- Viktigt för Flask
-        },
-        body: JSON.stringify({                   // <--- Skicka JSON
-          email,
-          password
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registreringen misslyckades");
-      }
-
-      setSuccessMessage("Registrering lyckades!");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-    } catch (error: any) {
-      setErrors({ form: error.message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="container">
-      <h1 className="title">Registrering</h1>
-
-      {successMessage && <div className="success-message">{successMessage}</div>}
-
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="form-group">
-          <label htmlFor="email">E-post</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={errors.email ? "error" : ""}
-            disabled={isSubmitting}
-          />
-          {errors.email && <span className="error-message">{errors.email}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="password">Lösenord</label>
-          <div className="password-wrapper">
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={errors.password ? "error" : ""}
-              disabled={isSubmitting}
-            />
-            <button
-              type="button"
-              className="toggle-password"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? "Dölj" : "Visa"}
-            </button>
-          </div>
-          {errors.password && <span className="error-message">{errors.password}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Bekräfta lösenord</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className={errors.confirmPassword ? "error" : ""}
-            disabled={isSubmitting}
-          />
-          {errors.confirmPassword && (
-            <span className="error-message">{errors.confirmPassword}</span>
-          )}
-        </div>
-
-        <button type="submit" className="submit-button" disabled={isSubmitting}>
-          {isSubmitting ? "Registrerar..." : "Registrera"}
-        </button>
-
-        {errors.form && <div className="form-error">{errors.form}</div>}
-      </form>
-    </div>
-  );
+                {/* 🔓 Logga ut-knapp visas endast om användaren är inloggad */}
+                {isLoggedIn() && (
+                    <button onClick={handleLogout} className="logout-button">Logga ut</button>
+                )}
+            </main>
+        </>
+    );
 }
 
 export default App;
