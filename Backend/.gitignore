@@ -1,0 +1,19 @@
+# Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+
+# Environment variables file
+.env
+
+# Log files
+*.log
+
+# Flask config
+instance/
+
+# Firebase service account key
+serviceAccountKey.json

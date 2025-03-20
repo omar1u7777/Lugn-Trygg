@@ -1,0 +1,30 @@
+# Ignorera virtuella miljöer
+venv/
+Backend/venv/
+frontend/.env
+
+# Ignorera pycache-kataloger
+**/__pycache__/
+**/*.pyc
+
+# Ignorera känsliga nyckelfiler
+serviceAccountKey.json
+Backend/serviceAccountKey.json
+
+# Ignorera miljöfiler
+.env
+Backend/.env
+app.log
+frontend/.vite/
+
+# Ignorera node_modules i frontend
+frontend/node_modules/
+
+# Ignorera byggfiler för frontend
+frontend/dist/
+frontend/build/
+frontend/.cache/
+
+# Ignorera systemfiler
+.DS_Store
+Thumbs.db

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="sv"> <!--  Anger att språket på sidan är svenska -->
+<head>
+  <meta charset="UTF-8" /> <!--  Stöder svenska tecken (å, ä, ö) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- 📱 Gör sidan responsiv -->
+  <title>Lugn & Trygg</title> <!-- 🏷️ Titel som visas i webbläsarfliken -->
+
+  <!--  Länkar till huvud-CSS för styling -->
+  <link rel="stylesheet" href="/styles/main.css" />
+</head>
+<body>
+  <noscript>
+    Du behöver aktivera JavaScript för att kunna använda den här webbplatsen.
+  </noscript> <!-- ⚠️ Meddelande om JavaScript är inaktiverat -->
+
+  <!--  Root-element där React-applikationen renderas -->
+  <div id="root"></div>
+
+  <!--  Laddar React-applikationen -->
+  <script type="module" src="/src/main.tsx" defer></script>
+</body>
+</html>
