@@ -32,6 +32,34 @@ För fullständig lista av beroenden, se `requirements.txt`.
 
 2. **Installera backend-beroenden:**
 
+3. **Starta backend-servern:**
+
+```bash
+uvicorn main:app --reload
+```
+
+4. **Installera frontend-beroenden:**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Testning
+
+```bash
+pytest
+```
+
+## CI/CD
+
+GitHub Actions workflow `.github/workflows/ci.yml` kör linting och tester vid varje push.
+
+## Licens
+
+MIT
+
    ```bash
    pip install -r requirements.txt
    ```
