@@ -10,7 +10,6 @@ click==8.1.3  # Kommandoradsgränssnitt för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
 firebase==4.3.0  # Firebase Client SDK för frontend-autentisering
 
-# 📌 Frontend: Desktop UI med React & Electron
 react>=18.0.0  # React.js för att bygga frontend
 vite>=6.1.0  # Snabb utvecklingsserver för React/Electron
 sass>=1.56.0  # För att skriva mer organiserad CSS
