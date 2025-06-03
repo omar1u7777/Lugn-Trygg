@@ -25,7 +25,8 @@ jobs:
         pip install pytest
 
     - name: Run tests
-      run: |
+      run: 
+              pytest|
         
         
     - name: Run flake8
@@ -37,4 +38,3 @@ jobs:
       run: |
         pip install mypy
         mypy Backend/src
-pytest
