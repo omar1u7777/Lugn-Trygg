@@ -1,6 +1,12 @@
+import os
+import sys
 import pytest
-from main import create_app  # Importerar create_app från main.py
 from unittest.mock import patch
+
+# Ensure project root is on sys.path for imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from Backend.main import create_app  # Importerar create_app från Backend
 
 @pytest.fixture(scope='module')
 def app():
@@ -13,7 +19,7 @@ def app():
     """
     # Mocka Whisper och Firebase för att undvika externa beroenden
     with patch('whisper.load_model') as mock_whisper, \
-         patch('src.firebase_config.initialize_firebase') as mock_firebase:
+         patch('Backend.src.firebase_config.initialize_firebase') as mock_firebase:
         mock_whisper.return_value = None  # Mockar Whisper-modellen
         mock_firebase.return_value = True  # Mockar Firebase-initialisering
 
@@ -46,3 +52,5 @@ def runner(app):
     Skapar en runner som kan användas för att köra Flask CLI-kommandon i testläge.
     """
     return app.test_cli_runner()
+
+

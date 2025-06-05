@@ -6,8 +6,8 @@ import os
 from werkzeug.utils import secure_filename
 from firebase_admin import storage, firestore
 import mimetypes
-from src.config import JWT_SECRET_KEY
-from src.firebase_config import get_firebase_services
+from Backend.src.config import JWT_SECRET_KEY
+from Backend.src.firebase_config import get_firebase_services
 
 memory_bp = Blueprint("memory", __name__)
 logger = logging.getLogger(__name__)
@@ -189,3 +189,4 @@ def get_memory():
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av minne: {str(e)}")
         return jsonify({"error": "Ett fel uppstod vid hämtning av minne!"}), 500
+

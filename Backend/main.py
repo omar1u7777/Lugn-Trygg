@@ -13,11 +13,11 @@ import whisper
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
 import firebase_admin
-from src.routes.memory_routes import memory_bp
+from Backend.src.routes.memory_routes import memory_bp
 
 # Import authentication and Firebase setup
-from src.routes.auth import auth_bp
-from src.firebase_config import db, initialize_firebase
+from Backend.src.routes.auth import auth_bp
+from Backend.src.firebase_config import db, initialize_firebase
 
 # Load environment variables
 load_dotenv()
@@ -197,3 +197,4 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=port, debug=debug)
     except Exception as e:
         logger.critical(f"🔥 Critical error while starting the server: {e}")
+

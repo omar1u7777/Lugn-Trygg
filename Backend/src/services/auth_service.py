@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 import logging
 import jwt
 import requests
-from src.utils import convert_email_to_punycode  # Flyttad till utils.py
+from Backend.src.utils import convert_email_to_punycode  # Flyttad till utils.py
 from firebase_admin import auth, exceptions
-from src.firebase_config import db
-from src.models.user import User
-from src.config import (
+from Backend.src.firebase_config import db
+from Backend.src.models.user import User
+from Backend.src.config import (
     JWT_SECRET_KEY,
     JWT_REFRESH_SECRET_KEY,
     ACCESS_TOKEN_EXPIRES,

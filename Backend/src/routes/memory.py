@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
-from src.firebase_config import db
+from Backend.src.firebase_config import db
 
 memory_bp = Blueprint("memory", __name__)
 

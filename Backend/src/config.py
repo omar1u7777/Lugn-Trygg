@@ -1,7 +1,11 @@
 import os
 import logging
 from datetime import timedelta
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*args, **kwargs):
+        return None
 
 # 🔹 Ladda miljövariabler från .env-filen
 load_dotenv()
@@ -103,3 +107,4 @@ logger.info(f"✅ Firebase-konfiguration laddad från: {FIREBASE_CREDENTIALS}")
 logger.info(f"✅ JWT-token expiration: {ACCESS_TOKEN_EXPIRES}, Refresh expiration: {REFRESH_TOKEN_EXPIRES}")
 logger.info(f"✅ Tillåtna CORS-origins: {CORS_ALLOWED_ORIGINS}")
 logger.info("✅ Backend är korrekt konfigurerad men inga hemligheter visas i loggen.")
+
