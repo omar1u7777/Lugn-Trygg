@@ -1,7 +1,12 @@
 import os
 import logging
 from datetime import datetime
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    # Define a no-op fallback if python-dotenv is not installed
+    def load_dotenv(*args, **kwargs):
+        return None
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import whisper
