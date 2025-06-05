@@ -8,6 +8,7 @@ frontend/.env
 **/*.pyc
 # Ignorera node_modules i frontend och backend
 Backend/node_modules/
+.vs/
 
 # Ignorera känsliga nyckelfiler
 serviceAccountKey.json
