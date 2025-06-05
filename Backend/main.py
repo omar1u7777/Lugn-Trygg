@@ -165,9 +165,11 @@ def create_app(testing=False):
     def get_moods():
         """Hämtar humörloggar för användaren från Firestore"""
         try:
-            user_email = request.args.get("user_email").strip().lower()  # Hämta e-postadress från URL-parametrar
+            user_email = request.args.get("user_email")
             if not user_email:
                 return jsonify({"error": "User email is required"}), 400
+
+            user_email = user_email.strip().lower()  # Hämta e-postadress från URL-parametrar
 
             # Hämta humörloggar från Firestore
             user_ref = db.collection("users").document(user_email)
