@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
-from firebase_admin import storage
+
 from Backend.src.firebase_config import db
 
 memory_bp = Blueprint("memory", __name__)
@@ -79,7 +79,12 @@ def list_memories():
             return jsonify({"error": "Användar-ID krävs!"}), 400
 
         # 🔹 Hämta alla minnen för användaren
-        memories_ref = list(db.collection("memories").where("user_id", "==", user_id).order_by("timestamp", direction="DESCENDING").stream())
+        memories_ref = list(
+            db.collection("memories")
+            .where("user_id", "==", user_id)
+            .order_by("timestamp", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
         memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
 
         return jsonify({"memories": memory_list}), 200

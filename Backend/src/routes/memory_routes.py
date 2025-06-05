@@ -141,7 +141,7 @@ def list_memories():
 @memory_bp.route("/get", methods=["GET"])
 def get_memory():
     try:
-        db, _ = get_firebase_services()
+        db = get_firebase_services()["db"]
         if not db:
             logger.critical("❌ Firestore-db är inte initialiserat!")
             raise RuntimeError("Firestore är inte tillgängligt.")

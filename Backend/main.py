@@ -26,12 +26,16 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Load Whisper model
-model = whisper.load_model("medium")
 
 def create_app(testing=False):
     """Creates and configures the Flask application."""
     app = Flask(__name__)
+    model = None
+    if not testing:
+        try:
+            model = whisper.load_model("medium")
+        except Exception as e:
+            logger.warning(f"Whisper model could not be loaded: {e}")
     app.config["JSON_SORT_KEYS"] = False
     app.config["JSON_AS_ASCII"] = False
     app.config["TESTING"] = testing
@@ -93,8 +97,11 @@ def create_app(testing=False):
         file_path = os.path.join("temp_audio.wav")
 
         try:
-            file.save(file_path)  
+            file.save(file_path)
             logger.info(f"📂 Audio file saved as: {file_path}")
+
+            if model is None:
+                return jsonify({"error": "Speech recognition model is not available"}), 500
 
             # 📝 Transcribe audio to text in Swedish
             result = model.transcribe(file_path, language="sv")

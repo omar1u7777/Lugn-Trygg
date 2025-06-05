@@ -19,8 +19,9 @@ Backend/.env
 app.log
 frontend/.vite/
 
-# Ignorera node_modules i frontend
+# Ignorera node_modules i frontend och backend
 frontend/node_modules/
+Backend/node_modules/
 
 # Ignorera byggfiler för frontend
 frontend/dist/
