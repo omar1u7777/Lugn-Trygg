@@ -1,18 +1,23 @@
 import os
 import logging
 from datetime import datetime
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    # Define a no-op fallback if python-dotenv is not installed
+    def load_dotenv(*args, **kwargs):
+        return None
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import whisper
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
 import firebase_admin
-from src.routes.memory_routes import memory_bp
+from Backend.src.routes.memory_routes import memory_bp
 
 # Import authentication and Firebase setup
-from src.routes.auth import auth_bp
-from src.firebase_config import db, initialize_firebase
+from Backend.src.routes.auth import auth_bp
+from Backend.src.firebase_config import db, initialize_firebase
 
 # Load environment variables
 load_dotenv()
@@ -160,9 +165,11 @@ def create_app(testing=False):
     def get_moods():
         """Hämtar humörloggar för användaren från Firestore"""
         try:
-            user_email = request.args.get("user_email").strip().lower()  # Hämta e-postadress från URL-parametrar
+            user_email = request.args.get("user_email")
             if not user_email:
                 return jsonify({"error": "User email is required"}), 400
+
+            user_email = user_email.strip().lower()  # Hämta e-postadress från URL-parametrar
 
             # Hämta humörloggar från Firestore
             user_ref = db.collection("users").document(user_email)
@@ -190,3 +197,4 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=port, debug=debug)
     except Exception as e:
         logger.critical(f"🔥 Critical error while starting the server: {e}")
+

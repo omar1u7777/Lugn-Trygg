@@ -1,6 +1,10 @@
 import os
 import logging
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*args, **kwargs):
+        return None
 import firebase_admin
 from firebase_admin import credentials, auth, firestore, exceptions
 
@@ -106,3 +110,4 @@ try:
         logger.info("✅ Firebase-tjänster laddades framgångsrikt!")
 except RuntimeError as e:
     logger.critical(f"🚨 Firebase kunde inte startas: {e}")
+

@@ -6,6 +6,8 @@ frontend/.env
 # Ignorera pycache-kataloger
 **/__pycache__/
 **/*.pyc
+# Ignorera node_modules i frontend och backend
+Backend/node_modules/
 
 # Ignorera känsliga nyckelfiler
 serviceAccountKey.json
