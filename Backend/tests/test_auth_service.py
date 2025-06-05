@@ -4,18 +4,18 @@ import sys
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from firebase_admin import auth, firestore
-from src.utils import convert_email_to_punycode  # Ändrat från src.routes.auth
-from main import create_app
+from Backend.src.utils import convert_email_to_punycode  # Ändrat från src.routes.auth
+from Backend.main import create_app
 
 # Lägg till projektets rot till sys.path för korrekta importer
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 # 🔹 Skapa en Flask-testklient via create_app
 @pytest.fixture(scope="module")
 def client():
     """Skapar en testklient för Flask-applikationen med mockade beroenden."""
     with patch('whisper.load_model', return_value=None), \
-         patch('src.firebase_config.initialize_firebase', return_value=True):
+         patch('Backend.src.firebase_config.initialize_firebase', return_value=True):
         try:
             app = create_app(testing=True)
         except Exception as e:
@@ -115,7 +115,7 @@ def mock_firestore(mocker):
         "created_at": "2025-02-24T10:00:00"
     }
 
-    mocker.patch('src.firebase_config.db', mock_db)
+    mocker.patch('Backend.src.firebase_config.db', mock_db)
     return mock_db
 
 # 🔹 Fixtur för att logga in och hämta tokens
@@ -188,3 +188,4 @@ def test_logout(client, mock_firebase_auth, mock_firestore, login_data):
     response = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {refresh_token}"})
     assert response.status_code == 200, f"Fel statuskod: {response.status_code}"
     assert "Utloggning lyckades!" in response.get_json()["message"]
+

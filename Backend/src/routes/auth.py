@@ -1,11 +1,11 @@
 import logging
 import re
 from flask import Blueprint, request, jsonify
-from src.utils import convert_email_to_punycode
+from Backend.src.utils import convert_email_to_punycode
 from firebase_admin import auth
-from src.services.auth_service import AuthService
-from src.firebase_config import db
-from src.config import (
+from Backend.src.services.auth_service import AuthService
+from Backend.src.firebase_config import db
+from Backend.src.config import (
     JWT_SECRET_KEY,
     JWT_REFRESH_SECRET_KEY,
     ACCESS_TOKEN_EXPIRES,

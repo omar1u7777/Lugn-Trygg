@@ -9,19 +9,10 @@ itsdangerous==2.1.2  # Säker hantering av dataöverföring i API:er
 click==8.1.3  # Kommandoradsgränssnitt för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
 
-react>=18.0.0  # React.js för att bygga frontend
-vite>=6.1.0  # Snabb utvecklingsserver för React/Electron
-sass>=1.56.0  # För att skriva mer organiserad CSS
-typescript>=4.9.3  # TypeScript för frontend-utveckling
-
 # 📌 Röststyrning & Ljudhantering
-pyttsx3==2.90  # Text-till-tal-konvertering
-SpeechRecognition==3.8.1  # Taligenkänning via mikrofon
-pyaudio==0.2.13  # PortAudio-bibliotek för ljudinspelning och uppspelning
 whisper==1.1.10  # OpenAI:s system för automatisk taligenkänning (ASR)
-sounddevice==0.4.5  # Bindningar för PortAudio-biblioteket
-soundfile==0.11.0  # Ljudfilsbehandling
 
 # 📌 Testning och Debugging
 pytest>=7.0.0  # Enhetstestning av backend och funktionalitet
 selenium>=4.0.0  # Automatiserad testning av UI i frontend
+
