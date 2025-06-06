@@ -73,15 +73,24 @@ MIT
 
 4. **Ställ in miljövariabler:**
 
-   - Skapa en `.env`-fil i root-mappen och inkludera dina Firebase-konfigurationsdetaljer.
+   - Kopiera filen `.env.example` till `.env` i projektets rotmapp.
+   - Fyll i dina egna värden för JWT- och Firebase-konfigurationen i `.env`.
    - Exempel på `.env`:
      ```env
-     FIREBASE_API_KEY=din-api-key
-     FIREBASE_AUTH_DOMAIN=din-auth-domain
+     # JWT-konfiguration
+     JWT_SECRET_KEY=din-jwt-hemlighet
+     JWT_REFRESH_SECRET_KEY=din-refresh-hemlighet
+
+     # Firebase
+     FIREBASE_WEB_API_KEY=din-web-api-nyckel
+     FIREBASE_CREDENTIALS=serviceAccountKey.json
+     FIREBASE_API_KEY=din-client-api-nyckel
      FIREBASE_PROJECT_ID=din-project-id
      FIREBASE_STORAGE_BUCKET=din-storage-bucket
-     FIREBASE_MESSAGING_SENDER_ID=din-messaging-id
-     FIREBASE_APP_ID=din-app-id
+
+     # Övrigt
+     PORT=5001
+     FLASK_DEBUG=False
      ```
 
 5. **Starta backend-servern (kör kommandot från projektets rotmapp):**
