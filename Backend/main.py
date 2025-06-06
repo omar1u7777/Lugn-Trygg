@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from datetime import datetime
 try:
@@ -13,6 +14,14 @@ import whisper
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
 import firebase_admin
+
+# Support running this file directly by ensuring the project root is on sys.path
+if __package__ in (None, ""):
+    current_dir = os.path.dirname(__file__)
+    parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+
 from Backend.src.routes.memory_routes import memory_bp
 
 # Import authentication and Firebase setup

@@ -84,7 +84,7 @@ MIT
      FIREBASE_APP_ID=din-app-id
      ```
 
-5. **Starta backend-servern:**
+5. **Starta backend-servern (kör kommandot från projektets rotmapp):**
 
    ```bash
    python main.py
