@@ -6,7 +6,7 @@ flask==2.2.2  # Mikro-webbramverk för API och backend-logik
 flask-cors==3.0.10  # Hantering av CORS-policy i Flask-API
 werkzeug==2.2.2  # WSGI-verktyg för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
-flasgger==0.9.7  # Swagger UI dokumentation
+flasgger==0.9.5  # Swagger UI dokumentation
 
 # 📌 Röststyrning & Ljudhantering
 whisper==1.1.10  # OpenAI:s system för automatisk taligenkänning (ASR)
