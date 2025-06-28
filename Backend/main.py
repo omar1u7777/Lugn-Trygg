@@ -10,6 +10,7 @@ except ModuleNotFoundError:
         return None
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flasgger import Swagger
 import whisper
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 def create_app(testing=False):
     """Creates and configures the Flask application."""
     app = Flask(__name__)
+    Swagger(app)
     model = None
     if not testing:
         try:
@@ -96,7 +98,30 @@ def create_app(testing=False):
     # Endpoint for logging mood
     @app.route("/api/mood/log", methods=["POST"])
     def log_mood():
-        """Receives audio file, transcribes with Whisper, and logs the mood in Firestore."""
+        """
+        Upload an audio file and log mood
+        ---
+        tags:
+          - Mood
+        consumes:
+          - multipart/form-data
+        parameters:
+          - name: audio
+            in: formData
+            type: file
+            required: true
+            description: Audio file to transcribe
+          - name: user_email
+            in: formData
+            type: string
+            required: true
+            description: Email of the user
+        responses:
+          200:
+            description: Mood logged
+          400:
+            description: Missing data
+        """
         if "audio" not in request.files:
             logger.error("❌ No audio file found in the request")
             return jsonify({"error": "No audio file found"}), 400
@@ -179,7 +204,23 @@ def create_app(testing=False):
     # Endpoint för att hämta humörloggar
     @app.route("/api/mood/get", methods=["GET"])
     def get_moods():
-        """Hämtar humörloggar för användaren från Firestore"""
+        """
+        Get mood logs for a user
+        ---
+        tags:
+          - Mood
+        parameters:
+          - name: user_email
+            in: query
+            type: string
+            required: true
+            description: Email of the user
+        responses:
+          200:
+            description: List of mood logs
+          400:
+            description: Missing query parameter
+        """
         try:
             user_email = request.args.get("user_email")
             if not user_email:

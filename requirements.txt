@@ -8,6 +8,7 @@ jinja2==3.1.2  # Mallmotor för rendering av HTML-sidor i Flask
 itsdangerous==2.1.2  # Säker hantering av dataöverföring i API:er
 click==8.1.3  # Kommandoradsgränssnitt för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
+flasgger==0.9.7  # Swagger UI dokumentation
 
 # 📌 Röststyrning & Ljudhantering
 whisper==1.1.10  # OpenAI:s system för automatisk taligenkänning (ASR)

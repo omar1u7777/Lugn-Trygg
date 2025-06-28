@@ -28,6 +28,33 @@ def json_response(data, status=200):
 # Registrering
 @auth_bp.route("/register", methods=["POST"])
 def register():
+    """
+    Register a new user
+    ---
+    tags:
+      - Auth
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          required:
+            - email
+            - password
+    responses:
+      201:
+        description: User created
+      400:
+        description: Validation error
+    """
     try:
         data = request.get_json(force=True, silent=True) or {}
         email = data.get("email", "").strip().lower()
@@ -70,6 +97,33 @@ def register():
 # Inloggning
 @auth_bp.route("/login", methods=["POST"])
 def login():
+    """
+    Log in a user
+    ---
+    tags:
+      - Auth
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          required:
+            - email
+            - password
+    responses:
+      200:
+        description: Login successful
+      401:
+        description: Invalid credentials
+    """
     try:
         data = request.get_json(force=True, silent=True) or {}
         email = data.get("email", "").strip().lower()
