@@ -2,6 +2,13 @@ import os
 import sys
 import pytest
 from unittest.mock import patch
+# Skapa en dummy Firebase-fil om den inte finns
+mock_credentials_path = os.environ.get("FIREBASE_CREDENTIALS", "mock.json")
+if not os.path.exists(mock_credentials_path):
+    with open(mock_credentials_path, "w") as f:
+        f.write("{}")
+
+
 
 # 🛡️ Sätt nödvändiga miljövariabler direkt vid import
 os.environ.setdefault("JWT_SECRET_KEY", "test_jwt")
