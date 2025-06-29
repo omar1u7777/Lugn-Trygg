@@ -61,10 +61,28 @@ logger = logging.getLogger(__name__)
 def create_app(testing=False):
     """Creates and configures the Flask application."""
     app = Flask(__name__)
-    Swagger(app)
-    # Import blueprints lazily to avoid side effects during test collection
+
+    # ✅ Full Swagger-konfiguration + fallback för test
+    Swagger(app, config={
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec_1',
+                "route": '/apispec_1.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs"
+    })
+
+    # ✅ Importera blueprints här för att undvika side effects vid pytest-import
     from Backend.src.routes.auth import auth_bp
     from Backend.src.routes.memory_routes import memory_bp
+
+    # ✅ Modellinställning beroende på testläge
     from unittest.mock import MagicMock
     model = MagicMock() if testing else None
     if not testing and whisper is not None:
@@ -72,6 +90,7 @@ def create_app(testing=False):
             model = whisper.load_model("medium")
         except Exception as e:  # pragma: no cover - optional in tests
             logger.warning(f"Whisper model could not be loaded: {e}")
+
     app.config["JSON_SORT_KEYS"] = False
     app.config["JSON_AS_ASCII"] = False
     app.config["TESTING"] = testing

@@ -1,169 +1,171 @@
-# Lugn & Trygg App
 
-Lugn & Trygg är en röststyrd applikation för att logga humör, Kolla sparade humör, spela in och spela upp minnen samt spela avslappningsljud.
+# 🌿 Lugn & Trygg
 
-## Funktioner
+**Lugn & Trygg** är en röststyrd applikation för att logga humör, spara och spela upp minnen samt spela avslappningsljud – utformad för att främja mental hälsa och reflektion i vardagen.
 
-- 📋 Humörloggning via röst
-- 🎧 Inspelning och uppspelning av minnen
-- 🎧 Lugnande ljud 
+---
 
-## Teknologier och Beroenden
+## 🚀 Funktioner
 
-- **Firebase Admin SDK**: För autentisering, Firestore och Storage.
-- **Pyttsx3**: För text-till-tal-konvertering.
-- **SpeechRecognition**: För taligenkänning.
-- **Whisper**: OpenAI\:s system för automatisk taligenkänning.
-- **Flask**: Mikro-webbramverk för API-hantering.
-- **React/Electron**: Bygger applikationens UI.
-- **Vite**: Snabb utvecklingsmiljö för React/Electron.
-- **Firebase Client SDK**: Används i frontend för autentisering och datalagring.
+- 📋 Logga humör via röst
+- 🎙️ Spela in och spela upp personliga minnen
+- 🎧 Lyssna på avslappnande ljud
+- 🔐 Autentisering med Firebase
+- 📊 Swagger-dokumentation för alla API-endpoints
 
-För fullständig lista av beroenden, se `requirements.txt`.
+---
 
-## Installation & Konfiguration
+## 🧰 Teknologier & Beroenden
 
-1. **Klona detta repo** och gå in i projektmappen:
+- **Backend**: Flask, Firebase Admin SDK, Whisper, Flasgger
+- **Frontend**: React/Electron via Vite
+- **CI/CD**: GitHub Actions
+- **Övrigt**: Pyttsx3, SpeechRecognition, python-dotenv
 
-   ```bash
-   git clone https://github.com/omar1u7777/Lugn-Trygg.git
-   cd Lugn-Trygg
-   ```
+> 📁 Se `requirements.txt` för komplett backend-beroenden.
 
-2. **Installera backend-beroenden:**
+---
 
-3. **Starta backend-servern:**
+## 🧪 Installation & Konfiguration
+
+### 1. Klona repo
+```bash
+git clone https://github.com/omar1u7777/Lugn-Trygg.git
+cd Lugn-Trygg
+````
+
+### 2. Installera backend
 
 ```bash
-uvicorn main:app --reload
+pip install -r requirements.txt
 ```
 
-4. **Installera frontend-beroenden:**
+### 3. Installera frontend
 
 ```bash
 cd frontend
 npm install
+```
+
+### 4. Miljövariabler
+
+Kopiera `.env.example` till `.env` och fyll i:
+
+```env
+JWT_SECRET_KEY=din-jwt-hemlighet
+JWT_REFRESH_SECRET_KEY=din-refresh-hemlighet
+FIREBASE_WEB_API_KEY=din-web-api-nyckel
+FIREBASE_CREDENTIALS=serviceAccountKey.json
+FIREBASE_API_KEY=din-client-api-nyckel
+FIREBASE_PROJECT_ID=din-project-id
+FIREBASE_STORAGE_BUCKET=din-storage-bucket
+PORT=5001
+FLASK_DEBUG=False
+```
+
+### 5. Starta backend
+
+```bash
+python main.py
+```
+
+### 6. Starta frontend
+
+```bash
+cd frontend
 npm run dev
 ```
 
-## Testning
+---
 
-```bash
-pytest
-```
+## 🔍 API-dokumentation (Swagger UI)
 
-## CI/CD
+Swagger UI finns tillgänglig när backend körs på:
 
-GitHub Actions workflow `.github/workflows/ci.yml` kör linting och tester vid varje push.
+🌐 [http://localhost:5001/apidocs](http://localhost:5001/apidocs)
 
-## Licens
+Här kan du:
 
-MIT
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Installera frontend-beroenden:**
-
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-4. **Ställ in miljövariabler:**
-
-   - Kopiera filen `.env.example` till `.env` i projektets rotmapp.
-   - Fyll i dina egna värden för JWT- och Firebase-konfigurationen i `.env`.
-   - Exempel på `.env`:
-     ```env
-     # JWT-konfiguration
-     JWT_SECRET_KEY=din-jwt-hemlighet
-     JWT_REFRESH_SECRET_KEY=din-refresh-hemlighet
-
-     # Firebase
-     FIREBASE_WEB_API_KEY=din-web-api-nyckel
-     FIREBASE_CREDENTIALS=serviceAccountKey.json
-     FIREBASE_API_KEY=din-client-api-nyckel
-     FIREBASE_PROJECT_ID=din-project-id
-     FIREBASE_STORAGE_BUCKET=din-storage-bucket
-
-     # Övrigt
-     PORT=5001
-     FLASK_DEBUG=False
-     ```
-
-5. **Starta backend-servern (kör kommandot från projektets rotmapp):**
-
-   ```bash
-   python main.py
-   ```
-
-6. **Starta frontend-applikationen:**
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-## Sprintöversikt enligt JIRA-planen
-
-### 📊 **Sprint 1: Användarhantering & Autentisering (Klar ✅)**
-
-- Implementera inloggnings- och registreringssystem.
-- Koppla applikationen till Firebase för autentisering.
-
-### 📊 **Sprint 2: Humörloggning (Klar ✅)**
-
-- Daglig humörloggning via röst.
-- Spara humördata i Firestore.
-- Lista sparade humör.
--  föreslå lugnande musik
-
-### 📊 **Sprint 3: Inspelning & Uppspelning av Minnen ( klar ✅)**
-
-- Röststyrd inspelning och lagring av minnen.
-- Uppspelning av sparade minnen.
-
-### 📊 **Sprint 4: Lugnande Ljud & Slutgiltiga Förbättringar (klart ✅)**
-
-- Implementera avslappningsljud.
-- Förbättra gränssnitt och användarupplevelse.
-
-## Bidragsriktlinjer
-
-1. **Skapa en ny branch för din funktionalitet:**
-   ```bash
-   git checkout -b feature/namn-på-funktion
-   ```
-2. **Gör dina ändringar och committa dem:**
-   ```bash
-   git commit -m "Beskrivning av ändring"
-   ```
-3. **Push din branch till GitHub:**
-   ```bash
-   git push origin feature/namn-på-funktion
-   ```
-4. **Skapa en Pull Request (PR) på GitHub.**
-
-## Testinstruktioner
-
-1. **Kör backend-tester:**
-   ```bash
-   python -m unittest discover tests/
-   ```
-2. **Kör frontend-tester:**
-   ```bash
-   cd frontend
-   npm run test
-   ```
-3. **Verifiera funktionalitet för röstigenkänning och Firebase-integrering.**
-
-## Kontakt
-
-För frågor eller support, kontakta **[omaralhaek97@gmail.com](mailto\:omaralhaek97@gmail.com)**.
+* Se och testa alla API-endpoints (register, login, mood-loggning, etc)
+* Skicka testdata och se svar direkt
+* Inspektera JSON-schema och statuskoder
 
 ---
 
-❤️ Projektet är utvecklat för utbildningsändamål och är en del av ett eleverprojekt.
+## 🧪 Testinstruktioner
 
+### 1. Kör backend-tester:
+
+```bash
+pytest
+# eller
+python -m unittest discover tests/
+```
+
+### 2. Kör frontend-tester:
+
+```bash
+cd frontend
+npm run test
+```
+
+### 3. Verifiera funktionalitet för röstigenkänning och Firebase-integrering:
+
+* Starta backend och frontend enligt instruktionerna ovan
+* Gå till [http://localhost:5001/apidocs](http://localhost:5001/apidocs)
+* Testa att registrera en användare och logga humör med röst
+
+---
+
+## 🚦 CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) kör:
+
+* ✅ Enhetstester
+* ✅ Linting
+* ✅ Automatisk validering vid varje push
+
+---
+
+## 📅 Sprintöversikt (enligt JIRA-planen)
+
+| Sprint   | Funktion                           | Status |
+| -------- | ---------------------------------- | ------ |
+| Sprint 1 | Inloggning & Registrering          | ✅ Klar |
+| Sprint 2 | Humörloggning via röst             | ✅ Klar |
+| Sprint 3 | Inspelning & uppspelning av minnen | ✅ Klar |
+| Sprint 4 | Lugnande ljud + UI-förbättringar   | ✅ Klar |
+
+---
+
+## 🤝 Bidra
+
+### Skapa ny branch:
+
+```bash
+git checkout -b feature/namn-på-funktion
+```
+
+### Lägg till ändringar:
+
+```bash
+git commit -m "Beskrivning av ändring"
+```
+
+### Skicka till GitHub:
+
+```bash
+git push origin feature/namn-på-funktion
+```
+
+### Skapa en Pull Request (PR)
+
+---
+
+## 📬 Kontakt
+
+📧 [omaralhaek97@gmail.com](mailto:omaralhaek97@gmail.com)
+
+---
+
+> ❤️ Projektet är utvecklat för utbildningsändamål som en del av ett elevprojekt.
