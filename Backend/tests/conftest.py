@@ -32,7 +32,7 @@ def app():
     Skapar och returnerar Flask-applikationen för testning.
     Mockar externa beroenden som Whisper och Firebase.
     """
-    with patch('whisper.load_model') as mock_whisper, \
+    with patch("Backend.main.whisper.load_model")  as mock_whisper, \
          patch('Backend.src.firebase_config.initialize_firebase') as mock_firebase:
 
         mock_whisper.return_value = None
