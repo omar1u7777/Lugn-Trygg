@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-from datetime import datetime
 
 try:
     from dotenv import load_dotenv
@@ -9,7 +8,7 @@ except ModuleNotFoundError:
     def load_dotenv(*args, **kwargs):
         return None
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 
 try:
     from flask_cors import CORS
@@ -29,22 +28,6 @@ try:
     import whisper
 except ModuleNotFoundError:
     whisper = None
-
-from werkzeug.utils import secure_filename
-
-try:
-    from firebase_admin import firestore
-    import firebase_admin
-except ModuleNotFoundError:
-    from unittest.mock import MagicMock
-    class DummyQuery:
-        DESCENDING = "DESCENDING"
-    class DummyFirestore:
-        Query = DummyQuery
-        def client(self):
-            return MagicMock()
-    firestore = DummyFirestore()
-    firebase_admin = MagicMock()
 
 # Ensure project root is on sys.path
 if __package__ in (None, ""):

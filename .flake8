@@ -10,10 +10,4 @@ exclude =
     node_modules
 
 ignore =
-    E501  
-    F841  
-    F401 
-    W293  
-    E302 
-    E305 
-    E402 
+    E501
