@@ -12,45 +12,42 @@ from Backend.main import create_app  # Importerar create_app från Backend
 def app():
     """
     Skapar och returnerar Flask-applikationen för testning.
-
-    Använder 'testing=True' för att aktivera testläge, vilket gör att Flask
-    inte kör servern och hanterar alla fel genom att generera en HTTP-status.
-    Mockar externa beroenden som Whisper och Firebase för att isolera testerna.
+    Mockar externa beroenden som Whisper och Firebase.
     """
-    # Mocka Whisper och Firebase för att undvika externa beroenden
+
+    # 🛡️ Sätt nödvändiga miljövariabler för tester
+    os.environ.setdefault("JWT_SECRET_KEY", "test_jwt")
+    os.environ.setdefault("JWT_REFRESH_SECRET_KEY", "test_refresh")
+    os.environ.setdefault("FIREBASE_WEB_API_KEY", "fake")
+    os.environ.setdefault("FIREBASE_API_KEY", "fake")
+    os.environ.setdefault("FIREBASE_PROJECT_ID", "test_project")
+    os.environ.setdefault("FIREBASE_STORAGE_BUCKET", "test-bucket")
+    os.environ.setdefault("FIREBASE_CREDENTIALS", "mock.json")
+    os.environ.setdefault("PORT", "5001")
+    os.environ.setdefault("FLASK_DEBUG", "False")
+
+    # 🧪 Mocka Whisper och Firebase
     with patch('whisper.load_model') as mock_whisper, \
          patch('Backend.src.firebase_config.initialize_firebase') as mock_firebase:
-        mock_whisper.return_value = None  # Mockar Whisper-modellen
-        mock_firebase.return_value = True  # Mockar Firebase-initialisering
+
+        mock_whisper.return_value = None
+        mock_firebase.return_value = True
 
         try:
-            # Skapa appen med inställningar för testning
             app = create_app(testing=True)
         except Exception as e:
-            pytest.fail(f"Misslyckades med att skapa appen för testning: {str(e)}")
+            pytest.fail(f"❌ Misslyckades med att skapa appen för testning: {str(e)}")
 
-        # Kör Flask-applikationen och tillhandahåll den till tester
         yield app
 
-        # Rensning efter testerna (valfritt beroende på behov)
-        # Här kan du t.ex. stänga ner resurser om det behövs
-        logger = app.logger
-        logger.info("✅ Testmiljö rensad efter körning.")
+        app.logger.info("✅ Testmiljö rensad efter körning.")
 
 @pytest.fixture(scope='module')
 def client(app):
-    """
-    Skapar en testklient som kan användas för att skicka HTTP-förfrågningar till Flask-applikationen.
-
-    Använd denna klient för att testa endpoints i din applikation.
-    """
+    """Testklient för att skicka HTTP-förfrågningar."""
     return app.test_client()
 
 @pytest.fixture(scope='module')
 def runner(app):
-    """
-    Skapar en runner som kan användas för att köra Flask CLI-kommandon i testläge.
-    """
+    """CLI-runner för att testa kommandon."""
     return app.test_cli_runner()
-
-
