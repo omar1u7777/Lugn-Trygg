@@ -2,7 +2,7 @@
 firebase-admin>=6.0.1  # Firebase Admin SDK för autentisering och Firestore
 python-dotenv==1.0.0  # Laddar miljövariabler från .env-fil
 requests==2.28.1  # HTTP-bibliotek för API-förfrågningar
-flask==2.2.2  # Mikro-webbramverk för API och backend-logik
+flask==2.2.2 # Mikro-webbramverk för API och backend-logik
 flask-cors==3.0.10  # Hantering av CORS-policy i Flask-API
 werkzeug==2.2.2  # WSGI-verktyg för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
