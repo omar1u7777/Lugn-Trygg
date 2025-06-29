@@ -9,12 +9,38 @@ except ModuleNotFoundError:
     def load_dotenv(*args, **kwargs):
         return None
 from flask import Flask, jsonify, request
-from flask_cors import CORS
-from flasgger import Swagger
-import whisper
+try:
+    from flask_cors import CORS
+except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+    class CORS:  # minimal stub
+        def __init__(self, *_, **__):
+            pass
+try:
+    from flasgger import Swagger
+except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+    class Swagger:
+        def __init__(self, *_, **__):
+            pass
+try:
+    import whisper
+except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+    whisper = None
 from werkzeug.utils import secure_filename
-from firebase_admin import firestore
-import firebase_admin
+try:
+    from firebase_admin import firestore
+    import firebase_admin
+except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+    from unittest.mock import MagicMock
+    class DummyQuery:
+        DESCENDING = "DESCENDING"
+
+    class DummyFirestore:
+        Query = DummyQuery
+        def client(self):
+            return MagicMock()
+
+    firestore = DummyFirestore()
+    firebase_admin = MagicMock()
 
 # Support running this file directly by ensuring the project root is on sys.path
 if __package__ in (None, ""):
@@ -23,11 +49,6 @@ if __package__ in (None, ""):
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
 
-from Backend.src.routes.memory_routes import memory_bp
-
-# Import authentication and Firebase setup
-from Backend.src.routes.auth import auth_bp
-from Backend.src.firebase_config import db, initialize_firebase
 
 # Load environment variables
 load_dotenv()
@@ -41,16 +62,21 @@ def create_app(testing=False):
     """Creates and configures the Flask application."""
     app = Flask(__name__)
     Swagger(app)
-    model = None
-    if not testing:
+    # Import blueprints lazily to avoid side effects during test collection
+    from Backend.src.routes.auth import auth_bp
+    from Backend.src.routes.memory_routes import memory_bp
+    from unittest.mock import MagicMock
+    model = MagicMock() if testing else None
+    if not testing and whisper is not None:
         try:
             model = whisper.load_model("medium")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - optional in tests
             logger.warning(f"Whisper model could not be loaded: {e}")
     app.config["JSON_SORT_KEYS"] = False
     app.config["JSON_AS_ASCII"] = False
     app.config["TESTING"] = testing
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    app.config["TRANSCRIBE_MODEL"] = model
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -74,14 +100,19 @@ def create_app(testing=False):
          expose_headers=["Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-    # Initialize Firebase
+    # Initialize Firebase only when not testing
+    from unittest.mock import MagicMock
+    db = MagicMock() if testing else None
     if not testing:
         try:
+            from Backend.src.firebase_config import db as _db, initialize_firebase
             if not initialize_firebase():
                 logger.warning("⚠️ Firebase configuration is missing.")
+            db = _db
         except Exception as e:
             logger.critical(f"❌ Firebase initialization failed: {e}")
             raise
+    app.config["FIRESTORE_DB"] = db
 
     # Health check route
     @app.route("/")
@@ -134,11 +165,12 @@ def create_app(testing=False):
             file.save(file_path)
             logger.info(f"📂 Audio file saved as: {file_path}")
 
-            if model is None:
+            transcriber = app.config.get("TRANSCRIBE_MODEL")
+            if transcriber is None:
                 return jsonify({"error": "Speech recognition model is not available"}), 500
 
             # 📝 Transcribe audio to text in Swedish
-            result = model.transcribe(file_path, language="sv")
+            result = transcriber.transcribe(file_path, language="sv")
             text = result["text"].strip()
             os.remove(file_path)  
             logger.info(f"📝 Transcribed text: {text}")
@@ -183,7 +215,8 @@ def create_app(testing=False):
             timestamp = datetime.utcnow().isoformat()  # Add timestamp here
 
             # 🆕 Store mood logs in the `moods` collection for the user
-            user_ref = db.collection("users").document(user_email)
+            db_conn = app.config.get("FIRESTORE_DB")
+            user_ref = db_conn.collection("users").document(user_email)
             mood_ref = user_ref.collection("moods").document(timestamp)
 
             mood_ref.set({
@@ -229,7 +262,8 @@ def create_app(testing=False):
             user_email = user_email.strip().lower()  # Hämta e-postadress från URL-parametrar
 
             # Hämta humörloggar från Firestore
-            user_ref = db.collection("users").document(user_email)
+            db_conn = app.config.get("FIRESTORE_DB")
+            user_ref = db_conn.collection("users").document(user_email)
             moods_ref = user_ref.collection("moods").order_by("timestamp", direction=firestore.Query.DESCENDING)
             mood_logs = [{"mood": doc.to_dict().get("mood"), "timestamp": doc.to_dict().get("timestamp")} for doc in moods_ref.stream()]
 
