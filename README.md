@@ -1,3 +1,8 @@
+Absolut! Här får du hela `README.md`-filen med **korrekta `##`–rubriker för alla huvudsektioner**, så att strukturen blir snygg och lättläst – både i GitHub och i Visual Studio Code.
+
+---
+
+````markdown
 # 🌿 Lugn & Trygg
 
 **Lugn & Trygg** är en röststyrd applikation för att logga humör, spara och spela upp minnen samt spela avslappningsljud – utformad för att främja mental hälsa och reflektion i vardagen.
@@ -31,23 +36,26 @@
 ```bash
 git clone https://github.com/omar1u7777/Lugn-Trygg.git
 cd Lugn-Trygg
-2. Installera backend
-bash
-Kopiera
-Redigera
+````
+
+### 2. Installera backend
+
+```bash
 pip install -r requirements.txt
-3. Installera frontend
-bash
-Kopiera
-Redigera
+```
+
+### 3. Installera frontend
+
+```bash
 cd frontend
 npm install
-4. Miljövariabler
-Kopiera .env.example till .env och fyll i:
+```
 
-env
-Kopiera
-Redigera
+### 4. Miljövariabler
+
+Kopiera `.env.example` till `.env` och fyll i:
+
+```env
 JWT_SECRET_KEY=din-jwt-hemlighet
 JWT_REFRESH_SECRET_KEY=din-refresh-hemlighet
 FIREBASE_WEB_API_KEY=din-web-api-nyckel
@@ -57,89 +65,111 @@ FIREBASE_PROJECT_ID=din-project-id
 FIREBASE_STORAGE_BUCKET=din-storage-bucket
 PORT=5001
 FLASK_DEBUG=False
-5. Starta backend
-bash
-Kopiera
-Redigera
+```
+
+### 5. Starta backend
+
+```bash
 python main.py
-6. Starta frontend
-bash
-Kopiera
-Redigera
+```
+
+### 6. Starta frontend
+
+```bash
 cd frontend
 npm run dev
-🔍 API-dokumentation (Swagger UI)
+```
+
+---
+
+## 🔍 API-dokumentation (Swagger UI)
+
 Swagger UI finns tillgänglig när backend körs på:
 
-🌐 http://localhost:5001/apidocs
+🌐 [http://localhost:5001/apidocs](http://localhost:5001/apidocs)
 
 Här kan du:
 
-Se och testa alla API-endpoints (register, login, mood-loggning, etc)
+* Se och testa alla API-endpoints (register, login, mood-loggning, etc)
+* Skicka testdata och se svar direkt
+* Inspektera JSON-schema och statuskoder
 
-Skicka testdata och se svar direkt
+---
 
-Inspektera JSON-schema och statuskoder
+## 🧪 Testinstruktioner
 
-🧪 Testinstruktioner
-1. Kör backend-tester:
-bash
-Kopiera
-Redigera
+### 1. Kör backend-tester:
+
+```bash
 pytest
 # eller
 python -m unittest discover tests/
-2. Kör frontend-tester:
-bash
-Kopiera
-Redigera
+```
+
+### 2. Kör frontend-tester:
+
+```bash
 cd frontend
 npm run test
-3. Verifiera funktionalitet för röstigenkänning och Firebase-integrering:
-Starta backend och frontend enligt instruktionerna ovan
+```
 
-Gå till http://localhost:5001/apidocs
+### 3. Verifiera funktionalitet för röstigenkänning och Firebase-integrering:
 
-Testa att registrera en användare och logga humör med röst
+* Starta backend och frontend enligt instruktionerna ovan
+* Gå till [http://localhost:5001/apidocs](http://localhost:5001/apidocs)
+* Testa att registrera en användare och logga humör med röst
 
-🚦 CI/CD
-GitHub Actions (.github/workflows/ci.yml) kör:
+---
 
-✅ Enhetstester
+## 🚦 CI/CD
 
-✅ Linting
+GitHub Actions (`.github/workflows/ci.yml`) kör:
 
-✅ Automatisk validering vid varje push
+* ✅ Enhetstester
+* ✅ Linting
+* ✅ Automatisk validering vid varje push
 
-📅 Sprintöversikt (enligt JIRA-planen)
-Sprint	Funktion	Status
-Sprint 1	Inloggning & Registrering	✅ Klar
-Sprint 2	Humörloggning via röst	✅ Klar
-Sprint 3	Inspelning & uppspelning av minnen	✅ Klar
-Sprint 4	Lugnande ljud + UI-förbättringar	✅ Klar
+---
 
-🤝 Bidra
-Skapa ny branch:
+## 📅 Sprintöversikt (enligt JIRA-planen)
 
-bash
-Kopiera
-Redigera
+| Sprint   | Funktion                           | Status |
+| -------- | ---------------------------------- | ------ |
+| Sprint 1 | Inloggning & Registrering          | ✅ Klar |
+| Sprint 2 | Humörloggning via röst             | ✅ Klar |
+| Sprint 3 | Inspelning & uppspelning av minnen | ✅ Klar |
+| Sprint 4 | Lugnande ljud + UI-förbättringar   | ✅ Klar |
+
+---
+
+## 🤝 Bidra
+
+### Skapa ny branch:
+
+```bash
 git checkout -b feature/namn-på-funktion
-Lägg till ändringar:
+```
 
-bash
-Kopiera
-Redigera
+### Lägg till ändringar:
+
+```bash
 git commit -m "Beskrivning av ändring"
-Skicka till GitHub:
+```
 
-bash
-Kopiera
-Redigera
+### Skicka till GitHub:
+
+```bash
 git push origin feature/namn-på-funktion
-Skapa en Pull Request (PR)
+```
 
-📬 Kontakt
-📧 omaralhaek97@gmail.com
+### Skapa en Pull Request (PR)
 
-❤️ Projektet är utvecklat för utbildningsändamål som en del av ett elevprojekt.
+---
+
+## 📬 Kontakt
+
+📧 [omaralhaek97@gmail.com](mailto:omaralhaek97@gmail.com)
+
+---
+
+> ❤️ Projektet är utvecklat för utbildningsändamål som en del av ett elevprojekt.
