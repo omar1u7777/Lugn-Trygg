@@ -12,14 +12,29 @@ def test_register(client, monkeypatch):
 
 
 def test_login(client, monkeypatch):
+    # Mocka Firebase auth
     user_obj = MagicMock(uid="abc", email="a@example.com")
     monkeypatch.setattr(auth_service.auth, "get_user_by_email", lambda email: user_obj)
 
+    # Mocka HTTP request till Firebase signIn endpoint
     class Resp:
         status_code = 200
         def json(self):
             return {"idToken": "id", "refreshToken": "ref"}
     monkeypatch.setattr(auth_service.requests, "post", lambda *a, **k: Resp())
+
+    # Mocka Firestore-användare
+    fake_doc = MagicMock()
+    fake_doc.id = "abc"
+    fake_doc.to_dict.return_value = {"email_punycode": "a@example.com"}
+
+    fake_query = MagicMock()
+    fake_query.stream.return_value = [fake_doc]
+
+    monkeypatch.setattr(
+        auth_service.db, "collection",
+        lambda *a, **k: MagicMock(where=lambda *a, **k: fake_query)
+    )
 
     resp = client.post("/api/auth/login", json={"email": "a@example.com", "password": "secret123"})
     assert resp.status_code == 200
