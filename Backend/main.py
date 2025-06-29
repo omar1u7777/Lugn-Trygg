@@ -2,55 +2,58 @@ import os
 import sys
 import logging
 from datetime import datetime
+
 try:
     from dotenv import load_dotenv
 except ModuleNotFoundError:
-    # Define a no-op fallback if python-dotenv is not installed
     def load_dotenv(*args, **kwargs):
         return None
+
 from flask import Flask, jsonify, request
+
 try:
     from flask_cors import CORS
-except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
-    class CORS:  # minimal stub
+except ModuleNotFoundError:
+    class CORS:
         def __init__(self, *_, **__):
             pass
+
 try:
     from flasgger import Swagger
-except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+except ModuleNotFoundError:
     class Swagger:
         def __init__(self, *_, **__):
             pass
+
 try:
     import whisper
-except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+except ModuleNotFoundError:
     whisper = None
+
 from werkzeug.utils import secure_filename
+
 try:
     from firebase_admin import firestore
     import firebase_admin
-except ModuleNotFoundError:  # pragma: no cover - fallback for tests without dependency
+except ModuleNotFoundError:
     from unittest.mock import MagicMock
     class DummyQuery:
         DESCENDING = "DESCENDING"
-
     class DummyFirestore:
         Query = DummyQuery
         def client(self):
             return MagicMock()
-
     firestore = DummyFirestore()
     firebase_admin = MagicMock()
 
-# Support running this file directly by ensuring the project root is on sys.path
+# Ensure project root is on sys.path
 if __package__ in (None, ""):
     current_dir = os.path.dirname(__file__)
     parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
 
-
-# Load environment variables
+# Load .env
 load_dotenv()
 
 # Logging setup
@@ -61,24 +64,42 @@ logger = logging.getLogger(__name__)
 def create_app(testing=False):
     """Creates and configures the Flask application."""
     app = Flask(__name__)
-    Swagger(app)
-    # Import blueprints lazily to avoid side effects during test collection
+
+    # Swagger config
+    Swagger(app, config={
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec_1',
+                "route": '/apispec_1.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs"
+    })
+
+    # Import blueprints
     from Backend.src.routes.auth import auth_bp
     from Backend.src.routes.memory_routes import memory_bp
     from Backend.src.routes.mood import mood_bp
+
     from unittest.mock import MagicMock
     model = MagicMock() if testing else None
     if not testing and whisper is not None:
         try:
             model = whisper.load_model("medium")
-        except Exception as e:  # pragma: no cover - optional in tests
+        except Exception as e:
             logger.warning(f"Whisper model could not be loaded: {e}")
+
     app.config["JSON_SORT_KEYS"] = False
     app.config["JSON_AS_ASCII"] = False
     app.config["TESTING"] = testing
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
     app.config["TRANSCRIBE_MODEL"] = model
-    
+
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(memory_bp, url_prefix="/api/memory")
@@ -103,8 +124,7 @@ def create_app(testing=False):
          expose_headers=["Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-    # Initialize Firebase only when not testing
-    from unittest.mock import MagicMock
+    # Firebase
     db = MagicMock() if testing else None
     if not testing:
         try:
@@ -117,7 +137,7 @@ def create_app(testing=False):
             raise
     app.config["FIRESTORE_DB"] = db
 
-    # Health check route
+    # Health check
     @app.route("/")
     def index():
         return jsonify({
@@ -129,8 +149,8 @@ def create_app(testing=False):
             }
         }), 200
 
-
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
@@ -142,4 +162,3 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=port, debug=debug)
     except Exception as e:
         logger.critical(f"🔥 Critical error while starting the server: {e}")
-
