@@ -3,6 +3,17 @@ import sys
 import pytest
 from unittest.mock import patch
 
+# 🛡️ Sätt nödvändiga miljövariabler direkt vid import
+os.environ.setdefault("JWT_SECRET_KEY", "test_jwt")
+os.environ.setdefault("JWT_REFRESH_SECRET_KEY", "test_refresh")
+os.environ.setdefault("FIREBASE_WEB_API_KEY", "fake")
+os.environ.setdefault("FIREBASE_API_KEY", "fake")
+os.environ.setdefault("FIREBASE_PROJECT_ID", "test_project")
+os.environ.setdefault("FIREBASE_STORAGE_BUCKET", "test-bucket")
+os.environ.setdefault("FIREBASE_CREDENTIALS", "mock.json")
+os.environ.setdefault("PORT", "5001")
+os.environ.setdefault("FLASK_DEBUG", "False")
+
 # Ensure project root is on sys.path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -14,19 +25,6 @@ def app():
     Skapar och returnerar Flask-applikationen för testning.
     Mockar externa beroenden som Whisper och Firebase.
     """
-
-    # 🛡️ Sätt nödvändiga miljövariabler för tester
-    os.environ.setdefault("JWT_SECRET_KEY", "test_jwt")
-    os.environ.setdefault("JWT_REFRESH_SECRET_KEY", "test_refresh")
-    os.environ.setdefault("FIREBASE_WEB_API_KEY", "fake")
-    os.environ.setdefault("FIREBASE_API_KEY", "fake")
-    os.environ.setdefault("FIREBASE_PROJECT_ID", "test_project")
-    os.environ.setdefault("FIREBASE_STORAGE_BUCKET", "test-bucket")
-    os.environ.setdefault("FIREBASE_CREDENTIALS", "mock.json")
-    os.environ.setdefault("PORT", "5001")
-    os.environ.setdefault("FLASK_DEBUG", "False")
-
-    # 🧪 Mocka Whisper och Firebase
     with patch('whisper.load_model') as mock_whisper, \
          patch('Backend.src.firebase_config.initialize_firebase') as mock_firebase:
 
