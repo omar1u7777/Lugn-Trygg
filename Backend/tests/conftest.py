@@ -29,13 +29,10 @@ from Backend.main import create_app
 def app():
     """
     Skapar och returnerar Flask-applikationen för testning.
-    Mockar externa beroenden som Whisper och Firebase.
+    Mockar externa beroenden som Firebase.
     """
-    with patch("Backend.main.whisper.load_model") as mock_whisper, \
-         patch("Backend.src.firebase_config.initialize_firebase", return_value=True), \
+    with patch("Backend.src.firebase_config.initialize_firebase", return_value=True), \
          patch("firebase_admin.initialize_app", MagicMock()):
-
-        mock_whisper.return_value = MagicMock()
 
         try:
             app = create_app(testing=True)
