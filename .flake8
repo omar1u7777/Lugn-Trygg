@@ -1,10 +1,5 @@
-# Flake8-konfiguration för Lugn & Trygg-projektet
-
 [flake8]
-# Tillåt längre rader (t.ex. för långa loggrader, decorators, URLs)
 max-line-length = 100
-
-# Exkludera dessa mappar
 exclude =
     .git,
     __pycache__,
@@ -13,12 +8,11 @@ exclude =
     dist,
     node_modules
 
-# Ignorera vissa regler (tillfälligt)
 ignore =
-    E501  # line too long
-    F401  # imported but unused (t.ex. i __init__.py eller fixtures)
-    F841  # assigned but unused (t.ex. i mockade testvärden)
-    W293  # whitespace on blank line
-    E302  # expected 2 blank lines (accepterar 1 ibland i test/util)
-    E305  # expected 2 blank lines after class or function definition
-    E402  # module level import not at top of file (tillåts i test setup)
+    E501
+    F841
+    F401
+    W293
+    E302
+    E305
+    E402
