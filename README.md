@@ -1,8 +1,4 @@
-Absolut! Här får du hela `README.md`-filen med **korrekta `##`–rubriker för alla huvudsektioner**, så att strukturen blir snygg och lättläst – både i GitHub och i Visual Studio Code.
 
----
-
-````markdown
 # 🌿 Lugn & Trygg
 
 **Lugn & Trygg** är en röststyrd applikation för att logga humör, spara och spela upp minnen samt spela avslappningsljud – utformad för att främja mental hälsa och reflektion i vardagen.
