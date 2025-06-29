@@ -1,5 +1,6 @@
 [flake8]
 max-line-length = 100
+
 exclude =
     .git,
     __pycache__,
@@ -9,10 +10,10 @@ exclude =
     node_modules
 
 ignore =
-    E501
-    F841
-    F401
-    W293
-    E302
-    E305
-    E402
+    E501  
+    F841  
+    F401 
+    W293  
+    E302 
+    E305 
+    E402 
