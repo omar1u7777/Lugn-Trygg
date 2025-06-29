@@ -10,6 +10,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:  # ✅ Flyttad och rätt indenterad
+      JWT_SECRET_KEY: test
+      JWT_REFRESH_SECRET_KEY: test
+      FIREBASE_WEB_API_KEY: test
+      FIREBASE_API_KEY: test
+      FIREBASE_PROJECT_ID: test
+      FIREBASE_STORAGE_BUCKET: test
+      FIREBASE_CREDENTIALS: mock.json
+
     steps:
     - uses: actions/checkout@v3
 
@@ -27,8 +36,7 @@ jobs:
     - name: Run tests
       run: |
         pytest -q
-        
-        
+
     - name: Run flake8
       run: |
         pip install flake8
@@ -38,4 +46,3 @@ jobs:
       run: |
         pip install mypy
         mypy Backend/src
-
