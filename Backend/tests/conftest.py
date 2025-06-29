@@ -14,6 +14,12 @@ os.environ.setdefault("FIREBASE_CREDENTIALS", "mock.json")
 os.environ.setdefault("PORT", "5001")
 os.environ.setdefault("FLASK_DEBUG", "False")
 
+# 🧪 Skapa en dummy Firebase-fil om den inte finns
+mock_credentials_path = os.environ.get("FIREBASE_CREDENTIALS", "mock.json")
+if not os.path.exists(mock_credentials_path):
+    with open(mock_credentials_path, "w") as f:
+        f.write("{}")
+
 # Lägg till project root för imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
