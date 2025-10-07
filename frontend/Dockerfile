@@ -9,8 +9,8 @@ COPY package*.json ./
 # Remove Windows-specific dependencies that cause issues in Linux containers
 RUN npm uninstall @rollup/rollup-win32-x64-msvc || true
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (reinstall to ensure correct platform-specific packages)
+RUN rm -rf node_modules package-lock.json && npm install --only=production
 
 # Copy source code
 COPY . .
