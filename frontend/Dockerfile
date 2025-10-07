@@ -6,6 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Remove Windows-specific dependencies that cause issues in Linux containers
+RUN npm uninstall @rollup/rollup-win32-x64-msvc || true
+
 # Install dependencies
 RUN npm ci --only=production
 
