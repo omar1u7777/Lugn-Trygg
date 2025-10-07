@@ -1,0 +1,47 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" }, //  Frontend-konfiguration
+    { "path": "./tsconfig.node.json" } //  Backend-konfiguration
+  ],
+  "compilerOptions": {
+    /*  Kompilering och Modulinställningar */
+    "composite": true, //  Möjliggör projekt-referenser i monorepo
+    "skipLibCheck": true, //  Snabbare kompilering genom att hoppa över bibliotekskontroller
+    "strict": true, //  Aktiverar strikt typkontroll
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"], //  Stöd för ES2023 och DOM API:er
+    "types": ["node", "vitest/globals"], //  Slå samman typer här
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true, //  Förhindrar att TypeScript genererar `.js`-filer
+
+    /*  Import- och Modulhantering */
+    "resolveJsonModule": true, //  Möjliggör import av JSON-filer
+    "esModuleInterop": true, //  Säkerställer korrekt hantering av CommonJS-moduler
+    "allowSyntheticDefaultImports": true, //  Tillåter import av moduler utan default-export
+
+    /*  Typkontroller och Säkerhet */
+    "strictNullChecks": true, //  Förhindrar null/undefined-problem
+    "exactOptionalPropertyTypes": true, //  Förhindrar dolda `undefined`-problem
+    "useUnknownInCatchVariables": true, //  Kräv `unknown` i `catch`-felhantering
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
+    "forceConsistentCasingInFileNames": true, //  Viktigt för Windows/Linux-kompatibilitet
+
+    /*  React- & Test-specifika inställningar */
+    "jsx": "react-jsx", //  React JSX-support
+    
+    /*  Import-hantering (för enklare imports) */
+    "baseUrl": ".", 
+    "paths": {
+      "@/*": ["src/*"] //  Stöd för absoluta imports från `src/`
+    }
+  }
+}

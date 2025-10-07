@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="sv"> <!--  Anger att språket på sidan är svenska -->
+<head>
+  <meta charset="UTF-8" /> <!--  Stöder svenska tecken (å, ä, ö) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- 📱 Gör sidan responsiv -->
+  <title>Lugn & Trygg</title> <!-- 🏷️ Titel som visas i webbläsarfliken -->
+
+  <!-- FontAwesome ikoner -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Favicon and PWA -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Lugn & Trygg">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+
+</head>
+<body>
+  <noscript>
+    Du behöver aktivera JavaScript för att kunna använda den här webbplatsen.
+  </noscript> <!-- ⚠️ Meddelande om JavaScript är inaktiverat -->
+
+  <!--  Root-element där React-applikationen renderas -->
+  <div id="root"></div>
+
+  <!--  Laddar React-applikationen -->
+  <script type="module" src="/src/main.tsx" defer></script>
+</body>
+</html>

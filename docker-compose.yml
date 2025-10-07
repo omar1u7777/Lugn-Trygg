@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./Backend
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_DEBUG=false
+      - PORT=5001
+    env_file:
+      - Backend/.env
+    volumes:
+      - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - frontend/.env
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

@@ -1,0 +1,120 @@
+# ===========================================
+# Lugn & Trygg - Root .gitignore
+# ===========================================
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv/
+Backend/venv/
+Backend/env/
+Backend/ENV/
+
+# Python bytecode and cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing and coverage
+.coverage
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+htmlcov/
+
+# Node.js dependencies and build files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Frontend build outputs
+frontend/dist/
+frontend/build/
+frontend/.cache/
+frontend/.vite/
+frontend/coverage/
+
+# Environment files (NEVER commit these!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+Backend/.env
+frontend/.env
+
+# Firebase service account keys (HIGHLY SENSITIVE!)
+serviceAccountKey.json
+Backend/serviceAccountKey.json
+frontend/serviceAccountKey.json
+
+# Logs
+*.log
+app.log
+logs/
+Backend/logs/
+frontend/logs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.qodo
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation builds
+docs/_build/

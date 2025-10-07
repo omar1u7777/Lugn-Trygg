@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2022", 
+    "lib": ["ES2023"], 
+    "types": ["node"],
+    "module": "CommonJS", 
+    "skipLibCheck": true,
+
+    /*  Modul- och Bundlerinställningar */
+    "moduleResolution": "node",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": false, 
+
+    /*  Miljövariabler och backend-kompatibilitet */
+    "resolveJsonModule": true, 
+    "esModuleInterop": true, 
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true, 
+    "emitDecoratorMetadata": true,
+
+    /*  Alias för enklare importer */
+    "baseUrl": "./src", 
+    "paths": {
+      "@config/*": ["config/*"],
+      "@services/*": ["services/*"],
+      "@utils/*": ["utils/*"],
+      "@models/*": ["models/*"]
+    },
+
+    /*  Prestanda, Säkerhet & Stabilitet */
+    "strict": true,
+    "strictNullChecks": true, 
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
+    "forceConsistentCasingInFileNames": true, 
+    "exactOptionalPropertyTypes": true, 
+    "useUnknownInCatchVariables": true 
+  },
+  
+  /*  Inkluderade filer & mappar */
+  "include": [
+    "vite.config.ts", 
+    "src", 
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    "src/hooks/useAuth.ts", 
+    "src/api/api.ts"
+  ],
+
+  /*  Exkluderade filer/mappar */
+  "exclude": ["node_modules", "dist", "frontend"]
+}

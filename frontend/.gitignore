@@ -1,0 +1,221 @@
+# ===========================================
+# Frontend - React/TypeScript/Vite .gitignore
+# ===========================================
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables (NEVER commit!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Firebase service account keys (HIGHLY SENSITIVE!)
+serviceAccountKey.json
+firebase-debug.log
+functions/serviceAccountKey.json
+
+# Build outputs
+node_modules/
+dist/
+dist-ssr/
+build/
+*.local
+*.tsbuildinfo
+
+# Vite cache
+.vite/
+.cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Electron
+app/dist/
+release/
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.snap
+*.appimage
+
+# Firebase & Cloud Functions
+functions/node_modules/
+functions/dist/
+.firebase/
+
+# IDE and editor files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Lock files (usually keep one, but ignore others if using multiple package managers)
+# yarn.lock
+# pnpm-lock.yaml
+
+# Storybook build outputs
+storybook-static/
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Stylelint cache
+.stylelintcache
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Temporary folders
+tmp/
+temp/
+
+# WebStorm
+.idea/
+
+# SublimeText
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# OS X
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PWA
+sw.js.map
+workbox-*.js.map
+
+# Service Worker
+sw.js
+sw.js.map
