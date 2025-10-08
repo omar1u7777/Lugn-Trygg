@@ -13,7 +13,7 @@ RUN npm uninstall @rollup/rollup-win32-x64-msvc || true
 RUN npm install @rollup/rollup-linux-x64-musl --save-optional || true
 
 # Install dependencies with npm ci to ensure correct platform-specific packages
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .

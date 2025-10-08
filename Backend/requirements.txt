@@ -21,7 +21,6 @@ soundfile==0.11.0  # Ljudfilsbehandling
 # 🤖 AI & ML Tjänster
 openai>=1.0.0  # OpenAI API för avancerad AI-funktionalitet
 transformers>=4.0.0  # Hugging Face Transformers för emotion recognition
-torch>=2.0.0  # PyTorch för ML-modeller
 librosa>=0.9.2 # Ljudanalysbibliotek
 
 # 📌 Säkerhet och Rate Limiting
