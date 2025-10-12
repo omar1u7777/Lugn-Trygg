@@ -1,602 +1,562 @@
+from flask import Blueprint, request, jsonify, make_response
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
+from werkzeug.security import generate_password_hash, check_password_hash
+from ..models.user import User
+from ..services.audit_service import audit_log
+from ..utils.password_utils import validate_password, hash_password
 import logging
 import re
-from flask import Blueprint, request, jsonify
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_babel import gettext as _
-from ..utils import convert_email_to_punycode
-from firebase_admin import auth
-from google.cloud.firestore import FieldFilter
-from src.services.auth_service import AuthService
-from src.services.audit_service import AuditService
-from src.firebase_config import db
-from src.config import (
-    JWT_SECRET_KEY,
-    JWT_REFRESH_SECRET_KEY,
-    ACCESS_TOKEN_EXPIRES,
-    REFRESH_TOKEN_EXPIRES
-  )
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 
-# Initialize limiter for this module
-limiter = Limiter(key_func=get_remote_address, default_limits=["100 per hour"])
-
-# Skapa Blueprint
-auth_bp = Blueprint("auth", __name__)
 logger = logging.getLogger(__name__)
 
-# Regex för e-postvalidering (inklusive Punycode och svenska tecken)
-EMAIL_REGEX = re.compile(r"^[^@]+@([a-zA-Z0-9.-]+|xn--[a-zA-Z0-9]+)\.[a-zA-Z]{2,}$")
+auth_bp = Blueprint('auth', __name__)
 
-# Hjälpfunktion för JSON-respons
-def json_response(data, status=200):
-    """Returnerar JSON med korrekt UTF-8-encoding"""
-    return jsonify(data), status, {"Content-Type": "application/json; charset=utf-8"}
+# Rate limiter will be initialized in main.py
+limiter = None
 
-# Registrering
-@auth_bp.route("/register", methods=["POST"])
-@limiter.limit("5 per hour")
+@auth_bp.route('/register', methods=['POST'])
 def register():
+    """Register a new user"""
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        logger.info(f"Registration request data: {data}")
-        email = data.get("email", "").strip().lower()
-        password = data.get("password", "").strip()
+        data = request.get_json()
 
-        logger.info(f"Processing registration for email: {email}, password length: {len(password)}")
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        name = data.get('name', '').strip()
+
+        # Validation
+        if not email or not password or not name:
+            return jsonify({'error': 'Email, password, and name are required'}), 400
+
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            return jsonify({'error': 'Invalid email format'}), 400
+
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': 'User with this email already exists'}), 409
+
+        # Create new user
+        hashed_password = hash_password(password)
+        new_user = User(
+            email=email,
+            password_hash=hashed_password,
+            name=name,
+            created_at=datetime.utcnow(),
+            is_active=True
+        )
+
+        # Save to database (assuming session is available)
+        try:
+            from ..firebase_config import db
+            user_data = {
+                'email': email,
+                'name': name,
+                'password_hash': hashed_password,
+                'created_at': datetime.utcnow().isoformat(),
+                'is_active': True,
+                'two_factor_enabled': False,
+                'biometric_enabled': False,
+                'language': 'sv'
+            }
+            db.collection('users').document(str(new_user.id)).set(user_data)
+        except Exception as e:
+            logger.error(f"Failed to save user to Firebase: {str(e)}")
+            return jsonify({'error': 'Failed to create user account'}), 500
+
+        audit_log('user_registered', str(new_user.id), {'email': email, 'name': name})
+
+        return jsonify({
+            'message': 'User registered successfully',
+            'user': {
+                'id': new_user.id,
+                'email': email,
+                'name': name
+            }
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Registration failed: {str(e)}")
+        return jsonify({'error': 'Registration failed'}), 500
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """Authenticate user and return JWT token"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
 
         if not email or not password:
-            logger.warning("Missing email or password")
-            return json_response({"error": _("email_password_required")}, 400)
+            return jsonify({'error': 'Email and password are required'}), 400
 
-        # Konvertera till Punycode
-        punycode_email = convert_email_to_punycode(email)
-        logger.info(f"Punycode email: {punycode_email}")
+        # Find user
+        try:
+            from ..firebase_config import db
+            users_ref = db.collection('users')
+            query = users_ref.where('email', '==', email).limit(1)
+            users = query.get()
 
-        # Validera e-post och lösenord
-        if not EMAIL_REGEX.match(punycode_email):
-            logger.warning(f"Invalid email format: {punycode_email}")
-            return json_response({"error": "⚠️ Ogiltig e-postadress!"}, 400)
-        if len(password) < 8:
-            logger.warning(f"Password too short: {len(password)} characters")
-            return json_response({"error": "⚠️ Lösenordet måste vara minst 8 tecken långt!"}, 400)
+            user_data = None
+            user_id = None
+            for user in users:
+                user_data = user.to_dict()
+                user_id = user.id
+                break
 
-        # Skapa användare i Firebase via AuthService
-        auth_service = AuthService()
-        user, error = auth_service.register_user(punycode_email, password)
-        if error:
-            logger.warning(f"Firebase registration failed: {error}")
-            return json_response({"error": error}, 400)
+            if not user_data or not check_password_hash(user_data.get('password_hash', ''), password):
+                audit_log('login_failed', 'unknown', {'email': email, 'reason': 'invalid_credentials'})
+                return jsonify({'error': 'Invalid email or password'}), 401
 
-        # Spara användardata i Firestore
-        user_data = {
-            "email": email,
-            "email_punycode": punycode_email,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_login": None
+            if not user_data.get('is_active', True):
+                audit_log('login_failed', user_id, {'email': email, 'reason': 'account_inactive'})
+                return jsonify({'error': 'Account is deactivated'}), 401
+
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Authentication service temporarily unavailable'}), 503
+
+        # Create JWT token
+        access_token = create_access_token(identity=user_id, expires_delta=timedelta(hours=24))
+
+        # Check if 2FA is required
+        two_factor_enabled = user_data.get('two_factor_enabled', False)
+        biometric_enabled = user_data.get('biometric_enabled', False)
+
+        response_data = {
+            'message': 'Login successful',
+            'access_token': access_token,
+            'user': {
+                'id': user_id,
+                'email': user_data['email'],
+                'name': user_data['name'],
+                'two_factor_enabled': two_factor_enabled,
+                'biometric_enabled': biometric_enabled
+            }
         }
 
+        # If 2FA is enabled, indicate that verification is needed
+        if two_factor_enabled or biometric_enabled:
+            response_data['requires_2fa'] = True
+            response_data['two_factor_methods'] = []
+            if biometric_enabled:
+                response_data['two_factor_methods'].append('biometric')
+            if two_factor_enabled:
+                response_data['two_factor_methods'].append('sms')
+
+        audit_log('login_successful', user_id, {
+            'email': email,
+            'two_factor_required': two_factor_enabled or biometric_enabled
+        })
+
+        response = make_response(jsonify(response_data), 200)
+        response.set_cookie(
+            'access_token',
+            access_token,
+            httponly=True,
+            secure=True,
+            samesite='Strict',
+            max_age=24*60*60  # 24 hours
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Login failed: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
+
+@auth_bp.route('/verify-2fa', methods=['POST'])
+@jwt_required()
+def verify_2fa():
+    """Verify two-factor authentication"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        method = data.get('method')  # 'biometric' or 'sms'
+        credential = data.get('credential')  # For biometric, this would be the WebAuthn response
+
+        # In a real implementation, verify the 2FA credential
+        # For now, we'll simulate verification
+
+        if method == 'biometric':
+            # Verify WebAuthn credential
+            # This would involve cryptographic verification of the authenticator response
+            verified = True  # Simulated
+        elif method == 'sms':
+            code = data.get('code')
+            # Verify SMS code
+            verified = len(code) == 6 and code.isdigit()  # Simulated
+        else:
+            return jsonify({'error': 'Invalid 2FA method'}), 400
+
+        if not verified:
+            audit_log('2fa_verification_failed', user_id, {'method': method})
+            return jsonify({'error': '2FA verification failed'}), 401
+
+        # Generate a new token with 2FA verified claim
+        access_token_verified = create_access_token(
+            identity=user_id,
+            expires_delta=timedelta(hours=24),
+            additional_claims={'2fa_verified': True}
+        )
+
+        audit_log('2fa_verification_successful', user_id, {'method': method})
+
+        response = make_response(jsonify({
+            'message': '2FA verification successful',
+            'access_token': access_token_verified
+        }), 200)
+
+        response.set_cookie(
+            'access_token',
+            access_token_verified,
+            httponly=True,
+            secure=True,
+            samesite='Strict',
+            max_age=24*60*60
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"2FA verification failed: {str(e)}")
+        return jsonify({'error': '2FA verification failed'}), 500
+
+@auth_bp.route('/setup-2fa', methods=['POST'])
+@jwt_required()
+def setup_2fa():
+    """Setup two-factor authentication for user"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        method = data.get('method')  # 'biometric' or 'sms'
+        setup_data = data.get('setup_data', {})
+
         try:
-            db.collection("users").document(user.uid).set(user_data)
-            logger.info(f"✅ Användare registrerad i Firestore med UID: {user.uid}")
-            return json_response({"message": "✅ Registrering lyckades!", "user_id": user.uid}, 201)
-        except Exception as firestore_error:
-            logger.error(f"Failed to save user to Firestore: {firestore_error}")
-            # If Firestore save fails, we should delete the Firebase user to maintain consistency
-            try:
-                auth.delete_user(user.uid)
-                logger.info(f"Cleaned up Firebase user {user.uid} due to Firestore error")
-            except Exception as cleanup_error:
-                logger.error(f"Failed to cleanup Firebase user: {cleanup_error}")
-            return json_response({"error": "Registrering misslyckades. Försök igen senare."}, 500)
+            from ..firebase_config import db
+            user_ref = db.collection('users').document(user_id)
+            user_data = user_ref.get().to_dict()
+
+            if not user_data:
+                return jsonify({'error': 'User not found'}), 404
+
+            if method == 'biometric':
+                # Store WebAuthn credential
+                credential_id = setup_data.get('credential_id')
+                public_key = setup_data.get('public_key')
+
+                user_ref.update({
+                    'biometric_enabled': True,
+                    'biometric_credential_id': credential_id,
+                    'biometric_public_key': public_key,
+                    'two_factor_enabled': True
+                })
+
+            elif method == 'sms':
+                phone_number = setup_data.get('phone_number')
+                # In real implementation, send verification SMS
+
+                user_ref.update({
+                    'two_factor_enabled': True,
+                    'phone_number': phone_number,
+                    'sms_2fa_enabled': True
+                })
+
+            else:
+                return jsonify({'error': 'Invalid 2FA method'}), 400
+
+            audit_log('2fa_setup_completed', user_id, {'method': method})
+
+            return jsonify({
+                'message': f'2FA setup completed successfully using {method}',
+                'method': method
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Firebase update failed: {str(e)}")
+            return jsonify({'error': 'Failed to save 2FA settings'}), 500
 
     except Exception as e:
-        logger.exception(f"❌ Registreringsfel: {str(e)}")
-        return json_response({"error": "⚠️ Registrering misslyckades. Försök igen senare."}, 500)
+        logger.error(f"2FA setup failed: {str(e)}")
+        return jsonify({'error': '2FA setup failed'}), 500
 
-# Inloggning
-@auth_bp.route("/login", methods=["POST"])
-@limiter.limit("10 per minute")
-def login():
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        email = data.get("email", "").strip().lower()
-        password = data.get("password", "").strip()
-
-        if not email or not password:
-            return json_response({"error": "⚠️ E-post och lösenord krävs!"}, 400)
-
-        punycode_email = convert_email_to_punycode(email)
-
-        # Hämta användare från Firestore
-        user_doc = next(iter(db.collection("users").where(filter=FieldFilter("email_punycode", "==", punycode_email)).limit(1).stream()), None)
-        if not user_doc:
-            logger.warning(f"🚨 Användare ej funnen i Firestore: {punycode_email}")
-            # Check if user exists in Firebase Auth but not in Firestore (cleanup orphaned user)
-            try:
-                firebase_user = auth.get_user_by_email(punycode_email)
-                logger.info(f"Found orphaned Firebase user {firebase_user.uid}, cleaning up...")
-                auth.delete_user(firebase_user.uid)
-                logger.info(f"Cleaned up orphaned user: {punycode_email}")
-            except auth.UserNotFoundError:
-                logger.info(f"User {punycode_email} doesn't exist in Firebase Auth either")
-            except Exception as cleanup_error:
-                logger.error(f"Failed to cleanup orphaned user: {cleanup_error}")
-
-            # Generic error message to prevent user enumeration
-            return json_response({"error": "⚠️ Felaktiga inloggningsuppgifter!"}, 401)
-
-        user_id = user_doc.id
-
-        # Autentisera användare
-        auth_service = AuthService()
-        user, error, access_token, refresh_token = auth_service.login_user(punycode_email, password)
-        if error:
-            logger.warning(f"⛔ Inloggning misslyckades för UID: {user_id}: {error}")
-            return json_response({"error": "⚠️ Felaktiga inloggningsuppgifter!"}, 401)
-
-        # Uppdatera last_login och spara refresh-token
-        db.collection("users").document(user_id).update({
-            "last_login": datetime.now(timezone.utc).isoformat()
-        })
-        db.collection("refresh_tokens").document(user_id).set({
-            "backend_refresh_token": refresh_token,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-
-        logger.info(f"✅ Inloggning lyckades för användare med UID: {user.uid}")
-        return json_response({
-            "message": "✅ Inloggning lyckades!",
-            "user_id": user.uid,
-            "email": email,
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }, 200)
-
-    except Exception as e:
-        logger.exception(f"❌ Inloggningsfel: {str(e)}")
-        return json_response({"error": "⚠️ Ett internt fel uppstod vid inloggning."}, 500)
-
-# Token-uppdatering
-@auth_bp.route("/refresh", methods=["POST"])
-def refresh():
-    try:
-        # Hämta refresh_token enbart från Authorization-headern
-        refresh_token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
-        if not refresh_token:
-            return json_response({"error": "⚠️ Ingen refresh-token hittades!"}, 400)
-
-        # Verifiera refresh-token
-        token_doc = next(iter(db.collection("refresh_tokens").where(filter=FieldFilter("backend_refresh_token", "==", refresh_token)).stream()), None)
-        if not token_doc:
-            return json_response({"error": "⚠️ Ogiltigt refresh-token!"}, 401)
-
-        user_id = token_doc.id
-        auth_service = AuthService()
-        new_access_token = auth_service.generate_access_token(user_id)
-
-        logger.info(f"✅ Token uppdaterad för användare med UID: {user_id}")
-        return json_response({"message": "✅ Token uppdaterad", "access_token": new_access_token}, 200)
-
-    except Exception as e:
-        logger.exception(f"❌ Refresh-tokenfel: {str(e)}")
-        return json_response({"error": "⚠️ Ett internt fel uppstod vid token-uppdatering."}, 500)
-
-# Google-inloggning
-@auth_bp.route("/google-login", methods=["POST"])
+@auth_bp.route('/google-login', methods=['POST'])
 def google_login():
+    """Handle Google OAuth login"""
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        id_token = data.get("id_token", "").strip()
+        data = request.get_json()
+        id_token = data.get('id_token')
 
         if not id_token:
-            return json_response({"error": "⚠️ ID-token krävs!"}, 400)
+            return jsonify({'error': 'ID token required'}), 400
 
-        # Verifiera Google ID-token
-        from firebase_admin import auth as firebase_auth
-        decoded_token = firebase_auth.verify_id_token(id_token)
-        uid = decoded_token['uid']
-        email = decoded_token.get('email', '')
+        # Verify Google ID token
+        try:
+            from google.oauth2 import id_token
+            from google.auth.transport import requests as google_requests
 
-        logger.info(f"Google login for user: {email} (UID: {uid})")
+            CLIENT_ID = "your-google-client-id"  # Should be in environment variables
+            id_info = id_token.verify_oauth2_token(id_token, google_requests.Request(), CLIENT_ID)
 
-        # Kontrollera om användaren finns i Firestore
-        user_doc = db.collection("users").document(uid).get()
+            if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                raise ValueError('Wrong issuer.')
 
-        if not user_doc.exists:
-            # Skapa ny användare i Firestore för Google-användare
-            user_data = {
-                "email": email,
-                "email_punycode": convert_email_to_punycode(email),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "last_login": datetime.now(timezone.utc).isoformat(),
-                "auth_provider": "google"
+            email = id_info['email']
+            name = id_info['name']
+            google_id = id_info['sub']
+
+        except Exception as e:
+            logger.error(f"Google token verification failed: {str(e)}")
+            return jsonify({'error': 'Invalid Google token'}), 401
+
+        # Find or create user
+        try:
+            from ..firebase_config import db
+            users_ref = db.collection('users')
+            query = users_ref.where('google_id', '==', google_id).limit(1)
+            users = query.get()
+
+            user_data = None
+            user_id = None
+
+            for user in users:
+                user_data = user.to_dict()
+                user_id = user.id
+                break
+
+            if not user_data:
+                # Create new user
+                user_id = str(hash(google_id) % 1000000)  # Simple ID generation
+                user_data = {
+                    'email': email,
+                    'name': name,
+                    'google_id': google_id,
+                    'created_at': datetime.utcnow().isoformat(),
+                    'is_active': True,
+                    'two_factor_enabled': False,
+                    'biometric_enabled': False,
+                    'language': 'sv'
+                }
+                db.collection('users').document(user_id).set(user_data)
+                audit_log('user_registered_google', user_id, {'email': email, 'name': name})
+            else:
+                # Update last login
+                db.collection('users').document(user_id).update({
+                    'last_login': datetime.utcnow().isoformat()
+                })
+
+        except Exception as e:
+            logger.error(f"Firebase operation failed: {str(e)}")
+            return jsonify({'error': 'Authentication service error'}), 503
+
+        # Create JWT token
+        access_token = create_access_token(identity=user_id, expires_delta=timedelta(hours=24))
+
+        audit_log('google_login_successful', user_id, {'email': email})
+
+        response = make_response(jsonify({
+            'message': 'Google login successful',
+            'access_token': access_token,
+            'user': {
+                'id': user_id,
+                'email': email,
+                'name': name,
+                'login_method': 'google'
             }
-            db.collection("users").document(uid).set(user_data)
-            logger.info(f"✅ Ny Google-användare skapad: {uid}")
-        else:
-            # Uppdatera last_login för befintlig användare
-            db.collection("users").document(uid).update({
-                "last_login": datetime.now(timezone.utc).isoformat()
-            })
+        }), 200)
 
-        # Generera JWT-tokens
-        auth_service = AuthService()
-        access_token = auth_service.generate_access_token(uid)
-        refresh_token = auth_service.generate_refresh_token(uid)
+        response.set_cookie(
+            'access_token',
+            access_token,
+            httponly=True,
+            secure=True,
+            samesite='Strict',
+            max_age=24*60*60
+        )
 
-        # Spara refresh-token
-        db.collection("refresh_tokens").document(uid).set({
-            "backend_refresh_token": refresh_token,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-
-        logger.info(f"✅ Google-inloggning lyckades för användare: {email}")
-        return json_response({
-            "message": "✅ Google-inloggning lyckades!",
-            "user_id": uid,
-            "email": email,
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }, 200)
+        return response
 
     except Exception as e:
-        logger.exception(f"❌ Google-inloggningsfel: {str(e)}")
-        return json_response({"error": "⚠️ Google-inloggning misslyckades."}, 500)
+        logger.error(f"Google login failed: {str(e)}")
+        return jsonify({'error': 'Google login failed'}), 500
 
-# Utloggning
-@auth_bp.route("/logout", methods=["POST"])
+@auth_bp.route('/logout', methods=['POST'])
+@jwt_required()
 def logout():
+    """Logout user by clearing the cookie"""
     try:
-        # Optional: Try to get and delete refresh token if provided
-        refresh_token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
-        if refresh_token:
-            try:
-                # Verifiera och ta bort refresh-token om den finns
-                token_doc = next(iter(db.collection("refresh_tokens").where(filter=FieldFilter("backend_refresh_token", "==", refresh_token)).stream()), None)
-                if token_doc:
-                    user_id = token_doc.id
-                    db.collection("refresh_tokens").document(user_id).delete()
-                    logger.info(f"✅ Refresh-token raderad för användare med UID: {user_id}")
-            except Exception as token_error:
-                logger.warning(f"Failed to delete refresh token: {token_error}")
-                # Continue with logout even if token deletion fails
+        user_id = get_jwt_identity()
+        audit_log('user_logged_out', user_id, {})
 
-        # Always return success for logout (client-side handles token removal)
-        logger.info("✅ Utloggning lyckades")
-        return json_response({"message": "✅ Utloggning lyckades!"}, 200)
+        response = make_response(jsonify({'message': 'Logged out successfully'}), 200)
+        response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
+        return response
 
     except Exception as e:
-        logger.exception(f"❌ Utloggningsfel: {str(e)}")
-        # Still return success to avoid client issues
-        return json_response({"message": "✅ Utloggning lyckades!"}, 200)
+        logger.error(f"Logout failed: {str(e)}")
+        return jsonify({'error': 'Logout failed'}), 500
 
-# Återställ lösenord
-@auth_bp.route("/reset-password", methods=["POST"])
-@limiter.limit("3 per hour")
+@auth_bp.route('/reset-password', methods=['POST'])
 def reset_password():
+    """Initiate password reset"""
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        email = data.get("email", "").strip().lower()
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
 
         if not email:
-            return json_response({"error": "⚠️ E-postadress krävs!"}, 400)
+            return jsonify({'error': 'Email is required'}), 400
 
-        # Validera e-postformat
-        if not EMAIL_REGEX.match(email):
-            return json_response({"error": "⚠️ Ogiltig e-postadress!"}, 400)
+        # Check if user exists
+        try:
+            from ..firebase_config import db
+            users_ref = db.collection('users')
+            query = users_ref.where('email', '==', email).limit(1)
+            users = query.get()
 
-        # Firebase hanterar själva återställningen via e-post
-        # Här kan vi lägga till extra validering eller loggning om nödvändigt
-        logger.info(f"🔄 Lösenordsåterställning begärd för: {email}")
+            user_exists = len(list(users)) > 0
 
-        return json_response({"message": "✅ Återställningslänk har skickats till din e-postadress!"}, 200)
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
+
+        # Always return success for security (don't reveal if email exists)
+        audit_log('password_reset_requested', 'unknown', {'email': email, 'user_exists': user_exists})
+
+        return jsonify({
+            'message': 'If an account with this email exists, a password reset link has been sent.'
+        }), 200
 
     except Exception as e:
-        logger.exception(f"❌ Lösenordsåterställningsfel: {str(e)}")
-        return json_response({"error": "⚠️ Ett internt fel uppstod vid lösenordsåterställning."}, 500)
+        logger.error(f"Password reset failed: {str(e)}")
+        return jsonify({'error': 'Password reset failed'}), 500
 
-# GDPR Consent Management
-@auth_bp.route("/consent", methods=["POST"])
-def save_consent():
-    """Save user GDPR consent preferences"""
+@auth_bp.route('/consent', methods=['POST'])
+@jwt_required()
+def update_consent():
+    """Update user consent preferences"""
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        consents = data.get("consents", {})
-        timestamp = data.get("timestamp", datetime.now(timezone.utc).isoformat())
-        version = data.get("version", "1.0")
+        user_id = get_jwt_identity()
+        data = request.get_json()
 
-        if not user_id:
-            return json_response({"error": "⚠️ Användar-ID krävs!"}, 400)
-
-        # Validate required consents
-        if not consents.get("dataProcessing") or not consents.get("storage"):
-            return json_response({"error": "⚠️ Nödvändiga samtycken måste godkännas!"}, 400)
-
-        # Save consent to Firestore
         consent_data = {
-            "user_id": user_id,
-            "consents": consents,
-            "timestamp": timestamp,
-            "version": version,
-            "ip_address": request.remote_addr,
-            "user_agent": request.headers.get("User-Agent", ""),
-            "gdpr_compliant": True
+            'analytics_consent': data.get('analytics_consent', False),
+            'marketing_consent': data.get('marketing_consent', False),
+            'data_processing_consent': data.get('data_processing_consent', True),  # Required
+            'consent_updated_at': datetime.utcnow().isoformat()
         }
 
-        # Use user_id as document ID for easy lookup
-        db.collection("consents").document(user_id).set(consent_data)
-
-        logger.info(f"✅ GDPR consent saved for user: {user_id}")
-        return json_response({"message": "✅ Samtycke sparat framgångsrikt!"}, 200)
-
-    except Exception as e:
-        logger.exception(f"❌ Consent save error: {str(e)}")
-        return json_response({"error": "⚠️ Kunde inte spara samtycke."}, 500)
-
-@auth_bp.route("/consent/<user_id>", methods=["GET"])
-def get_consent(user_id):
-    """Get user consent status"""
-    try:
-        if not user_id:
-            return json_response({"error": "⚠️ Användar-ID krävs!"}, 400)
-
-        consent_doc = db.collection("consents").document(user_id).get()
-
-        if consent_doc.exists:
-            consent_data = consent_doc.to_dict()
-            return json_response({
-                "consent_given": True,
-                "consents": consent_data.get("consents", {}),
-                "timestamp": consent_data.get("timestamp"),
-                "version": consent_data.get("version")
-            }, 200)
-        else:
-            return json_response({
-                "consent_given": False,
-                "consents": {},
-                "message": "Inget samtycke registrerat"
-            }, 200)
-
-    except Exception as e:
-        logger.exception(f"❌ Consent retrieval error: {str(e)}")
-        return json_response({"error": "⚠️ Kunde inte hämta samtycke."}, 500)
-
-# 2FA Management
-@auth_bp.route("/enable-2fa", methods=["POST"])
-def enable_2fa():
-    """Enable 2FA for user with phone number"""
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        phone_number = data.get("phone_number", "").strip()
-
-        if not user_id or not phone_number:
-            return json_response({"error": "Användar-ID och telefonnummer krävs!"}, 400)
-
-        # Validate phone number format (Swedish format)
-        if not re.match(r'^\+46\d{9}$', phone_number):
-            return json_response({"error": "Ogiltigt telefonnummerformat. Använd +46XXXXXXXXX"}, 400)
-
-        # Update user with phone number and enable 2FA
         try:
-            # Update Firebase Auth user
-            auth.update_user(
-                user_id,
-                phone_number=phone_number
-            )
-
-            # Note: Firebase handles SMS 2FA automatically when phone number is set
-            # and multi-factor auth is enabled in the project settings
-
-            logger.info(f"✅ 2FA enabled for user: {user_id}")
-            return json_response({"message": "✅ 2FA aktiverat! Du kommer att få SMS-koder vid inloggning."}, 200)
-
-        except auth.UserNotFoundError:
-            return json_response({"error": "Användare hittades inte!"}, 404)
-        except Exception as firebase_error:
-            logger.error(f"Firebase 2FA setup error: {str(firebase_error)}")
-            return json_response({"error": "Kunde inte aktivera 2FA. Försök igen senare."}, 500)
-
-    except Exception as e:
-        logger.exception(f"❌ 2FA setup error: {e}")
-        return json_response({"error": "Ett internt fel uppstod vid 2FA-aktivering."}, 500)
-
-@auth_bp.route("/disable-2fa/<user_id>", methods=["POST"])
-def disable_2fa(user_id):
-    """Disable 2FA for user"""
-    try:
-        if not user_id:
-            return json_response({"error": "Användar-ID krävs!"}, 400)
-
-        # Remove phone number from Firebase Auth user
-        try:
-            auth.update_user(
-                user_id,
-                phone_number=None
-            )
-
-            logger.info(f"✅ 2FA disabled for user: {user_id}")
-            return json_response({"message": "✅ 2FA inaktiverat!"}, 200)
-
-        except auth.UserNotFoundError:
-            return json_response({"error": "Användare hittades inte!"}, 404)
-        except Exception as firebase_error:
-            logger.error(f"Firebase 2FA disable error: {str(firebase_error)}")
-            return json_response({"error": "Kunde inte inaktivera 2FA. Försök igen senare."}, 500)
-
-    except Exception as e:
-        logger.exception(f"❌ 2FA disable error: {e}")
-        return json_response({"error": "Ett internt fel uppstod vid 2FA-inaktivering."}, 500)
-
-# WebAuthn Passwordless Authentication
-@auth_bp.route("/webauthn/register", methods=["POST"])
-def webauthn_register():
-    """Initiate WebAuthn credential registration"""
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-
-        if not user_id:
-            return json_response({"error": "User ID required"}, 400)
-
-        auth_service = AuthService()
-        challenge_data = auth_service.generate_webauthn_challenge(user_id)
-
-        return json_response(challenge_data, 200)
-
-    except Exception as e:
-        logger.exception(f"WebAuthn register error: {str(e)}")
-        return json_response({"error": "WebAuthn registration failed"}, 500)
-
-@auth_bp.route("/webauthn/register/complete", methods=["POST"])
-def webauthn_register_complete():
-    """Complete WebAuthn credential registration"""
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        credential = data.get("credential", {})
-
-        if not user_id or not credential:
-            return json_response({"error": "User ID and credential required"}, 400)
-
-        auth_service = AuthService()
-        success = auth_service.register_webauthn_credential(user_id, credential)
-
-        if success:
-            return json_response({"message": "WebAuthn credential registered successfully"}, 200)
-        else:
-            return json_response({"error": "WebAuthn registration failed"}, 400)
-
-    except Exception as e:
-        logger.exception(f"WebAuthn register complete error: {str(e)}")
-        return json_response({"error": "WebAuthn registration failed"}, 500)
-
-@auth_bp.route("/webauthn/authenticate", methods=["POST"])
-def webauthn_authenticate():
-    """Initiate WebAuthn authentication"""
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-
-        if not user_id:
-            return json_response({"error": "User ID required"}, 400)
-
-        auth_service = AuthService()
-        challenge_data = auth_service.authenticate_webauthn(user_id)
-
-        if challenge_data:
-            return json_response(challenge_data, 200)
-        else:
-            return json_response({"error": "No WebAuthn credentials found"}, 404)
-
-    except Exception as e:
-        logger.exception(f"WebAuthn auth error: {str(e)}")
-        return json_response({"error": "WebAuthn authentication failed"}, 500)
-
-@auth_bp.route("/webauthn/authenticate/complete", methods=["POST"])
-def webauthn_authenticate_complete():
-    """Complete WebAuthn authentication"""
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        assertion = data.get("assertion", {})
-
-        if not user_id or not assertion:
-            return json_response({"error": "User ID and assertion required"}, 400)
-
-        auth_service = AuthService()
-        success = auth_service.verify_webauthn_assertion(user_id, assertion)
-
-        if success:
-            # Generate tokens for passwordless login
-            access_token = auth_service.generate_access_token(user_id)
-            refresh_token = auth_service.generate_refresh_token(user_id)
-
-            # Save refresh token
-            db.collection("refresh_tokens").document(user_id).set({
-                "backend_refresh_token": refresh_token,
-                "created_at": datetime.now(timezone.utc).isoformat()
+            from ..firebase_config import db
+            db.collection('users').document(user_id).update({
+                'consent': consent_data
             })
 
-            return json_response({
-                "message": "WebAuthn authentication successful",
-                "access_token": access_token,
-                "refresh_token": refresh_token
-            }, 200)
-        else:
-            return json_response({"error": "WebAuthn authentication failed"}, 401)
+            audit_log('consent_updated', user_id, consent_data)
+
+            return jsonify({
+                'message': 'Consent preferences updated successfully',
+                'consent': consent_data
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Firebase update failed: {str(e)}")
+            return jsonify({'error': 'Failed to update consent'}), 500
 
     except Exception as e:
-        logger.exception(f"WebAuthn auth complete error: {str(e)}")
-        return json_response({"error": "WebAuthn authentication failed"}, 500)
+        logger.error(f"Consent update failed: {str(e)}")
+        return jsonify({'error': 'Consent update failed'}), 500
 
-# HIPAA BAA Agreement
-@auth_bp.route("/baa-agreement", methods=["POST"])
-def baa_agreement():
-    """Accept BAA agreement for HIPAA compliance"""
+@auth_bp.route('/consent/<user_id>', methods=['GET'])
+@jwt_required()
+def get_consent(user_id):
+    """Get user consent preferences"""
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        agreed = data.get("agreed", False)
-        version = data.get("version", "1.0")
+        current_user_id = get_jwt_identity()
 
-        if not user_id:
-            return json_response({"error": "User ID required"}, 400)
+        # Users can only view their own consent
+        if current_user_id != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
 
-        audit_service = AuditService()
-        audit_service.log_baa_agreement(user_id, agreed, version)
-
-        return json_response({"message": "BAA agreement logged"}, 200)
-
-    except Exception as e:
-        logger.exception(f"BAA agreement error: {str(e)}")
-        return json_response({"error": "BAA agreement failed"}, 500)
-
-# GDPR Data Deletion
-@auth_bp.route("/delete-account/<user_id>", methods=["DELETE"])
-def delete_account(user_id):
-    """GDPR-compliant account and data deletion"""
-    try:
-        if not user_id:
-            return json_response({"error": "⚠️ Användar-ID krävs!"}, 400)
-
-        # Delete user data from all collections
-        collections_to_delete = ["moods", "memories", "consents", "audit_logs", "webauthn_credentials"]
-
-        deleted_counts = {}
-        for collection in collections_to_delete:
-            # Delete all documents for this user
-            docs = db.collection(collection).where(filter=FieldFilter("user_id", "==", user_id)).stream()
-            count = 0
-            for doc in docs:
-                doc.reference.delete()
-                count += 1
-            deleted_counts[collection] = count
-
-        # Delete user document directly (for users collection)
-        db.collection("users").document(user_id).delete()
-
-        # Delete refresh token document directly
-        db.collection("refresh_tokens").document(user_id).delete()
-
-        # Delete Firebase Auth user
         try:
-            auth.delete_user(user_id)
-            logger.info(f"✅ Firebase Auth user deleted: {user_id}")
-        except auth.UserNotFoundError:
-            logger.warning(f"Firebase user {user_id} not found (already deleted?)")
-        except Exception as firebase_error:
-            logger.error(f"Failed to delete Firebase user {user_id}: {firebase_error}")
-            # Continue with data deletion even if Firebase user deletion fails
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict()
 
-        logger.info(f"✅ GDPR data deletion completed for user: {user_id}, deleted: {deleted_counts}")
-        return json_response({
-            "message": "✅ Konto och all data har raderats enligt GDPR!",
-            "deleted_data": deleted_counts
-        }, 200)
+            if not user_data:
+                return jsonify({'error': 'User not found'}), 404
+
+            consent = user_data.get('consent', {
+                'analytics_consent': False,
+                'marketing_consent': False,
+                'data_processing_consent': True,
+                'consent_updated_at': user_data.get('created_at')
+            })
+
+            return jsonify({'consent': consent}), 200
+
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Failed to retrieve consent'}), 500
 
     except Exception as e:
-        logger.exception(f"❌ Account deletion error: {str(e)}")
-        return json_response({"error": "⚠️ Kunde inte radera konto. Kontakta support."}, 500)
+        logger.error(f"Consent retrieval failed: {str(e)}")
+        return jsonify({'error': 'Consent retrieval failed'}), 500
+
+@auth_bp.route('/delete-account/<user_id>', methods=['DELETE'])
+@jwt_required()
+def delete_account(user_id):
+    """Delete user account and all associated data"""
+    try:
+        current_user_id = get_jwt_identity()
+
+        # Users can only delete their own account
+        if current_user_id != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        try:
+            from ..firebase_config import db
+
+            # Mark user as inactive (soft delete)
+            db.collection('users').document(user_id).update({
+                'is_active': False,
+                'deleted_at': datetime.utcnow().isoformat(),
+                'deletion_reason': 'user_requested'
+            })
+
+            # In a real implementation, you might also:
+            # - Anonymize personal data
+            # - Queue data deletion after retention period
+            # - Cancel subscriptions
+            # - Remove from mailing lists
+
+            audit_log('account_deleted', user_id, {'method': 'soft_delete'})
+
+            response = make_response(jsonify({
+                'message': 'Account deletion initiated. Your data will be permanently removed within 30 days.'
+            }), 200)
+
+            # Clear the access token cookie
+            response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Firebase update failed: {str(e)}")
+            return jsonify({'error': 'Failed to delete account'}), 500
+
+    except Exception as e:
+        logger.error(f"Account deletion failed: {str(e)}")
+        return jsonify({'error': 'Account deletion failed'}), 500

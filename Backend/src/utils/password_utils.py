@@ -44,6 +44,26 @@ def verify_password(password: str, hashed: str) -> bool:
         logger.warning(f"⚠️ Fel vid lösenordsverifiering: {str(e)}")
         return False
 
+def validate_password(password: str) -> bool:
+    """
+    🔹 Validerar lösenordsstyrka enligt säkerhetskrav.
+
+    Args:
+        password (str): Lösenordet som ska valideras.
+
+    Returns:
+        bool: True om lösenordet uppfyller kraven, annars False.
+    """
+    if len(password) < 8:
+        return False
+    if not any(char.isdigit() for char in password):
+        return False
+    if not any(char.isupper() for char in password):
+        return False
+    if not any(char.islower() for char in password):
+        return False
+    return True
+
 # 🔹 Testa funktionen (kan tas bort i produktion)
 if __name__ == "__main__":
     test_password = "Lösenord123!"

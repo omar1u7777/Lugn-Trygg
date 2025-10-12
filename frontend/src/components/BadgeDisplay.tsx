@@ -3,6 +3,28 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { getMoods } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  LinearProgress,
+  Grid,
+  Paper,
+  Avatar,
+  Badge as MuiBadge,
+} from '@mui/material';
+import {
+  EmojiEvents as TrophyIcon,
+  LocalFire as StreakIcon,
+  Star as StarIcon,
+  Psychology as MindIcon,
+  Favorite as HeartIcon,
+  TrendingUp as TrendingIcon,
+  CheckCircle as CheckIcon,
+  Lock as LockIcon,
+} from '@mui/icons-material';
 
 interface Badge {
   id: string;
@@ -11,6 +33,10 @@ interface Badge {
   icon: string;
   earned: boolean;
   streak: number;
+  category: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  progress?: number;
+  maxProgress?: number;
 }
 
 const BadgeDisplay: React.FC = () => {
@@ -37,6 +63,8 @@ const BadgeDisplay: React.FC = () => {
             icon: '🎯',
             earned: totalEntries > 0,
             streak: 0,
+            category: 'getting-started',
+            rarity: 'common',
           },
           {
             id: 'week-streak',
@@ -45,6 +73,10 @@ const BadgeDisplay: React.FC = () => {
             icon: '🔥',
             earned: currentStreak >= 7,
             streak: currentStreak,
+            category: 'consistency',
+            rarity: 'rare',
+            progress: Math.min(currentStreak, 7),
+            maxProgress: 7,
           },
           {
             id: 'month-streak',
@@ -53,6 +85,10 @@ const BadgeDisplay: React.FC = () => {
             icon: '👑',
             earned: currentStreak >= 30,
             streak: currentStreak,
+            category: 'consistency',
+            rarity: 'epic',
+            progress: Math.min(currentStreak, 30),
+            maxProgress: 30,
           },
           {
             id: 'consistency',
@@ -61,6 +97,8 @@ const BadgeDisplay: React.FC = () => {
             icon: '⭐',
             earned: longestStreak >= 14,
             streak: longestStreak,
+            category: 'consistency',
+            rarity: 'rare',
           },
           {
             id: 'explorer',
@@ -69,6 +107,66 @@ const BadgeDisplay: React.FC = () => {
             icon: '🗺️',
             earned: totalEntries >= 50,
             streak: totalEntries,
+            category: 'exploration',
+            rarity: 'rare',
+            progress: Math.min(totalEntries, 50),
+            maxProgress: 50,
+          },
+          {
+            id: 'mindful',
+            title: 'Mindful Observer',
+            description: 'Completed 10 mindfulness exercises',
+            icon: '🧘',
+            earned: false, // Would be calculated from exercise completions
+            streak: 0,
+            category: 'mindfulness',
+            rarity: 'common',
+            progress: 3,
+            maxProgress: 10,
+          },
+          {
+            id: 'storyteller',
+            title: 'Storyteller',
+            description: 'Listened to 5 AI-generated stories',
+            icon: '📚',
+            earned: false, // Would be calculated from story listens
+            streak: 0,
+            category: 'engagement',
+            rarity: 'common',
+            progress: 2,
+            maxProgress: 5,
+          },
+          {
+            id: 'health-sync',
+            title: 'Health Syncer',
+            description: 'Connected wearable device',
+            icon: '⌚',
+            earned: false, // Would be calculated from device connections
+            streak: 0,
+            category: 'integration',
+            rarity: 'rare',
+          },
+          {
+            id: 'crisis-helper',
+            title: 'Crisis Supporter',
+            description: 'Used crisis support features',
+            icon: '🆘',
+            earned: false, // Would be calculated from crisis interventions
+            streak: 0,
+            category: 'support',
+            rarity: 'legendary',
+          },
+          {
+            id: 'prediction-master',
+            title: 'Prediction Master',
+            description: 'Viewed mood predictions 10 times',
+            icon: '🔮',
+            earned: false, // Would be calculated from prediction views
+            streak: 0,
+            category: 'advanced',
+            rarity: 'epic',
+            progress: 1,
+            maxProgress: 10,
           },
         ];
 
@@ -152,39 +250,203 @@ const BadgeDisplay: React.FC = () => {
     );
   }
 
+  const getRarityColor = (rarity: string) => {
+    switch (rarity) {
+      case 'common': return '#9E9E9E';
+      case 'rare': return '#2196F3';
+      case 'epic': return '#9C27B0';
+      case 'legendary': return '#FF9800';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'consistency': return <StreakIcon />;
+      case 'mindfulness': return <MindIcon />;
+      case 'engagement': return <HeartIcon />;
+      case 'integration': return <TrendingIcon />;
+      case 'support': return <CheckIcon />;
+      case 'advanced': return <StarIcon />;
+      default: return <TrophyIcon />;
+    }
+  };
+
   return (
     <motion.div
-      className="badge-display"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <h3>{t('dashboard.badges', 'Achievements')}</h3>
-      <div className="badges-grid">
-        {badges.map((badge, index) => (
-          <motion.div
-            key={badge.id}
-            className={`badge ${badge.earned ? 'earned' : 'locked'}`}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1, duration: 0.3 }}
-            whileHover={{ scale: 1.05 }}
-          >
-            <div className="badge-icon">{badge.icon}</div>
-            <div className="badge-content">
-              <h4>{badge.title}</h4>
-              <p>
-                {badge.description.replace('{days}', badge.streak.toString()).replace('{count}', badge.streak.toString())}
-              </p>
-              {badge.earned && badge.streak > 0 && (
-                <div className="badge-streak">
-                  {badge.streak} {t('badges.days', 'days')}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TrophyIcon color="primary" />
+          {t('dashboard.badges', 'Achievements')}
+        </Typography>
+
+        <Typography variant="body1" color="text.secondary" paragraph>
+          Track your progress and unlock achievements as you use the app!
+        </Typography>
+
+        <Grid container spacing={3}>
+          {badges.map((badge, index) => (
+            <Grid item xs={12} sm={6} md={4} key={badge.id}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <Card
+                  sx={{
+                    height: '100%',
+                    position: 'relative',
+                    border: badge.earned ? `2px solid ${getRarityColor(badge.rarity)}` : '2px solid #E0E0E0',
+                    background: badge.earned
+                      ? `linear-gradient(135deg, ${getRarityColor(badge.rarity)}15, ${getRarityColor(badge.rarity)}05)`
+                      : 'grey.50',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      boxShadow: 6,
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  {badge.earned && (
+                    <MuiBadge
+                      badgeContent={<CheckIcon sx={{ fontSize: 16 }} />}
+                      color="success"
+                      sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
+                    />
+                  )}
+
+                  <CardContent sx={{ textAlign: 'center', pb: 2 }}>
+                    <Avatar
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        mx: 'auto',
+                        mb: 2,
+                        fontSize: '2rem',
+                        backgroundColor: badge.earned ? getRarityColor(badge.rarity) : 'grey.400',
+                        opacity: badge.earned ? 1 : 0.6,
+                      }}
+                    >
+                      {badge.earned ? badge.icon : <LockIcon />}
+                    </Avatar>
+
+                    <Typography variant="h6" component="h3" gutterBottom>
+                      {badge.title}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      {badge.description.replace('{days}', badge.streak.toString()).replace('{count}', badge.streak.toString())}
+                    </Typography>
+
+                    <Box display="flex" justifyContent="center" alignItems="center" gap={1} mb={2}>
+                      {getCategoryIcon(badge.category)}
+                      <Chip
+                        label={badge.rarity.toUpperCase()}
+                        size="small"
+                        sx={{
+                          backgroundColor: getRarityColor(badge.rarity),
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.7rem',
+                        }}
+                      />
+                    </Box>
+
+                    {badge.progress !== undefined && badge.maxProgress && (
+                      <Box sx={{ mt: 2 }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <Typography variant="caption" color="text.secondary">
+                            Progress
+                          </Typography>
+                          <Typography variant="caption" fontWeight="bold">
+                            {badge.progress}/{badge.maxProgress}
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(badge.progress / badge.maxProgress) * 100}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'grey.300',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: badge.earned ? getRarityColor(badge.rarity) : 'grey.400',
+                              borderRadius: 4,
+                            },
+                          }}
+                        />
+                      </Box>
+                    )}
+
+                    {badge.earned && badge.streak > 0 && (
+                      <Box sx={{ mt: 2, p: 1, backgroundColor: 'success.light', borderRadius: 1 }}>
+                        <Typography variant="body2" fontWeight="bold" color="success.contrastText">
+                          <StreakIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                          {badge.streak} {t('badges.days', 'days')}
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Achievement Summary */}
+        <Paper sx={{ mt: 4, p: 3, background: 'linear-gradient(135deg, #f5f5f5, #e8e8e8)' }}>
+          <Typography variant="h6" gutterBottom>
+            Achievement Summary
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={3}>
+              <Box textAlign="center">
+                <Typography variant="h4" color="primary">
+                  {badges.filter(b => b.earned).length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Earned
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box textAlign="center">
+                <Typography variant="h4" color="secondary">
+                  {badges.filter(b => !b.earned).length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Remaining
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box textAlign="center">
+                <Typography variant="h4" sx={{ color: getRarityColor('rare') }}>
+                  {badges.filter(b => b.earned && b.rarity === 'rare').length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Rare
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box textAlign="center">
+                <Typography variant="h4" sx={{ color: getRarityColor('epic') }}>
+                  {badges.filter(b => b.earned && b.rarity === 'epic').length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Epic
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Box>
     </motion.div>
   );
 };

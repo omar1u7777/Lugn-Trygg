@@ -8,6 +8,8 @@ import ProtectedRoute from "./components/Layout/ProtectedRoute";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Navigation from "./components/Layout/Navigation";
 import SubscriptionForm from "./components/SubscriptionForm";
+import AIStories from "./components/AIStories";
+import MoodAnalytics from "./components/MoodAnalytics";
 import "./styles/styles.css";
 
 function App() {
@@ -66,6 +68,22 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <SubscriptionForm />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/ai-stories"
+                        element={
+                            <ProtectedRoute>
+                                <AIStories />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/analytics"
+                        element={
+                            <ProtectedRoute>
+                                <MoodAnalytics />
                             </ProtectedRoute>
                         }
                     />

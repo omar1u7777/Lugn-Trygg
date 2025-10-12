@@ -127,3 +127,11 @@ class AuditService:
                     logger.warning(f"Failed to decrypt field: {field}")
 
         return decrypted_data
+
+# Create a global audit service instance
+audit_service = AuditService()
+
+def audit_log(event_type: str, user_id: str, details: Dict[str, Any],
+              ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> None:
+    """Global audit logging function"""
+    audit_service.log_event(event_type, user_id, details, ip_address, user_agent)

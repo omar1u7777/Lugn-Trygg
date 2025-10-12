@@ -39,6 +39,22 @@ const Navigation: React.FC = () => {
                 <i className="fas fa-crown"></i> {t('subscription.subscribe')}
               </Link>
             </li>
+            <li>
+              <Link
+                to="/ai-stories"
+                className={isActive('/ai-stories') ? 'active' : ''}
+              >
+                <i className="fas fa-book-open"></i> AI Stories
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/analytics"
+                className={isActive('/analytics') ? 'active' : ''}
+              >
+                <i className="fas fa-chart-line"></i> Analytics
+              </Link>
+            </li>
             <li className="user-info">
               <span className="user-greeting">
                 <i className="fas fa-user"></i> Hej, {extractDisplayName(user?.email || '')}

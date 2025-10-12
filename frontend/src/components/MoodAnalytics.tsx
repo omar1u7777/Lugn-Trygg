@@ -1,223 +1,382 @@
 import React, { useState, useEffect } from 'react';
-import { analyzeMoodPatterns } from '../api/api';
-import useAuth from '../hooks/useAuth';
+import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../api/api';
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  Alert,
+  Chip,
+  LinearProgress,
+  Grid,
+  Paper,
+} from '@mui/material';
+import {
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Timeline as TimelineIcon,
+  Psychology as PsychologyIcon,
+  Warning as WarningIcon,
+  CheckCircle as CheckCircleIcon,
+} from '@mui/icons-material';
 
-interface PatternAnalysis {
-  pattern_analysis: string;
-  predictions: string;
+interface ForecastData {
+  forecast: {
+    daily_predictions: number[];
+    average_forecast: number;
+    trend: string;
+    confidence_interval: {
+      lower: number;
+      upper: number;
+    };
+  };
+  model_info: {
+    algorithm: string;
+    training_rmse: number;
+    data_points_used: number;
+  };
+  current_analysis: {
+    recent_average: number;
+    volatility: number;
+  };
+  risk_factors: string[];
+  recommendations: string[];
   confidence: number;
-  trend_direction?: string;
-  volatility?: number;
-  trend_strength?: number;
-}
-
-interface AnalyticsData {
-  pattern_analysis: PatternAnalysis;
-  data_points_analyzed: number;
-  analysis_timestamp: string;
 }
 
 const MoodAnalytics: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const loadAnalytics = async () => {
-    if (!user?.user_id) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await analyzeMoodPatterns(user.user_id);
-      setAnalyticsData(data);
-    } catch (err: any) {
-      console.error('Failed to load analytics:', err);
-      setError(err.message || 'Kunde inte ladda analys');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [daysAhead, setDaysAhead] = useState(7);
 
   useEffect(() => {
-    loadAnalytics();
-  }, [user]);
+    loadForecast();
+  }, [daysAhead]);
 
-  const getTrendColor = (direction?: string) => {
-    switch (direction) {
-      case 'improving': return 'text-green-600 bg-green-100';
-      case 'declining': return 'text-red-600 bg-red-100';
-      case 'stable': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
+  const loadForecast = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/mood/predictive-forecast?days_ahead=${daysAhead}`);
+      setForecast(response.data);
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('analytics.loadError'));
+      console.error('Failed to load forecast:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTrendIcon = (direction?: string) => {
-    switch (direction) {
-      case 'improving': return '📈';
-      case 'declining': return '📉';
-      case 'stable': return '➡️';
-      default: return '📊';
+  const getSentimentColor = (score: number) => {
+    if (score > 0.2) return '#4CAF50';
+    if (score < -0.2) return '#F44336';
+    return '#FF9800';
+  };
+
+  const getSentimentLabel = (score: number) => {
+    if (score > 0.2) return t('mood.positive');
+    if (score < -0.2) return t('mood.negative');
+    return t('mood.neutral');
+  };
+
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'improving':
+        return <TrendingUpIcon color="success" />;
+      case 'declining':
+        return <TrendingDownIcon color="error" />;
+      default:
+        return <TimelineIcon color="action" />;
     }
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600';
-    if (confidence >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
+  const getRiskIcon = (risk: string) => {
+    if (risk.includes('high') || risk.includes('negative')) {
+      return <WarningIcon color="warning" />;
+    }
+    return <CheckCircleIcon color="success" />;
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="text-center text-red-600">
-          <p className="mb-4">⚠️ {error}</p>
-          <button
-            onClick={loadAnalytics}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-          >
-            Försök igen
-          </button>
-        </div>
-      </div>
+      <Alert severity="error" sx={{ mb: 3 }}>
+        {error}
+      </Alert>
     );
   }
 
-  if (!analyticsData) {
+  if (!forecast) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="text-center text-gray-500">
-          <p className="mb-4">Ingen data tillgänglig för analys</p>
-          <p className="text-sm">Logga ditt humör några dagar för att se mönster och trender</p>
-        </div>
-      </div>
+      <Alert severity="info">
+        {t('analytics.noData')}
+      </Alert>
     );
   }
-
-  const { pattern_analysis, data_points_analyzed } = analyticsData;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Humöranalys</h3>
-        <button
-          onClick={loadAnalytics}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-        >
-          Uppdatera
-        </button>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PsychologyIcon color="primary" />
+          {t('analytics.title')}
+        </Typography>
 
-      {/* Trend Direction */}
-      {pattern_analysis.trend_direction && (
-        <div className="mb-6">
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getTrendColor(pattern_analysis.trend_direction)}`}>
-            <span className="mr-2">{getTrendIcon(pattern_analysis.trend_direction)}</span>
-            {pattern_analysis.trend_direction === 'improving' && 'Förbättring'}
-            {pattern_analysis.trend_direction === 'declining' && 'Försämring'}
-            {pattern_analysis.trend_direction === 'stable' && 'Stabil'}
-          </div>
-        </div>
-      )}
+        <Typography variant="body1" color="text.secondary" paragraph>
+          {t('analytics.description')}
+        </Typography>
 
-      {/* Pattern Analysis */}
-      <div className="mb-6">
-        <h4 className="font-semibold text-gray-900 mb-2">Mönster och insikter</h4>
-        <p className="text-gray-700 text-sm leading-relaxed">
-          {pattern_analysis.pattern_analysis}
-        </p>
-      </div>
+        {/* Forecast Controls */}
+        <Box mb={3}>
+          <Typography variant="h6" gutterBottom>
+            {t('analytics.forecastPeriod')}
+          </Typography>
+          <Box display="flex" gap={1}>
+            {[3, 7, 14].map((days) => (
+              <Button
+                key={days}
+                variant={daysAhead === days ? 'contained' : 'outlined'}
+                onClick={() => setDaysAhead(days)}
+                size="small"
+              >
+                {days} {t('analytics.days')}
+              </Button>
+            ))}
+          </Box>
+        </Box>
 
-      {/* Predictions */}
-      <div className="mb-6">
-        <h4 className="font-semibold text-gray-900 mb-2">Framtida trender</h4>
-        <p className="text-gray-700 text-sm leading-relaxed">
-          {pattern_analysis.predictions}
-        </p>
-      </div>
+        <Grid container spacing={3}>
+          {/* Current Analysis */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TimelineIcon />
+                  {t('analytics.currentAnalysis')}
+                </Typography>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-gray-900">
-            {data_points_analyzed}
-          </div>
-          <div className="text-sm text-gray-600">
-            Datapunkter analyserade
-          </div>
-        </div>
+                <Box mb={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('analytics.recentAverage')}
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={((forecast.current_analysis.recent_average + 1) / 2) * 100}
+                      sx={{
+                        flexGrow: 1,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: 'grey.300',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: getSentimentColor(forecast.current_analysis.recent_average),
+                        },
+                      }}
+                    />
+                    <Typography variant="body2" fontWeight="bold">
+                      {forecast.current_analysis.recent_average.toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {getSentimentLabel(forecast.current_analysis.recent_average)}
+                  </Typography>
+                </Box>
 
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className={`text-2xl font-bold ${getConfidenceColor(pattern_analysis.confidence)}`}>
-            {Math.round(pattern_analysis.confidence * 100)}%
-          </div>
-          <div className="text-sm text-gray-600">
-            Konfidensnivå
-          </div>
-        </div>
-      </div>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('analytics.volatility')}
+                  </Typography>
+                  <Typography variant="h6" color={forecast.current_analysis.volatility > 0.5 ? 'warning.main' : 'success.main'}>
+                    {forecast.current_analysis.volatility.toFixed(2)}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      {/* Additional Metrics */}
-      {(pattern_analysis.volatility !== undefined || pattern_analysis.trend_strength !== undefined) && (
-        <div className="space-y-3">
-          {pattern_analysis.volatility !== undefined && (
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Humörstabilitet</span>
-                <span className="font-medium">
-                  {pattern_analysis.volatility < 0.2 ? 'Hög' :
-                   pattern_analysis.volatility < 0.5 ? 'Medium' : 'Låg'}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: `${Math.max(10, 100 - (pattern_analysis.volatility * 100))}%` }}
-                ></div>
-              </div>
-            </div>
+          {/* Forecast Summary */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {getTrendIcon(forecast.forecast.trend)}
+                  {t('analytics.forecastSummary')}
+                </Typography>
+
+                <Box mb={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('analytics.averageForecast')}
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: getSentimentColor(forecast.forecast.average_forecast) }}>
+                    {forecast.forecast.average_forecast.toFixed(2)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {getSentimentLabel(forecast.forecast.average_forecast)}
+                  </Typography>
+                </Box>
+
+                <Box mb={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('analytics.trend')}
+                  </Typography>
+                  <Chip
+                    label={t(`analytics.trend.${forecast.forecast.trend}`)}
+                    color={forecast.forecast.trend === 'improving' ? 'success' : forecast.forecast.trend === 'declining' ? 'error' : 'default'}
+                    size="small"
+                  />
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('analytics.confidence')}
+                  </Typography>
+                  <Typography variant="body1" fontWeight="bold">
+                    {(forecast.confidence * 100).toFixed(0)}%
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Daily Predictions */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {t('analytics.dailyPredictions')}
+                </Typography>
+
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {forecast.forecast.daily_predictions.map((prediction, index) => (
+                    <Paper
+                      key={index}
+                      elevation={1}
+                      sx={{
+                        p: 1,
+                        minWidth: 60,
+                        textAlign: 'center',
+                        backgroundColor: getSentimentColor(prediction),
+                        color: 'white',
+                      }}
+                    >
+                      <Typography variant="caption" display="block">
+                        {t('analytics.day')} {index + 1}
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {prediction.toFixed(1)}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Risk Factors */}
+          {forecast.risk_factors.length > 0 && (
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WarningIcon color="warning" />
+                    {t('analytics.riskFactors')}
+                  </Typography>
+
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {forecast.risk_factors.map((risk, index) => (
+                      <Box key={index} display="flex" alignItems="center" gap={1}>
+                        {getRiskIcon(risk)}
+                        <Typography variant="body2">
+                          {t(`analytics.risks.${risk}`)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           )}
 
-          {pattern_analysis.trend_strength !== undefined && (
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Trendstyrka</span>
-                <span className="font-medium">
-                  {pattern_analysis.trend_strength < 0.05 ? 'Svag' :
-                   pattern_analysis.trend_strength < 0.1 ? 'Medium' : 'Stark'}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full"
-                  style={{ width: `${Math.min(100, pattern_analysis.trend_strength * 500)}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          {/* Recommendations */}
+          <Grid item xs={12} md={forecast.risk_factors.length > 0 ? 6 : 12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckCircleIcon color="success" />
+                  {t('analytics.recommendations')}
+                </Typography>
 
-      {/* Footer */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
-          Analys baserad på dina senaste {data_points_analyzed} humörloggar
-        </p>
-      </div>
-    </div>
+                <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                  {forecast.recommendations.map((rec, index) => (
+                    <Typography key={index} component="li" variant="body2" paragraph sx={{ mb: 1 }}>
+                      {rec}
+                    </Typography>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Model Info */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  {t('analytics.modelInfo')}
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('analytics.algorithm')}
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {forecast.model_info.algorithm.replace('_', ' ').toUpperCase()}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('analytics.trainingAccuracy')}
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {forecast.model_info.training_rmse.toFixed(3)}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('analytics.dataPoints')}
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {forecast.model_info.data_points_used}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+    </motion.div>
   );
 };
 

@@ -88,7 +88,15 @@ def list_memories():
     try:
         user_id = request.user_id
 
-        memories_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", user_id)).order_by("timestamp", direction="DESCENDING").stream())
+        # Get user_id from query parameter if provided, otherwise use JWT user_id
+        query_user_id = request.args.get("user_id", "").strip()
+        if query_user_id and query_user_id != user_id:
+            # Check if user is authorized to access this user's memories (admin check could go here)
+            return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
+
+        target_user_id = query_user_id or user_id
+
+        memories_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", target_user_id)).order_by("timestamp", direction="DESCENDING").stream())
         memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
 
         return jsonify({"memories": memory_list}), 200
@@ -108,9 +116,17 @@ def get_memory():
         if not file_path:
             return jsonify({"error": "Filväg krävs!"}), 400
 
+        # Get user_id from query parameter if provided, otherwise use JWT user_id
+        query_user_id = request.args.get("user_id", "").strip()
+        if query_user_id and query_user_id != user_id:
+            # Check if user is authorized to access this user's memories (admin check could go here)
+            return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
+
+        target_user_id = query_user_id or user_id
+
         # 🔹 Kontrollera att minnet tillhör användaren
-        memory_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", user_id)).where(filter=FieldFilter("file_path", "==", file_path)).limit(1).stream())
-        
+        memory_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", target_user_id)).where(filter=FieldFilter("file_path", "==", file_path)).limit(1).stream())
+
         if not memory_ref:
             return jsonify({"error": "Obehörig åtkomst till minne!"}), 403
 

@@ -14,6 +14,7 @@ from src.routes.auth import auth_bp, limiter
 from src.routes.mood_routes import mood_bp
 from src.routes.chatbot_routes import chatbot_bp
 from src.routes.ai_routes import ai_bp
+from src.routes.ai_stories_routes import ai_stories_bp
 from src.routes.subscription_routes import subscription_bp
 from src.routes.integration_routes import integration_bp
 from src.firebase_config import initialize_firebase
@@ -154,6 +155,10 @@ def create_app(testing=False):
     if "ai" not in app.blueprints:
         app.register_blueprint(ai_bp, url_prefix="/api/ai")
         logger.info("✅ Blueprint ai_bp registrerad under /api/ai")
+
+    if "ai_stories" not in app.blueprints:
+        app.register_blueprint(ai_stories_bp, url_prefix="/api/ai")
+        logger.info("✅ Blueprint ai_stories_bp registrerad under /api/ai")
 
     if "integration" not in app.blueprints:
         app.register_blueprint(integration_bp, url_prefix="/api/integration")
