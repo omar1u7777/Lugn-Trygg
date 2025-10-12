@@ -61,35 +61,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsInitialized(true);
   }, [token, user, navigate, setIsInitialized, location]);
 
-  // 🔄 Automatisk token-förnyelse (var 14:e minut) - Förhindra race conditions
-  useEffect(() => {
-    if (!token) return;
+  // 🔄 Automatisk token-förnyelse (var 10:e minut) - Förhindra race conditions
+ useEffect(() => {
+   if (!token) return;
 
-    let isRefreshing = false;
+   let isRefreshing = false;
 
-    const refreshToken = async () => {
-      // Förhindra flera samtidiga refresh-försök
-      if (isRefreshing) return;
+   const refreshToken = async () => {
+     // Förhindra flera samtidiga refresh-försök
+     if (isRefreshing) return;
 
-      isRefreshing = true;
-      try {
-        const newAccessToken = await refreshAccessToken();
-        if (newAccessToken) {
-          setTokenState(newAccessToken);
-          localStorage.setItem("token", newAccessToken);
-          console.log("🔄 Token förnyad automatiskt.");
-        }
-      } catch (error) {
-        console.warn("⚠️ Token-förnyelse misslyckades, loggar ut användaren.");
-        handleLogout();
-      } finally {
-        isRefreshing = false;
-      }
-    };
+     isRefreshing = true;
+     try {
+       const newAccessToken = await refreshAccessToken();
+       if (newAccessToken) {
+         setTokenState(newAccessToken);
+         localStorage.setItem("token", newAccessToken);
+         console.log("🔄 Token förnyad automatiskt.");
+       }
+     } catch (error) {
+       console.warn("⚠️ Token-förnyelse misslyckades, loggar ut användaren.");
+       handleLogout();
+     } finally {
+       isRefreshing = false;
+     }
+   };
 
-    const interval = setInterval(refreshToken, 14 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [token]);
+   const interval = setInterval(refreshToken, 10 * 60 * 1000); // Refresh every 10 minutes instead of 14
+   return () => clearInterval(interval);
+ }, [token]);
 
   // 🔑 Kontrollera om användaren är inloggad
   const isLoggedIn = useCallback(() => Boolean(token && user?.user_id), [token, user]);

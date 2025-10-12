@@ -84,15 +84,26 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
             logger.error(f"❌ Ingen kompatibel ljudformat hittades. Senaste fel: {last_error}")
             return None
 
-        # Perform transcription
+        # Perform transcription with timeout
         logger.info("🎙️ Startar transkribering med Google Speech-to-Text...")
-        response = client.recognize(config=config, audio=audio)
+        try:
+            response = client.recognize(config=config, audio=audio, timeout=30.0)
+        except Exception as timeout_error:
+            logger.warning(f"⚠️ Transkribering timeout eller fel: {timeout_error}")
+            return None
 
         # Extract transcript
-        if response.results:
+        if response.results and len(response.results) > 0:
             transcript = response.results[0].alternatives[0].transcript
-            logger.info(f"✅ Transkribering lyckades: {len(transcript)} tecken")
-            return transcript.strip()
+            confidence = response.results[0].alternatives[0].confidence
+            logger.info(f"✅ Transkribering lyckades: {len(transcript)} tecken, konfidens: {confidence:.2f}")
+
+            # Only return transcript if confidence is reasonable
+            if confidence > 0.5:
+                return transcript.strip()
+            else:
+                logger.warning(f"⚠️ Transkribering har låg konfidens ({confidence:.2f}), hoppar över")
+                return None
         else:
             logger.warning("⚠️ Ingen transkribering kunde göras")
             return None
