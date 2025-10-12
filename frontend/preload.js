@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Exponera endast de funktioner som behöver vara tillgängliga för renderer-procesen
 contextBridge.exposeInMainWorld("electron", {

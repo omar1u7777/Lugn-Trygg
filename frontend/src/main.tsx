@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
@@ -43,9 +44,11 @@ createRoot(rootElement).render(
   <ErrorBoundary> {/* 🛡️ Fångar och hanterar applikationsfel */}
     <I18nextProvider i18n={i18n}> {/* 🌐 Tillhandahåller i18n-kontext */}
       <BrowserRouter> {/* 🔗 Hanterar navigering i appen */}
-        <AuthProvider> {/* 🔒 Tillhandahåller global autentisering */}
-          <App /> {/* 🎉 Rendera huvudapplikationen */}
-        </AuthProvider>
+        <ThemeProvider> {/* 🌙 Tillhandahåller tema-kontext */}
+          <AuthProvider> {/* 🔒 Tillhandahåller global autentisering */}
+            <App /> {/* 🎉 Rendera huvudapplikationen */}
+          </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </I18nextProvider>
   </ErrorBoundary>

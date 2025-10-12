@@ -125,6 +125,28 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* 🌙 Theme Toggle Button */
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
 /* 🚀 Dashboard Content */
 .dashboard {
   width: 100%;
@@ -1647,4 +1669,149 @@ body {
   .disable-button {
     width: 100%;
   }
+}
+
+/* 🌙 Dark Mode Styles */
+.dark-mode {
+  /* Global dark theme */
+  --bg-color: #1a1a1a;
+  --text-color: #e0e0e0;
+  --card-bg: #2d2d2d;
+  --border-color: #404040;
+  --hover-bg: #3a3a3a;
+  --accent-color: #4a9eff;
+}
+
+.dark-mode body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.dark-mode .navbar {
+  background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+}
+
+.dark-mode .app-container {
+  background-color: var(--bg-color);
+}
+
+.dark-mode .dashboard-section,
+.dark-mode .popup-container,
+.dark-mode .auth-form,
+.dark-mode .memory-item,
+.dark-mode .sound-player,
+.dark-mode .insights-card,
+.dark-mode .stat-card {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.dark-mode .dashboard-section h2,
+.dark-mode .dashboard-section h3,
+.dark-mode .popup-title,
+.dark-mode .auth-title,
+.dark-mode .analysis-title,
+.dark-mode .sounds-title,
+.dark-mode .setup-card h3 {
+  color: var(--text-color);
+}
+
+.dark-mode .dashboard-btn {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.dark-mode .dashboard-btn:hover {
+  background-color: #3a87e6;
+}
+
+.dark-mode .auth-input,
+.dark-mode .phone-input {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.dark-mode .auth-input:focus,
+.dark-mode .phone-input:focus {
+  border-color: var(--accent-color);
+}
+
+.dark-mode .modal-container {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.dark-mode .error-boundary {
+  background: linear-gradient(135deg, #2d2d2d 0%, #404040 100%);
+}
+
+.dark-mode .error-boundary-content {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.dark-mode .error-boundary h2 {
+  color: #ff6b6b;
+}
+
+.dark-mode .subscription-card {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+}
+
+.dark-mode .info-box {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.dark-mode .info-box h4 {
+  color: var(--text-color);
+}
+
+.dark-mode .theme-toggle-btn {
+  color: var(--text-color);
+}
+
+.dark-mode .theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark mode specific adjustments */
+.dark-mode .reminder-box {
+  background: #2d4a22;
+  border-color: #4a7c2d;
+  color: #c8e6c9;
+}
+
+.dark-mode .success-message {
+  background: #2d4a22;
+  border-color: #4a7c2d;
+  color: #c8e6c9;
+}
+
+.dark-mode .error-message {
+  background: #4a2d2d;
+  border-color: #7c4a4a;
+  color: #e6c8c8;
+}
+
+.dark-mode .ai-insight-notice {
+  background: linear-gradient(135deg, #2d4a3d 0%, #1a2e24 100%);
+  border-left-color: #4a9eff;
+}
+
+.dark-mode .ai-insight-text p {
+  color: var(--text-color);
+}
+
+.dark-mode .weekly-analysis {
+  color: var(--text-color);
+}
+
+.dark-mode .insights-card h4 {
+  color: #4a9eff;
+}
+
+.dark-mode .insights-text {
+  color: #81c784;
 }

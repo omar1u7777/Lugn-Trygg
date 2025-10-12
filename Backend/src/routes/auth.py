@@ -8,6 +8,7 @@ from ..utils import convert_email_to_punycode
 from firebase_admin import auth
 from google.cloud.firestore import FieldFilter
 from src.services.auth_service import AuthService
+from src.services.audit_service import AuditService
 from src.firebase_config import db
 from src.config import (
     JWT_SECRET_KEY,
@@ -429,6 +430,130 @@ def disable_2fa(user_id):
         logger.exception(f"❌ 2FA disable error: {e}")
         return json_response({"error": "Ett internt fel uppstod vid 2FA-inaktivering."}, 500)
 
+# WebAuthn Passwordless Authentication
+@auth_bp.route("/webauthn/register", methods=["POST"])
+def webauthn_register():
+    """Initiate WebAuthn credential registration"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id", "").strip()
+
+        if not user_id:
+            return json_response({"error": "User ID required"}, 400)
+
+        auth_service = AuthService()
+        challenge_data = auth_service.generate_webauthn_challenge(user_id)
+
+        return json_response(challenge_data, 200)
+
+    except Exception as e:
+        logger.exception(f"WebAuthn register error: {str(e)}")
+        return json_response({"error": "WebAuthn registration failed"}, 500)
+
+@auth_bp.route("/webauthn/register/complete", methods=["POST"])
+def webauthn_register_complete():
+    """Complete WebAuthn credential registration"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id", "").strip()
+        credential = data.get("credential", {})
+
+        if not user_id or not credential:
+            return json_response({"error": "User ID and credential required"}, 400)
+
+        auth_service = AuthService()
+        success = auth_service.register_webauthn_credential(user_id, credential)
+
+        if success:
+            return json_response({"message": "WebAuthn credential registered successfully"}, 200)
+        else:
+            return json_response({"error": "WebAuthn registration failed"}, 400)
+
+    except Exception as e:
+        logger.exception(f"WebAuthn register complete error: {str(e)}")
+        return json_response({"error": "WebAuthn registration failed"}, 500)
+
+@auth_bp.route("/webauthn/authenticate", methods=["POST"])
+def webauthn_authenticate():
+    """Initiate WebAuthn authentication"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id", "").strip()
+
+        if not user_id:
+            return json_response({"error": "User ID required"}, 400)
+
+        auth_service = AuthService()
+        challenge_data = auth_service.authenticate_webauthn(user_id)
+
+        if challenge_data:
+            return json_response(challenge_data, 200)
+        else:
+            return json_response({"error": "No WebAuthn credentials found"}, 404)
+
+    except Exception as e:
+        logger.exception(f"WebAuthn auth error: {str(e)}")
+        return json_response({"error": "WebAuthn authentication failed"}, 500)
+
+@auth_bp.route("/webauthn/authenticate/complete", methods=["POST"])
+def webauthn_authenticate_complete():
+    """Complete WebAuthn authentication"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id", "").strip()
+        assertion = data.get("assertion", {})
+
+        if not user_id or not assertion:
+            return json_response({"error": "User ID and assertion required"}, 400)
+
+        auth_service = AuthService()
+        success = auth_service.verify_webauthn_assertion(user_id, assertion)
+
+        if success:
+            # Generate tokens for passwordless login
+            access_token = auth_service.generate_access_token(user_id)
+            refresh_token = auth_service.generate_refresh_token(user_id)
+
+            # Save refresh token
+            db.collection("refresh_tokens").document(user_id).set({
+                "backend_refresh_token": refresh_token,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+
+            return json_response({
+                "message": "WebAuthn authentication successful",
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }, 200)
+        else:
+            return json_response({"error": "WebAuthn authentication failed"}, 401)
+
+    except Exception as e:
+        logger.exception(f"WebAuthn auth complete error: {str(e)}")
+        return json_response({"error": "WebAuthn authentication failed"}, 500)
+
+# HIPAA BAA Agreement
+@auth_bp.route("/baa-agreement", methods=["POST"])
+def baa_agreement():
+    """Accept BAA agreement for HIPAA compliance"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        user_id = data.get("user_id", "").strip()
+        agreed = data.get("agreed", False)
+        version = data.get("version", "1.0")
+
+        if not user_id:
+            return json_response({"error": "User ID required"}, 400)
+
+        audit_service = AuditService()
+        audit_service.log_baa_agreement(user_id, agreed, version)
+
+        return json_response({"message": "BAA agreement logged"}, 200)
+
+    except Exception as e:
+        logger.exception(f"BAA agreement error: {str(e)}")
+        return json_response({"error": "BAA agreement failed"}, 500)
+
 # GDPR Data Deletion
 @auth_bp.route("/delete-account/<user_id>", methods=["DELETE"])
 def delete_account(user_id):
@@ -438,7 +563,7 @@ def delete_account(user_id):
             return json_response({"error": "⚠️ Användar-ID krävs!"}, 400)
 
         # Delete user data from all collections
-        collections_to_delete = ["moods", "memories", "consents"]
+        collections_to_delete = ["moods", "memories", "consents", "audit_logs", "webauthn_credentials"]
 
         deleted_counts = {}
         for collection in collections_to_delete:

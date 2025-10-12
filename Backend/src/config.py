@@ -84,7 +84,9 @@ except Exception as e:
 # 🔹 Stripe-konfiguration
 STRIPE_SECRET_KEY = get_env_variable("STRIPE_SECRET_KEY", required=False, hide_value=True)
 STRIPE_PUBLISHABLE_KEY = get_env_variable("STRIPE_PUBLISHABLE_KEY", required=False, hide_value=True)
-STRIPE_PRICE_ID = get_env_variable("STRIPE_PRICE_ID", "price_test_subscription", required=False)
+STRIPE_PRICE_PREMIUM = get_env_variable("STRIPE_PRICE_PREMIUM", "price_premium", required=False)
+STRIPE_PRICE_ENTERPRISE = get_env_variable("STRIPE_PRICE_ENTERPRISE", "price_enterprise", required=False)
+STRIPE_PRICE_CBT_MODULE = get_env_variable("STRIPE_PRICE_CBT_MODULE", "price_cbt_module", required=False)
 STRIPE_WEBHOOK_SECRET = get_env_variable("STRIPE_WEBHOOK_SECRET", "", hide_value=True)  # Optional for development
 
 # 🔹 Krypteringskonfiguration

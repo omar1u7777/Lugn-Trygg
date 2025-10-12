@@ -61,7 +61,8 @@
     "aiGeneratedInsights": "AI-genererade insikter",
     "aiAnalysisNotice": "Denna analys är genererad av AI baserat på dina mönster och trender",
     "aiConfidence": "AI-konfidens:",
-    "invalidDate": "Ogiltigt datum"
+    "invalidDate": "Ogiltigt datum",
+    "badges": "Prestationer"
   },
   "mood": {
     "title": "Humörloggning",
@@ -194,5 +195,41 @@
   },
   "logout": {
     "success": "Utloggad framgångsrikt"
+  },
+  "voice": {
+    "listening": "Lyssnar...",
+    "notSupported": "Röstigenkänning stöds inte i denna webbläsare",
+    "error": "Röstfel: {error}",
+    "commands": {
+      "logMood": ["logga humör", "spela in humör", "humör", "känslor"],
+      "recordMemory": ["spela in minne", "nytt minne", "minne"],
+      "openChat": ["öppna chatt", "prata med AI", "chat"],
+      "toggleTheme": ["växla tema", "mörkt läge", "ljus läge"],
+      "viewMoods": ["visa humör", "mina humör"],
+      "viewMemories": ["visa minnen", "mina minnen"]
+    }
+  },
+  "badges": {
+    "days": "dagar",
+    "firstEntry": {
+      "title": "Första steget",
+      "desc": "Loggade ditt första humör"
+    },
+    "weekStreak": {
+      "title": "Veckokrigare",
+      "desc": "7 dagar i rad"
+    },
+    "monthStreak": {
+      "title": "Månadsmästare",
+      "desc": "30 dagar i rad"
+    },
+    "consistency": {
+      "title": "Konsekvenskung",
+      "desc": "Längsta svit: {days} dagar"
+    },
+    "explorer": {
+      "title": "Humörutforskare",
+      "desc": "Loggade {count} humör"
+    }
   }
 }

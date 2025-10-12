@@ -61,7 +61,8 @@
     "aiGeneratedInsights": "AI-genererte innsikter",
     "aiAnalysisNotice": "Denne analysen er generert av AI basert på dine mønstre og trender",
     "aiConfidence": "AI-konfidens:",
-    "invalidDate": "Ugyldig dato"
+    "invalidDate": "Ugyldig dato",
+    "badges": "Prestasjoner"
   },
   "mood": {
     "title": "Humørlogging",
@@ -194,5 +195,41 @@
   },
   "logout": {
     "success": "Logget ut vellykket"
+  },
+  "voice": {
+    "listening": "Lytter...",
+    "notSupported": "Stemme gjenkjenning støttes ikke i denne nettleseren",
+    "error": "Stemmefeil: {error}",
+    "commands": {
+      "logMood": ["logg humør", "spill inn humør", "humør", "følelser"],
+      "recordMemory": ["spill inn minne", "nytt minne", "minne"],
+      "openChat": ["åpne chat", "prat med AI", "chat"],
+      "toggleTheme": ["veksle tema", "mørk modus", "lys modus"],
+      "viewMoods": ["vis humør", "mine humør"],
+      "viewMemories": ["vis minner", "mine minner"]
+    }
+  },
+  "badges": {
+    "days": "dager",
+    "firstEntry": {
+      "title": "Første steg",
+      "desc": "Logget ditt første humør"
+    },
+    "weekStreak": {
+      "title": "Ukeskriger",
+      "desc": "7 dager på rad"
+    },
+    "monthStreak": {
+      "title": "Månedsmester",
+      "desc": "30 dager på rad"
+    },
+    "consistency": {
+      "title": "Konsistenskonge",
+      "desc": "Lengste rekke: {days} dager"
+    },
+    "explorer": {
+      "title": "Humørutforsker",
+      "desc": "Logget {count} humør"
+    }
   }
 }

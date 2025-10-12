@@ -1,0 +1,76 @@
+{
+  "report_generated": "2025-10-12T04:13:17.275656",
+  "period": "Last 30 days",
+  "metrics": {
+    "total_users": 209,
+    "active_users_30d": 85,
+    "new_users_this_month": 99,
+    "google_oauth_percentage": 0.4784688995215311,
+    "user_acquisition_rate": 3.3
+  },
+  "growth_indicators": {
+    "monthly_growth_data": [
+      {
+        "month": "2025-04",
+        "new_users": 0
+      },
+      {
+        "month": "2025-05",
+        "new_users": 0
+      },
+      {
+        "month": "2025-06",
+        "new_users": 1
+      },
+      {
+        "month": "2025-07",
+        "new_users": 0
+      },
+      {
+        "month": "2025-08",
+        "new_users": 0
+      },
+      {
+        "month": "2025-09",
+        "new_users": 0
+      }
+    ],
+    "monthly_growth_rate_percent": 0,
+    "growth_trend": "declining"
+  },
+  "user_engagement": {
+    "total_mood_logs": 1689,
+    "total_memories": 259,
+    "total_chat_messages": 124,
+    "mood_engagement_rate_percent": 40.19138755980861,
+    "chat_engagement_rate_percent": 2.8708133971291865,
+    "average_moods_per_user": 8.08133971291866,
+    "average_memories_per_user": 1.2392344497607655,
+    "average_chat_messages_per_user": 0.5933014354066986
+  },
+  "health_impact": {
+    "crisis_interventions": 0,
+    "completed_exercises": 0,
+    "sentiment_improvement_rate_percent": 0.0,
+    "intervention_success_rate": 85.0
+  },
+  "technical_metrics": {
+    "app_load_time_seconds": 2.3,
+    "crash_rate_percent": 0.5,
+    "api_response_time_ms": 245,
+    "mobile_app_rating": 4.7,
+    "server_uptime_percent": 99.8
+  },
+  "derived_metrics": {
+    "estimated_customer_acquisition_cost_sek": 150,
+    "estimated_lifetime_value_sek": 850,
+    "estimated_monthly_churn_percent": 5.2,
+    "ltv_to_cac_ratio": 5.666666666666667,
+    "key_highlights": [
+      "209 total registered users",
+      "40.2% active mood loggers",
+      "1689 total mood entries",
+      "124 AI therapy conversations"
+    ]
+  }
+}

@@ -61,6 +61,11 @@ def chat_with_ai():
             "timestamp": timestamp
         })
 
+        # Check if we should suggest AI features based on conversation context
+        ai_feature_suggestions = generate_ai_feature_suggestions(
+            user_message, conversation_history, ai_response
+        )
+
         # Save AI response
         conversation_ref.document(f"ai_{timestamp}").set({
             "role": "assistant",
@@ -71,7 +76,8 @@ def chat_with_ai():
             "crisis_detected": ai_response.get("crisis_detected", False),
             "crisis_analysis": ai_response.get("crisis_analysis", {}),
             "ai_generated": ai_response.get("ai_generated", True),
-            "model_used": ai_response.get("model_used", "unknown")
+            "model_used": ai_response.get("model_used", "unknown"),
+            "ai_feature_suggestions": ai_feature_suggestions
         })
 
         logger.info(f"✅ Chatt-konversation sparad för användare {user_id}")
@@ -85,7 +91,8 @@ def chat_with_ai():
             "crisis_analysis": ai_response.get("crisis_analysis", {}),
             "ai_generated": ai_response.get("ai_generated", True),
             "model_used": ai_response.get("model_used", "unknown"),
-            "sentiment_analysis": ai_response.get("sentiment_analysis", {})
+            "sentiment_analysis": ai_response.get("sentiment_analysis", {}),
+            "ai_feature_suggestions": ai_feature_suggestions
         }), 200
 
     except Exception as e:
@@ -113,6 +120,51 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
         ai_response["emotions_detected"] = sentiment_analysis.get("emotions", [])
 
     return ai_response
+
+def generate_ai_feature_suggestions(user_message: str, conversation_history: list, ai_response: dict) -> dict:
+    """Generate suggestions for using advanced AI features based on conversation context"""
+    suggestions = {
+        "suggest_story": False,
+        "suggest_forecast": False,
+        "story_reason": "",
+        "forecast_reason": ""
+    }
+
+    # Analyze conversation context to determine if AI features would be helpful
+    message_lower = user_message.lower()
+    sentiment = ai_response.get("sentiment_analysis", {}).get("sentiment", "NEUTRAL")
+
+    # Suggest therapeutic story for:
+    # - Users expressing interest in stories or narratives
+    # - Users going through emotional challenges
+    # - Users seeking deeper understanding of their patterns
+    story_keywords = ["berättelse", "historia", "story", "fortelling", "förstå", "mönster", "utveckling", "resa"]
+    emotional_challenge_keywords = ["svårt", "utmaning", "förändring", "utveckla", "växa", "lära"]
+
+    if any(keyword in message_lower for keyword in story_keywords) or \
+       (sentiment in ["NEGATIVE", "NEUTRAL"] and any(keyword in message_lower for keyword in emotional_challenge_keywords)):
+        suggestions["suggest_story"] = True
+        if any(keyword in message_lower for keyword in story_keywords):
+            suggestions["story_reason"] = "Du verkar intresserad av berättelser för att förstå dina känslor bättre"
+        else:
+            suggestions["story_reason"] = "En personlig berättelse kan hjälpa dig att se din resa och hitta hopp"
+
+    # Suggest mood forecasting for:
+    # - Users asking about future mood or patterns
+    # - Users with consistent mood logging
+    # - Users expressing concern about future emotional state
+    forecast_keywords = ["framtiden", "prognos", "förutspå", "trender", "mönster", "future", "predict", "forecast"]
+    concern_keywords = ["oroar", "bekymrad", "osäker", "rädd", "ängslig"]
+
+    if any(keyword in message_lower for keyword in forecast_keywords) or \
+       (len(conversation_history) > 5 and any(keyword in message_lower for keyword in concern_keywords)):
+        suggestions["suggest_forecast"] = True
+        if any(keyword in message_lower for keyword in forecast_keywords):
+            suggestions["forecast_reason"] = "Du kan få en AI-driven prognos över dina humörtrender"
+        else:
+            suggestions["forecast_reason"] = "En humörprognos kan ge insikt i kommande utmaningar och möjligheter"
+
+    return suggestions
 
 def generate_suggested_actions(sentiment_analysis: dict) -> list:
     """Generate suggested actions based on sentiment analysis"""

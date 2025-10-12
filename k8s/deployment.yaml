@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lugn-trygg-frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: lugn-trygg-frontend
+  template:
+    metadata:
+      labels:
+        app: lugn-trygg-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: lugn-trygg-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: CLOUDINARY_CLOUD_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: cloud_name
+        - name: CLOUDINARY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: api_key
+        - name: CLOUDINARY_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: cloudinary-secret
+              key: api_secret

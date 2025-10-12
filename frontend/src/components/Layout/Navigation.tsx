@@ -2,11 +2,13 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { extractDisplayName } from "../../utils/nameUtils";
 import LanguageSwitcher from "../LanguageSwitcher";
 
 const Navigation: React.FC = () => {
   const { isLoggedIn, logout, user } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   const location = useLocation();
   const { t } = useTranslation();
 
@@ -76,6 +78,15 @@ const Navigation: React.FC = () => {
             </li>
           </>
         )}
+        <li className="theme-toggle-item">
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            aria-label={isDarkMode ? t('settings.lightMode') : t('settings.darkMode')}
+          >
+            <i className={isDarkMode ? 'fas fa-sun' : 'fas fa-moon'}></i>
+          </button>
+        </li>
         <li className="language-switcher-item">
           <LanguageSwitcher />
         </li>

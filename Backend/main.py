@@ -13,7 +13,9 @@ from src.routes.memory_routes import memory_bp
 from src.routes.auth import auth_bp, limiter
 from src.routes.mood_routes import mood_bp
 from src.routes.chatbot_routes import chatbot_bp
+from src.routes.ai_routes import ai_bp
 from src.routes.subscription_routes import subscription_bp
+from src.routes.integration_routes import integration_bp
 from src.firebase_config import initialize_firebase
 
 # 🔹 Ladda miljövariabler från .env
@@ -149,6 +151,14 @@ def create_app(testing=False):
         app.register_blueprint(subscription_bp, url_prefix="/api/subscription")
         logger.info("✅ Blueprint subscription_bp registrerad under /api/subscription")
 
+    if "ai" not in app.blueprints:
+        app.register_blueprint(ai_bp, url_prefix="/api/ai")
+        logger.info("✅ Blueprint ai_bp registrerad under /api/ai")
+
+    if "integration" not in app.blueprints:
+        app.register_blueprint(integration_bp, url_prefix="/api/integration")
+        logger.info("✅ Blueprint integration_bp registrerad under /api/integration")
+
     # Definiera en enkel endpoint för hälsokontroll
     @app.route("/")
     def index():
@@ -187,11 +197,31 @@ def create_app(testing=False):
                     "exercise": "/api/chatbot/exercise",
                     "complete_exercise": "/api/chatbot/exercise/<user_id>/<exercise_id>/complete"
                 },
+                "ai": {
+                    "generate_story": "/api/ai/story",
+                    "predictive_forecast": "/api/ai/forecast",
+                    "story_history": "/api/ai/stories",
+                    "forecast_history": "/api/ai/forecasts"
+                },
                 "subscription": {
                     "create_session": "/api/subscription/create-session",
                     "status": "/api/subscription/status/<user_id>",
                     "webhook": "/api/subscription/webhook",
                     "cancel": "/api/subscription/cancel/<user_id>"
+                },
+                "integration": {
+                    "wearable": {
+                        "google_fit_sync": "/api/integration/wearable/google-fit/sync",
+                        "apple_health_sync": "/api/integration/wearable/apple-health/sync",
+                        "get_data": "/api/integration/wearable/data"
+                    },
+                    "crisis": {
+                        "referral": "/api/integration/crisis/referral"
+                    },
+                    "fhir": {
+                        "patient": "/api/integration/fhir/patient",
+                        "observation": "/api/integration/fhir/observation"
+                    }
                 }
             }
         }), 200

@@ -5,7 +5,7 @@ from flask_limiter.util import get_remote_address
 from datetime import datetime, timezone
 from firebase_admin.firestore import FieldFilter
 from src.firebase_config import db
-from src.config import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_ID
+from src.config import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_PREMIUM, STRIPE_PRICE_ENTERPRISE, STRIPE_PRICE_CBT_MODULE
 
 # Initialize limiter for this module
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per hour"])
@@ -35,24 +35,35 @@ def create_checkout_session():
             return jsonify({"error": "Betalningstjänst är inte tillgänglig!"}), 503
 
         data = request.get_json(force=True, silent=True) or {}
+
         logger.debug(f"📥 Request data: {data}")
 
         user_id = data.get("user_id", "").strip()
         user_email = data.get("email", "").strip()
+        plan = data.get("plan", "premium").strip().lower()  # default to premium
 
-        logger.info(f"👤 Processing checkout for user_id: {user_id}, email: {user_email}")
+        logger.info(f"👤 Processing checkout for user_id: {user_id}, email: {user_email}, plan: {plan}")
 
         if not user_id or not user_email:
             logger.warning("❌ Missing required fields: user_id or email")
             return jsonify({"error": "Användar-ID och e-post krävs!"}), 400
 
+        # Determine price ID based on plan
+        if plan == "premium":
+            price_id = STRIPE_PRICE_PREMIUM
+        elif plan == "enterprise":
+            price_id = STRIPE_PRICE_ENTERPRISE
+        else:
+            logger.warning(f"❌ Invalid plan: {plan}")
+            return jsonify({"error": "Ogiltig plan vald!"}), 400
+
         # Create Stripe checkout session
-        logger.info(f"💳 Creating Stripe checkout session with price_id: {STRIPE_PRICE_ID}")
+        logger.info(f"💳 Creating Stripe checkout session with price_id: {price_id} for plan: {plan}")
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[
                 {
-                    "price": STRIPE_PRICE_ID,
+                    "price": price_id,
                     "quantity": 1,
                 },
             ],
@@ -61,10 +72,10 @@ def create_checkout_session():
             cancel_url="http://localhost:3000/dashboard?canceled=true",
             customer_email=user_email,
             metadata={
-                "user_id": user_id
+                "user_id": user_id,
+                "plan": plan
             }
         )
-
         logger.info(f"✅ Stripe checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
         logger.debug(f"🔗 Checkout URL: {checkout_session.url}")
         return jsonify({"sessionId": checkout_session.id, "url": checkout_session.url}), 200
@@ -130,23 +141,43 @@ def stripe_webhook():
         if event_type == "checkout.session.completed":
             session = event.get("data", {}).get("object", {})
             user_id = session.get("metadata", {}).get("user_id")
+            purchase_type = session.get("metadata", {}).get("type")
 
             if user_id:
-                # Update user subscription in Firestore
-                subscription_data = {
-                    "status": "active",
-                    "plan": "premium",
-                    "stripe_customer_id": session.get("customer"),
-                    "stripe_subscription_id": session.get("subscription"),
-                    "start_date": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }
+                if purchase_type == "cbt_module":
+                    # Handle CBT module purchase
+                    module = session.get("metadata", {}).get("module")
+                    if module:
+                        # Add to user's purchases
+                        user_ref = db.collection("users").document(user_id)
+                        user_doc = user_ref.get()
+                        if user_doc.exists:
+                            user_data = user_doc.to_dict()
+                            purchases = user_data.get("purchases", [])
+                            if module not in purchases:
+                                purchases.append(module)
+                                user_ref.update({
+                                    "purchases": purchases,
+                                    "updated_at": datetime.now(timezone.utc).isoformat()
+                                })
+                                logger.info(f"✅ CBT module '{module}' purchased for user: {user_id}")
+                else:
+                    # Handle subscription
+                    plan = session.get("metadata", {}).get("plan", "premium")
+                    subscription_data = {
+                        "status": "active",
+                        "plan": plan,
+                        "stripe_customer_id": session.get("customer"),
+                        "stripe_subscription_id": session.get("subscription"),
+                        "start_date": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
 
-                db.collection("users").document(user_id).update({
-                    "subscription": subscription_data
-                })
+                    db.collection("users").document(user_id).update({
+                        "subscription": subscription_data
+                    })
 
-                logger.info(f"✅ Subscription activated for user: {user_id}")
+                    logger.info(f"✅ Subscription activated for user: {user_id} with plan: {plan}")
 
         elif event_type == "invoice.payment_succeeded":
             # Handle successful payment
@@ -180,6 +211,115 @@ def stripe_webhook():
     except Exception as e:
         logger.exception(f"❌ Webhook processing failed: {e}")
         return jsonify({"error": "Webhook processing failed"}), 500
+
+@subscription_bp.route("/purchase-cbt-module", methods=["POST"])
+@limiter.limit("5 per minute")
+def purchase_cbt_module():
+    """Create Stripe checkout session for CBT module purchase"""
+    logger.info("🔄 Received request to purchase CBT module")
+    try:
+        if not STRIPE_AVAILABLE:
+            logger.warning("❌ Stripe service unavailable - STRIPE_SECRET_KEY not configured")
+            return jsonify({"error": "Betalningstjänst är inte tillgänglig!"}), 503
+
+        data = request.get_json(force=True, silent=True) or {}
+        logger.debug(f"📥 Request data: {data}")
+
+        user_id = data.get("user_id", "").strip()
+        user_email = data.get("email", "").strip()
+        module = data.get("module", "").strip()
+
+        logger.info(f"👤 Processing CBT module purchase for user_id: {user_id}, email: {user_email}, module: {module}")
+
+        if not user_id or not user_email or not module:
+            logger.warning("❌ Missing required fields: user_id, email, or module")
+            return jsonify({"error": "Användar-ID, e-post och modul krävs!"}), 400
+
+        # Create Stripe checkout session for one-time payment
+        logger.info(f"💳 Creating Stripe checkout session for CBT module: {module}")
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": STRIPE_PRICE_CBT_MODULE,
+                    "quantity": 1,
+                },
+            ],
+            mode="payment",
+            success_url=f"http://localhost:3000/dashboard?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url="http://localhost:3000/dashboard?canceled=true",
+            customer_email=user_email,
+            metadata={
+                "user_id": user_id,
+                "module": module,
+                "type": "cbt_module"
+            }
+        )
+
+        logger.info(f"✅ CBT module checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
+        logger.debug(f"🔗 Checkout URL: {checkout_session.url}")
+        return jsonify({"sessionId": checkout_session.id, "url": checkout_session.url}), 200
+
+    except stripe.error.StripeError as e:
+        logger.error(f"💳 Stripe API error for CBT module purchase user {user_id}: {str(e)}")
+        logger.debug(f"Stripe error details: {e.http_body if hasattr(e, 'http_body') else 'No details'}")
+        return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
+    except Exception as e:
+        logger.exception(f"❌ Unexpected error during CBT module purchase for user {user_id}: {e}")
+        return jsonify({"error": "Ett internt fel uppstod vid betalningshantering."}), 500
+
+@subscription_bp.route("/plans", methods=["GET"])
+def get_available_plans():
+    """Get available subscription plans"""
+    try:
+        plans = {
+            "free": {
+                "name": "Gratis",
+                "price": 0,
+                "currency": "SEK",
+                "features": ["Basic CBT exercises", "Mood tracking"]
+            },
+            "premium": {
+                "name": "Premium",
+                "price": 99,
+                "currency": "SEK",
+                "interval": "month",
+                "features": ["All free features", "Advanced analytics", "Priority support", "Extra CBT modules"]
+            },
+            "enterprise": {
+                "name": "Enterprise",
+                "price": 999,  # Assuming annual for clinics
+                "currency": "SEK",
+                "interval": "year",
+                "features": ["All premium features", "Clinic management", "Bulk user access", "Custom integrations"]
+            }
+        }
+        return jsonify(plans), 200
+    except Exception as e:
+        logger.exception(f"❌ Error retrieving plans: {e}")
+        return jsonify({"error": "Ett internt fel uppstod."}), 500
+
+@subscription_bp.route("/purchases/<user_id>", methods=["GET"])
+def get_user_purchases(user_id):
+    """Get user's purchased items"""
+    try:
+        if not user_id:
+            return jsonify({"error": "Användar-ID krävs!"}), 400
+
+        # Get user document
+        user_doc = db.collection("users").document(user_id).get()
+
+        if not user_doc.exists:
+            return jsonify({"error": "Användare hittades inte!"}), 404
+
+        user_data = user_doc.to_dict()
+        purchases = user_data.get("purchases", [])
+
+        return jsonify({"purchases": purchases}), 200
+
+    except Exception as e:
+        logger.exception(f"❌ Error retrieving purchases for user {user_id}: {e}")
+        return jsonify({"error": "Ett internt fel uppstod."}), 500
 
 @subscription_bp.route("/cancel/<user_id>", methods=["POST"])
 def cancel_subscription(user_id):
