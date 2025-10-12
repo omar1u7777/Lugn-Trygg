@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build: ./Backend
@@ -8,11 +6,15 @@ services:
     environment:
       - FLASK_DEBUG=false
       - PORT=5001
+      - REDIS_URL=redis://redis:6379
     env_file:
       - Backend/.env
     volumes:
       - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/"]
       interval: 30s

@@ -24,7 +24,6 @@
     "start": "electron ."
   },
   "dependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.52.4",
     "axios": "^1.6.2",
     "chart.js": "^4.5.0",
     "crypto-js": "^4.2.0",

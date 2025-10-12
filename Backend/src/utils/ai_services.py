@@ -13,6 +13,13 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Import OpenAI exceptions for better error handling
+try:
+    from openai import RateLimitError, APIError
+except ImportError:
+    RateLimitError = Exception  # Fallback if not available
+    APIError = Exception
+
 class AIServices:
     """Advanced AI services for mental health and wellness app"""
 
@@ -359,6 +366,12 @@ class AIServices:
                 "model_used": "gpt-4o"
             }
 
+        except RateLimitError as e:
+            logger.warning(f"⚠️ OpenAI rate limit exceeded for recommendations: {str(e)}")
+            return self._fallback_recommendations(user_history, current_mood, quota_exceeded=True)
+        except APIError as e:
+            logger.error(f"OpenAI API error for recommendations: {str(e)}")
+            return self._fallback_recommendations(user_history, current_mood)
         except Exception as e:
             logger.error(f"OpenAI recommendation generation failed: {str(e)}")
             return self._fallback_recommendations(user_history, current_mood)
@@ -374,7 +387,7 @@ class AIServices:
 
         return f"{positive_count} positiva, {negative_count} negativa, {neutral_count} neutrala stämningar"
 
-    def _fallback_recommendations(self, user_history: List[Dict], current_mood: str) -> Dict[str, Any]:
+    def _fallback_recommendations(self, user_history: List[Dict], current_mood: str, quota_exceeded: bool = False) -> Dict[str, Any]:
         """Fallback recommendations when AI is not available"""
         recommendations = {
             "POSITIVE": {
@@ -396,9 +409,7 @@ class AIServices:
 
         mood_recs = recommendations.get(current_mood, recommendations["NEUTRAL"])
 
-        return {
-            "ai_generated": False,
-            "recommendations": f"""
+        base_recommendations = f"""
 Omedelbara coping-strategier:
 • {" • ".join(mood_recs["immediate"])}
 
@@ -406,9 +417,17 @@ Långsiktiga välbefinnande-strategier:
 • {" • ".join(mood_recs["long_term"])}
 
 {mood_recs["seek_help"]}
-            """.strip(),
+        """.strip()
+
+        if quota_exceeded:
+            base_recommendations = f"⚠️ AI-tjänsten är tillfälligt otillgänglig på grund av hög efterfrågan. Här är allmänna råd baserade på ditt humör:\n\n{base_recommendations}"
+
+        return {
+            "ai_generated": False,
+            "recommendations": base_recommendations,
             "confidence": 0.7,
-            "personalized": False
+            "personalized": False,
+            "quota_exceeded": quota_exceeded
         }
 
     def generate_weekly_insights(self, weekly_data: Dict, locale: str = 'sv') -> Dict[str, Any]:
@@ -494,14 +513,17 @@ Långsiktiga välbefinnande-strategier:
                 "model_used": "gpt-4o"
             }
 
+        except RateLimitError as e:
+            logger.warning(f"⚠️ OpenAI rate limit exceeded for weekly insights: {str(e)}")
+            return self._fallback_weekly_insights(weekly_data, locale, quota_exceeded=True)
+        except APIError as e:
+            logger.error(f"OpenAI API error for weekly insights: {str(e)}")
+            return self._fallback_weekly_insights(weekly_data, locale)
         except Exception as e:
-            if "rate limit" in str(e).lower():
-                logger.warning("⚠️ OpenAI rate limit exceeded, using fallback")
-                return self._fallback_weekly_insights(weekly_data, locale)
             logger.error(f"OpenAI weekly insights generation failed: {str(e)}")
             return self._fallback_weekly_insights(weekly_data, locale)
 
-    def _fallback_weekly_insights(self, weekly_data: Dict, locale: str = 'sv') -> Dict[str, Any]:
+    def _fallback_weekly_insights(self, weekly_data: Dict, locale: str = 'sv', quota_exceeded: bool = False) -> Dict[str, Any]:
         """Fallback weekly insights"""
         mood_count = len(weekly_data.get("moods", []))
         memory_count = len(weekly_data.get("memories", []))
@@ -521,6 +543,15 @@ Långsiktiga välbefinnande-strategier:
                         continue
             if scores:
                 avg_score = sum(scores) / len(scores)
+
+        quota_message = ""
+        if quota_exceeded:
+            if locale == 'en':
+                quota_message = "⚠️ AI service is temporarily unavailable due to high demand. Here are general insights based on your data:\n\n"
+            elif locale == 'no':
+                quota_message = "⚠️ AI-tjenesten er midlertidig utilgjengelig på grunn av høy etterspørsel. Her er generelle innsikter basert på dataene dine:\n\n"
+            else:  # sv
+                quota_message = "⚠️ AI-tjänsten är tillfälligt otillgänglig på grund av hög efterfrågan. Här är allmänna insikter baserade på dina data:\n\n"
 
         if locale == 'en':
             insights_parts = [
@@ -601,13 +632,14 @@ Långsiktiga välbefinnande-strategier:
                 "• Skriv ner tre saker du är tacksam för varje kväll"
             ])
 
-        insights = "\n".join(insights_parts).strip()
+        insights = quota_message + "\n".join(insights_parts).strip()
 
         return {
             "ai_generated": False,
             "insights": insights,
             "confidence": 0.6,
-            "comprehensive": False
+            "comprehensive": False,
+            "quota_exceeded": quota_exceeded
         }
 
     def detect_crisis_indicators(self, text: str) -> Dict[str, Any]:
@@ -1119,6 +1151,12 @@ Långsiktiga välbefinnande-strategier:
                 "model_used": "gpt-4o"
             }
 
+        except RateLimitError as e:
+            logger.warning(f"⚠️ OpenAI rate limit exceeded for therapeutic conversation: {str(e)}")
+            return self._generate_fallback_therapeutic_response(user_message, quota_exceeded=True)
+        except APIError as e:
+            logger.error(f"OpenAI API error for therapeutic conversation: {str(e)}")
+            return self._generate_fallback_therapeutic_response(user_message)
         except Exception as e:
             logger.error(f"Enhanced therapeutic conversation failed: {str(e)}")
             return self._generate_fallback_therapeutic_response(user_message)
@@ -1159,18 +1197,24 @@ Vill du att jag hjälper dig att formulera hur du ska kontakta vården?"""
 
 Vill du prata mer om vad som känns svårt just nu?"""
 
-    def _generate_fallback_therapeutic_response(self, user_message: str) -> Dict[str, Any]:
+    def _generate_fallback_therapeutic_response(self, user_message: str, quota_exceeded: bool = False) -> Dict[str, Any]:
         """Enhanced fallback response"""
         # Generate fallback response locally
         fallback_response = self._generate_local_fallback_response(user_message)
 
+        response_text = fallback_response["response"]
+        if quota_exceeded:
+            response_text = f"⚠️ AI-assistenten är tillfälligt otillgänglig på grund av hög efterfrågan. Här är allmänna råd baserade på ditt meddelande:\n\n{response_text}"
+
         return {
-            "response": fallback_response["response"],
+            "response": response_text,
             "crisis_detected": False,
             "sentiment_analysis": self.analyze_sentiment(user_message),
             "conversation_context": 0,
+            "exercise_recommendations": fallback_response.get("suggested_actions", []),
             "ai_generated": False,
-            "model_used": "fallback"
+            "model_used": "fallback",
+            "quota_exceeded": quota_exceeded
         }
 
     def _generate_local_fallback_response(self, user_message: str) -> Dict[str, Any]:

@@ -59,9 +59,11 @@ def create_app(testing=False):
 
     # Initialize rate limiter with Redis storage (fallback to in-memory)
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    logger.info(f"🔍 Attempting Redis connection to: {redis_url}")
     try:
-        redis_client = Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
+        redis_client = Redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
         redis_client.ping()  # Test connection
+        logger.info("✅ Redis connection successful - ping received")
         limiter = Limiter(
             key_func=get_remote_address,
             storage_uri=redis_url,
@@ -70,7 +72,7 @@ def create_app(testing=False):
         limiter.init_app(app)
         logger.info("✅ Rate limiter initialized with Redis storage")
     except Exception as e:
-        logger.warning(f"⚠️ Redis not available ({str(e)}), falling back to in-memory storage")
+        logger.warning(f"⚠️ Redis not available at {redis_url} ({str(e)}), falling back to in-memory storage")
         limiter = Limiter(
             key_func=get_remote_address,
             default_limits=["100 per hour"]

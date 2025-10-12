@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_babel import gettext as _
@@ -26,14 +27,16 @@ def _ensure_redis_connection():
     global redis_client, redis_available
     if redis_client is None:
         try:
-            redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, socket_connect_timeout=1)
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            logger.info(f"🔍 Attempting Redis connection for caching to: {redis_url}")
+            redis_client = redis.Redis.from_url(redis_url, decode_responses=True, socket_connect_timeout=5, socket_timeout=5)
             redis_client.ping()  # Test connection
             redis_available = True
-            logger.info("✅ Redis connection established")
-        except redis.exceptions.ConnectionError:
+            logger.info("✅ Redis connection established for caching")
+        except redis.exceptions.ConnectionError as e:
             redis_client = None
             redis_available = False
-            logger.warning("⚠️ Redis not available, falling back to no caching")
+            logger.warning(f"⚠️ Redis not available for caching at {redis_url} ({str(e)}), falling back to no caching")
     return redis_available
 
 def decrypt_data(encrypted_data: str) -> str:

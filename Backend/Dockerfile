@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libffi-dev \
     libssl-dev \
+    curl \
+    portaudio19-dev \
+    libasound2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -18,8 +21,48 @@ COPY requirements.txt .
 # Install torch separately for better caching (CPU-only version to reduce size)
 RUN pip install --no-cache-dir torch==2.8.0+cpu --index-url https://download.pytorch.org/whl/cpu
 
-# Install remaining Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies in batches to avoid timeout
+# Core dependencies
+RUN pip install --no-cache-dir \
+    firebase-admin>=6.0.1 \
+    python-dotenv==1.0.0 \
+    requests==2.28.1 \
+    flask==3.0.3 \
+    flask-cors==3.0.10 \
+    Flask-Babel>=3.0.0 \
+    werkzeug==3.0.1 \
+    bcrypt==4.0.1 \
+    PyJWT>=2.0.0 \
+    numpy>=1.21.0
+
+# Voice and audio dependencies
+RUN pip install --no-cache-dir \
+    pyttsx3==2.90 \
+    SpeechRecognition==3.8.1 \
+    pyaudio==0.2.13 \
+    google-cloud-speech>=2.0.0 \
+    google-cloud-language>=2.0.0 \
+    sounddevice==0.4.5 \
+    soundfile==0.11.0
+
+# AI and ML dependencies
+RUN pip install --no-cache-dir \
+    openai>=1.0.0 \
+    transformers>=4.0.0 \
+    librosa>=0.9.2
+
+# Security and rate limiting
+RUN pip install --no-cache-dir \
+    flask-limiter>=3.0.0 \
+    pycryptodome>=3.0.0 \
+    redis>=4.0.0
+
+# Testing dependencies
+RUN pip install --no-cache-dir \
+    pytest>=7.0.0 \
+    pytest-mock>=3.10.0 \
+    unittest2>=1.1.0 \
+    selenium>=4.0.0
 
 # Copy application code
 COPY . .

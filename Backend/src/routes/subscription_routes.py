@@ -28,18 +28,26 @@ logger = logging.getLogger(__name__)
 @limiter.limit("5 per minute")
 def create_checkout_session():
     """Create Stripe checkout session for subscription"""
+    logger.info("🔄 Received request to create Stripe checkout session")
     try:
         if not STRIPE_AVAILABLE:
+            logger.warning("❌ Stripe service unavailable - STRIPE_SECRET_KEY not configured")
             return jsonify({"error": "Betalningstjänst är inte tillgänglig!"}), 503
 
         data = request.get_json(force=True, silent=True) or {}
+        logger.debug(f"📥 Request data: {data}")
+
         user_id = data.get("user_id", "").strip()
         user_email = data.get("email", "").strip()
 
+        logger.info(f"👤 Processing checkout for user_id: {user_id}, email: {user_email}")
+
         if not user_id or not user_email:
+            logger.warning("❌ Missing required fields: user_id or email")
             return jsonify({"error": "Användar-ID och e-post krävs!"}), 400
 
         # Create Stripe checkout session
+        logger.info(f"💳 Creating Stripe checkout session with price_id: {STRIPE_PRICE_ID}")
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[
@@ -57,14 +65,16 @@ def create_checkout_session():
             }
         )
 
-        logger.info(f"✅ Stripe checkout session created for user: {user_id}")
+        logger.info(f"✅ Stripe checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
+        logger.debug(f"🔗 Checkout URL: {checkout_session.url}")
         return jsonify({"sessionId": checkout_session.id, "url": checkout_session.url}), 200
 
     except stripe.error.StripeError as e:
-        logger.error(f"Stripe error: {str(e)}")
+        logger.error(f"💳 Stripe API error for user {user_id}: {str(e)}")
+        logger.debug(f"Stripe error details: {e.http_body if hasattr(e, 'http_body') else 'No details'}")
         return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
     except Exception as e:
-        logger.exception(f"❌ Checkout session creation failed: {e}")
+        logger.exception(f"❌ Unexpected error during checkout session creation for user {user_id}: {e}")
         return jsonify({"error": "Ett internt fel uppstod vid betalningshantering."}), 500
 
 @subscription_bp.route("/status/<user_id>", methods=["GET"])
@@ -95,12 +105,17 @@ def get_subscription_status(user_id):
 @subscription_bp.route("/webhook", methods=["POST"])
 def stripe_webhook():
     """Handle Stripe webhooks for subscription events"""
+    logger.info("🔄 Received Stripe webhook")
     try:
         if not STRIPE_AVAILABLE:
+            logger.warning("❌ Stripe service unavailable for webhook processing")
             return jsonify({"error": "Betalningstjänst är inte tillgänglig!"}), 503
 
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("stripe-signature")
+
+        logger.debug(f"📥 Webhook payload length: {len(payload)} bytes")
+        logger.debug(f"🔐 Signature header: {sig_header}")
 
         # Verify webhook signature (in production, use webhook secret)
         # event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
@@ -110,7 +125,7 @@ def stripe_webhook():
         event = json.loads(payload)
 
         event_type = event.get("type")
-        logger.info(f"Stripe webhook received: {event_type}")
+        logger.info(f"📡 Processing Stripe webhook event: {event_type}")
 
         if event_type == "checkout.session.completed":
             session = event.get("data", {}).get("object", {})

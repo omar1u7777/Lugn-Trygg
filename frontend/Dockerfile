@@ -6,13 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Remove Windows-specific dependencies that cause issues in Linux containers
-RUN npm uninstall @rollup/rollup-win32-x64-msvc || true
-
-# Explicitly install the Linux-specific rollup package
-RUN npm install @rollup/rollup-linux-x64-musl --save-optional || true
-
-# Install dependencies with npm ci to ensure correct platform-specific packages
+# Install dependencies with npm ci
 RUN npm ci
 
 # Copy source code
@@ -23,6 +17,9 @@ RUN npm run build
 
 # Production stage
 FROM nginx:alpine
+
+# Install curl for health checks
+RUN apk add --no-cache curl
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
