@@ -23,7 +23,10 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "build:all": "node ../build.js all",
+    "build:web": "node ../build.js web",
+    "build:desktop": "node ../build.js electron"
   },
   "dependencies": {
     "axios": "^1.6.2",
