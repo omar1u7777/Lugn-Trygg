@@ -868,6 +868,48 @@ body {
   margin-bottom: 25px;
 }
 
+/* 🎭 Mood Confirmation Styles */
+.mood-confirmation {
+  background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 100%);
+  border: 2px solid #1abc9c;
+  border-radius: 12px;
+  padding: 15px;
+  margin: 15px 0;
+  text-align: center;
+  animation: confirmationPulse 2s ease-in-out infinite;
+}
+
+.mood-confirmation p {
+  margin: 5px 0;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.mood-confirmation strong {
+  color: #1abc9c;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+@keyframes confirmationPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* Dark mode for mood confirmation */
+.dark-mode .mood-confirmation {
+  background: linear-gradient(135deg, #2d4a3d 0%, #1a2e24 100%);
+  border-color: #4a9eff;
+}
+
+.dark-mode .mood-confirmation p {
+  color: #e0e0e0;
+}
+
+.dark-mode .mood-confirmation strong {
+  color: #4a9eff;
+}
+
 .mood-distribution h4 {
   color: #2c3e50;
   margin-bottom: 15px;

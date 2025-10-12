@@ -45,10 +45,22 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
                 "encoding": speech.RecognitionConfig.AudioEncoding.FLAC,
                 "sample_rate": 16000,
                 "name": "FLAC"
+            },
+            {
+                "encoding": speech.RecognitionConfig.AudioEncoding.MP3,
+                "sample_rate": 16000,
+                "name": "MP3"
+            },
+            {
+                "encoding": speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
+                "sample_rate": 48000,
+                "name": "OGG_OPUS"
             }
         ]
 
         config = None
+        last_error = None
+
         for fmt in formats_to_try:
             try:
                 config = speech.RecognitionConfig(
@@ -57,15 +69,19 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
                     language_code=language_code,
                     enable_automatic_punctuation=True,
                     enable_word_time_offsets=False,
+                    # Add model adaptation for better accuracy
+                    use_enhanced=True,
+                    model="latest_long",
                 )
                 logger.info(f"🎙️ Försöker med {fmt['name']}-format...")
                 break
             except Exception as format_error:
                 logger.warning(f"⚠️ {fmt['name']} inte tillgängligt: {format_error}")
+                last_error = format_error
                 continue
 
         if config is None:
-            logger.error("❌ Ingen kompatibel ljudformat hittades")
+            logger.error(f"❌ Ingen kompatibel ljudformat hittades. Senaste fel: {last_error}")
             return None
 
         # Perform transcription

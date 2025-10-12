@@ -80,7 +80,7 @@ class AIServices:
 
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
-        Advanced sentiment analysis using Google Cloud Natural Language API
+        Advanced sentiment analysis using Google Cloud Natural Language API with OpenAI fallback
 
         Returns:
             {
@@ -95,10 +95,111 @@ class AIServices:
         # Check if text is likely Swedish (contains Swedish characters or common words)
         swedish_indicators = ['å', 'ä', 'ö', 'jag', 'är', 'och', 'det', 'att', 'en', 'som']
         is_swedish = any(char in text.lower() for char in ['å', 'ä', 'ö']) or \
-                     any(word in text.lower() for word in swedish_indicators)
+                      any(word in text.lower() for word in swedish_indicators)
 
-        if not self.google_nlp_available or is_swedish:
-            return self._fallback_sentiment_analysis(text)
+        # Try Google NLP first if available and not Swedish
+        if self.google_nlp_available and not is_swedish:
+            try:
+                return self._google_sentiment_analysis(text)
+            except Exception as e:
+                logger.warning(f"Google NLP failed, trying OpenAI: {str(e)}")
+
+        # Try OpenAI if available
+        if self.openai_available and self.client:
+            try:
+                return self._openai_sentiment_analysis(text)
+            except RateLimitError:
+                logger.warning("OpenAI rate limit exceeded, using fallback")
+                return self._fallback_sentiment_analysis(text, quota_exceeded=True)
+            except Exception as e:
+                logger.warning(f"OpenAI sentiment analysis failed: {str(e)}")
+
+        # Final fallback
+        return self._fallback_sentiment_analysis(text)
+
+    def _google_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+        """Google Cloud Natural Language API sentiment analysis"""
+        from google.cloud import language_v1
+
+        client = language_v1.LanguageServiceClient()
+        document = language_v1.Document(
+            content=text,
+            type_=language_v1.Document.Type.PLAIN_TEXT,
+            language="en"  # English (Swedish not supported for sentiment)
+        )
+
+        # Analyze sentiment
+        sentiment_response = client.analyze_sentiment(document=document)
+        sentiment = sentiment_response.document_sentiment
+
+        # Analyze entities for emotion detection
+        entities_response = client.analyze_entities(document=document)
+
+        # Extract emotions from text and entities
+        emotions = self._extract_emotions_from_text(text, entities_response.entities)
+
+        result = {
+            "sentiment": self._sentiment_score_to_label(sentiment.score),
+            "score": sentiment.score,
+            "magnitude": sentiment.magnitude,
+            "confidence": 0.8,  # Google NLP doesn't provide confidence for document sentiment
+            "emotions": emotions,
+            "intensity": min(abs(sentiment.score) * sentiment.magnitude, 1.0),
+            "method": "google_nlp"
+        }
+
+        logger.info(f"Google NLP sentiment analysis completed: {result['sentiment']} ({result['score']:.2f})")
+        return result
+
+    def _openai_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+        """OpenAI-based sentiment analysis as fallback"""
+        try:
+            prompt = f"""Analysera följande text och returnera JSON med sentimentanalys:
+
+Text: "{text}"
+
+Returnera JSON i detta format:
+{{
+    "sentiment": "POSITIVE" eller "NEGATIVE" eller "NEUTRAL",
+    "score": nummer mellan -1.0 och 1.0,
+    "confidence": nummer mellan 0.0 och 1.0,
+    "emotions": ["lista", "av", "känslor"],
+    "intensity": nummer mellan 0.0 och 1.0
+}}
+
+Var noga med att returnera endast giltig JSON."""
+
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Du är en expert på sentimentanalys. Returnera endast giltig JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+                temperature=0.3
+            )
+
+            result_text = response.choices[0].message.content.strip()
+
+            # Clean up response (remove markdown code blocks if present)
+            if result_text.startswith("```"):
+                result_text = result_text.split("```")[1]
+                if result_text.startswith("json"):
+                    result_text = result_text[4:].strip()
+
+            import json
+            result = json.loads(result_text)
+
+            # Validate and ensure required fields
+            result["method"] = "openai"
+            result["magnitude"] = result.get("magnitude", abs(result.get("score", 0)))
+
+            logger.info(f"OpenAI sentiment analysis completed: {result.get('sentiment')} ({result.get('score', 0):.2f})")
+            return result
+
+        except Exception as e:
+            logger.error(f"OpenAI sentiment analysis failed: {str(e)}")
+            raise
 
         try:
             from google.cloud import language_v1
@@ -136,10 +237,10 @@ class AIServices:
             logger.error(f"Google NLP sentiment analysis failed: {str(e)}")
             return self._fallback_sentiment_analysis(text)
 
-    def _fallback_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+    def _fallback_sentiment_analysis(self, text: str, quota_exceeded: bool = False) -> Dict[str, Any]:
         """Fallback sentiment analysis using keyword matching"""
-        positive_words = ["glad", "lycklig", "bra", "positiv", "tacksam", "nöjd", "bra", "härligt", "fantastiskt"]
-        negative_words = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "irriterad", "orolig", "dålig", "trött"]
+        positive_words = ["glad", "lycklig", "bra", "positiv", "tacksam", "nöjd", "bra", "härligt", "fantastiskt", "avslappnad", "harmonisk", "energisk"]
+        negative_words = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "irriterad", "orolig", "dålig", "trött", "utmattad", "ängslig", "sorgsen"]
 
         text_lower = text.lower()
         positive_count = sum(1 for word in positive_words if word in text_lower)
@@ -155,14 +256,20 @@ class AIServices:
             score = 0.0
             sentiment = "NEUTRAL"
 
-        return {
+        result = {
             "sentiment": sentiment,
             "score": score,
             "magnitude": max(positive_count + negative_count, 1.0),
-            "confidence": 0.6,
+            "confidence": 0.5 if quota_exceeded else 0.6,
             "emotions": self._extract_emotions_fallback(text),
-            "intensity": min(abs(score), 1.0)
+            "intensity": min(abs(score), 1.0),
+            "method": "keyword_fallback"
         }
+
+        if quota_exceeded:
+            result["quota_exceeded"] = True
+
+        return result
 
     def _sentiment_score_to_label(self, score: float) -> str:
         """Convert sentiment score to label"""

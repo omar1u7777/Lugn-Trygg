@@ -33,7 +33,7 @@ function createWindow() {
         let cspRules = [
             "default-src 'self' data: blob: filesystem:;",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://127.0.0.1:5001 http://localhost:5001 https://www.googletagmanager.com https://apis.google.com;",
-            "connect-src 'self' http://127.0.0.1:5001 ws://127.0.0.1:5001 https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://region1.google-analytics.com https://identitytoolkit.googleapis.com;", // Allow Firebase and Google APIs
+            "connect-src 'self' http://127.0.0.1:5001 ws://127.0.0.1:5001 https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://region1.google-analytics.com https://identitytoolkit.googleapis.com https://accounts.google.com https://accounts.youtube.com;", // Allow Firebase and Google APIs
             "img-src 'self' data: https://*.cloudinary.com;", // Allow Cloudinary images if used
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;", // Allow Font Awesome
             "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;", // Allow fonts from CDNs

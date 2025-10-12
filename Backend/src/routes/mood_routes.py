@@ -97,14 +97,14 @@ def _generate_fallback_weekly_insights(weekly_data: dict) -> str:
     return " ".join(insights) if insights else "Otillräcklig data för analys denna vecka."
 
 # 🔹 Definiera humörkategorier
-NEGATIVE_MOODS = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "irriterad", "orolig"]
-POSITIVE_MOODS = ["glad", "lycklig", "nöjd", "tacksam", "positiv"]
+NEGATIVE_MOODS = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "irriterad", "orolig", "trött", "utmattad", "ängslig", "sorgsen"]
+POSITIVE_MOODS = ["glad", "lycklig", "nöjd", "tacksam", "positiv", "avslappnad", "harmonisk", "energisk"]
 ALL_MOODS = NEGATIVE_MOODS + POSITIVE_MOODS
 
 # 🔹 Humörpoäng för analys
 MOOD_SCORES = {
-    "glad": 2, "lycklig": 2, "nöjd": 1, "tacksam": 1, "positiv": 1,
-    "ledsen": -2, "arg": -2, "stressad": -1, "deppig": -1, "frustrerad": -1, "irriterad": -1, "orolig": -1
+    "glad": 2, "lycklig": 2, "nöjd": 1, "tacksam": 1, "positiv": 1, "avslappnad": 1, "harmonisk": 1, "energisk": 1,
+    "ledsen": -2, "arg": -2, "stressad": -1, "deppig": -1, "frustrerad": -1, "irriterad": -1, "orolig": -1, "trött": -1, "utmattad": -1, "ängslig": -1, "sorgsen": -1
 }
 
 def _sentiment_to_mood(sentiment_analysis: dict, transcript: str) -> str:
@@ -136,11 +136,14 @@ def _sentiment_to_mood(sentiment_analysis: dict, transcript: str) -> str:
     # Enhanced keyword matching first (before sentiment-based mapping)
     transcript_lower = transcript.lower()
     keyword_moods = {
-        "stressad": "stressad", "stress": "stressad", "orolig": "orolig", "ängslig": "orolig",
+        "stressad": "stressad", "stress": "stressad", "orolig": "orolig", "ängslig": "ängslig",
         "ledsen": "ledsen", "sorg": "ledsen", "deppig": "deppig", "nedstämd": "deppig",
         "arg": "arg", "rasande": "arg", "irriterad": "irriterad", "frustrerad": "frustrerad",
         "glad": "glad", "lycklig": "lycklig", "härlig": "glad", "kul": "glad",
-        "nöjd": "nöjd", "tacksam": "tacksam", "positiv": "positiv"
+        "nöjd": "nöjd", "tacksam": "tacksam", "positiv": "positiv",
+        "trött": "trött", "utmattad": "utmattad", "uttröttad": "trött",
+        "avslappnad": "avslappnad", "lugn": "avslappnad", "harmonisk": "harmonisk",
+        "energisk": "energisk", "pig": "energisk", "sorgsen": "sorgsen"
     }
 
     for keyword, mood in keyword_moods.items():
