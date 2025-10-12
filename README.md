@@ -1,266 +1,357 @@
-# Lugn & Trygg - AI-driven Mental Health App
+# Lugn & Trygg - Mental Health & Wellness Desktop Application
 
-🧘 Lugn & Trygg är en modern webbapplikation för mental hälsa och välbefinnande, utrustad med AI-driven analys, röststyrd interaktion och omfattande välmående-verktyg.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
+[![Electron](https://img.shields.io/badge/Electron-Desktop-green.svg)](https://electronjs.org)
+
+> En säker, användarvänlig desktop-applikation för mental hälsa och välbefinnande med AI-stödd terapi, humörspårning och avslappningsverktyg.
+
+## 📋 Innehåll
+
+- [Översikt](#-översikt)
+- [Funktioner](#-funktioner)
+- [Teknisk Stack](#-teknisk-stack)
+- [Installation](#-installation)
+- [Utveckling](#-utveckling)
+- [Produktion](#-produktion)
+- [API Dokumentation](#-api-dokumentation)
+- [Arkitektur](#-arkitektur)
+- [Säkerhet](#-säkerhet)
+- [Bidrag](#-bidrag)
+- [Licens](#-licens)
+
+## 🌟 Översikt
+
+**Lugn & Trygg** är en omfattande mentalvårdsapplikation som kombinerar moderna teknologier för att erbjuda användarna verktyg för bättre mental hälsa. Applikationen erbjuder AI-driven terapi, humörspårning, avslappningsövningar och professionell stöd.
+
+### 🎯 Målgrupp
+- Individer som vill förbättra sin mentala hälsa
+- Personer med stressrelaterade problem
+- Användare som behöver daglig humörspårning
+- De som söker avslappnings- och mindfulness-verktyg
 
 ## ✨ Funktioner
 
-### 🤖 AI-driven Funktioner
-- **AI Chatbot**: Terapeutisk konversation med krisdetektion och personliga råd
-- **Humöranalys**: Avancerad mönsteranalys med AI-genererade insikter
-- **Känsloigenkänning**: Automatisk analys av känslor från text och röst
-- **Personliga Rekommendationer**: AI-baserade coping-strategier och välmående-tips
+### 🤖 AI-Driven Funktioner
+- **Personliga rekommendationer** - GPT-4o-mini genererar skräddarsydda råd
+- **Känsloanalys** - Google Cloud NLP för avancerad sentimentanalys
+- **Tal-till-text** - Google Speech-to-Text för röstbaserad humörloggning
+- **Automatiska insikter** - Veckovis analys av humörmönster
 
-### 📊 Humörhantering
-- **Röstbaserad Loggning**: Logga humör genom att prata naturligt
-- **Veckovis Analys**: Detaljerade rapporter över humörmönster
-- **Trendanalys**: Identifiera förbättringar eller utmaningar över tid
-- **Känslofördelning**: Visualisering av humörfördelning
+### 📊 Humörspårning
+- **Röstbaserad loggning** - Tala in ditt humör istället för att skriva
+- **Visuella diagram** - Interaktiva grafer över tid
+- **Mångsidiga kategorier** - Glad, stressad, trött, avslappnad, m.fl.
+- **Veckovis analys** - AI-genererade insikter och trender
 
-### 🎵 Välbefinnande-verktyg
-- **Avslappningsljud**: Inbyggda ljud för meditation och avslappning
-- **Minnesbank**: Spara och återuppleva positiva minnen
-- **Röstinspelning**: Spela in personliga minnen och reflektioner
+### 🎵 Avslappning & Mindfulness
+- **Ljudbibliotek** - Olika ljud för avslappning
+- **Andningsövningar** - Guidad meditation
+- **Progressiv avslappning** - Muskulär avslappningsteknik
 
-### 🔐 Säkerhet & Användarhantering
-- **Firebase Autentisering**: Säker inloggning med e-post/lösenord och Google
-- **JWT Tokens**: Säker API-kommunikation
-- **Krypterad Lagring**: Alla data krypteras i Firestore
+### 🔐 Säkerhet & Integritet
+- **GDPR-kompatibel** - Fullständig dataskydd och samtycke
+- **End-to-end kryptering** - Säker datahantering
+- **Firebase Auth** - Säker autentisering
+- **JWT-tokens** - Säker API-kommunikation
 
-## 🛠 Teknologier och Beroenden
+### 🎨 Användarupplevelse
+- **Mörkt läge** - Valfritt mörkt tema
+- **Responsiv design** - Fungerar på olika skärmstorlekar
+- **Flerspråkig** - Svenska, engelska, norska
+- **Offline-stöd** - Grundläggande funktioner utan internet
 
-### Backend (Flask/Python)
-- **Flask**: REST API med CORS-stöd
-- **Firebase Admin SDK**: Autentisering, Firestore och Storage
-- **Google Cloud AI**: Sentimentanalys och NLP
-- **OpenAI API**: Avancerad AI-konversation (valfritt)
-- **JWT**: Token-baserad autentisering
+## 🛠 Teknisk Stack
 
-### Frontend (React/TypeScript)
-- **React 18**: Moderna komponenter med hooks
-- **TypeScript**: Typsäker utveckling
-- **Vite**: Snabb bygg- och utvecklingsmiljö
-- **Axios**: HTTP-klient för API-anrop
-- **React Router**: Klient-sida routing
-- **Firebase Client SDK**: Frontend-autentisering
+### Frontend
+- **React 18** - Moderna UI-komponenter
+- **TypeScript** - Typsäker utveckling
+- **Vite** - Snabb byggprocess
+- **Electron** - Cross-platform desktop app
+- **React Router** - Klient-sida routing
+- **Chart.js** - Data visualisering
+- **Framer Motion** - Animationer
+
+### Backend
+- **Flask** - Python web-ramverk
+- **Flask-Limiter** - Rate limiting
+- **Redis** - Cache och sessionshantering
+- **Firebase Admin** - Backend-tjänster
+- **Google Cloud** - AI och taligenkänning
 
 ### Databas & Lagring
-- **Firestore**: NoSQL-databas för användardata
-- **Firebase Storage**: Filuppladdning för ljudinspelningar
-- **Firebase Auth**: Användarhantering
+- **Firestore** - NoSQL databas
+- **Firebase Storage** - Filuppladdning
+- **Redis** - Cache och rate limiting
 
-För fullständig lista av beroenden, se `requirements.txt` och `frontend/package.json`.
+### AI & ML
+- **OpenAI GPT-4o-mini** - Terapeutiska rekommendationer
+- **Google Cloud NLP** - Sentimentanalys
+- **Google Speech-to-Text** - Taligenkänning
 
-## 🚀 Installation & Konfiguration
+### DevOps
+- **Docker** - Containerisering
+- **Docker Compose** - Multi-container setup
+- **Nginx** - Reverse proxy
+- **GitHub Actions** - CI/CD
+
+## 🚀 Installation
 
 ### Förutsättningar
-- **Python 3.8+** med pip
-- **Node.js 16+** och npm
-- **Firebase-projekt** med Firestore och Authentication aktiverat
-- **Google Cloud Service Account** (för AI-funktioner)
+- **Node.js** 18+ och **npm**
+- **Python** 3.11+
+- **Docker** och **Docker Compose**
+- **Git**
 
-### Steg-för-steg Installation
-
-1. **Klona projektet:**
-    ```bash
-    git clone https://github.com/omar1u7777/Lugn-Trygg.git
-    cd Lugn-Trygg
-    ```
-
-2. **Konfigurera Firebase:**
-    - Skapa ett nytt Firebase-projekt på [Firebase Console](https://console.firebase.google.com)
-    - Aktivera Authentication (Email/Password och Google provider)
-    - Aktivera Firestore Database
-    - Aktivera Storage
-    - Ladda ner service account-nyckeln och döp om till `serviceAccountKey.json`
-
-3. **Backend-konfiguration:**
-    ```bash
-    # Installera Python-beroenden
-    pip install -r requirements.txt
-
-    # Kopiera och konfigurera miljövariabler
-    cp Backend/.env.example Backend/.env
-    # Redigera Backend/.env med dina Firebase-inställningar
-    ```
-
-4. **Frontend-konfiguration:**
-    ```bash
-    cd frontend
-
-    # Installera Node.js-beroenden
-    npm install
-
-    # Kopiera och konfigurera miljövariabler
-    cp .env.example .env
-    # Redigera .env med dina Firebase-inställningar
-    ```
-
-5. **Starta applikationen:**
-
-    **Terminal 1 - Backend:**
-    ```bash
-    cd Backend
-    python main.py
-    ```
-    Backend startar på `http://localhost:5001`
-
-    **Terminal 2 - Frontend:**
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-    Frontend startar på `http://localhost:3000`
-
-### 🔧 Miljövariabler
-
-#### Backend (.env)
-```env
-# Flask
-FLASK_DEBUG=True
-PORT=5001
-
-# Firebase
-FIREBASE_CREDENTIALS=serviceAccountKey.json
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_API_KEY=your-api-key
-
-# JWT
-JWT_SECRET_KEY=your-jwt-secret
-JWT_REFRESH_SECRET_KEY=your-refresh-secret
-
-# OpenAI (valfritt för avancerad AI)
-OPENAI_API_KEY=your-openai-key
-
-# CORS
-CORS_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
-```
-
-#### Frontend (.env)
-```env
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef123456
-```
-
-## 📈 Projektstatus & Sprintöversikt
-
-### ✅ **Sprint 1: Användarhantering & Autentisering (Klar)**
-- Firebase-autentisering med e-post/lösenord och Google-inloggning
-- JWT-token baserad säker API-kommunikation
-- Säker användarregistrering med validering
-
-### ✅ **Sprint 2: Humörloggning & AI-analys (Klar)**
-- Röstbaserad humörloggning med sentimentanalys
-- Realtids humörspårning och lagring i Firestore
-- AI-driven mönsteranalys och trendidentifiering
-- Veckovis rapporter med personliga insikter
-
-### ✅ **Sprint 3: AI Chatbot & Krisstöd (Klar)**
-- Terapeutisk AI-konversation med krisdetektion
-- Automatisk känsloregistering och coping-strategier
-- Säker krisintervention med professionella rekommendationer
-- Konversationshistorik och sammanhangsbevarande dialog
-
-### ✅ **Sprint 4: Minneshantering & Välbefinnande (Klar)**
-- Röstinspelning och lagring av personliga minnen
-- Avslappningsljud och meditationsverktyg
-- Minnesbank för positiva upplevelser
-- Omfattande välmående-dashboard
-
-### 🚀 **Sprint 5: Avancerade Funktioner (Pågående)**
-- OpenAI-integration för förbättrad AI-konversation
-- Röstanalys för emotionell tillståndsbedömning
-- Prediktiv analys av humörmönster
-- Mobiloptimering och PWA-funktionalitet
-
-## 🧪 Testning & Utveckling
-
-### Testanvändare
-Applikationen innehåller förkonfigurerade testanvändare för utveckling:
-- **Erik Eriksson** (`erik.eriksson@test.se`) - Testdata för mönsteranalys
-- **Anna Andersson** (`anna.andersson@test.se`) - Förbättrande humörmönster
-- **Maria Pettersson** (`maria.pettersson@test.se`) - Variabla humörmönster
-
-### Köra Tester
+### Snabbstart
 ```bash
-# Backend-tester
-cd Backend
-python -m pytest tests/
-
-# Frontend-tester
-cd frontend
-npm run test
-
-# Integrationstestning
-cd Backend
-python populate_test_data.py  # Lägger till testdata
-```
-
-## 📚 API-dokumentation
-
-### Viktiga Endpoints
-- `POST /api/auth/login` - Användarinloggning
-- `POST /api/mood/log` - Logga humör
-- `POST /api/chatbot/chat` - AI-konversation
-- `POST /api/chatbot/analyze-patterns` - Mönsteranalys
-- `GET /api/mood/weekly-analysis` - Veckovis rapport
-
-Fullständig API-dokumentation finns i `Backend/docs/`.
-
-## 🤝 Bidrag & Utveckling
-
-### Bidragsriktlinjer
-1. **Förka branch för nya funktioner:**
-    ```bash
-    git checkout -b feature/din-funktion
-    ```
-2. **Följ kodstandarder:**
-    ```bash
-    # Backend: Black för formattering
-    # Frontend: ESLint och Prettier
-    cd frontend && npm run lint
-    ```
-3. **Skriv tester för nya funktioner**
-4. **Skapa Pull Request med detaljerad beskrivning**
-
-### Utvecklingsmiljö
-```bash
-# Klona och setup
+# Klona repository
 git clone https://github.com/omar1u7777/Lugn-Trygg.git
 cd Lugn-Trygg
 
-# Backend development
+# Starta hela applikationen
+docker-compose -f docker-compose.prod.yml up -d
+
+# Eller bygg för desktop
+./build.bat all
+```
+
+### Manuell Installation
+
+#### Backend
+```bash
 cd Backend
 python -m venv venv
-venv\Scripts\activate  # Windows
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env
+# Konfigurera miljövariabler
 python main.py
+```
 
-# Frontend development (nytt terminalfönster)
+#### Frontend
+```bash
 cd frontend
 npm install
+cp .env.example .env
+# Konfigurera miljövariabler
 npm run dev
 ```
 
-## 📞 Support & Kontakt
+## 💻 Utveckling
 
-- **Projektägare**: Omar Alhaek
-- **E-post**: [omaralhaek97@gmail.com](mailto:omaralhaek97@gmail.com)
-- **GitHub**: [https://github.com/omar1u7777/Lugn-Trygg](https://github.com/omar1u7777/Lugn-Trygg)
+### Utvecklingsmiljö
+```bash
+# Starta backend
+cd Backend && python main.py
 
-## 📄 Licens & Användning
+# Starta frontend (nytt terminalfönster)
+cd frontend && npm run dev
 
-Detta projekt är utvecklat som en del av ett utbildningsprojekt för att demonstrera moderna webbutvecklings-tekniker och AI-integrering i mentalvårdsapplikationer.
+# Starta Electron (nytt terminalfönster)
+cd frontend && npx electron .
+```
 
-### Viktig Information
-- **Ej medicinsk rådgivning**: Denna applikation är ett verktyg för välbefinnande och ersätter inte professionell vård
-- **Datasekretess**: All användardata krypteras och lagras säkert i Firebase
-- **AI-genererat innehåll**: AI-rekommendationer är hjälpmedel, inte medicinska råd
+### Kodstruktur
+```
+Lugn-Trygg/
+├── Backend/                 # Python Flask API
+│   ├── src/
+│   │   ├── routes/         # API endpoints
+│   │   ├── services/       # Business logic
+│   │   ├── utils/          # Helper functions
+│   │   └── config.py       # Configuration
+│   └── requirements.txt
+├── frontend/               # React/Electron app
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/       # React contexts
+│   │   ├── hooks/          # Custom hooks
+│   │   └── styles/         # CSS styles
+│   ├── main.cjs            # Electron main process
+│   └── preload.js          # Electron preload script
+├── docker-compose.yml      # Development setup
+├── docker-compose.prod.yml # Production setup
+└── build.sh/build.bat      # Build scripts
+```
+
+### Testing
+```bash
+# Backend tester
+cd Backend && python -m pytest
+
+# Frontend tester
+cd frontend && npm test
+
+# E2E tester
+cd frontend && npm run test:e2e
+```
+
+## 🏭 Produktion
+
+### Docker Deployment
+```bash
+# Bygg och starta produktionscontainers
+docker-compose -f docker-compose.prod.yml up -d
+
+# Visa loggar
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Stoppa tjänster
+docker-compose -f docker-compose.prod.yml down
+```
+
+### Electron Desktop App
+```bash
+# Bygg för nuvarande plattform
+cd frontend
+npm run build:electron
+
+# Bygg för alla plattformar
+npm run build:electron:win
+npm run build:electron:mac
+npm run build:electron:linux
+```
+
+### Miljövariabler
+```bash
+# Backend .env
+JWT_SECRET_KEY=your-secret-key
+FIREBASE_CREDENTIALS=serviceAccountKey.json
+OPENAI_API_KEY=your-openai-key
+
+# Frontend .env
+VITE_API_URL=http://localhost:5001
+VITE_FIREBASE_API_KEY=your-firebase-key
+```
+
+## 📚 API Dokumentation
+
+### Autentisering
+```
+POST /api/auth/login          # Inloggning
+POST /api/auth/register       # Registrering
+POST /api/auth/google-login   # Google OAuth
+POST /api/auth/refresh        # Token refresh
+POST /api/auth/logout         # Utloggning
+```
+
+### Humörhantering
+```
+GET  /api/mood/get            # Hämta humörloggar
+POST /api/mood/log            # Logga nytt humör
+GET  /api/mood/weekly-analysis # Veckovis analys
+```
+
+### Minneshantering
+```
+GET  /api/memory/list         # Lista minnen
+POST /api/memory/create       # Skapa minne
+PUT  /api/memory/update       # Uppdatera minne
+DELETE /api/memory/delete     # Ta bort minne
+```
+
+### AI-tjänster
+```
+POST /api/ai/analyze-sentiment    # Sentimentanalys
+POST /api/ai/generate-insights   # Generera insikter
+POST /api/ai/therapeutic-chat    # Terapeutisk chatt
+```
+
+## 🏗 Arkitektur
+
+### Systemarkitektur
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Electron App  │    │   Web Browser   │
+│   (Desktop)     │    │   (Web App)     │
+└─────────┬───────┘    └─────────┬───────┘
+          │                      │
+          └──────────┬───────────┘
+                     │
+          ┌─────────────────────┐
+          │   Flask API Server  │
+          │   (Python Backend)  │
+          └─────────┬───────────┘
+                    │
+          ┌─────────┴───────────┐
+          │                    │
+┌─────────┴─────┐  ┌─────────┴─────┐
+│   Firestore   │  │   Firebase    │
+│   (Database)  │  │   Auth        │
+└───────────────┘  └───────────────┘
+```
+
+### Säkerhetsarkitektur
+- **JWT-tokens** med 15 minuters giltighetstid
+- **Refresh tokens** för automatisk förnyelse
+- **Rate limiting** på alla API-endpoints
+- **CSP headers** för XSS-skydd
+- **GDPR-kompatibel** datahantering
+
+## 🔒 Säkerhet
+
+### Autentisering & Auktorisering
+- Firebase Authentication för användarhantering
+- JWT-baserad API-autentisering
+- Role-based access control
+- Secure token storage
+
+### Data Protection
+- End-to-end encryption för känslig data
+- GDPR-compliant data deletion
+- Audit logging för alla åtgärder
+- Secure API communication
+
+### Content Security Policy
+```javascript
+// CSP regler för Electron app
+{
+  "default-src": ["'self'"],
+  "script-src": ["'self'", "'unsafe-inline'"],
+  "connect-src": ["'self'", "https://*.googleapis.com"],
+  "style-src": ["'self'", "'unsafe-inline'"]
+}
+```
+
+## 🤝 Bidrag
+
+Vi välkomnar bidrag! Se till att:
+
+1. Följ kodstandarder (ESLint, Black)
+2. Skriv tester för ny funktionalitet
+3. Uppdatera dokumentation
+4. Följ Git commit conventions
+
+```bash
+# Skapa feature branch
+git checkout -b feature/amazing-feature
+
+# Commit changes
+git commit -m "feat: add amazing feature"
+
+# Push och skapa PR
+git push origin feature/amazing-feature
+```
+
+## 📄 Licens
+
+Detta projekt är licensierat under MIT License - se [LICENSE](LICENSE) filen för detaljer.
+
+## 🙏 Acknowledgments
+
+- **OpenAI** för GPT-4o-mini API
+- **Google Cloud** för NLP och Speech-to-Text
+- **Firebase** för backend-tjänster
+- **Electron** för cross-platform desktop support
+
+## 📞 Support
+
+För support och frågor:
+- Skapa ett [GitHub Issue](https://github.com/omar1u7777/Lugn-Trygg/issues)
+- Kontakta utvecklings-teamet
+- Se [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) för teknisk dokumentation
 
 ---
 
-🧘 **Lugn & Trygg** - För ett bättre mående genom teknik och empati.
-
+**Byggd med ❤️ för bättre mental hälsa**
