@@ -60,8 +60,25 @@ function buildWeb() {
 
     const frontendDir = path.join(__dirname, 'frontend');
 
-    if (!runCommand('npm ci', frontendDir, 'Installing dependencies')) {
-        return false;
+    // Skip dependency installation if node_modules exists and seems healthy
+    const nodeModulesExists = fs.existsSync(path.join(frontendDir, 'node_modules'));
+    const packageLockExists = fs.existsSync(path.join(frontendDir, 'package-lock.json'));
+
+    if (!nodeModulesExists || !packageLockExists) {
+        info('Dependencies not found, installing...');
+
+        // Try npm install instead of npm ci if ci fails
+        let installSuccess = runCommand('npm ci', frontendDir, 'Installing dependencies');
+        if (!installSuccess) {
+            info('npm ci failed, trying npm install...');
+            installSuccess = runCommand('npm install', frontendDir, 'Installing dependencies (fallback)');
+            if (!installSuccess) {
+                error('Failed to install dependencies. Try running: cd frontend && rm -rf node_modules package-lock.json && npm install');
+                return false;
+            }
+        }
+    } else {
+        info('Using existing dependencies');
     }
 
     if (!runCommand('npm run build', frontendDir, 'Building web app')) {
@@ -77,8 +94,25 @@ function buildElectron() {
 
     const frontendDir = path.join(__dirname, 'frontend');
 
-    if (!runCommand('npm ci', frontendDir, 'Installing dependencies')) {
-        return false;
+    // Skip dependency installation if node_modules exists and seems healthy
+    const nodeModulesExists = fs.existsSync(path.join(frontendDir, 'node_modules'));
+    const packageLockExists = fs.existsSync(path.join(frontendDir, 'package-lock.json'));
+
+    if (!nodeModulesExists || !packageLockExists) {
+        info('Dependencies not found, installing...');
+
+        // Try npm install instead of npm ci if ci fails
+        let installSuccess = runCommand('npm ci', frontendDir, 'Installing dependencies');
+        if (!installSuccess) {
+            info('npm ci failed, trying npm install...');
+            installSuccess = runCommand('npm install', frontendDir, 'Installing dependencies (fallback)');
+            if (!installSuccess) {
+                error('Failed to install dependencies. Try running: cd frontend && rm -rf node_modules package-lock.json && npm install');
+                return false;
+            }
+        }
+    } else {
+        info('Using existing dependencies');
     }
 
     if (!runCommand('npm run build', frontendDir, 'Building web assets')) {
