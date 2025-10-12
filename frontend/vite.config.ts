@@ -30,6 +30,14 @@ export default defineConfig(({ mode }) => {
       sourcemap: mode === "development",
       target: "esnext",
       cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          },
+        },
+      },
     },
     define: {
       "import.meta.env.VITE_BACKEND_URL": JSON.stringify("http://127.0.0.1:5001"), // Corrected port

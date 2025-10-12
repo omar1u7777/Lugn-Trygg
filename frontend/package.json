@@ -11,8 +11,13 @@
   "proxy": "http://localhost:54112",
   "scripts": {
     "dev": "concurrently \"npx vite\" \"npx electron .\"",
-    "build": "next build",
-    "start": "next start",
+    "build": "npx vite build",
+    "build:electron": "npm run build && electron-builder",
+    "build:electron:win": "npm run build && electron-builder --win",
+    "build:electron:mac": "npm run build && electron-builder --mac",
+    "build:electron:linux": "npm run build && electron-builder --linux",
+    "start": "npx vite preview",
+    "serve": "npx vite preview --host 0.0.0.0 --port 3000",
     "lint": "eslint . --fix",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
@@ -88,19 +93,18 @@
     "appId": "com.lugn.trygg",
     "productName": "Lugn & Trygg",
     "directories": {
-      "app": "app",
       "output": "release"
     },
     "files": [
       "dist/**/*",
       "package.json",
-      "main.js",
+      "main.cjs",
       "preload.js"
     ],
     "extraResources": [
       {
-        "from": "main.js",
-        "to": "app/main.js"
+        "from": "main.cjs",
+        "to": "app/main.cjs"
       }
     ],
     "win": {

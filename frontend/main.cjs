@@ -46,11 +46,12 @@ function createWindow() {
             const productionBackendUrl = process.env.FRONTEND_URL || 'https://your-frontend.com'; // Assuming FRONTEND_URL from backend .env.example
             cspRules = [
                 "default-src 'self' data: blob: filesystem:;",
-                "script-src 'self';",
-                `connect-src 'self' ${productionBackendUrl};`, //  Begränsar API-anrop till en säker domän
-                "img-src 'self' data:;",
-                "style-src 'self' https://fonts.googleapis.com;",
-                "font-src 'self' https://fonts.gstatic.com;"
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://apis.google.com;",
+                `connect-src 'self' ${productionBackendUrl} https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://region1.google-analytics.com https://identitytoolkit.googleapis.com;`,
+                "img-src 'self' data: https://*.cloudinary.com;",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;",
+                "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;",
+                `frame-src 'self' https://lugn-trygg-53d75.firebaseapp.com;`
             ];
         }
 
