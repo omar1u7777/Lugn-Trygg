@@ -19,6 +19,9 @@ const RegisterForm: React.FC = () => {
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
       return "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.";
     }
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+      return "Lösenordet måste innehålla minst ett specialtecken.";
+    }
     return "";
   };
 
@@ -118,7 +121,7 @@ const RegisterForm: React.FC = () => {
               </button>
             </div>
             <small className="password-hint">
-              Minst 8 tecken, en stor bokstav, en liten bokstav och en siffra.
+              Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
             </small>
           </div>
 

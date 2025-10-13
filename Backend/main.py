@@ -1,12 +1,13 @@
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_babel import Babel
+from flask_jwt_extended import JWTManager
 from redis import Redis
 
 from src.routes.memory_routes import memory_bp
@@ -23,7 +24,14 @@ from src.firebase_config import initialize_firebase
 load_dotenv()
 
 # 🔹 Konfigurera loggning
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(pathname)s:%(lineno)d",
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # 🔹 Initiera Google Cloud Speech-to-Text
@@ -87,6 +95,19 @@ def create_app(testing=False):
     if not app.config["JWT_SECRET_KEY"]:
         logger.critical("❌ JWT_SECRET_KEY saknas i miljövariabler!")
         raise ValueError("JWT_SECRET_KEY saknas i miljövariabler!")
+
+    # 🔹 JWT-konfiguration
+    app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
+    app.config["JWT_HEADER_NAME"] = "Authorization"
+    app.config["JWT_HEADER_TYPE"] = "Bearer"
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
+    app.config["JWT_COOKIE_SECURE"] = not app.config["DEBUG"]  # Secure in production
+    app.config["JWT_COOKIE_HTTPONLY"] = True
+    app.config["JWT_COOKIE_SAMESITE"] = "Strict"
+
+    # Initiera JWT Manager
+    jwt = JWTManager(app)
 
     # Kontrollera FIREBASE_CREDENTIALS_PATH
     if not testing and not os.getenv("FIREBASE_CREDENTIALS_PATH"):

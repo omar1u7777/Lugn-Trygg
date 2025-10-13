@@ -19,6 +19,20 @@
   <meta name="apple-mobile-web-app-title" content="Lugn & Trygg">
   <link rel="apple-touch-icon" href="/icon-192.png">
 
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://www.gstatic.com https://www.googleapis.com https://apis.google.com https://securetoken.googleapis.com https://firebase.googleapis.com https://*.firebaseapp.com https://*.googleapis.com;
+    style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com;
+    img-src 'self' data: https: blob:;
+    font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com;
+    connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://securetoken.googleapis.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com http://localhost:5001;
+    frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+  ">
+
 </head>
 <body>
   <noscript>

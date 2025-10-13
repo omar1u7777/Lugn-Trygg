@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents as TrophyIcon,
-  LocalFire as StreakIcon,
+  Whatshot as StreakIcon,
   Star as StarIcon,
   Psychology as MindIcon,
   Favorite as HeartIcon,
@@ -288,9 +288,9 @@ const BadgeDisplay: React.FC = () => {
           Track your progress and unlock achievements as you use the app!
         </Typography>
 
-        <Grid container spacing={3}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {badges.map((badge, index) => (
-            <Grid item xs={12} sm={6} md={4} key={badge.id}>
+            <Box key={badge.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.333% - 16px)' } }}>
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -394,17 +394,17 @@ const BadgeDisplay: React.FC = () => {
                   </CardContent>
                 </Card>
               </motion.div>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
 
         {/* Achievement Summary */}
         <Paper sx={{ mt: 4, p: 3, background: 'linear-gradient(135deg, #f5f5f5, #e8e8e8)' }}>
           <Typography variant="h6" gutterBottom>
             Achievement Summary
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
               <Box textAlign="center">
                 <Typography variant="h4" color="primary">
                   {badges.filter(b => b.earned).length}
@@ -413,8 +413,8 @@ const BadgeDisplay: React.FC = () => {
                   Earned
                 </Typography>
               </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
+            </Box>
+            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
               <Box textAlign="center">
                 <Typography variant="h4" color="secondary">
                   {badges.filter(b => !b.earned).length}
@@ -423,8 +423,8 @@ const BadgeDisplay: React.FC = () => {
                   Remaining
                 </Typography>
               </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
+            </Box>
+            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
               <Box textAlign="center">
                 <Typography variant="h4" sx={{ color: getRarityColor('rare') }}>
                   {badges.filter(b => b.earned && b.rarity === 'rare').length}
@@ -433,8 +433,8 @@ const BadgeDisplay: React.FC = () => {
                   Rare
                 </Typography>
               </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
+            </Box>
+            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
               <Box textAlign="center">
                 <Typography variant="h4" sx={{ color: getRarityColor('epic') }}>
                   {badges.filter(b => b.earned && b.rarity === 'epic').length}
@@ -443,8 +443,8 @@ const BadgeDisplay: React.FC = () => {
                   Epic
                 </Typography>
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Paper>
       </Box>
     </motion.div>

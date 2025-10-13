@@ -38,6 +38,18 @@ def register():
         if len(password) < 8:
             return jsonify({'error': 'Password must be at least 8 characters long'}), 400
 
+        if not re.search(r'[A-Z]', password):
+            return jsonify({'error': 'Password must contain at least one uppercase letter'}), 400
+
+        if not re.search(r'[a-z]', password):
+            return jsonify({'error': 'Password must contain at least one lowercase letter'}), 400
+
+        if not re.search(r'\d', password):
+            return jsonify({'error': 'Password must contain at least one number'}), 400
+
+        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]', password):
+            return jsonify({'error': 'Password must contain at least one special character'}), 400
+
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:

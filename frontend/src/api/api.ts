@@ -11,6 +11,9 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// 🔹 Exportera api som default export
+export default api;
+
 // 🔹 Förhindrar oändlig loop vid token-refresh
 let isRefreshing = false;
 
@@ -32,15 +35,37 @@ api.interceptors.response.use(
           localStorage.setItem("token", newAccessToken);
           api.defaults.headers["Authorization"] = `Bearer ${newAccessToken}`;
           originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+          console.log("🔄 Token refreshed successfully");
           isRefreshing = false;
           return api(originalRequest);
         }
       } catch (refreshError) {
         console.error("❌ Automatisk token-uppdatering misslyckades:", refreshError);
+        console.warn("⚠️ Token refresh failed, logging out user");
         isRefreshing = false;
         logoutUser();
       }
     }
+
+    // Enhanced error logging
+    if (error.response) {
+      console.error("API Error Response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        url: originalRequest?.url,
+        method: originalRequest?.method
+      });
+    } else if (error.request) {
+      console.error("API Network Error:", {
+        message: error.message,
+        url: originalRequest?.url,
+        method: originalRequest?.method
+      });
+    } else {
+      console.error("API Error:", error.message);
+    }
+
     return Promise.reject(error);
   }
 );
