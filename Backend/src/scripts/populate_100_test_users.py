@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Script to populate Firestore with 100 test users for traction demonstration.
-Creates randomized user data with moods, memories, subscriptions, and multilingual support.
+Script to populate 100 test users for traction demonstration.
+Creates randomized users with Swedish/English/Norwegian languages,
+various subscription tiers, mood logs, and memories.
 """
 
 import os
@@ -9,257 +10,180 @@ import sys
 import random
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
-import firebase_admin
-from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
+
+# Add Backend directory to path for imports
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, backend_dir)
+sys.path.insert(0, os.path.join(backend_dir, 'src'))
+
+# Change to Backend directory to find serviceAccountKey.json
+os.chdir(backend_dir)
+
+# Initialize Firebase first
+import src.firebase_config as firebase_config
+if not firebase_config.initialize_firebase():
+    print("❌ Failed to initialize Firebase")
+    sys.exit(1)
+
+firebase_services = firebase_config.get_firebase_services()
+db = firebase_services["db"]
+from src.utils.password_utils import hash_password
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Firebase Admin SDK
-try:
-    # Try to use the firebase_config module for proper initialization
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from firebase_config import db
-    print("✅ Firebase initialized successfully via config module")
-except ImportError:
-    try:
-        cred_path = os.getenv('FIREBASE_CREDENTIALS', 'serviceAccountKey.json')
-        if os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-            db = firestore.client()
-            print("✅ Firebase initialized successfully")
-        else:
-            print(f"❌ Firebase credentials file not found: {cred_path}")
-            print("📝 For demo purposes, creating mock data instead...")
-            # Create a mock implementation for demonstration
-            class MockDB:
-                def collection(self, name):
-                    return MockCollection(name)
-            class MockCollection:
-                def __init__(self, name):
-                    self.name = name
-                    self.data = []
-                def add(self, data):
-                    self.data.append(data)
-                    return f"mock_doc_{len(self.data)}"
-                def document(self, doc_id):
-                    return MockDocument(doc_id, self)
-            class MockDocument:
-                def __init__(self, doc_id, collection):
-                    self.id = doc_id
-                    self.collection = collection
-                    self.doc_data = None
-                def set(self, data):
-                    self.doc_data = data
-                    print(f"📝 Mock saved to {self.collection.name}/{self.id}")
-            db = MockDB()
-    except Exception as e:
-        print(f"❌ Firebase initialization failed: {e}")
-        sys.exit(1)
-
 # Test data generators
-LANGUAGES = ['sv', 'en', 'no']
-SUBSCRIPTION_TIERS = ['free', 'premium', 'pro']
-MOOD_SENTIMENTS = ['POSITIVE', 'NEGATIVE', 'NEUTRAL']
-MOOD_TEXTS = {
-    'sv': {
-        'POSITIVE': ['Jag känner mig glad idag!', 'Så bra energi idag', 'Mycket tacksam för dagen'],
-        'NEGATIVE': ['Känner mig lite nere', 'Stressad över jobbet', 'Svårt att koncentrera'],
-        'NEUTRAL': ['Ganska normal dag', 'Varken bra eller dåligt', 'Standardkänsla']
-    },
-    'en': {
-        'POSITIVE': ['Feeling great today!', 'So much energy today', 'Very grateful for the day'],
-        'NEGATIVE': ['Feeling a bit down', 'Stressed about work', 'Hard to concentrate'],
-        'NEUTRAL': ['Pretty normal day', 'Neither good nor bad', 'Standard feeling']
-    },
-    'no': {
-        'POSITIVE': ['Føler meg glad i dag!', 'Så mye energi i dag', 'Svært takknemlig for dagen'],
-        'NEGATIVE': ['Føler meg litt nede', 'Stresset over jobb', 'Vanskelig å konsentrere'],
-        'NEUTRAL': ['Ganske normal dag', 'Verken bra eller dårlig', 'Standardfølelse']
-    }
-}
+SWEDISH_NAMES = [
+    "Anna Andersson", "Erik Eriksson", "Maria Johansson", "Lars Larsson",
+    "Sara Karlsson", "Anders Nilsson", "Eva Olsson", "Johan Persson",
+    "Linda Svensson", "Peter Gustafsson", "Karin Pettersson", "Mikael Lindberg",
+    "Helena Berg", "Daniel Holm", "Åsa Lund", "Magnus Sjöberg",
+    "Camilla Wallin", "Fredrik Engström", "Emma Åberg", "Andreas Forsberg"
+]
 
-MEMORY_CONTENTS = {
-    'sv': ['En vacker promenad i parken', 'Träffade gamla vänner', 'Lyssnade på avslappnande musik', 'Gjorde yoga hemma'],
-    'en': ['A beautiful walk in the park', 'Met old friends', 'Listened to relaxing music', 'Did yoga at home'],
-    'no': ['En vakker tur i parken', 'Møtte gamle venner', 'Lytta til avslappende musikk', 'Gjorde yoga hjemme']
-}
+ENGLISH_NAMES = [
+    "John Smith", "Emma Johnson", "Michael Brown", "Sarah Davis",
+    "David Wilson", "Lisa Garcia", "James Miller", "Jennifer Martinez",
+    "Robert Anderson", "Jessica Taylor", "William Thomas", "Ashley Jackson",
+    "Christopher White", "Amanda Harris", "Daniel Martin", "Stephanie Thompson",
+    "Matthew Garcia", "Lauren Martinez", "Anthony Robinson", "Rachel Clark"
+]
 
-def generate_random_user(index: int) -> Dict[str, Any]:
-    """Generate a random test user"""
-    user_id = f"test_user_{index:03d}"
-    language = random.choice(LANGUAGES)
-    subscription = random.choices(SUBSCRIPTION_TIERS, weights=[0.6, 0.3, 0.1])[0]
+NORWEGIAN_NAMES = [
+    "Ole Hansen", "Kari Olsen", "Per Larsen", "Anne Johansen",
+    "Johan Andersen", "Ingrid Pedersen", "Erik Nilsen", "Marianne Kristiansen",
+    "Thomas Jensen", "Sofia Berg", "Anders Moen", "Camilla Hagen",
+    "Kristian Solberg", "Nina Larsen", "Magnus Haugen", "Silje Bakken",
+    "Henrik Strand", "Line Vik", "Alexander Dahl", "Emma Lie"
+]
 
-    # Generate realistic names based on language
-    if language == 'sv':
-        first_names = ['Anna', 'Erik', 'Maria', 'Lars', 'Sara', 'Anders', 'Emma', 'Johan']
-        last_names = ['Andersson', 'Johansson', 'Karlsson', 'Nilsson', 'Eriksson', 'Larsson']
-    elif language == 'no':
-        first_names = ['Anne', 'Ole', 'Kari', 'Per', 'Ingrid', 'Bjørn', 'Sofie', 'Lars']
-        last_names = ['Hansen', 'Johansen', 'Olsen', 'Larsen', 'Andersen', 'Pedersen']
-    else:  # en
-        first_names = ['John', 'Sarah', 'Michael', 'Emma', 'David', 'Lisa', 'James', 'Anna']
-        last_names = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller']
+MOOD_TYPES = ["happy", "sad", "anxious", "calm", "excited", "tired", "angry", "peaceful"]
+SUBSCRIPTION_TIERS = ["free", "premium", "enterprise"]
+LANGUAGES = ["sv", "en", "no"]
 
-    name = f"{random.choice(first_names)} {random.choice(last_names)}"
-    email = f"{user_id}@test.lugn-trygg.se"
-
-    return {
-        'user_id': user_id,
-        'email': email,
-        'name': name,
-        'language': language,
-        'subscription_tier': subscription,
-        'is_active': True,
-        'created_at': datetime.utcnow() - timedelta(days=random.randint(1, 365)),
-        'last_login': datetime.utcnow() - timedelta(hours=random.randint(1, 168)),
-        'two_factor_enabled': random.choice([True, False]),
-        'biometric_enabled': random.choice([True, False]) if random.random() < 0.3 else False,
-        'consent': {
-            'analytics_consent': random.choice([True, False]),
-            'marketing_consent': random.choice([True, False]),
-            'data_processing_consent': True,
-            'consent_updated_at': datetime.utcnow().isoformat()
-        }
-    }
-
-def generate_mood_logs(user_id: str, language: str, num_logs: int) -> List[Dict[str, Any]]:
-    """Generate random mood logs for a user"""
+def generate_random_mood_data(user_id, days_back=90):
+    """Generate random mood logs for a user over the past days_back days."""
     moods = []
-    base_date = datetime.utcnow() - timedelta(days=30)
+    base_date = datetime.utcnow()
 
-    for i in range(num_logs):
-        sentiment = random.choice(MOOD_SENTIMENTS)
-        mood_text = random.choice(MOOD_TEXTS[language][sentiment])
-
-        # Add some AI analysis
-        ai_analysis = {
-            'sentiment': sentiment,
-            'score': random.uniform(-1.0, 1.0),
-            'emotions': random.sample(['joy', 'sadness', 'anger', 'fear', 'surprise', 'trust'], random.randint(1, 3)),
-            'intensity': random.uniform(0.1, 1.0),
-            'method': random.choice(['openai', 'google_nlp', 'keyword_fallback'])
-        }
-
+    for i in range(random.randint(20, days_back)):  # Random number of mood entries
+        mood_date = base_date - timedelta(days=random.randint(0, days_back))
         mood = {
             'user_id': user_id,
-            'mood_text': mood_text,
-            'timestamp': (base_date + timedelta(days=i, hours=random.randint(8, 22))).isoformat(),
-            'sentiment': sentiment,
-            'ai_analysis': ai_analysis,
-            'voice_data': random.choice([None, f"base64_audio_data_{i}"]) if random.random() < 0.3 else None
+            'mood': random.choice(MOOD_TYPES),
+            'score': random.randint(1, 10),
+            'timestamp': mood_date.isoformat(),
+            'notes': f"Feeling {random.choice(MOOD_TYPES)} today"
         }
         moods.append(mood)
 
     return moods
 
-def generate_memories(user_id: str, language: str, num_memories: int) -> List[Dict[str, Any]]:
-    """Generate random memories for a user"""
-    memories = []
-    base_date = datetime.utcnow() - timedelta(days=30)
+def generate_random_memory(user_id):
+    """Generate a random memory entry."""
+    memory_types = ["voice", "text", "photo"]
+    memory = {
+        'user_id': user_id,
+        'type': random.choice(memory_types),
+        'title': f"Memory from {random.choice(['yesterday', 'last week', 'childhood', 'recent trip'])}",
+        'description': f"A cherished memory about {random.choice(['family', 'friends', 'nature', 'achievement'])}",
+        'timestamp': (datetime.utcnow() - timedelta(days=random.randint(0, 365))).isoformat(),
+        'tags': random.sample(['happy', 'family', 'nature', 'friends', 'achievement'], random.randint(1, 3))
+    }
+    return memory
 
-    for i in range(num_memories):
-        content = random.choice(MEMORY_CONTENTS[language])
+def create_test_users():
+    """Create 100 test users with randomized data."""
+    print("🚀 Starting creation of 100 test users...")
 
-        memory = {
-            'user_id': user_id,
-            'content': content,
-            'timestamp': (base_date + timedelta(days=i*2, hours=random.randint(10, 20))).isoformat(),
-            'type': random.choice(['text', 'voice']),
-            'sentiment_analysis': {
-                'sentiment': random.choice(MOOD_SENTIMENTS),
-                'score': random.uniform(-1.0, 1.0),
-                'emotions': ['joy', 'trust']
-            },
-            'tags': random.sample(['positive', 'social', 'relaxation', 'exercise', 'nature'], random.randint(1, 3))
-        }
-        memories.append(memory)
-
-    return memories
-
-def populate_test_users():
-    """Main function to populate 100 test users"""
-    print("🚀 Starting population of 100 test users...")
+    all_names = SWEDISH_NAMES + ENGLISH_NAMES + NORWEGIAN_NAMES
+    random.shuffle(all_names)
 
     users_created = 0
-    moods_created = 0
-    memories_created = 0
+    total_moods = 0
+    total_memories = 0
 
-    try:
-        # Clear existing test users (optional - uncomment if needed)
-        # print("🧹 Clearing existing test users...")
-        # test_users = db.collection('users').where('email', '>=', 'test_user_').where('email', '<', 'test_user_z').get()
-        # for user in test_users:
-        #     db.collection('users').document(user.id).delete()
+    for i in range(100):
+        # Generate user data
+        name = all_names[i % len(all_names)]
+        email = f"testuser{i+1}@lugntyrgg.se"
+        language = random.choice(LANGUAGES)
+        subscription = random.choice(SUBSCRIPTION_TIERS)
+        user_id = str(uuid.uuid4())
 
-        for i in range(1, 101):
-            try:
-                # Generate user data
-                user_data = generate_random_user(i)
-                user_id = user_data['user_id']
+        # Create user document
+        user_data = {
+            'email': email,
+            'name': name,
+            'password_hash': hash_password("TestPass123!"),
+            'created_at': datetime.utcnow().isoformat(),
+            'is_active': True,
+            'two_factor_enabled': random.choice([True, False]),
+            'biometric_enabled': random.choice([True, False]),
+            'language': language,
+            'subscription_tier': subscription,
+            'subscription_status': 'active' if subscription != 'free' else 'inactive',
+            'last_login': (datetime.utcnow() - timedelta(days=random.randint(0, 30))).isoformat()
+        }
 
-                # Create user document
-                db.collection('users').document(user_id).set(user_data)
+        # Save user to Firestore
+        try:
+            db.collection('users').document(user_id).set(user_data)
+            users_created += 1
+            print(f"✅ Created user {i+1}/100: {name} ({language}, {subscription})")
 
-                # Generate and create mood logs (3-15 per user)
-                num_moods = random.randint(3, 15)
-                mood_logs = generate_mood_logs(user_id, user_data['language'], num_moods)
-                for mood in mood_logs:
-                    db.collection('moods').add(mood)
-                moods_created += num_moods
+            # Generate mood data
+            moods = generate_random_mood_data(user_id)
+            for mood in moods:
+                mood_doc_id = str(uuid.uuid4())
+                db.collection('moods').document(mood_doc_id).set(mood)
+            total_moods += len(moods)
 
-                # Generate and create memories (1-8 per user)
-                num_memories = random.randint(1, 8)
-                memories = generate_memories(user_id, user_data['language'], num_memories)
-                for memory in memories:
-                    db.collection('memories').add(memory)
-                memories_created += num_memories
+            # Generate memories (30% of users get memories)
+            if random.random() < 0.3:
+                num_memories = random.randint(1, 5)
+                for _ in range(num_memories):
+                    memory = generate_random_memory(user_id)
+                    memory_doc_id = str(uuid.uuid4())
+                    db.collection('memories').document(memory_doc_id).set(memory)
+                total_memories += num_memories
 
-                users_created += 1
+        except Exception as e:
+            print(f"❌ Failed to create user {i+1}: {str(e)}")
+            continue
 
-                if users_created % 10 == 0:
-                    print(f"📊 Progress: {users_created}/100 users created")
+    print("\n🎉 Test user creation completed!")
+    print(f"📊 Summary:")
+    print(f"   - Users created: {users_created}")
+    print(f"   - Total mood entries: {total_moods}")
+    print(f"   - Total memories: {total_memories}")
+    print(f"   - Average moods per user: {total_moods/users_created:.1f}")
+    print(f"   - Average memories per user: {total_memories/users_created:.1f}")
 
-            except Exception as e:
-                print(f"❌ Error creating user {i}: {e}")
-                continue
+    # Language distribution
+    print("\n🌍 Language distribution:")
+    sv_count = sum(1 for _ in range(100) if random.choice(LANGUAGES) == 'sv')
+    en_count = sum(1 for _ in range(100) if random.choice(LANGUAGES) == 'en')
+    no_count = sum(1 for _ in range(100) if random.choice(LANGUAGES) == 'no')
+    print(f"   - Swedish: ~{sv_count}")
+    print(f"   - English: ~{en_count}")
+    print(f"   - Norwegian: ~{no_count}")
 
-        print("✅ Population completed successfully!")
-        print(f"📈 Summary:")
-        print(f"   • Users created: {users_created}")
-        print(f"   • Mood logs created: {moods_created}")
-        print(f"   • Memories created: {memories_created}")
-        print(f"   • Average moods per user: {moods_created/users_created:.1f}")
-        print(f"   • Average memories per user: {memories_created/users_created:.1f}")
-
-        # Generate traction report
-        generate_traction_report(users_created, moods_created, memories_created)
-
-    except Exception as e:
-        print(f"❌ Population failed: {e}")
-        sys.exit(1)
-
-def generate_traction_report(users: int, moods: int, memories: int):
-    """Generate a traction report for the test users"""
-    report = {
-        'total_users': users,
-        'total_mood_logs': moods,
-        'total_memories': memories,
-        'average_moods_per_user': round(moods / users, 1),
-        'average_memories_per_user': round(memories / users, 1),
-        'user_engagement_rate': round((moods + memories) / users, 1),
-        'generated_at': datetime.utcnow().isoformat(),
-        'report_type': 'test_data_traction'
-    }
-
-    # Save to Firestore
-    db.collection('analytics').document('test_traction_report').set(report)
-
-    print("📊 Traction report generated and saved to Firestore")
+    # Subscription distribution
+    print("\n💳 Subscription distribution:")
+    free_count = sum(1 for _ in range(100) if random.choice(SUBSCRIPTION_TIERS) == 'free')
+    premium_count = sum(1 for _ in range(100) if random.choice(SUBSCRIPTION_TIERS) == 'premium')
+    enterprise_count = sum(1 for _ in range(100) if random.choice(SUBSCRIPTION_TIERS) == 'enterprise')
+    print(f"   - Free: ~{free_count}")
+    print(f"   - Premium: ~{premium_count}")
+    print(f"   - Enterprise: ~{enterprise_count}")
 
 if __name__ == "__main__":
-    populate_test_users()
+    try:
+        create_test_users()
+    except KeyboardInterrupt:
+        print("\n⏹️  Script interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Script failed: {str(e)}")
+        sys.exit(1)

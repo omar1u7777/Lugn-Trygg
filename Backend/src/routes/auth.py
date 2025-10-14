@@ -3,9 +3,11 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..models.user import User
 from ..services.audit_service import audit_log
-from ..utils.password_utils import validate_password, hash_password
+from ..utils.password_utils import validate_password, hash_password, verify_password
+from ..services.auth_service import AuthService
 import logging
 import re
+import json
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -19,10 +21,83 @@ limiter = None
 def register():
     """Register a new user"""
     try:
-        data = request.get_json()
+        logger.info(f"Registration request received: {request.get_data(as_text=True)}")
+        logger.info(f"Content-Type: {request.content_type}")
+        logger.info(f"Method: {request.method}")
+
+        # Try to get JSON data
+        try:
+            data = request.get_json()
+        except Exception as json_error:
+            logger.error(f"JSON parsing failed: {json_error}")
+            logger.error(f"Raw request data: {request.get_data(as_text=True)}")
+            logger.error(f"Content-Type: {request.content_type}")
+
+            # Try to parse manually if JSON parsing fails
+            raw_data = request.get_data(as_text=True)
+            if raw_data:
+                try:
+                    # Parse the malformed data manually
+                    # Data format: {key:value,key:value} with single quotes around the whole thing
+                    stripped_data = raw_data.strip()
+                    if stripped_data.startswith("'") and stripped_data.endswith("'"):
+                        stripped_data = stripped_data[1:-1]
+
+                    # Parse {key:value,key:value} format
+                    if stripped_data.startswith("{") and stripped_data.endswith("}"):
+                        content = stripped_data[1:-1]  # Remove { }
+                        pairs = []
+                        current_pair = ""
+                        brace_count = 0
+
+                        for char in content:
+                            if char == "," and brace_count == 0:
+                                pairs.append(current_pair)
+                                current_pair = ""
+                            else:
+                                current_pair += char
+                                if char == "{":
+                                    brace_count += 1
+                                elif char == "}":
+                                    brace_count -= 1
+
+                        if current_pair:
+                            pairs.append(current_pair)
+
+                        data = {}
+                        for pair in pairs:
+                            if ":" in pair:
+                                key, value = pair.split(":", 1)
+                                key = key.strip()
+                                value = value.strip()
+                                # Remove quotes if present
+                                if key.startswith("'") and key.endswith("'"):
+                                    key = key[1:-1]
+                                elif key.startswith('"') and key.endswith('"'):
+                                    key = key[1:-1]
+                                if value.startswith("'") and value.endswith("'"):
+                                    value = value[1:-1]
+                                elif value.startswith('"') and value.endswith('"'):
+                                    value = value[1:-1]
+                                data[key] = value
+
+                        logger.info(f"Successfully parsed malformed data: {data}")
+                    else:
+                        raise ValueError("Data does not look like a dict")
+                except Exception as parse_error:
+                    logger.error(f"Manual parsing failed: {parse_error}")
+                    return jsonify({'error': 'Invalid data format'}), 400
+            else:
+                return jsonify({'error': 'No data provided'}), 400
+
+        logger.info(f"Parsed JSON data: {data}")
 
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+
+        # Ensure data is a dictionary
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Invalid data format'}), 400
 
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
@@ -50,45 +125,18 @@ def register():
         if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]', password):
             return jsonify({'error': 'Password must contain at least one special character'}), 400
 
-        # Check if user already exists
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            return jsonify({'error': 'User with this email already exists'}), 409
+        # Delegate to AuthService for Firebase-backed registration
+        user, error = AuthService.register_user(email, password)
+        if error:
+            status_code = 409 if 'redan' in error.lower() or 'exists' in error.lower() else 400
+            return jsonify({'error': error}), status_code
 
-        # Create new user
-        hashed_password = hash_password(password)
-        new_user = User(
-            email=email,
-            password_hash=hashed_password,
-            name=name,
-            created_at=datetime.utcnow(),
-            is_active=True
-        )
-
-        # Save to database (assuming session is available)
-        try:
-            from ..firebase_config import db
-            user_data = {
-                'email': email,
-                'name': name,
-                'password_hash': hashed_password,
-                'created_at': datetime.utcnow().isoformat(),
-                'is_active': True,
-                'two_factor_enabled': False,
-                'biometric_enabled': False,
-                'language': 'sv'
-            }
-            db.collection('users').document(str(new_user.id)).set(user_data)
-        except Exception as e:
-            logger.error(f"Failed to save user to Firebase: {str(e)}")
-            return jsonify({'error': 'Failed to create user account'}), 500
-
-        audit_log('user_registered', str(new_user.id), {'email': email, 'name': name})
+        audit_log('user_registered', user.uid, {'email': email, 'name': name})
 
         return jsonify({
             'message': 'User registered successfully',
             'user': {
-                'id': new_user.id,
+                'id': user.uid,
                 'email': email,
                 'name': name
             }
@@ -107,69 +155,36 @@ def login():
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        email = data.get('email', '').strip().lower()
-        password = data.get('password', '')
+        logger.info(f"Login attempt with data keys: {list(data.keys()) if data else 'No data'}")
+
+        email = (data.get('email') or '').strip().lower()
+        password = (data.get('password') or '').strip()
 
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Find user
-        try:
-            from ..firebase_config import db
-            users_ref = db.collection('users')
-            query = users_ref.where('email', '==', email).limit(1)
-            users = query.get()
-
-            user_data = None
-            user_id = None
-            for user in users:
-                user_data = user.to_dict()
-                user_id = user.id
-                break
-
-            if not user_data or not check_password_hash(user_data.get('password_hash', ''), password):
-                audit_log('login_failed', 'unknown', {'email': email, 'reason': 'invalid_credentials'})
-                return jsonify({'error': 'Invalid email or password'}), 401
-
-            if not user_data.get('is_active', True):
-                audit_log('login_failed', user_id, {'email': email, 'reason': 'account_inactive'})
-                return jsonify({'error': 'Account is deactivated'}), 401
-
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Authentication service temporarily unavailable'}), 503
-
-        # Create JWT token
-        access_token = create_access_token(identity=user_id, expires_delta=timedelta(hours=24))
-
-        # Check if 2FA is required
-        two_factor_enabled = user_data.get('two_factor_enabled', False)
-        biometric_enabled = user_data.get('biometric_enabled', False)
+        user, error, access_token, refresh_token = AuthService.login_user(email, password)
+        if error or not user:
+            audit_log('login_failed', 'unknown', {'email': email, 'reason': error or 'invalid'})
+            return jsonify({'error': 'Invalid email or password'}), 401
 
         response_data = {
             'message': 'Login successful',
             'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_id': user.uid,
             'user': {
-                'id': user_id,
-                'email': user_data['email'],
-                'name': user_data['name'],
-                'two_factor_enabled': two_factor_enabled,
-                'biometric_enabled': biometric_enabled
+                'id': user.uid,
+                'email': email,
+                'name': data.get('name', 'Unknown'),
+                'two_factor_enabled': False,
+                'biometric_enabled': False
             }
         }
 
-        # If 2FA is enabled, indicate that verification is needed
-        if two_factor_enabled or biometric_enabled:
-            response_data['requires_2fa'] = True
-            response_data['two_factor_methods'] = []
-            if biometric_enabled:
-                response_data['two_factor_methods'].append('biometric')
-            if two_factor_enabled:
-                response_data['two_factor_methods'].append('sms')
-
-        audit_log('login_successful', user_id, {
+        audit_log('login_successful', user.uid, {
             'email': email,
-            'two_factor_required': two_factor_enabled or biometric_enabled
+            'two_factor_required': False
         })
 
         response = make_response(jsonify(response_data), 200)
@@ -179,7 +194,7 @@ def login():
             httponly=True,
             secure=True,
             samesite='Strict',
-            max_age=24*60*60  # 24 hours
+            max_age=24*60*60
         )
 
         return response
@@ -315,60 +330,105 @@ def google_login():
         if not id_token:
             return jsonify({'error': 'ID token required'}), 400
 
-        # Verify Google ID token
+        # Verify Firebase ID token (which contains Google OAuth info)
         try:
-            from google.oauth2 import id_token
-            from google.auth.transport import requests as google_requests
+            from ..firebase_config import firebase_admin_auth
 
-            CLIENT_ID = "your-google-client-id"  # Should be in environment variables
-            id_info = id_token.verify_oauth2_token(id_token, google_requests.Request(), CLIENT_ID)
+            logger.info(f"Attempting Firebase token verification for token: {id_token[:50]}...")
 
-            if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-                raise ValueError('Wrong issuer.')
+            # Verify the Firebase ID token
+            decoded_token = firebase_admin_auth.verify_id_token(id_token)
 
-            email = id_info['email']
-            name = id_info['name']
-            google_id = id_info['sub']
+            # Extract user information from Firebase token
+            email = decoded_token.get('email')
+            name = decoded_token.get('name')
+            google_id = decoded_token.get('sub')  # This is the Google user ID
+            firebase_uid = decoded_token.get('uid')  # Firebase user ID
+
+            if not email or not name:
+                logger.error("Token missing required user information")
+                return jsonify({'error': 'Invalid token - missing user information'}), 401
+
+            logger.info(f"Firebase token verified successfully for user: {email}")
 
         except Exception as e:
-            logger.error(f"Google token verification failed: {str(e)}")
-            return jsonify({'error': 'Invalid Google token'}), 401
+            logger.error(f"Firebase token verification failed: {str(e)}")
+            logger.error(f"Token that failed: {id_token[:100]}...")
+            return jsonify({'error': 'Invalid Firebase token'}), 401
 
         # Find or create user
         try:
             from ..firebase_config import db
             users_ref = db.collection('users')
-            query = users_ref.where('google_id', '==', google_id).limit(1)
-            users = query.get()
 
-            user_data = None
-            user_id = None
+            # First try to find by Firebase UID (preferred method)
+            user_doc = users_ref.document(firebase_uid).get()
 
-            for user in users:
-                user_data = user.to_dict()
-                user_id = user.id
-                break
-
-            if not user_data:
-                # Create new user
-                user_id = str(hash(google_id) % 1000000)  # Simple ID generation
-                user_data = {
-                    'email': email,
-                    'name': name,
-                    'google_id': google_id,
-                    'created_at': datetime.utcnow().isoformat(),
-                    'is_active': True,
-                    'two_factor_enabled': False,
-                    'biometric_enabled': False,
-                    'language': 'sv'
-                }
-                db.collection('users').document(user_id).set(user_data)
-                audit_log('user_registered_google', user_id, {'email': email, 'name': name})
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_id = user_doc.id
             else:
-                # Update last login
-                db.collection('users').document(user_id).update({
-                    'last_login': datetime.utcnow().isoformat()
-                })
+                # Try to find existing user by email (to merge accounts)
+                email_query = users_ref.where('email', '==', email).limit(1)
+                email_users = list(email_query.get())
+
+                if email_users:
+                    # Found existing user with same email, use their ID
+                    existing_user = email_users[0]
+                    user_data = existing_user.to_dict()
+                    user_id = existing_user.id
+
+                    # Update existing user with Google information
+                    update_data = {
+                        'google_id': google_id,
+                        'firebase_uid': firebase_uid,
+                        'last_login': datetime.utcnow().isoformat(),
+                        'login_method': 'google'
+                    }
+                    # Only update if not already set
+                    if not user_data.get('google_id'):
+                        update_data['google_id'] = google_id
+                    if not user_data.get('firebase_uid'):
+                        update_data['firebase_uid'] = firebase_uid
+
+                    db.collection('users').document(user_id).update(update_data)
+                    logger.info(f"Merged Google login with existing user account: {email}")
+                else:
+                    # Fallback to searching by Google ID for existing users
+                    google_query = users_ref.where('google_id', '==', google_id).limit(1)
+                    google_users = list(google_query.get())
+
+                    if google_users:
+                        user_data = google_users[0].to_dict()
+                        user_id = google_users[0].id
+                        # Update existing user with Firebase UID for future logins
+                        if firebase_uid != user_id:
+                            db.collection('users').document(user_id).update({
+                                'firebase_uid': firebase_uid,
+                                'last_login': datetime.utcnow().isoformat()
+                            })
+                    else:
+                        # Create new user
+                        user_id = firebase_uid  # Use Firebase UID as user ID for consistency
+                        user_data = {
+                            'email': email,
+                            'name': name,
+                            'google_id': google_id,
+                            'firebase_uid': firebase_uid,
+                            'created_at': datetime.utcnow().isoformat(),
+                            'is_active': True,
+                            'two_factor_enabled': False,
+                            'biometric_enabled': False,
+                            'language': 'sv',
+                            'login_method': 'google'
+                        }
+                        db.collection('users').document(user_id).set(user_data)
+                        audit_log('user_registered_google', user_id, {'email': email, 'name': name})
+
+            # Update last login for all users
+            db.collection('users').document(user_id).update({
+                'last_login': datetime.utcnow().isoformat()
+            })
 
         except Exception as e:
             logger.error(f"Firebase operation failed: {str(e)}")
@@ -380,8 +440,9 @@ def google_login():
         audit_log('google_login_successful', user_id, {'email': email})
 
         response = make_response(jsonify({
-            'message': 'Google login successful',
+            'message': 'Google-inloggning lyckades!',
             'access_token': access_token,
+            'user_id': user_id,
             'user': {
                 'id': user_id,
                 'email': email,
@@ -406,11 +467,11 @@ def google_login():
         return jsonify({'error': 'Google login failed'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
-@jwt_required()
+@AuthService.jwt_required
 def logout():
     """Logout user by clearing the cookie"""
     try:
-        user_id = get_jwt_identity()
+        user_id = request.user_id
         audit_log('user_logged_out', user_id, {})
 
         response = make_response(jsonify({'message': 'Logged out successfully'}), 200)
@@ -526,6 +587,54 @@ def get_consent(user_id):
     except Exception as e:
         logger.error(f"Consent retrieval failed: {str(e)}")
         return jsonify({'error': 'Consent retrieval failed'}), 500
+
+@auth_bp.route('/refresh', methods=['POST'])
+def refresh_token():
+    """Refresh access token using refresh token"""
+    try:
+        data = request.get_json()
+        refresh_token_value = data.get('refresh_token') if data else None
+
+        if not refresh_token_value:
+            return jsonify({'error': 'Refresh token required'}), 400
+
+        # Verify the refresh token and get user identity
+        try:
+            from flask_jwt_extended import decode_token
+            decoded = decode_token(refresh_token_value, allow_expired=False)
+            user_id = decoded.get('sub')
+
+            if not user_id:
+                return jsonify({'error': 'Invalid refresh token'}), 401
+
+        except Exception as e:
+            logger.error(f"Refresh token validation failed: {str(e)}")
+            return jsonify({'error': 'Invalid refresh token'}), 401
+
+        # Create new access token
+        access_token = create_access_token(identity=user_id, expires_delta=timedelta(hours=24))
+
+        audit_log('token_refreshed', user_id, {})
+
+        response = make_response(jsonify({
+            'message': 'Token refreshed successfully',
+            'access_token': access_token
+        }), 200)
+
+        response.set_cookie(
+            'access_token',
+            access_token,
+            httponly=True,
+            secure=True,
+            samesite='Strict',
+            max_age=24*60*60
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Token refresh failed: {str(e)}")
+        return jsonify({'error': 'Token refresh failed'}), 500
 
 @auth_bp.route('/delete-account/<user_id>', methods=['DELETE'])
 @jwt_required()

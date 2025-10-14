@@ -13,7 +13,7 @@ def app():
     """
     # Mocka Google Speech och Firebase för att undvika externa beroenden
     with patch('src.utils.speech_utils.initialize_google_speech') as mock_speech, \
-         patch('src.firebase_config.initialize_firebase') as mock_firebase:
+          patch('src.firebase_config.initialize_firebase') as mock_firebase:
         mock_speech.return_value = True  # Mockar Google Speech initiering
         mock_firebase.return_value = True  # Mockar Firebase-initialisering
 
@@ -46,3 +46,15 @@ def runner(app):
     Skapar en runner som kan användas för att köra Flask CLI-kommandon i testläge.
     """
     return app.test_cli_runner()
+
+@pytest.fixture(scope='function')
+def auth_headers():
+    """Returnerar authentication headers för tester."""
+    return {"Authorization": "Bearer test-token"}
+
+@pytest.fixture(scope='function')
+def mock_auth_service(mocker):
+    """Mockar AuthService för alla tester som behöver autentisering."""
+    # Mock JWT verification for AuthService
+    mocker.patch('src.services.auth_service.AuthService.verify_token', return_value=("test-user-id", None))
+    return {"user_id": "test-user-id", "email": "test@example.com"}

@@ -784,7 +784,7 @@ Långsiktiga välbefinnande-strategier:
         risk_level = "LOW"
         if severity_score >= 5:
             risk_level = "CRITICAL"
-        elif severity_score >= 3:
+        elif severity_score >= 2:
             risk_level = "HIGH"
         elif severity_score >= 1:
             risk_level = "MEDIUM"

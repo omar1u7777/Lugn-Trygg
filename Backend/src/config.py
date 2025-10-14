@@ -92,20 +92,22 @@ STRIPE_WEBHOOK_SECRET = get_env_variable("STRIPE_WEBHOOK_SECRET", "", hide_value
 # 🔹 Krypteringskonfiguration
 ENCRYPTION_KEY = get_env_variable("ENCRYPTION_KEY", required=False, hide_value=True)
 
+# 🔹 Google OAuth-konfiguration
+GOOGLE_CLIENT_ID = get_env_variable("GOOGLE_CLIENT_ID", required=False, hide_value=True)
+
 # 🔹 CORS-konfiguration
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_env_variable("CORS_ALLOWED_ORIGINS", "http://localhost:5000,https://www.lugntrygg.se").split(",") if origin.strip()]
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_env_variable("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5000,https://www.lugntrygg.se").split(",") if origin.strip()]
 
 # 🔹 Content Security Policy (CSP)
 CSP_DIRECTIVES = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "https://apis.google.com"],
+    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://www.gstatic.com", "https://www.googleapis.com", "https://apis.google.com", "https://securetoken.googleapis.com", "https://firebase.googleapis.com", "https://*.firebaseapp.com", "https://*.googleapis.com", "https://www.googletagmanager.com", "https://googletagmanager.com"],
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com"],
-    "img-src": ["'self'", "data:", "https://www.lugntrygg.se"],
-    "connect-src": ["'self'", "http://localhost:5001", "https://www.lugntrygg.se"],
+    "img-src": ["'self'", "data:", "https:", "http:", "blob:"],
+    "connect-src": ["'self'", "ws://localhost:3000", "ws://localhost:3001", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5001", "http://localhost:5001", "https://www.lugntrygg.se", "https://*.googleapis.com", "https://*.firebaseapp.com", "https://securetoken.googleapis.com", "https://firebase.googleapis.com", "https://identitytoolkit.googleapis.com", "wss://*.firebaseio.com", "https://*.firebaseio.com", "https://region1.google-analytics.com", "https://www.googletagmanager.com", "https://googletagmanager.com"],
     "object-src": ["'none'"],
     "frame-ancestors": ["'none'"],
-    "upgrade-insecure-requests": [],
 }
 
 # 🔹 Logga konfigurationsdetaljer (men döljer hemligheter)

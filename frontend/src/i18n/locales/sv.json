@@ -231,5 +231,38 @@
       "title": "Humörutforskare",
       "desc": "Loggade {count} humör"
     }
+  },
+  "ai": {
+    "stories": {
+      "title": "AI-berättelser",
+      "loadError": "Kunde inte ladda AI-berättelser",
+      "generateNew": "Generera ny berättelse",
+      "generating": "Genererar...",
+      "play": "Spela upp",
+      "generateError": "Kunde inte generera berättelse"
+    }
+  },
+  "analytics": {
+    "title": "AI-analys",
+    "description": "Avancerade insikter från dina humördata",
+    "loadError": "Kunde inte ladda analys",
+    "forecastPeriod": "Prognosperiod",
+    "days": "dagar",
+    "currentAnalysis": "Aktuell analys",
+    "recentAverage": "Senaste genomsnitt",
+    "volatility": "Volatilitet",
+    "forecastSummary": "Prognossammanfattning",
+    "averageForecast": "Genomsnittlig prognos",
+    "trend": "Trend",
+    "confidence": "Konfidens",
+    "dailyPredictions": "Dagliga förutsägelser",
+    "day": "Dag",
+    "riskFactors": "Riskfaktorer",
+    "recommendations": "Rekommendationer",
+    "modelInfo": "Modellinformation",
+    "algorithm": "Algoritm",
+    "trainingAccuracy": "Träningsnoggrannhet",
+    "dataPoints": "Datapunkter",
+    "noData": "Ingen data tillgänglig för analys"
   }
 }

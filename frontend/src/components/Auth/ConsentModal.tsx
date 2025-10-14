@@ -11,9 +11,9 @@ interface ConsentModalProps {
 const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, userId }) => {
   const { t } = useTranslation();
   const [consents, setConsents] = useState({
-    dataProcessing: false,
+    dataProcessing: true, // Required consent, default to true
     aiAnalysis: false,
-    storage: false,
+    storage: true, // Required consent, default to true
     marketing: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,10 +35,9 @@ const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, userId }) 
     setIsSubmitting(true);
     try {
       await api.post('/auth/consent', {
-        user_id: userId,
-        consents: consents,
-        timestamp: new Date().toISOString(),
-        version: '1.0'
+        analytics_consent: consents.aiAnalysis,
+        marketing_consent: consents.marketing,
+        data_processing_consent: consents.dataProcessing
       });
 
       localStorage.setItem('consent_given', 'true');

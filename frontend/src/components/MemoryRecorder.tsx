@@ -15,7 +15,7 @@ const MemoryRecorder = ({ userId, onClose }: { userId: string; onClose: () => vo
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
-      let chunks: BlobPart[] = [];
+      const chunks: BlobPart[] = [];
 
       recorder.ondataavailable = (event) => {
         chunks.push(event.data);

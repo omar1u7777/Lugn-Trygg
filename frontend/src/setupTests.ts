@@ -1,8 +1,19 @@
 // src/setupTests.ts
 
-import { vi } from 'vitest';
+// Polyfills for Jest
+import { TextEncoder, TextDecoder } from 'util';
 
-// Ställ in mock för global fetch eller andra globala inställningar om det behövs
-global.fetch = vi.fn().mockResolvedValue({
-  json: vi.fn().mockResolvedValue({}),
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+// Mock import.meta.env
+Object.defineProperty(global, 'import', {
+  value: {
+    meta: {
+      env: {
+        VITE_API_URL: 'http://localhost:5001',
+        VITE_BACKEND_URL: 'http://localhost:5001',
+      },
+    },
+  },
 });

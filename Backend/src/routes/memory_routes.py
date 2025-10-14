@@ -1,7 +1,8 @@
 import os
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request as flask_request, jsonify
+from types import SimpleNamespace
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
 from google.cloud.firestore import FieldFilter
@@ -11,6 +12,10 @@ from src.services.auth_service import AuthService
 memory_bp = Blueprint("memory", __name__)
 
 logger = logging.getLogger(__name__)
+
+# Expose a patchable symbol for tests as a plain object (does not require request context)
+request = SimpleNamespace()
+
 
 # 🔹 Tillåtna filformat
 ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a"}
@@ -25,11 +30,11 @@ def allowed_file(filename):
 @memory_bp.route("/upload", methods=["POST"])
 def upload_memory():
     try:
-        if "audio" not in request.files or "user_id" not in request.form:
+        if "audio" not in flask_request.files or "user_id" not in flask_request.form:
             return jsonify({"error": "Ljudfil och användar-ID krävs!"}), 400
 
-        file = request.files["audio"]
-        user_id = request.form["user_id"].strip()
+        file = flask_request.files["audio"]
+        user_id = flask_request.form["user_id"].strip()
 
         if not user_id:
             return jsonify({"error": "Ogiltigt användar-ID!"}), 400
@@ -86,17 +91,25 @@ def upload_memory():
 @AuthService.jwt_required
 def list_memories():
     try:
-        user_id = request.user_id
+        # Derive user_id from Flask request or Authorization header
+        current_user_id = getattr(flask_request, "user_id", None)
+        if not current_user_id:
+            auth_header = flask_request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+                uid, err = AuthService.verify_token(token)
+                if not err:
+                    current_user_id = uid
 
         # Get user_id from query parameter if provided, otherwise use JWT user_id
-        query_user_id = request.args.get("user_id", "").strip()
-        if query_user_id and query_user_id != user_id:
+        query_user_id = flask_request.args.get("user_id", "").strip()
+        if query_user_id and query_user_id != current_user_id:
             # Check if user is authorized to access this user's memories (admin check could go here)
             return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
 
-        target_user_id = query_user_id or user_id
+        target_user_id = query_user_id or current_user_id
 
-        memories_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", target_user_id)).order_by("timestamp", direction="DESCENDING").stream())
+        memories_ref = list(db.collection("memories").where("user_id", "==", target_user_id).order_by("timestamp", direction="DESCENDING").stream())
         memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
 
         return jsonify({"memories": memory_list}), 200
@@ -110,22 +123,29 @@ def list_memories():
 @AuthService.jwt_required
 def get_memory():
     try:
-        user_id = request.user_id
-        file_path = request.args.get("file_path", "").strip()
+        current_user_id = getattr(flask_request, "user_id", None)
+        if not current_user_id:
+            auth_header = flask_request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+                uid, err = AuthService.verify_token(token)
+                if not err:
+                    current_user_id = uid
+        file_path = flask_request.args.get("file_path", "").strip()
 
         if not file_path:
             return jsonify({"error": "Filväg krävs!"}), 400
 
         # Get user_id from query parameter if provided, otherwise use JWT user_id
-        query_user_id = request.args.get("user_id", "").strip()
-        if query_user_id and query_user_id != user_id:
+        query_user_id = flask_request.args.get("user_id", "").strip()
+        if query_user_id and query_user_id != current_user_id:
             # Check if user is authorized to access this user's memories (admin check could go here)
             return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
 
-        target_user_id = query_user_id or user_id
+        target_user_id = query_user_id or current_user_id
 
         # 🔹 Kontrollera att minnet tillhör användaren
-        memory_ref = list(db.collection("memories").where(filter=FieldFilter("user_id", "==", target_user_id)).where(filter=FieldFilter("file_path", "==", file_path)).limit(1).stream())
+        memory_ref = list(db.collection("memories").where("user_id", "==", target_user_id).where("file_path", "==", file_path).limit(1).stream())
 
         if not memory_ref:
             return jsonify({"error": "Obehörig åtkomst till minne!"}), 403

@@ -2,7 +2,19 @@ import axios from "axios"; // @ts-ignore
 import CryptoJS from "crypto-js";
 
 // 🔹 Bas-URL för API
-export const API_BASE_URL = "/api";
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:54112";
+
+// 🔹 Debug logging för API URL
+console.log("🔗 API Base URL:", API_BASE_URL);
+console.log("🔗 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL);
+console.log("🔗 Using fallback URL:", !import.meta.env.VITE_BACKEND_URL);
+
+// 🔹 Force reload environment variables in development
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log("🔄 Environment variables reloaded");
+  });
+}
 
 // 🔹 Skapa en Axios-instans för API-anrop
 export const api = axios.create({
@@ -10,6 +22,20 @@ export const api = axios.create({
   withCredentials: true, // 📡 Säkerställer att cookies skickas för session-hantering
   headers: { "Content-Type": "application/json" },
 });
+
+// 🔹 Request interceptor för att lägga till Authorization header
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // 🔹 Exportera api som default export
 export default api;
@@ -73,8 +99,8 @@ api.interceptors.response.use(
 // 🔹 API-funktion för att logga in en användare
 export const loginUser = async (email: string, password: string) => {
   try {
-    const response = await api.post("/auth/login", { email, password });
-    
+    const response = await api.post("/api/auth/login", { email, password });
+
     if (response.data?.access_token) {
       localStorage.setItem("token", response.data.access_token);
       localStorage.setItem("refresh_token", response.data.refresh_token);
@@ -90,12 +116,19 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 // 🔹 API-funktion för att registrera en användare
-export const registerUser = async (email: string, password: string) => {
+export const registerUser = async (email: string, password: string, name?: string) => {
   try {
-    const response = await api.post("/auth/register", { email, password });
+    console.log("API: Sending registration request with data:", { email, password: "***", name });
+    const response = await api.post("/api/auth/register", { email, password, name });
+    console.log("API: Registration response:", response.data);
     return response.data;
   } catch (error: any) {
     console.error("❌ API Register error:", error);
+    console.error("❌ API Register error details:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
     throw new Error(error.response?.data?.error || "Ett fel uppstod vid registrering.");
   }
 };
@@ -103,7 +136,7 @@ export const registerUser = async (email: string, password: string) => {
 // 🔹 API-funktion för att logga ut användaren
 export const logoutUser = async () => {
   try {
-    await api.post("/auth/logout");
+    await api.post("/api/auth/logout");
   } catch (error: any) {
     console.error("⚠️ API Logout error:", error);
   } finally {
@@ -119,8 +152,8 @@ export const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) return null;
 
-    const response = await api.post("/auth/refresh", { refresh_token: refreshToken });
-    
+    const response = await api.post("/api/auth/refresh", { refresh_token: refreshToken });
+
     if (response.data?.access_token) {
       localStorage.setItem("token", response.data.access_token);
       return response.data.access_token;
@@ -149,7 +182,7 @@ export const logMood = async (userId: string, mood: string, score: number) => {
     // Encrypt sensitive mood data
     const encryptedMood = encryptData(mood);
 
-    const response = await api.post("/mood/log", {
+    const response = await api.post("/api/mood/log", {
       user_id: userId,
       mood: encryptedMood,
       score
@@ -166,7 +199,7 @@ export const logMood = async (userId: string, mood: string, score: number) => {
 export const getMoods = async (userId: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.get(`/mood/get?user_id=${userId}`, {
+    const response = await api.get(`/api/mood/get?user_id=${userId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data.moods || [];
@@ -180,7 +213,7 @@ export const getMoods = async (userId: string) => {
 export const getWeeklyAnalysis = async (userId: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.get(`/mood/weekly-analysis?user_id=${userId}`, {
+    const response = await api.get(`/api/mood/weekly-analysis?user_id=${userId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -194,7 +227,7 @@ export const getWeeklyAnalysis = async (userId: string) => {
 export const getMemories = async (userId: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.get(`/memory/list?user_id=${userId}`, {
+    const response = await api.get(`/api/memory/list?user_id=${userId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data.memories || [];
@@ -208,7 +241,7 @@ export const getMemories = async (userId: string) => {
 export const getMemoryUrl = async (userId: string, filePath: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.get(`/memory/get?user_id=${userId}&file_path=${encodeURIComponent(filePath)}`, {
+    const response = await api.get(`/api/memory/get?user_id=${userId}&file_path=${encodeURIComponent(filePath)}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data.url;
@@ -221,7 +254,7 @@ export const getMemoryUrl = async (userId: string, filePath: string) => {
 // 🔹 Återställ lösenord via e-post
 export const resetPassword = async (email: string) => {
   try {
-    const response = await api.post("/auth/reset-password", { email });
+    const response = await api.post("/api/auth/reset-password", { email });
     return response.data;
   } catch (error: any) {
     console.error("❌ API Reset Password error:", error);
@@ -236,7 +269,7 @@ export const chatWithAI = async (userId: string, message: string) => {
     const token = localStorage.getItem("token");
     console.log("API: Token available:", !!token);
 
-    const response = await api.post("/chatbot/chat", {
+    const response = await api.post("/api/chatbot/chat", {
       user_id: userId,
       message: message
     }, {
@@ -265,7 +298,7 @@ export const getChatHistory = async (userId: string) => {
     const token = localStorage.getItem("token");
     console.log("API: Token available for history:", !!token);
 
-    const response = await api.get(`/chatbot/history?user_id=${userId}`, {
+    const response = await api.get(`/api/chatbot/history?user_id=${userId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -288,7 +321,7 @@ export const getChatHistory = async (userId: string) => {
 export const analyzeMoodPatterns = async (userId: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.post("/chatbot/analyze-patterns", {
+    const response = await api.post("/api/chatbot/analyze-patterns", {
       user_id: userId
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -303,7 +336,7 @@ export const analyzeMoodPatterns = async (userId: string) => {
 export const analyzeVoiceEmotion = async (userId: string, audioData: string, transcript: string) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await api.post("/mood/analyze-voice", {
+    const response = await api.post("/api/mood/analyze-voice", {
       user_id: userId,
       audio_data: audioData,
       transcript: transcript

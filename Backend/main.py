@@ -115,7 +115,7 @@ def create_app(testing=False):
         raise ValueError("FIREBASE_CREDENTIALS_PATH saknas i miljövariabler!")
 
     # 🔹 Hantering av CORS-domäner
-    allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5000,https://www.lugntrygg.se").split(",")
+    allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,https://www.lugntrygg.se").split(",")
     allowed_origins = [origin.strip() for origin in allowed_origins if origin.strip()]
 
     if not allowed_origins or not all(isinstance(i, str) for i in allowed_origins):
@@ -127,9 +127,10 @@ def create_app(testing=False):
 
     # Tillåtna domäner via CORS
     CORS(app, supports_credentials=True, origins=allowed_origins,
-          allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-          expose_headers=["Authorization"],
-          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+            expose_headers=["Authorization"],
+            methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            resources={r"/api/*": {"origins": allowed_origins}})
 
     # Add security headers
     @app.after_request
@@ -279,6 +280,7 @@ if __name__ == "__main__":
     logger.info("   - Memory Management: /api/memory/")
 
     try:
-        app.run(host="0.0.0.0", port=port, debug=debug)
+        host = os.getenv("HOST", "0.0.0.0")
+        app.run(host=host, port=port, debug=debug)
     except Exception as e:
         logger.critical(f"🔥 Kritiskt fel vid serverstart: {e}")

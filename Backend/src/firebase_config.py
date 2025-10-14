@@ -104,6 +104,7 @@ try:
         firebase_services = get_firebase_services()
         db = firebase_services["db"]
         auth = firebase_services["auth"]
+        firebase_admin_auth = auth  # Alias for easier import
         logger.info("✅ Firebase-tjänster laddades framgångsrikt!")
 except RuntimeError as e:
     logger.critical(f"🚨 Firebase kunde inte startas: {e}")

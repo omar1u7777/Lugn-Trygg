@@ -18,13 +18,13 @@ jest.mock('react-chartjs-2', () => ({
 }));
 
 // Mock child components
-jest.mock('../MoodChart', () => {
+jest.mock('../Dashboard/MoodChart', () => {
   return function MockMoodChart() {
     return <div data-testid="mood-chart">Mood Chart</div>;
   };
 });
 
-jest.mock('../MemoryChart', () => {
+jest.mock('../Dashboard/MemoryChart', () => {
   return function MockMemoryChart() {
     return <div data-testid="memory-chart">Memory Chart</div>;
   };

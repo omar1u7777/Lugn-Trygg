@@ -94,8 +94,8 @@ const MemoryChart: React.FC = () => {
     return <div className="loading-message">Laddar diagram...</div>;
   }
 
-  if (!chartData) {
-    return <div className="error-message">Kunde inte ladda diagramdata</div>;
+  if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+    return <div className="info-message">📊 Ingen data tillgänglig för minnesdiagram</div>;
   }
 
   return (

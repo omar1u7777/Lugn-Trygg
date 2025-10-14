@@ -92,10 +92,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
  }, [token]);
 
   // 🔑 Kontrollera om användaren är inloggad
-  const isLoggedIn = useCallback(() => Boolean(token && user?.user_id), [token, user]);
+  const isLoggedIn = useCallback(() => Boolean(token && user && user.user_id), [token, user]);
 
   // 🔓 Hantera inloggning och lagra användarinformation
-  const login = useCallback(async (accessToken: string, email: string, user_id: string) => {
+  const login = useCallback((accessToken: string, email: string, user_id: string) => {
     const userData: User = { email, user_id };
     setTokenState(accessToken);
     setUserState(userData);
@@ -104,46 +104,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem("user", JSON.stringify(userData));
     console.log("✅ Användaren är inloggad:", userData);
 
-    // Check if consent has been given (check localStorage first for better UX)
-    const consentGiven = localStorage.getItem('consent_given');
-    const consentVersion = localStorage.getItem('consent_version');
-
-    if (consentGiven === 'true' && consentVersion === '1.0') {
-      // Consent already given locally, proceed to dashboard
-      navigate("/dashboard");
-      return;
-    }
-
-    // Verify with backend as fallback
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/auth/consent/${user_id}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (response.ok) {
-        const consentData = await response.json();
-        if (consentData.consent_given) {
-          // Update localStorage if backend confirms
-          localStorage.setItem('consent_given', 'true');
-          localStorage.setItem('consent_version', consentData.version || '1.0');
-          // Consent already given, proceed to dashboard
-          navigate("/dashboard");
-          return;
-        }
-      }
-    } catch (error) {
-      console.warn("Could not verify consent status with backend:", error);
-      // If backend check fails but localStorage has consent, proceed anyway
-      if (consentGiven === 'true') {
-        navigate("/dashboard");
-        return;
-      }
-    }
-
-    // If we reach here, consent not given or verification failed
-    setIsConsentModalOpen(true);
+    // Navigate to dashboard after successful login
+    navigate("/dashboard");
   }, [navigate]);
 
   // 🚪 Hantera utloggning och rensa användardata

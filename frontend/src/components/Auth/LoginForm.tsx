@@ -35,19 +35,29 @@ const LoginForm: React.FC = () => {
     setError("");
 
     try {
+      // Configure the provider to allow popups
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
       const result = await signInWithPopup(firebaseAuth, provider);
       const user = result.user;
+
+      // Add a small delay to ensure token is valid (Firebase timing issue)
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Send the Firebase ID token to our backend
       const idToken = await user.getIdToken();
 
       // Use axios for consistency with other API calls
-      const response = await api.post('/auth/google-login', {
+      const response = await api.post('/api/auth/google-login', {
         id_token: idToken
       });
 
       const data = response.data;
+      console.log('Google login response:', data);
+      console.log('Calling login with:', data.access_token, user.email!, data.user_id);
       login(data.access_token, user.email!, data.user_id);
     } catch (err: any) {
       console.error('Google sign-in error:', err);

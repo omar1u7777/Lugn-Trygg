@@ -1,11 +1,8 @@
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig(({ mode }) => {
-  // Load env file
-  const env = loadEnv(mode, process.cwd(), '');
   return {
-    plugins: [react()], // Add the React plugin here
+    plugins: [], // No React plugin for now - will handle JSX manually
     server: {
       port: 3000,
       open: false,
@@ -16,9 +13,10 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         protocol: 'ws',
       },
+      allowedHosts: ['localhost', '127.0.0.1', '192.168.10.154'],
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:5001",  // Backend-URL till Flask (corrected port)
+          target: "http://localhost:54112",  // Backend-URL till Flask (user specified port)
           changeOrigin: true,
           secure: false,
           ws: true,
@@ -40,7 +38,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      "import.meta.env.VITE_BACKEND_URL": JSON.stringify("http://127.0.0.1:5001"), // Corrected port
+      "import.meta.env.VITE_BACKEND_URL": JSON.stringify("http://localhost:54112"), // User specified port
     },
   };
 });

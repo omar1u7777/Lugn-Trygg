@@ -76,7 +76,7 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
-      let chunks: BlobPart[] = [];
+      const chunks: BlobPart[] = [];
 
       mediaRecorder.ondataavailable = (event) => {
         chunks.push(event.data);
@@ -136,7 +136,7 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
-      let chunks: BlobPart[] = [];
+      const chunks: BlobPart[] = [];
 
       mediaRecorder.ondataavailable = (event) => {
         chunks.push(event.data);

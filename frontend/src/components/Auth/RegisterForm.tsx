@@ -4,6 +4,7 @@ import { registerUser } from "../../api/api";
 
 const RegisterForm: React.FC = () => {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -46,9 +47,10 @@ const RegisterForm: React.FC = () => {
     console.log("Sending registration data:", { email, password });
 
     try {
-      await registerUser(email, password);
+      await registerUser(email, password, name);
       setSuccess("Registrering lyckades! Du kan nu logga in.");
       setEmail("");
+      setName("");
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
@@ -80,6 +82,22 @@ const RegisterForm: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="name" className="form-label">
+              <i className="fas fa-user"></i> Namn
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="auth-input"
+              placeholder="Ange ditt namn"
+              required
+              disabled={loading}
+            />
+          </div>
+
           <div className="form-group">
             <label htmlFor="email" className="form-label">
               <i className="fas fa-envelope"></i> E-postadress

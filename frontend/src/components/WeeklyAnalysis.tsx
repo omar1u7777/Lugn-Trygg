@@ -40,7 +40,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
 
   if (loading) return <p className="loading-message">{t('dashboard.loadingAnalysis')}</p>;
   if (error) return <div className="error-message">{t('dashboard.analysisError', { error })}</div>;
-  if (!analysis) return <p className="info-message">{t('dashboard.noDataAvailable')}</p>;
+  if (!analysis) return <p className="info-message">📊 {t('dashboard.noDataAvailable')}</p>;
 
   const getMoodColor = (mood: string) => {
     const colors: { [key: string]: string } = {
@@ -60,7 +60,9 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
     return colors[mood] || '#9e9e9e';
   };
 
-  const maxCount = Math.max(...(Object.values(analysis.mood_counts) as number[]));
+  const maxCount = analysis.mood_counts && Object.keys(analysis.mood_counts).length > 0
+    ? Math.max(...(Object.values(analysis.mood_counts) as number[]))
+    : 1;
 
   return (
     <div className="weekly-analysis">
@@ -77,7 +79,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <div className="stat-number">{analysis.total_moods}</div>
+            <div className="stat-number">{analysis.total_moods || 0}</div>
             <div className="stat-label">{t('dashboard.moodLogs')}</div>
           </div>
         </div>
@@ -85,7 +87,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
         <div className="stat-card">
           <div className="stat-icon">📈</div>
           <div className="stat-content">
-            <div className="stat-number">{analysis.average_score.toFixed(1)}</div>
+            <div className="stat-number">{analysis.average_score ? analysis.average_score.toFixed(1) : '0.0'}</div>
             <div className="stat-label">{t('dashboard.average')}</div>
           </div>
         </div>
@@ -93,7 +95,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
         <div className="stat-card">
           <div className="stat-icon">🎵</div>
           <div className="stat-content">
-            <div className="stat-number">{analysis.memories_count}</div>
+            <div className="stat-number">{analysis.memories_count || 0}</div>
             <div className="stat-label">{t('dashboard.memories')}</div>
           </div>
         </div>
@@ -102,7 +104,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
       <div className="mood-distribution">
         <h4>{t('dashboard.moodDistribution')}</h4>
         <div className="mood-bars">
-          {Object.entries(analysis.mood_counts).map(([mood, count]) => (
+          {analysis.mood_counts && Object.entries(analysis.mood_counts).map(([mood, count]) => (
             <div key={mood} className="mood-bar">
               <div className="mood-label">{mood}</div>
               <div className="bar-container">
@@ -134,7 +136,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
             </div>
           </div>
         </div>
-        <p className="insights-text">{analysis.insights}</p>
+        <p className="insights-text">{analysis.insights || t('dashboard.noInsightsAvailable')}</p>
 
         {analysis.ai_confidence && (
           <div className="mt-4 pt-4 border-t border-gray-200">
@@ -148,7 +150,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
         )}
       </div>
 
-      {analysis.recent_memories.length > 0 && (
+      {analysis.recent_memories && analysis.recent_memories.length > 0 && (
         <div className="recent-memories">
           <h4><i className="fas fa-clock"></i> {t('dashboard.recentMemories')}</h4>
           <div className="memories-list">

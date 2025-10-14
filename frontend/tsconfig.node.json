@@ -4,11 +4,11 @@
     "target": "ES2022", 
     "lib": ["ES2023"], 
     "types": ["node"],
-    "module": "CommonJS", 
+    "module": "ES2022",
     "skipLibCheck": true,
 
     /*  Modul- och Bundlerinställningar */
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": false, 
@@ -44,12 +44,9 @@
   
   /*  Inkluderade filer & mappar */
   "include": [
-    "vite.config.ts", 
-    "src", 
-    "src/**/*.ts", 
-    "src/**/*.tsx", 
-    "src/hooks/useAuth.ts", 
-    "src/api/api.ts"
+    "vite.config.ts",
+    "vitest.config.ts",
+    "cypress.config.ts"
   ],
 
   /*  Exkluderade filer/mappar */

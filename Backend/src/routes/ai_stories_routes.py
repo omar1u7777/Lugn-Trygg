@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.ai_services import ai_services
-from ..models.user import User
 from ..services.audit_service import audit_log
+from ..services.auth_service import AuthService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,15 +10,21 @@ logger = logging.getLogger(__name__)
 ai_stories_bp = Blueprint('ai_stories', __name__)
 
 @ai_stories_bp.route('/stories', methods=['GET'])
-@jwt_required()
+@AuthService.jwt_required
 def get_stories():
     """Get user's AI-generated stories"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user_id = request.user_id
 
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # Check if user exists in Firestore
+        try:
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return jsonify({'error': 'User not found'}), 404
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
 
         # In a real implementation, this would fetch from database
         # For now, return mock data
@@ -31,7 +37,7 @@ def get_stories():
                 'category': 'healing',
                 'duration': 300,  # 5 minutes
                 'isFavorite': False,
-                'createdAt': '2024-01-15T10:00:00Z'
+                'createdAt': datetime.utcnow().isoformat()
             },
             {
                 'id': '2',
@@ -41,7 +47,7 @@ def get_stories():
                 'category': 'inspiration',
                 'duration': 420,  # 7 minutes
                 'isFavorite': True,
-                'createdAt': '2024-01-20T14:30:00Z'
+                'createdAt': datetime.utcnow().isoformat()
             }
         ]
 
@@ -53,15 +59,21 @@ def get_stories():
         return jsonify({'error': 'Failed to load stories'}), 500
 
 @ai_stories_bp.route('/stories/generate', methods=['POST'])
-@jwt_required()
+@AuthService.jwt_required
 def generate_story():
     """Generate a personalized AI story"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user_id = request.user_id
 
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # Check if user exists in Firestore
+        try:
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return jsonify({'error': 'User not found'}), 404
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
 
         data = request.get_json()
         preferences = data.get('preferences', {})
@@ -75,12 +87,19 @@ def generate_story():
             {'sentiment': 'NEGATIVE', 'emotions': ['worry']}
         ]
 
-        # Generate personalized story
-        story_result = ai_services.generate_personalized_therapeutic_story(
-            user_mood_data=recent_moods,
-            user_profile={'age_group': 'adult', 'main_concerns': 'stress'},
-            locale=preferences.get('language', 'sv')
-        )
+        # Generate personalized story with fallback
+        try:
+            story_result = ai_services.generate_personalized_therapeutic_story(
+                user_mood_data=recent_moods,
+                user_profile={'age_group': 'adult', 'main_concerns': 'stress'},
+                locale=preferences.get('language', 'sv')
+            )
+        except Exception as ai_error:
+            logger.warning(f"AI story generation failed, using fallback: {str(ai_error)}")
+            story_result = {
+                'story': 'Här är en lugnande historia för dig. Föreställ dig att du sitter vid en stilla sjö...',
+                'ai_generated': False
+            }
 
         if not story_result.get('ai_generated', False):
             # Fallback story if AI generation fails
@@ -92,7 +111,7 @@ def generate_story():
                 'category': 'calming',
                 'duration': 180,  # 3 minutes
                 'isFavorite': False,
-                'createdAt': '2024-01-25T12:00:00Z',
+                'createdAt': datetime.utcnow().isoformat(),
                 'ai_generated': False
             }
         else:
@@ -104,7 +123,7 @@ def generate_story():
                 'category': 'personalized',
                 'duration': 240,  # 4 minutes
                 'isFavorite': False,
-                'createdAt': '2024-01-25T12:00:00Z',
+                'createdAt': datetime.utcnow().isoformat(),
                 'ai_generated': True,
                 'confidence': story_result.get('confidence', 0.8)
             }
@@ -122,15 +141,21 @@ def generate_story():
         return jsonify({'error': 'Failed to generate story'}), 500
 
 @ai_stories_bp.route('/stories/<story_id>/favorite', methods=['POST'])
-@jwt_required()
+@AuthService.jwt_required
 def toggle_favorite(story_id):
     """Toggle favorite status for a story"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user_id = request.user_id
 
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # Check if user exists in Firestore
+        try:
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return jsonify({'error': 'User not found'}), 404
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
 
         # In a real implementation, this would update the database
         # For now, just return success
@@ -141,16 +166,26 @@ def toggle_favorite(story_id):
         logger.error(f"Failed to toggle favorite: {str(e)}")
         return jsonify({'error': 'Failed to update favorite status'}), 500
 
+    except Exception as e:
+        logger.error(f"Failed to toggle favorite: {str(e)}")
+        return jsonify({'error': 'Failed to update favorite status'}), 500
+
 @ai_stories_bp.route('/stories/<story_id>', methods=['DELETE'])
-@jwt_required()
+@AuthService.jwt_required
 def delete_story(story_id):
     """Delete a user-generated story"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user_id = request.user_id
 
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # Check if user exists in Firestore
+        try:
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return jsonify({'error': 'User not found'}), 404
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
 
         # In a real implementation, this would delete from database
         audit_log('story_deleted', user_id, {'story_id': story_id})
@@ -161,15 +196,21 @@ def delete_story(story_id):
         return jsonify({'error': 'Failed to delete story'}), 500
 
 @ai_stories_bp.route('/analytics', methods=['GET'])
-@jwt_required()
+@AuthService.jwt_required
 def get_story_analytics():
     """Get analytics about user's story engagement"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
+        user_id = request.user_id
 
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+        # Check if user exists in Firestore
+        try:
+            from ..firebase_config import db
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return jsonify({'error': 'User not found'}), 404
+        except Exception as e:
+            logger.error(f"Firebase query failed: {str(e)}")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
 
         # Mock analytics data
         analytics = {

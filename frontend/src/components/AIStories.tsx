@@ -61,8 +61,10 @@ const AIStories: React.FC = () => {
   const loadStories = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/ai/stories');
-      setStories(response.data);
+      const response = await api.get('/api/ai/stories', {
+        params: { user_id: user?.user_id }
+      });
+      setStories(response.data.stories || []);
     } catch (err) {
       setError(t('ai.stories.loadError'));
       console.error('Failed to load AI stories:', err);
@@ -74,14 +76,9 @@ const AIStories: React.FC = () => {
   const generateNewStory = async () => {
     try {
       setGenerating(true);
-      const response = await api.post('/ai/stories/generate', {
-        userId: user?.id,
-        mood: 'current', // Could be based on recent mood logs
-        preferences: {
-          length: 'medium',
-          theme: 'healing',
-          language: 'sv'
-        }
+      const response = await api.post('/api/ai/story', {
+        user_id: user?.user_id,
+        locale: 'sv'
       });
       setStories(prev => [response.data, ...prev]);
     } catch (err) {
@@ -93,16 +90,12 @@ const AIStories: React.FC = () => {
   };
 
   const toggleFavorite = async (storyId: string) => {
-    try {
-      await api.post(`/ai/stories/${storyId}/favorite`);
-      setStories(prev => prev.map(story =>
-        story.id === storyId
-          ? { ...story, isFavorite: !story.isFavorite }
-          : story
-      ));
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
-    }
+    // For now, just toggle locally since backend doesn't have this endpoint yet
+    setStories(prev => prev.map(story =>
+      story.id === storyId
+        ? { ...story, isFavorite: !story.isFavorite }
+        : story
+    ));
   };
 
   const playStory = (story: AIStory) => {
@@ -186,7 +179,7 @@ const AIStories: React.FC = () => {
           <AnimatePresence>
             {stories.map((story, index) => (
               <motion.div
-                key={story.id}
+                key={story.id || `story-${index}`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -233,7 +226,7 @@ const AIStories: React.FC = () => {
                         sx={{ backgroundColor: getMoodColor(story.mood) }}
                       />
                       <Chip
-                        label={`${story.duration} min`}
+                        label={`${story.duration || 0} min`}
                         size="small"
                         variant="outlined"
                       />
@@ -249,7 +242,7 @@ const AIStories: React.FC = () => {
                         overflow: 'hidden',
                       }}
                     >
-                      {story.content.substring(0, 150)}...
+                      {story.content ? story.content.substring(0, 150) + '...' : 'Ingen innehåll tillgänglig'}
                     </Typography>
                   </CardContent>
 
@@ -297,7 +290,7 @@ const AIStories: React.FC = () => {
 
               <DialogContent>
                 <Typography variant="body1" paragraph>
-                  {selectedStory.content}
+                  {selectedStory.content || 'Ingen innehåll tillgänglig för denna berättelse.'}
                 </Typography>
 
                 {/* Audio Controls */}
@@ -332,7 +325,7 @@ const AIStories: React.FC = () => {
                   </Box>
 
                   <Typography variant="body2" color="text.secondary">
-                    {Math.floor(currentTime / 60)}:{(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(selectedStory.duration / 60)}:{(selectedStory.duration % 60).toString().padStart(2, '0')}
+                    {Math.floor(currentTime / 60)}:{(currentTime % 60).toString().padStart(2, '0')} / {Math.floor((selectedStory.duration || 0) / 60)}:{(((selectedStory.duration || 0) % 60)).toString().padStart(2, '0')}
                   </Typography>
                 </Box>
               </DialogContent>

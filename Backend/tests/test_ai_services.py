@@ -60,7 +60,7 @@ class TestAIServices:
         """Test OpenAI availability when properly configured"""
         mock_getenv.return_value = "test-key"
 
-        with patch('src.utils.ai_services.OpenAI', return_value=mock_openai_client):
+        with patch('openai.OpenAI', return_value=mock_openai_client):
             ai_service._check_openai()  # Reset check
             assert ai_service.openai_available is True
 
@@ -147,7 +147,7 @@ class TestAIServices:
         assert len(result["insights"]) > 0
 
     @patch('src.utils.ai_services.os.getenv')
-    @patch('src.utils.ai_services.OpenAI')
+    @patch('openai.OpenAI')
     def test_therapeutic_conversation_generation(self, mock_openai_class, mock_getenv, ai_service, mock_openai_client):
         """Test therapeutic conversation generation"""
         mock_getenv.return_value = "test-key"
@@ -180,7 +180,7 @@ class TestAIServices:
 
         response = ai_service._generate_crisis_response(crisis_analysis)
 
-        assert "Hjälp" in response or "help" in response.lower()
+        assert "hjälp" in response.lower() or "help" in response.lower()
         assert len(response) > 50  # Should be substantial response
 
     def test_exercise_recommendations_generation(self, ai_service):

@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 const MoodList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { user } = useAuth();
-  const [moods, setMoods] = useState<{ mood: string; timestamp: string }[]>([]);
+  const [moods, setMoods] = useState<{ mood_text: string; timestamp: string; sentiment?: string; score?: number }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +46,13 @@ const MoodList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <ul className="mood-list">
             {moods.map((mood, index) => (
               <li key={index} className="mood-item">
-                <h3 className="mood-text">📝 {mood.mood}</h3>
+                <h3 className="mood-text">📝 {mood.mood_text || 'Ingen text'}</h3>
+                {mood.sentiment && (
+                  <p className="sentiment">
+                    😊 Sentiment: {mood.sentiment}
+                    {mood.score !== undefined && ` (${(mood.score * 100).toFixed(0)}%)`}
+                  </p>
+                )}
                 <p className="timestamp">📅 {new Date(mood.timestamp).toLocaleString()}</p>
               </li>
             ))}
