@@ -17,7 +17,7 @@ function createWindow() {
   // Dynamiskt bestäm frontend-URL
   const isDev = !app.isPackaged;
   const frontendURL = isDev
-    ? 'http://localhost:3000' // Matchar Vite dev server port
+    ? 'http://localhost:3001' // Matchar Vite dev server port (uppdaterad för dynamisk port)
     : `file://${path.join(__dirname, '../dist/index.html')}`; // Prod: Laddar byggda filer
 
   console.log('🚀 Starting Electron app...');
@@ -37,7 +37,7 @@ function createWindow() {
         return;
       }
 
-      require('http').get('http://localhost:3000', (res) => {
+      require('http').get('http://localhost:3001', (res) => {
         // Accept any successful status code (200, 201, etc.)
         if (res.statusCode >= 200 && res.statusCode < 400) {
           console.log('✅ Vite dev server is ready, loading frontend...');

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -27,6 +28,7 @@ ChartJS.register(
 );
 
 const MoodChart: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ const MoodChart: React.FC = () => {
       const data = {
         labels: last7Days.map((date: string) => new Date(date).toLocaleDateString('sv-SE')),
         datasets: [{
-          label: 'Humörpoäng',
+          label: t('mood.score', 'Mood Score'),
           data: moodScores,
           borderColor: '#4CAF50',
           backgroundColor: 'rgba(76, 175, 80, 0.2)',
@@ -101,7 +103,7 @@ const MoodChart: React.FC = () => {
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top' as const },
-      title: { display: true, text: 'Veckovis Humöranalys' }
+      title: { display: true, text: t('dashboard.weeklyMoodAnalysis', 'Weekly Mood Analysis') }
     },
     scales: {
       y: {
@@ -109,9 +111,9 @@ const MoodChart: React.FC = () => {
         max: 1,
         ticks: {
           callback: (value: number) => {
-            if (value === -1) return 'Negativ';
-            if (value === 0) return 'Neutral';
-            if (value === 1) return 'Positiv';
+            if (value === -1) return t('mood.negative', 'Negative');
+            if (value === 0) return t('mood.neutral', 'Neutral');
+            if (value === 1) return t('mood.positive', 'Positive');
             return '';
           }
         }
@@ -120,11 +122,11 @@ const MoodChart: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="loading-message">Laddar diagram...</div>;
+    return <div className="loading-message">{t('common.loading')}</div>;
   }
 
   if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
-    return <div className="info-message">📊 Ingen data tillgänglig för diagram</div>;
+    return <div className="info-message">{t('dashboard.noDataAvailable')}</div>;
   }
 
   return (

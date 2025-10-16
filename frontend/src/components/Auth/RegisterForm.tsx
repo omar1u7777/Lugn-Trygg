@@ -63,104 +63,111 @@ const RegisterForm: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-form">
-        <h2 className="auth-title">
-          <i className="fas fa-user-plus"></i> Skapa konto
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-8 flex items-center justify-center gap-3">
+          <span className="text-primary-500 text-2xl">👤</span>
+          Skapa konto
         </h2>
 
         {error && (
-          <div className="error-message">
-            <i className="fas fa-exclamation-triangle"></i> {error}
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <span className="text-red-500 text-lg">⚠️</span>
+            <p className="text-red-800 dark:text-red-300 font-medium">{error}</p>
           </div>
         )}
 
         {success && (
-          <div className="success-message">
-            <i className="fas fa-check-circle"></i> {success}
+          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <span className="text-green-500 text-lg">✅</span>
+            <p className="text-green-800 dark:text-green-300 font-medium">{success}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">
-              <i className="fas fa-user"></i> Namn
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+              <span className="text-primary-500">👤</span>
+              Namn
             </label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="auth-input"
+              className="form-input"
               placeholder="Ange ditt namn"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              <i className="fas fa-envelope"></i> E-postadress
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+              <span className="text-primary-500">📧</span>
+              E-postadress
             </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="auth-input"
+              className="form-input"
               placeholder="Ange din e-postadress"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              <i className="fas fa-lock"></i> Lösenord
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+              <span className="text-primary-500">🔒</span>
+              Lösenord
             </label>
-            <div className="password-container">
+            <div className="relative">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="auth-input"
+                className="form-input pr-12"
                 placeholder="Skapa ett starkt lösenord"
                 required
                 disabled={loading}
               />
               <button
                 type="button"
-                className="show-password-button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-200"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
               >
                 <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
               </button>
             </div>
-            <small className="password-hint">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
-            </small>
+            </p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">
-              <i className="fas fa-lock"></i> Bekräfta lösenord
+          <div>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+              <span className="text-primary-500">🔒</span>
+              Bekräfta lösenord
             </label>
-            <div className="password-container">
+            <div className="relative">
               <input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="auth-input"
+                className="form-input pr-12"
                 placeholder="Bekräfta ditt lösenord"
                 required
                 disabled={loading}
               />
               <button
                 type="button"
-                className="show-password-button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-200"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={loading}
               >
@@ -169,23 +176,32 @@ const RegisterForm: React.FC = () => {
             </div>
           </div>
 
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary w-full py-3 text-lg font-semibold"
+            disabled={loading}
+          >
             {loading ? (
               <>
-                <i className="fas fa-spinner fa-spin"></i> Skapar konto...
+                <i className="fas fa-spinner fa-spin mr-2"></i>
+                Skapar konto...
               </>
             ) : (
               <>
-                <i className="fas fa-user-plus"></i> Skapa konto
+                <i className="fas fa-user-plus mr-2"></i>
+                Skapa konto
               </>
             )}
           </button>
         </form>
 
-        <div className="auth-links">
-          <p>
+        <div className="mt-8 text-center">
+          <p className="text-slate-600 dark:text-slate-400">
             Har du redan ett konto?{" "}
-            <Link to="/login" className="auth-link">
+            <Link
+              to="/login"
+              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors duration-200"
+            >
               Logga in här
             </Link>
           </p>

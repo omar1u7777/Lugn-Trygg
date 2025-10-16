@@ -237,32 +237,58 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
   };
 
   return (
-    <div className="modal-container">
-      <div className="popup-container">
-        <h3 className="popup-title">{t('mood.title')}</h3>
-        
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in">
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3">
+          <span className="text-2xl">🎭</span>
+          {t('mood.title')}
+        </h3>
+
         {/* 🔴 Felmeddelande */}
         {error && (
-          <div className="error-message">
-            <p>❌ <strong>{error}</strong></p>
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p className="text-red-800 dark:text-red-300 font-medium">
+              <span className="text-lg mr-2">❌</span>
+              <strong>{error}</strong>
+            </p>
           </div>
         )}
-        
+
         {/* 🎤 Inspelningsknapp */}
-        <div className={`record-circle ${isRecording ? "recording" : ""}`} onClick={startRecording}>
+        <div
+          className={`w-36 h-36 mx-auto rounded-full flex items-center justify-center text-center font-bold text-lg cursor-pointer transition-all duration-300 shadow-lg border-4 mb-6 ${
+            isRecording
+              ? "bg-red-500 border-red-600 text-white animate-pulse shadow-red-500/50"
+              : "bg-primary-500 border-primary-600 text-white hover:bg-primary-600 hover:scale-105 shadow-primary-500/30"
+          }`}
+          onClick={startRecording}
+        >
           {isConfirming ? t('mood.confirming') : isRecording ? t('mood.recording') : t('mood.startRecording')}
         </div>
 
         {/* 📊 Visa upptäckt humör under bekräftelse */}
         {isConfirming && detectedMood && (
-          <div className="mood-confirmation">
-            <p>{t('mood.detectedMood')}: <strong>{detectedMood}</strong></p>
-            <p>{t('mood.sayYesOrNo')}</p>
+          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-xl p-6 mb-6 animate-pulse-slow">
+            <p className="text-slate-700 dark:text-slate-300 text-center mb-2">
+              {t('mood.detectedMood')}:
+            </p>
+            <p className="text-2xl font-bold text-center text-primary-600 dark:text-primary-400 mb-3">
+              {detectedMood}
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+              {t('mood.sayYesOrNo')}
+            </p>
           </div>
         )}
 
-        {/* 🚪 Stäng-knapp (Fixad, endast EN ruta och knapp) */}
-        <button className="close-btn" onClick={onClose}>{t('mood.close')}</button>
+        {/* 🚪 Stäng-knapp */}
+        <button
+          className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
+          onClick={onClose}
+          aria-label={t('mood.close')}
+        >
+          ✕
+        </button>
       </div>
     </div>
   );

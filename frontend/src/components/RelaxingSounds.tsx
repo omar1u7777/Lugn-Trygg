@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 const RelaxingSounds: React.FC = () => {
+  const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
@@ -53,7 +55,7 @@ const RelaxingSounds: React.FC = () => {
   return (
     <div className="relaxing-sounds">
       <h3 className="sounds-title">
-        <i className="fas fa-music"></i> Avslappnande Ljud
+        <i className="fas fa-music"></i> {t('dashboard.relaxingSounds', 'Relaxing Sounds')}
       </h3>
 
       <div className="sound-player">
@@ -68,7 +70,7 @@ const RelaxingSounds: React.FC = () => {
 
         <div className="sound-info">
           <div className="track-info">
-            <div className="track-title">Lugn Musik</div>
+            <div className="track-title">{t('relaxingSounds.trackTitle', 'Calm Music')}</div>
             <div className="track-time">
               {formatTime(currentTime)} / {formatTime(duration)}
             </div>
@@ -91,7 +93,7 @@ const RelaxingSounds: React.FC = () => {
       </div>
 
       <div className="sound-description">
-        <p>🎵 Lugn och avslappnande musik för att hjälpa dig slappna av och må bättre.</p>
+        <p>{t('relaxingSounds.description', '🎵 Calm and relaxing music to help you unwind and feel better.')}</p>
       </div>
 
       <audio ref={audioRef} src="/audio/calm-music.mp3" loop preload="metadata" />

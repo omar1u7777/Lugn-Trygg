@@ -35,62 +35,97 @@ function App() {
     // 🚫 Offline-läge - Visa ett meddelande och en återanslutningsknapp
     if (offlineMode) {
         return (
-            <div className="offline-screen">
-                <h2>{t('common.offlineTitle')}</h2>
-                <p>{t('common.offlineMessage')}</p>
-                <button onClick={() => window.location.reload()} className="retry-button">
-                    {t('common.retry')}
-                </button>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 px-4">
+                <div className="text-center max-w-md mx-auto">
+                    <div className="text-6xl mb-6">📡</div>
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+                        {t('common.offlineTitle')}
+                    </h2>
+                    <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg">
+                        {t('common.offlineMessage')}
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="btn btn-primary px-8 py-3 text-lg font-semibold"
+                    >
+                        <span className="mr-2">🔄</span>
+                        {t('common.retry')}
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <>
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
             {/* 📌 Navigation visas på alla sidor */}
             <Navigation />
 
-            <main className="app-container">
-                <Routes>
-                    <Route path="/" element={<LoginForm />} />
-                    <Route path="/login" element={<LoginForm />} />
-                    <Route path="/register" element={<RegisterForm />} />
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/subscribe"
-                        element={
-                            <ProtectedRoute>
-                                <SubscriptionForm />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/ai-stories"
-                        element={
-                            <ProtectedRoute>
-                                <AIStories />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/analytics"
-                        element={
-                            <ProtectedRoute>
-                                <MoodAnalytics />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route path="*" element={<h2 className="not-found">{t('common.pageNotFound')}</h2>} />
-                </Routes>
+            <main className="pt-20 pb-8 px-4 sm:px-6 lg:px-8">
+                <div className="container-custom">
+                    <Routes>
+                        <Route path="/" element={<LoginForm />} />
+                        <Route path="/login" element={<LoginForm />} />
+                        <Route path="/register" element={<RegisterForm />} />
+                        <Route
+                            path="/dashboard"
+                            element={
+                                <ProtectedRoute>
+                                    <Dashboard />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/subscribe"
+                            element={
+                                <ProtectedRoute>
+                                    <SubscriptionForm />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/ai-stories"
+                            element={
+                                <ProtectedRoute>
+                                    <AIStories />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/analytics"
+                            element={
+                                <ProtectedRoute>
+                                    <MoodAnalytics />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="*"
+                            element={
+                                <div className="min-h-[60vh] flex items-center justify-center">
+                                    <div className="text-center">
+                                        <div className="text-8xl mb-6">🔍</div>
+                                        <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+                                            {t('common.pageNotFound')}
+                                        </h2>
+                                        <p className="text-slate-600 dark:text-slate-400 text-lg mb-8">
+                                            Sidan du letar efter finns inte.
+                                        </p>
+                                        <button
+                                            onClick={() => window.history.back()}
+                                            className="btn btn-primary px-6 py-3"
+                                        >
+                                            <span className="mr-2">⬅️</span>
+                                            Gå tillbaka
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        />
+                    </Routes>
+                </div>
             </main>
-        </>
+        </div>
     );
 }
 

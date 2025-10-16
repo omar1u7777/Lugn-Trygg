@@ -15,54 +15,83 @@ const Navigation: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="navbar">
-      <Link to={isLoggedIn() ? "/dashboard" : "/"} className="app-name">
-        🧘 {t('app.name')}
+    <nav className="flex justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 w-full fixed top-0 left-0 z-50 shadow-xl border-b border-slate-700/50">
+      <Link
+        to={isLoggedIn() ? "/dashboard" : "/"}
+        className="text-white font-bold text-xl flex items-center gap-3 hover:text-primary-300 transition-colors duration-200"
+      >
+        <span className="text-2xl">🧘</span>
+        {t('app.name')}
       </Link>
 
-      <ul className="nav-links">
+      <ul className="flex items-center gap-4 ml-auto">
         {isLoggedIn() ? (
           <>
             <li>
               <Link
                 to="/dashboard"
-                className={isActive('/dashboard') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/dashboard')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-tachometer-alt"></i> {t('nav.dashboard')}
+                <i className="fas fa-tachometer-alt"></i>
+                <span className="hidden sm:inline">{t('nav.dashboard')}</span>
               </Link>
             </li>
             <li>
               <Link
                 to="/subscribe"
-                className={isActive('/subscribe') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/subscribe')
+                    ? 'bg-secondary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-crown"></i> {t('subscription.subscribe')}
+                <i className="fas fa-crown text-yellow-400"></i>
+                <span className="hidden sm:inline">{t('subscription.subscribe')}</span>
               </Link>
             </li>
             <li>
               <Link
                 to="/ai-stories"
-                className={isActive('/ai-stories') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/ai-stories')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-book-open"></i> AI Stories
+                <i className="fas fa-book-open"></i>
+                <span className="hidden sm:inline">AI Stories</span>
               </Link>
             </li>
             <li>
               <Link
                 to="/analytics"
-                className={isActive('/analytics') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/analytics')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-chart-line"></i> Analytics
+                <i className="fas fa-chart-line"></i>
+                <span className="hidden sm:inline">Analytics</span>
               </Link>
             </li>
-            <li className="user-info">
-              <span className="user-greeting">
-                <i className="fas fa-user"></i> Hej, {extractDisplayName(user?.email || '')}
+            <li className="hidden md:flex items-center">
+              <span className="flex items-center gap-2 bg-slate-700/50 text-slate-300 px-3 py-2 rounded-full text-sm">
+                <i className="fas fa-user text-primary-400"></i>
+                Hej, {extractDisplayName(user?.email || '')}
               </span>
             </li>
             <li>
-              <button onClick={logout} className="logout-btn">
-                <i className="fas fa-sign-out-alt"></i> {t('nav.logout')}
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-red-500/25"
+              >
+                <i className="fas fa-sign-out-alt"></i>
+                <span className="hidden sm:inline">{t('nav.logout')}</span>
               </button>
             </li>
           </>
@@ -71,39 +100,58 @@ const Navigation: React.FC = () => {
             <li>
               <Link
                 to="/login"
-                className={isActive('/login') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/login')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-sign-in-alt"></i> {t('auth.login')}
+                <i className="fas fa-sign-in-alt"></i>
+                <span className="hidden sm:inline">{t('auth.login')}</span>
               </Link>
             </li>
             <li>
               <Link
                 to="/register"
-                className={isActive('/register') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/register')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-user-plus"></i> {t('auth.register')}
+                <i className="fas fa-user-plus"></i>
+                <span className="hidden sm:inline">{t('auth.register')}</span>
               </Link>
             </li>
             <li>
               <Link
                 to="/subscribe"
-                className={isActive('/subscribe') ? 'active' : ''}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/subscribe')
+                    ? 'bg-secondary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
               >
-                <i className="fas fa-crown"></i> {t('subscription.subscribe')}
+                <i className="fas fa-crown text-yellow-400"></i>
+                <span className="hidden sm:inline">{t('subscription.subscribe')}</span>
               </Link>
             </li>
           </>
         )}
-        <li className="theme-toggle-item">
+
+        {/* Theme Toggle */}
+        <li>
           <button
             onClick={toggleTheme}
-            className="theme-toggle-btn"
+            className="flex items-center justify-center w-10 h-10 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg transition-all duration-200"
             aria-label={isDarkMode ? t('settings.lightMode') : t('settings.darkMode')}
           >
-            <i className={isDarkMode ? 'fas fa-sun' : 'fas fa-moon'}></i>
+            <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon'}`}></i>
           </button>
         </li>
-        <li className="language-switcher-item">
+
+        {/* Language Switcher */}
+        <li>
           <LanguageSwitcher />
         </li>
       </ul>

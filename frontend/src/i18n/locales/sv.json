@@ -62,7 +62,10 @@
     "aiAnalysisNotice": "Denna analys är genererad av AI baserat på dina mönster och trender",
     "aiConfidence": "AI-konfidens:",
     "invalidDate": "Ogiltigt datum",
-    "badges": "Prestationer"
+    "badges": "Prestationer",
+    "relaxingSounds": "Avslappnande Ljud",
+    "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
+    "noMemoryData": "📊 Ingen minnesdata tillgänglig."
   },
   "mood": {
     "title": "Humörloggning",
@@ -83,7 +86,10 @@
     "save": "Spara",
     "cancel": "Avbryt",
     "success": "Humör sparat!",
-    "error": "Kunde inte spara humör"
+    "error": "Kunde inte spara humör",
+    "score": "Humörpoäng",
+    "negative": "Negativ",
+    "positive": "Positiv"
   },
   "memories": {
     "title": "Mina minnen",
@@ -95,7 +101,8 @@
     "save": "Spara minne",
     "delete": "Ta bort",
     "noMemories": "Inga minnen än",
-    "addFirst": "Lägg till ditt första minne"
+    "addFirst": "Lägg till ditt första minne",
+    "count": "Antal minnen"
   },
   "chatbot": {
     "title": "AI-chatt",
@@ -211,6 +218,13 @@
   },
   "badges": {
     "days": "dagar",
+    "description": "Följ dina framsteg och lås upp prestationer när du använder appen!",
+    "summary": "Prestationssammanfattning",
+    "earned": "Intjänade",
+    "remaining": "Återstående",
+    "rare": "Sällsynta",
+    "epic": "Episka",
+    "progress": "Framsteg",
     "firstEntry": {
       "title": "Första steget",
       "desc": "Loggade ditt första humör"
@@ -230,7 +244,31 @@
     "explorer": {
       "title": "Humörutforskare",
       "desc": "Loggade {count} humör"
+    },
+    "mindful": {
+      "title": "Medveten observatör",
+      "desc": "Slutförde 10 mindfulness-övningar"
+    },
+    "storyteller": {
+      "title": "Berättare",
+      "desc": "Lyssnade på 5 AI-genererade berättelser"
+    },
+    "healthSync": {
+      "title": "Hälsosynkronisering",
+      "desc": "Anslöt bärbar enhet"
+    },
+    "crisisHelper": {
+      "title": "Krisstödjare",
+      "desc": "Använde krisstödsfunktioner"
+    },
+    "predictionMaster": {
+      "title": "Prediktionsmästare",
+      "desc": "Visade humörprediktioner 10 gånger"
     }
+  },
+  "relaxingSounds": {
+    "trackTitle": "Lugn Musik",
+    "description": "🎵 Lugn och avslappnande musik för att hjälpa dig slappna av och må bättre."
   },
   "ai": {
     "stories": {

@@ -242,9 +242,11 @@ const BadgeDisplay: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="badge-display">
-        <h3>{t('dashboard.badges', 'Achievements')}</h3>
-        <div className="badge-loading">{t('common.loading')}</div>
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">{t('common.loading')}</p>
+        </div>
       </div>
     );
   }
@@ -261,13 +263,13 @@ const BadgeDisplay: React.FC = () => {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'consistency': return <StreakIcon />;
-      case 'mindfulness': return <MindIcon />;
-      case 'engagement': return <HeartIcon />;
-      case 'integration': return <TrendingIcon />;
-      case 'support': return <CheckIcon />;
-      case 'advanced': return <StarIcon />;
-      default: return <TrophyIcon />;
+      case 'consistency': return '🔥';
+      case 'mindfulness': return '🧘';
+      case 'engagement': return '📚';
+      case 'integration': return '⌚';
+      case 'support': return '🆘';
+      case 'advanced': return '🔮';
+      default: return '🏆';
     }
   };
 
@@ -277,175 +279,137 @@ const BadgeDisplay: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TrophyIcon color="primary" />
+      <div className="p-6">
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3">
+          <span className="text-primary-500 text-lg">🏆</span>
           {t('dashboard.badges', 'Achievements')}
-        </Typography>
+        </h3>
 
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Track your progress and unlock achievements as you use the app!
-        </Typography>
+        <p className="text-slate-600 dark:text-slate-400 mb-6">
+          {t('badges.description', 'Track your progress and unlock achievements as you use the app!')}
+        </p>
 
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {badges.map((badge, index) => (
-            <Box key={badge.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.333% - 16px)' } }}>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1, duration: 0.3 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <Card
-                  sx={{
-                    height: '100%',
-                    position: 'relative',
-                    border: badge.earned ? `2px solid ${getRarityColor(badge.rarity)}` : '2px solid #E0E0E0',
-                    background: badge.earned
-                      ? `linear-gradient(135deg, ${getRarityColor(badge.rarity)}15, ${getRarityColor(badge.rarity)}05)`
-                      : 'grey.50',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      boxShadow: 6,
-                      transform: 'translateY(-2px)',
-                    },
-                  }}
-                >
-                  {badge.earned && (
-                    <MuiBadge
-                      badgeContent={<CheckIcon sx={{ fontSize: 16 }} />}
-                      color="success"
-                      sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
-                    />
-                  )}
+            <motion.div
+              key={badge.id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.1, duration: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              className={`relative bg-white dark:bg-slate-800 rounded-xl p-6 shadow-soft border-2 transition-all duration-300 hover:shadow-large hover:-translate-y-1 ${
+                badge.earned
+                  ? `border-yellow-400 dark:border-yellow-500 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20`
+                  : 'border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              {badge.earned && (
+                <div className="absolute top-3 right-3 bg-green-500 text-white rounded-full p-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
 
-                  <CardContent sx={{ textAlign: 'center', pb: 2 }}>
-                    <Avatar
-                      sx={{
-                        width: 64,
-                        height: 64,
-                        mx: 'auto',
-                        mb: 2,
-                        fontSize: '2rem',
-                        backgroundColor: badge.earned ? getRarityColor(badge.rarity) : 'grey.400',
-                        opacity: badge.earned ? 1 : 0.6,
-                      }}
-                    >
-                      {badge.earned ? badge.icon : <LockIcon />}
-                    </Avatar>
+              <div className="text-center">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl ${
+                  badge.earned
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                }`}>
+                  {badge.earned ? badge.icon : <LockIcon />}
+                </div>
 
-                    <Typography variant="h6" component="h3" gutterBottom>
-                      {badge.title}
-                    </Typography>
+                <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                  {badge.title}
+                </h4>
 
-                    <Typography variant="body2" color="text.secondary" paragraph>
-                      {badge.description.replace('{days}', badge.streak.toString()).replace('{count}', badge.streak.toString())}
-                    </Typography>
+                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+                  {badge.description.replace('{days}', badge.streak.toString()).replace('{count}', badge.streak.toString())}
+                </p>
 
-                    <Box display="flex" justifyContent="center" alignItems="center" gap={1} mb={2}>
-                      {getCategoryIcon(badge.category)}
-                      <Chip
-                        label={badge.rarity.toUpperCase()}
-                        size="small"
-                        sx={{
-                          backgroundColor: getRarityColor(badge.rarity),
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '0.7rem',
-                        }}
-                      />
-                    </Box>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                    badge.rarity === 'common' ? 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200' :
+                    badge.rarity === 'rare' ? 'bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    badge.rarity === 'epic' ? 'bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                    'bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                  }`}>
+                    {badge.rarity}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {getCategoryIcon(badge.category)}
+                  </span>
+                </div>
 
-                    {badge.progress !== undefined && badge.maxProgress && (
-                      <Box sx={{ mt: 2 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                          <Typography variant="caption" color="text.secondary">
-                            Progress
-                          </Typography>
-                          <Typography variant="caption" fontWeight="bold">
-                            {badge.progress}/{badge.maxProgress}
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={(badge.progress / badge.maxProgress) * 100}
-                          sx={{
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: 'grey.300',
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: badge.earned ? getRarityColor(badge.rarity) : 'grey.400',
-                              borderRadius: 4,
-                            },
-                          }}
-                        />
-                      </Box>
-                    )}
+                {badge.progress !== undefined && badge.maxProgress && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{t('badges.progress', 'Progress')}</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {badge.progress}/{badge.maxProgress}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          badge.earned ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-slate-400'
+                        }`}
+                        style={{ width: `${(badge.progress / badge.maxProgress) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
 
-                    {badge.earned && badge.streak > 0 && (
-                      <Box sx={{ mt: 2, p: 1, backgroundColor: 'success.light', borderRadius: 1 }}>
-                        <Typography variant="body2" fontWeight="bold" color="success.contrastText">
-                          <StreakIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          {badge.streak} {t('badges.days', 'days')}
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Box>
+                {badge.earned && badge.streak > 0 && (
+                  <div className="mt-4 bg-green-100 dark:bg-green-900/30 rounded-lg p-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-green-600 dark:text-green-400">🔥</span>
+                      <span className="text-green-800 dark:text-green-300 font-bold text-sm">
+                        {badge.streak} {t('badges.days', 'days')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           ))}
-        </Box>
+        </div>
 
         {/* Achievement Summary */}
-        <Paper sx={{ mt: 4, p: 3, background: 'linear-gradient(135deg, #f5f5f5, #e8e8e8)' }}>
-          <Typography variant="h6" gutterBottom>
-            Achievement Summary
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
-              <Box textAlign="center">
-                <Typography variant="h4" color="primary">
-                  {badges.filter(b => b.earned).length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Earned
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
-              <Box textAlign="center">
-                <Typography variant="h4" color="secondary">
-                  {badges.filter(b => !b.earned).length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Remaining
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
-              <Box textAlign="center">
-                <Typography variant="h4" sx={{ color: getRarityColor('rare') }}>
-                  {badges.filter(b => b.earned && b.rarity === 'rare').length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Rare
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ width: { xs: 'calc(50% - 8px)', sm: 'calc(25% - 6px)' } }}>
-              <Box textAlign="center">
-                <Typography variant="h4" sx={{ color: getRarityColor('epic') }}>
-                  {badges.filter(b => b.earned && b.rarity === 'epic').length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Epic
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600">
+          <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <span className="text-primary-500">📊</span>
+            {t('badges.summary', 'Achievement Summary')}
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+              <div className="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-1">
+                {badges.filter(b => b.earned).length}
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{t('badges.earned', 'Earned')}</div>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+              <div className="text-3xl font-bold text-secondary-600 dark:text-secondary-400 mb-1">
+                {badges.filter(b => !b.earned).length}
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{t('badges.remaining', 'Remaining')}</div>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                {badges.filter(b => b.earned && b.rarity === 'rare').length}
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{t('badges.rare', 'Rare')}</div>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+                {badges.filter(b => b.earned && b.rarity === 'epic').length}
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{t('badges.epic', 'Epic')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 };

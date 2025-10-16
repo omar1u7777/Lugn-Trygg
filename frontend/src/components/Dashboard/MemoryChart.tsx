@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -24,6 +25,7 @@ ChartJS.register(
 );
 
 const MemoryChart: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ const MemoryChart: React.FC = () => {
     const fetchMemoryData = async () => {
       try {
         const memories = await getMemories(user.user_id);
+        console.log('MemoryChart: Fetched memories:', memories.length, 'memories');
 
         // Prepare data for last 7 days
         const last7Days: string[] = [];
@@ -44,25 +47,46 @@ const MemoryChart: React.FC = () => {
         }
 
         const memoryCounts = last7Days.map(date => {
-          return memories.filter((memory: any) => {
+          const count = memories.filter((memory: any) => {
             const timestamp = memory.timestamp;
             if (!timestamp) return false;
             try {
-              // Handle Firestore Timestamp objects
-              const memoryDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+              // Handle Firestore Timestamp objects and UTC timestamps
+              let memoryDate: Date;
+              if (timestamp.toDate) {
+                memoryDate = timestamp.toDate();
+              } else if (typeof timestamp === 'string' && timestamp.length === 14) {
+                // Parse UTC timestamp format YYYYMMDDHHMMSS
+                const year = parseInt(timestamp.substring(0, 4));
+                const month = parseInt(timestamp.substring(4, 6)) - 1;
+                const day = parseInt(timestamp.substring(6, 8));
+                const hour = parseInt(timestamp.substring(8, 10));
+                const minute = parseInt(timestamp.substring(10, 12));
+                const second = parseInt(timestamp.substring(12, 14));
+                memoryDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+              } else {
+                memoryDate = new Date(timestamp);
+              }
+
               if (isNaN(memoryDate.getTime())) return false;
               const dateString = memoryDate.toISOString().split('T')[0];
-              return dateString === date;
+              const matches = dateString === date;
+              if (matches) {
+                console.log('MemoryChart: Found memory for date', date, 'timestamp:', timestamp, 'parsed date:', memoryDate);
+              }
+              return matches;
             } catch {
               return false;
             }
           }).length;
+          console.log('MemoryChart: Count for date', date, ':', count);
+          return count;
         });
 
         const data = {
           labels: last7Days.map(date => new Date(date).toLocaleDateString('sv-SE')),
           datasets: [{
-            label: 'Antal minnen',
+            label: t('memories.count', 'Number of Memories'),
             data: memoryCounts,
             backgroundColor: '#2196F3',
             borderColor: '#1976D2',
@@ -71,6 +95,7 @@ const MemoryChart: React.FC = () => {
         };
 
         setChartData(data);
+        console.log('MemoryChart: Chart data updated:', data);
       } catch (error) {
         console.error('Failed to fetch memory data:', error);
       } finally {
@@ -79,23 +104,23 @@ const MemoryChart: React.FC = () => {
     };
 
     fetchMemoryData();
-  }, [user]);
+  }, [user?.user_id]); // Add user.user_id to dependency array for reactivity
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'top' as const },
-      title: { display: true, text: 'Veckovis Minnesaktivitet' }
+      title: { display: true, text: t('dashboard.weeklyMemoryActivity', 'Weekly Memory Activity') }
     }
   };
 
   if (loading) {
-    return <div className="loading-message">Laddar diagram...</div>;
+    return <div className="loading-message">{t('common.loading')}</div>;
   }
 
   if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
-    return <div className="info-message">📊 Ingen data tillgänglig för minnesdiagram</div>;
+    return <div className="info-message">{t('dashboard.noMemoryData', '📊 No memory data available.')}</div>;
   }
 
   return (

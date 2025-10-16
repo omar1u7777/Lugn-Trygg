@@ -87,9 +87,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      }
    };
 
-   const interval = setInterval(refreshToken, 10 * 60 * 1000); // Refresh every 10 minutes instead of 14
+   // Check if token is expired before setting up automatic refresh
+   const checkTokenExpiration = async () => {
+     try {
+       // Try a simple API call to check if token is still valid
+       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:54112'}/api/mood/get?user_id=${user?.user_id}`, {
+         headers: {
+           'Authorization': `Bearer ${token}`,
+           'Content-Type': 'application/json'
+         }
+       });
+
+       if (response.status === 401) {
+         console.log("🔄 Token expired, attempting refresh...");
+         await refreshToken();
+       }
+     } catch (error) {
+       console.warn("⚠️ Token validation failed:", error);
+     }
+   };
+
+   // Check token immediately and set up interval
+   checkTokenExpiration();
+   const interval = setInterval(refreshToken, 10 * 60 * 1000); // Refresh every 10 minutes
    return () => clearInterval(interval);
- }, [token]);
+ }, [token, user?.user_id]);
 
   // 🔑 Kontrollera om användaren är inloggad
   const isLoggedIn = useCallback(() => Boolean(token && user && user.user_id), [token, user]);
