@@ -47,6 +47,7 @@ const Dashboard: React.FC = () => {
    const [showMemoryRecorder, setShowMemoryRecorder] = useState<boolean>(false);
    const [showMemoryList, setShowMemoryList] = useState<boolean>(false);
    const [showChatbot, setShowChatbot] = useState<boolean>(false);
+   const [showRelaxingSounds, setShowRelaxingSounds] = useState<boolean>(false);
    const [analysisRefreshTrigger, setAnalysisRefreshTrigger] = useState<number>(0);
    const [showCrisisAlert, setShowCrisisAlert] = useState<boolean>(false);
    const [crisisMoodScore, setCrisisMoodScore] = useState<number>(0);
@@ -216,18 +217,22 @@ const Dashboard: React.FC = () => {
             transition={{ delay: 0.6, duration: 0.5 }}
           >
             <motion.div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700 hover:shadow-medium transition-shadow duration-300"
+              className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 rounded-2xl p-6 shadow-soft border border-primary-200 dark:border-primary-700 hover:shadow-medium transition-all duration-300"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.7, duration: 0.3 }}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -2, scale: 1.02 }}
             >
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <span className="text-primary-500">🎭</span>
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 mx-auto mb-3 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg">
+                  🎭
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 text-center">
                 {t('dashboard.logMood')}
               </h3>
               <button
-                className="btn btn-primary w-full py-3 text-base font-semibold"
+                className="btn btn-primary w-full py-3 text-base font-semibold bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 onClick={() => setShowMoodLogger(true)}
                 aria-label={t('dashboard.openMoodLogger')}
               >
@@ -237,18 +242,22 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700 hover:shadow-medium transition-shadow duration-300"
+              className="bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900/30 dark:to-secondary-800/30 rounded-2xl p-6 shadow-soft border border-secondary-200 dark:border-secondary-700 hover:shadow-medium transition-all duration-300"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.8, duration: 0.3 }}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -2, scale: 1.02 }}
             >
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <span className="text-secondary-500">🎙️</span>
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 mx-auto mb-3 bg-secondary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg">
+                  🎙️
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 text-center">
                 {t('dashboard.recordMemory')}
               </h3>
               <button
-                className="btn btn-primary w-full py-3 text-base font-semibold"
+                className="btn btn-primary w-full py-3 text-base font-semibold bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 onClick={() => setShowMemoryRecorder(true)}
                 aria-label={t('dashboard.openRecording')}
               >
@@ -258,18 +267,22 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700 hover:shadow-medium transition-shadow duration-300"
+              className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-2xl p-6 shadow-soft border border-slate-300 dark:border-slate-600 hover:shadow-medium transition-all duration-300"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.9, duration: 0.3 }}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -2, scale: 1.02 }}
             >
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <span className="text-slate-500">📝</span>
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 mx-auto mb-3 bg-slate-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg">
+                  📝
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 text-center">
                 {t('dashboard.yourMoodLogs')}
               </h3>
               <button
-                className="btn btn-secondary w-full py-3 text-base font-semibold"
+                className="btn btn-secondary w-full py-3 text-base font-semibold bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 onClick={() => setShowMoodList(true)}
                 aria-label={t('dashboard.viewMoodLogs')}
               >
@@ -279,18 +292,22 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div
-              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700 hover:shadow-medium transition-shadow duration-300"
+              className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-2xl p-6 shadow-soft border border-slate-300 dark:border-slate-600 hover:shadow-medium transition-all duration-300"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 1.0, duration: 0.3 }}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -2, scale: 1.02 }}
             >
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <span className="text-slate-500">💭</span>
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 mx-auto mb-3 bg-slate-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg">
+                  💭
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 text-center">
                 {t('dashboard.yourMemories')}
               </h3>
               <button
-                className="btn btn-secondary w-full py-3 text-base font-semibold"
+                className="btn btn-secondary w-full py-3 text-base font-semibold bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 onClick={() => setShowMemoryList(true)}
                 aria-label={t('dashboard.viewMemories')}
               >
@@ -327,7 +344,18 @@ const Dashboard: React.FC = () => {
               transition={{ delay: 1.3, duration: 0.5 }}
             >
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700">
-                <RelaxingSounds />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                  <span className="text-green-500">🎵</span>
+                  {t('dashboard.relaxingSounds', 'Lugn Musik')}
+                </h3>
+                <button
+                  className="btn btn-primary w-full py-3 text-base font-semibold"
+                  onClick={() => setShowRelaxingSounds(true)}
+                  aria-label={t('dashboard.openRelaxingSounds', 'Öppna lugn musik')}
+                >
+                  <span className="mr-2">🎵</span>
+                  {t('dashboard.openRelaxingSounds', 'Öppna Musik')}
+                </button>
               </div>
 
               <div className="bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 rounded-2xl p-6 border border-primary-200 dark:border-primary-700">
@@ -371,6 +399,10 @@ const Dashboard: React.FC = () => {
 
         {showMemoryList && (
           <MemoryList onClose={() => setShowMemoryList(false)} />
+        )}
+
+        {showRelaxingSounds && (
+          <RelaxingSounds onClose={() => setShowRelaxingSounds(false)} />
         )}
 
         {showChatbot && (
