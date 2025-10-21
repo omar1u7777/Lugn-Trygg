@@ -1,10 +1,11 @@
 # 📌 Backend: API, Databas och Autentisering
 firebase-admin>=6.0.1  # Firebase Admin SDK för autentisering och Firestore
 python-dotenv==1.0.0  # Laddar miljövariabler från .env-fil
-requests==2.28.1  # HTTP-bibliotek för API-förfrågningar
+requests==2.31.0  # HTTP-bibliotek för API-förfrågningar (updated for Python 3.13)
 flask==3.0.3  # Mikro-webbramverk för API och backend-logik
 flask-cors==3.0.10  # Hantering av CORS-policy i Flask-API
 gunicorn>=20.1.0  # WSGI HTTP Server för production deployment
+setuptools>=70.0.0  # Updated for Python 3.13 compatibility
 Flask-Babel>=3.0.0  # Internationalisering och lokalisering för Flask
 flask-jwt-extended>=4.6.0  # JWT-hantering för autentisering
 werkzeug==3.0.1  # WSGI-verktyg för Flask-applikationer
