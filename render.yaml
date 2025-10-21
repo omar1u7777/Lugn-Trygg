@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: lugn-trygg-backend
+    runtime: python
+    pythonVersion: 3.11
+    plan: free
+    
+    repo: https://github.com/omar1u7777/Lugn-Trygg
+    branch: main
+    
+    rootDir: Backend
+    
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT main:app
+    
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: PYTHONUNBUFFERED
+        value: "True"

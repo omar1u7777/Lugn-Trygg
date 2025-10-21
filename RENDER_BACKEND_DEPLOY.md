@@ -21,10 +21,12 @@ https://render.com/dashboard
 ```
 Name:                     lugn-trygg-backend
 Environment:              Python 3
-Build Command:            pip install -r Backend/requirements.txt
-Start Command:            gunicorn -w 4 -b 0.0.0.0:$PORT Backend.main:app
+Build Command:            pip install -r requirements.txt
+Start Command:            gunicorn -w 4 -b 0.0.0.0:$PORT main:app
 Root Directory:           Backend  (VIKTIGT!)
 ```
+
+**NOTERA:** Root Directory MÅSTE vara `Backend` så att Render hittar `requirements.txt` i rätt mapp!
 
 **Environment Variables (Add these):**
 ```
