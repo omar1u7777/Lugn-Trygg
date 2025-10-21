@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="sv" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integritetspolicy - Lugn & Trygg</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .last-updated {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #764ba2;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        ul {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .contact {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 40px;
+        }
+        .contact a {
+            color: white;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Integritetspolicy</h1>
+        <p class="last-updated">Senast uppdaterad: 22 oktober 2025</p>
+
+        <div class="highlight">
+            <p><strong>Lugn & Trygg</strong> är en mental hälsoapp som hjälper dig att hantera stress, ångest och förbättra din mentala hälsa. Vi tar din integritet på största allvar.</p>
+        </div>
+
+        <h2>📊 Vilken data vi samlar in</h2>
+        <p>Vi samlar endast in data som är nödvändig för att tillhandahålla våra tjänster:</p>
+        <ul>
+            <li><strong>Kontoinformation:</strong> E-postadress, namn (från Google-konto)</li>
+            <li><strong>Hälsodata:</strong> Humörloggningar, stressnivåer, övningshistorik</li>
+            <li><strong>Hälsointegrationer (frivilligt):</strong> Data från Google Fit, Fitbit (aktivitet, hjärtfrekvens, sömn)</li>
+            <li><strong>Användningsdata:</strong> Hur du använder appen (anonymiserad analys)</li>
+        </ul>
+
+        <h2>🎯 Hur vi använder din data</h2>
+        <ul>
+            <li>Tillhandahålla personaliserade rekommendationer för mental hälsa</li>
+            <li>Spåra din framsteg och visa statistik</li>
+            <li>Förbättra appens funktionalitet och användarupplevelse</li>
+            <li>Skicka påminnelser och notifikationer (om du godkänt det)</li>
+        </ul>
+
+        <h2>🔒 Datasäkerhet</h2>
+        <p>Din data är krypterad och lagras säkert:</p>
+        <ul>
+            <li><strong>Firebase Firestore:</strong> All användardata lagras krypterad</li>
+            <li><strong>HTTPS:</strong> All kommunikation är krypterad</li>
+            <li><strong>Ingen delning:</strong> Vi säljer ALDRIG din data till tredje part</li>
+            <li><strong>OAuth 2.0:</strong> Säker inloggning via Google</li>
+        </ul>
+
+        <h2>🏥 Hälsointegrationer (Google Fit, Fitbit)</h2>
+        <div class="highlight">
+            <p>När du ansluter Google Fit eller Fitbit:</p>
+            <ul>
+                <li>Vi hämtar endast data du godkänt (aktivitet, hjärtfrekvens, sömn)</li>
+                <li>Data används ENDAST för att visa din hälsoöversikt i appen</li>
+                <li>Du kan när som helst koppla bort integrationer i inställningar</li>
+                <li>Vi lagrar inte lösenord - endast OAuth-tokens</li>
+            </ul>
+        </div>
+
+        <h2>🍪 Cookies och lokal lagring</h2>
+        <p>Vi använder minimal lokal lagring för:</p>
+        <ul>
+            <li>Hålla dig inloggad (JWT-token)</li>
+            <li>Spara dina preferenser (mörkt läge, språk)</li>
+            <li>Onboarding-status (för att inte visa introduktion igen)</li>
+        </ul>
+
+        <h2>👤 Dina rättigheter (GDPR)</h2>
+        <p>Du har rätt att:</p>
+        <ul>
+            <li><strong>Få tillgång:</strong> Begär en kopia av all din data</li>
+            <li><strong>Radera:</strong> Ta bort ditt konto och all associerad data</li>
+            <li><strong>Korrigera:</strong> Ändra felaktig information</li>
+            <li><strong>Exportera:</strong> Få din data i maskinläsbart format</li>
+            <li><strong>Invända:</strong> Säg nej till viss databehandling</li>
+        </ul>
+
+        <h2>🔗 Tredjepartstjänster</h2>
+        <p>Vi använder följande tredjepartstjänster:</p>
+        <ul>
+            <li><strong>Firebase (Google):</strong> Autentisering och databas</li>
+            <li><strong>Vercel:</strong> Webbhosting</li>
+            <li><strong>Render:</strong> Backend-hosting</li>
+            <li><strong>Sentry:</strong> Felrapportering (anonymiserad)</li>
+            <li><strong>Amplitude:</strong> Användningsanalys (anonymiserad)</li>
+        </ul>
+
+        <h2>👶 Barn och minderåriga</h2>
+        <p>Appen är avsedd för personer 18 år och äldre. Vi samlar inte medvetet in data från barn under 18 år. Om du är förälder och upptäcker att ditt barn har skapat ett konto, kontakta oss omedelbart.</p>
+
+        <h2>📱 Ändringar i policyn</h2>
+        <p>Vi kan uppdatera denna policy då och då. Betydande ändringar meddelas via e-post eller i appen.</p>
+
+        <div class="contact">
+            <h2 style="color: white; margin-top: 0;">📧 Kontakta oss</h2>
+            <p>Frågor om din integritet eller vill radera ditt konto?</p>
+            <p><strong>E-post:</strong> <a href="mailto:omaralhaek97@gmail.com">omaralhaek97@gmail.com</a></p>
+            <p><strong>Webbplats:</strong> <a href="https://lugn-trygg.vercel.app" target="_blank">lugn-trygg.vercel.app</a></p>
+        </div>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee; text-align: center; color: #666;">
+            <p>&copy; 2025 Lugn & Trygg by Omar Alhaek. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

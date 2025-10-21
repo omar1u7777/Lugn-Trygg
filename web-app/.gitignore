@@ -136,7 +136,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public  # Commented out - we need public/ for Vite
 
 # Vuepress build output
 .vuepress/dist
