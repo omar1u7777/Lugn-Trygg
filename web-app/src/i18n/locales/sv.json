@@ -1,0 +1,306 @@
+{
+  "app": {
+    "name": "Lugn & Trygg",
+    "description": "Din personliga mentalvårdsassistent"
+  },
+  "nav": {
+    "dashboard": "Översikt",
+    "mood": "Humör",
+    "memories": "Minnen",
+    "chatbot": "Chatt",
+    "settings": "Inställningar",
+    "logout": "Logga ut"
+  },
+  "auth": {
+    "login": "Logga in",
+    "register": "Registrera",
+    "email": "E-post",
+    "password": "Lösenord",
+    "confirmPassword": "Bekräfta lösenord",
+    "forgotPassword": "Glömt lösenord?",
+    "loginButton": "Logga in",
+    "registerButton": "Skapa konto",
+    "noAccount": "Har du inget konto?",
+    "hasAccount": "Har du redan ett konto?",
+    "loginError": "Felaktiga inloggningsuppgifter",
+    "registerError": "Registrering misslyckades",
+    "passwordMismatch": "Lösenorden matchar inte"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Välkommen",
+    "reminder": "🔔 Påminnelse:",
+    "moodReminder": "Du har inte loggat ditt humör idag. Ta en stund att reflektera över din dag!",
+    "moodTrends": "Humörtrender (senaste veckan)",
+    "memoryFrequency": "Minnesfrekvens (senaste veckan)",
+    "logMood": "Logga Humör",
+    "openMoodLogger": "🎭 Öppna Humörloggning",
+    "yourMoodLogs": "Dina Humörloggar",
+    "viewMoodLogs": "📋 Visa Humörloggar",
+    "recordMemory": "Spela in Minne",
+    "openRecording": "🎙 Öppna Inspelning",
+    "yourMemories": "Dina Minnen",
+    "viewMemories": "🎞 Visa Minnen",
+    "aiTherapist": "AI-terapeut",
+    "openChat": "💬 Öppna Chatt",
+    "todayMood": "Dagens humör",
+    "weeklyStats": "Veckostatistik",
+    "recentMemories": "Senaste minnen",
+    "quickActions": "Snabbåtgärder",
+    "addMemory": "Lägg till minne",
+    "chatWithAI": "Prata med AI",
+    "viewAnalytics": "Se analys",
+    "weeklyMoodAnalysis": "Veckans Måendeanalys",
+    "loadingAnalysis": "🔄 Laddar analys...",
+    "analysisError": "❌ Fel: {error}",
+    "noDataAvailable": "📊 Ingen data tillgänglig.",
+    "moodDistribution": "Humörfördelning",
+    "moodLogs": "Humörloggar",
+    "average": "Genomsnitt",
+    "memories": "Minnen",
+    "aiGeneratedInsights": "AI-genererade insikter",
+    "aiAnalysisNotice": "Denna analys är genererad av AI baserat på dina mönster och trender",
+    "aiConfidence": "AI-konfidens:",
+    "invalidDate": "Ogiltigt datum",
+    "badges": "Prestationer",
+    "relaxingSounds": "Avslappnande Ljud",
+    "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
+    "noMemoryData": "📊 Ingen minnesdata tillgänglig."
+  },
+  "mood": {
+    "title": "Humörloggning",
+    "question": "Hur mår du idag?",
+    "greeting": "Hej, hur mår du idag?",
+    "sadResponse": "Jag hör att du kanske känner dig lite nere. Vill du lyssna på lugnande musik?",
+    "recording": "Spelar in...",
+    "startRecording": "🎭 Börja Logga",
+    "close": "❌ Stäng",
+    "errorRecording": "Ett fel uppstod vid inspelning. Försök igen.",
+    "errorSave": "Kunde inte spara humöret. Försök igen senare.",
+    "veryBad": "Mycket dåligt",
+    "bad": "Dåligt",
+    "neutral": "Neutralt",
+    "good": "Bra",
+    "veryGood": "Mycket bra",
+    "note": "Lägg till en anteckning (valfritt)",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "success": "Humör sparat!",
+    "error": "Kunde inte spara humör",
+    "score": "Humörpoäng",
+    "negative": "Negativ",
+    "positive": "Positiv"
+  },
+  "memories": {
+    "title": "Mina minnen",
+    "addNew": "Lägg till nytt minne",
+    "record": "Spela in",
+    "upload": "Ladda upp",
+    "titlePlaceholder": "Titel på minnet",
+    "descriptionPlaceholder": "Beskriv ditt minne...",
+    "save": "Spara minne",
+    "delete": "Ta bort",
+    "noMemories": "Inga minnen än",
+    "addFirst": "Lägg till ditt första minne",
+    "count": "Antal minnen"
+  },
+  "chatbot": {
+    "title": "AI-chatt",
+    "placeholder": "Skriv ditt meddelande här...",
+    "send": "Skicka",
+    "thinking": "AI tänker...",
+    "error": "Något gick fel"
+  },
+  "subscription": {
+    "title": "Uppgradera till Premium",
+    "price": "99 SEK/månad",
+    "features": {
+      "unlimitedMemories": "Obegränsade minnen",
+      "advancedAI": "Avancerade AI-insikter",
+      "cbtExercises": "CBT-övningar och mindfulness",
+      "detailedCharts": "Detaljerade analysdiagram",
+      "prioritySupport": "Prioriterad support"
+    },
+    "subscribe": "Uppgradera nu",
+    "cancelAnytime": "Du kan när som helst avbryta prenumerationen. Ingen bindningstid.",
+    "processing": "Bearbetar...",
+    "error": "Prenumeration misslyckades"
+  },
+  "common": {
+    "loading": "Laddar...",
+    "error": "Ett fel uppstod",
+    "success": "Klart!",
+    "cancel": "Avbryt",
+    "save": "Spara",
+    "delete": "Ta bort",
+    "edit": "Redigera",
+    "close": "Stäng",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "previous": "Föregående",
+    "search": "Sök",
+    "filter": "Filtrera",
+    "sort": "Sortera",
+    "yes": "Ja",
+    "no": "Nej",
+    "ok": "OK",
+    "offlineTitle": "🚫 Du är offline!",
+    "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
+    "retry": "🔄 Försök igen",
+    "pageNotFound": "🚫 Sidan hittades inte!"
+  },
+  "settings": {
+    "title": "Inställningar",
+    "language": "Språk",
+    "notifications": "Notiser",
+    "privacy": "Sekretess",
+    "account": "Konto",
+    "theme": "Tema",
+    "darkMode": "Mörkt läge",
+    "lightMode": "Ljust läge"
+  },
+  "language": {
+    "swedish": "Svenska",
+    "english": "English",
+    "norwegian": "Norsk",
+    "selectLanguage": "Välj språk"
+  },
+  "consent": {
+    "title": "Integritetspolicy och Samtycke",
+    "whatWeCollect": "Vad samlar vi in?",
+    "whatWeCollectText": "Vi samlar in information om ditt välbefinnande, humörloggar, röstinspelningar och användningsdata för att tillhandahålla våra tjänster.",
+    "howDataUsed": "Hur används dina data?",
+    "howDataUsedList": [
+      "Tillhandahålla personliga välbefinnande-insikter",
+      "Analysera mönster för bättre stöd",
+      "Förbättra våra tjänster",
+      "Kommunicera med dig om ditt konto"
+    ],
+    "gdprRights": "Dina rättigheter enligt GDPR",
+    "gdprRightsList": [
+      "Rätt att få tillgång till dina data",
+      "Rätt att rätta felaktiga data",
+      "Rätt att radera dina data",
+      "Rätt att exportera dina data",
+      "Rätt att invända mot behandling"
+    ],
+    "consentTitle": "Samtycke till behandling",
+    "dataProcessing": "Nödvändig databehandling",
+    "dataProcessingDesc": "Behandling av dina humörloggar och välbefinnandedata för att tillhandahålla appens grundfunktioner.",
+    "aiAnalysis": "AI-analys",
+    "aiAnalysisDesc": "Användning av AI för att ge personliga insikter och rekommendationer baserat på dina data.",
+    "storage": "Lagring av data",
+    "storageDesc": "Lagring av dina data i säkra molntjänster för att säkerställa tillgång och säkerhetskopiering.",
+    "marketing": "Marknadsföring",
+    "marketingDesc": "Mottagande av information om nya funktioner och tjänster (valfritt).",
+    "requiredNote": "* Nödvändigt för att använda appen. Du kan när som helst ändra dina val i inställningarna.",
+    "acceptAndContinue": "Godkänn och fortsätt",
+    "saving": "Sparar...",
+    "cancel": "Avbryt",
+    "requiredConsentError": "Du måste godkänna nödvändig databehandling och lagring för att använda appen.",
+    "saveError": "Kunde inte spara samtycke. Försök igen."
+  },
+  "logout": {
+    "success": "Utloggad framgångsrikt"
+  },
+  "voice": {
+    "listening": "Lyssnar...",
+    "notSupported": "Röstigenkänning stöds inte i denna webbläsare",
+    "error": "Röstfel: {error}",
+    "commands": {
+      "logMood": ["logga humör", "spela in humör", "humör", "känslor"],
+      "recordMemory": ["spela in minne", "nytt minne", "minne"],
+      "openChat": ["öppna chatt", "prata med AI", "chat"],
+      "toggleTheme": ["växla tema", "mörkt läge", "ljus läge"],
+      "viewMoods": ["visa humör", "mina humör"],
+      "viewMemories": ["visa minnen", "mina minnen"]
+    }
+  },
+  "badges": {
+    "days": "dagar",
+    "description": "Följ dina framsteg och lås upp prestationer när du använder appen!",
+    "summary": "Prestationssammanfattning",
+    "earned": "Intjänade",
+    "remaining": "Återstående",
+    "rare": "Sällsynta",
+    "epic": "Episka",
+    "progress": "Framsteg",
+    "firstEntry": {
+      "title": "Första steget",
+      "desc": "Loggade ditt första humör"
+    },
+    "weekStreak": {
+      "title": "Veckokrigare",
+      "desc": "7 dagar i rad"
+    },
+    "monthStreak": {
+      "title": "Månadsmästare",
+      "desc": "30 dagar i rad"
+    },
+    "consistency": {
+      "title": "Konsekvenskung",
+      "desc": "Längsta svit: {days} dagar"
+    },
+    "explorer": {
+      "title": "Humörutforskare",
+      "desc": "Loggade {count} humör"
+    },
+    "mindful": {
+      "title": "Medveten observatör",
+      "desc": "Slutförde 10 mindfulness-övningar"
+    },
+    "storyteller": {
+      "title": "Berättare",
+      "desc": "Lyssnade på 5 AI-genererade berättelser"
+    },
+    "healthSync": {
+      "title": "Hälsosynkronisering",
+      "desc": "Anslöt bärbar enhet"
+    },
+    "crisisHelper": {
+      "title": "Krisstödjare",
+      "desc": "Använde krisstödsfunktioner"
+    },
+    "predictionMaster": {
+      "title": "Prediktionsmästare",
+      "desc": "Visade humörprediktioner 10 gånger"
+    }
+  },
+  "relaxingSounds": {
+    "trackTitle": "Lugn Musik",
+    "description": "🎵 Lugn och avslappnande musik för att hjälpa dig slappna av och må bättre."
+  },
+  "ai": {
+    "stories": {
+      "title": "AI-berättelser",
+      "loadError": "Kunde inte ladda AI-berättelser",
+      "generateNew": "Generera ny berättelse",
+      "generating": "Genererar...",
+      "play": "Spela upp",
+      "generateError": "Kunde inte generera berättelse"
+    }
+  },
+  "analytics": {
+    "title": "AI-analys",
+    "description": "Avancerade insikter från dina humördata",
+    "loadError": "Kunde inte ladda analys",
+    "forecastPeriod": "Prognosperiod",
+    "days": "dagar",
+    "currentAnalysis": "Aktuell analys",
+    "recentAverage": "Senaste genomsnitt",
+    "volatility": "Volatilitet",
+    "forecastSummary": "Prognossammanfattning",
+    "averageForecast": "Genomsnittlig prognos",
+    "trend": "Trend",
+    "confidence": "Konfidens",
+    "dailyPredictions": "Dagliga förutsägelser",
+    "day": "Dag",
+    "riskFactors": "Riskfaktorer",
+    "recommendations": "Rekommendationer",
+    "modelInfo": "Modellinformation",
+    "algorithm": "Algoritm",
+    "trainingAccuracy": "Träningsnoggrannhet",
+    "dataPoints": "Datapunkter",
+    "noData": "Ingen data tillgänglig för analys"
+  }
+}

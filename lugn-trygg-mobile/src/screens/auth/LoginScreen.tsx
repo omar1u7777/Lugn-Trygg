@@ -22,8 +22,8 @@ const { width } = Dimensions.get('window');
 const LoginScreen = () => {
   const router = useRouter();
   const { login, loading, user } = useAuth();
-  const [email, setEmail] = useState('test@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -61,8 +61,34 @@ const LoginScreen = () => {
       await login(email, password);
       // Navigation happens automatically via useEffect above
     } catch (error: any) {
-      const errorMessage = error?.message || 'Inloggning misslyckades';
-      Alert.alert('Fel', errorMessage);
+      let errorMessage = 'Inloggning misslyckades';
+      
+      // Translate Firebase error codes to Swedish
+      if (error?.code) {
+        switch (error.code) {
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+            errorMessage = 'Felaktig e-postadress eller lösenord. Kontrollera dina uppgifter och försök igen.';
+            break;
+          case 'auth/invalid-email':
+            errorMessage = 'Ogiltig e-postadress';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'Detta konto har inaktiverats';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'För många misslyckade försök. Vänta en stund och försök igen.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Nätverksfel. Kontrollera din internetanslutning.';
+            break;
+          default:
+            errorMessage = error.message || 'Ett oväntat fel uppstod';
+        }
+      }
+      
+      Alert.alert('Inloggning misslyckades', errorMessage);
     }
   };
 

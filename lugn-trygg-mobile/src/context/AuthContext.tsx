@@ -64,9 +64,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: result.user.email || '',
       };
       setUser(userData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      // Re-throw with code for better error handling in UI
+      const enhancedError = new Error(error.message);
+      (enhancedError as any).code = error.code;
+      throw enhancedError;
     } finally {
       setLoading(false);
     }

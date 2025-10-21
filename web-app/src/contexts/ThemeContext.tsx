@@ -1,5 +1,3 @@
-'use client';
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -27,11 +25,8 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme');
-      return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-    return false;
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
   const muiTheme = createTheme({
@@ -100,15 +95,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   });
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const root = document.documentElement;
-      if (isDarkMode) {
-        root.classList.add('dark-mode');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        root.classList.remove('dark-mode');
-        localStorage.setItem('theme', 'light');
-      }
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 

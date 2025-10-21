@@ -1,0 +1,235 @@
+{
+  "app": {
+    "name": "Rolig & Trygg",
+    "description": "Din personlige mentalhelseassistent"
+  },
+  "nav": {
+    "dashboard": "Oversikt",
+    "mood": "Humør",
+    "memories": "Minner",
+    "chatbot": "Chat",
+    "settings": "Innstillinger",
+    "logout": "Logg ut"
+  },
+  "auth": {
+    "login": "Logg inn",
+    "register": "Registrer",
+    "email": "E-post",
+    "password": "Passord",
+    "confirmPassword": "Bekreft passord",
+    "forgotPassword": "Glemt passord?",
+    "loginButton": "Logg inn",
+    "registerButton": "Opprett konto",
+    "noAccount": "Har du ikke konto?",
+    "hasAccount": "Har du allerede konto?",
+    "loginError": "Ugyldige innloggingsopplysninger",
+    "registerError": "Registrering mislyktes",
+    "passwordMismatch": "Passordene stemmer ikke"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Velkommen",
+    "reminder": "🔔 Påminnelse:",
+    "moodReminder": "Du har ikke logget humøret ditt i dag. Ta et øyeblikk å reflektere over dagen din!",
+    "moodTrends": "Humørtrender (siste uke)",
+    "memoryFrequency": "Minnefrekvens (siste uke)",
+    "logMood": "Logg Humør",
+    "openMoodLogger": "🎭 Åpne Humørlogging",
+    "yourMoodLogs": "Dine Humørlogger",
+    "viewMoodLogs": "📋 Vis Humørlogger",
+    "recordMemory": "Ta opp Minne",
+    "openRecording": "🎙 Åpne Opptak",
+    "yourMemories": "Dine Minner",
+    "viewMemories": "🎞 Vis Minner",
+    "aiTherapist": "AI-terapeut",
+    "openChat": "💬 Åpne Chat",
+    "todayMood": "Dagens humør",
+    "weeklyStats": "Ukesstatistikk",
+    "recentMemories": "Nylige minner",
+    "quickActions": "Hurtighandlinger",
+    "addMemory": "Legg til minne",
+    "chatWithAI": "Chat med AI",
+    "viewAnalytics": "Se analyse",
+    "weeklyMoodAnalysis": "Ukens humøranalyse",
+    "loadingAnalysis": "🔄 Laster analyse...",
+    "analysisError": "❌ Feil: {error}",
+    "noDataAvailable": "📊 Ingen data tilgjengelig.",
+    "moodDistribution": "Humørfordeling",
+    "moodLogs": "Humørlogger",
+    "average": "Gjennomsnitt",
+    "memories": "Minner",
+    "aiGeneratedInsights": "AI-genererte innsikter",
+    "aiAnalysisNotice": "Denne analysen er generert av AI basert på dine mønstre og trender",
+    "aiConfidence": "AI-konfidens:",
+    "invalidDate": "Ugyldig dato",
+    "badges": "Prestasjoner"
+  },
+  "mood": {
+    "title": "Humørlogging",
+    "question": "Hvordan har du det i dag?",
+    "greeting": "Hei, hvordan har du det i dag?",
+    "sadResponse": "Jeg hører du kanskje føler deg litt nede. Vil du høre på avslappende musikk?",
+    "recording": "Spiller inn...",
+    "startRecording": "🎭 Start logging",
+    "close": "❌ Lukk",
+    "errorRecording": "En feil oppstod under innspilling. Prøv igjen.",
+    "errorSave": "Kunne ikke lagre humøret. Prøv igjen senere.",
+    "veryBad": "Svært dårlig",
+    "bad": "Dårlig",
+    "neutral": "Nøytral",
+    "good": "Bra",
+    "veryGood": "Svært bra",
+    "note": "Legg til et notat (valgfritt)",
+    "save": "Lagre",
+    "cancel": "Avbryt",
+    "success": "Humør lagret!",
+    "error": "Kunne ikke lagre humør"
+  },
+  "memories": {
+    "title": "Mine minner",
+    "addNew": "Legg til nytt minne",
+    "record": "Ta opp",
+    "upload": "Last opp",
+    "titlePlaceholder": "Tittel på minnet",
+    "descriptionPlaceholder": "Beskriv minnet ditt...",
+    "save": "Lagre minne",
+    "delete": "Slett",
+    "noMemories": "Ingen minner ennå",
+    "addFirst": "Legg til ditt første minne"
+  },
+  "chatbot": {
+    "title": "AI-chat",
+    "placeholder": "Skriv meldingen din her...",
+    "send": "Send",
+    "thinking": "AI tenker...",
+    "error": "Noe gikk galt"
+  },
+  "subscription": {
+    "title": "Oppgrader til Premium",
+    "price": "99 SEK/måned",
+    "features": {
+      "unlimitedMemories": "Ubegrensede minner",
+      "advancedAI": "Avanserte AI-innsikter",
+      "cbtExercises": "CBT-øvelser og mindfulness",
+      "detailedCharts": "Detaljerte analysediagrammer",
+      "prioritySupport": "Prioritert støtte"
+    },
+    "subscribe": "Oppgrader nå",
+    "cancelAnytime": "Du kan avbryte abonnementet når som helst. Ingen bindingstid.",
+    "processing": "Behandler...",
+    "error": "Abonnement mislyktes"
+  },
+  "common": {
+    "loading": "Laster...",
+    "error": "En feil oppstod",
+    "success": "Ferdig!",
+    "cancel": "Avbryt",
+    "save": "Lagre",
+    "delete": "Slett",
+    "edit": "Rediger",
+    "close": "Lukk",
+    "back": "Tilbake",
+    "next": "Neste",
+    "previous": "Forrige",
+    "search": "Søk",
+    "filter": "Filtrer",
+    "sort": "Sorter",
+    "yes": "Ja",
+    "no": "Nei",
+    "ok": "OK",
+    "offlineTitle": "🚫 Du er offline!",
+    "offlineMessage": "Sjekk internettforbindelsen din og prøv igjen.",
+    "retry": "🔄 Prøv igjen",
+    "pageNotFound": "🚫 Siden ble ikke funnet!"
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "language": "Språk",
+    "notifications": "Varsler",
+    "privacy": "Personvern",
+    "account": "Konto",
+    "theme": "Tema",
+    "darkMode": "Mørk modus",
+    "lightMode": "Lys modus"
+  },
+  "language": {
+    "swedish": "Svenska",
+    "english": "English",
+    "norwegian": "Norsk",
+    "selectLanguage": "Velg språk"
+  },
+  "consent": {
+    "title": "Personvernerklæring og samtykke",
+    "whatWeCollect": "Hva samler vi inn?",
+    "whatWeCollectText": "Vi samler inn informasjon om ditt velvære, humørlogger, lydopptak og bruksdata for å tilby våre tjenester.",
+    "howDataUsed": "Hvordan brukes dataene dine?",
+    "howDataUsedList": [
+      "Tilby personlige velværeinnsikt",
+      "Analysere mønstre for bedre støtte",
+      "Forbedre tjenestene våre",
+      "Kommunisere med deg om kontoen din"
+    ],
+    "gdprRights": "Dine rettigheter i henhold til GDPR",
+    "gdprRightsList": [
+      "Rett til å få tilgang til dataene dine",
+      "Rett til å rette feilaktige data",
+      "Rett til å slette dataene dine",
+      "Rett til å eksportere dataene dine",
+      "Rett til å motsette deg behandling"
+    ],
+    "consentTitle": "Samtykke til behandling",
+    "dataProcessing": "Nødvendig databehandling",
+    "dataProcessingDesc": "Behandling av humørloggene og velværedataene dine for å tilby appens kjernefunksjoner.",
+    "aiAnalysis": "AI-analyse",
+    "aiAnalysisDesc": "Bruk av AI for å gi personlige innsikt og anbefalinger basert på dataene dine.",
+    "storage": "Datalagring",
+    "storageDesc": "Lagring av dataene dine i sikre skytjenester for å sikre tilgang og sikkerhetskopiering.",
+    "marketing": "Markedsføring",
+    "marketingDesc": "Motta informasjon om nye funksjoner og tjenester (valgfritt).",
+    "requiredNote": "* Nødvendig for å bruke appen. Du kan endre preferansene dine når som helst i innstillingene.",
+    "acceptAndContinue": "Godta og fortsett",
+    "saving": "Lagrer...",
+    "cancel": "Avbryt",
+    "requiredConsentError": "Du må godta nødvendig databehandling og lagring for å bruke appen.",
+    "saveError": "Kunne ikke lagre samtykke. Prøv igjen."
+  },
+  "logout": {
+    "success": "Logget ut vellykket"
+  },
+  "voice": {
+    "listening": "Lytter...",
+    "notSupported": "Stemme gjenkjenning støttes ikke i denne nettleseren",
+    "error": "Stemmefeil: {error}",
+    "commands": {
+      "logMood": ["logg humør", "spill inn humør", "humør", "følelser"],
+      "recordMemory": ["spill inn minne", "nytt minne", "minne"],
+      "openChat": ["åpne chat", "prat med AI", "chat"],
+      "toggleTheme": ["veksle tema", "mørk modus", "lys modus"],
+      "viewMoods": ["vis humør", "mine humør"],
+      "viewMemories": ["vis minner", "mine minner"]
+    }
+  },
+  "badges": {
+    "days": "dager",
+    "firstEntry": {
+      "title": "Første steg",
+      "desc": "Logget ditt første humør"
+    },
+    "weekStreak": {
+      "title": "Ukeskriger",
+      "desc": "7 dager på rad"
+    },
+    "monthStreak": {
+      "title": "Månedsmester",
+      "desc": "30 dager på rad"
+    },
+    "consistency": {
+      "title": "Konsistenskonge",
+      "desc": "Lengste rekke: {days} dager"
+    },
+    "explorer": {
+      "title": "Humørutforsker",
+      "desc": "Logget {count} humør"
+    }
+  }
+}

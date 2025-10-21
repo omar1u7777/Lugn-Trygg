@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2023",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"], 
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    /*  Bundler mode - Optimerad för Vite */
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true, 
+    "jsx": "react-jsx",
+    "jsxImportSource": "react", 
+
+    /*  Säkerhet & Typning */
+    "strict": true,
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true, 
+    "useUnknownInCatchVariables": true, 
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /*  Absolut importstöd */
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"]
+    }
+  },
+
+  /*  Inkluderade filer & mappar */
+  "include": ["src", "src/**/*.ts", "src/**/*.tsx", "src/hooks/useAuth.ts", "src/api/api.ts"],
+
+  /*  Exkluderade filer/mappar */
+  "exclude": ["node_modules", "dist", "build", "tests"]
+}
