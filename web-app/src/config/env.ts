@@ -11,7 +11,7 @@ type SupportedEnvKeys =
   | 'VITE_ENCRYPTION_KEY';
 
 const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
-  VITE_BACKEND_URL: 'http://localhost:5001',
+  VITE_BACKEND_URL: 'https://lugn-trygg-backend.onrender.com',
   VITE_FIREBASE_API_KEY: 'AIzaSyAxs7Monr1bJaXmUecl8eICvDaDhUkCFYY',
   VITE_FIREBASE_AUTH_DOMAIN: 'lugn-trygg.firebaseapp.com',
   VITE_FIREBASE_PROJECT_ID: 'lugn-trygg',
@@ -97,7 +97,7 @@ export const getEnvValue = (key: SupportedEnvKeys): string | undefined => {
   return value ?? DEFAULTS[key];
 };
 
-export const getBackendUrl = (): string => getEnvValue('VITE_BACKEND_URL') ?? 'http://localhost:5001';
+export const getBackendUrl = (): string => getEnvValue('VITE_BACKEND_URL') ?? 'https://lugn-trygg-backend.onrender.com';
 
 export const getFirebaseConfig = () => ({
   apiKey: getEnvValue('VITE_FIREBASE_API_KEY'),
