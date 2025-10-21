@@ -24,7 +24,7 @@ const GRID_COLUMNS = 2;
 const ITEM_WIDTH = (width - SPACING.lg * 2 - SPACING.md) / GRID_COLUMNS;
 
 // ✅ API Configuration
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://lugn-trygg-backend.onrender.com';
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
