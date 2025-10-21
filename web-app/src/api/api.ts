@@ -185,10 +185,16 @@ export const refreshAccessToken = async () => {
 // 🔹 Firebase token refresh helper
 const refreshFirebaseToken = async () => {
   try {
-    // Dynamic import to avoid circular dependencies
-    const { auth } = await import("../config/firebase");
+    // Import Firebase auth at runtime
+    const firebaseModule = await import("../firebase-config").catch(() => null);
+    if (!firebaseModule) {
+      console.warn("⚠️ Firebase module not available");
+      return null;
+    }
     
+    const { auth } = firebaseModule;
     const currentUser = auth.currentUser;
+    
     if (!currentUser) {
       console.warn("⚠️ No Firebase user found");
       return null;
