@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd web-app && npm install && npm run build",
-  "installCommand": "echo 'Dependencies installed via buildCommand'",
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
   "framework": null,
-  "outputDirectory": "./web-app/dist",
   "public": false,
   "rewrites": [
     {

@@ -1,5 +1,6 @@
-# Ignore everything except web-app-build
+# Ignore everything except web-app
 /*
-!web-app-build/
+!web-app/
 !.vercelignore
-# Force redeploy timestamp: 2025-10-21T05:00:00Z
+!vercel.json
+# Force redeploy timestamp: 2025-10-21T10:08:00Z
