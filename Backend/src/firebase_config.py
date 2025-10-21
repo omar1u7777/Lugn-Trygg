@@ -59,14 +59,32 @@ def initialize_firebase() -> bool:
             logger.info("✅ Firebase är redan initierat.")
             return True
 
-        cred_path = get_env_variable("FIREBASE_CREDENTIALS", required=True)
+        cred_path_raw = get_env_variable("FIREBASE_CREDENTIALS", required=True)
+        cred_path_raw = str(cred_path_raw).strip()
         
-        # Om sökvägen är relativ, gör den absolut baserat på Backend-katalogen
-        if not os.path.isabs(cred_path):
-            # Anta att vi kör från Backend-katalogen eller projektets rotkatalog
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            cred_path = os.path.join(backend_dir, cred_path)
-            logger.info(f"🔹 Konverterade relativ sökväg till absolut: {cred_path}")
+        # Check if it's a JSON string (starts with {) or a filepath
+        if cred_path_raw.startswith("{"):
+            # It's a JSON string from Render env - parse and write to temp file
+            import json
+            import tempfile
+            try:
+                creds_json = json.loads(cred_path_raw)
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
+                    json.dump(creds_json, tf)
+                    cred_path = tf.name
+                logger.info(f"🔹 Firebase credentials från JSON env-variabel - sparad till {cred_path}")
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Kunde inte parse Firebase credentials JSON: {e}")
+                raise ValueError(f"Invalid Firebase credentials JSON: {e}") from e
+        else:
+            # It's a filepath - process normally
+            cred_path = cred_path_raw
+            
+            # Om sökvägen är relativ, gör den absolut baserat på Backend-katalogen
+            if not os.path.isabs(cred_path):
+                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                cred_path = os.path.join(backend_dir, cred_path)
+                logger.info(f"🔹 Konverterade relativ sökväg till absolut: {cred_path}")
         
         if not os.path.exists(cred_path):
             raise FileNotFoundError(f"❌ Firebase credentials-filen saknas: {cred_path}. Kontrollera sökvägen!")
