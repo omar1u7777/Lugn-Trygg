@@ -18,6 +18,7 @@ jest.mock('../../i18n', () => ({
   },
 }));
 
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, beforeEach, jest } from '@jest/globals';
 import { I18nextProvider } from 'react-i18next';

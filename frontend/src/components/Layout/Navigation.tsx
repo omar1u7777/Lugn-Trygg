@@ -79,6 +79,45 @@ const Navigation: React.FC = () => {
                 <span className="hidden sm:inline">Analytics</span>
               </Link>
             </li>
+            <li>
+              <Link
+                to="/integrations"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/integrations')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <span className="text-lg">❤️</span>
+                <span className="hidden sm:inline">Integration</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/referral"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/referral')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <span className="text-lg">🤝</span>
+                <span className="hidden sm:inline">Referral</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/feedback"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  isActive('/feedback')
+                    ? 'bg-primary-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                <span className="text-lg">💬</span>
+                <span className="hidden sm:inline">Feedback</span>
+              </Link>
+            </li>
             <li className="hidden md:flex items-center">
               <span className="flex items-center gap-2 bg-slate-700/50 text-slate-300 px-3 py-2 rounded-full text-sm">
                 <i className="fas fa-user text-primary-400"></i>

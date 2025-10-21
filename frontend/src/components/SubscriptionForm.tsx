@@ -17,7 +17,7 @@ const SubscriptionForm: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/subscription/create-session', {
+      const response = await api.post('/api/subscription/create-session', {
         user_id: user.user_id,
         email: user.email
       });

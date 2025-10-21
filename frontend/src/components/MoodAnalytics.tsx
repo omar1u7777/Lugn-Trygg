@@ -189,7 +189,7 @@ const MoodAnalytics: React.FC = () => {
 
         <Grid container spacing={3}>
           {/* Current Analysis */}
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -237,7 +237,7 @@ const MoodAnalytics: React.FC = () => {
           </Grid>
 
           {/* Forecast Summary */}
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -281,7 +281,7 @@ const MoodAnalytics: React.FC = () => {
           </Grid>
 
           {/* Daily Predictions */}
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -316,7 +316,7 @@ const MoodAnalytics: React.FC = () => {
 
           {/* Risk Factors */}
           {forecast.risk_factors.length > 0 && (
-            <Grid item xs={12} md={6}>
+            <Grid xs={12} md={6}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -340,7 +340,7 @@ const MoodAnalytics: React.FC = () => {
           )}
 
           {/* Recommendations */}
-          <Grid item xs={12} md={forecast.risk_factors.length > 0 ? 6 : 12}>
+          <Grid xs={12} md={forecast.risk_factors.length > 0 ? 6 : 12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -360,7 +360,7 @@ const MoodAnalytics: React.FC = () => {
           </Grid>
 
           {/* Model Info */}
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -368,7 +368,7 @@ const MoodAnalytics: React.FC = () => {
                 </Typography>
 
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
+                  <Grid xs={12} sm={4}>
                     <Typography variant="body2" color="text.secondary">
                       {t('analytics.algorithm')}
                     </Typography>
@@ -377,7 +377,7 @@ const MoodAnalytics: React.FC = () => {
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  <Grid xs={12} sm={4}>
                     <Typography variant="body2" color="text.secondary">
                       {t('analytics.trainingAccuracy')}
                     </Typography>
@@ -386,7 +386,7 @@ const MoodAnalytics: React.FC = () => {
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  <Grid xs={12} sm={4}>
                     <Typography variant="body2" color="text.secondary">
                       {t('analytics.dataPoints')}
                     </Typography>

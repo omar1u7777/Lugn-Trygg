@@ -71,15 +71,14 @@ FIREBASE_STORAGE_BUCKET = get_env_variable("FIREBASE_STORAGE_BUCKET", required=T
 
 # 🔹 Kontrollera att Firebase Credentials-filen finns och kan läsas
 if not os.path.exists(FIREBASE_CREDENTIALS):
-    logger.critical(f"❌ Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}")
-    raise FileNotFoundError(f"Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}")
-
-try:
-    with open(FIREBASE_CREDENTIALS, "r") as f:
-        f.read()  # Testa att filen är läsbar
-except Exception as e:
-    logger.critical(f"❌ Firebase credentials-filen kunde inte läsas: {e}")
-    raise FileNotFoundError(f"Firebase credentials-filen kunde inte läsas: {e}")
+    logger.warning(f"⚠️ Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}. Backend kommer köra i begränsad dev-läge.")
+    # Do not raise error; allow Firebase init to handle this gracefully
+else:
+    try:
+        with open(FIREBASE_CREDENTIALS, "r") as f:
+            f.read()  # Testa att filen är läsbar
+    except Exception as e:
+        logger.warning(f"⚠️ Firebase credentials-filen kunde inte läsas: {e}. Backend kommer köra i begränsad dev-läge.")
 
 # 🔹 Stripe-konfiguration
 STRIPE_SECRET_KEY = get_env_variable("STRIPE_SECRET_KEY", required=False, hide_value=True)

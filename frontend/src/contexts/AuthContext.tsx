@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { logoutUser, refreshAccessToken } from "../api/api";
+import api, { logoutUser, refreshAccessToken } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 
@@ -91,19 +91,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    const checkTokenExpiration = async () => {
      try {
        // Try a simple API call to check if token is still valid
-       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:54112'}/api/mood/get?user_id=${user?.user_id}`, {
-         headers: {
-           'Authorization': `Bearer ${token}`,
-           'Content-Type': 'application/json'
-         }
-       });
-
-       if (response.status === 401) {
+       await api.get(`/api/mood/get?user_id=${user?.user_id}`);
+       // If request succeeds, token is valid
+     } catch (error: any) {
+       if (error?.response?.status === 401) {
          console.log("🔄 Token expired, attempting refresh...");
          await refreshToken();
+       } else {
+         console.warn("⚠️ Token validation failed:", error);
        }
-     } catch (error) {
-       console.warn("⚠️ Token validation failed:", error);
      }
    };
 

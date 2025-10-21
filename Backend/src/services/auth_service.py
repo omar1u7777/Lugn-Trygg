@@ -217,6 +217,13 @@ class AuthService:
         """Dekorator för att kräva giltig JWT-token"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # Allow CORS preflight requests to pass without auth
+            try:
+                if request.method == 'OPTIONS':
+                    return ('', 204)
+            except Exception:
+                # If request is not available for some reason, proceed
+                pass
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
                 return jsonify({"error": "Authorization header saknas eller är ogiltig!"}), 401
@@ -227,6 +234,14 @@ class AuthService:
                 return jsonify({"error": error}), 401
 
             # Lägg till user_id i request context
+            # Vissa rutter använder flask.g.user_id medan andra använder request.user_id.
+            # För kompatibilitet, sätt båda.
+            try:
+                from flask import g
+                g.user_id = user_id
+            except Exception:
+                # Om flask.g inte är tillgängligt, fortsätt ändå
+                pass
             request.user_id = user_id
             return f(*args, **kwargs)
         return decorated_function

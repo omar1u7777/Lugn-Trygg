@@ -1,16 +1,16 @@
 import axios from "axios"; // @ts-ignore
 import CryptoJS from "crypto-js";
+import { getBackendUrl, getEncryptionKey } from "../config/env";
 
 // 🔹 Bas-URL för API
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:54112";
+export const API_BASE_URL = getBackendUrl();
 
 // 🔹 Debug logging för API URL
 console.log("🔗 API Base URL:", API_BASE_URL);
-console.log("🔗 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL);
-console.log("🔗 Using fallback URL:", !import.meta.env.VITE_BACKEND_URL);
+console.log("🔗 Using fallback URL:", API_BASE_URL === "http://localhost:5001");
 
 // 🔹 Force reload environment variables in development
-if (import.meta.hot) {
+if (typeof import.meta !== "undefined" && import.meta.hot) {
   import.meta.hot.accept(() => {
     console.log("🔄 Environment variables reloaded");
   });
@@ -169,9 +169,13 @@ export const refreshAccessToken = async () => {
 };
 
 // 🔹 Krypteringshjälpfunktioner
-const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
+const ENCRYPTION_KEY = getEncryptionKey();
 
 const encryptData = (data: string): string => {
+  if (!ENCRYPTION_KEY) {
+    console.warn("⚠️ ENCRYPTION_KEY saknas, returnerar okrypterad data i testläge.");
+    return data;
+  }
   return CryptoJS.AES.encrypt(data, ENCRYPTION_KEY).toString();
 };
 
@@ -347,5 +351,16 @@ export const analyzeVoiceEmotion = async (userId: string, audioData: string, tra
   } catch (error: any) {
     console.error("❌ API Voice Analysis error:", error);
     throw new Error(error.response?.data?.error || "Ett fel uppstod vid röstanalys.");
+  }
+};
+
+// 🔹 Textanalys (AI Helpers under /api/mood)
+export const analyzeText = async (text: string) => {
+  try {
+    const response = await api.post("/api/mood/analyze-text", { text });
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ API Text Analysis error:", error);
+    throw new Error(error.response?.data?.error || "Ett fel uppstod vid textanalys.");
   }
 };

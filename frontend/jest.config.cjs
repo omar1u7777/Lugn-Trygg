@@ -11,6 +11,10 @@ module.exports = {
   globals: {
     'ts-jest': {
       useESM: true,
+      tsconfig: {
+        jsx: 'react-jsx',
+        allowJs: true,
+      },
     },
   },
   extensionsToTreatAsEsm: ['.ts', '.tsx'],

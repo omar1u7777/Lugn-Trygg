@@ -7,9 +7,11 @@ ai_bp = Blueprint("ai", __name__)
 logger = logging.getLogger(__name__)
 
 # 🔹 Generate Personalized Therapeutic Story
-@ai_bp.route("/story", methods=["POST"])
+@ai_bp.route("/story", methods=["POST", "OPTIONS"])
 def generate_therapeutic_story():
     """Generate a personalized therapeutic story based on user's mood data"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         logger.info("📖 Therapeutic story generation requested")
         data = request.get_json(force=True, silent=False)
@@ -88,9 +90,11 @@ def generate_therapeutic_story():
         return jsonify({"error": "Ett internt fel uppstod vid berättelsegenerering."}), 500
 
 # 🔹 Predictive Mood Forecasting
-@ai_bp.route("/forecast", methods=["POST"])
+@ai_bp.route("/forecast", methods=["POST", "OPTIONS"])
 def predictive_mood_forecast():
     """Generate predictive mood forecast using ML models"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         logger.info("🔮 Mood forecasting requested")
         data = request.get_json(force=True, silent=False)

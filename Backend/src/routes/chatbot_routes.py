@@ -7,8 +7,11 @@ chatbot_bp = Blueprint("chatbot", __name__)
 logger = logging.getLogger(__name__)
 
 # 🔹 Therapeutic chatbot conversation
-@chatbot_bp.route("/chat", methods=["POST"])
+@chatbot_bp.route("/chat", methods=["POST", "OPTIONS"])
 def chat_with_ai():
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     try:
         logger.info("🔄 Chat endpoint called")
         data = request.get_json(force=True, silent=False)
@@ -373,9 +376,11 @@ def get_chat_history():
         return jsonify({"error": "Ett internt fel uppstod vid hämtning av chatt-historik."}), 500
 
 # 🔹 Mood Pattern Analysis
-@chatbot_bp.route("/analyze-patterns", methods=["POST"])
+@chatbot_bp.route("/analyze-patterns", methods=["POST", "OPTIONS"])
 def analyze_mood_patterns():
     """Analyze user's mood patterns and provide insights"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         data = request.get_json(force=True, silent=False)
         if not data or "user_id" not in data:
@@ -427,9 +432,11 @@ def analyze_mood_patterns():
         return jsonify({"error": "Ett internt fel uppstod vid mönsteranalys."}), 500
 
 # 🔹 CBT/Mindfulness Exercises
-@chatbot_bp.route("/exercise", methods=["POST"])
+@chatbot_bp.route("/exercise", methods=["POST", "OPTIONS"])
 def start_exercise():
     """Start a CBT or mindfulness exercise session"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         data = request.get_json(force=True, silent=False)
         if not data or "user_id" not in data or "exercise_type" not in data:

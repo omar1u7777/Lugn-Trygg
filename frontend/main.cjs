@@ -16,8 +16,8 @@ function createWindow() {
 
   // Dynamiskt bestäm frontend-URL
   const isDev = !app.isPackaged;
-  const frontendURL = isDev
-    ? 'http://localhost:3001' // Matchar Vite dev server port (uppdaterad för dynamisk port)
+  let frontendURL = isDev
+    ? 'http://localhost:3000' // Första kandidat för Vite dev server
     : `file://${path.join(__dirname, '../dist/index.html')}`; // Prod: Laddar byggda filer
 
   console.log('🚀 Starting Electron app...');
@@ -25,41 +25,47 @@ function createWindow() {
   console.log('📦 Is packaged:', app.isPackaged);
   console.log('🌐 Frontend URL:', frontendURL);
 
-  // Wait for Vite dev server to be ready before loading URL
+  // Wait for Vite dev server to be ready before loading URL (dev mode)
   if (isDev) {
-    const checkServer = (retryCount = 0) => {
-      const maxRetries = 30; // 30 seconds max wait time
-      const retryDelay = 1000; // 1 second
+    const http = require('http');
+  const candidatePorts = [3000, 3001, 3002, 3003, 3004, 3005];
+    const maxRetries = 45; // ~45 seconds total
+    const retryDelay = 1000;
 
+  const probe = (portIndex = 0, retryCount = 0) => {
       if (retryCount >= maxRetries) {
         console.error('❌ Vite dev server did not start within expected time');
         app.quit();
         return;
       }
 
-      require('http').get('http://localhost:3001', (res) => {
-        // Accept any successful status code (200, 201, etc.)
+      const port = candidatePorts[portIndex % candidatePorts.length];
+      const url = `http://localhost:${port}`;
+      const viteProbeUrl = `${url}/@vite/client`;
+
+      http.get(viteProbeUrl, (res) => {
         if (res.statusCode >= 200 && res.statusCode < 400) {
-          console.log('✅ Vite dev server is ready, loading frontend...');
+          frontendURL = url;
+          console.log(`✅ Vite dev server is ready on ${url}, loading frontend...`);
           mainWindow.loadURL(frontendURL).catch((err) => {
             console.error('❌ Failed to load frontend URL:', err);
             if (err.code === 'ERR_ABORTED' || err.code === -3) {
               console.log('🔄 Retrying due to ERR_ABORTED, server might still be starting...');
-              setTimeout(() => checkServer(retryCount + 1), retryDelay);
+              setTimeout(() => probe(portIndex + 1, retryCount + 1), retryDelay);
             } else {
               app.quit();
             }
           });
         } else {
-          console.log(`⏳ Vite server responded with status ${res.statusCode}, retrying...`);
-          setTimeout(() => checkServer(retryCount + 1), retryDelay);
+          console.log(`⏳ Vite server on ${url} responded with status ${res.statusCode} for /@vite/client, retrying...`);
+          setTimeout(() => probe(portIndex + 1, retryCount + 1), retryDelay);
         }
-      }).on('error', (err) => {
-        console.log(`⏳ Waiting for Vite dev server... (attempt ${retryCount + 1}/${maxRetries})`);
-        setTimeout(() => checkServer(retryCount + 1), retryDelay);
+      }).on('error', () => {
+        console.log(`⏳ Waiting for Vite dev server on ${url} (/@vite/client)... (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => probe(portIndex + 1, retryCount + 1), retryDelay);
       });
     };
-    checkServer();
+    probe();
   } else {
     mainWindow.loadURL(frontendURL).catch((err) => {
       console.error('❌ Kunde inte ladda frontend:', err);

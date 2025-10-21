@@ -51,6 +51,7 @@ const LoginForm: React.FC = () => {
       const idToken = await user.getIdToken();
 
       // Use axios for consistency with other API calls
+      // Note: baseURL is http://localhost:54112, blueprint is /api/auth, so full path is /api/auth/google-login
       const response = await api.post('/api/auth/google-login', {
         id_token: idToken
       });

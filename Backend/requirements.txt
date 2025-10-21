@@ -5,6 +5,7 @@ requests==2.28.1  # HTTP-bibliotek för API-förfrågningar
 flask==3.0.3  # Mikro-webbramverk för API och backend-logik
 flask-cors==3.0.10  # Hantering av CORS-policy i Flask-API
 Flask-Babel>=3.0.0  # Internationalisering och lokalisering för Flask
+flask-jwt-extended>=4.6.0  # JWT-hantering för autentisering
 werkzeug==3.0.1  # WSGI-verktyg för Flask-applikationer
 bcrypt==4.0.1  # Hashning av lösenord för säker lagring
 PyJWT>=2.0.0  # JWT token hantering

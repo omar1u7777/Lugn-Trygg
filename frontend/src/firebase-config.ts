@@ -1,36 +1,47 @@
 import { initializeApp } from "firebase/app";
+import type { FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
-
-// Funktion för att säkerställa att miljövariabler är korrekt definierade
-const getFirebaseConfig = () => {
-  const config: { [key: string]: string } = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'dummy-api-key',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'localhost',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'dummy-project',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'dummy-project.appspot.com',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:dummy',
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-XXXXXXXXXX',
-  };
-
-  // Kontrollera om någon av de nödvändiga variablerna saknas
-  const missingKeys = Object.keys(config).filter((key) => !config[key] || config[key].startsWith('dummy'));
-
-  if (missingKeys.length > 0) {
-    console.warn(`⚠️ Firebase-konfiguration saknas för följande nycklar: ${missingKeys.join(", ")}. Firebase-funktioner kommer inte att fungera.`);
-  }
-
-  return config;
-};
+import { getFirebaseConfig as loadFirebaseConfig } from "./config/env";
 
 // Initialisera Firebase-applikationen med den validerade konfigurationen
-const firebaseConfig = getFirebaseConfig();
+const firebaseConfig = loadFirebaseConfig();
+
+console.log('🔥 Firebase Configuration Loaded:');
+console.log('   API Key:', firebaseConfig.apiKey?.substring(0, 10) + '...');
+console.log('   Auth Domain:', firebaseConfig.authDomain);
+console.log('   Project ID:', firebaseConfig.projectId);
+console.log('   Storage Bucket:', firebaseConfig.storageBucket);
+
+const firebaseOptions: FirebaseOptions = {
+  apiKey: firebaseConfig.apiKey ?? "dummy-api-key",
+  authDomain: firebaseConfig.authDomain ?? "localhost",
+  projectId: firebaseConfig.projectId ?? "dummy-project",
+  storageBucket: firebaseConfig.storageBucket ?? "dummy-project.appspot.com",
+  messagingSenderId: firebaseConfig.messagingSenderId ?? "123456789",
+  appId: firebaseConfig.appId ?? "1:123456789:web:dummy",
+  ...(firebaseConfig.measurementId
+    ? { measurementId: firebaseConfig.measurementId }
+    : {}),
+};
+
+// Kontrollera om någon av de nödvändiga variablerna saknas
+const missingKeys = Object.entries(firebaseConfig).filter(
+  ([, value]) => !value || value.startsWith("dummy")
+);
+
+if (missingKeys.length > 0) {
+  console.warn(
+    `⚠️ Firebase-konfiguration saknas för följande nycklar: ${missingKeys
+      .map(([key]) => key)
+      .join(", ")}. Firebase-funktioner kommer inte att fungera.`
+  );
+}
 
 // Initialisera appen
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseOptions);
 
 // Initialisera Analytics om measurementId finns
 let analytics: any = null;

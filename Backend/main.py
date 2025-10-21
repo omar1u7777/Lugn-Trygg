@@ -18,6 +18,13 @@ from src.routes.ai_routes import ai_bp
 from src.routes.ai_stories_routes import ai_stories_bp
 from src.routes.subscription_routes import subscription_bp
 from src.routes.integration_routes import integration_bp
+from src.routes.ai_helpers_routes import ai_helpers_bp
+from src.routes.referral_routes import referral_bp
+from src.routes.feedback_routes import feedback_bp
+from src.routes.admin_routes import admin_bp
+from src.routes.notifications_routes import notifications_bp
+from src.routes.users_routes import users_bp
+from src.routes.sync_routes import sync_bp
 from src.firebase_config import initialize_firebase
 
 # 🔹 Ladda miljövariabler från .env
@@ -58,37 +65,87 @@ def create_app(testing=False):
     app.config['BABEL_DEFAULT_LOCALE'] = 'sv'
     babel = Babel(app)
 
+    # Register locale selector function
     def get_locale():
-        user_id = request.args.get('user_id') or request.json.get('user_id') if request.is_json else None
+        """Determine locale from query param or JSON payload safely.
+
+        Uses request.args first, then falls back to JSON body if present.
+        This avoids accessing attributes on None and registers the selector
+        using the Flask-Babel pattern.
+        """
+        user_id = request.args.get('user_id')
+
+        if not user_id and request.is_json:
+            # Use get_json with silent=True to avoid raising on invalid json
+            payload = request.get_json(silent=True) or {}
+            user_id = payload.get('user_id')
+
         if user_id:
-            from src.firebase_config import db
-            user = db.collection('users').document(user_id).get().to_dict()
-            return user.get('language', 'sv') if user else 'sv'
+            try:
+                from src.firebase_config import db
+                user_doc = db.collection('users').document(user_id).get()
+                user = user_doc.to_dict() if user_doc.exists else None
+                return user.get('language', 'sv') if user else 'sv'
+            except Exception:
+                # If Firebase lookup fails, fall back to default locale
+                logger.warning("Could not fetch user locale from Firebase, falling back to default")
+                return 'sv'
+
         return 'sv'
+    
+    # Set the locale selector
+    babel.init_app(app, locale_selector=get_locale)
 
-    babel.locale_selector_func = get_locale
-
-    # Initialize rate limiter with Redis storage (fallback to in-memory)
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    logger.info(f"🔍 Attempting Redis connection to: {redis_url}")
+    # --- DEV: Increase rate limit and allow all local origins ---
+    # For local development, set a generous rate limit and allow all local frontend origins
+    dev_rate_limit = "1000 per minute" if app.config["DEBUG"] else "100 per hour"
+    redis_url = os.getenv("REDIS_URL", None)
+    
+    # Initialize limiter with Redis if configured, otherwise use in-memory storage
     try:
-        redis_client = Redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
-        redis_client.ping()  # Test connection
-        logger.info("✅ Redis connection successful - ping received")
-        limiter = Limiter(
-            key_func=get_remote_address,
-            storage_uri=redis_url,
-            default_limits=["100 per hour"]
-        )
-        limiter.init_app(app)
-        logger.info("✅ Rate limiter initialized with Redis storage")
+        if redis_url:
+            logger.info(f"🔍 Attempting Redis connection to: {redis_url}")
+            try:
+                redis_client = Redis.from_url(
+                    redis_url, 
+                    socket_connect_timeout=1,
+                    socket_timeout=1,
+                    socket_keepalive=False,
+                    retry_on_timeout=False
+                )
+                redis_client.ping()
+                limiter = Limiter(
+                    key_func=get_remote_address,
+                    storage_uri=redis_url,
+                    default_limits=[dev_rate_limit]
+                )
+                limiter.init_app(app)
+                logger.info(f"✅ Rate limiter initialized with Redis storage, limit: {dev_rate_limit}")
+            except Exception as e:
+                logger.warning(f"⚠️ Redis connection failed: {str(e)}, falling back to in-memory storage")
+                limiter = Limiter(
+                    key_func=get_remote_address,
+                    default_limits=[dev_rate_limit]
+                )
+                limiter.init_app(app)
+                logger.info(f"✅ Rate limiter initialized with in-memory storage, limit: {dev_rate_limit}")
+        else:
+            # No Redis configured - use in-memory storage (common for development)
+            limiter = Limiter(
+                key_func=get_remote_address,
+                default_limits=[dev_rate_limit]
+            )
+            limiter.init_app(app)
+            logger.info(f"✅ Rate limiter initialized with in-memory storage, limit: {dev_rate_limit}")
     except Exception as e:
-        logger.warning(f"⚠️ Redis not available at {redis_url} ({str(e)}), falling back to in-memory storage")
+        logger.error(f"❌ Failed to initialize rate limiter: {e}")
+        # Create a minimal limiter as fallback
         limiter = Limiter(
             key_func=get_remote_address,
-            default_limits=["100 per hour"]
+            default_limits=[dev_rate_limit]
         )
         limiter.init_app(app)
+        logger.warning("⚠️ Rate limiter initialized with basic fallback configuration")
 
     # Hämta JWT secret key från miljövariabler
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
@@ -115,8 +172,35 @@ def create_app(testing=False):
         raise ValueError("FIREBASE_CREDENTIALS_PATH saknas i miljövariabler!")
 
     # 🔹 Hantering av CORS-domäner
-    allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,https://www.lugntrygg.se").split(",")
-    allowed_origins = [origin.strip() for origin in allowed_origins if origin.strip()]
+    # --- DEV: Always allow all local dev origins ---
+    dev_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:4173",  # Vite preview port
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:4173",
+        "http://frontend:3000",
+        "http://frontend:3001",
+        "http://localhost:5000",
+        "http://192.168.10.154:3000",
+        "http://192.168.10.154:3001",
+        "http://192.168.10.154:4173",  # Network IP for Vite preview
+        "http://172.21.112.1:3001",
+        "http://172.22.80.1:3000",
+        "http://172.22.80.1:4173"  # Network IP for Vite preview
+    ]
+    
+    # In DEBUG mode: combine dev_origins with .env origins
+    # In production: only use .env origins
+    env_origins = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+    
+    if app.config["DEBUG"]:
+        # Development: combine both lists and remove duplicates
+        allowed_origins = list(set(dev_origins + env_origins)) if env_origins else dev_origins
+    else:
+        # Production: only use .env origins
+        allowed_origins = env_origins if env_origins else ["https://www.lugntrygg.se"]
 
     if not allowed_origins or not all(isinstance(i, str) for i in allowed_origins):
         if app.config["ENV"] == "production":
@@ -146,12 +230,10 @@ def create_app(testing=False):
     # 🔹 Initiera Firebase (ej under tester)
     if not testing:
         try:
-            if not initialize_firebase():
-                logger.critical("❌ Firebase kunde inte initialiseras!")
-                raise RuntimeError("Firebase initialisering misslyckades!")
+            initialize_firebase()
+            logger.info("✅ Firebase initialized successfully.")
         except Exception as e:
-            logger.critical(f"🔥 Firebase-initialiseringsfel: {e}")
-            raise
+            logger.warning(f"⚠️ Firebase initialization failed: {e}. Fortsätter i degraded läge - vissa funktioner kan vara begränsade.")
 
     # 🔹 Registrera blueprints (kontrollera att de inte registreras två gånger)
     if "auth" not in app.blueprints:
@@ -170,6 +252,10 @@ def create_app(testing=False):
         app.register_blueprint(chatbot_bp, url_prefix="/api/chatbot")
         logger.info("✅ Blueprint chatbot_bp registrerad under /api/chatbot")
 
+    if "ai_helpers" not in app.blueprints:
+        app.register_blueprint(ai_helpers_bp, url_prefix="/api/mood")
+        logger.info("✅ Blueprint ai_helpers_bp registrerad under /api/mood")
+
     if "subscription" not in app.blueprints:
         app.register_blueprint(subscription_bp, url_prefix="/api/subscription")
         logger.info("✅ Blueprint subscription_bp registrerad under /api/subscription")
@@ -185,6 +271,30 @@ def create_app(testing=False):
     if "integration" not in app.blueprints:
         app.register_blueprint(integration_bp, url_prefix="/api/integration")
         logger.info("✅ Blueprint integration_bp registrerad under /api/integration")
+
+    if "referral" not in app.blueprints:
+        app.register_blueprint(referral_bp, url_prefix="/api/referral")
+        logger.info("✅ Blueprint referral_bp registrerad under /api/referral")
+
+    if "feedback" not in app.blueprints:
+        app.register_blueprint(feedback_bp, url_prefix="/api/feedback")
+        logger.info("✅ Blueprint feedback_bp registrerad under /api/feedback")
+
+    if "admin" not in app.blueprints:
+        app.register_blueprint(admin_bp, url_prefix="/api/admin")
+        logger.info("✅ Blueprint admin_bp registrerad under /api/admin")
+
+    if "notifications" not in app.blueprints:
+        app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
+        logger.info("✅ Blueprint notifications_bp registrerad under /api/notifications")
+
+    if "users" not in app.blueprints:
+        app.register_blueprint(users_bp, url_prefix="/api/users")
+        logger.info("✅ Blueprint users_bp registrerad under /api/users")
+
+    if "sync" not in app.blueprints:
+        app.register_blueprint(sync_bp, url_prefix="/api/sync")
+        logger.info("✅ Blueprint sync_bp registrerad under /api/sync")
 
     # Definiera en enkel endpoint för hälsokontroll
     @app.route("/")

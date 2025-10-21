@@ -44,7 +44,7 @@ interface AIStory {
 const AIStories: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { isDarkMode, muiTheme } = useTheme();
+  const { muiTheme } = useTheme();
   const [stories, setStories] = useState<AIStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +59,12 @@ const AIStories: React.FC = () => {
   }, []);
 
   const loadStories = async () => {
+    if (!user?.user_id) return;
+    
     try {
       setLoading(true);
       const response = await api.get('/api/ai/stories', {
-        params: { user_id: user?.user_id }
+        params: { user_id: user.user_id }
       });
       setStories(response.data.stories || []);
     } catch (err) {
@@ -74,10 +76,15 @@ const AIStories: React.FC = () => {
   };
 
   const generateNewStory = async () => {
+    if (!user?.user_id) {
+      setError('Du måste vara inloggad för att generera berättelser');
+      return;
+    }
+    
     try {
       setGenerating(true);
       const response = await api.post('/api/ai/story', {
-        user_id: user?.user_id,
+        user_id: user.user_id,
         locale: 'sv'
       });
       setStories(prev => [response.data, ...prev]);

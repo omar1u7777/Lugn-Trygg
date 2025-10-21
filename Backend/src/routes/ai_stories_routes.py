@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.ai_services import ai_services
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,10 +59,12 @@ def get_stories():
         logger.error(f"Failed to get AI stories: {str(e)}")
         return jsonify({'error': 'Failed to load stories'}), 500
 
-@ai_stories_bp.route('/stories/generate', methods=['POST'])
+@ai_stories_bp.route('/stories/generate', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 def generate_story():
     """Generate a personalized AI story"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         user_id = request.user_id
 
@@ -140,10 +143,12 @@ def generate_story():
         logger.error(f"Failed to generate AI story: {str(e)}")
         return jsonify({'error': 'Failed to generate story'}), 500
 
-@ai_stories_bp.route('/stories/<story_id>/favorite', methods=['POST'])
+@ai_stories_bp.route('/stories/<story_id>/favorite', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 def toggle_favorite(story_id):
     """Toggle favorite status for a story"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         user_id = request.user_id
 
@@ -161,10 +166,6 @@ def toggle_favorite(story_id):
         # For now, just return success
         audit_log('story_favorite_toggled', user_id, {'story_id': story_id})
         return jsonify({'success': True, 'message': 'Favorite status updated'}), 200
-
-    except Exception as e:
-        logger.error(f"Failed to toggle favorite: {str(e)}")
-        return jsonify({'error': 'Failed to update favorite status'}), 500
 
     except Exception as e:
         logger.error(f"Failed to toggle favorite: {str(e)}")

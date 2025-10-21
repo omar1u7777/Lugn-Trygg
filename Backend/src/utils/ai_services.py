@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import os
 import re
 from typing import Dict, List, Optional, Tuple, Any
@@ -417,6 +417,83 @@ Var noga med att returnera endast giltig JSON."""
             return "POSITIVE_INTENSE"
 
         return transcript_sentiment
+
+    def analyze_voice_emotion_fallback(self, text: str = "") -> Dict[str, Any]:
+        """
+        Fallback voice emotion analysis when primary methods fail
+        Uses simple keyword matching for Swedish text
+        
+        Args:
+            text: Transcript text to analyze (can be empty)
+            
+        Returns:
+            Basic emotion analysis dict
+        """
+        # Swedish emotion keywords
+        emotion_keywords = {
+            'glad': ['glad', 'lycklig', 'nöjd', 'positiv', 'bra', 'härligt', 'fantastiskt', 'underbart'],
+            'ledsen': ['ledsen', 'sorglig', 'deprimerad', 'nere', 'dålig', 'tråkig', 'hemsk'],
+            'arg': ['arg', 'irriterad', 'frustrerad', 'förbannad', 'upprörd'],
+            'orolig': ['orolig', 'ängslig', 'nervös', 'stressad', 'rädd'],
+            'trött': ['trött', 'utmattad', 'sliten', 'orkeslös'],
+            'lugn': ['lugn', 'avslappnad', 'harmonisk', 'fridfull']
+        }
+        
+        text_lower = text.lower() if text else ""
+        detected_emotions = []
+        max_score = 0.0
+        primary_emotion = 'neutral'
+        
+        # Check for emotion keywords
+        for emotion, keywords in emotion_keywords.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    detected_emotions.append(emotion)
+                    score = 0.7  # Base confidence for keyword match
+                    if score > max_score:
+                        max_score = score
+                        primary_emotion = emotion
+        
+        # If no keywords found, default to neutral
+        if not detected_emotions:
+            detected_emotions = ['neutral']
+            primary_emotion = 'neutral'
+            max_score = 0.5
+        
+        # Map to sentiment
+        sentiment_map = {
+            'glad': 'POSITIVE',
+            'ledsen': 'NEGATIVE',
+            'arg': 'NEGATIVE',
+            'orolig': 'NEGATIVE',
+            'trött': 'NEUTRAL',
+            'lugn': 'POSITIVE',
+            'neutral': 'NEUTRAL'
+        }
+        
+        sentiment = sentiment_map.get(primary_emotion, 'NEUTRAL')
+        
+        return {
+            "primary_emotion": primary_emotion,
+            "confidence": max_score,
+            "voice_characteristics": {
+                "energy_level": "unknown",
+                "speech_rate": "unknown",
+                "pitch_variation": 0.0,
+                "emotion_score": max_score,
+                "confidence": max_score,
+                "analysis_method": "fallback_keywords"
+            },
+            "transcript_sentiment": sentiment,
+            "audio_emotion_score": 0.0,
+            "combined_analysis": sentiment,
+            "sentiment": sentiment,
+            "score": max_score if sentiment == 'POSITIVE' else -max_score if sentiment == 'NEGATIVE' else 0.0,
+            "magnitude": max_score,
+            "emotions": detected_emotions,
+            "intensity": max_score,
+            "method": "fallback_keyword_analysis"
+        }
 
     def generate_personalized_recommendations(self, user_history: List[Dict], current_mood: str) -> Dict[str, Any]:
         """

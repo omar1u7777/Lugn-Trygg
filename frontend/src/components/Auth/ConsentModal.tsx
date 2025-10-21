@@ -34,7 +34,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, userId }) 
 
     setIsSubmitting(true);
     try {
-      await api.post('/auth/consent', {
+      await api.post('/api/auth/consent', {
         analytics_consent: consents.aiAnalysis,
         marketing_consent: consents.marketing,
         data_processing_consent: consents.dataProcessing

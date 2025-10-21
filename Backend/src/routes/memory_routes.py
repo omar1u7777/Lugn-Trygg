@@ -5,8 +5,16 @@ from flask import Blueprint, request as flask_request, jsonify
 from types import SimpleNamespace
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
-from google.cloud.firestore import FieldFilter
-from src.firebase_config import db
+import src.firebase_config as firebase_config
+
+_DB_SENTINEL = object()
+db = _DB_SENTINEL  # legacy override point for tests
+
+
+def _get_db():
+    """Return Firestore client, allowing tests to inject a mock via module attribute."""
+    override = globals().get("db", _DB_SENTINEL)
+    return override if override is not _DB_SENTINEL else firebase_config.db
 from src.services.auth_service import AuthService
 
 memory_bp = Blueprint("memory", __name__)
@@ -27,8 +35,10 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # 🔹 Ladda upp ljudminne till Firebase Storage
-@memory_bp.route("/upload", methods=["POST"])
+@memory_bp.route("/upload", methods=["POST", "OPTIONS"])
 def upload_memory():
+    if flask_request.method == 'OPTIONS':
+        return '', 204
     try:
         if "audio" not in flask_request.files or "user_id" not in flask_request.form:
             return jsonify({"error": "Ljudfil och användar-ID krävs!"}), 400
@@ -68,7 +78,7 @@ def upload_memory():
         blob.upload_from_file(file, content_type="audio/mpeg")
 
         # 🔹 Spara metadata i Firestore
-        memory_ref = db.collection("memories").document(f"{user_id}_{timestamp}")
+        memory_ref = _get_db().collection("memories").document(f"{user_id}_{timestamp}")
         memory_ref.set({
             "user_id": user_id,
             "file_path": secure_name,
@@ -101,15 +111,23 @@ def list_memories():
                 if not err:
                     current_user_id = uid
 
-        # Get user_id from query parameter if provided, otherwise use JWT user_id
+        # Get user_id from query parameter
         query_user_id = flask_request.args.get("user_id", "").strip()
-        if query_user_id and query_user_id != current_user_id:
+        if not query_user_id:
+            return jsonify({"memories": []}), 200
+
+        if query_user_id != current_user_id:
             # Check if user is authorized to access this user's memories (admin check could go here)
             return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
 
-        target_user_id = query_user_id or current_user_id
+        target_user_id = query_user_id
 
-        memories_ref = list(db.collection("memories").where("user_id", "==", target_user_id).order_by("timestamp", direction="DESCENDING").stream())
+        memories_ref = list(
+            _get_db().collection("memories")
+            .where("user_id", "==", target_user_id)
+            .order_by("timestamp", direction="DESCENDING")
+            .stream()
+        )
         memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
 
         return jsonify({"memories": memory_list}), 200
@@ -145,7 +163,13 @@ def get_memory():
         target_user_id = query_user_id or current_user_id
 
         # 🔹 Kontrollera att minnet tillhör användaren
-        memory_ref = list(db.collection("memories").where("user_id", "==", target_user_id).where("file_path", "==", file_path).limit(1).stream())
+        memory_ref = list(
+            _get_db().collection("memories")
+            .where("user_id", "==", target_user_id)
+            .where("file_path", "==", file_path)
+            .limit(1)
+            .stream()
+        )
 
         if not memory_ref:
             return jsonify({"error": "Obehörig åtkomst till minne!"}), 403

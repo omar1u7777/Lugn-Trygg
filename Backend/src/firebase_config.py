@@ -60,6 +60,14 @@ def initialize_firebase() -> bool:
             return True
 
         cred_path = get_env_variable("FIREBASE_CREDENTIALS", required=True)
+        
+        # Om sökvägen är relativ, gör den absolut baserat på Backend-katalogen
+        if not os.path.isabs(cred_path):
+            # Anta att vi kör från Backend-katalogen eller projektets rotkatalog
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            cred_path = os.path.join(backend_dir, cred_path)
+            logger.info(f"🔹 Konverterade relativ sökväg till absolut: {cred_path}")
+        
         if not os.path.exists(cred_path):
             raise FileNotFoundError(f"❌ Firebase credentials-filen saknas: {cred_path}. Kontrollera sökvägen!")
 
@@ -98,6 +106,11 @@ def get_firebase_services() -> dict:
         logger.exception(f"🔥 Fel vid hämtning av Firebase-tjänster: {e}")
         raise RuntimeError("Kunde inte hämta Firebase-tjänster. Kontrollera konfigurationen.") from e
 
+# Ensure exported names exist even if initialization fails
+db = None
+auth = None
+firebase_admin_auth = None
+
 # 🔹 Försök att initiera Firebase och hämta tjänster
 try:
     if initialize_firebase():
@@ -107,4 +120,7 @@ try:
         firebase_admin_auth = auth  # Alias for easier import
         logger.info("✅ Firebase-tjänster laddades framgångsrikt!")
 except RuntimeError as e:
+    # Do not raise here; instead expose None values so the application can run in a degraded
+    # local development mode where Firebase admin credentials are not present.
     logger.critical(f"🚨 Firebase kunde inte startas: {e}")
+    logger.warning("⚠️ Kör i lokal degraderad läge - Firebase-admin är inte initierat. Endast begränsad funktionalitet är tillgänglig.")

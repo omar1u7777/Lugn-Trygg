@@ -7,12 +7,15 @@ export type User = {
   user_id: string;            // 🔹 Unik identifierare (ska matcha backend)
   email: string;              // 🔹 Användarens e-postadress
   name?: string;              // 🔹 (Valfritt) Fullständigt namn
+  displayName?: string;       // 🔹 (Valfritt) Visningsnamn
   role?: UserRole;            // 🔹 Användarroll (default: "user")
   createdAt?: Date | string | undefined;  // 🔹 Konto skapat (ISO-format eller Date) - kan vara undefined
   updatedAt?: Date | string | undefined;  // 🔹 Senaste uppdatering - kan vara undefined
   avatarUrl?: string;         // 🔹 (Valfritt) Profilbilds-URL
   isActive?: boolean;         // 🔹 Aktivt konto (default: true)
   lastLogin?: Date | string | undefined;  // 🔹 Senaste inloggning - kan vara undefined
+  streak?: number;            // 🔹 (Valfritt) Antal dagar i följd
+  goals?: string[];           // 🔹 (Valfritt) Användarens mål
 };
 
 // 📌 Definiera en typ för autentiseringssvar från backend

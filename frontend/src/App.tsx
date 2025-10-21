@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import LoginForm from "./components/Auth/LoginForm";
@@ -10,11 +10,20 @@ import Navigation from "./components/Layout/Navigation";
 import SubscriptionForm from "./components/SubscriptionForm";
 import AIStories from "./components/AIStories";
 import MoodAnalytics from "./components/MoodAnalytics";
+import AppLayout from "./components/AppLayout";
+import OAuthHealthIntegrations from "./components/Integrations/OAuthHealthIntegrations";
+import ReferralProgram from "./components/Referral/ReferralProgram";
+import FeedbackForm from "./components/Feedback/FeedbackForm";
+import { usePageTracking } from "./hooks/useAnalytics";
 import "./styles/styles.css";
 
 function App() {
     const { t } = useTranslation();
+    const location = useLocation();
     const [offlineMode, setOfflineMode] = useState<boolean>(!navigator.onLine);
+
+    // Auto track page views
+    usePageTracking();
 
     // 🌐 Lyssna på ändringar i internetstatus
     useEffect(() => {
@@ -57,11 +66,12 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-            {/* 📌 Navigation visas på alla sidor */}
-            <Navigation />
+        <AppLayout>
+            <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+                {/* 📌 Navigation visas på alla sidor */}
+                <Navigation />
 
-            <main className="pt-20 pb-8 px-4 sm:px-6 lg:px-8">
+                <main className="pt-20 pb-8 px-4 sm:px-6 lg:px-8">
                 <div className="container-custom">
                     <Routes>
                         <Route path="/" element={<LoginForm />} />
@@ -100,6 +110,30 @@ function App() {
                             }
                         />
                         <Route
+                            path="/integrations"
+                            element={
+                                <ProtectedRoute>
+                                    <OAuthHealthIntegrations />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/referral"
+                            element={
+                                <ProtectedRoute>
+                                    <ReferralProgram />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/feedback"
+                            element={
+                                <ProtectedRoute>
+                                    <FeedbackForm />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="*"
                             element={
                                 <div className="min-h-[60vh] flex items-center justify-center">
@@ -125,7 +159,8 @@ function App() {
                     </Routes>
                 </div>
             </main>
-        </div>
+            </div>
+        </AppLayout>
     );
 }
 
