@@ -13,13 +13,13 @@ type SupportedEnvKeys =
 const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
   VITE_BACKEND_URL: 'http://localhost:5001',
   VITE_FIREBASE_API_KEY: 'AIzaSyAxs7Monr1bJaXmUecl8eICvDaDhUkCFYY',
-  VITE_FIREBASE_AUTH_DOMAIN: 'lugn-trygg-53d75.firebaseapp.com',
-  VITE_FIREBASE_PROJECT_ID: 'lugn-trygg-53d75',
-  VITE_FIREBASE_STORAGE_BUCKET: 'lugn-trygg-53d75',
-  VITE_FIREBASE_MESSAGING_SENDER_ID: '111615148451906030622',
-  VITE_FIREBASE_APP_ID: '1:111615148451:web:1b1b1b1b1b1b1b1b1b1b1b',
-  VITE_FIREBASE_MEASUREMENT_ID: 'G-1B1B1B1B1B',
-  VITE_FIREBASE_VAPID_KEY: 'dummy-vapid-key',
+  VITE_FIREBASE_AUTH_DOMAIN: 'lugn-trygg.firebaseapp.com',
+  VITE_FIREBASE_PROJECT_ID: 'lugn-trygg',
+  VITE_FIREBASE_STORAGE_BUCKET: 'lugn-trygg.firebasestorage.app',
+  VITE_FIREBASE_MESSAGING_SENDER_ID: '412776932054',
+  VITE_FIREBASE_APP_ID: '1:412776932054:web:7c4c72c93eb9b5c49fdaf0',
+  VITE_FIREBASE_MEASUREMENT_ID: undefined,
+  VITE_FIREBASE_VAPID_KEY: undefined,
   VITE_ENCRYPTION_KEY: undefined,
 };
 
