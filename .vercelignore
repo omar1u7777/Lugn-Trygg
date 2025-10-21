@@ -1,0 +1,5 @@
+# Ignore everything except web-app-build
+/*
+!web-app-build/
+!.vercelignore
+!

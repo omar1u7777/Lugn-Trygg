@@ -1,0 +1,8 @@
+{
+  "buildCommand": "",
+  "devCommand": "",
+  "installCommand": "",
+  "framework": null,
+  "outputDirectory": "./web-app-build",
+  "public": false
+}
