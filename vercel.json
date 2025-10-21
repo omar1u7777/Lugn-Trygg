@@ -1,8 +1,25 @@
 {
-  "buildCommand": "",
-  "devCommand": "",
-  "installCommand": "",
+  "buildCommand": "echo 'Using pre-built web-app-build'",
+  "devCommand": "echo 'Using pre-built web-app-build'",
+  "installCommand": "echo 'Using pre-built web-app-build'",
   "framework": null,
   "outputDirectory": "./web-app-build",
-  "public": false
+  "public": false,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
 }
