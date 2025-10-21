@@ -64,21 +64,41 @@ REFRESH_TOKEN_EXPIRES = timedelta(days=get_env_variable("JWT_REFRESH_EXPIRATION_
 
 # 🔹 Firebase-konfiguration
 FIREBASE_WEB_API_KEY = get_env_variable("FIREBASE_WEB_API_KEY", required=True, hide_value=True)
-FIREBASE_CREDENTIALS = get_env_variable("FIREBASE_CREDENTIALS", "serviceAccountKey.json", required=True)
 FIREBASE_API_KEY = get_env_variable("FIREBASE_API_KEY", required=True, hide_value=True)
 FIREBASE_PROJECT_ID = get_env_variable("FIREBASE_PROJECT_ID", required=True)
 FIREBASE_STORAGE_BUCKET = get_env_variable("FIREBASE_STORAGE_BUCKET", required=True)
 
-# 🔹 Kontrollera att Firebase Credentials-filen finns och kan läsas
-if not os.path.exists(FIREBASE_CREDENTIALS):
-    logger.warning(f"⚠️ Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}. Backend kommer köra i begränsad dev-läge.")
-    # Do not raise error; allow Firebase init to handle this gracefully
-else:
+# 🔹 Firebase Credentials - kan vara filepath ELLER JSON string från env
+import json
+import tempfile
+
+FIREBASE_CREDENTIALS_RAW = get_env_variable("FIREBASE_CREDENTIALS", "serviceAccountKey.json", required=True)
+FIREBASE_CREDENTIALS_RAW = str(FIREBASE_CREDENTIALS_RAW).strip()  # Konvertera till string
+
+# Om det är en JSON string (från Render env), spara som tempfil; annars använd filepath
+if FIREBASE_CREDENTIALS_RAW.startswith("{"):
+    # Det är JSON - skriv till temp-fil
     try:
-        with open(FIREBASE_CREDENTIALS, "r") as f:
-            f.read()  # Testa att filen är läsbar
-    except Exception as e:
-        logger.warning(f"⚠️ Firebase credentials-filen kunde inte läsas: {e}. Backend kommer köra i begränsad dev-läge.")
+        creds_json = json.loads(FIREBASE_CREDENTIALS_RAW)
+        # Skriv till tempfil som Firebase kan läsa
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
+            json.dump(creds_json, tf)
+            FIREBASE_CREDENTIALS = tf.name
+        logger.info(f"🔹 Firebase credentials från JSON env-variabel - sparad till {FIREBASE_CREDENTIALS}")
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Kunde inte parse Firebase credentials JSON: {e}")
+        FIREBASE_CREDENTIALS = FIREBASE_CREDENTIALS_RAW
+else:
+    # Det är en filepath
+    FIREBASE_CREDENTIALS = FIREBASE_CREDENTIALS_RAW
+    if not os.path.exists(FIREBASE_CREDENTIALS):
+        logger.warning(f"⚠️ Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}. Backend kommer köra i begränsad dev-läge.")
+    else:
+        try:
+            with open(FIREBASE_CREDENTIALS, "r") as f:
+                f.read()  # Testa att filen är läsbar
+        except Exception as e:
+            logger.warning(f"⚠️ Firebase credentials-filen kunde inte läsas: {e}. Backend kommer köra i begränsad dev-läge.")
 
 # 🔹 Stripe-konfiguration
 STRIPE_SECRET_KEY = get_env_variable("STRIPE_SECRET_KEY", required=False, hide_value=True)
@@ -95,7 +115,8 @@ ENCRYPTION_KEY = get_env_variable("ENCRYPTION_KEY", required=False, hide_value=T
 GOOGLE_CLIENT_ID = get_env_variable("GOOGLE_CLIENT_ID", required=False, hide_value=True)
 
 # 🔹 CORS-konfiguration
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_env_variable("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5000,https://www.lugntrygg.se").split(",") if origin.strip()]
+cors_origins_str = str(get_env_variable("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5000,https://www.lugntrygg.se")).strip()
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 # 🔹 Content Security Policy (CSP)
 CSP_DIRECTIVES = {
