@@ -1,10 +1,17 @@
-# Lugn & Trygg - Mental Health & Wellness Desktop Application
+# Lugn & Trygg - Mental Health & Wellness Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
-[![Electron](https://img.shields.io/badge/Electron-Desktop-green.svg)](https://electronjs.org)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](./LICENSE)
+[![Copyright](https://img.shields.io/badge/Copyright-2025%20Omar%20Alhaek-blue.svg)](./COPYRIGHT)
+[![Status](https://img.shields.io/badge/Status-Production-green.svg)](https://lugn-trygg.vercel.app)
 
-> En säker, användarvänlig desktop-applikation för mental hälsa och välbefinnande med AI-stödd terapi, humörspårning och avslappningsverktyg.
+> En säker, användarvänlig mental hälsoplattform med AI-stödd terapi, humörspårning och avslappningsverktyg.
+
+## ⚠️ IMPORTANT NOTICE
+
+**This is proprietary software. All rights reserved.**
+
+Copyright © 2025 Omar Alhaek. Unauthorized copying, distribution, modification, 
+or use of this software is strictly prohibited. See [LICENSE](./LICENSE) for details.
 
 ## 📋 Innehåll
 
@@ -352,36 +359,31 @@ POST /api/subscription/cancel           # Avbryt prenumeration
 }
 ```
 
-## 🤝 Bidrag
+## 📄 License & Copyright
 
-Vi välkomnar bidrag! Se till att:
+**Copyright © 2025 Omar Alhaek. All Rights Reserved.**
 
-1. Följ kodstandarder (ESLint, Black)
-2. Skriv tester för ny funktionalitet
-3. Uppdatera dokumentation
-4. Följ Git commit conventions
+This project is proprietary software. See [LICENSE](./LICENSE) for full terms.
 
-```bash
-# Skapa feature branch
-git checkout -b feature/amazing-feature
+### ⚠️ Usage Restrictions
+- ❌ No copying or redistribution
+- ❌ No modification or derivative works
+- ❌ No commercial use without permission
+- ❌ No reverse engineering
+- ✅ Personal use only for authorized users
 
-# Commit changes
-git commit -m "feat: add amazing feature"
-
-# Push och skapa PR
-git push origin feature/amazing-feature
-```
-
-## 📄 Licens
-
-Detta projekt är licensierat under MIT License - se [LICENSE](LICENSE) filen för detaljer.
+### 📧 Contact
+For licensing inquiries or permissions:
+- **Email:** omaralhaek97@gmail.com
+- **Project:** Lugn & Trygg Mental Health Platform
 
 ## 🙏 Acknowledgments
 
 - **OpenAI** för GPT-4o-mini API med Redis-caching för kostnadseffektivitet
 - **Google Cloud** för NLP, Speech-to-Text och AI-tjänster
 - **Firebase** för autentisering, databas och filhantering
-- **Electron** för cross-platform desktop support
+- **Vercel** för frontend hosting och deployment
+- **Render** för backend hosting
 - **Stripe** för säker betalningshantering
 - **Scikit-learn** för maskininlärningsmodeller (82% prognosnoggrannhet)
 - **Redis** för caching och prestandaoptimering
@@ -389,8 +391,12 @@ Detta projekt är licensierat under MIT License - se [LICENSE](LICENSE) filen f�
 ## 📞 Support
 
 För support och frågor:
-- Skapa ett [GitHub Issue](https://github.com/omar1u7777/Lugn-Trygg/issues)
-- Kontakta utvecklings-teamet
+- **Email:** omaralhaek97@gmail.com
+- Skapa ett [GitHub Issue](https://github.com/omar1u7777/Lugn-Trygg/issues) (för buggar endast)
+
+---
+
+**Protected by Swedish and International Copyright Law**
 - Se [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) för teknisk dokumentation
 
 ---
