@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -63,6 +64,7 @@ createRoot(rootElement).render(
             <AuthProvider> {/* 🔒 Tillhandahåller global autentisering */}
               <App /> {/* 🎉 Rendera huvudapplikationen */}
               <Analytics /> {/* 📊 Vercel Analytics för besökarspårning */}
+              <SpeedInsights /> {/* ⚡ Vercel Speed Insights för prestandaspårning */}
             </AuthProvider>
           </ThemeProvider>
         </BrowserRouter>
