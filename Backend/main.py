@@ -376,9 +376,11 @@ def create_app(testing=False):
 
     return app
 
+# 🔹 Create app at module level for Gunicorn
+app = create_app()
+
 if __name__ == "__main__":
     # Starta Flask-servern
-    app = create_app()
     port = int(os.getenv("PORT", 5001))
     debug = os.getenv("FLASK_DEBUG", "False").lower() in ["1", "true", "yes"]
 
