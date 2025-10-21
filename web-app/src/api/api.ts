@@ -140,7 +140,24 @@ export const logoutUser = async () => {
   } catch (error: any) {
     console.error("⚠️ API Logout error:", error);
   } finally {
+    // Save onboarding status before clearing
+    const onboardingKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('onboarding_')
+    );
+    const savedOnboarding: Record<string, string> = {};
+    onboardingKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) savedOnboarding[key] = value;
+    });
+    
+    // Clear all localStorage
     localStorage.clear();
+    
+    // Restore onboarding status (users shouldn't see onboarding again after logout)
+    Object.entries(savedOnboarding).forEach(([key, value]) => {
+      localStorage.setItem(key, value);
+    });
+    
     // Don't force a page refresh - let React Router handle navigation
     // The AuthContext will handle the redirect
   }

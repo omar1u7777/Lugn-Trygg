@@ -65,13 +65,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
  useEffect(() => {
    if (!token || !user?.user_id) return;
 
-   let isRefreshing = false;
-
-   const refreshToken = async () => {
-     // Förhindra flera samtidiga refresh-försök
-     if (isRefreshing) return;
-
-     isRefreshing = true;
+   // Refresh token proactively every 20 hours (JWT expires after 24h)
+   // This ensures token is always fresh before it expires
+   const interval = setInterval(async () => {
      try {
        const newAccessToken = await refreshAccessToken();
        if (newAccessToken) {
@@ -81,18 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
        }
      } catch (error) {
        console.warn("⚠️ Token refresh failed. Please log in again.");
-       // Don't auto-logout, let the user continue until next API call fails
-     } finally {
-       isRefreshing = false;
      }
-   };
-
-   // Refresh token proactively every 20 hours (JWT expires after 24h)
-   // This ensures token is always fresh before it expires
-   const interval = setInterval(refreshToken, 20 * 60 * 60 * 1000);
-   
-   // Also refresh once on mount if we have a token
-   refreshToken();
+   }, 20 * 60 * 60 * 1000); // 20 hours
    
    return () => clearInterval(interval);
  }, [token, user?.user_id]);
