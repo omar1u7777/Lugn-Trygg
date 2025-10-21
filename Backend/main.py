@@ -166,10 +166,10 @@ def create_app(testing=False):
     # Initiera JWT Manager
     jwt = JWTManager(app)
 
-    # Kontrollera FIREBASE_CREDENTIALS_PATH
-    if not testing and not os.getenv("FIREBASE_CREDENTIALS_PATH"):
-        logger.critical("❌ FIREBASE_CREDENTIALS_PATH saknas i miljövariabler!")
-        raise ValueError("FIREBASE_CREDENTIALS_PATH saknas i miljövariabler!")
+    # Kontrollera FIREBASE_CREDENTIALS (either as JSON string or path)
+    if not testing and not os.getenv("FIREBASE_CREDENTIALS"):
+        logger.critical("❌ FIREBASE_CREDENTIALS saknas i miljövariabler!")
+        raise ValueError("FIREBASE_CREDENTIALS saknas i miljövariabler!")
 
     # 🔹 Hantering av CORS-domäner
     # --- DEV: Always allow all local dev origins ---
