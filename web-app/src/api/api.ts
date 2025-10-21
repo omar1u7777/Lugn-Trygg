@@ -149,13 +149,27 @@ export const logoutUser = async () => {
 // 🔹 API-funktion för att förnya access-token automatiskt
 export const refreshAccessToken = async () => {
   try {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (!refreshToken) return null;
+    // First, try to refresh Firebase token
+    const firebaseUser = await refreshFirebaseToken();
+    
+    if (!firebaseUser) {
+      console.warn("⚠️ Firebase token refresh failed");
+      return null;
+    }
 
-    const response = await api.post("/api/auth/refresh", { refresh_token: refreshToken });
+    // Get new Firebase ID token
+    const newFirebaseToken = await firebaseUser.getIdToken(true);
+    
+    // Exchange Firebase token for backend JWT
+    const response = await api.post("/api/auth/google-login", {
+      id_token: newFirebaseToken
+    });
 
     if (response.data?.access_token) {
       localStorage.setItem("token", response.data.access_token);
+      if (response.data?.refresh_token) {
+        localStorage.setItem("refresh_token", response.data.refresh_token);
+      }
       return response.data.access_token;
     } else {
       logoutUser();
@@ -163,7 +177,30 @@ export const refreshAccessToken = async () => {
     }
   } catch (error: any) {
     console.error("❌ API Refresh Token error:", error);
-    logoutUser();
+    // Don't auto-logout - let user continue until next critical API call
+    return null;
+  }
+};
+
+// 🔹 Firebase token refresh helper
+const refreshFirebaseToken = async () => {
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { auth } = await import("../config/firebase");
+    
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.warn("⚠️ No Firebase user found");
+      return null;
+    }
+
+    // Force refresh Firebase token
+    await currentUser.getIdToken(true);
+    console.log("🔄 Firebase token refreshed successfully");
+    
+    return currentUser;
+  } catch (error) {
+    console.error("❌ Firebase token refresh failed:", error);
     return null;
   }
 };

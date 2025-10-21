@@ -61,9 +61,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsInitialized(true);
   }, [token, user, navigate, setIsInitialized, location]);
 
-  // 🔄 Automatisk token-förnyelse (var 10:e minut) - Förhindra race conditions
+  // 🔄 Automatisk token-förnyelse - Förbättrad version
  useEffect(() => {
-   if (!token) return;
+   if (!token || !user?.user_id) return;
 
    let isRefreshing = false;
 
@@ -77,35 +77,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
        if (newAccessToken) {
          setTokenState(newAccessToken);
          localStorage.setItem("token", newAccessToken);
-         console.log("🔄 Token förnyad automatiskt.");
+         console.log("🔄 Token refreshed automatically.");
        }
      } catch (error) {
-       console.warn("⚠️ Token-förnyelse misslyckades, loggar ut användaren.");
-       handleLogout();
+       console.warn("⚠️ Token refresh failed. Please log in again.");
+       // Don't auto-logout, let the user continue until next API call fails
      } finally {
        isRefreshing = false;
      }
    };
 
-   // Check if token is expired before setting up automatic refresh
-   const checkTokenExpiration = async () => {
-     try {
-       // Try a simple API call to check if token is still valid
-       await api.get(`/api/mood/get?user_id=${user?.user_id}`);
-       // If request succeeds, token is valid
-     } catch (error: any) {
-       if (error?.response?.status === 401) {
-         console.log("🔄 Token expired, attempting refresh...");
-         await refreshToken();
-       } else {
-         console.warn("⚠️ Token validation failed:", error);
-       }
-     }
-   };
-
-   // Check token immediately and set up interval
-   checkTokenExpiration();
-   const interval = setInterval(refreshToken, 10 * 60 * 1000); // Refresh every 10 minutes
+   // Refresh token proactively every 20 hours (JWT expires after 24h)
+   // This ensures token is always fresh before it expires
+   const interval = setInterval(refreshToken, 20 * 60 * 60 * 1000);
+   
+   // Also refresh once on mount if we have a token
+   refreshToken();
+   
    return () => clearInterval(interval);
  }, [token, user?.user_id]);
 
