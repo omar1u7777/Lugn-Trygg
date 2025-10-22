@@ -1,12 +1,11 @@
-import React from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import LoginForm from "./components/Auth/LoginForm";
 import RegisterForm from "./components/Auth/RegisterForm";
 import ProtectedRoute from "./components/Layout/ProtectedRoute";
 import Dashboard from "./components/Dashboard/Dashboard";
-import Navigation from "./components/Layout/Navigation";
+import NavigationPro from "./components/Layout/NavigationPro";
 import SubscriptionForm from "./components/SubscriptionForm";
 import AIStories from "./components/AIStories";
 import MoodAnalytics from "./components/MoodAnalytics";
@@ -22,7 +21,6 @@ import "./styles/animations.css"; // Professional animations & micro-interaction
 
 function App() {
     const { t } = useTranslation();
-    const location = useLocation();
     const [offlineMode, setOfflineMode] = useState<boolean>(!navigator.onLine);
 
     // Auto track page views
@@ -72,7 +70,7 @@ function App() {
         <AppLayout>
             <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
                 {/* 📌 Navigation visas på alla sidor */}
-                <Navigation />
+                <NavigationPro />
 
                 <main className="pt-20 pb-8 px-4 sm:px-6 lg:px-8">
                 <div className="container-custom">
