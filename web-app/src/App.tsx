@@ -17,6 +17,7 @@ import FeedbackForm from "./components/Feedback/FeedbackForm";
 import { usePageTracking } from "./hooks/useAnalytics";
 import "./styles/styles.css";
 import "./styles/responsive.css"; // Enhanced responsive design system
+import "./styles/design-system.css"; // Professional design system v2.0
 
 function App() {
     const { t } = useTranslation();
