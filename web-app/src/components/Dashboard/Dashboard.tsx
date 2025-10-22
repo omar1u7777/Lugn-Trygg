@@ -27,7 +27,6 @@ import AnalyticsWidget from "./AnalyticsWidget";
 import QuickStatsWidget from "./QuickStatsWidget";
 import ActivityFeed from "./ActivityFeed";
 import QuickNavigation from "./QuickNavigation";
-import IntegrationWidget from "./IntegrationWidget";
 import OnboardingFlow from "../OnboardingFlow";
 import NotificationPermission from "../NotificationPermission";
 
@@ -387,7 +386,7 @@ const Dashboard: React.FC = () => {
             icon="🌟"
             delay={0.7}
           >
-            <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap="md">
+            <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 2 }} gap="md">
               <ActionCard
                 title={t('dashboard.relaxingSounds', 'Lugn Musik')}
                 description="Avslappnande ljud och meditation"
@@ -406,25 +405,6 @@ const Dashboard: React.FC = () => {
                 buttonText={t('dashboard.openChat')}
                 delay={0.8}
               />
-              <ActionCard
-                title="Referensprogram"
-                description="Bjud in vänner och få belöningar"
-                icon="🤝"
-                onClick={() => window.location.href = '/referral'}
-                variant="primary"
-                buttonText="Visa min kod"
-                delay={0.85}
-              />
-              {user?.user_id && (
-                <BaseWidget
-                  title="Hälsointegrationer"
-                  icon="❤️"
-                  size="sm"
-                  delay={0.9}
-                >
-                  <IntegrationWidget userId={user.user_id} />
-                </BaseWidget>
-              )}
             </DashboardGrid>
           </DashboardSection>
 
