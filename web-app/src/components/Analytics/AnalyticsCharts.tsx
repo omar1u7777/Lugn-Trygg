@@ -36,12 +36,6 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
         nedre: prediction - (prediction - confidenceInterval.lower),
     }));
 
-    const getSentimentColor = (score: number) => {
-        if (score > 0.2) return '#4CAF50';
-        if (score < -0.2) return '#F44336';
-        return '#FF9800';
-    };
-
     return (
         <div className="space-y-6">
             {/* Forecast Line Chart with Confidence Interval */}

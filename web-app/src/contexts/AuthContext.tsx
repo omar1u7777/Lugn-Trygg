@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api, { logoutUser, refreshAccessToken } from "../api/api";
+import { logoutUser, refreshAccessToken } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 

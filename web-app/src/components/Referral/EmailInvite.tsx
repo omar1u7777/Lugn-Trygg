@@ -3,10 +3,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 
 interface EmailInviteProps {
-    referralCode: string;
+    referralCode?: string; // Made optional since it's not used yet
 }
 
-const EmailInvite: React.FC<EmailInviteProps> = ({ referralCode }) => {
+const EmailInvite: React.FC<EmailInviteProps> = () => {
     const { user } = useAuth();
     const [email, setEmail] = useState('');
     const [sending, setSending] = useState(false);
