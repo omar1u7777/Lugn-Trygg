@@ -209,12 +209,26 @@ def create_app(testing=False):
         else:
             logger.warning("⚠️ CORS_ALLOWED_ORIGINS har ett felaktigt format, standardvärden används!")
 
-    # Tillåtna domäner via CORS
-    CORS(app, supports_credentials=True, origins=allowed_origins,
+    # Custom CORS origin validation function to support Vercel preview deployments
+    def cors_origin_validator(origin):
+        """
+        Validates if an origin is allowed.
+        Supports exact matches and Vercel preview deployments (*.vercel.app)
+        """
+        if origin in allowed_origins:
+            return True
+        # Allow all Vercel preview deployments
+        if origin and origin.endswith('.vercel.app') and origin.startswith('https://'):
+            return True
+        return False
+    
+    # Tillåtna domäner via CORS (with custom origin validator)
+    CORS(app, supports_credentials=True, 
+            origins=cors_origin_validator,
             allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
             expose_headers=["Authorization"],
             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            resources={r"/api/*": {"origins": allowed_origins}})
+            resources={r"/api/*": {"origins": cors_origin_validator}})
 
     # Add security headers
     @app.after_request
