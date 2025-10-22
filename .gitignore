@@ -118,3 +118,26 @@ Thumbs.db
 
 # Documentation builds
 docs/_build/
+
+# ============================================
+# Added by cleanup script - 2025-10-22
+# ============================================
+
+# Build outputs
+web-app-build/
+dist/
+build/
+
+# Logs
+*.log
+app.log
+
+# Test reports
+TEST_REPORT_*.json
+
+# Backups
+*-backup-*/
+*.backup
+
+# Cache
+.pytest_cache/
