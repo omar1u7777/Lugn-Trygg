@@ -18,6 +18,7 @@ import { usePageTracking } from "./hooks/useAnalytics";
 import "./styles/styles.css";
 import "./styles/responsive.css"; // Enhanced responsive design system
 import "./styles/design-system.css"; // Professional design system v2.0
+import "./styles/animations.css"; // Professional animations & micro-interactions
 
 function App() {
     const { t } = useTranslation();
