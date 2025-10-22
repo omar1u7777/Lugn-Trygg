@@ -512,6 +512,19 @@ Logga in i admin-panelen för att svara på denna feedback.
         </html>
         """
         
+        # Build risk factors and recommendations text
+        risk_text = ""
+        if risk_factors:
+            risk_list = "\n".join([f"- {risk}" for risk in risk_factors])
+            risk_text = f"Riskfaktorer:\n{risk_list}\n\n"
+        
+        rec_text = ""
+        if recommendations:
+            rec_list = "\n".join([f"- {rec}" for rec in recommendations[:3]])
+            rec_text = f"Rekommendationer:\n{rec_list}\n\n"
+        
+        trend_text = 'Nedåtgående' if trend == 'declining' else trend
+        
         plain_content = f"""
 Hej {username},
 
@@ -520,13 +533,9 @@ Vår AI-analys har upptäckt en nedåtgående trend i ditt humör.
 Prognosdata:
 - Nuvarande humör: {current_score}/10
 - Genomsnittlig prognos: {avg_forecast}/10
-- Trend: {'Nedåtgående' if trend == 'declining' else trend}
+- Trend: {trend_text}
 
-{"Riskfaktorer:\n" + chr(10).join([f"- {risk}" for risk in risk_factors]) if risk_factors else ""}
-
-{"Rekommendationer:\n" + chr(10).join([f"- {rec}" for rec in recommendations[:3]]) if recommendations else ""}
-
-Se fullständig analys: https://lugn-trygg.vercel.app/analytics
+{risk_text}{rec_text}Se fullständig analys: https://lugn-trygg.vercel.app/analytics
 
 ---
 Detta är en automatisk varning från Lugn & Trygg AI.
@@ -611,6 +620,12 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
         </html>
         """
         
+        # Build recommendations text for plain email
+        rec_text = ""
+        if recommendations:
+            rec_lines = "\n".join([f"- {rec}" for rec in recommendations])
+            rec_text = f"\n\nRekommendationer:\n{rec_lines}"
+        
         plain_content = f"""
 Hej {username},
 
@@ -621,9 +636,7 @@ Vi har upptäckt en avvikelse i din hälsodata:
 Enhet: {device}
 Datum: {date}
 Värde: {metric_value}
-Rekommenderat: {threshold}
-
-{'Rekommendationer:' + chr(10) + chr(10).join([f'- {rec}' for rec in recommendations]) if recommendations else ''}
+Rekommenderat: {threshold}{rec_text}
 
 VIKTIGT: Detta är endast informativt. Vid allvarliga symptom eller oro, kontakta vårdgivare eller ring 1177.
 
