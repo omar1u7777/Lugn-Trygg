@@ -248,10 +248,18 @@ def create_app(testing=False):
             if origin in extended_origins:
                 response.headers['Access-Control-Allow-Origin'] = origin
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+                response.headers['Access-Control-Expose-Headers'] = 'Authorization'
+                response.headers['Access-Control-Max-Age'] = '3600'
             elif origin.endswith('.vercel.app') and origin.startswith('https://'):
                 # Allow all Vercel preview deployments
                 response.headers['Access-Control-Allow-Origin'] = origin
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+                response.headers['Access-Control-Expose-Headers'] = 'Authorization'
+                response.headers['Access-Control-Max-Age'] = '3600'
         
         # Add other security headers
         response.headers['X-Content-Type-Options'] = 'nosniff'
