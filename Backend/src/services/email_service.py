@@ -1,30 +1,32 @@
 """
-Email Service - SendGrid Integration
+Email Service - Resend Integration
 Handles referral invitations and notification emails
 """
 import os
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+import resend
 
 logger = logging.getLogger(__name__)
 
 class EmailService:
-    """Service for sending emails via SendGrid"""
+    """Service for sending emails via Resend"""
     
     def __init__(self):
-        self.api_key = os.getenv('SENDGRID_API_KEY')
-        self.from_email = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@lugn-trygg.se')
-        self.from_name = os.getenv('SENDGRID_FROM_NAME', 'Lugn & Trygg')
+        self.api_key = os.getenv('RESEND_API_KEY')
+        self.from_email = os.getenv('RESEND_FROM_EMAIL', 'noreply@lugn-trygg.se')
+        self.from_name = os.getenv('RESEND_FROM_NAME', 'Lugn & Trygg')
         
         if not self.api_key:
-            logger.warning("⚠️ SENDGRID_API_KEY not set - email sending disabled")
+            logger.warning("⚠️ RESEND_API_KEY not set - email sending disabled")
             self.client = None
+            self.enabled = False
         else:
-            self.client = SendGridAPIClient(self.api_key)
-            logger.info("✅ SendGrid client initialized")
+            resend.api_key = self.api_key
+            self.client = resend
+            self.enabled = True
+            logger.info("✅ Resend client initialized")
     
     def send_referral_invitation(
         self,
@@ -36,7 +38,7 @@ class EmailService:
         """Send referral invitation email"""
         
         if not self.client:
-            logger.error("❌ SendGrid not configured")
+            logger.error("❌ Resend not configured")
             return {"success": False, "error": "Email service not configured"}
         
         try:
@@ -141,23 +143,20 @@ Lugn & Trygg - Mental hälsa & välmående
 © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
 """
             
-            # Create SendGrid message
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(to_email),
-                subject=subject,
-                plain_text_content=Content("text/plain", plain_text),
-                html_content=Content("text/html", html_content)
-            )
+            # Send email via Resend
+            response = self.client.Emails.send({
+                "from": f"{self.from_name} <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+                "text": plain_text
+            })
             
-            # Send email
-            response = self.client.send(message)
-            
-            logger.info(f"✅ Referral email sent to {to_email} (status: {response.status_code})")
+            logger.info(f"✅ Referral email sent to {to_email} (id: {response.get('id', 'N/A')})")
             
             return {
                 "success": True,
-                "status_code": response.status_code,
+                "email_id": response.get("id"),
                 "message": "Email sent successfully"
             }
             
@@ -243,17 +242,17 @@ Lugn & Trygg - Mental hälsa & välmående
 </html>
 """
             
-            message = Mail(
-                from_email=Email(self.from_email, self.from_name),
-                to_emails=To(to_email),
-                subject=subject,
-                html_content=Content("text/html", html_content)
-            )
+            # Send email via Resend
+            response = self.client.Emails.send({
+                "from": f"{self.from_name} <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content
+            })
             
-            response = self.client.send(message)
-            logger.info(f"✅ Success notification sent to {to_email}")
+            logger.info(f"✅ Success notification sent to {to_email} (id: {response.get('id', 'N/A')})")
             
-            return {"success": True, "status_code": response.status_code}
+            return {"success": True, "email_id": response.get("id")}
             
         except Exception as e:
             logger.exception(f"❌ Failed to send success notification: {e}")
@@ -269,7 +268,7 @@ Lugn & Trygg - Mental hälsa & välmående
     ) -> bool:
         """Send feedback confirmation email to user"""
         if not self.enabled:
-            logger.warning("SendGrid not configured, skipping feedback confirmation email")
+            logger.warning("Resend not configured, skipping feedback confirmation email")
             return False
         
         category_names = {
@@ -369,7 +368,7 @@ Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
     ) -> bool:
         """Send feedback notification to admin"""
         if not self.enabled:
-            logger.warning("SendGrid not configured, skipping admin notification email")
+            logger.warning("Resend not configured, skipping admin notification email")
             return False
         
         category_names = {
@@ -741,6 +740,31 @@ Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
         """
         
         return self._send_email(user_email, subject, html_content, plain_content)
+    
+    def _send_email(self, to_email: str, subject: str, html_content: str, plain_content: str = None) -> bool:
+        """Helper method to send email via Resend"""
+        if not self.enabled:
+            logger.warning(f"Resend not configured, skipping email to {to_email}")
+            return False
+        
+        try:
+            email_data = {
+                "from": f"{self.from_name} <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content
+            }
+            
+            if plain_content:
+                email_data["text"] = plain_content
+            
+            response = self.client.Emails.send(email_data)
+            logger.info(f"✅ Email sent to {to_email} (id: {response.get('id', 'N/A')})")
+            return True
+            
+        except Exception as e:
+            logger.exception(f"❌ Failed to send email to {to_email}: {e}")
+            return False
 
 # Singleton instance
 email_service = EmailService()
