@@ -209,32 +209,51 @@ def create_app(testing=False):
         else:
             logger.warning("⚠️ CORS_ALLOWED_ORIGINS har ett felaktigt format, standardvärden används!")
 
-    # Add Vercel preview deployments to allowed origins
-    # Support wildcard for *.vercel.app
-    vercel_origins = [origin for origin in allowed_origins if '.vercel.app' in origin]
-    if vercel_origins:
-        # If any vercel.app domain is present, add a catch-all pattern
-        allowed_origins.append('https://*.vercel.app')
+    # Add Vercel wildcard pattern to allowed origins
+    # This allows all Vercel preview deployments (e.g., lugn-trygg-*.vercel.app)
+    extended_origins = allowed_origins.copy()
+    
+    # Check if any Vercel domain exists in allowed_origins
+    has_vercel = any('.vercel.app' in origin for origin in allowed_origins)
+    
+    if has_vercel:
+        # Add common Vercel preview patterns
+        extended_origins.extend([
+            'https://lugn-trygg.vercel.app',
+            'https://lugn-trygg-git-main-omaralhaeks-projects.vercel.app',
+            # Vercel generates preview URLs - add regex pattern support
+        ])
+    
+    # Flask-CORS doesn't support regex, so we'll use a custom decorator
+    # For now, allow all *.vercel.app in the origin check
+    logger.info(f"🌍 Tillåtna CORS-domäner: {extended_origins}")
     
     # Tillåtna domäner via CORS
-    CORS(app, supports_credentials=True, 
-            origins=lambda origin: (
-                origin in allowed_origins or 
-                (origin and origin.endswith('.vercel.app') and origin.startswith('https://'))
-            ),
-            allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
-            expose_headers=["Authorization"],
-            methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            resources={r"/api/*": {
-                "origins": lambda origin: (
-                    origin in allowed_origins or 
-                    (origin and origin.endswith('.vercel.app') and origin.startswith('https://'))
-                )
-            }})
+    CORS(app, 
+         supports_credentials=True, 
+         origins='*' if app.config["DEBUG"] else extended_origins,
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+         expose_headers=["Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         max_age=3600)  # Cache preflight for 1 hour
 
-    # Add security headers
+    # Add security headers and custom CORS for Vercel preview deployments
     @app.after_request
     def add_security_headers(response):
+        # Get origin from request
+        origin = request.headers.get('Origin')
+        
+        # Check if origin is allowed (including Vercel preview deployments)
+        if origin:
+            if origin in extended_origins:
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+            elif origin.endswith('.vercel.app') and origin.startswith('https://'):
+                # Allow all Vercel preview deployments
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+        
+        # Add other security headers
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
