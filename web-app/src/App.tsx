@@ -16,6 +16,7 @@ import ReferralProgram from "./components/Referral/ReferralProgram";
 import FeedbackForm from "./components/Feedback/FeedbackForm";
 import { usePageTracking } from "./hooks/useAnalytics";
 import "./styles/styles.css";
+import "./styles/responsive.css"; // Enhanced responsive design system
 
 function App() {
     const { t } = useTranslation();
