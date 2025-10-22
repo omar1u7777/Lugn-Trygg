@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import FeedbackHistory from './FeedbackHistory';
 
 interface FeedbackData {
     category: string;
@@ -22,6 +23,7 @@ const FeedbackForm: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showHistory, setShowHistory] = useState(false);
 
     const categories = [
         { value: 'general', label: '💬 Allmän feedback', emoji: '💬' },
@@ -115,14 +117,27 @@ const FeedbackForm: React.FC = () => {
                 <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl mx-auto">
                     Din åsikt är viktig för oss! Dela dina tankar, förslag eller rapportera problem.
                 </p>
+                
+                {/* Toggle History Button */}
+                <button
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="mt-4 px-6 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 rounded-lg transition-colors"
+                >
+                    {showHistory ? '✍️ Ny feedback' : '📜 Visa min historik'}
+                </button>
             </div>
 
-            {/* Error Message */}
-            {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                    <p className="text-red-800 dark:text-red-200">❌ {error}</p>
-                </div>
-            )}
+            {/* Show history or form */}
+            {showHistory ? (
+                <FeedbackHistory />
+            ) : (
+                <>
+                    {/* Error Message */}
+                    {error && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                            <p className="text-red-800 dark:text-red-200">❌ {error}</p>
+                        </div>
+                    )}
 
             {/* Main Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -268,7 +283,7 @@ const FeedbackForm: React.FC = () => {
                     <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
                         Hitta svar på vanliga frågor
                     </p>
-                    <a href="#" className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline">
+                    <a href="https://github.com/omar1u7777/Lugn-Trygg/wiki" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline">
                         Besök hjälpcenter →
                     </a>
                 </div>
@@ -276,9 +291,12 @@ const FeedbackForm: React.FC = () => {
                     <div className="text-3xl mb-3">💬</div>
                     <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Live Chat</h3>
                     <p className="text-sm text-green-800 dark:text-green-200 mb-3">
-                        Chatta med vårt support-team
+                        Chatta med vårt AI support-team
                     </p>
-                    <button className="text-green-600 dark:text-green-400 text-sm font-medium hover:underline">
+                    <button 
+                        onClick={() => window.location.href = '/chatbot'}
+                        className="text-green-600 dark:text-green-400 text-sm font-medium hover:underline"
+                    >
                         Starta chatt →
                     </button>
                 </div>
@@ -293,6 +311,8 @@ const FeedbackForm: React.FC = () => {
                     </a>
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 };

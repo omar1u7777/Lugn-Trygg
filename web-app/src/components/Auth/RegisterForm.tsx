@@ -1,17 +1,27 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { registerUser } from "../../api/api";
 
 const RegisterForm: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Check for referral code in URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+    }
+  }, [searchParams]);
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -44,15 +54,23 @@ const RegisterForm: React.FC = () => {
 
     setLoading(true);
 
-    console.log("Sending registration data:", { email, password });
+    console.log("Sending registration data:", { email, password, name, referralCode: referralCode || "none" });
 
     try {
-      await registerUser(email, password, name);
-      setSuccess("Registrering lyckades! Du kan nu logga in.");
+      const response = await registerUser(email, password, name, referralCode);
+      
+      // Check if referral was successful
+      if (response.referral?.success) {
+        setSuccess(`Registrering lyckades! ${response.referral.message} Du kan nu logga in.`);
+      } else {
+        setSuccess("Registrering lyckades! Du kan nu logga in.");
+      }
+      
       setEmail("");
       setName("");
       setPassword("");
       setConfirmPassword("");
+      setReferralCode("");
     } catch (err: any) {
       console.error("Registration error details:", err.response?.data);
       console.error("Full error:", err);
@@ -118,6 +136,26 @@ const RegisterForm: React.FC = () => {
               disabled={loading}
             />
           </div>
+
+          {/* Referral Code Input */}
+          {referralCode && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🎁</span>
+                <p className="font-semibold text-green-800 dark:text-green-200">
+                  Referenskod aktiv!
+                </p>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Du och din vän får båda 1 vecka gratis premium! 🎉
+              </p>
+              <div className="mt-3">
+                <label htmlFor="referralCode" className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+                  Kod: <span className="font-mono font-bold">{referralCode}</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">

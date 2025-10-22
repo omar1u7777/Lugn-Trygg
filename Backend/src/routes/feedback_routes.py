@@ -6,9 +6,11 @@ import logging
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 from src.firebase_config import db
+from src.services.email_service import EmailService
 
 feedback_bp = Blueprint("feedback", __name__)
 logger = logging.getLogger(__name__)
+email_service = EmailService()
 
 @feedback_bp.route("/submit", methods=["POST", "OPTIONS"])
 def submit_feedback():
@@ -53,13 +55,45 @@ def submit_feedback():
         # Update user feedback stats
         user_ref = db.collection("users").document(user_id)
         user_doc = user_ref.get()
+        user_email = None
+        user_name = None
         if user_doc.exists:
             user_data = user_doc.to_dict()
+            user_email = user_data.get("email", "")
+            user_name = user_data.get("name", "Användare")
             feedback_count = user_data.get("feedback_submissions", 0) + 1
             user_ref.update({
                 "feedback_submissions": feedback_count,
                 "last_feedback_at": datetime.now(timezone.utc).isoformat()
             })
+
+        # Send email notifications
+        try:
+            # 1. Send confirmation email to user
+            if user_email and data.get("allow_contact", False):
+                email_service.send_feedback_confirmation(
+                    to_email=user_email,
+                    user_name=user_name,
+                    category=category,
+                    rating=rating,
+                    feedback_id=feedback_ref.id
+                )
+            
+            # 2. Send notification to admin
+            admin_email = "omaralhaek97@gmail.com"  # TODO: Move to env variable
+            email_service.send_feedback_admin_notification(
+                admin_email=admin_email,
+                user_name=user_name,
+                user_email=user_email or "Anonym",
+                category=category,
+                rating=rating,
+                message=message,
+                feedback_id=feedback_ref.id
+            )
+            logger.info(f"Feedback emails sent for {feedback_ref.id}")
+        except Exception as email_error:
+            logger.error(f"Failed to send feedback emails: {email_error}")
+            # Don't fail the request if emails fail
 
         logger.info(f"Feedback submitted by {user_id}: {category} - rating {rating}")
 
@@ -132,4 +166,36 @@ def feedback_stats():
 
     except Exception as e:
         logger.exception(f"Error getting feedback stats: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@feedback_bp.route("/my-feedback", methods=["GET"])
+def get_user_feedback():
+    """Get user's own feedback history"""
+    try:
+        user_id = request.args.get("user_id", "").strip()
+        
+        if not user_id:
+            return jsonify({"error": "user_id required"}), 400
+        
+        # Query feedback by user_id
+        feedback_docs = list(
+            db.collection("feedback")
+            .where("user_id", "==", user_id)
+            .order_by("created_at", direction="DESCENDING")
+            .stream()
+        )
+        
+        feedback_list = []
+        for doc in feedback_docs:
+            feedback_data = doc.to_dict()
+            feedback_data["id"] = doc.id
+            feedback_list.append(feedback_data)
+        
+        return jsonify({
+            "feedback": feedback_list,
+            "count": len(feedback_list)
+        }), 200
+    
+    except Exception as e:
+        logger.exception(f"Error getting user feedback: {e}")
         return jsonify({"error": "Internal server error"}), 500

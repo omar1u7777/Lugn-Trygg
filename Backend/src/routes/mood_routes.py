@@ -570,10 +570,65 @@ def get_predictive_forecast():
                 'message': 'Fallback forecast - ML model not available'
             }
 
+        # Save forecast to historical tracking
+        try:
+            forecast_doc = {
+                'user_id': user_id,
+                'forecast_date': datetime.utcnow().isoformat(),
+                'days_ahead': days_ahead,
+                'predictions': forecast.get('forecast', {}).get('daily_predictions', []),
+                'trend': forecast.get('trend', 'unknown'),
+                'confidence': forecast.get('confidence', 0),
+                'model_algorithm': forecast.get('model_info', {}).get('algorithm', 'unknown'),
+                'timestamp': datetime.utcnow()
+            }
+            db.collection('forecast_history').add(forecast_doc)
+            logger.info(f"📊 Saved forecast to history for user {user_id}")
+        except Exception as history_error:
+            logger.warning(f"Failed to save forecast history: {str(history_error)}")
+
         audit_log('predictive_forecast_generated', user_id, {
             'days_ahead': days_ahead,
             'model_used': forecast.get('model_info', {}).get('algorithm', 'unknown') if isinstance(forecast.get('model_info'), dict) else 'unknown'
         })
+
+        # Send email alert if trend is declining or high risk
+        try:
+            from ..services.email_service import email_service
+            
+            trend = forecast.get('trend', '')
+            risk_factors = forecast.get('risk_factors', [])
+            
+            # Check if we should send alert
+            should_send_alert = (
+                trend == 'declining' or 
+                any('high' in str(risk).lower() for risk in risk_factors) or
+                any('severe' in str(risk).lower() for risk in risk_factors)
+            )
+            
+            if should_send_alert:
+                # Get user email
+                user_data = user_doc.to_dict()
+                user_email = user_data.get('email')
+                username = user_data.get('username', 'Användare')
+                
+                if user_email:
+                    # Calculate average forecast score
+                    daily_predictions = forecast.get('forecast', {}).get('daily_predictions', [])
+                    avg_forecast = sum(p.get('score', 0) for p in daily_predictions) / len(daily_predictions) if daily_predictions else 'N/A'
+                    
+                    alert_data = {
+                        'trend': trend,
+                        'current_score': forecast.get('current_score', 'N/A'),
+                        'average_forecast': round(avg_forecast, 1) if isinstance(avg_forecast, float) else avg_forecast,
+                        'risk_factors': risk_factors,
+                        'recommendations': forecast.get('recommendations', [])
+                    }
+                    
+                    email_sent = email_service.send_analytics_alert(user_email, username, alert_data)
+                    logger.info(f"📧 Analytics alert email sent: {email_sent}")
+        except Exception as email_error:
+            logger.warning(f"Failed to send analytics alert email: {str(email_error)}")
 
         return jsonify(forecast), 200
 
@@ -673,4 +728,92 @@ def detect_crisis():
 
     except Exception as e:
         logger.error(f"Failed to detect crisis: {str(e)}")
+        return jsonify({'error': 'Failed to analyze crisis indicators'}), 500
+
+
+@mood_bp.route('/forecast-accuracy', methods=['GET'])
+@AuthService.jwt_required
+def get_forecast_accuracy():
+    """Get historical forecast accuracy by comparing predictions with actual moods"""
+    try:
+        user_id = request.user_id
+        from ..firebase_config import db
+
+        # Get historical forecasts
+        forecast_ref = db.collection('forecast_history').where('user_id', '==', user_id)
+        forecast_docs = list(forecast_ref.order_by('timestamp', direction='DESCENDING').limit(30).stream())
+
+        if not forecast_docs:
+            return jsonify({
+                'message': 'No historical forecasts found',
+                'accuracy_score': 0,
+                'total_forecasts': 0,
+                'comparisons': []
+            }), 200
+
+        # Get actual mood entries
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(100).stream())
+
+        mood_by_date = {}
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            timestamp = mood_data.get('timestamp', '')
+            if timestamp:
+                date_key = timestamp[:10]  # YYYY-MM-DD
+                score = mood_data.get('score', 0)
+                # Convert -1 to 1 scale to 0-10 scale for comparison
+                normalized_score = (score + 1) * 5
+                mood_by_date[date_key] = normalized_score
+
+        comparisons = []
+        total_error = 0
+        valid_comparisons = 0
+
+        for forecast_doc in forecast_docs:
+            forecast_data = forecast_doc.to_dict()
+            forecast_date_str = forecast_data.get('forecast_date', '')[:10]
+            predictions = forecast_data.get('predictions', [])
+
+            for i, prediction in enumerate(predictions):
+                # Calculate the date for this prediction
+                forecast_date = datetime.fromisoformat(forecast_date_str)
+                prediction_date = forecast_date + timedelta(days=i)
+                prediction_date_str = prediction_date.strftime('%Y-%m-%d')
+
+                # Check if we have actual mood for this date
+                if prediction_date_str in mood_by_date:
+                    actual_score = mood_by_date[prediction_date_str]
+                    predicted_score = prediction if isinstance(prediction, (int, float)) else prediction.get('score', 0)
+
+                    error = abs(predicted_score - actual_score)
+                    total_error += error
+                    valid_comparisons += 1
+
+                    comparisons.append({
+                        'date': prediction_date_str,
+                        'predicted': round(predicted_score, 1),
+                        'actual': round(actual_score, 1),
+                        'error': round(error, 1),
+                        'forecast_created': forecast_date_str
+                    })
+
+        # Calculate accuracy score (0-100%, where 100% = perfect predictions)
+        # Max error per prediction is 10 (0 to 10 scale)
+        accuracy_score = 0
+        if valid_comparisons > 0:
+            avg_error = total_error / valid_comparisons
+            accuracy_score = max(0, (1 - (avg_error / 10)) * 100)
+
+        return jsonify({
+            'accuracy_score': round(accuracy_score, 1),
+            'total_forecasts': len(forecast_docs),
+            'valid_comparisons': valid_comparisons,
+            'average_error': round(total_error / valid_comparisons, 1) if valid_comparisons > 0 else 0,
+            'comparisons': comparisons[:10]  # Return latest 10 comparisons
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to calculate forecast accuracy: {str(e)}")
+        return jsonify({'error': 'Failed to calculate accuracy'}), 500
         return jsonify({'error': 'Failed to analyze text'}), 500

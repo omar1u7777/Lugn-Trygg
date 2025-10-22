@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/api';
+import AnalyticsCharts from './Analytics/AnalyticsCharts';
+import jsPDF from 'jspdf';
 import {
   Card,
   CardContent,
@@ -23,6 +25,7 @@ import {
   Psychology as PsychologyIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
+  FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
 
 interface ForecastData {
@@ -96,6 +99,135 @@ const MoodAnalytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportToPDF = () => {
+    if (!forecast) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(102, 126, 234); // Purple
+    doc.text('Lugn & Trygg - Humöranalys', pageWidth / 2, y, { align: 'center' });
+    y += 15;
+
+    // Date
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Genererad: ${new Date().toLocaleDateString('sv-SE')} ${new Date().toLocaleTimeString('sv-SE')}`, pageWidth / 2, y, { align: 'center' });
+    y += 15;
+
+    // Current Analysis Section
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('📊 Nuvarande Analys', 20, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.text(`Genomsnittlig prognos: ${forecast.forecast.average_forecast.toFixed(1)}/10`, 25, y);
+    y += 7;
+    doc.text(`Trend: ${forecast.forecast.trend === 'improving' ? '📈 Förbättras' : forecast.forecast.trend === 'declining' ? '📉 Nedåtgående' : '📊 Stabil'}`, 25, y);
+    y += 7;
+    doc.text(`Konfidensintervall: ${forecast.forecast.confidence_interval.lower.toFixed(1)} - ${forecast.forecast.confidence_interval.upper.toFixed(1)}`, 25, y);
+    y += 7;
+    doc.text(`Säkerhet: ${(forecast.confidence * 100).toFixed(0)}%`, 25, y);
+    y += 15;
+
+    // Daily Predictions
+    doc.setFontSize(14);
+    doc.text('📅 Dagliga Prediktioner', 20, y);
+    y += 10;
+
+    doc.setFontSize(9);
+    forecast.forecast.daily_predictions.forEach((prediction, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() + index);
+      doc.text(`Dag ${index + 1} (${date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}): ${prediction.toFixed(1)}/10`, 25, y);
+      y += 6;
+    });
+    y += 10;
+
+    // Risk Factors
+    if (forecast.risk_factors && forecast.risk_factors.length > 0) {
+      doc.setFontSize(14);
+      doc.setTextColor(231, 76, 60); // Red
+      doc.text('⚠️ Riskfaktorer', 20, y);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      forecast.risk_factors.forEach(risk => {
+        const lines = doc.splitTextToSize(`• ${risk}`, pageWidth - 50);
+        lines.forEach((line: string) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(line, 25, y);
+          y += 6;
+        });
+      });
+      y += 10;
+    }
+
+    // Recommendations
+    if (forecast.recommendations && forecast.recommendations.length > 0) {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(39, 174, 96); // Green
+      doc.text('💡 Rekommendationer', 20, y);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      forecast.recommendations.forEach(rec => {
+        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - 50);
+        lines.forEach((line: string) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(line, 25, y);
+          y += 6;
+        });
+      });
+      y += 10;
+    }
+
+    // Model Info
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(102, 126, 234);
+    doc.text('🤖 AI-Modell Information', 20, y);
+    y += 10;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+    doc.text(`Algoritm: ${forecast.model_info.algorithm}`, 25, y);
+    y += 6;
+    doc.text(`Tränings-RMSE: ${forecast.model_info.training_rmse?.toFixed(3) || 'N/A'}`, 25, y);
+    y += 6;
+    doc.text(`Datapunkter använd: ${forecast.model_info.data_points_used}`, 25, y);
+    y += 15;
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text('Detta är en AI-genererad analys. För professionell hjälp, kontakta vårdgivare.', pageWidth / 2, 285, { align: 'center' });
+
+    // Save PDF
+    doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
   };
 
   const getSentimentColor = (score: number) => {
@@ -173,7 +305,7 @@ const MoodAnalytics: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             {t('analytics.forecastPeriod')}
           </Typography>
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} flexWrap="wrap">
             {[3, 7, 14].map((days) => (
               <Button
                 key={days}
@@ -185,6 +317,18 @@ const MoodAnalytics: React.FC = () => {
               </Button>
             ))}
           </Box>
+          
+          {/* Export PDF Button */}
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<FileDownloadIcon />}
+            onClick={exportToPDF}
+            sx={{ ml: 2 }}
+            disabled={!forecast}
+          >
+            Exportera PDF
+          </Button>
         </Box>
 
         <Grid container spacing={3}>
@@ -278,6 +422,14 @@ const MoodAnalytics: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
+          </Grid>
+
+          {/* Interactive Charts */}
+          <Grid xs={12}>
+            <AnalyticsCharts
+              dailyPredictions={forecast.forecast.daily_predictions}
+              confidenceInterval={forecast.forecast.confidence_interval}
+            />
           </Grid>
 
           {/* Daily Predictions */}

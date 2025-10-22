@@ -105,6 +105,7 @@ def register():
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         name = data.get('name', '').strip()
+        referral_code = data.get('referralCode', '').strip()
 
         # Validation
         if not email or not password or not name:
@@ -134,16 +135,58 @@ def register():
             status_code = 409 if 'redan' in error.lower() or 'exists' in error.lower() else 400
             return jsonify({'error': error}), status_code
 
-        audit_log('user_registered', user.uid, {'email': email, 'name': name})
+        audit_log('user_registered', user.uid, {'email': email, 'name': name, 'referral_code': referral_code or 'none'})
 
-        return jsonify({
+        # Process referral code if provided
+        referral_success = False
+        referral_message = ''
+        if referral_code:
+            try:
+                logger.info(f"Processing referral code {referral_code} for new user {user.uid}")
+                
+                # Call /api/referral/complete endpoint to process the referral
+                from flask import current_app
+                with current_app.test_request_context(
+                    '/api/referral/complete',
+                    method='POST',
+                    json={
+                        'user_id': user.uid,
+                        'referral_code': referral_code
+                    }
+                ):
+                    from src.routes.referral_routes import complete_referral
+                    referral_response = complete_referral()
+                    
+                    if isinstance(referral_response, tuple):
+                        referral_data, status_code = referral_response
+                        if status_code == 200:
+                            referral_success = True
+                            referral_message = 'Referral code activated! You and your friend both earned 1 week premium! 🎉'
+                            logger.info(f"Referral code {referral_code} successfully activated for user {user.uid}")
+                        else:
+                            logger.warning(f"Referral activation failed: {referral_data.get('error', 'Unknown error')}")
+                    else:
+                        logger.warning(f"Unexpected referral response format: {referral_response}")
+            except Exception as ref_error:
+                logger.error(f"Error processing referral code during registration: {str(ref_error)}")
+                # Don't fail registration if referral fails
+
+        response_data = {
             'message': 'User registered successfully',
             'user': {
                 'id': user.uid,
                 'email': email,
                 'name': name
             }
-        }), 201
+        }
+        
+        if referral_success:
+            response_data['referral'] = {
+                'success': True,
+                'message': referral_message
+            }
+
+        return jsonify(response_data), 201
 
     except Exception as e:
         logger.error(f"Registration failed: {str(e)}")

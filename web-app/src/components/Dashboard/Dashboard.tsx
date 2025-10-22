@@ -16,6 +16,12 @@ import CrisisAlert from "../CrisisAlert";
 import BadgeDisplay from "../BadgeDisplay";
 import MoodChart from "./MoodChart";
 import MemoryChart from "./MemoryChart";
+import ReferralWidget from "./ReferralWidget";
+import FeedbackWidget from "./FeedbackWidget";
+import AnalyticsWidget from "./AnalyticsWidget";
+import QuickStatsWidget from "./QuickStatsWidget";
+import ActivityFeed from "./ActivityFeed";
+import QuickNavigation from "./QuickNavigation";
 import OnboardingFlow from "../OnboardingFlow";
 import NotificationPermission from "../NotificationPermission";
 // import EmojiMoodSelector from "../EmojiMoodSelector";
@@ -244,6 +250,37 @@ const Dashboard: React.FC = () => {
             <p className="text-xl text-slate-600 dark:text-slate-400 mb-6" aria-live="polite">
               {t('dashboard.welcome')}, {extractDisplayName(user?.email || '')}!
             </p>
+
+            {/* Referral Widget - Show user's referral stats */}
+            {user?.user_id && (
+              <motion.div
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+              >
+                <ReferralWidget userId={user.user_id} />
+              </motion.div>
+            )}
+
+            {/* Quick Stats Summary */}
+            {user?.user_id && (
+              <motion.div
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
+              >
+                <QuickStatsWidget userId={user.user_id} />
+              </motion.div>
+            )}
+
+            {/* Quick Navigation */}
+            <motion.div
+              initial={{ y: -10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+            >
+              <QuickNavigation />
+            </motion.div>
            
             {/* First time return message (shown once after onboarding) */}
             {onboardingComplete && !localStorage.getItem(`first_login_${user?.user_id}`) && (
@@ -445,6 +482,16 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1, duration: 0.5 }}
           >
+            {/* Activity Feed - Left Column */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1.2, duration: 0.5 }}
+            >
+              {user?.user_id && <ActivityFeed userId={user.user_id} />}
+            </motion.div>
+
+            {/* Memory Chart - Right Column Top */}
             <motion.div
               className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700"
               initial={{ opacity: 0, x: -20 }}
@@ -457,13 +504,16 @@ const Dashboard: React.FC = () => {
               </h3>
               <MemoryChart />
             </motion.div>
+          </motion.section>
 
-            <motion.div
-              className="space-y-6"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1.3, duration: 0.5 }}
-            >
+          {/* Secondary Features Section */}
+          <motion.section
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.3, duration: 0.5 }}
+          >
+            <div className="space-y-6">
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-soft border border-slate-200 dark:border-slate-700">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="text-green-500">🎵</span>
@@ -493,7 +543,32 @@ const Dashboard: React.FC = () => {
                   {t('dashboard.openChat')}
                 </button>
               </div>
-            </motion.div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-700">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+                  <span className="text-purple-500">🤝</span>
+                  Referensprogram
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  Bjud in vänner och få belöningar! 🎁
+                </p>
+                <button
+                  className="btn w-full py-3 text-base font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  onClick={() => window.location.href = '/referral'}
+                >
+                  <span className="mr-2">🎟️</span>
+                  Visa min kod
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Feedback Widget */}
+              {user?.user_id && <FeedbackWidget userId={user.user_id} />}
+
+              {/* Analytics Widget */}
+              {user?.user_id && <AnalyticsWidget userId={user.user_id} />}
+            </div>
           </motion.section>
 
           {/* Health Integration Promotion Section */}

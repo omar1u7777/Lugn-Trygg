@@ -116,10 +116,10 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 // 🔹 API-funktion för att registrera en användare
-export const registerUser = async (email: string, password: string, name?: string) => {
+export const registerUser = async (email: string, password: string, name?: string, referralCode?: string) => {
   try {
-    console.log("API: Sending registration request with data:", { email, password: "***", name });
-    const response = await api.post("/api/auth/register", { email, password, name });
+    console.log("API: Sending registration request with data:", { email, password: "***", name, referralCode: referralCode || "none" });
+    const response = await api.post("/api/auth/register", { email, password, name, referralCode });
     console.log("API: Registration response:", response.data);
     return response.data;
   } catch (error: any) {

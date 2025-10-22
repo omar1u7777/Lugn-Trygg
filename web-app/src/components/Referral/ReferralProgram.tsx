@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import ReferralLeaderboard from './ReferralLeaderboard';
+import ReferralHistory from './ReferralHistory';
+import RewardsCatalog from './RewardsCatalog';
+import EmailInvite from './EmailInvite';
 
 interface ReferralData {
     referralCode: string;
@@ -47,7 +51,7 @@ const ReferralProgram: React.FC = () => {
             const data = response.data;
             setReferralData({
                 referralCode: data.referral_code || '',
-                referralLink: `https://lugn-trygg.se/register?ref=${data.referral_code}`,
+                referralLink: `https://lugn-trygg.vercel.app/register?ref=${data.referral_code}`,
                 referralCount: data.successful_referrals || 0,
                 rewards: data.rewards_earned || 0,
                 tier: calculateTier(data.successful_referrals || 0)
@@ -79,8 +83,8 @@ const ReferralProgram: React.FC = () => {
     };
 
     const calculateTier = (referralCount: number): string => {
-        if (referralCount >= 50) return 'Platinum';
-        if (referralCount >= 20) return 'Gold';
+        if (referralCount >= 30) return 'Platinum';
+        if (referralCount >= 15) return 'Gold';
         if (referralCount >= 5) return 'Silver';
         return 'Bronze';
     };
@@ -124,8 +128,8 @@ const ReferralProgram: React.FC = () => {
         const defaultTier = { emoji: '🥉', color: 'bg-amber-700', nextTier: 'Silver', required: 5 };
         const tiers: { [key: string]: { emoji: string, color: string, nextTier?: string, required?: number } } = {
             Bronze: defaultTier,
-            Silver: { emoji: '🥈', color: 'bg-slate-400', nextTier: 'Gold', required: 15 },
-            Gold: { emoji: '🥇', color: 'bg-yellow-400', nextTier: 'Platinum', required: 30 },
+            Silver: { emoji: '🥈', color: 'bg-slate-400', nextTier: 'Gold', required: 10 },
+            Gold: { emoji: '🥇', color: 'bg-yellow-400', nextTier: 'Platinum', required: 15 },
             Platinum: { emoji: '💎', color: 'bg-purple-600' }
         };
         return tiers[tier] ?? defaultTier;
@@ -198,6 +202,28 @@ const ReferralProgram: React.FC = () => {
                     </div>
                     <div className="text-6xl">{tierInfo.emoji}</div>
                 </div>
+                
+                {/* Progress Bar */}
+                {tierInfo.nextTier && (
+                    <div className="mb-6">
+                        <div className="flex justify-between text-sm text-purple-100 mb-2">
+                            <span>{referralData.tier}</span>
+                            <span>{tierInfo.nextTier}</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-3">
+                            <div 
+                                className="bg-white h-3 rounded-full transition-all duration-500"
+                                style={{ 
+                                    width: `${Math.min(100, (referralData.referralCount / tierInfo.required!) * 100)}%` 
+                                }}
+                            ></div>
+                        </div>
+                        <p className="text-center text-sm text-purple-100 mt-2">
+                            {referralData.referralCount} / {tierInfo.required!} referenser
+                        </p>
+                    </div>
+                )}
+                
                 <div className="grid grid-cols-3 gap-4">
                     <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
                         <div className="text-3xl font-bold">{referralData.referralCount || 0}</div>
@@ -208,8 +234,8 @@ const ReferralProgram: React.FC = () => {
                         <p className="text-purple-100">Aktiva användare</p>
                     </div>
                     <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
-                        <div className="text-3xl font-bold">{referralData.rewards || 0}kr</div>
-                        <p className="text-purple-100">Totala belöningar</p>
+                        <div className="text-3xl font-bold">{referralData.rewards || 0} veckor</div>
+                        <p className="text-purple-100">Premium-belöning</p>
                     </div>
                 </div>
             </div>
@@ -290,6 +316,21 @@ const ReferralProgram: React.FC = () => {
                 </div>
             </div>
 
+            {/* Email Invitation */}
+            <EmailInvite referralCode={referralData.referralCode} />
+
+            {/* Rewards Catalog */}
+            <RewardsCatalog 
+                availableWeeks={referralData.rewards || 0}
+                onRedemption={fetchReferralData}
+            />
+
+            {/* Referral History */}
+            <ReferralHistory />
+
+            {/* Leaderboard */}
+            <ReferralLeaderboard />
+
             {/* Rewards Info */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">
@@ -300,28 +341,35 @@ const ReferralProgram: React.FC = () => {
                         <div className="text-2xl">✅</div>
                         <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-100">Varje ny användare</p>
-                            <p className="text-slate-600 dark:text-slate-400">50kr rabatt för både dig och din vän</p>
+                            <p className="text-slate-600 dark:text-slate-400">Du och din vän får båda 1 vecka gratis premium</p>
                         </div>
                     </div>
                     <div className="flex items-start space-x-3">
                         <div className="text-2xl">🥈</div>
                         <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-100">Silver-nivå (5 referenser)</p>
-                            <p className="text-slate-600 dark:text-slate-400">1 månad gratis premium + extra funktioner</p>
+                            <p className="text-slate-600 dark:text-slate-400">1 månad gratis premium + prioriterad support</p>
                         </div>
                     </div>
                     <div className="flex items-start space-x-3">
                         <div className="text-2xl">🥇</div>
                         <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-100">Gold-nivå (15 referenser)</p>
-                            <p className="text-slate-600 dark:text-slate-400">3 månader gratis premium + 500kr bonus</p>
+                            <p className="text-slate-600 dark:text-slate-400">3 månader gratis premium + exklusiva funktioner</p>
                         </div>
                     </div>
                     <div className="flex items-start space-x-3">
                         <div className="text-2xl">💎</div>
                         <div>
                             <p className="font-semibold text-slate-900 dark:text-slate-100">Platinum-nivå (30 referenser)</p>
-                            <p className="text-slate-600 dark:text-slate-400">6 månader gratis premium + 1500kr bonus + VIP-support</p>
+                            <p className="text-slate-600 dark:text-slate-400">6 månader gratis premium + VIP-support + Lugn & Trygg merchandise</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                        <div className="text-2xl">🎁</div>
+                        <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">Bonus: Varje 10:e referens</p>
+                            <p className="text-slate-600 dark:text-slate-400">Extra 2 veckor premium + överraskning!</p>
                         </div>
                     </div>
                 </div>
