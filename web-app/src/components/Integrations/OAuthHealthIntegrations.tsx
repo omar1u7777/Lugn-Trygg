@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import oauthHealthService, { OAuthStatus, OAuthProvider } from '../../services/oauthHealthService';
 import { useAuth } from '../../contexts/AuthContext';
+import SyncHistory from './SyncHistory';
+import HealthDataCharts from './HealthDataCharts';
 
 interface AnalysisResult {
     status: string;
@@ -430,6 +432,26 @@ const OAuthHealthIntegrations: React.FC = () => {
                     <li>🔄 <strong>Try reconnecting:</strong> Click Disconnect and Connect again to refresh the authorization.</li>
                 </ul>
             </div>
+
+            {/* Sync History Section */}
+            {user?.user_id && (
+                <div className="mt-8">
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                        📜 Synkroniseringshistorik
+                    </h3>
+                    <SyncHistory userId={user.user_id} />
+                </div>
+            )}
+
+            {/* Health Data Charts Section */}
+            {user?.user_id && (
+                <div className="mt-8">
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                        📊 Hälsodata visualisering
+                    </h3>
+                    <HealthDataCharts userId={user.user_id} />
+                </div>
+            )}
 
             {/* Setup Guide */}
             <div className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">

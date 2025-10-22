@@ -22,6 +22,7 @@ import AnalyticsWidget from "./AnalyticsWidget";
 import QuickStatsWidget from "./QuickStatsWidget";
 import ActivityFeed from "./ActivityFeed";
 import QuickNavigation from "./QuickNavigation";
+import IntegrationWidget from "./IntegrationWidget";
 import OnboardingFlow from "../OnboardingFlow";
 import NotificationPermission from "../NotificationPermission";
 // import EmojiMoodSelector from "../EmojiMoodSelector";
@@ -568,6 +569,9 @@ const Dashboard: React.FC = () => {
 
               {/* Analytics Widget */}
               {user?.user_id && <AnalyticsWidget userId={user.user_id} />}
+
+              {/* Integration Widget */}
+              {user?.user_id && <IntegrationWidget userId={user.user_id} />}
             </div>
           </motion.section>
 

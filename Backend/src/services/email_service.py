@@ -534,6 +534,200 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
         """
         
         return self._send_email(user_email, subject, html_content, plain_content)
+    
+    def send_health_alert(self, user_email: str, username: str, alert_type: str, health_data: dict) -> bool:
+        """Send email alert for abnormal health metrics"""
+        alert_titles = {
+            'low_steps': '👣 Låg aktivitetsnivå upptäckt',
+            'high_heart_rate': '❤️ Förhöjd vilopuls',
+            'poor_sleep': '😴 Sömnkvalitet behöver förbättras',
+            'low_calories': '🔥 Låg energiförbränning'
+        }
+        
+        alert_emojis = {
+            'low_steps': '👣',
+            'high_heart_rate': '❤️',
+            'poor_sleep': '😴',
+            'low_calories': '🔥'
+        }
+        
+        subject = f"{alert_emojis.get(alert_type, '⚠️')} Lugn & Trygg: {alert_titles.get(alert_type, 'Hälsovarning')}"
+        
+        metric_value = health_data.get('value', 'N/A')
+        threshold = health_data.get('threshold', 'N/A')
+        device = health_data.get('device', 'Din hälsoenhet')
+        date = health_data.get('date', 'Idag')
+        recommendations = health_data.get('recommendations', [])
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px;">
+                    <h2 style="color: white; text-align: center;">{alert_emojis.get(alert_type, '⚠️')} Hälsovarning</h2>
+                    <p style="color: white; text-align: center;">Hej {username},</p>
+                    <p style="color: white;">Vi har upptäckt en avvikelse i din hälsodata som du bör vara medveten om.</p>
+                </div>
+                
+                <div style="max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; border-radius: 10px;">
+                    <h3 style="color: #f5576c;">📊 Hälsodata</h3>
+                    <ul>
+                        <li><strong>Enhet:</strong> {device}</li>
+                        <li><strong>Datum:</strong> {date}</li>
+                        <li><strong>Värde:</strong> {metric_value}</li>
+                        <li><strong>Rekommenderat:</strong> {threshold}</li>
+                    </ul>
+                    
+                    {f'''
+                    <h3 style="color: #27ae60;">💡 Rekommendationer</h3>
+                    <ul>
+                        {"".join([f"<li>{rec}</li>" for rec in recommendations])}
+                    </ul>
+                    ''' if recommendations else ''}
+                    
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 20px; border-radius: 5px;">
+                        <p style="margin: 0; color: #856404;">
+                            <strong>⚠️ Viktigt:</strong> Detta är endast informativt. Vid allvarliga symptom eller oro, kontakta vårdgivare eller ring 1177.
+                        </p>
+                    </div>
+                    
+                    <p style="text-align: center; margin-top: 30px;">
+                        <a href="https://lugn-trygg.vercel.app/integrations" 
+                           style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                                  color: white; 
+                                  padding: 12px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 25px; 
+                                  display: inline-block;">
+                            Visa hälsodata →
+                        </a>
+                    </p>
+                </div>
+                
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+                    <p>Detta är en automatisk varning från Lugn & Trygg.</p>
+                    <p>Du får detta mejl eftersom du har aktiverat hälsointegrationer.</p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_content = f"""
+Hej {username},
+
+{alert_titles.get(alert_type, 'Hälsovarning')}
+
+Vi har upptäckt en avvikelse i din hälsodata:
+
+Enhet: {device}
+Datum: {date}
+Värde: {metric_value}
+Rekommenderat: {threshold}
+
+{'Rekommendationer:' + chr(10) + chr(10).join([f'- {rec}' for rec in recommendations]) if recommendations else ''}
+
+VIKTIGT: Detta är endast informativt. Vid allvarliga symptom eller oro, kontakta vårdgivare eller ring 1177.
+
+Visa hälsodata: https://lugn-trygg.vercel.app/integrations
+
+---
+Detta är en automatisk varning från Lugn & Trygg.
+        """
+        
+        return self._send_email(user_email, subject, html_content, plain_content)
+    
+    def send_health_alert(self, user_email: str, username: str, alert_type: str, health_data: dict) -> bool:
+        """Send email alert for abnormal health metrics"""
+        alert_messages = {
+            'low_steps': '🚶 Låg aktivitetsnivå upptäckt',
+            'high_heart_rate': '❤️ Förhöjd vilopuls upptäckt',
+            'poor_sleep': '😴 Otillräcklig sömn upptäckt',
+            'low_calories': '🔥 Låg energiförbränning upptäckt'
+        }
+        
+        subject = f"⚠️ Lugn & Trygg: {alert_messages.get(alert_type, 'Hälsovarning')}"
+        
+        value = health_data.get('value', 'N/A')
+        threshold = health_data.get('threshold', 'N/A')
+        device = health_data.get('device', 'Din enhet')
+        date = health_data.get('date', 'Idag')
+        recommendations = health_data.get('recommendations', [])
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px;">
+                    <h2 style="color: white; text-align: center;">⚠️ Hälsovarning</h2>
+                    <p style="color: white; text-align: center;">Hej {username},</p>
+                    <p style="color: white;">Vi upptäckte något i din hälsodata från {device} som kräver din uppmärksamhet.</p>
+                </div>
+                
+                <div style="max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; border-radius: 10px;">
+                    <h3 style="color: #e74c3c;">📊 Uppmätt värde</h3>
+                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
+                        <p style="margin: 0; font-size: 18px;"><strong>Värde:</strong> {value}</p>
+                        <p style="margin: 5px 0 0 0; color: #7f8c8d;"><strong>Rekommenderat:</strong> {threshold}</p>
+                        <p style="margin: 5px 0 0 0; color: #95a5a6; font-size: 14px;">Datum: {date}</p>
+                    </div>
+                    
+                    {f'''
+                    <h3 style="color: #27ae60; margin-top: 20px;">💡 Våra rekommendationer</h3>
+                    <ul style="background: white; padding: 20px 20px 20px 40px; border-radius: 8px; border-left: 4px solid #27ae60;">
+                        {"".join([f"<li style='margin: 8px 0;'>{rec}</li>" for rec in recommendations[:5]])}
+                    </ul>
+                    ''' if recommendations else ''}
+                    
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 20px; border-radius: 8px;">
+                        <p style="margin: 0; color: #856404;">
+                            <strong>⚕️ Viktigt:</strong> Detta är en automatisk varning. Om du upplever allvarliga symptom eller är orolig för din hälsa, kontakta vårdgivare eller ring 1177.
+                        </p>
+                    </div>
+                    
+                    <p style="text-align: center; margin-top: 30px;">
+                        <a href="https://lugn-trygg.vercel.app/integrations" 
+                           style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                                  color: white; 
+                                  padding: 12px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 25px; 
+                                  display: inline-block;
+                                  font-weight: bold;">
+                            Se din hälsodata
+                        </a>
+                    </p>
+                </div>
+                
+                <div style="max-width: 600px; margin: 20px auto; text-align: center; color: #7f8c8d; font-size: 12px;">
+                    <p>Detta är en automatisk varning från Lugn & Trygg Health Monitoring</p>
+                    <p>Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna</p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        plain_content = f"""
+Hälsovarning från Lugn & Trygg
+
+Hej {username},
+
+Vi upptäckte något i din hälsodata från {device}:
+
+📊 Uppmätt värde: {value}
+Rekommenderat: {threshold}
+Datum: {date}
+
+{"💡 Våra rekommendationer:" if recommendations else ""}
+{chr(10).join([f"• {rec}" for rec in recommendations[:5]]) if recommendations else ""}
+
+⚕️ VIKTIGT: Detta är en automatisk varning. Om du upplever allvarliga symptom eller är orolig för din hälsa, kontakta vårdgivare eller ring 1177.
+
+Se din fullständiga hälsodata: https://lugn-trygg.vercel.app/integrations
+
+---
+Detta är en automatisk varning från Lugn & Trygg Health Monitoring.
+Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
+        """
+        
+        return self._send_email(user_email, subject, html_content, plain_content)
 
 # Singleton instance
 email_service = EmailService()

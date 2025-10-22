@@ -1241,3 +1241,7 @@ def update_alert_settings():
     except Exception as e:
         logger.error(f"Failed to update alert settings: {str(e)}")
         return jsonify({"error": "Failed to update alert settings"}), 500
+
+
+# Auto-Sync and Health Alerts endpoints added below
+

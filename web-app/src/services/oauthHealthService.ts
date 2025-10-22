@@ -20,6 +20,8 @@ export interface OAuthStatus {
     obtained_at?: string;
     expires_at?: string;
     is_expired?: boolean;
+    last_sync?: string;
+    last_sync_time?: string;
 }
 
 export interface HealthData {
