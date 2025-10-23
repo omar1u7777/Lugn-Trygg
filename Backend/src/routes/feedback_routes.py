@@ -178,10 +178,11 @@ def get_user_feedback():
             return jsonify({"error": "user_id required"}), 400
         
         # Query feedback by user_id
+        # NOTE: Removed order_by to avoid requiring a composite index
+        # We'll sort in memory instead (simpler for small datasets)
         feedback_docs = list(
             db.collection("feedback")
             .where("user_id", "==", user_id)
-            .order_by("created_at", direction="DESCENDING")
             .stream()
         )
         
@@ -190,6 +191,12 @@ def get_user_feedback():
             feedback_data = doc.to_dict()
             feedback_data["id"] = doc.id
             feedback_list.append(feedback_data)
+        
+        # Sort in memory by created_at (most recent first)
+        feedback_list.sort(
+            key=lambda x: x.get("created_at", ""),
+            reverse=True
+        )
         
         return jsonify({
             "feedback": feedback_list,

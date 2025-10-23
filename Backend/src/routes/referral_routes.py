@@ -372,14 +372,21 @@ def get_referral_history():
         return "", 204
     
     try:
+        # Support both query parameter and authenticated user context
         user_id = request.args.get("user_id", "").strip()
+        
+        # Try to get from Flask g context if not in query params
+        if not user_id:
+            from flask import g
+            user_id = getattr(g, 'user_id', None)
+        
         if not user_id:
             return jsonify({"error": "user_id required"}), 400
 
-        # Get referral history
+        # Get referral history (no order_by to avoid composite index requirement)
         history_ref = db.collection("referral_history").where(
             "referrer_id", "==", user_id
-        ).order_by("completed_at", direction="DESCENDING")
+        )
         
         history_docs = history_ref.get()
         
@@ -392,6 +399,12 @@ def get_referral_history():
                 "completed_at": data.get("completed_at"),
                 "rewards_granted": data.get("rewards_granted", 1)
             })
+        
+        # Sort in memory by completed_at (most recent first)
+        history.sort(
+            key=lambda x: x.get("completed_at", ""),
+            reverse=True
+        )
         
         return jsonify({
             "success": True,

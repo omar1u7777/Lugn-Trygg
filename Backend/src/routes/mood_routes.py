@@ -572,14 +572,26 @@ def get_predictive_forecast():
 
         # Save forecast to historical tracking
         try:
+            # Safely extract forecast data - handle both dict and list formats
+            forecast_data = forecast if isinstance(forecast, dict) else {}
+            forecast_predictions = forecast_data.get('forecast', [])
+            if isinstance(forecast_predictions, dict):
+                forecast_predictions = forecast_predictions.get('daily_predictions', [])
+            elif not isinstance(forecast_predictions, list):
+                forecast_predictions = []
+            
+            model_info = forecast_data.get('model_info', {})
+            if not isinstance(model_info, dict):
+                model_info = {}
+            
             forecast_doc = {
                 'user_id': user_id,
                 'forecast_date': datetime.utcnow().isoformat(),
                 'days_ahead': days_ahead,
-                'predictions': forecast.get('forecast', {}).get('daily_predictions', []),
-                'trend': forecast.get('trend', 'unknown'),
-                'confidence': forecast.get('confidence', 0),
-                'model_algorithm': forecast.get('model_info', {}).get('algorithm', 'unknown'),
+                'predictions': forecast_predictions,
+                'trend': forecast_data.get('trend', 'unknown'),
+                'confidence': forecast_data.get('confidence', 0),
+                'model_algorithm': model_info.get('algorithm', 'unknown'),
                 'timestamp': datetime.utcnow()
             }
             db.collection('forecast_history').add(forecast_doc)
