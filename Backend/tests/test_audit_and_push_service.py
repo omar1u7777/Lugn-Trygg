@@ -376,3 +376,41 @@ def test_send_bulk_notifications_exception(monkeypatch):
     assert res['success'] is False
     assert 'send-multi-fail' in res['error']
 
+
+def test_send_tier_upgrade_disabled(monkeypatch):
+    monkeypatch.setenv('FCM_ENABLED', 'false')
+    svc = PushNotificationService()
+    res = svc.send_tier_upgrade_notification('token', 'Gold', 3)
+    assert res['success'] is False
+
+
+def test_send_tier_upgrade_no_token():
+    svc = PushNotificationService()
+    res = svc.send_tier_upgrade_notification('', 'Gold', 3)
+    assert res['success'] is False
+
+
+def test_send_tier_upgrade_exception(monkeypatch):
+    monkeypatch.setenv('FCM_ENABLED', 'true')
+    class ErrDummy(DummyMessaging):
+        @staticmethod
+        def send(message):
+            raise Exception('fail-tier')
+    monkeypatch.setattr(push_mod, 'messaging', ErrDummy)
+    svc = PushNotificationService()
+    res = svc.send_tier_upgrade_notification('token', 'Gold', 3)
+    assert res['success'] is False
+    assert 'fail-tier' in res['error']
+
+
+def test_send_reward_redemption_no_token():
+    svc = PushNotificationService()
+    res = svc.send_reward_redemption_notification('', 'Reward')
+    assert res['success'] is False
+
+
+def test_send_bulk_notifications_disabled():
+    svc = PushNotificationService()
+    res = svc.send_bulk_notifications([], 'T', 'B')
+    assert res['success'] is False
+

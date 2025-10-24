@@ -166,6 +166,19 @@ class TestGetAuthorizationUrl:
 
 
 class TestExchangeCodeForToken:
+    def test_exchange_code_for_token_unsupported_provider(self, service):
+        """Test error handling for unsupported provider (line 145 coverage)"""
+        # Setup state with a provider that is not supported by config
+        unsupported_provider = 'not_supported'
+        state = 'unsupported_state'
+        service.oauth_states[state] = {
+            'user_id': 'user999',
+            'provider': unsupported_provider,
+            'created_at': datetime.utcnow().isoformat()
+        }
+        # Call with the same unsupported provider
+        with pytest.raises(ValueError, match="Unsupported provider"):
+            service.exchange_code_for_token(unsupported_provider, 'code', state)
     """Test exchange_code_for_token method"""
     
     @pytest.fixture

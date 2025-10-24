@@ -195,6 +195,20 @@ class TestSendReferralSuccessNotification:
 
 
 class TestSendFeedbackConfirmation:
+    def test_send_feedback_confirmation_disabled(self):
+        """Test feedback confirmation returns False if service is disabled (lines 271-272)"""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('src.services.email_service.resend'):
+                service = EmailService()
+                service.enabled = False
+                result = service.send_feedback_confirmation(
+                    to_email='user@example.com',
+                    user_name='Anna',
+                    category='bug',
+                    rating=4,
+                    feedback_id='feedback_123456'
+                )
+                assert result is False
     """Test send_feedback_confirmation method"""
     
     @pytest.fixture
@@ -244,6 +258,22 @@ class TestSendFeedbackConfirmation:
 
 
 class TestSendFeedbackAdminNotification:
+    def test_send_feedback_admin_notification_disabled(self):
+        """Test admin feedback notification returns False if service is disabled (lines 371-372)"""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('src.services.email_service.resend'):
+                service = EmailService()
+                service.enabled = False
+                result = service.send_feedback_admin_notification(
+                    admin_email='admin@example.com',
+                    user_name='Test User',
+                    user_email='user@example.com',
+                    category='bug',
+                    rating=5,
+                    message='Critical bug',
+                    feedback_id='admin_fb_1'
+                )
+                assert result is False
     """Test send_feedback_admin_notification method"""
     
     @pytest.fixture
@@ -279,6 +309,45 @@ class TestSendFeedbackAdminNotification:
 
 
 class TestSendAnalyticsAlert:
+    def test_send_analytics_alert_no_recommendations(self, service):
+        """Test analytics alert with no recommendations (lines 522-523)"""
+        mock_response = {'id': 'alert_789'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        forecast_data = {
+            'trend': 'declining',
+            'risk_level': 'high',
+            'next_7_days': [3.2, 3.0, 2.8, 2.5, 2.3, 2.1, 2.0],
+            'risk_factors': ['Stress', 'Sömnbrist']
+            # No recommendations key
+        }
+        result = service.send_analytics_alert(
+            user_email='user@example.com',
+            username='Anna',
+            forecast_data=forecast_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Riskfaktorer' in call_args['text']
+    def test_send_analytics_alert_with_risk_and_recommendations(self, service):
+        """Test analytics alert with risk_factors and recommendations (lines 517-518)"""
+        mock_response = {'id': 'alert_456'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        forecast_data = {
+            'trend': 'declining',
+            'risk_level': 'high',
+            'next_7_days': [3.2, 3.0, 2.8, 2.5, 2.3, 2.1, 2.0],
+            'risk_factors': ['Stress', 'Sömnbrist'],
+            'recommendations': ['Vila mer', 'Minska stress', 'Motionera']
+        }
+        result = service.send_analytics_alert(
+            user_email='user@example.com',
+            username='Anna',
+            forecast_data=forecast_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Riskfaktorer' in call_args['text']
+        assert 'Rekommendationer' in call_args['text']
     """Test send_analytics_alert method"""
     
     @pytest.fixture
@@ -328,6 +397,109 @@ class TestSendAnalyticsAlert:
 
 
 class TestSendHealthAlert:
+    def test_send_health_alert_v1_all_fields(self, service):
+        """Test first send_health_alert (lines 548-648) with all fields and recommendations"""
+        mock_response = {'id': 'health_1'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        health_data = {
+            'value': 123,
+            'threshold': 200,
+            'device': 'Fitbit',
+            'date': '2025-10-24',
+            'recommendations': ['Gå mer', 'Sov bättre']
+        }
+        result = service.send_health_alert(
+            user_email='user1@example.com',
+            username='Alice',
+            alert_type='low_steps',
+            health_data=health_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Gå mer' in call_args['html']
+        assert 'Sov bättre' in call_args['html']
+        assert 'Fitbit' in call_args['html']
+        assert 'Alice' in call_args['html']
+        assert '🚶' in call_args['subject']
+        assert 'Låg aktivitetsnivå' in call_args['subject']
+        assert '⚠️ Lugn & Trygg:' in call_args['subject']
+
+    def test_send_health_alert_v1_no_recommendations(self, service):
+        """Test first send_health_alert (lines 548-648) with no recommendations"""
+        mock_response = {'id': 'health_2'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        health_data = {
+            'value': 50,
+            'threshold': 100,
+            'device': 'Apple Watch',
+            'date': '2025-10-24',
+            # no recommendations
+        }
+        result = service.send_health_alert(
+            user_email='user2@example.com',
+            username='Bob',
+            alert_type='high_heart_rate',
+            health_data=health_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Apple Watch' in call_args['html']
+        assert 'Bob' in call_args['html']
+        assert '❤️' in call_args['subject']
+        # Recommendations section should not be present
+        assert 'Rekommendationer' not in call_args['html']
+
+    def test_send_health_alert_v2_all_fields(self, service):
+        """Test second send_health_alert (lines 647-748) with all fields and recommendations"""
+        mock_response = {'id': 'health_3'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        health_data = {
+            'value': 80,
+            'threshold': 120,
+            'device': 'Garmin',
+            'date': '2025-10-24',
+            'recommendations': ['Träna mer', 'Drick vatten']
+        }
+        result = service.send_health_alert(
+            user_email='user3@example.com',
+            username='Clara',
+            alert_type='poor_sleep',
+            health_data=health_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Träna mer' in call_args['html']
+        assert 'Drick vatten' in call_args['html']
+        assert 'Garmin' in call_args['html']
+        assert 'Clara' in call_args['html']
+        assert '😴' in call_args['subject']
+        assert 'Otillräcklig sömn' in call_args['subject']
+        assert '⚠️ Lugn & Trygg:' in call_args['subject']
+
+    def test_send_health_alert_v2_no_recommendations(self, service):
+        """Test second send_health_alert (lines 647-748) with no recommendations"""
+        mock_response = {'id': 'health_4'}
+        service.client.Emails.send = Mock(return_value=mock_response)
+        health_data = {
+            'value': 60,
+            'threshold': 90,
+            'device': 'Oura',
+            'date': '2025-10-24',
+            # no recommendations
+        }
+        result = service.send_health_alert(
+            user_email='user4@example.com',
+            username='David',
+            alert_type='low_calories',
+            health_data=health_data
+        )
+        assert result is True
+        call_args = service.client.Emails.send.call_args[0][0]
+        assert 'Oura' in call_args['html']
+        assert 'David' in call_args['html']
+        assert '🔥' in call_args['subject']
+        # Recommendations section should not be present
+        assert 'Våra rekommendationer' not in call_args['html']
     """Test send_health_alert method"""
     
     @pytest.fixture
