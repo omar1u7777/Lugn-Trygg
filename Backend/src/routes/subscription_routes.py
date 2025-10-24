@@ -80,13 +80,10 @@ def create_checkout_session():
         logger.debug(f"🔗 Checkout URL: {checkout_session.url}")
         return jsonify({"sessionId": checkout_session.id, "url": checkout_session.url}), 200
 
-    except stripe.error.StripeError as e:
-        logger.error(f"💳 Stripe API error for user {user_id}: {str(e)}")
-        logger.debug(f"Stripe error details: {e.http_body if hasattr(e, 'http_body') else 'No details'}")
-        return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
     except Exception as e:
-        logger.exception(f"❌ Unexpected error during checkout session creation for user {user_id}: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid betalningshantering."}), 500
+        # Handle all Stripe and other errors
+        logger.error(f"❌ Error during checkout session creation for user {user_id if 'user_id' in locals() else 'unknown'}: {e}")
+        return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
 
 @subscription_bp.route("/status/<user_id>", methods=["GET"])
 def get_subscription_status(user_id):
@@ -260,13 +257,10 @@ def purchase_cbt_module():
         logger.debug(f"🔗 Checkout URL: {checkout_session.url}")
         return jsonify({"sessionId": checkout_session.id, "url": checkout_session.url}), 200
 
-    except stripe.error.StripeError as e:
-        logger.error(f"💳 Stripe API error for CBT module purchase user {user_id}: {str(e)}")
-        logger.debug(f"Stripe error details: {e.http_body if hasattr(e, 'http_body') else 'No details'}")
-        return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
     except Exception as e:
-        logger.exception(f"❌ Unexpected error during CBT module purchase for user {user_id}: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid betalningshantering."}), 500
+        # Handle all Stripe and other errors
+        logger.error(f"❌ Error during CBT module purchase for user {user_id if 'user_id' in locals() else 'unknown'}: {e}")
+        return jsonify({"error": f"Betalningsfel: {str(e)}"}), 400
 
 @subscription_bp.route("/plans", methods=["GET"])
 def get_available_plans():
@@ -347,10 +341,14 @@ def cancel_subscription(user_id):
             return jsonify({"error": "Stripe prenumerations-ID saknas!"}), 400
 
         # Cancel subscription in Stripe
-        stripe.Subscription.modify(
-            stripe_subscription_id,
-            cancel_at_period_end=True
-        )
+        try:
+            stripe.Subscription.modify(
+                stripe_subscription_id,
+                cancel_at_period_end=True
+            )
+        except Exception as stripe_error:
+            logger.error(f"❌ Stripe cancellation error: {stripe_error}")
+            return jsonify({"error": f"Avbokningsfel: {str(stripe_error)}"}), 400
 
         # Update Firestore
         db.collection("users").document(user_id).update({
@@ -361,9 +359,7 @@ def cancel_subscription(user_id):
         logger.info(f"✅ Subscription cancellation initiated for user: {user_id}")
         return jsonify({"message": "Prenumeration kommer att avslutas vid periodens slut."}), 200
 
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe cancellation error: {str(e)}")
-        return jsonify({"error": f"Avbokningsfel: {str(e)}"}), 400
     except Exception as e:
-        logger.exception(f"❌ Subscription cancellation failed: {e}")
+        # Handle database errors
+        logger.exception(f"❌ Database error during subscription cancellation: {e}")
         return jsonify({"error": "Ett internt fel uppstod vid avbokning."}), 500

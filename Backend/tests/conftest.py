@@ -1,6 +1,37 @@
 import pytest
-from main import create_app  # Importerar create_app från main.py
-from unittest.mock import patch
+import sys
+from unittest.mock import patch, MagicMock
+
+# Mock Firebase BEFORE any route imports happen
+mock_db = MagicMock()
+
+def create_mock_collection():
+    mock_collection = MagicMock()
+    mock_doc_ref = MagicMock()
+    mock_doc_ref.id = "test-doc-id"
+    mock_doc_ref.set = MagicMock()
+    mock_doc_ref.update = MagicMock()
+    mock_doc_ref.delete = MagicMock()
+    mock_doc_ref.get = MagicMock(return_value=MagicMock(exists=False, to_dict=lambda: {}))
+    
+    mock_collection.document = MagicMock(return_value=mock_doc_ref)
+    mock_collection.add = MagicMock(return_value=(None, mock_doc_ref))
+    mock_collection.where = MagicMock(return_value=mock_collection)
+    mock_collection.order_by = MagicMock(return_value=mock_collection)
+    mock_collection.limit = MagicMock(return_value=mock_collection)
+    mock_collection.stream = MagicMock(return_value=[])
+    mock_collection.get = MagicMock(return_value=[])
+    
+    return mock_collection
+
+mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+
+# Patch firebase_config BEFORE importing main
+sys.modules['src.firebase_config'] = MagicMock()
+sys.modules['src.firebase_config'].db = mock_db
+
+from main import create_app  # NOW import create_app
+
 
 @pytest.fixture(scope='module')
 def app():
@@ -57,4 +88,65 @@ def mock_auth_service(mocker):
     """Mockar AuthService för alla tester som behöver autentisering."""
     # Mock JWT verification for AuthService
     mocker.patch('src.services.auth_service.AuthService.verify_token', return_value=("test-user-id", None))
+    
+    # Mock jwt_required decorator to set g.user_id
+    def jwt_required_decorator(f):
+        def wrapper(*args, **kwargs):
+            from flask import g
+            g.user_id = 'test-user-id'
+            return f(*args, **kwargs)
+        wrapper.__name__ = f.__name__
+        return wrapper
+    
+    mocker.patch('src.services.auth_service.AuthService.jwt_required', side_effect=lambda f: jwt_required_decorator(f))
+    
     return {"user_id": "test-user-id", "email": "test@example.com"}
+
+
+@pytest.fixture(scope='function')
+def mock_jwt(mocker):
+    """Mock JWT decorators for flask_jwt_extended"""
+    # Mock jwt_required to be a no-op decorator
+    mocker.patch('flask_jwt_extended.jwt_required', lambda **kwargs: lambda f: f)
+    # Mock get_jwt_identity to return a test user ID
+    mocker.patch('flask_jwt_extended.get_jwt_identity', return_value='user123')
+    return 'user123'
+
+
+@pytest.fixture(scope='function')
+def mock_db():
+    """Returnerar den globala mockade Firestore db för modifiering i tester."""
+    db = sys.modules['src.firebase_config'].db
+    
+    # Reset mock between tests
+    db.reset_mock()
+    
+    # Create a dictionary to store collection mocks
+    collections_dict = {}
+    
+    def get_or_create_collection(name):
+        """Get existing collection mock or create new one"""
+        if name not in collections_dict:
+            mock_collection = MagicMock()
+            mock_doc_ref = MagicMock()
+            mock_doc_ref.id = "test-doc-id"
+            mock_doc_ref.set = MagicMock()
+            mock_doc_ref.update = MagicMock()
+            mock_doc_ref.delete = MagicMock()
+            mock_doc_ref.get = MagicMock(return_value=MagicMock(exists=False, to_dict=lambda: {}))
+            
+            mock_collection.document = MagicMock(return_value=mock_doc_ref)
+            mock_collection.add = MagicMock(return_value=(None, mock_doc_ref))
+            mock_collection.where = MagicMock(return_value=mock_collection)
+            mock_collection.order_by = MagicMock(return_value=mock_collection)
+            mock_collection.limit = MagicMock(return_value=mock_collection)
+            mock_collection.stream = MagicMock(return_value=[])
+            mock_collection.get = MagicMock(return_value=[])
+            
+            collections_dict[name] = mock_collection
+        
+        return collections_dict[name]
+    
+    db.collection = MagicMock(side_effect=get_or_create_collection)
+    
+    return db
