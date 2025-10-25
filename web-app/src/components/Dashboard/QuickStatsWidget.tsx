@@ -53,7 +53,7 @@ const QuickStatsWidget: React.FC<QuickStatsProps> = ({ userId }) => {
         return dateB.getTime() - dateA.getTime();
       });
 
-      let currentDate = new Date();
+      const currentDate = new Date();
       for (const mood of sortedMoods) {
         const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
         const daysDiff = Math.floor((currentDate.getTime() - moodDate.getTime()) / (1000 * 60 * 60 * 24));

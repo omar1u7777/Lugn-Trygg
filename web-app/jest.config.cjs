@@ -6,7 +6,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   setupFilesAfterEnv: ['@testing-library/jest-dom'],
   transformIgnorePatterns: [
-    '/node_modules/(?!(@firebase|firebase|@firebase\\/util|@firebase\\/component|@firebase\\/app|react-i18next|i18next)/)',
+    '/node_modules/(?!(@firebase|firebase|@firebase\\/util|@firebase\\/component|@firebase\\/app|react-i18next|i18next|@mui|@emotion)/)',
   ],
   globals: {
     'ts-jest': {

@@ -29,7 +29,7 @@ const OAuthHealthIntegrations: React.FC = () => {
         if (user?.user_id) {
             loadAllStatuses();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [user]);
 
     const loadAllStatuses = async () => {

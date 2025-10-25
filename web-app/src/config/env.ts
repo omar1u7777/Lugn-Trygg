@@ -45,7 +45,7 @@ const getViteEnv = (): Partial<Record<SupportedEnvKeys, string>> => {
     // The import.meta syntax is only evaluated by Vite's transform, not Babel
     if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
       // Use Function constructor to avoid syntax parsing in Jest
-      // eslint-disable-next-line no-new-func
+       
       const getMetaEnv = new Function('return typeof import !== "undefined" ? import.meta?.env : {}');
       const metaEnv = getMetaEnv() || {};
       

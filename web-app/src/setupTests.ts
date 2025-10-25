@@ -1,17 +1,18 @@
 // src/setupTests.ts
 // Environment polyfills for Jest (jsdom)
 
+// Force development React for testing
+process.env.NODE_ENV = 'development';
+
 // Use browser-compatible polyfill for TextEncoder/TextDecoder if needed
 if (typeof global.TextEncoder === 'undefined' || typeof global.TextDecoder === 'undefined') {
   // Use Node's util polyfills
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const util = require('util');
   if (typeof global.TextEncoder === 'undefined' && util.TextEncoder) {
-    // @ts-ignore
     global.TextEncoder = util.TextEncoder;
   }
   if (typeof global.TextDecoder === 'undefined' && util.TextDecoder) {
-    // @ts-ignore
     global.TextDecoder = util.TextDecoder as unknown as typeof global.TextDecoder;
   }
 }
