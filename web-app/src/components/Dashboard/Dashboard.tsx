@@ -186,288 +186,127 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Skip Links */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary-500 text-white px-4 py-2 rounded z-50"
-      >
-        {t('accessibility.skipToMain', 'Skip to main content')}
-      </a>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-16">
+        <div className="container mx-auto text-center px-4">
+          <h1 className="text-4xl font-bold mb-4">Välkommen tillbaka! 👋</h1>
+          <p className="text-xl opacity-90">Hur känns det idag?</p>
+        </div>
+      </div>
 
-      {/* Header */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={4}
-        role="banner"
-      >
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            {t('dashboard.title', 'Your Mental Health Dashboard')}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {t('dashboard.subtitle', 'Track your progress and maintain your well-being')}
-          </Typography>
-        </Box>
+      {/* Quick Actions Row */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
 
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={handleRefresh}
-          aria-label={t('dashboard.refresh', 'Refresh dashboard data')}
-        >
-          {t('common.refresh', 'Refresh')}
-        </Button>
-      </Box>
+          {/* Mood Logger Card */}
+          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">😊</div>
+              <h3 className="text-xl font-semibold mb-2">Logga Humör</h3>
+              <p className="text-gray-600">Snabbloggning med röst eller emoji</p>
+            </CardContent>
+          </Card>
 
-      {/* Stats Grid */}
-      <Grid container spacing={3} mb={4} id="main-content" role="main" aria-labelledby="stats-heading">
-        <Typography id="stats-heading" variant="h2" className="sr-only">
-          {t('dashboard.stats', 'Dashboard Statistics')}
-        </Typography>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title={t('dashboard.totalMoods', 'Total Moods')}
-            value={stats.totalMoods}
-            icon={<Mood />}
-            color="primary"
-            ariaLabel={`${stats.totalMoods} mood entries logged`}
-          />
-        </Grid>
+          {/* AI Chat Card */}
+          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🤖</div>
+              <h3 className="text-xl font-semibold mb-2">AI Terapeut</h3>
+              <p className="text-gray-600">Prata med din personliga AI</p>
+            </CardContent>
+          </Card>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title={t('dashboard.totalChats', 'AI Conversations')}
-            value={stats.totalChats}
-            icon={<Chat />}
-            color="secondary"
-            ariaLabel={`${stats.totalChats} conversations with AI therapist`}
-          />
-        </Grid>
+          {/* Daily Check-in Card */}
+          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">📊</div>
+              <h3 className="text-xl font-semibold mb-2">Daglig Översikt</h3>
+              <p className="text-gray-600">Se dina framsteg och insikter</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title={t('dashboard.averageMood', 'Average Mood')}
-            value={`${stats.averageMood}/10`}
-            icon={<Psychology />}
-            color="success"
-            ariaLabel={`Average mood score of ${stats.averageMood} out of 10`}
-          />
-        </Grid>
+        {/* Today's Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title={t('dashboard.streak', 'Current Streak')}
-            value={`${stats.streakDays} ${t('common.days', 'days')}`}
-            icon={<TrendingUp />}
-            color="warning"
-            ariaLabel={`${stats.streakDays} consecutive days of activity`}
-          />
-        </Grid>
-      </Grid>
-
-      {/* Weekly Progress */}
-      <Card sx={{ mb: 4 }} role="region" aria-labelledby="weekly-progress-title">
-        <CardContent>
-          <Typography
-            id="weekly-progress-title"
-            variant="h6"
-            gutterBottom
-          >
-            {t('dashboard.weeklyProgress', 'Weekly Progress')}
-          </Typography>
-
-          <Box sx={{ mb: 2 }}>
-            <Box display="flex" justifyContent="space-between" mb={1}>
-              <Typography variant="body2">
-                {stats.weeklyProgress} / {stats.weeklyGoal} {t('dashboard.entries', 'entries')}
+          {/* Mood Trend */}
+          <Card>
+            <CardContent className="p-6">
+              <Typography variant="h6" gutterBottom>
+                Din Humörtrend
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {Math.round((stats.weeklyProgress / stats.weeklyGoal) * 100)}%
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={(stats.weeklyProgress / stats.weeklyGoal) * 100}
-              sx={{ height: 8, borderRadius: 4 }}
-              aria-label={`${stats.weeklyProgress} of ${stats.weeklyGoal} weekly entries completed`}
-              aria-valuenow={stats.weeklyProgress}
-              aria-valuemin={0}
-              aria-valuemax={stats.weeklyGoal}
-            />
-          </Box>
-
-          {stats.weeklyProgress >= stats.weeklyGoal ? (
-            <Alert severity="success" aria-live="polite">
-              <span aria-hidden="true">🎉</span> {t('dashboard.goalAchieved', 'Weekly goal achieved! Keep up the great work.')}
-            </Alert>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              {stats.weeklyGoal - stats.weeklyProgress} {t('dashboard.entriesLeft', 'entries left this week')}
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <Card>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            aria-label={t('dashboard.tabs', 'Dashboard sections')}
-          >
-            <Tab
-              label={t('dashboard.overview', 'Overview')}
-              aria-controls="dashboard-overview-panel"
-              id="dashboard-overview-tab"
-            />
-            <Tab
-              label={t('dashboard.activity', 'Recent Activity')}
-              aria-controls="dashboard-activity-panel"
-              id="dashboard-activity-tab"
-            />
-          </Tabs>
-        </Box>
-
-        {/* Overview Tab */}
-        <Box
-          role="tabpanel"
-          id="dashboard-overview-panel"
-          aria-labelledby="dashboard-overview-tab"
-          hidden={activeTab !== 0}
-          sx={{ p: 3 }}
-        >
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner isLoading={true} message="Laddar diagram..." />}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Card role="region" aria-labelledby="mood-trend-title">
-                    <CardContent>
-                      <Typography id="mood-trend-title" variant="h6" gutterBottom>
-                        {t('dashboard.moodTrend', 'Mood Trend')}
-                      </Typography>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Favorite sx={{ color: 'success.main' }} aria-hidden="true" />
-                        <Box>
-                          <Typography variant="h5" aria-label={`Current mood score: ${stats.averageMood} out of 10`}>
-                            {stats.averageMood}/10
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t('dashboard.trendingUp', 'Trending upward')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Card role="region" aria-labelledby="engagement-title">
-                    <CardContent>
-                      <Typography id="engagement-title" variant="h6" gutterBottom>
-                        {t('dashboard.engagement', 'Engagement')}
-                      </Typography>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Analytics sx={{ color: 'info.main' }} aria-hidden="true" />
-                        <Box>
-                          <Typography variant="h5" aria-label={`Total interactions: ${stats.totalMoods + stats.totalChats}`}>
-                            {stats.totalMoods + stats.totalChats}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t('dashboard.totalInteractions', 'Total interactions')}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Lazy loaded charts */}
-                <Grid item xs={12} md={6}>
-                  <MoodChart />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <MemoryChart />
-                </Grid>
-
-                {/* Analytics Widget */}
-                {userId && (
-                  <Grid item xs={12}>
-                    <AnalyticsWidget userId={userId} />
-                  </Grid>
-                )}
-              </Grid>
-            </Suspense>
-          </ErrorBoundary>
-        </Box>
-
-        {/* Activity Tab */}
-        <Box
-          role="tabpanel"
-          id="dashboard-activity-panel"
-          aria-labelledby="dashboard-activity-tab"
-          hidden={activeTab !== 1}
-          sx={{ p: 3 }}
-        >
-          <Typography variant="h6" gutterBottom>
-            {t('dashboard.recentActivity', 'Recent Activity')}
-          </Typography>
-
-          {stats.recentActivity.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t('dashboard.noActivity', 'No recent activity')}
-            </Typography>
-          ) : (
-            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }} role="list" aria-label={t('dashboard.recentActivity', 'Recent Activity')}>
-              {stats.recentActivity.map((activity) => (
-                <Box
-                  key={activity.id}
-                  component="li"
-                  sx={{
-                    py: 2,
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                    '&:last-child': { borderBottom: 0 },
-                  }}
-                  role="listitem"
-                >
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <Box sx={{ minWidth: 40 }}>
-                      {activity.type === 'mood' && <Mood sx={{ color: 'primary.main' }} aria-hidden="true" />}
-                      {activity.type === 'chat' && <Chat sx={{ color: 'secondary.main' }} aria-hidden="true" />}
-                      {activity.type === 'meditation' && <Psychology sx={{ color: 'success.main' }} aria-hidden="true" />}
-                    </Box>
-
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body1">
-                        {activity.description}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" aria-label={`Activity timestamp: ${activity.timestamp.toLocaleString()}`}>
-                        {activity.timestamp.toLocaleString()}
-                      </Typography>
-                    </Box>
-
-                    <Chip
-                      label={activity.type}
-                      size="small"
-                      color={
-                        activity.type === 'mood' ? 'primary' :
-                        activity.type === 'chat' ? 'secondary' : 'success'
-                      }
-                      aria-label={`${activity.type} activity`}
-                    />
-                  </Box>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Favorite sx={{ color: 'success.main' }} />
+                <Box>
+                  <Typography variant="h5">
+                    {stats.averageMood}/10
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Trend uppåt
+                  </Typography>
                 </Box>
-              ))}
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* AI Insights */}
+          <Card>
+            <CardContent className="p-6">
+              <Typography variant="h6" gutterBottom>
+                AI Insikter
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Analytics sx={{ color: 'info.main' }} />
+                <Box>
+                  <Typography variant="h5">
+                    {stats.totalMoods + stats.totalChats}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Totala interaktioner
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Weekly Progress */}
+        <Card sx={{ mt: 8 }}>
+          <CardContent className="p-6">
+            <Typography variant="h6" gutterBottom>
+              Veckoprogress
+            </Typography>
+
+            <Box sx={{ mb: 2 }}>
+              <Box display="flex" justifyContent="space-between" mb={1}>
+                <Typography variant="body2">
+                  {stats.weeklyProgress} / {stats.weeklyGoal} inlägg
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {Math.round((stats.weeklyProgress / stats.weeklyGoal) * 100)}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={(stats.weeklyProgress / stats.weeklyGoal) * 100}
+                sx={{ height: 8, borderRadius: 4 }}
+              />
             </Box>
-          )}
-        </Box>
-      </Card>
-    </Box>
+
+            {stats.weeklyProgress >= stats.weeklyGoal ? (
+              <Alert severity="success">
+                🎉 Veckomål uppnått! Fortsätt det goda arbetet.
+              </Alert>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {stats.weeklyGoal - stats.weeklyProgress} inlägg kvar denna vecka
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
