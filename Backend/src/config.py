@@ -1,7 +1,14 @@
+"""
+Configuration module for Lugn & Trygg Backend
+Centralized configuration management with environment variable loading
+"""
+
 import os
 import logging
 from datetime import timedelta
 from dotenv import load_dotenv
+import json
+import tempfile
 
 # 🔹 Ladda miljövariabler från .env-filen
 load_dotenv()
@@ -16,7 +23,7 @@ logger = logging.getLogger(__name__)
 def get_env_variable(var_name: str, default=None, required=False, hide_value=False, cast_type=str):
     """
     Hämtar en miljövariabel och kastar fel om den saknas (om `required=True`).
-    
+
     Args:
         var_name (str): Namnet på miljövariabeln.
         default: Standardvärde om variabeln saknas.
@@ -69,9 +76,6 @@ FIREBASE_PROJECT_ID = get_env_variable("FIREBASE_PROJECT_ID", required=True)
 FIREBASE_STORAGE_BUCKET = get_env_variable("FIREBASE_STORAGE_BUCKET", required=True)
 
 # 🔹 Firebase Credentials - kan vara filepath ELLER JSON string från env
-import json
-import tempfile
-
 FIREBASE_CREDENTIALS_RAW = get_env_variable("FIREBASE_CREDENTIALS", "serviceAccountKey.json", required=True)
 FIREBASE_CREDENTIALS_RAW = str(FIREBASE_CREDENTIALS_RAW).strip()  # Konvertera till string
 
@@ -130,9 +134,42 @@ CSP_DIRECTIVES = {
     "frame-ancestors": ["'none'"],
 }
 
+# 🔹 Create a config object for easy importing
+class Config:
+    """Configuration object for easy access to all settings"""
+
+    def __init__(self):
+        self.PORT = PORT
+        self.DEBUG = DEBUG
+        self.JWT_SECRET_KEY = JWT_SECRET_KEY
+        self.JWT_REFRESH_SECRET_KEY = JWT_REFRESH_SECRET_KEY
+        self.ACCESS_TOKEN_EXPIRES = ACCESS_TOKEN_EXPIRES
+        self.REFRESH_TOKEN_EXPIRES = REFRESH_TOKEN_EXPIRES
+        self.FIREBASE_WEB_API_KEY = FIREBASE_WEB_API_KEY
+        self.FIREBASE_API_KEY = FIREBASE_API_KEY
+        self.FIREBASE_PROJECT_ID = FIREBASE_PROJECT_ID
+        self.FIREBASE_STORAGE_BUCKET = FIREBASE_STORAGE_BUCKET
+        self.FIREBASE_CREDENTIALS = FIREBASE_CREDENTIALS
+        self.STRIPE_SECRET_KEY = STRIPE_SECRET_KEY
+        self.STRIPE_PUBLISHABLE_KEY = STRIPE_PUBLISHABLE_KEY
+        self.STRIPE_PRICE_PREMIUM = STRIPE_PRICE_PREMIUM
+        self.STRIPE_PRICE_ENTERPRISE = STRIPE_PRICE_ENTERPRISE
+        self.STRIPE_PRICE_CBT_MODULE = STRIPE_PRICE_CBT_MODULE
+        self.STRIPE_WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET
+        self.ENCRYPTION_KEY = ENCRYPTION_KEY
+        self.GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID
+        self.CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS
+        self.CSP_DIRECTIVES = CSP_DIRECTIVES
+
+# Create global config instance
+config = Config()
+
 # 🔹 Logga konfigurationsdetaljer (men döljer hemligheter)
 logger.info(f"✅ Backend körs på port: {PORT}, Debug-läge: {DEBUG}")
 logger.info(f"✅ Firebase-konfiguration laddad från: {FIREBASE_CREDENTIALS}")
 logger.info(f"✅ JWT-token expiration: {ACCESS_TOKEN_EXPIRES}, Refresh expiration: {REFRESH_TOKEN_EXPIRES}")
 logger.info(f"✅ Tillåtna CORS-origins: {CORS_ALLOWED_ORIGINS}")
 logger.info("✅ Backend är korrekt konfigurerad men inga hemligheter visas i loggen.")
+
+# Export the config object
+__all__ = ['config', 'get_env_variable']
