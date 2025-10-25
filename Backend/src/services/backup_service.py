@@ -35,7 +35,9 @@ class BackupService:
 
         # Firebase services
         self.db = firestore.client()
-        self.bucket = storage.bucket()
+        # Get storage bucket name from environment or use default
+        bucket_name = os.getenv('FIREBASE_STORAGE_BUCKET', 'lugn-trygg-53d75.appspot.com')
+        self.bucket = storage.bucket(bucket_name)
 
         # Backup configuration
         self.backup_schedules = {
