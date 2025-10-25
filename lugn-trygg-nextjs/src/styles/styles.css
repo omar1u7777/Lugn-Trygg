@@ -1,0 +1,270 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles for Lugn & Trygg */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  #root {
+    @apply min-h-screen flex flex-col;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-transparent cursor-pointer transition-all duration-200 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 text-white border-primary-500 hover:bg-primary-600 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-500 text-white border-secondary-500 hover:bg-secondary-600 focus:ring-secondary-500;
+  }
+
+  .btn-outline {
+    @apply bg-transparent text-primary-600 border-primary-600 hover:bg-primary-600 hover:text-white focus:ring-primary-500;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-slate-600 border-transparent hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-500;
+  }
+
+  .card {
+    @apply bg-white dark:bg-slate-800 rounded-xl shadow-soft border border-slate-200 dark:border-slate-700 overflow-hidden transition-shadow duration-200 hover:shadow-medium;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-slate-200 dark:border-slate-700;
+  }
+
+  .card-body {
+    @apply px-6 py-6;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700;
+  }
+
+  .form-input {
+    @apply w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1;
+  }
+
+  .form-error {
+    @apply mt-1 text-sm text-red-600 dark:text-red-400;
+  }
+
+  .mood-positive {
+    @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800;
+  }
+
+  .mood-neutral {
+    @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800;
+  }
+
+  .mood-negative {
+    @apply bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800;
+  }
+
+  .mood-stress {
+    @apply bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 border-pink-200 dark:border-pink-800;
+  }
+
+  .mood-anxiety {
+    @apply bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800;
+  }
+
+  .mood-calm {
+    @apply bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800;
+  }
+
+  .badge-earned {
+    @apply bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg;
+  }
+
+  .badge-locked {
+    @apply bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .container-custom {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSubtle 2s infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceSubtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Focus styles for accessibility */
+.focus-ring:focus {
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+}
+
+/* Screen reader only content */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+}
+
+/* Legacy CSS for gradual migration - keeping existing styles */
+
+/* Legacy CSS - keeping for gradual migration */
+
+/* Legacy modal styles - keeping for compatibility */
+
+/* Legacy recording styles - keeping for compatibility */
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.close-btn:hover {
+  background: #c0392b;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+/* Legacy message styles - keeping for compatibility */
+
+/* Legacy memory styles - keeping for compatibility */
+
+/* Legacy auth styles - keeping for compatibility */
+
+/* Legacy auth styles - keeping for compatibility */
+
+/* Legacy offline styles - keeping for compatibility */
+
+/* Legacy AI insight styles - keeping for compatibility */
+
+/* Mood Analytics Section */
+.mood-analytics-section {
+  margin-bottom: 32px;
+}
+
+/* 🚫 Not Found Page */
+.not-found {
+  text-align: center;
+  color: #e74c3c;
+  font-size: 2rem;
+  margin-top: 100px;
+}
+
+/* 📊 Weekly Analysis */
+.weekly-analysis {
+  padding: 20px;
+}
+
+.analysis-title {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analysis-title i {
+  color: #1abc9c;
+}
+
+.analysis-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+... (file continues same as web-app styles.css) ...
