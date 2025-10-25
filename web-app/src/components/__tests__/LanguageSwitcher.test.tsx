@@ -1,26 +1,26 @@
 // Mock i18next before importing
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: {
       language: 'sv',
-      changeLanguage: jest.fn(),
+      changeLanguage: vi.fn(),
     },
   }),
   I18nextProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock i18n
-jest.mock('../../i18n', () => ({
+vi.mock('../../i18n', () => ({
   default: {
     language: 'sv',
-    changeLanguage: jest.fn(),
+    changeLanguage: vi.fn(),
   },
 }));
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
 import LanguageSwitcher from '../LanguageSwitcher';
 import i18n from '../../i18n';
@@ -28,7 +28,7 @@ import i18n from '../../i18n';
 describe('LanguageSwitcher', () => {
   beforeEach(() => {
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('renders language selector with options', () => {
@@ -109,7 +109,7 @@ describe('LanguageSwitcher', () => {
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: 'en' } });
 
-    // Note: Since we mocked changeLanguage as jest.fn(), we can't easily test the call
+    // Note: Since we mocked changeLanguage as vi.fn(), we can't easily test the call
     // This test would need more complex mocking to verify the actual call
     expect(select).toBeInTheDocument();
   });

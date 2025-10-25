@@ -1,55 +1,56 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
+import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import i18n from '../../i18n/i18n';
 import Dashboard from '../Dashboard/Dashboard';
 import TestProviders from '../../utils/TestProviders';
 
 // Provide a hand-rolled mock for the API module to avoid loading the real file (which uses import.meta)
-jest.mock('../../api/api', () => {
+vi.mock('../../api/api', () => {
   const apiMock = {
-    get: jest.fn().mockResolvedValue({ data: {} }),
-    post: jest.fn().mockResolvedValue({ data: {} }),
-    interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
     defaults: { headers: {} }
   };
   return {
     __esModule: true,
     default: apiMock,
-    getMoods: jest.fn().mockResolvedValue([
+    getMoods: vi.fn().mockResolvedValue([
       { mood: 'glad', score: 0.8, timestamp: '2025-10-01T00:00:00Z' },
       { mood: 'ledsen', score: -0.5, timestamp: '2025-10-02T00:00:00Z' }
     ]),
-    logoutUser: jest.fn().mockResolvedValue(undefined),
-    refreshAccessToken: jest.fn().mockResolvedValue(null)
+    logoutUser: vi.fn().mockResolvedValue(undefined),
+    refreshAccessToken: vi.fn().mockResolvedValue(null)
   };
 });
 
 // Mock Chart.js to avoid canvas issues in tests
-jest.mock('react-chartjs-2', () => ({
+vi.mock('react-chartjs-2', () => ({
   Line: () => <div data-testid="mock-chart">Chart Component</div>
 }));
 
 // Mock child components
-jest.mock('../Dashboard/MoodChart', () => {
+vi.mock('../Dashboard/MoodChart', () => {
   return function MockMoodChart() {
     return <div data-testid="mood-chart">Mood Chart</div>;
   };
 });
 
-jest.mock('../Dashboard/MemoryChart', () => {
+vi.mock('../Dashboard/MemoryChart', () => {
   return function MockMemoryChart() {
     return <div data-testid="memory-chart">Memory Chart</div>;
   };
 });
 
-jest.mock('../WeeklyAnalysis', () => {
+vi.mock('../WeeklyAnalysis', () => {
   return function MockWeeklyAnalysis({ refreshTrigger }: { refreshTrigger: number }) {
     return <div data-testid="weekly-analysis">Weekly Analysis - Trigger: {refreshTrigger}</div>;
   };
 });
 
-jest.mock('../RelaxingSounds', () => {
+vi.mock('../RelaxingSounds', () => {
   return function MockRelaxingSounds() {
     return <div data-testid="relaxing-sounds">Relaxing Sounds</div>;
   };

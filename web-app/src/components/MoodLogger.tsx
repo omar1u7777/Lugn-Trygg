@@ -1,7 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { API_BASE_URL } from "../api/api";
+import { useAccessibility } from "../hooks/useAccessibility";
+import { ScreenReaderAnnouncer } from "./Accessibility/ScreenReader";
+import FocusTrap from "./Accessibility/FocusTrap";
+import offlineStorage from "../services/offlineStorage";
 
 const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
   userEmail: string;
@@ -17,13 +21,18 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
   const [useTextInput, setUseTextInput] = useState(false);
   const [textMood, setTextMood] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { announceToScreenReader, isReducedMotion } = useAccessibility();
 
   // 🆕 Funktion för att spara humör från text-input direkt
   const saveTextMood = async () => {
     if (!textMood.trim()) {
-      setError("Vänligen skriv hur du känner dig");
+      const errorMsg = "Vänligen skriv hur du känner dig";
+      setError(errorMsg);
+      announceToScreenReader(errorMsg, "assertive");
       return;
     }
+
+    announceToScreenReader("Sparar ditt humör...", "polite");
 
     try {
       const token = localStorage.getItem("token");
@@ -42,14 +51,16 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
       // Visa bekräftelse
       setDetectedMood(textMood);
       setError(null);
-      
+
       // Call callback to refresh mood data
       if (onMoodLogged) {
         onMoodLogged();
       }
 
       // Visa bekräftelsemeddelande
-      speak(`Tack! Jag har sparat att du känner dig ${textMood}.`);
+      const successMsg = `Tack! Jag har sparat att du känner dig ${textMood}.`;
+      speak(successMsg);
+      announceToScreenReader(successMsg, "polite");
 
       // Check for crisis indicators
       const sentimentScore = response.data.mood_entry?.sentiment_analysis?.score || 0;
@@ -65,7 +76,33 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
 
     } catch (error: any) {
       console.error("⚠️ Fel vid text-humörloggning:", error);
-      setError(error.response?.data?.error || "Kunde inte spara humör");
+
+      // Offline-first: Store locally if network fails
+      if (!navigator.onLine || error.code === 'NETWORK_ERROR') {
+        console.log("📴 Network offline, storing mood locally");
+        const offlineMood = offlineStorage.addOfflineMoodLog(textMood, 5); // Default intensity
+        setDetectedMood(textMood);
+        setError(null);
+
+        // Call callback to refresh mood data
+        if (onMoodLogged) {
+          onMoodLogged();
+        }
+
+        const successMsg = `Tack! Jag har sparat att du känner dig ${textMood}. Detta kommer att synkas när du är online igen.`;
+        speak(successMsg);
+        announceToScreenReader(successMsg, "polite");
+
+        // Stäng efter kort paus
+        setTimeout(() => {
+          setTextMood("");
+          onClose();
+        }, 2000);
+      } else {
+        const errorMsg = error.response?.data?.error || "Kunde inte spara humör";
+        setError(errorMsg);
+        announceToScreenReader(errorMsg, "assertive");
+      }
     }
   };
 
@@ -87,8 +124,12 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
     setError(null);
     setDetectedMood(null);
 
-    // Play notification sound before speaking
-    playNotificationSound();
+    announceToScreenReader("Startar inspelning av ditt humör", "polite");
+
+    // Play notification sound before speaking (respektera reduced motion)
+    if (!isReducedMotion) {
+      playNotificationSound();
+    }
 
     // Fråga användaren hur de känner sig
     speak("Hej! Hur mår du just nu? Berätta fritt hur du känner dig.", async () => {
@@ -242,8 +283,36 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
 
     } catch (error: any) {
       console.error("❌ Fel vid humöranalys och lagring:", error.response?.data || error.message);
-      setError("Kunde inte analysera och spara humör. Försök igen.");
-      setIsConfirming(false);
+
+      // Offline-first: Store locally if network fails
+      if (!navigator.onLine || error.code === 'NETWORK_ERROR') {
+        console.log("📴 Network offline, storing voice mood locally");
+        const offlineMood = offlineStorage.addOfflineMoodLog("voice_mood", 5); // Default intensity
+        setDetectedMood("Sparat offline");
+        setError(null);
+
+        // Call callback to refresh mood data
+        if (onMoodLogged) {
+          onMoodLogged();
+        }
+
+        const successMsg = "Tack! Ditt humör har sparats offline och kommer att synkas när du är online igen.";
+        speak(successMsg);
+        announceToScreenReader(successMsg, "polite");
+
+        // Återställ state
+        setIsConfirming(false);
+        setDetectedMood(null);
+        setError(null);
+
+        // Stäng dialogen efter kort paus
+        setTimeout(() => {
+          onClose();
+        }, 3000);
+      } else {
+        setError("Kunde inte analysera och spara humör. Försök igen.");
+        setIsConfirming(false);
+      }
     }
   };
 
@@ -361,18 +430,36 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in">
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3">
-          <span className="text-2xl">🎭</span>
-          {t('mood.title')}
-        </h3>
+    <FocusTrap active={true} onEscape={onClose}>
+      <div
+        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mood-logger-title"
+        aria-describedby="mood-logger-description"
+      >
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in">
+          <h3
+            id="mood-logger-title"
+            className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3"
+          >
+            <span className="text-2xl" aria-hidden="true">🎭</span>
+            {t('mood.title')}
+          </h3>
+
+          <div id="mood-logger-description" className="sr-only">
+            Logga ditt nuvarande humör genom att prata eller skriva. Du kan välja mellan röst- eller textinmatning.
+          </div>
 
         {/* 🔴 Felmeddelande */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+          <div
+            className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6"
+            role="alert"
+            aria-live="assertive"
+          >
             <p className="text-red-800 dark:text-red-300 font-medium">
-              <span className="text-lg mr-2">❌</span>
+              <span className="text-lg mr-2" aria-hidden="true">❌</span>
               <strong>{error}</strong>
             </p>
           </div>
@@ -461,8 +548,9 @@ const MoodLogger = ({ userEmail, onClose, onMoodLogged, onCrisisDetected }: {
         >
           ✕
         </button>
+        </div>
       </div>
-    </div>
+    </FocusTrap>
   );
 };
 

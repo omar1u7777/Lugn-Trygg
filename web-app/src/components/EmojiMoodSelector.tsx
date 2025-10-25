@@ -12,7 +12,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip
+  Chip,
+  Grid
 } from '@mui/material';
 
 import { motion } from 'framer-motion';
@@ -83,19 +84,23 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      aria-labelledby="emoji-mood-selector"
+      aria-labelledby="emoji-mood-selector-title"
+      aria-describedby="emoji-mood-selector-description"
     >
-      <DialogTitle id="emoji-mood-selector">
+      <DialogTitle id="emoji-mood-selector-title">
         {t('mood.quickLog', 'Quick Mood Log')}
       </DialogTitle>
+      <div id="emoji-mood-selector-description" className="sr-only">
+        Select your current mood by choosing an emoji and intensity level
+      </div>
       <DialogContent>
         <Typography variant="body2" gutterBottom sx={{ mb: 2 }}>
           {t('mood.selectEmoji', 'How are you feeling right now?')}
         </Typography>
 
-        <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid container spacing={2} sx={{ mb: 3 }} role="radiogroup" aria-labelledby="emoji-mood-selector-title">
           {MOOD_OPTIONS.map((mood) => (
-            <Grid xs={3} key={mood.value}>
+            <Grid item xs={3} key={mood.value}>
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
@@ -119,10 +124,11 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
                     },
                   }}
                   aria-label={`Select ${mood.label} mood`}
-                  role="button"
-                  tabIndex={0}
+                  role="radio"
+                  aria-checked={selectedMood?.value === mood.value}
+                  tabIndex={selectedMood?.value === mood.value ? 0 : -1}
                 >
-                  <Typography variant="h2" sx={{ mb: 0.5 }}>
+                  <Typography variant="h2" sx={{ mb: 0.5 }} aria-hidden="true">
                     {mood.emoji}
                   </Typography>
                   <Typography variant="caption">{mood.label}</Typography>
@@ -133,8 +139,8 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
         </Grid>
 
         {selectedMood && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
+          <Box sx={{ mt: 2 }} role="radiogroup" aria-labelledby="intensity-label">
+            <Typography id="intensity-label" variant="body2" gutterBottom>
               {t('mood.intensity', 'How intense is this feeling?')}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
@@ -149,6 +155,7 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
                   aria-label={`Intensity level ${level}`}
                   role="radio"
                   aria-checked={intensity === level}
+                  tabIndex={intensity === level ? 0 : -1}
                 />
               ))}
             </Box>

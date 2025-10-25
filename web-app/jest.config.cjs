@@ -1,10 +1,10 @@
 module.exports = {
-  testEnvironment: 'jsdom',
+  testEnvironment: 'node',
   transform: {
     '^.+\\.(ts|tsx|js|jsx)$': 'babel-jest',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  setupFilesAfterEnv: ['@testing-library/jest-dom'],
+  // setupFilesAfterEnv: ['@testing-library/jest-dom'],
   transformIgnorePatterns: [
     '/node_modules/(?!(@firebase|firebase|@firebase\\/util|@firebase\\/component|@firebase\\/app|react-i18next|i18next|@mui|@emotion)/)',
   ],

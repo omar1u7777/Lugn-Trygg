@@ -1,10 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/api';
-import AnalyticsCharts from './Analytics/AnalyticsCharts';
-import jsPDF from 'jspdf';
+import { LoadingSpinner } from './LoadingStates';
+import ErrorBoundary from './ErrorBoundary';
+
+// Lazy load heavy components
+const AnalyticsCharts = lazy(() => import('./Analytics/AnalyticsCharts'));
+
+// Dynamic import for jsPDF to reduce initial bundle size
+let jsPDF: any = null;
+const loadJSPDF = async () => {
+  if (!jsPDF) {
+    const module = await import('jspdf');
+    jsPDF = module.default;
+  }
+  return jsPDF;
+};
 import {
   Card,
   CardContent,
@@ -101,10 +114,11 @@ const MoodAnalytics: React.FC = () => {
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!forecast) return;
 
-    const doc = new jsPDF();
+    const jsPDFModule = await loadJSPDF();
+    const doc = new jsPDFModule();
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 20;
 
@@ -426,10 +440,14 @@ const MoodAnalytics: React.FC = () => {
 
           {/* Interactive Charts */}
           <Grid item xs={12}>
-            <AnalyticsCharts
-              dailyPredictions={forecast.forecast.daily_predictions}
-              confidenceInterval={forecast.forecast.confidence_interval}
-            />
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingSpinner isLoading={true} message="Laddar diagram..." />}>
+                <AnalyticsCharts
+                  dailyPredictions={forecast.forecast.daily_predictions}
+                  confidenceInterval={forecast.forecast.confidence_interval}
+                />
+              </Suspense>
+            </ErrorBoundary>
           </Grid>
 
           {/* Daily Predictions */}

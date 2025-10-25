@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
 import App from "../src/App"; // Din huvudkomponent
 import TestProviders from "../src/utils/TestProviders"; // Testproviders för att ge rätt kontext
 import * as api from "../src/api/api"; // API-funktioner för mockning
@@ -24,7 +23,7 @@ describe("🔍 Autentiseringsflöden", () => {
 
   // Test för registrering
   it("✅ Registrering fungerar", async () => {
-    jest.spyOn(api, "registerUser").mockResolvedValueOnce({
+    vi.spyOn(api, "registerUser").mockResolvedValueOnce({
       message: "Registrering lyckades!",
     });
 
@@ -54,7 +53,7 @@ describe("🔍 Autentiseringsflöden", () => {
 
   // Test för inloggning och navigation till dashboard
   it("✅ Inloggning fungerar och navigerar till dashboard", async () => {
-    jest.spyOn(api, "loginUser").mockResolvedValueOnce({
+    vi.spyOn(api, "loginUser").mockResolvedValueOnce({
       access_token: "mocked_token",
       refresh_token: "mocked_refresh",
       user_id: "123",
@@ -86,7 +85,7 @@ describe("🔍 Autentiseringsflöden", () => {
 
   // Test för utloggning
   it("✅ Utloggning fungerar", async () => {
-    jest.spyOn(api, "loginUser").mockResolvedValueOnce({
+    vi.spyOn(api, "loginUser").mockResolvedValueOnce({
       access_token: "mocked_token",
       refresh_token: "mocked_refresh",
       user_id: "123",
@@ -122,7 +121,7 @@ describe("🔍 Autentiseringsflöden", () => {
 
   // Test för felmeddelande vid misslyckad registrering
   it("✅ Visar felmeddelande vid misslyckad registrering", async () => {
-    jest.spyOn(api, "registerUser").mockRejectedValueOnce({
+    vi.spyOn(api, "registerUser").mockRejectedValueOnce({
       response: { data: { error: "E-postadressen är redan registrerad." } },
     });
 
@@ -156,20 +155,20 @@ describe("🔍 Autentiseringsflöden", () => {
     // Mock Firebase Google sign-in
     const mockUser = {
       email: "google@example.com",
-      getIdToken: jest.fn().mockResolvedValue("mock-google-id-token"),
+      getIdToken: vi.fn().mockResolvedValue("mock-google-id-token"),
     };
 
-    jest.doMock("firebase/auth", () => ({
-      GoogleAuthProvider: jest.fn(),
-      signInWithPopup: jest.fn().mockResolvedValue({
+    vi.doMock("firebase/auth", () => ({
+      GoogleAuthProvider: vi.fn(),
+      signInWithPopup: vi.fn().mockResolvedValue({
         user: mockUser,
       }),
     }));
 
     // Mock backend response
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: jest.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({
         access_token: "mock-access-token",
         user_id: "google-user-123",
         message: "Google-inloggning lyckades!",
@@ -193,8 +192,8 @@ describe("🔍 Autentiseringsflöden", () => {
   // Test för glömt lösenord
   it("✅ Glömt lösenord fungerar", async () => {
     // Mock Firebase sendPasswordResetEmail
-    jest.doMock("firebase/auth", () => ({
-      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    vi.doMock("firebase/auth", () => ({
+      sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
     }));
 
     render(<App />, { wrapper: TestProviders });
@@ -221,7 +220,7 @@ describe("🔍 Autentiseringsflöden", () => {
 
   // Test för AI-namnextraktion i navigation
   it("✅ AI visar rätt namn i navigation", async () => {
-    jest.spyOn(api, "loginUser").mockResolvedValueOnce({
+    vi.spyOn(api, "loginUser").mockResolvedValueOnce({
       access_token: "mocked_token",
       refresh_token: "mocked_refresh",
       user_id: "123",
@@ -257,7 +256,7 @@ describe("🔍 Autentiseringsflöden", () => {
     expect(logoLink.closest('a')).toHaveAttribute('href', '/');
 
     // Simulera inloggning
-    jest.spyOn(api, "loginUser").mockResolvedValueOnce({
+    vi.spyOn(api, "loginUser").mockResolvedValueOnce({
       access_token: "mocked_token",
       refresh_token: "mocked_refresh",
       user_id: "123",
@@ -293,8 +292,8 @@ describe("🔍 UI-komponenter", () => {
   // Test för ProtectedRoute
   it("✅ ProtectedRoute omdirigerar oautentiserade användare", async () => {
     // Mocka useAuth för att returnera false för isLoggedIn
-    const mockUseAuth = jest.fn(() => ({ isLoggedIn: jest.fn(() => false) }));
-    jest.doMock("../src/hooks/useAuth", () => ({ default: mockUseAuth }));
+    const mockUseAuth = vi.fn(() => ({ isLoggedIn: vi.fn(() => false) }));
+    vi.doMock("../src/hooks/useAuth", () => ({ default: mockUseAuth }));
 
     render(<App />, { wrapper: TestProviders });
 
@@ -306,7 +305,7 @@ describe("🔍 UI-komponenter", () => {
 
   // Test för MemoryList
   it("✅ MemoryList visar minnen", async () => {
-    jest.spyOn(api, "getMemories").mockResolvedValueOnce([
+    vi.spyOn(api, "getMemories").mockResolvedValueOnce([
       { id: "1", file_path: "path/to/file.mp3", timestamp: "2025-01-01" },
     ]);
 
@@ -319,7 +318,7 @@ describe("🔍 UI-komponenter", () => {
 
   // Test för WeeklyAnalysis
   it("✅ WeeklyAnalysis hämtar data", async () => {
-    jest.spyOn(api, "getWeeklyAnalysis").mockResolvedValueOnce({
+    vi.spyOn(api, "getWeeklyAnalysis").mockResolvedValueOnce({
       total_moods: 5,
       average_score: 1.0,
       mood_counts: { glad: 3 },
@@ -350,7 +349,7 @@ describe("🔍 API-integration och felhantering", () => {
 
   // Test för API-fel vid inloggning
   it("✅ Hanterar API-fel vid inloggning", async () => {
-    jest.spyOn(api, "loginUser").mockRejectedValueOnce({
+    vi.spyOn(api, "loginUser").mockRejectedValueOnce({
       response: { data: { error: "Felaktiga uppgifter" } }
     });
 
@@ -372,7 +371,7 @@ describe("🔍 API-integration och felhantering", () => {
 
   // Test för nätverksfel
   it("✅ Hanterar nätverksfel", async () => {
-    jest.spyOn(api, "registerUser").mockRejectedValueOnce(new Error("Network Error"));
+    vi.spyOn(api, "registerUser").mockRejectedValueOnce(new Error("Network Error"));
 
     render(<App />, { wrapper: TestProviders });
 

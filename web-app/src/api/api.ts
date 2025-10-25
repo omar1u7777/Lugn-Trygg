@@ -30,6 +30,10 @@ api.interceptors.request.use(
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Track API call start time
+    (config as any).startTime = performance.now();
+
     return config;
   },
   (error) => {
@@ -45,9 +49,48 @@ let isRefreshing = false;
 
 // 🔹 Hantera 401 Unauthorized globalt och förnya token vid behov
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Track successful API call performance
+    const startTime = (response.config as any).startTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      // Import analytics dynamically to avoid circular dependency
+      import('../services/analytics').then(({ analytics }) => {
+        analytics.business.apiCall(
+          response.config.url || 'unknown',
+          response.config.method?.toUpperCase() || 'GET',
+          duration,
+          response.status,
+          {
+            response_size: JSON.stringify(response.data).length,
+            content_type: response.headers['content-type'],
+          }
+        );
+      });
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+
+    // Track failed API call performance
+    const startTime = (originalRequest as any).startTime;
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      import('../services/analytics').then(({ analytics }) => {
+        analytics.business.apiCall(
+          originalRequest?.url || 'unknown',
+          originalRequest?.method?.toUpperCase() || 'GET',
+          duration,
+          error.response?.status || 0,
+          {
+            error_type: error.code || 'unknown',
+            error_message: error.message,
+          }
+        );
+      });
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) return Promise.reject(error);

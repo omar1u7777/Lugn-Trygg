@@ -8,6 +8,7 @@ import MemoryList from "../../components/MemoryList";
 import { useAuth } from "../../contexts/AuthContext";
 import Chatbot from "../../components/Chatbot";
 import CrisisAlert from "../../components/CrisisAlert";
+import { LoadingOverlay } from "../../components/UI";
 
 export default function DashboardPage() {
   const { user } = useAuth() as any;
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const [showMemoryList, setShowMemoryList] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [crisisAlert, setCrisisAlert] = useState<{ open: boolean; score: number | null }>({ open: false, score: null });
+  const [isNavigating, setIsNavigating] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8">
@@ -33,8 +35,12 @@ export default function DashboardPage() {
           <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap="md">
             <div className="p-4">
               <button
-                onClick={() => setShowMoodLogger(true)}
-                className="w-full py-3 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-semibold"
+                onClick={() => {
+                  setIsNavigating(true);
+                  setTimeout(() => setShowMoodLogger(true), 100);
+                  setTimeout(() => setIsNavigating(false), 300);
+                }}
+                className="w-full py-3 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-semibold transition-all duration-200"
               >
                 🎭 Logga humör
               </button>
@@ -42,8 +48,12 @@ export default function DashboardPage() {
 
             <div className="p-4">
               <button
-                onClick={() => setShowMoodList(true)}
-                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg font-semibold"
+                onClick={() => {
+                  setIsNavigating(true);
+                  setTimeout(() => setShowMoodList(true), 100);
+                  setTimeout(() => setIsNavigating(false), 300);
+                }}
+                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg font-semibold transition-all duration-200"
               >
                 📝 Visa humörloggar
               </button>
@@ -51,8 +61,12 @@ export default function DashboardPage() {
 
             <div className="p-4">
               <button
-                onClick={() => setShowMemoryRecorder(true)}
-                className="w-full py-3 px-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-semibold"
+                onClick={() => {
+                  setIsNavigating(true);
+                  setTimeout(() => setShowMemoryRecorder(true), 100);
+                  setTimeout(() => setIsNavigating(false), 300);
+                }}
+                className="w-full py-3 px-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-semibold transition-all duration-200"
               >
                 💾 Spela in minne
               </button>
@@ -60,8 +74,12 @@ export default function DashboardPage() {
 
             <div className="p-4">
               <button
-                onClick={() => setShowMemoryList(true)}
-                className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold"
+                onClick={() => {
+                  setIsNavigating(true);
+                  setTimeout(() => setShowMemoryList(true), 100);
+                  setTimeout(() => setIsNavigating(false), 300);
+                }}
+                className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold transition-all duration-200"
               >
                 💭 Visa minnen
               </button>
@@ -121,6 +139,12 @@ export default function DashboardPage() {
       {showMemoryList && (
         <MemoryList onClose={() => setShowMemoryList(false)} />
       )}
+
+      <LoadingOverlay
+        isVisible={isNavigating}
+        text="Öppnar..."
+        variant="pulse"
+      />
     </div>
   );
 }

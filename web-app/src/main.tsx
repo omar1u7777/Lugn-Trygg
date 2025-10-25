@@ -12,6 +12,9 @@ import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
 
+// Import accessibility styles
+import "./styles/accessibility.css";
+
 /**
  *  Huvudstartfil för Lugn & Trygg Desktop-App
  * -------------------------------------------------
@@ -39,13 +42,27 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then((registration) => {
         console.log('✅ Service Worker registered successfully:', registration.scope);
-        
+
+        // Request background sync permission for mood data
+        if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+          // Background sync is supported
+          console.log('✅ Background sync supported');
+        }
+
         // Check for updates periodically (every 6 hours)
         setInterval(() => {
           registration.update().catch((error) => {
             console.warn('⚠️ Service Worker update check failed:', error);
           });
         }, 6 * 60 * 60 * 1000);
+
+        // Listen for service worker messages (for sync status)
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'SYNC_COMPLETE') {
+            console.log('📤 Background sync completed:', event.data);
+            // Could trigger UI updates here
+          }
+        });
       })
       .catch((error) => {
         console.warn('⚠️ Service Worker registration failed:', error);

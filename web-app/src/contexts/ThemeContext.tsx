@@ -25,8 +25,15 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Check for saved theme preference
+    const savedTheme = localStorage.getItem('lugn-trygg-theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+
+    // Check system preference
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return systemPrefersDark;
   });
 
   const muiTheme = createTheme({
@@ -96,14 +103,44 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const root = document.documentElement;
+
+    // Update DOM class for CSS theming
     if (isDarkMode) {
-      root.classList.add('dark-mode');
-      localStorage.setItem('theme', 'dark');
+      root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
     } else {
-      root.classList.remove('dark-mode');
-      localStorage.setItem('theme', 'light');
+      root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
     }
+
+    // Persist theme preference
+    localStorage.setItem('lugn-trygg-theme', isDarkMode ? 'dark' : 'light');
+
+    // Update document title for accessibility
+    document.title = isDarkMode
+      ? 'Lugn & Trygg - Mörkt läge'
+      : 'Lugn & Trygg - Ljust läge';
+
   }, [isDarkMode]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      // Only auto-switch if user hasn't manually set a preference
+      const savedTheme = localStorage.getItem('lugn-trygg-theme');
+      if (!savedTheme) {
+        setIsDarkMode(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    };
+  }, []);
 
   const toggleTheme = () => {
     setIsDarkMode(prev => !prev);

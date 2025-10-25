@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { Loading, Alert } from "../UI";
 
 export default function RegisterForm() {
   // Prefer reading search params from window to avoid CSR bailout warnings
@@ -89,17 +90,15 @@ export default function RegisterForm() {
         </h2>
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-red-500 text-lg">⚠️</span>
-            <p className="text-red-800 dark:text-red-300 font-medium">{error}</p>
-          </div>
+          <Alert variant="error" className="mb-6">
+            {error}
+          </Alert>
         )}
 
         {success && (
-          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-green-500 text-lg">✅</span>
-            <p className="text-green-800 dark:text-green-300 font-medium">{success}</p>
-          </div>
+          <Alert variant="success" className="mb-6">
+            {success}
+          </Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -159,14 +158,22 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary w-full py-3 text-lg font-semibold" disabled={loading}>
-            {loading ? (<>
-              <i className="fas fa-spinner fa-spin mr-2"></i>
-              Skapar konto...
-            </>) : (<>
-              <i className="fas fa-user-plus mr-2"></i>
-              Skapa konto
-            </>)}
+          <button
+            type="submit"
+            className="btn btn-primary w-full py-3 text-lg font-semibold flex items-center justify-center gap-2"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loading size="sm" variant="spinner" />
+                Skapar konto...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-user-plus mr-2"></i>
+                Skapa konto
+              </>
+            )}
           </button>
         </form>
 

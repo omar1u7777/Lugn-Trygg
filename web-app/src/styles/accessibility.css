@@ -1,0 +1,507 @@
+/* WCAG 2.1 AA Accessibility Styles for Lugn & Trygg */
+
+/* ===== FOCUS MANAGEMENT ===== */
+
+/* Enhanced focus indicators */
+*:focus-visible {
+  outline: 3px solid #1976d2;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* High contrast focus for better visibility */
+@media (prefers-contrast: high) {
+  *:focus-visible {
+    outline: 4px solid #fff;
+    outline-offset: 3px;
+  }
+}
+
+/* Remove default focus for mouse users, keep for keyboard */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip links - always visible when focused */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #1976d2;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* ===== REDUCED MOTION ===== */
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable smooth scrolling */
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== COLOR CONTRAST ===== */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  /* Ensure sufficient contrast */
+  .MuiButton-contained {
+    background-color: #000 !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+  }
+
+  .MuiButton-outlined {
+    border: 3px solid #000 !important;
+    color: #000 !important;
+  }
+
+  .MuiTextField-root .MuiOutlinedInput-root {
+    border: 2px solid #000 !important;
+  }
+
+  /* Links */
+  a {
+    text-decoration: underline !important;
+  }
+
+  a:hover, a:focus {
+    background-color: #000 !important;
+    color: #fff !important;
+  }
+}
+
+/* ===== TEXT RESIZING ===== */
+
+/* Support for larger text */
+@media (min-resolution: 120dpi) {
+  body {
+    font-size: 1.1em;
+  }
+
+  .MuiTypography-h1 {
+    font-size: 2.5rem;
+  }
+
+  .MuiTypography-h2 {
+    font-size: 2.2rem;
+  }
+
+  .MuiTypography-h3 {
+    font-size: 1.9rem;
+  }
+
+  .MuiTypography-h4 {
+    font-size: 1.7rem;
+  }
+
+  .MuiTypography-h5 {
+    font-size: 1.5rem;
+  }
+
+  .MuiTypography-h6 {
+    font-size: 1.3rem;
+  }
+}
+
+/* ===== SCREEN READER ONLY CONTENT ===== */
+
+/* Hide content visually but keep for screen readers */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Show on focus for skip links */
+.sr-only:focus {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: inherit !important;
+  margin: inherit !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+}
+
+/* ===== LIVE REGIONS ===== */
+
+/* Screen reader announcements */
+.live-region {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ===== FORM ACCESSIBILITY ===== */
+
+/* Enhanced form field focus */
+.MuiTextField-root:focus-within .MuiOutlinedInput-root {
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
+}
+
+/* Error states */
+.MuiTextField-root.Mui-error .MuiOutlinedInput-root {
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.3);
+}
+
+/* Required field indicators */
+.required::after {
+  content: ' *';
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+/* ===== DIALOG ACCESSIBILITY ===== */
+
+/* Focus trap styles */
+.focus-trap {
+  outline: none;
+}
+
+/* Modal backdrop */
+.MuiBackdrop-root {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* ===== NAVIGATION ACCESSIBILITY ===== */
+
+/* Current page indicator */
+.nav-current {
+  font-weight: bold;
+  text-decoration: underline;
+  position: relative;
+}
+
+.nav-current::after {
+  content: '(aktuell sida)';
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ===== TABLE ACCESSIBILITY ===== */
+
+/* Enhanced table headers */
+.MuiTableHead-root .MuiTableCell-root {
+  font-weight: 600;
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #1976d2;
+}
+
+/* Table navigation */
+.table-navigation {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ===== LOADING STATES ===== */
+
+/* Accessible loading indicators */
+.loading-sr {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.loading-sr::after {
+  content: 'Laddar...';
+}
+
+/* ===== ERROR STATES ===== */
+
+/* Error announcements */
+.error-announcement {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ===== SUCCESS STATES ===== */
+
+/* Success announcements */
+.success-announcement {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Ensure minimum touch targets */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  .MuiButton-root {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  a {
+    min-height: 44px;
+    display: inline-block;
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+
+/* Hide screen reader content when printing */
+@media print {
+  .sr-only {
+    display: none !important;
+  }
+
+  .skip-link {
+    display: none !important;
+  }
+
+  /* Ensure sufficient contrast for printing */
+  * {
+    color: #000 !important;
+    background: #fff !important;
+  }
+}
+
+/* ===== DARK MODE ACCESSIBILITY ===== */
+
+/* Ensure sufficient contrast in dark mode */
+[data-theme="dark"] {
+  --text-primary: #fff;
+  --text-secondary: #b3b3b3;
+  --background-primary: #121212;
+  --background-secondary: #1e1e1e;
+  --border-color: #333;
+}
+
+/* ===== ANIMATION ACCESSIBILITY ===== */
+
+/* Reduced motion for animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-in-out;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ===== COGNITIVE ACCESSIBILITY ===== */
+
+/* Clear visual hierarchy */
+.content-section {
+  margin-bottom: 2rem;
+}
+
+.content-section h2,
+.content-section h3,
+.content-section h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: #1976d2;
+}
+
+/* Consistent spacing */
+.content-section p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+/* Clear button states */
+.MuiButton-root {
+  transition: all 0.2s ease;
+}
+
+.MuiButton-root:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.MuiButton-root:active {
+  transform: translateY(0);
+}
+
+/* ===== LANGUAGE AND CULTURE ===== */
+
+/* Support for right-to-left languages */
+[dir="rtl"] .MuiButton-root {
+  direction: rtl;
+}
+
+[dir="rtl"] .MuiTextField-root {
+  direction: rtl;
+  text-align: right;
+}
+
+/* ===== MOBILE ACCESSIBILITY ===== */
+
+/* Touch target sizes */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  /* Larger text on mobile */
+  body {
+    font-size: 16px;
+  }
+
+  /* Ensure swipe gestures don't interfere */
+  .swipe-area {
+    touch-action: pan-y;
+  }
+}
+
+/* ===== KEYBOARD NAVIGATION ===== */
+
+/* Enhanced keyboard navigation */
+.keyboard-navigation button,
+.keyboard-navigation a,
+.keyboard-navigation input,
+.keyboard-navigation select,
+.keyboard-navigation textarea {
+  transition: outline 0.2s ease;
+}
+
+.keyboard-navigation button:focus,
+.keyboard-navigation a:focus,
+.keyboard-navigation input:focus,
+.keyboard-navigation select:focus,
+.keyboard-navigation textarea:focus {
+  outline: 3px solid #1976d2;
+  outline-offset: 2px;
+}
+
+/* ===== ERROR PREVENTION ===== */
+
+/* Clear error states */
+.error-field {
+  border: 2px solid #d32f2f;
+  background-color: #ffebee;
+}
+
+.error-field:focus {
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.3);
+}
+
+/* Success states */
+.success-field {
+  border: 2px solid #2e7d32;
+  background-color: #e8f5e8;
+}
+
+/* ===== COGNITIVE LOAD REDUCTION ===== */
+
+/* Progressive disclosure */
+.expandable-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.expandable-content.expanded {
+  max-height: 1000px;
+}
+
+/* Clear progress indicators */
+.progress-step {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.progress-step::before {
+  content: counter(step-counter);
+  counter-increment: step-counter;
+  background: #1976d2;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  font-weight: bold;
+}
+
+/* ===== ACCESSIBILITY TESTING UTILITIES ===== */
+
+/* Debug mode for accessibility testing */
+.debug-accessibility * {
+  outline: 1px solid rgba(255, 0, 0, 0.1);
+}
+
+.debug-accessibility img:not([alt]) {
+  outline: 3px solid red;
+}
+
+.debug-accessibility a:not([href]) {
+  outline: 3px solid orange;
+}
+
+.debug-accessibility button:not([aria-label]):not([aria-labelledby]) {
+  outline: 3px solid blue;
+}

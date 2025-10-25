@@ -233,6 +233,15 @@ export function listenForOnlineStatus(
   const handleOnline = () => {
     console.log('🌐 Back online!');
     onOnline();
+
+    // Trigger background sync when coming online
+    if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
+      navigator.serviceWorker.ready.then((registration) => {
+        (registration as any).sync.register('background-mood-sync').catch((error: any) => {
+          console.warn('Background sync registration failed:', error);
+        });
+      });
+    }
   };
 
   const handleOffline = () => {

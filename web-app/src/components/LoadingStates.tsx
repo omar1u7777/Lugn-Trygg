@@ -1,10 +1,11 @@
 /**
- * Loading States & Indicators
- * Reusable loading components for async operations
+ * Enhanced Loading States & Indicators - Lugn & Trygg Design System
+ * WCAG 2.1 AA compliant loading components with accessibility features
  */
 
 import React from 'react';
 import { CircularProgress, Skeleton, Box, Typography } from '@mui/material';
+import { Card } from './UI/Card';
 import './LoadingStates.css';
 
 interface LoadingProps {
@@ -100,22 +101,26 @@ export const SkeletonLoader: React.FC<{
  */
 export const LoadingOverlay: React.FC<LoadingProps> = ({
   isLoading,
-  message = 'Bearbeitung...',
+  message = 'Laddar...',
 }) => {
   if (!isLoading) return null;
 
   return (
-    <Box 
+    <Box
       className="loading-overlay"
       role="status"
       aria-live="polite"
       aria-atomic="true"
       aria-label={message}
     >
-      <Box className="loading-overlay-content">
-        <CircularProgress aria-hidden="true" />
-        <Typography className="overlay-message">{message}</Typography>
-      </Box>
+      <Card className="loading-overlay-content" elevation="high">
+        <Box className="flex flex-col items-center gap-4 p-6">
+          <CircularProgress size={48} aria-hidden="true" />
+          <Typography variant="h6" className="overlay-message text-center">
+            {message}
+          </Typography>
+        </Box>
+      </Card>
     </Box>
   );
 };
@@ -125,9 +130,8 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
  */
 export const PulseLoader: React.FC<{ size?: number }> = ({ size = 30 }) => {
   // Check for prefers-reduced-motion to respect accessibility preferences
-  const prefersReducedMotion = window.matchMedia(
-    '(prefers-reduced-motion: reduce)'
-  ).matches;
+  const prefersReducedMotion = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return (
     <Box
@@ -140,7 +144,7 @@ export const PulseLoader: React.FC<{ size?: number }> = ({ size = 30 }) => {
       aria-label="Loading"
       aria-live="polite"
     >
-      <Box 
+      <Box
         className="pulse-item"
         aria-hidden="true"
       />

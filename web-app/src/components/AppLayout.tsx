@@ -1,57 +1,81 @@
 import React, { useEffect } from 'react';
-import { Box } from '@mui/material';
-import { usePageTracking } from '../hooks/useAnalytics';
+import { Box, Container, useTheme } from '@mui/material';
+import { useAccessibility } from '../hooks/useAccessibility';
+import SkipLinks from './Accessibility/SkipLinks';
+import { accessibilityAuditor } from '../utils/accessibilityAudit';
 import OfflineIndicator from './OfflineIndicator';
-import { initializeMessaging } from '../services/notifications';
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  title?: string;
+  showSkipLinks?: boolean;
 }
 
-/**
- * Main App Layout Component
- * Initializes analytics, notifications, offline tracking
- * Wraps all app content
- */
-export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  // Track page views automatically
-  usePageTracking();
+const AppLayout: React.FC<AppLayoutProps> = ({
+  children,
+  title = 'Lugn & Trygg',
+  showSkipLinks = true,
+}) => {
+  const theme = useTheme();
+  const { announceToScreenReader } = useAccessibility();
 
-  // Initialize services on mount
   useEffect(() => {
-    // Analytics already initialized in main.tsx, but ensure it's available
-    console.log('📱 AppLayout mounted - services ready');
+    // Set page title
+    document.title = title;
 
-    // Initialize Firebase Messaging (safe to call multiple times)
-    try {
-      initializeMessaging();
-    } catch (error) {
-      console.log('Messaging initialization skipped (service worker not available)');
+    // Announce page change to screen readers
+    announceToScreenReader(`Sida laddad: ${title}`, 'polite');
+
+    // Run accessibility audit in development
+    if (process.env.NODE_ENV === 'development') {
+      accessibilityAuditor.runFullAudit().then(result => {
+        if (!result.passed) {
+          console.warn('Accessibility Audit Issues:', result);
+        }
+      });
     }
-  }, []);
+  }, [title, announceToScreenReader]);
 
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
         minHeight: '100vh',
-        width: '100%',
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
       }}
     >
-      {/* Main content */}
-      <Box
+      {/* Skip Links for Keyboard Navigation */}
+      {showSkipLinks && <SkipLinks />}
+
+      {/* Offline Indicator */}
+      <OfflineIndicator variant="snackbar" position="top" />
+
+      {/* Main Content Container */}
+      <Container
+        component="main"
+        id="main-content"
+        maxWidth="lg"
         sx={{
-          flex: 1,
-          width: '100%',
-          overflow: 'auto',
+          py: 4,
+          minHeight: 'calc(100vh - 64px)', // Account for potential header
         }}
       >
         {children}
-      </Box>
+      </Container>
 
-      {/* Offline indicator */}
-      <OfflineIndicator position="bottom" variant="snackbar" />
+      {/* Screen Reader Status Announcements */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: 'absolute',
+          left: '-10000px',
+          width: '1px',
+          height: '1px',
+          overflow: 'hidden',
+        }}
+        id="sr-status"
+      />
     </Box>
   );
 };

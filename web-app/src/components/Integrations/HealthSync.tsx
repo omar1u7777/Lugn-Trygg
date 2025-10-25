@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import api from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
+import OptimizedImage from '../ui/OptimizedImage';
 
 interface HealthData {
   steps?: number;
@@ -186,10 +187,12 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
             }
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <img
+                <OptimizedImage
                   src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png"
                   alt="Google Fit"
-                  style={{ width: 24, height: 24 }}
+                  width={24}
+                  height={24}
+                  className="rounded"
                 />
                 <Typography>Google Fit</Typography>
                 {syncStatus.google_fit && <CheckCircle color="success" fontSize="small" />}

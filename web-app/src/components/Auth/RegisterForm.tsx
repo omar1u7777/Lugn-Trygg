@@ -81,31 +81,33 @@ const RegisterForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" role="main" aria-labelledby="register-title">
       <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-8 flex items-center justify-center gap-3">
-          <span className="text-primary-500 text-2xl">👤</span>
-          Skapa konto
-        </h2>
+        <header>
+          <h1 className="text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-8 flex items-center justify-center gap-3" id="register-title">
+            <span className="text-primary-500 text-2xl" aria-hidden="true">👤</span>
+            Skapa konto
+          </h1>
+        </header>
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-red-500 text-lg">⚠️</span>
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex items-center gap-3" role="alert" aria-live="assertive" id="register-error">
+            <span className="text-red-500 text-lg" aria-hidden="true">⚠️</span>
             <p className="text-red-800 dark:text-red-300 font-medium">{error}</p>
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-green-500 text-lg">✅</span>
+          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center gap-3" role="status" aria-live="polite" id="register-success">
+            <span className="text-green-500 text-lg" aria-hidden="true">✅</span>
             <p className="text-green-800 dark:text-green-300 font-medium">{success}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">👤</span>
+              <span className="text-primary-500" aria-hidden="true">👤</span>
               Namn
             </label>
             <input
@@ -117,12 +119,14 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange ditt namn"
               required
               disabled={loading}
+              aria-describedby={error ? "register-error" : undefined}
+              aria-invalid={!!error}
             />
           </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">📧</span>
+              <span className="text-primary-500" aria-hidden="true">📧</span>
               E-postadress
             </label>
             <input
@@ -134,14 +138,16 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange din e-postadress"
               required
               disabled={loading}
+              aria-describedby={error ? "register-error" : undefined}
+              aria-invalid={!!error}
             />
           </div>
 
           {/* Referral Code Input */}
           {referralCode && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4" role="status" aria-live="polite">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🎁</span>
+                <span className="text-2xl" aria-hidden="true">🎁</span>
                 <p className="font-semibold text-green-800 dark:text-green-200">
                   Referenskod aktiv!
                 </p>
@@ -159,7 +165,7 @@ const RegisterForm: React.FC = () => {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">🔒</span>
+              <span className="text-primary-500" aria-hidden="true">🔒</span>
               Lösenord
             </label>
             <div className="relative">
@@ -172,24 +178,29 @@ const RegisterForm: React.FC = () => {
                 placeholder="Skapa ett starkt lösenord"
                 required
                 disabled={loading}
+                aria-describedby={error ? "register-error" : "password-help"}
+                aria-invalid={!!error}
               />
               <button
                 type="button"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-200"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
+                title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-pressed={showPassword}
               >
-                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"} aria-hidden="true"></i>
               </button>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            <p id="password-help" className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
             </p>
           </div>
 
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">🔒</span>
+              <span className="text-primary-500" aria-hidden="true">🔒</span>
               Bekräfta lösenord
             </label>
             <div className="relative">
@@ -202,14 +213,19 @@ const RegisterForm: React.FC = () => {
                 placeholder="Bekräfta ditt lösenord"
                 required
                 disabled={loading}
+                aria-describedby={error ? "register-error" : undefined}
+                aria-invalid={!!error}
               />
               <button
                 type="button"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors duration-200"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={loading}
+                title={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-label={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-pressed={showConfirmPassword}
               >
-                <i className={showConfirmPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                <i className={showConfirmPassword ? "fas fa-eye-slash" : "fas fa-eye"} aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -218,15 +234,16 @@ const RegisterForm: React.FC = () => {
             type="submit"
             className="btn btn-primary w-full py-3 text-lg font-semibold"
             disabled={loading}
+            aria-describedby={loading ? "register-loading" : undefined}
           >
             {loading ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
-                Skapar konto...
+                <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>
+                <span id="register-loading">Skapar konto...</span>
               </>
             ) : (
               <>
-                <i className="fas fa-user-plus mr-2"></i>
+                <i className="fas fa-user-plus mr-2" aria-hidden="true"></i>
                 Skapa konto
               </>
             )}
@@ -239,6 +256,7 @@ const RegisterForm: React.FC = () => {
             <Link
               to="/login"
               className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-semibold transition-colors duration-200"
+              aria-label="Gå till inloggningssidan"
             >
               Logga in här
             </Link>

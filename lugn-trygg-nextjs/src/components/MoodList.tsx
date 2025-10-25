@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { Loading, Alert, SkeletonList } from "./UI";
 
 export default function MoodList({ onClose }: { onClose: () => void }) {
   const { user } = useAuth() as any;
@@ -75,10 +76,19 @@ export default function MoodList({ onClose }: { onClose: () => void }) {
           <button onClick={() => setFilter('neutral')} className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filter === 'neutral' ? 'bg-slate-500 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>😐 Neutrala</button>
         </div>
 
-        {error && (<div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex-shrink-0"><p className="text-red-800 dark:text-red-300 font-medium"><span className="text-lg mr-2">❌</span><strong>{error}</strong></p></div>)}
+        {error && (
+          <Alert variant="error" className="mb-6 flex-shrink-0">
+            {error}
+          </Alert>
+        )}
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div><p className="text-slate-600 dark:text-slate-400 text-lg">Laddar humörloggar...</p></div></div>
+          <div className="flex-1">
+            <SkeletonList count={5} className="mb-4" />
+            <div className="flex items-center justify-center">
+              <Loading size="md" variant="spinner" text="Laddar humörloggar..." />
+            </div>
+          </div>
         ) : filteredMoods.length === 0 ? (
           <div className="flex-1 flex items-center justify-center"><div className="text-center"><span className="text-6xl mb-4 block">📭</span><p className="text-slate-600 dark:text-slate-400 text-lg">{filter === 'all' ? 'Inga humörloggar hittades. Börja logga ditt humör idag!' : `Inga ${filter === 'positive' ? 'positiva' : filter === 'negative' ? 'negativa' : 'neutrala'} humörloggar hittades.`}</p></div></div>
         ) : (

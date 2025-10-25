@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../../contexts/AuthContext";
+import { Loading, Alert } from "../UI";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -48,22 +49,23 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-200 dark:border-slate-700">
-        <h2 className="text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-8 flex items-center justify-center gap-3">
-          <span className="text-primary-500 text-2xl">🔐</span>
-          Logga in
-        </h2>
+        <header>
+          <h1 className="text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-8 flex items-center justify-center gap-3">
+            <span className="text-primary-500 text-2xl" aria-hidden="true">🔐</span>
+            Logga in
+          </h1>
+        </header>
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <span className="text-red-500 text-lg">⚠️</span>
-            <p className="text-red-800 dark:text-red-300 font-medium">{error}</p>
-          </div>
+          <Alert variant="error" className="mb-6" id="login-error">
+            {error}
+          </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">📧</span>
+              <span className="text-primary-500" aria-hidden="true">📧</span>
               E-postadress
             </label>
             <input
@@ -75,12 +77,14 @@ export default function LoginForm() {
               placeholder="Ange din e-postadress"
               required
               disabled={loading}
+              aria-describedby={error ? "login-error" : undefined}
+              aria-invalid={!!error}
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <span className="text-primary-500">🔒</span>
+              <span className="text-primary-500" aria-hidden="true">🔒</span>
               Lösenord
             </label>
             <div className="relative">
@@ -93,6 +97,8 @@ export default function LoginForm() {
                 placeholder="Ange ditt lösenord"
                 required
                 disabled={loading}
+                aria-describedby={error ? "login-error" : undefined}
+                aria-invalid={!!error}
               />
               <button
                 type="button"
@@ -100,20 +106,21 @@ export default function LoginForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
                 title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
               >
-                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"} aria-hidden="true"></i>
               </button>
             </div>
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary w-full py-3 text-lg font-semibold"
+            className="btn btn-primary w-full py-3 text-lg font-semibold flex items-center justify-center gap-2"
             disabled={loading}
           >
             {loading ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
+                <Loading size="sm" variant="spinner" />
                 Loggar in...
               </>
             ) : (

@@ -5,15 +5,16 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { extractDisplayName } from "../../utils/nameUtils";
 import LanguageSwitcher from "../LanguageSwitcher";
+import { ThemeToggle } from "../UI/ThemeToggle";
 import "../../styles/design-system.css";
 
 const NavigationPro: React.FC = () => {
-  const { isLoggedIn, logout, user } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
-  const location = useLocation();
-  const { t } = useTranslation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+   const { isLoggedIn, logout, user } = useAuth();
+   const { isDarkMode } = useTheme();
+   const location = useLocation();
+   const { t } = useTranslation();
+   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+   const [scrolled, setScrolled] = useState(false);
 
   // Handle scroll effect
   useEffect(() => {
@@ -115,13 +116,9 @@ const NavigationPro: React.FC = () => {
               )}
 
               {/* Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="btn-icon btn-ghost-pro ml-2"
-                aria-label={isDarkMode ? t('settings.lightMode') : t('settings.darkMode')}
-              >
-                <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-slate-400'}`}></i>
-              </button>
+              <div className="ml-2">
+                <ThemeToggle />
+              </div>
 
               {/* Language Switcher */}
               <LanguageSwitcher />
@@ -215,13 +212,9 @@ const NavigationPro: React.FC = () => {
           {/* Mobile Actions */}
           <div className="pt-6 border-t border-slate-700 space-y-3">
             {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-200"
-            >
-              <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon'} text-lg`}></i>
-              <span>{isDarkMode ? t('settings.lightMode') : t('settings.darkMode')}</span>
-            </button>
+            <div className="px-4 py-3">
+              <ThemeToggle />
+            </div>
 
             {/* Language Switcher */}
             <div className="px-4">
