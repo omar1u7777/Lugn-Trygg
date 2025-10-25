@@ -250,9 +250,15 @@ def get_sanitized_form() -> Optional[Dict[str, Any]]:
 # Create middleware instance
 validation_middleware = ValidationMiddleware()
 
+def init_validation_middleware(app):
+    """Initialize validation middleware with Flask app"""
+    middleware = ValidationMiddleware(app)
+    return middleware
+
 __all__ = [
     'ValidationMiddleware',
     'validation_middleware',
+    'init_validation_middleware',
     'validate_request',
     'validate_response',
     'validate_query_params',
