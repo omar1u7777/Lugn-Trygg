@@ -1,4 +1,9 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig(({ mode }) => {
   return {
     resolve: {
@@ -8,6 +13,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [], // Image optimization will be handled by the OptimizedImage component
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "src"),
+      },
+    },
     server: {
       port: 3000,
       open: false,
