@@ -52,11 +52,6 @@
       ]
     }
   ],
-  "functions": {
-    "src/pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "regions": ["fra1"],
   "env": {
     "VITE_API_URL": "https://api.lugntrygg.se",
