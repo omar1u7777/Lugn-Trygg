@@ -354,6 +354,39 @@ const MoodAnalytics: React.FC = () => {
           })
         );
       });
+      doc.setTextColor(102, 126, 234);
+      doc.text('🤖 AI-Modell Information', 20, y);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.text(`Algoritm: ${forecast.model_info.algorithm}`, 25, y);
+      y += 6;
+      doc.text(`Tränings-RMSE: ${forecast.model_info.training_rmse?.toFixed(3) || 'N/A'}`, 25, y);
+      y += 6;
+      doc.text(`Datapunkter använd: ${forecast.model_info.data_points_used}`, 25, y);
+      y += 15;
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(
+        'Detta är en AI-genererad analys. För professionell hjälp, kontakta vårdgivare.',
+        pageWidth / 2,
+        285,
+        { align: 'center' }
+      );
+
+      // Save PDF
+      doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
+    } catch (err) {
+      console.error('Failed to export analytics as PDF', err);
+      setPdfError(
+        t('analytics.pdfExportUnavailable', {
+          defaultValue: 'PDF-exporten är tillfälligt otillgänglig. Försök igen senare.',
+        })
+      );
+    }
   };
 
   const getSentimentColor = (score: number) => {
