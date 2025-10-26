@@ -32,9 +32,12 @@
     "crypto-js": "^4.2.0",
     "firebase": "^10.7.1",
     "framer-motion": "^10.16.16",
+    "i18next": "^25.6.0",
+    "i18next-browser-languagedetector": "^8.2.0",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^16.1.6",
     "react-router-dom": "^6.20.1",
     "web-vitals": "^3.5.0"
   },
