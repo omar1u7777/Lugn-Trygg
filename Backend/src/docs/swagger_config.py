@@ -72,11 +72,9 @@ spec = APISpec(
         dict(name='Integrations', description='Third-party service integrations'),
         dict(name='Subscriptions', description='Subscription and billing management'),
         dict(name='Admin', description='Administrative functions'),
-    ]
+    ],
+    plugins=[MarshmallowPlugin()],
 )
-
-# Add Marshmallow plugin
-spec.plugins(MarshmallowPlugin())
 
 # Security schemes
 spec.components.security_scheme(
