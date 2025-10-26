@@ -1,6 +1,4 @@
 import { defineConfig } from "vite";
-// import { ViteImageOptimize } from 'vite-plugin-image-optimize';
-
 export default defineConfig(({ mode }) => {
   return {
     plugins: [], // Image optimization will be handled by the OptimizedImage component
