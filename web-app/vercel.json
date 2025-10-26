@@ -10,14 +10,14 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://api.lugntrygg.se/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://api.lugntrygg.se/api/:path*"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/:path*",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -52,11 +52,6 @@
       ]
     }
   ],
-  "functions": {
-    "src/pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "regions": ["fra1"],
   "env": {
     "VITE_API_URL": "https://api.lugntrygg.se",
