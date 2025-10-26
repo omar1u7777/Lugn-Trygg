@@ -131,7 +131,35 @@ class AuditService:
 # Create a global audit service instance
 audit_service = AuditService()
 
-def audit_log(event_type: str, user_id: str, details: Dict[str, Any],
-              ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> None:
-    """Global audit logging function"""
+
+def audit_log(
+    event_type: str,
+    user_id: str,
+    details: Dict[str, Any],
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> None:
+    """Global audit logging function."""
     audit_service.log_event(event_type, user_id, details, ip_address, user_agent)
+
+
+def log_admin_action(
+    admin_id: str,
+    action: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> None:
+    """Specialized helper to record administrative actions."""
+
+    details: Dict[str, Any] = {"action": action}
+    if metadata:
+        details["metadata"] = metadata
+
+    audit_service.log_event(
+        event_type="ADMIN_ACTION",
+        user_id=admin_id,
+        details=details,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
