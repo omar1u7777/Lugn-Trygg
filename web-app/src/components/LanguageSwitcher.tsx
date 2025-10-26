@@ -1,8 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import moment from 'moment';
-import 'moment/locale/sv';
-import 'moment/locale/nb';
 
 const LanguageSwitcher: React.FC = () => {
   const { i18n, t } = useTranslation();
@@ -13,10 +10,16 @@ const LanguageSwitcher: React.FC = () => {
     { code: 'no', name: t('language.norwegian'), flag: '🇳🇴' }
   ];
 
+  useEffect(() => {
+    const activeLanguage = i18n.language === 'no' ? 'nb' : i18n.language;
+    document.documentElement.lang = activeLanguage;
+  }, [i18n.language]);
+
   const changeLanguage = (languageCode: string) => {
     i18n.changeLanguage(languageCode);
-    moment.locale(languageCode === 'no' ? 'nb' : languageCode);
     localStorage.setItem('i18nextLng', languageCode);
+    const normalizedLanguage = languageCode === 'no' ? 'nb' : languageCode;
+    document.documentElement.lang = normalizedLanguage;
   };
 
   return (
