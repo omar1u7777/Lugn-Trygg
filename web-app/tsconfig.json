@@ -41,7 +41,9 @@
     /*  Import-hantering (för enklare imports) */
     "baseUrl": ".", 
     "paths": {
-      "@/*": ["src/*"] //  Stöd för absoluta imports från `src/`
+      "@/*": ["src/*"], //  Stöd för absoluta imports från `src/`
+      "@vercel/analytics/react": ["src/shims/vercel-analytics"],
+      "@vercel/speed-insights/react": ["src/shims/vercel-speed-insights"]
     }
   }
 }
