@@ -3,10 +3,31 @@ OpenAPI/Swagger Documentation Configuration for Lugn & Trygg API
 Generates comprehensive API documentation with examples and validation
 """
 
+from importlib import metadata as importlib_metadata
+
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+import marshmallow
+
+# ---------------------------------------------------------------------------
+# Compatibility helpers
+# ---------------------------------------------------------------------------
+
+# Flask-apispec relies on the deprecated ``marshmallow.__version__`` attribute.
+# Marshmallow 4 removed this attribute, which causes Render deployments to fail
+# when the platform installs the newest major release. Restore the value before
+# importing Flask-apispec so it always sees the legacy metadata.
+try:
+    if not getattr(marshmallow, "__version__", None):
+        marshmallow.__version__ = importlib_metadata.version("marshmallow")
+except importlib_metadata.PackageNotFoundError:
+    # In the unlikely event marshmallow isn't installed yet, skip the shim –
+    # Flask-apispec will fail during import with a clearer error message.
+    pass
+
 from flask_apispec import FlaskApiSpec
 from marshmallow import Schema, fields, validate
+
 import os
 
 # Create APISpec instance
