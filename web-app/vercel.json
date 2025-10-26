@@ -16,6 +16,11 @@
       "destination": "https://api.lugntrygg.se/api/:path*"
     },
     {
+      "source": "/:path*",
+      "missing": [
+        { "type": "file" },
+        { "type": "directory" }
+      ],
       "source": "/:path((?!api|_next|.*\\..*).*)",
       "destination": "/index.html"
     }
