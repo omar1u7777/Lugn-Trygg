@@ -1,8 +1,18 @@
 import { defineConfig } from "vite";
+import path from "path";
+import { fileURLToPath } from "url";
 // import { ViteImageOptimize } from 'vite-plugin-image-optimize';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   return {
+    resolve: {
+      alias: {
+        "@vercel/analytics/react": path.resolve(__dirname, "src/shims/vercel-analytics.tsx"),
+        "@vercel/speed-insights/react": path.resolve(__dirname, "src/shims/vercel-speed-insights.tsx"),
+      },
+    },
     plugins: [], // Image optimization will be handled by the OptimizedImage component
     server: {
       port: 3000,
