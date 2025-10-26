@@ -219,3 +219,4 @@ workbox-*.js.map
 # Service Worker
 sw.js
 sw.js.map
+.vercel
