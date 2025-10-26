@@ -9,14 +9,31 @@ import ErrorBoundary from './ErrorBoundary';
 // Lazy load heavy components
 const AnalyticsCharts = lazy(() => import('./Analytics/AnalyticsCharts'));
 
-// Dynamic import for jsPDF to reduce initial bundle size
-let jsPDF: any = null;
-const loadJSPDF = async () => {
-  if (!jsPDF) {
-    const module = await import('jspdf');
-    jsPDF = module.default;
+declare global {
+  interface Window {
+    jspdf?: {
+      jsPDF: new (...args: unknown[]) => any;
+    };
   }
-  return jsPDF;
+}
+
+// Accessor for the global jsPDF constructor injected via CDN at runtime.
+let jsPDFConstructor: any = null;
+const loadJSPDF = async () => {
+  if (jsPDFConstructor) {
+    return jsPDFConstructor;
+  }
+
+  if (typeof window !== 'undefined' && window.jspdf?.jsPDF) {
+    jsPDFConstructor = window.jspdf.jsPDF;
+    return jsPDFConstructor;
+  }
+
+  if (import.meta.env.DEV) {
+    console.warn('jsPDF CDN script not available. PDF export disabled.');
+  }
+
+  throw new Error('jsPDF is not available');
 };
 import {
   Card,
@@ -71,6 +88,7 @@ const MoodAnalytics: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [daysAhead, setDaysAhead] = useState(7);
 
   useEffect(() => {
@@ -116,6 +134,8 @@ const MoodAnalytics: React.FC = () => {
 
   const exportToPDF = async () => {
     if (!forecast) return;
+
+    setPdfError(null);
 
     const jsPDFModule = await loadJSPDF();
     const doc = new jsPDFModule();
@@ -242,7 +262,15 @@ const MoodAnalytics: React.FC = () => {
 
     // Save PDF
     doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
-  };
+  } catch (err) {
+    console.error('Failed to export analytics as PDF', err);
+    setPdfError(
+      t('analytics.pdfExportUnavailable', {
+        defaultValue: 'PDF-exporten är tillfälligt otillgänglig. Försök igen senare.',
+      })
+    );
+  }
+};
 
   const getSentimentColor = (score: number) => {
     if (score > 0.2) return '#4CAF50';
@@ -343,6 +371,11 @@ const MoodAnalytics: React.FC = () => {
           >
             Exportera PDF
           </Button>
+          {pdfError && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {pdfError}
+            </Alert>
+          )}
         </Box>
 
         <Grid container spacing={3}>
