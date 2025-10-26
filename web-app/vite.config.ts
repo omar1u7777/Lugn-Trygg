@@ -1,10 +1,4 @@
 import { defineConfig } from "vite";
-import path from "path";
-import { fileURLToPath } from "url";
-// import { ViteImageOptimize } from 'vite-plugin-image-optimize';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 export default defineConfig(({ mode }) => {
   return {
     resolve: {
