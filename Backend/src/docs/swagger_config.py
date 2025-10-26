@@ -18,12 +18,17 @@ import marshmallow
 # when the platform installs the newest major release. Restore the value before
 # importing Flask-apispec so it always sees the legacy metadata.
 try:
-    if not getattr(marshmallow, "__version__", None):
+    needs_version = not getattr(marshmallow, "__version__", None)
+except AttributeError:
+    needs_version = True
+
+if needs_version:
+    try:
         marshmallow.__version__ = importlib_metadata.version("marshmallow")
-except importlib_metadata.PackageNotFoundError:
-    # In the unlikely event marshmallow isn't installed yet, skip the shim –
-    # Flask-apispec will fail during import with a clearer error message.
-    pass
+    except importlib_metadata.PackageNotFoundError:
+        # As an absolute fallback, provide a placeholder version string so
+        # flask-apispec can continue importing without crashing.
+        marshmallow.__version__ = "0"
 
 from flask_apispec import FlaskApiSpec
 from marshmallow import Schema, fields, validate
