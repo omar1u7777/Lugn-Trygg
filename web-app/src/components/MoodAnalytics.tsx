@@ -5,19 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../api/api';
 import { LoadingSpinner } from './LoadingStates';
 import ErrorBoundary from './ErrorBoundary';
-
-// Lazy load heavy components
-const AnalyticsCharts = lazy(() => import('./Analytics/AnalyticsCharts'));
-
-// Dynamic import for jsPDF to reduce initial bundle size
-let jsPDF: any = null;
-const loadJSPDF = async () => {
-  if (!jsPDF) {
-    const module = await import('jspdf');
-    jsPDF = module.default;
-  }
-  return jsPDF;
-};
 import {
   Card,
   CardContent,
@@ -41,6 +28,79 @@ import {
   FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
 
+// Lazy load heavy components
+const AnalyticsCharts = lazy(() => import('./Analytics/AnalyticsCharts'));
+
+declare global {
+  interface Window {
+    jspdf?: {
+      jsPDF: new (...args: unknown[]) => unknown;
+    };
+  }
+}
+
+type JSPDFConstructor = new (...args: unknown[]) => {
+  internal: { pageSize: { getWidth: () => number } };
+  setFontSize: (size: number) => void;
+  setTextColor: (r: number, g?: number, b?: number) => void;
+  text: (text: string, x: number, y: number, options?: Record<string, unknown>) => void;
+  addPage: () => void;
+  splitTextToSize: (text: string, maxSize: number) => string[];
+  save: (filename: string) => void;
+};
+
+let jsPDFConstructor: JSPDFConstructor | null = null;
+
+const loadJSPDF = (): Promise<JSPDFConstructor> => {
+  if (jsPDFConstructor) {
+    return Promise.resolve(jsPDFConstructor);
+  }
+
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('jsPDF can only be loaded in the browser'));
+  }
+
+  if (window.jspdf?.jsPDF) {
+    jsPDFConstructor = window.jspdf.jsPDF as JSPDFConstructor;
+    return Promise.resolve(jsPDFConstructor);
+  }
+
+  return new Promise<JSPDFConstructor>((resolve, reject) => {
+    const handleLoad = () => {
+      if (window.jspdf?.jsPDF) {
+        jsPDFConstructor = window.jspdf.jsPDF as JSPDFConstructor;
+        resolve(jsPDFConstructor);
+      } else {
+        reject(new Error('jsPDF loaded but constructor was not found'));
+      }
+    };
+
+    const handleError = () => {
+      reject(new Error('Failed to load jsPDF from CDN'));
+    };
+
+    const existingScript = document.getElementById('jspdf-cdn') as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener('load', handleLoad, { once: true });
+      existingScript.addEventListener('error', handleError, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'jspdf-cdn';
+    script.setAttribute('data-csp-reuse', 'jspdf-cdn');
+    script.src = 'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js';
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', handleLoad, { once: true });
+    script.addEventListener('error', handleError, { once: true });
+    document.body.appendChild(script);
+
+    if (import.meta.env.DEV) {
+      console.warn('jsPDF CDN script injected dynamically.');
+    }
+  });
+};
 interface ForecastData {
   forecast: {
     daily_predictions: number[];
@@ -71,6 +131,7 @@ const MoodAnalytics: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [daysAhead, setDaysAhead] = useState(7);
 
   useEffect(() => {
@@ -115,133 +176,186 @@ const MoodAnalytics: React.FC = () => {
   };
 
   const exportToPDF = async () => {
-    if (!forecast) return;
+    if (!forecast) {
+      return;
+    }
 
-    const jsPDFModule = await loadJSPDF();
-    const doc = new jsPDFModule();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 20;
+    setPdfError(null);
 
-    // Title
-    doc.setFontSize(20);
-    doc.setTextColor(102, 126, 234); // Purple
-    doc.text('Lugn & Trygg - Humöranalys', pageWidth / 2, y, { align: 'center' });
-    y += 15;
+    try {
+      const jsPDFModule = await loadJSPDF();
+      const doc = new jsPDFModule();
+      const {
+        forecast: forecastData,
+        model_info,
+        risk_factors = [],
+        recommendations = [],
+        confidence,
+      } = forecast;
 
-    // Date
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Genererad: ${new Date().toLocaleDateString('sv-SE')} ${new Date().toLocaleTimeString('sv-SE')}`, pageWidth / 2, y, { align: 'center' });
-    y += 15;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let y = 20;
 
-    // Current Analysis Section
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.text('📊 Nuvarande Analys', 20, y);
-    y += 10;
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(102, 126, 234);
+      doc.text('Lugn & Trygg - Humöranalys', pageWidth / 2, y, { align: 'center' });
+      y += 15;
 
-    doc.setFontSize(10);
-    doc.text(`Genomsnittlig prognos: ${forecast.forecast.average_forecast.toFixed(1)}/10`, 25, y);
-    y += 7;
-    doc.text(`Trend: ${forecast.forecast.trend === 'improving' ? '📈 Förbättras' : forecast.forecast.trend === 'declining' ? '📉 Nedåtgående' : '📊 Stabil'}`, 25, y);
-    y += 7;
-    doc.text(`Konfidensintervall: ${forecast.forecast.confidence_interval.lower.toFixed(1)} - ${forecast.forecast.confidence_interval.upper.toFixed(1)}`, 25, y);
-    y += 7;
-    doc.text(`Säkerhet: ${(forecast.confidence * 100).toFixed(0)}%`, 25, y);
-    y += 15;
+      // Date
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      const generatedAt = new Date();
+      doc.text(
+        `Genererad: ${generatedAt.toLocaleDateString('sv-SE')} ${generatedAt.toLocaleTimeString('sv-SE')}`,
+        pageWidth / 2,
+        y,
+        { align: 'center' }
+      );
+      y += 15;
 
-    // Daily Predictions
-    doc.setFontSize(14);
-    doc.text('📅 Dagliga Prediktioner', 20, y);
-    y += 10;
-
-    doc.setFontSize(9);
-    forecast.forecast.daily_predictions.forEach((prediction, index) => {
-      const date = new Date();
-      date.setDate(date.getDate() + index);
-      doc.text(`Dag ${index + 1} (${date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}): ${prediction.toFixed(1)}/10`, 25, y);
-      y += 6;
-    });
-    y += 10;
-
-    // Risk Factors
-    if (forecast.risk_factors && forecast.risk_factors.length > 0) {
+      // Current Analysis Section
       doc.setFontSize(14);
-      doc.setTextColor(231, 76, 60); // Red
-      doc.text('⚠️ Riskfaktorer', 20, y);
+      doc.setTextColor(0);
+      doc.text('📊 Nuvarande Analys', 20, y);
+      y += 10;
+
+      doc.setFontSize(10);
+      doc.text(`Genomsnittlig prognos: ${forecastData.average_forecast.toFixed(1)}/10`, 25, y);
+      y += 7;
+      doc.text(
+        `Trend: ${
+          forecastData.trend === 'improving'
+            ? '📈 Förbättras'
+            : forecastData.trend === 'declining'
+            ? '📉 Nedåtgående'
+            : '📊 Stabil'
+        }`,
+        25,
+        y
+      );
+      y += 7;
+      doc.text(
+        `Konfidensintervall: ${
+          forecastData.confidence_interval.lower.toFixed(1)
+        } - ${forecastData.confidence_interval.upper.toFixed(1)}`,
+        25,
+        y
+      );
+      y += 7;
+      doc.text(`Säkerhet: ${(confidence * 100).toFixed(0)}%`, 25, y);
+      y += 15;
+
+      // Daily Predictions
+      doc.setFontSize(14);
+      doc.text('📅 Dagliga Prediktioner', 20, y);
       y += 10;
 
       doc.setFontSize(9);
-      doc.setTextColor(0);
-      forecast.risk_factors.forEach(risk => {
-        const lines = doc.splitTextToSize(`• ${risk}`, pageWidth - 50);
-        lines.forEach((line: string) => {
+      forecastData.daily_predictions.forEach((prediction, index) => {
+        const date = new Date();
+        date.setDate(date.getDate() + index);
+        doc.text(
+          `Dag ${index + 1} (${date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' })}): ${prediction.toFixed(1)}/10`,
+          25,
+          y
+        );
+        y += 6;
+      });
+      y += 10;
+
+      // Risk Factors
+      if (risk_factors.length > 0) {
+        doc.setFontSize(14);
+        doc.setTextColor(231, 76, 60);
+        doc.text('⚠️ Riskfaktorer', 20, y);
+        y += 10;
+
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        risk_factors.forEach((risk) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
           }
-          doc.text(line, 25, y);
-          y += 6;
-        });
-      });
-      y += 10;
-    }
 
-    // Recommendations
-    if (forecast.recommendations && forecast.recommendations.length > 0) {
-      if (y > 250) {
+          const lines = doc.splitTextToSize(`• ${risk}`, pageWidth - 50);
+          lines.forEach((line: string) => {
+            doc.text(line, 25, y);
+            y += 6;
+          });
+        });
+        y += 10;
+      }
+
+      // Recommendations
+      if (recommendations.length > 0) {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(39, 174, 96);
+        doc.text('💡 Rekommendationer', 20, y);
+        y += 10;
+
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        recommendations.forEach((rec) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+
+          const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - 50);
+          lines.forEach((line: string) => {
+            doc.text(line, 25, y);
+            y += 6;
+          });
+        });
+        y += 10;
+      }
+
+      // Model Info
+      if (y > 240) {
         doc.addPage();
         y = 20;
       }
 
       doc.setFontSize(14);
-      doc.setTextColor(39, 174, 96); // Green
-      doc.text('💡 Rekommendationer', 20, y);
+      doc.setTextColor(102, 126, 234);
+      doc.text('🤖 AI-Modell Information', 20, y);
       y += 10;
 
       doc.setFontSize(9);
       doc.setTextColor(0);
-      forecast.recommendations.forEach(rec => {
-        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - 50);
-        lines.forEach((line: string) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
-          doc.text(line, 25, y);
-          y += 6;
-        });
-      });
-      y += 10;
+      doc.text(`Algoritm: ${model_info.algorithm}`, 25, y);
+      y += 6;
+      doc.text(`Tränings-RMSE: ${model_info.training_rmse?.toFixed(3) ?? 'N/A'}`, 25, y);
+      y += 6;
+      doc.text(`Datapunkter använd: ${model_info.data_points_used}`, 25, y);
+      y += 15;
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(
+        'Detta är en AI-genererad analys. För professionell hjälp, kontakta vårdgivare.',
+        pageWidth / 2,
+        285,
+        { align: 'center' }
+      );
+
+      doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
+    } catch (err) {
+      console.error('Failed to export analytics as PDF', err);
+      setPdfError(
+        t('analytics.pdfExportUnavailable', {
+          defaultValue: 'PDF-exporten är tillfälligt otillgänglig. Försök igen senare.',
+        })
+      );
     }
-
-    // Model Info
-    if (y > 240) {
-      doc.addPage();
-      y = 20;
-    }
-
-    doc.setFontSize(14);
-    doc.setTextColor(102, 126, 234);
-    doc.text('🤖 AI-Modell Information', 20, y);
-    y += 10;
-
-    doc.setFontSize(9);
-    doc.setTextColor(0);
-    doc.text(`Algoritm: ${forecast.model_info.algorithm}`, 25, y);
-    y += 6;
-    doc.text(`Tränings-RMSE: ${forecast.model_info.training_rmse?.toFixed(3) || 'N/A'}`, 25, y);
-    y += 6;
-    doc.text(`Datapunkter använd: ${forecast.model_info.data_points_used}`, 25, y);
-    y += 15;
-
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text('Detta är en AI-genererad analys. För professionell hjälp, kontakta vårdgivare.', pageWidth / 2, 285, { align: 'center' });
-
-    // Save PDF
-    doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
   };
 
   const getSentimentColor = (score: number) => {
@@ -343,6 +457,11 @@ const MoodAnalytics: React.FC = () => {
           >
             Exportera PDF
           </Button>
+          {pdfError && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {pdfError}
+            </Alert>
+          )}
         </Box>
 
         <Grid container spacing={3}>
