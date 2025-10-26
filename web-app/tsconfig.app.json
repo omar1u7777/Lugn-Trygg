@@ -38,7 +38,9 @@
       "@/*": ["src/*"],
       "@components/*": ["src/components/*"],
       "@hooks/*": ["src/hooks/*"],
-      "@utils/*": ["src/utils/*"]
+      "@utils/*": ["src/utils/*"],
+      "@vercel/analytics/react": ["src/shims/vercel-analytics"],
+      "@vercel/speed-insights/react": ["src/shims/vercel-speed-insights"]
     }
   },
 
