@@ -9,7 +9,7 @@ interface MicroInteractionsProps {
 }
 
 // Heart animation for likes/favorites
-export const HeartAnimation: React.FC<{
+const HeartAnimation: React.FC<{
   isActive: boolean;
   onClick: () => void;
   size?: number;
@@ -53,7 +53,7 @@ export const HeartAnimation: React.FC<{
 };
 
 // Success checkmark animation
-export const SuccessCheckmark: React.FC<{
+const SuccessCheckmark: React.FC<{
   show: boolean;
   message?: string;
 }> = ({ show, message = "Sparat!" }) => {
@@ -94,7 +94,7 @@ export const SuccessCheckmark: React.FC<{
 };
 
 // Loading dots animation
-export const LoadingDots: React.FC<{
+const LoadingDots: React.FC<{
   size?: 'small' | 'medium' | 'large';
 }> = ({ size = 'medium' }) => {
   const sizes = {
@@ -132,7 +132,7 @@ export const LoadingDots: React.FC<{
 };
 
 // Pulse animation for notifications
-export const PulseNotification: React.FC<{
+const PulseNotification: React.FC<{
   count: number;
   children: React.ReactNode;
 }> = ({ count, children }) => {
@@ -158,7 +158,7 @@ export const PulseNotification: React.FC<{
 };
 
 // Stagger animation for lists
-export const StaggerContainer: React.FC<{
+const StaggerContainer: React.FC<{
   children: React.ReactNode;
   staggerDelay?: number;
 }> = ({ children, staggerDelay = 0.1 }) => {
@@ -200,7 +200,7 @@ export const StaggerContainer: React.FC<{
 };
 
 // Hover lift effect
-export const HoverLift: React.FC<{
+const HoverLift: React.FC<{
   children: React.ReactNode;
   liftAmount?: number;
 }> = ({ children, liftAmount = 4 }) => {
@@ -219,7 +219,7 @@ export const HoverLift: React.FC<{
 };
 
 // Progress bar animation
-export const AnimatedProgressBar: React.FC<{
+const AnimatedProgressBar: React.FC<{
   value: number;
   maxValue: number;
   color?: string;
@@ -269,7 +269,7 @@ export const AnimatedProgressBar: React.FC<{
 };
 
 // Button with micro-interactions
-export const InteractiveButton: React.FC<{
+const InteractiveButton: React.FC<{
   children: React.ReactNode;
   onClick: () => void;
   variant?: 'contained' | 'outlined' | 'text';
@@ -335,8 +335,22 @@ export const InteractiveButton: React.FC<{
   );
 };
 
+// Export all components
+export {
+  HeartAnimation,
+  SuccessCheckmark,
+  LoadingDots,
+  PulseNotification,
+  StaggerContainer,
+  HoverLift,
+  AnimatedProgressBar,
+  InteractiveButton,
+  ToastNotification,
+  PageTransition,
+};
+
 // Toast notification with animation
-export const ToastNotification: React.FC<{
+const ToastNotification: React.FC<{
   message: string;
   type: 'success' | 'error' | 'warning' | 'info';
   show: boolean;
@@ -362,6 +376,7 @@ export const ToastNotification: React.FC<{
       case 'error': return <Error sx={{ color: 'error.main' }} />;
       case 'warning': return <Warning sx={{ color: 'warning.main' }} />;
       case 'info': return <Star sx={{ color: 'info.main' }} />;
+      default: return <Star sx={{ color: 'info.main' }} />;
     }
   };
 
@@ -371,6 +386,7 @@ export const ToastNotification: React.FC<{
       case 'error': return 'error.main';
       case 'warning': return 'warning.main';
       case 'info': return 'info.main';
+      default: return 'info.main';
     }
   };
 
@@ -410,7 +426,7 @@ export const ToastNotification: React.FC<{
 };
 
 // Page transition wrapper
-export const PageTransition: React.FC<{
+const PageTransition: React.FC<{
   children: React.ReactNode;
   direction?: 'left' | 'right' | 'up' | 'down';
 }> = ({ children, direction = 'right' }) => {
@@ -451,17 +467,3 @@ const MicroInteractions: React.FC<MicroInteractionsProps> = ({ children }) => {
 };
 
 export default MicroInteractions;
-
-// Export all components
-export {
-  HeartAnimation,
-  SuccessCheckmark,
-  LoadingDots,
-  PulseNotification,
-  StaggerContainer,
-  HoverLift,
-  AnimatedProgressBar,
-  InteractiveButton,
-  ToastNotification,
-  PageTransition,
-};

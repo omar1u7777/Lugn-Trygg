@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, Typography, Button, Box, Chip, Alert } from '@mui/material';
-import { TrendingUp, TrendingDown, Star, Award, Target, Heart } from '@mui/icons-material';
+import { TrendingUp, TrendingDown, Star, EmojiEvents, TrackChanges, Favorite } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
@@ -44,7 +44,7 @@ const StoryInsights: React.FC<StoryInsightsProps> = ({ userId }) => {
         story: 'Grattis! Du har nu loggat humör 50 dagar i rad. Det är en imponerande prestation som visar ditt engagemang för bättre mental hälsa.',
         trend: null,
         color: 'gold',
-        icon: Award,
+        icon: EmojiEvents,
         action: 'Dela prestation',
         badge: '🏆',
       },
@@ -55,7 +55,7 @@ const StoryInsights: React.FC<StoryInsightsProps> = ({ userId }) => {
         story: 'Baserat på dina mönster rekommenderar vi att du provar mindfulness-övningar på morgonen. Detta kan hjälpa till att starta dagen på ett mer balanserat sätt.',
         trend: null,
         color: 'blue',
-        icon: Heart,
+        icon: Favorite,
         action: 'Prova nu',
         badge: null,
       },
@@ -66,7 +66,7 @@ const StoryInsights: React.FC<StoryInsightsProps> = ({ userId }) => {
         story: 'Du har 6 av 7 humör-inlägg denna vecka. Bara ett till för att nå ditt mål! Konsekvent spårning hjälper dig förstå dina mönster bättre.',
         trend: null,
         color: 'orange',
-        icon: Target,
+        icon: TrackChanges,
         action: 'Logga nu',
         badge: null,
       },
@@ -247,7 +247,7 @@ const StoryInsights: React.FC<StoryInsightsProps> = ({ userId }) => {
           Vad vill du göra nu?
         </Typography>
         <div className="flex flex-wrap justify-center gap-3">
-          <Button variant="contained" startIcon={<Heart />}>
+          <Button variant="contained" startIcon={<Favorite />}>
             Logga humör
           </Button>
           <Button variant="outlined" startIcon={<Star />}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, Typography, Box, Chip, Button, LinearProgress, Avatar, Badge } from '@mui/material';
-import { EmojiEvents, Star, TrendingUp, LocalFire, Psychology, Favorite } from '@mui/icons-material';
+import { EmojiEvents, Star, TrendingUp, LocalFireDepartment, Psychology, Favorite } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
@@ -190,7 +190,7 @@ const Gamification: React.FC<GamificationProps> = ({ userId }) => {
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <div className="text-4xl">
-              <LocalFire className="text-orange-500" sx={{ fontSize: 48 }} />
+              <LocalFireDepartment className="text-orange-500" sx={{ fontSize: 48 }} />
             </div>
             <div className="flex-1">
               <Typography variant="h6" gutterBottom>

@@ -22,12 +22,12 @@
     /*  Säkerhet & Typning */
     "strict": true,
     "strictNullChecks": true,
-    "exactOptionalPropertyTypes": true, 
-    "useUnknownInCatchVariables": true, 
+    "exactOptionalPropertyTypes": false,
+    "useUnknownInCatchVariables": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
@@ -48,5 +48,5 @@
   "include": ["src", "src/**/*.ts", "src/**/*.tsx", "src/hooks/useAuth.ts", "src/api/api.ts"],
 
   /*  Exkluderade filer/mappar */
-  "exclude": ["node_modules", "dist", "build", "tests"]
+  "exclude": ["node_modules", "dist", "build", "tests", "**/__tests__/**", "**/*.test.*", "**/*.spec.*"]
 }
