@@ -1,87 +1,71 @@
 # ===========================================
-# Lugn & Trygg - Root .gitignore
+# Frontend - React/TypeScript/Vite .gitignore
 # ===========================================
 
-# Python virtual environments
-venv/
-env/
-ENV/
-.venv/
-Backend/venv/
-Backend/env/
-Backend/ENV/
-
-# Python bytecode and cache files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Testing and coverage
-.coverage
-.pytest_cache/
-.tox/
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-htmlcov/
-
-# Node.js dependencies and build files
-node_modules/
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Frontend build outputs
-frontend/dist/
-frontend/build/
-frontend/.cache/
-frontend/.vite/
-frontend/coverage/
-
-# Environment files (NEVER commit these!)
+# Environment variables (NEVER commit!)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-Backend/.env
-frontend/.env
 
 # Firebase service account keys (HIGHLY SENSITIVE!)
 serviceAccountKey.json
-Backend/serviceAccountKey.json
-frontend/serviceAccountKey.json
+firebase-debug.log
+functions/serviceAccountKey.json
 
-# Logs
-*.log
-app.log
-logs/
-Backend/logs/
-frontend/logs/
+# Build outputs
+node_modules/
+dist/
+dist-ssr/
+build/
+*.local
+*.tsbuildinfo
+
+# Vite cache
+.vite/
+.cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Electron
+app/dist/
+release/
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.snap
+*.appimage
+
+# Firebase & Cloud Functions
+functions/node_modules/
+functions/dist/
+.firebase/
 
 # IDE and editor files
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -95,7 +79,7 @@ frontend/logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
-.qodo
+desktop.ini
 
 # Temporary files
 *.tmp
@@ -103,42 +87,136 @@ Thumbs.db
 .tmp/
 .temp/
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
+# Lock files (usually keep one, but ignore others if using multiple package managers)
+# yarn.lock
+# pnpm-lock.yaml
 
-# Docker
-.dockerignore
+# Storybook build outputs
+storybook-static/
 
-# CI/CD
-.github/
-.gitlab-ci.yml
-.travis.yml
+# ESLint cache
+.eslintcache
 
-# Documentation builds
-docs/_build/
+# Prettier cache
+.prettiercache
 
-# ============================================
-# Added by cleanup script - 2025-10-22
-# ============================================
+# Stylelint cache
+.stylelintcache
 
-# Build outputs
-web-app-build/
-dist/
-build/
+# Optional npm cache directory
+.npm
 
-# Logs
-*.log
-app.log
+# Optional eslint cache
+.eslintcache
 
-# Test reports
-TEST_REPORT_*.json
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
-# Backups
-*-backup-*/
-*.backup
+# Optional REPL history
+.node_repl_history
 
-# Cache
-.pytest_cache/
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+# public  # Commented out - we need public/ for Vite
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Temporary folders
+tmp/
+temp/
+
+# WebStorm
+.idea/
+
+# SublimeText
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# OS X
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PWA
+sw.js.map
+workbox-*.js.map
+
+# Service Worker
+sw.js
+sw.js.map
 .vercel

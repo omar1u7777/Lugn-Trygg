@@ -1,0 +1,14 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+tests/
+.env.example
+docs/
+*.log
+pytest.ini
+babel.cfg
+messages.pot
+populate_test_data.py
+setup_test_auth.py
+test_openai.py
