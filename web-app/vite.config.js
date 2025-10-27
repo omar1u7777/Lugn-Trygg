@@ -1,10 +1,12 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProduction = process.env.NODE_ENV === "production";
 export default defineConfig({
-    plugins: [], // Image optimization will be handled by the OptimizedImage component
+    plugins: [react()], // Image optimization will be handled by the OptimizedImage component
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "src"),

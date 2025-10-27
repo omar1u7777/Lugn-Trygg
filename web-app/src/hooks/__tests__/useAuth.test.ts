@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderHook } from '@testing-library/react';
+import { renderHook } from '@testing-library/react-hooks';
 import { vi, describe, test, expect } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
 import useAuth from '../useAuth';
