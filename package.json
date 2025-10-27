@@ -1,0 +1,10 @@
+{
+  "name": "lugn-trygg-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd web-app && npm run build",
+    "dev": "cd web-app && npm run dev",
+    "install-web": "cd web-app && npm install"
+  }
+}
