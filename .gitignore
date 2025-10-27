@@ -141,3 +141,4 @@ TEST_REPORT_*.json
 
 # Cache
 .pytest_cache/
+.vercel
