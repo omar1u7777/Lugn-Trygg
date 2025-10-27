@@ -3,6 +3,7 @@
   "name": "lugn-trygg-web",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "framework": "vite",
   "routes": [
     {
       "src": "/api/(.*)",
