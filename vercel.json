@@ -1,9 +1,8 @@
 {
   "version": 2,
   "name": "lugn-trygg-web",
-  "buildCommand": "npm run build",
+  "buildCommand": "cd web-app && npm install && npm run build",
   "outputDirectory": "web-app/dist",
-  "installCommand": "npm install",
   "routes": [
     {
       "src": "/api/(.*)",
