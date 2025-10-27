@@ -5,7 +5,6 @@
   "installCommand": "cd frontend && npm install",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
-  "rootDirectory": "frontend",
   "rewrites": [
     {
       "source": "/api/(.*)",
