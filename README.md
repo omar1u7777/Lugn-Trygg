@@ -402,3 +402,4 @@ För support och frågor:
 ---
 
 **Byggd med ❤️ för bättre mental hälsa**
+"# Backend deployment fix - requirements.txt updated"  
