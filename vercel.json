@@ -3,6 +3,7 @@
   "name": "lugn-trygg-web",
   "buildCommand": "npm run build",
   "outputDirectory": "web-app/dist",
+  "rootDirectory": "web-app",
   "routes": [
     {
       "src": "/api/(.*)",
