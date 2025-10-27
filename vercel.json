@@ -2,16 +2,18 @@
   "version": 2,
   "name": "lugn-trygg-web",
   "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "outputDirectory": "dist",
   "framework": "vite",
-  "routes": [
+  "functions": {},
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://lugn-trygg-backend.onrender.com/api/$1"
+      "source": "/api/(.*)",
+      "destination": "https://lugn-trygg-backend.onrender.com/api/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
