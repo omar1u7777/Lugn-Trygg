@@ -1,15 +1,9 @@
 {
   "version": 2,
   "name": "lugn-trygg-web",
-  "builds": [
-    {
-      "src": "web-app/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  "buildCommand": "cd web-app && npm run build",
+  "outputDirectory": "web-app/dist",
+  "installCommand": "npm install",
   "routes": [
     {
       "src": "/api/(.*)",
