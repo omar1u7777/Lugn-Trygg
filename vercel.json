@@ -3,7 +3,7 @@
   "name": "lugn-trygg-web",
   "builds": [
     {
-      "src": "package.json",
+      "src": "web-app/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist"
