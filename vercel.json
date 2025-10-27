@@ -2,6 +2,7 @@
   "version": 2,
   "name": "lugn-trygg-web",
   "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "outputDirectory": "web-app/dist",
   "rootDirectory": "web-app",
   "routes": [
