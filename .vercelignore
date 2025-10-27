@@ -1,6 +1,8 @@
-# Ignore everything except web-app
+# Only deploy web-app directory
 /*
 !web-app/
 !.vercelignore
 !vercel.json
-# Force redeploy timestamp: 2025-10-21T10:08:00Z
+!package.json
+!package-lock.json
+# Force redeploy timestamp: 2025-10-27T17:39:00Z
