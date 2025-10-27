@@ -1,11 +1,11 @@
 {
   "version": 2,
   "name": "lugn-trygg-web",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "outputDirectory": "dist",
+  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "cd frontend && npm install",
+  "outputDirectory": "frontend/dist",
   "framework": "vite",
-  "functions": {},
+  "rootDirectory": "frontend",
   "rewrites": [
     {
       "source": "/api/(.*)",
