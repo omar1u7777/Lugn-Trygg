@@ -1,18 +1,25 @@
 """
-Pydantic validation middleware for Flask
-Automatic request/response validation with error handling
+Simple validation middleware for Flask
+Basic request validation without external dependencies
 """
 
 from functools import wraps
 from flask import request, jsonify, g
-from pydantic import ValidationError
 from typing import Type, Optional, Dict, Any, Callable
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
+class ValidationError(Exception):
+    """Custom validation error"""
+    def __init__(self, message: str, field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(message)
+
 class ValidationMiddleware:
-    """Middleware for automatic Pydantic validation"""
+    """Middleware for basic validation"""
 
     def __init__(self, app=None):
         self.app = app
@@ -27,32 +34,26 @@ class ValidationMiddleware:
         app.register_error_handler(ValidationError, self.handle_validation_error)
 
     def handle_validation_error(self, error: ValidationError):
-        """Handle Pydantic validation errors"""
+        """Handle validation errors"""
         logger.warning(f"Validation error: {error}")
-
-        # Format validation errors for client
-        errors = {}
-        for err in error.errors():
-            field_path = '.'.join(str(x) for x in err['loc'])
-            errors[field_path] = err['msg']
 
         response = {
             'success': False,
             'error': 'Validation failed',
             'error_code': 'VALIDATION_ERROR',
-            'details': errors,
-            'message': 'One or more fields failed validation'
+            'message': str(error.message),
+            'field': error.field
         }
 
         return jsonify(response), 400
 
-def validate_request(schema_class: Type, source: str = 'json') -> Callable:
+def validate_request(required_fields: list = None, source: str = 'json') -> Callable:
     """
-    Decorator to validate request data with Pydantic schema
+    Simple decorator to validate request data has required fields
 
     Args:
-        schema_class: Pydantic model class
-        source: Data source ('json', 'form', 'args', 'files')
+        required_fields: List of required field names
+        source: Data source ('json', 'form', 'args')
     """
     def decorator(f):
         @wraps(f)
@@ -65,28 +66,24 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
                     data = request.form.to_dict()
                 elif source == 'args':
                     data = request.args.to_dict()
-                elif source == 'files':
-                    data = request.files.to_dict()
                 else:
                     data = {}
 
-                # Handle file uploads with form data
-                if source == 'files' and request.form:
-                    data.update(request.form.to_dict())
+                # Check required fields
+                if required_fields:
+                    missing_fields = []
+                    for field in required_fields:
+                        if field not in data or data[field] is None or str(data[field]).strip() == '':
+                            missing_fields.append(field)
 
-                # Validate with Pydantic
-                if hasattr(schema_class, '__annotations__') or hasattr(schema_class, 'model_validate'):
-                    # Pydantic v2
-                    validated_data = schema_class.model_validate(data)
-                else:
-                    # Pydantic v1
-                    validated_data = schema_class(**data)
+                    if missing_fields:
+                        raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
 
                 # Store validated data in flask g object
-                g.validated_data = validated_data
+                g.validated_data = data
 
                 # Add validated data to kwargs
-                kwargs['validated_data'] = validated_data
+                kwargs['validated_data'] = data
 
                 return f(*args, **kwargs)
 
@@ -107,12 +104,9 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
         return decorated_function
     return decorator
 
-def validate_response(schema_class: Type) -> Callable:
+def validate_response() -> Callable:
     """
-    Decorator to validate response data with Pydantic schema
-
-    Args:
-        schema_class: Pydantic model class for response
+    Simple decorator that ensures response is valid JSON
     """
     def decorator(f):
         @wraps(f)
@@ -126,42 +120,33 @@ def validate_response(schema_class: Type) -> Callable:
                 response_data, status_code = result, 200
 
             try:
-                # Validate response data
-                if isinstance(response_data, dict):
-                    if hasattr(schema_class, 'model_validate'):
-                        # Pydantic v2
-                        validated_response = schema_class.model_validate(response_data)
-                    else:
-                        # Pydantic v1
-                        validated_response = schema_class(**response_data)
-
-                    # Convert back to dict for JSON response
-                    response_data = validated_response.dict() if hasattr(validated_response, 'dict') else validated_response.model_dump()
+                # Basic validation - ensure it's a dict or can be JSON serialized
+                if not isinstance(response_data, (dict, list, str, int, float, bool, type(None))):
+                    logger.warning(f"Response data is not JSON serializable: {type(response_data)}")
+                    error_response = {
+                        'success': False,
+                        'error': 'Response format error',
+                        'message': 'Server returned invalid response format'
+                    }
+                    return jsonify(error_response), 500
 
                 return response_data, status_code
 
-            except ValidationError as e:
-                logger.error(f"Response validation failed: {e}")
+            except Exception as e:
+                logger.error(f"Response validation error: {e}")
                 error_response = {
                     'success': False,
                     'error': 'Response validation error',
-                    'error_code': 'RESPONSE_VALIDATION_ERROR',
                     'message': 'Server response failed validation'
                 }
                 return jsonify(error_response), 500
-            except Exception as e:
-                logger.error(f"Unexpected response validation error: {e}")
-                return result
 
         return decorated_function
     return decorator
 
-def validate_query_params(schema_class: Type) -> Callable:
+def validate_query_params() -> Callable:
     """
-    Decorator to validate query parameters with Pydantic schema
-
-    Args:
-        schema_class: Pydantic model class for query params
+    Simple decorator for basic query parameter validation
     """
     def decorator(f):
         @wraps(f)
@@ -170,38 +155,30 @@ def validate_query_params(schema_class: Type) -> Callable:
                 # Get query parameters
                 query_data = request.args.to_dict()
 
-                # Convert string values to appropriate types
+                # Basic sanitization - remove any potentially dangerous characters
                 for key, value in query_data.items():
-                    # Try to convert to int/float/bool
-                    if value.isdigit():
-                        query_data[key] = int(value)
-                    elif value.replace('.', '').isdigit() and '.' in value:
-                        query_data[key] = float(value)
-                    elif value.lower() in ('true', 'false'):
-                        query_data[key] = value.lower() == 'true'
-
-                # Validate with Pydantic
-                if hasattr(schema_class, 'model_validate'):
-                    validated_params = schema_class.model_validate(query_data)
-                else:
-                    validated_params = schema_class(**query_data)
+                    if not isinstance(value, str):
+                        continue
+                    # Remove any script tags or other potentially dangerous content
+                    query_data[key] = re.sub(r'<[^>]+>', '', str(value))
 
                 # Store in flask g
-                g.validated_query = validated_params
-                kwargs['query_params'] = validated_params
+                g.validated_query = query_data
+                kwargs['query_params'] = query_data
 
                 return f(*args, **kwargs)
 
-            except ValidationError as e:
+            except Exception as e:
                 logger.warning(f"Query parameter validation failed: {e}")
-                raise e
+                # Continue without validation if it fails
+                return f(*args, **kwargs)
 
         return decorated_function
     return decorator
 
 def sanitize_request_data() -> Callable:
     """
-    Decorator to automatically sanitize string inputs in request data
+    Simple decorator to sanitize basic XSS and injection attempts
     """
     def decorator(f):
         @wraps(f)
@@ -209,19 +186,31 @@ def sanitize_request_data() -> Callable:
             try:
                 if request.is_json:
                     json_data = request.get_json(silent=True)
-                    if json_data:
-                        # Import here to avoid circular imports
-                        from src.schemas.base import sanitize_input
-                        sanitized_data = sanitize_input(json_data)
-                        # Replace request data (this is a bit of a hack but works)
-                        request._cached_json = (sanitized_data, request._cached_json[1] if request._cached_json else None)
+                    if json_data and isinstance(json_data, dict):
+                        # Basic sanitization - remove script tags
+                        def sanitize_dict(data):
+                            if isinstance(data, dict):
+                                return {k: sanitize_dict(v) for k, v in data.items()}
+                            elif isinstance(data, list):
+                                return [sanitize_dict(item) for item in data]
+                            elif isinstance(data, str):
+                                # Remove script tags and other dangerous content
+                                return re.sub(r'<[^>]+>', '', data)
+                            else:
+                                return data
+
+                        sanitized_data = sanitize_dict(json_data)
+                        # Store sanitized data in g
+                        g.sanitized_json = sanitized_data
 
                 elif request.form:
-                    # Sanitize form data
-                    from src.schemas.base import sanitize_input
-                    sanitized_form = sanitize_input(request.form.to_dict())
-                    # Note: Flask form data is immutable, so we can't modify it directly
-                    # Instead, store sanitized data in g
+                    # Basic form sanitization
+                    sanitized_form = {}
+                    for key, value in request.form.items():
+                        if isinstance(value, str):
+                            sanitized_form[key] = re.sub(r'<[^>]+>', '', value)
+                        else:
+                            sanitized_form[key] = value
                     g.sanitized_form = sanitized_form
 
                 return f(*args, **kwargs)
