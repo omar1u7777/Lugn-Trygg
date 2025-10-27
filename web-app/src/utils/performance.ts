@@ -3,7 +3,7 @@
  * Bundle splitting, lazy loading, and performance monitoring
  */
 
-import { lazy } from 'react';
+import React, { lazy } from 'react';
 
 // Lazy loading with error boundaries
 export const lazyLoad = <T extends React.ComponentType<any>>(
@@ -21,11 +21,7 @@ export const lazyLoad = <T extends React.ComponentType<any>>(
 
       // Return a basic error component
       return {
-        default: () => (
-          <div className="p-4 text-center">
-            <p>Failed to load component. Please refresh the page.</p>
-          </div>
-        ),
+        default: () => React.createElement('div', { className: 'p-4 text-center' }, React.createElement('p', null, 'Failed to load component. Please refresh the page.'))
       };
     })
   );
@@ -130,12 +126,14 @@ export class PerformanceMonitor {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
 
-        this.metrics.set('LCP', {
-          value: lastEntry.startTime,
-          timestamp: Date.now(),
-        });
+        if (lastEntry) {
+          this.metrics.set('LCP', {
+            value: lastEntry.startTime,
+            timestamp: Date.now(),
+          });
 
-        console.log('LCP:', lastEntry.startTime);
+          console.log('LCP:', lastEntry.startTime);
+        }
       });
 
       observer.observe({ entryTypes: ['largest-contentful-paint'] });
@@ -200,12 +198,14 @@ export class PerformanceMonitor {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
 
-        this.metrics.set('FCP', {
-          value: lastEntry.startTime,
-          timestamp: Date.now(),
-        });
+        if (lastEntry) {
+          this.metrics.set('FCP', {
+            value: lastEntry.startTime,
+            timestamp: Date.now(),
+          });
 
-        console.log('FCP:', lastEntry.startTime);
+          console.log('FCP:', lastEntry.startTime);
+        }
       });
 
       observer.observe({ entryTypes: ['paint'] });
@@ -280,7 +280,7 @@ export class PerformanceMonitor {
 
 // Bundle analyzer utility
 export const analyzeBundle = async () => {
-  if (process.env.NODE_ENV === 'development') {
+  if ((import.meta as any).env?.DEV) {
     try {
       // Dynamically import webpack bundle analyzer in development
       const { BundleAnalyzerPlugin } = await import('webpack-bundle-analyzer');
@@ -444,7 +444,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   wait: number,
   immediate?: boolean
 ): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: number | null = null;
 
   return (...args: Parameters<T>) => {
     const later = () => {

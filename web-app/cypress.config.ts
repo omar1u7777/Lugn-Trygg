@@ -1,5 +1,5 @@
 import { defineConfig } from 'cypress';
-import axe from 'cypress-axe';
+// import axe from 'cypress-axe';
 
 export default defineConfig({
   e2e: {
@@ -12,14 +12,14 @@ export default defineConfig({
     requestTimeout: 15000,
     responseTimeout: 15000,
 
-    setupNodeEvents(on, config) {
+    setupNodeEvents(on: any, config: any) {
       // Accessibility testing setup
       on('task', {
-        log(message) {
+        log(message: any) {
           console.log(message);
           return null;
         },
-        table(message) {
+        table(message: any) {
           console.table(message);
           return null;
         }

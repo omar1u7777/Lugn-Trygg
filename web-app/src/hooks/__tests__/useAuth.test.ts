@@ -1,3 +1,4 @@
+import React from 'react';
 import { renderHook } from '@testing-library/react';
 import { vi, describe, test, expect } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
@@ -33,15 +34,11 @@ describe('useAuth', () => {
     };
 
     // Mock the context to return our mock auth context
-    vi.mocked(require('../../contexts/AuthContext')).AuthContext.Consumer = ({ children }: { children: (value: any) => React.ReactNode }) =>
+    (vi.mocked(require('../../contexts/AuthContext')).AuthContext.Consumer as any) = ({ children }: { children: (value: any) => React.ReactNode }) =>
       children(mockAuthContext);
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: ({ children }) => (
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      ),
+      wrapper: ({ children }: { children: React.ReactNode }) => React.createElement(AuthProvider, { children })
     });
 
     expect(result.current).toEqual(mockAuthContext);

@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
-import type { AuthContextProps } from "../types/AuthTypes"; //  Korrekt import av typer
+import type { AuthContextProps } from "../types/index"; //  Korrekt import av typer
 
 //  Hook för att hantera autentisering i hela applikationen
 const useAuth = (): AuthContextProps => {
