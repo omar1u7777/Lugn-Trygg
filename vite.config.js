@@ -9,6 +9,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export default defineConfig({
   plugins: [react({
     jsxRuntime: 'automatic',
+    jsxImportSource: 'react',
     babel: {
       plugins: [],
     },
@@ -151,5 +152,6 @@ export default defineConfig({
   },
   define: {
     "import.meta.env.VITE_BACKEND_URL": JSON.stringify("https://lugn-trygg-backend.onrender.com"),
+    global: 'globalThis',
   },
 });

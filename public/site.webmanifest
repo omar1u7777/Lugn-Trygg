@@ -12,22 +12,16 @@
   "categories": ["health", "lifestyle", "productivity"],
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -35,34 +29,34 @@
       "name": "Logga humör",
       "short_name": "Humör",
       "description": "Logga ditt nuvarande humör",
-      "url": "/mood-logger",
+      "url": "/",
       "icons": [
         {
-          "src": "/icon-192.png",
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>😊</text></svg>",
           "sizes": "192x192"
         }
       ]
     },
     {
-      "name": "Prata med AI",
-      "short_name": "AI Chat",
-      "description": "Få stöd från AI-terapeuten",
-      "url": "/chat",
+      "name": "AI Stories",
+      "short_name": "AI Stories",
+      "description": "Få stöd från AI-berättelser",
+      "url": "/ai-stories",
       "icons": [
         {
-          "src": "/icon-192.png",
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>",
           "sizes": "192x192"
         }
       ]
     },
     {
-      "name": "Se statistik",
+      "name": "Analytics",
       "short_name": "Statistik",
       "description": "Visa dina framsteg och insikter",
       "url": "/analytics",
       "icons": [
         {
-          "src": "/icon-192.png",
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>",
           "sizes": "192x192"
         }
       ]
