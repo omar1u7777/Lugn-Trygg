@@ -12,7 +12,8 @@ import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
 
-// Import accessibility styles
+// Import styles
+import "./styles/styles.css";
 import "./styles/accessibility.css";
 
 /**
