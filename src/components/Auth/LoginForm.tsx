@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { loginUser, api } from "../../api/api";
@@ -13,7 +13,7 @@ import { useAccessibility } from "../../hooks/useAccessibility";
 import AccessibleDialog from "../Accessibility/AccessibleDialog";
 import { ScreenReaderAnnouncer } from "../Accessibility/ScreenReader";
 
-const LoginForm: React.FC = () => {
+const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
