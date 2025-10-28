@@ -1,0 +1,71 @@
+{
+  "name": "Lugn & Trygg",
+  "short_name": "LugnTrygg",
+  "description": "Din personliga mentalhälsopartner - spåra humör, få stöd och förbättra ditt välbefinnande",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "sv-SE",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Logga humör",
+      "short_name": "Humör",
+      "description": "Logga ditt nuvarande humör",
+      "url": "/mood-logger",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Prata med AI",
+      "short_name": "AI Chat",
+      "description": "Få stöd från AI-terapeuten",
+      "url": "/chat",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Se statistik",
+      "short_name": "Statistik",
+      "description": "Visa dina framsteg och insikter",
+      "url": "/analytics",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

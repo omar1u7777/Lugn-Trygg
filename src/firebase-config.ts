@@ -45,8 +45,12 @@ const app = initializeApp(firebaseOptions);
 
 // Initialisera Analytics om measurementId finns
 let analytics: any = null;
-if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX') {
-  analytics = getAnalytics(app);
+if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX' && firebaseConfig.measurementId !== undefined) {
+  try {
+    analytics = getAnalytics(app);
+  } catch (error) {
+    console.warn('Firebase Analytics initialization failed:', error);
+  }
 }
 
 // Exportera de nödvändiga Firebase-tjänsterna

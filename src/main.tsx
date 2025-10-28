@@ -36,8 +36,8 @@ if (!rootElement) {
   throw new Error("Root-element saknas i index.html!");
 }
 
-// Register Service Worker for PWA (in both development and production)
-if ('serviceWorker' in navigator) {
+// Register Service Worker for PWA (only in production)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then((registration) => {
