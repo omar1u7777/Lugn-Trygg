@@ -7,7 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProduction = process.env.NODE_ENV === "production";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({
+    jsxRuntime: 'automatic',
+    babel: {
+      plugins: [],
+    },
+  })],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

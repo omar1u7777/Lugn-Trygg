@@ -126,6 +126,10 @@ const initializeFirebaseAnalytics = async () => {
   if (!ENABLE_ANALYTICS) return;
 
   try {
+    // Temporarily disable Firebase Analytics due to 403 config errors
+    console.log('📊 Firebase Analytics disabled due to configuration issues');
+    return;
+
     const firebaseConfig = {
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
       authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -135,6 +139,12 @@ const initializeFirebaseAnalytics = async () => {
       appId: import.meta.env.VITE_FIREBASE_APP_ID,
       measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
     };
+
+    // Skip if measurementId is not available (Analytics not enabled)
+    if (!firebaseConfig.measurementId) {
+      console.log('📊 Firebase Analytics skipped - no measurement ID');
+      return;
+    }
 
     const app = initializeApp(firebaseConfig);
     if (await isSupported()) {

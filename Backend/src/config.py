@@ -129,7 +129,7 @@ CSP_DIRECTIVES = {
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com"],
     "img-src": ["'self'", "data:", "https:", "http:", "blob:"],
-    "connect-src": ["'self'", "ws://localhost:3000", "ws://localhost:3001", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5001", "http://localhost:5001", "https://www.lugntrygg.se", "https://*.googleapis.com", "https://*.firebaseapp.com", "https://securetoken.googleapis.com", "https://firebase.googleapis.com", "https://identitytoolkit.googleapis.com", "wss://*.firebaseio.com", "https://*.firebaseio.com", "https://region1.google-analytics.com", "https://www.googletagmanager.com", "https://googletagmanager.com"],
+    "connect-src": ["'self'", "ws://localhost:3000", "ws://localhost:3001", "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:5001", "http://localhost:5001", "https://www.lugntrygg.se", "https://*.googleapis.com", "https://*.firebaseapp.com", "https://securetoken.googleapis.com", "https://firebase.googleapis.com", "https://identitytoolkit.googleapis.com", "wss://*.firebaseio.com", "https://*.firebaseio.com", "https://region1.google-analytics.com", "https://www.googletagmanager.com", "https://googletagmanager.com", "https://*.sentry.io", "https://o4510267243298816.ingest.de.sentry.io", "https://api.amplitude.com", "https://*.amplitude.com"],
     "object-src": ["'none'"],
     "frame-ancestors": ["'none'"],
 }
