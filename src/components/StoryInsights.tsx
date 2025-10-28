@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, Typography, Button, Box, Chip, Alert } from '@mui/material';
 import { TrendingUp, TrendingDown, Star, EmojiEvents, TrackChanges, Favorite } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,7 @@ interface StoryInsightsProps {
   userId?: string;
 }
 
-const StoryInsights: React.FC<StoryInsightsProps> = ({ userId }) => {
+const StoryInsights = ({ userId }: StoryInsightsProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const [insights, setInsights] = useState<any[]>([]);

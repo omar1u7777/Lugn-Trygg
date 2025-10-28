@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Button, Card, CardContent, Typography } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Favorite, ThumbUp, Star, CheckCircle, Error, Warning } from '@mui/icons-material';
@@ -9,11 +9,15 @@ interface MicroInteractionsProps {
 }
 
 // Heart animation for likes/favorites
-const HeartAnimation: React.FC<{
+const HeartAnimation = ({
+  isActive,
+  onClick,
+  size = 24,
+}: {
   isActive: boolean;
   onClick: () => void;
   size?: number;
-}> = ({ isActive, onClick, size = 24 }) => {
+}) => {
   const controls = useAnimation();
 
   const handleClick = async () => {
@@ -53,10 +57,13 @@ const HeartAnimation: React.FC<{
 };
 
 // Success checkmark animation
-const SuccessCheckmark: React.FC<{
+const SuccessCheckmark = ({
+  show,
+  message = "Sparat!",
+}: {
   show: boolean;
   message?: string;
-}> = ({ show, message = "Sparat!" }) => {
+}) => {
   return (
     <AnimatePresence>
       {show && (
@@ -94,9 +101,11 @@ const SuccessCheckmark: React.FC<{
 };
 
 // Loading dots animation
-const LoadingDots: React.FC<{
+const LoadingDots = ({
+  size = 'medium',
+}: {
   size?: 'small' | 'medium' | 'large';
-}> = ({ size = 'medium' }) => {
+}) => {
   const sizes = {
     small: 4,
     medium: 6,
@@ -132,10 +141,13 @@ const LoadingDots: React.FC<{
 };
 
 // Pulse animation for notifications
-const PulseNotification: React.FC<{
+const PulseNotification = ({
+  count,
+  children,
+}: {
   count: number;
   children: React.ReactNode;
-}> = ({ count, children }) => {
+}) => {
   return (
     <motion.div
       animate={count > 0 ? {
@@ -158,10 +170,13 @@ const PulseNotification: React.FC<{
 };
 
 // Stagger animation for lists
-const StaggerContainer: React.FC<{
+const StaggerContainer = ({
+  children,
+  staggerDelay = 0.1,
+}: {
   children: React.ReactNode;
   staggerDelay?: number;
-}> = ({ children, staggerDelay = 0.1 }) => {
+}) => {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -190,20 +205,19 @@ const StaggerContainer: React.FC<{
       initial="hidden"
       animate="visible"
     >
-      {React.Children.map(children, (child, index) => (
-        <motion.div key={index} variants={itemVariants}>
-          {child}
-        </motion.div>
-      ))}
+      {children}
     </motion.div>
   );
 };
 
 // Hover lift effect
-const HoverLift: React.FC<{
+const HoverLift = ({
+  children,
+  liftAmount = 4,
+}: {
   children: React.ReactNode;
   liftAmount?: number;
-}> = ({ children, liftAmount = 4 }) => {
+}) => {
   return (
     <motion.div
       whileHover={{
@@ -219,13 +233,19 @@ const HoverLift: React.FC<{
 };
 
 // Progress bar animation
-const AnimatedProgressBar: React.FC<{
+const AnimatedProgressBar = ({
+  value,
+  maxValue,
+  color = '#1976d2',
+  height = 8,
+  showPercentage = false,
+}: {
   value: number;
   maxValue: number;
   color?: string;
   height?: number;
   showPercentage?: boolean;
-}> = ({ value, maxValue, color = '#1976d2', height = 8, showPercentage = false }) => {
+}) => {
   const percentage = Math.min((value / maxValue) * 100, 100);
 
   return (
@@ -269,15 +289,7 @@ const AnimatedProgressBar: React.FC<{
 };
 
 // Button with micro-interactions
-const InteractiveButton: React.FC<{
-  children: React.ReactNode;
-  onClick: () => void;
-  variant?: 'contained' | 'outlined' | 'text';
-  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning';
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
-  loading?: boolean;
-}> = ({
+const InteractiveButton = ({
   children,
   onClick,
   variant = 'contained',
@@ -285,6 +297,14 @@ const InteractiveButton: React.FC<{
   size = 'medium',
   disabled = false,
   loading = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  variant?: 'contained' | 'outlined' | 'text';
+  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning';
+  size?: 'small' | 'medium' | 'large';
+  disabled?: boolean;
+  loading?: boolean;
 }) => {
   const [isClicked, setIsClicked] = useState(false);
 
@@ -350,13 +370,19 @@ export {
 };
 
 // Toast notification with animation
-const ToastNotification: React.FC<{
+const ToastNotification = ({
+  message,
+  type,
+  show,
+  onClose,
+  autoHideDuration = 4000,
+}: {
   message: string;
   type: 'success' | 'error' | 'warning' | 'info';
   show: boolean;
   onClose: () => void;
   autoHideDuration?: number;
-}> = ({ message, type, show, onClose, autoHideDuration = 4000 }) => {
+}) => {
   const { announceToScreenReader } = useAccessibility();
 
   useEffect(() => {
@@ -426,10 +452,13 @@ const ToastNotification: React.FC<{
 };
 
 // Page transition wrapper
-const PageTransition: React.FC<{
+const PageTransition = ({
+  children,
+  direction = 'right',
+}: {
   children: React.ReactNode;
   direction?: 'left' | 'right' | 'up' | 'down';
-}> = ({ children, direction = 'right' }) => {
+}) => {
   const getInitialPosition = () => {
     switch (direction) {
       case 'left': return { x: -100, opacity: 0 };
@@ -454,7 +483,7 @@ const PageTransition: React.FC<{
 };
 
 // Main micro-interactions wrapper
-const MicroInteractions: React.FC<MicroInteractionsProps> = ({ children }) => {
+const MicroInteractions = ({ children }: MicroInteractionsProps) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
