@@ -43,15 +43,16 @@ if (missingKeys.length > 0) {
 // Initialisera appen
 const app = initializeApp(firebaseOptions);
 
-// Initialisera Analytics om measurementId finns
+// Initialisera Analytics om measurementId finns - DISABLED to prevent 403 errors
 let analytics: any = null;
-if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX' && firebaseConfig.measurementId !== undefined) {
-  try {
-    analytics = getAnalytics(app);
-  } catch (error) {
-    console.warn('Firebase Analytics initialization failed:', error);
-  }
-}
+// Analytics disabled to prevent permission errors in production
+// if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX' && firebaseConfig.measurementId !== undefined) {
+//   try {
+//     analytics = getAnalytics(app);
+//   } catch (error) {
+//     console.warn('Firebase Analytics initialization failed:', error);
+//   }
+// }
 
 // Exportera de nödvändiga Firebase-tjänsterna
 export const auth = getAuth(app);

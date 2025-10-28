@@ -18,7 +18,7 @@ const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
   VITE_FIREBASE_STORAGE_BUCKET: 'lugn-trygg.firebasestorage.app',
   VITE_FIREBASE_MESSAGING_SENDER_ID: '412776932054',
   VITE_FIREBASE_APP_ID: '1:412776932054:web:7c4c72c93eb9b5c49fdaf0',
-  VITE_FIREBASE_MEASUREMENT_ID: 'G-XXXXXXXXXX', // Placeholder for production
+  VITE_FIREBASE_MEASUREMENT_ID: undefined, // Disabled to prevent 403 errors
   VITE_FIREBASE_VAPID_KEY: undefined,
   VITE_ENCRYPTION_KEY: 'your-encryption-key-here',
 };

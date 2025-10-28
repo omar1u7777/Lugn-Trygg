@@ -66,10 +66,6 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
-      },
-    },
-    rollupOptions: {
-      output: {
         manualChunks: (id) => {
           if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
             return "react-core";
