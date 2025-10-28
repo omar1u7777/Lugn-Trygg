@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, Typography, Box, Chip, Button, LinearProgress, Avatar, Badge } from '@mui/material';
 import { EmojiEvents, Star, TrendingUp, LocalFireDepartment, Psychology, Favorite } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +27,7 @@ interface StreakData {
   lastLogDate?: Date;
 }
 
-const Gamification: React.FC<GamificationProps> = ({ userId }) => {
+const Gamification = ({ userId }: GamificationProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
