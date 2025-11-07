@@ -12,15 +12,15 @@
   "categories": ["health", "lifestyle", "productivity"],
   "icons": [
     {
-      "src": "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ctext y='.9em' font-size='90'%3e🧠%3c/text%3e%3c/svg%3e",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ctext y='.9em' font-size='90'%3e🧠%3c/text%3e%3c/svg%3e",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -32,7 +32,7 @@
       "url": "/",
       "icons": [
         {
-          "src": "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ctext y='.9em' font-size='90'%3e😊%3c/text%3e%3c/svg%3e",
+          "src": "/icon-192.png",
           "sizes": "192x192"
         }
       ]
@@ -44,7 +44,7 @@
       "url": "/ai-stories",
       "icons": [
         {
-          "src": "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ctext y='.9em' font-size='90'%3e🤖%3c/text%3e%3c/svg%3e",
+          "src": "/icon-192.png",
           "sizes": "192x192"
         }
       ]
@@ -56,7 +56,7 @@
       "url": "/analytics",
       "icons": [
         {
-          "src": "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3e%3ctext y='.9em' font-size='90'%3e📊%3c/text%3e%3c/svg%3e",
+          "src": "/icon-192.png",
           "sizes": "192x192"
         }
       ]

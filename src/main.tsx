@@ -1,15 +1,9 @@
-// Diagnostic logs for React availability - moved after imports
+// React imports
 import React, { StrictMode } from "react";
-console.log('🔍 Checking React availability...');
-console.log('React object:', typeof React);
-console.log('React.createElement:', typeof React?.createElement);
-console.log('React.Component:', typeof React?.Component);
-console.log('React version:', React?.version);
 import { createRoot } from "react-dom/client";
 
-// Additional diagnostic for ReactDOM
-console.log('ReactDOM object:', typeof createRoot);
-console.log('ReactDOM.createRoot available:', typeof createRoot === 'function');
+// Initialize analytics
+initializeAnalytics();
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { Analytics } from "./shims/vercel-analytics";
@@ -36,9 +30,6 @@ import "./styles/accessibility.css";
  * - Analytics för att spåra användarbeteende.
  */
 
-// Initialize Analytics (Sentry + Amplitude)
-initializeAnalytics();
-
 const rootElement = document.getElementById("root");
 
 //  Kontrollera att root-elementet finns i `index.html`
@@ -48,18 +39,17 @@ if (!rootElement) {
 }
 
 // Service Worker disabled to prevent MIME type errors in production
-// if ('serviceWorker' in navigator && import.meta.env.PROD) {
-//   window.addEventListener('load', () => {
-//     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-//       .then((registration) => {
-//         console.log('✅ Service Worker registered successfully:', registration.scope);
-//         // ... rest of service worker code
-//       })
-//       .catch((error) => {
-//         console.warn('⚠️ Service Worker registration failed:', error);
-//       });
-//   });
-// }
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        console.log('✅ Service Worker registered successfully:', registration.scope);
+      })
+      .catch((error) => {
+        console.warn('⚠️ Service Worker registration failed:', error);
+      });
+  });
+}
 
 //  Skapa en React 18 root-instans och rendera appen
 createRoot(rootElement).render(
