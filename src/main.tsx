@@ -12,6 +12,7 @@ import { initializeAnalytics } from "./services/analytics";
 import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
+import "./config/chartConfig"; // Initialize Chart.js
 
 // Import styles
 import "./styles/styles.css";
