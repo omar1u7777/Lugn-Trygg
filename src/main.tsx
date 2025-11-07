@@ -2,8 +2,10 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-// Debug React availability
-console.log('🔍 React check:', typeof React, React?.version);
+// Force React to be available globally for components that need it
+if (typeof window !== 'undefined') {
+  (window as any).React = React;
+}
 
 // Initialize analytics
 initializeAnalytics();
