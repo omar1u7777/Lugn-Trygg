@@ -1,5 +1,15 @@
+// Diagnostic logs for React availability - moved after imports
 import React, { StrictMode } from "react";
+console.log('🔍 Checking React availability...');
+console.log('React object:', typeof React);
+console.log('React.createElement:', typeof React?.createElement);
+console.log('React.Component:', typeof React?.Component);
+console.log('React version:', React?.version);
 import { createRoot } from "react-dom/client";
+
+// Additional diagnostic for ReactDOM
+console.log('ReactDOM object:', typeof createRoot);
+console.log('ReactDOM.createRoot available:', typeof createRoot === 'function');
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { Analytics } from "./shims/vercel-analytics";
