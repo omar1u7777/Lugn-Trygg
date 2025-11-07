@@ -21,7 +21,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login } = useAuth();
-  const { announceToScreenReader, getAriaLabel } = useAccessibility();
+  const { announceToScreenReader } = useAccessibility();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

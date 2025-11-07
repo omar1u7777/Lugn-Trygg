@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './UI/Card';
-import { Button } from './UI/Button';
-import { TestSuite } from './UI/TestSuite';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { TestSuite } from './ui/TestSuite';
 
 /**
  * Testing Strategy Component

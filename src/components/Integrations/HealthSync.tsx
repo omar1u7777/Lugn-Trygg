@@ -26,6 +26,12 @@ import {
 } from '@mui/icons-material';
 import api from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  CardBody,
+  CardHeader,
+  CardFooter,
+} from '../ui/ProComponents';
+import { useTranslation } from 'react-i18next';
 import OptimizedImage from '../ui/OptimizedImage';
 
 interface HealthData {

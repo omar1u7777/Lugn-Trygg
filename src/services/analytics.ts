@@ -8,11 +8,11 @@ import amplitude from 'amplitude-js';
 // Temporarily disable Sentry to fix React import issues
 // import * as Sentry from '@sentry/react';
 const Sentry = {
-  init: () => {},
-  setUser: () => {},
-  captureException: () => {},
-  captureMessage: () => {},
-  addBreadcrumb: () => {},
+  init: (_options?: any) => {},
+  setUser: (_user?: any) => {},
+  captureException: (_error?: any, _context?: any) => {},
+  captureMessage: (_message?: string, _level?: any) => {},
+  addBreadcrumb: (_breadcrumb?: any) => {},
 };
 
 import { initializeApp } from 'firebase/app';

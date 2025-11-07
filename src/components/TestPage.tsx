@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { TestSuite } from './UI/TestSuite';
-import { Card } from './UI/Card';
-import { Button } from './UI/Button';
-import { Input } from './UI/Input';
-import { ThemeToggle } from './UI/ThemeToggle';
+import { TestSuite } from './ui/TestSuite';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { ThemeToggle } from './ui/ThemeToggle';
 import { LoadingSpinner } from './LoadingStates';
 
 /**

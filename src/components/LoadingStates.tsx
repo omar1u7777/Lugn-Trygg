@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { CircularProgress, Skeleton, Box, Typography } from '@mui/material';
-import { Card } from './UI/Card';
+import { Card } from './ui/Card';
 import './LoadingStates.css';
 
 interface LoadingProps {

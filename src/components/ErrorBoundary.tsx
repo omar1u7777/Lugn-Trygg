@@ -4,8 +4,8 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Card } from './UI/Card';
-import { Button } from './UI/Button';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 
 interface Props {
   children: ReactNode;
