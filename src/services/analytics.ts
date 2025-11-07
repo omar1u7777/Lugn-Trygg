@@ -5,7 +5,16 @@
  */
 
 import amplitude from 'amplitude-js';
-import * as Sentry from '@sentry/react';
+// Temporarily disable Sentry to fix React import issues
+// import * as Sentry from '@sentry/react';
+const Sentry = {
+  init: () => {},
+  setUser: () => {},
+  captureException: () => {},
+  captureMessage: () => {},
+  addBreadcrumb: () => {},
+};
+
 import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
@@ -88,6 +97,10 @@ const initializeAmplitude = () => {
 
 // Initialize Sentry
 const initializeSentry = () => {
+  // Temporarily disabled due to React import conflicts
+  console.log('📊 Sentry disabled - React dependency conflict');
+  return;
+  
   if (ENABLE_ANALYTICS && SENTRY_DSN) {
     Sentry.init({
       dsn: SENTRY_DSN,
@@ -103,7 +116,7 @@ const initializeSentry = () => {
       replaysOnErrorSampleRate: 0.5,
 
       // Privacy and compliance
-      beforeSend: (event) => {
+      beforeSend: (event: any) => {
         // Remove sensitive data
         if (event.request?.headers) {
           delete event.request.headers['authorization'];
