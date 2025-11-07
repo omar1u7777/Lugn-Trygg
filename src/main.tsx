@@ -2,6 +2,9 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+// Debug React availability
+console.log('🔍 React check:', typeof React, React?.version);
+
 // Initialize analytics
 initializeAnalytics();
 import { BrowserRouter } from "react-router-dom";
@@ -39,17 +42,17 @@ if (!rootElement) {
 }
 
 // Service Worker disabled to prevent MIME type errors in production
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then((registration) => {
-        console.log('✅ Service Worker registered successfully:', registration.scope);
-      })
-      .catch((error) => {
-        console.warn('⚠️ Service Worker registration failed:', error);
-      });
-  });
-}
+// if ('serviceWorker' in navigator && import.meta.env.PROD) {
+//   window.addEventListener('load', () => {
+//     navigator.serviceWorker.register('/sw.js', { scope: '/' })
+//       .then((registration) => {
+//         console.log('✅ Service Worker registered successfully:', registration.scope);
+//       })
+//       .catch((error) => {
+//         console.warn('⚠️ Service Worker registration failed:', error);
+//       });
+//   });
+// }
 
 //  Skapa en React 18 root-instans och rendera appen
 createRoot(rootElement).render(
