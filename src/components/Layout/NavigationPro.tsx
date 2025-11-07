@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { extractDisplayName } from "../../utils/nameUtils";
 import LanguageSwitcher from "../LanguageSwitcher";
-import { ThemeToggle } from "../UI/ThemeToggle";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 const NavigationPro: React.FC = () => {
     const { isLoggedIn, logout, user } = useAuth();
