@@ -1,14 +1,6 @@
 // React imports
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-// Force React to be available globally for components that need it
-if (typeof window !== 'undefined') {
-  (window as any).React = React;
-}
-
-// Initialize analytics
-initializeAnalytics();
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { Analytics } from "./shims/vercel-analytics";
@@ -25,6 +17,11 @@ import i18n from "./i18n/i18n";
 import "./styles/styles.css";
 import "./styles/accessibility.css";
 
+// Force React to be available globally for components that need it
+if (typeof window !== 'undefined') {
+  (window as any).React = React;
+}
+
 /**
  *  Huvudstartfil för Lugn & Trygg Desktop-App
  * -------------------------------------------------
@@ -34,6 +31,9 @@ import "./styles/accessibility.css";
  * - `AuthProvider` hanterar global autentisering.
  * - Analytics för att spåra användarbeteende.
  */
+
+// Initialize Analytics (Sentry + Amplitude)
+initializeAnalytics();
 
 const rootElement = document.getElementById("root");
 

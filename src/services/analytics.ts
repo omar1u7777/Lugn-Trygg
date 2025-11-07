@@ -57,6 +57,10 @@ const ENABLE_ANALYTICS = import.meta.env.PROD || import.meta.env.VITE_FORCE_ANAL
 
 // Initialize Amplitude
 const initializeAmplitude = () => {
+  // Temporarily disable Amplitude due to invalid API key (400 Bad Request)
+  console.log('📊 Amplitude Analytics disabled - API key needs configuration');
+  return;
+  
   if (ENABLE_ANALYTICS && AMPLITUDE_API_KEY && !amplitudeInstance) {
     amplitudeInstance = amplitude.getInstance();
     amplitudeInstance.init(AMPLITUDE_API_KEY, undefined, {
