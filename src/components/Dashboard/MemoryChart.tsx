@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar } from 'react-chartjs-2';
+import { Box, Typography, CircularProgress } from '@mui/material';
 import { getMemories } from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -91,17 +92,30 @@ const MemoryChart: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="loading-message">{t('common.loading')}</div>;
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+        <CircularProgress size={24} sx={{ mr: 2 }} />
+        <Typography variant="body2" color="text.secondary">
+          {t('common.loading')}
+        </Typography>
+      </Box>
+    );
   }
 
   if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
-    return <div className="info-message">{t('dashboard.noMemoryData', '📊 No memory data available.')}</div>;
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {t('dashboard.noMemoryData', '📊 No memory data available.')}
+        </Typography>
+      </Box>
+    );
   }
 
   return (
-    <div style={{ height: '300px' }}>
+    <Box sx={{ height: '300px' }}>
       <Bar key={JSON.stringify(chartData)} data={chartData} options={options} />
-    </div>
+    </Box>
   );
 };
 

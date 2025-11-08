@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Box, Typography, Paper, CircularProgress, Avatar } from '@mui/material';
 import api from '../../api/api';
 
 interface ActivityFeedProps {
@@ -110,108 +111,144 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
     return `${diffDays} dagar sedan`;
   };
 
-  const getColorClasses = (color: string) => {
+  const getColorStyles = (color: string) => {
     switch (color) {
       case 'blue':
         return {
-          bg: 'bg-blue-50 dark:bg-blue-900/20',
-          border: 'border-blue-200 dark:border-blue-800',
-          text: 'text-blue-900 dark:text-blue-100',
-          icon: 'bg-blue-500',
+          bg: 'info.light',
+          borderColor: 'info.main',
+          textColor: 'info.dark',
+          iconBg: 'info.main',
         };
       case 'purple':
         return {
-          bg: 'bg-purple-50 dark:bg-purple-900/20',
-          border: 'border-purple-200 dark:border-purple-800',
-          text: 'text-purple-900 dark:text-purple-100',
-          icon: 'bg-purple-500',
+          bg: 'secondary.light',
+          borderColor: 'secondary.main',
+          textColor: 'secondary.dark',
+          iconBg: 'secondary.main',
         };
       case 'green':
         return {
-          bg: 'bg-green-50 dark:bg-green-900/20',
-          border: 'border-green-200 dark:border-green-800',
-          text: 'text-green-900 dark:text-green-100',
-          icon: 'bg-green-500',
+          bg: 'success.light',
+          borderColor: 'success.main',
+          textColor: 'success.dark',
+          iconBg: 'success.main',
         };
       default:
         return {
-          bg: 'bg-slate-50 dark:bg-slate-800',
-          border: 'border-slate-200 dark:border-slate-700',
-          text: 'text-slate-900 dark:text-slate-100',
-          icon: 'bg-slate-500',
+          bg: 'grey.100',
+          borderColor: 'grey.300',
+          textColor: 'text.primary',
+          iconBg: 'grey.500',
         };
     }
   };
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-soft">
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+      <Paper
+        elevation={1}
+        sx={{
+          p: 3,
+          borderRadius: 4,
+          border: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h6" fontWeight="semibold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <span>📋</span>
           Senaste aktivitet
-        </h3>
-        <div className="space-y-3">
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-start gap-3 animate-pulse">
-              <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              <div className="flex-1">
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
-              </div>
-            </div>
+            <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+              <CircularProgress size={40} />
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ height: 16, bgcolor: 'action.hover', borderRadius: 1, width: '75%', mb: 1 }} />
+                <Box sx={{ height: 12, bgcolor: 'action.hover', borderRadius: 1, width: '50%' }} />
+              </Box>
+            </Box>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Paper>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-soft">
-      <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+    <Paper
+      elevation={1}
+      sx={{
+        p: 3,
+        borderRadius: 4,
+        border: 1,
+        borderColor: 'divider',
+      }}
+    >
+      <Typography variant="h6" fontWeight="semibold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
         <span>📋</span>
         Senaste aktivitet
-      </h3>
+      </Typography>
 
       {activities.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="text-4xl mb-3">🌱</div>
-          <p className="text-slate-600 dark:text-slate-400">Ingen aktivitet än.</p>
-          <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography variant="h3" sx={{ mb: 1.5 }}>🌱</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Ingen aktivitet än.
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
             Börja genom att logga ditt humör!
-          </p>
-        </div>
+          </Typography>
+        </Box>
       ) : (
-        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, maxHeight: '500px', overflowY: 'auto' }}>
           {activities.map((activity, index) => {
-            const colors = getColorClasses(activity.color);
+            const colors = getColorStyles(activity.color);
             return (
-              <motion.div
+              <Box
+                component={motion.div}
                 key={activity.id}
-                className={`flex items-start gap-3 p-3 rounded-lg border ${colors.bg} ${colors.border}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1.5,
+                  p: 1.5,
+                  borderRadius: 2,
+                  border: 1,
+                  bgcolor: colors.bg,
+                  borderColor: colors.borderColor,
+                }}
               >
-                <div className={`w-10 h-10 ${colors.icon} rounded-full flex items-center justify-center text-white text-xl flex-shrink-0`}>
+                <Avatar
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    bgcolor: colors.iconBg,
+                    fontSize: '1.25rem',
+                    flexShrink: 0,
+                  }}
+                >
                   {activity.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className={`font-semibold ${colors.text} text-sm`}>
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight="semibold" color={colors.textColor} noWrap>
                     {activity.title}
-                  </h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
                     {activity.description}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                     {getTimeAgo(activity.timestamp)}
-                  </p>
-                </div>
-              </motion.div>
+                  </Typography>
+                </Box>
+              </Box>
             );
           })}
-        </div>
+        </Box>
       )}
-    </div>
+    </Paper>
   );
 };
 
