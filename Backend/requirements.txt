@@ -61,7 +61,7 @@ google-cloud-firestore>=2.0.0
 
 # Email Services
 sendgrid>=6.0.0
-resend==0.7.2
+resend==0.8.0
 
 # Data Validation
 pydantic==1.10.13
