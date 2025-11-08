@@ -12,6 +12,8 @@ if (typeof window !== 'undefined') {
 // Now import everything else
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
+import { ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 import { Analytics } from "./shims/vercel-analytics";
 import { SpeedInsights } from "./shims/vercel-speed-insights";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -22,6 +24,7 @@ import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
 import "./config/chartConfig"; // Initialize Chart.js
+import { lightTheme, darkTheme } from "./theme/theme"; // MUI Theme
 
 // Import styles
 import "./styles/styles.css";
@@ -65,17 +68,20 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary> {/* 🛡️ Fångar och hanterar applikationsfel */}
-      <I18nextProvider i18n={i18n}> {/* 🌐 Tillhandahåller i18n-kontext */}
-        <BrowserRouter> {/* 🔗 Hanterar navigering i appen */}
-          <ThemeProvider> {/* 🌙 Tillhandahåller tema-kontext */}
-            <AuthProvider> {/* 🔒 Tillhandahåller global autentisering */}
-              <App /> {/* 🎉 Rendera huvudapplikationen */}
-              <Analytics /> {/* 📊 Vercel Analytics för besökarspårning */}
-              <SpeedInsights /> {/* ⚡ Vercel Speed Insights för prestandaspårning */}
-            </AuthProvider>
-          </ThemeProvider>
-        </BrowserRouter>
-      </I18nextProvider>
+      <MuiThemeProvider theme={lightTheme}> {/* 🎨 Material-UI Theme */}
+        <CssBaseline /> {/* 🔄 Reset CSS for consistency */}
+        <I18nextProvider i18n={i18n}> {/* 🌐 Tillhandahåller i18n-kontext */}
+          <BrowserRouter> {/* 🔗 Hanterar navigering i appen */}
+            <ThemeProvider> {/* 🌙 Tillhandahåller tema-kontext (dark mode) */}
+              <AuthProvider> {/* 🔒 Tillhandahåller global autentisering */}
+                <App /> {/* 🎉 Rendera huvudapplikationen */}
+                <Analytics /> {/* 📊 Vercel Analytics för besökarspårning */}
+                <SpeedInsights /> {/* ⚡ Vercel Speed Insights för prestandaspårning */}
+              </AuthProvider>
+            </ThemeProvider>
+          </BrowserRouter>
+        </I18nextProvider>
+      </MuiThemeProvider>
     </ErrorBoundary>
   </StrictMode>
 );

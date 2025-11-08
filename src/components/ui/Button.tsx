@@ -1,74 +1,39 @@
 /**
  * Button Component - Lugn & Trygg Design System
- * Consistent button styles with accessibility and theming support
+ * Unified Material-UI button with consistent styling
  */
 
 import React from 'react';
-import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+import { Button as MuiButton, ButtonProps as MuiButtonProps, CircularProgress } from '@mui/material';
 
-export interface ButtonProps extends Omit<MuiButtonProps, 'variant'> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export interface ButtonProps extends Omit<MuiButtonProps, 'variant' | 'color'> {
+  variant?: 'contained' | 'outlined' | 'text';
+  color?: 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info';
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
   loading?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  variant = 'primary',
+  variant = 'contained',
+  color = 'primary',
   size = 'medium',
   fullWidth = false,
   loading = false,
   disabled,
   children,
-  className = '',
   ...props
 }) => {
-  const getVariantClasses = () => {
-    switch (variant) {
-      case 'primary':
-        return 'btn btn-primary';
-      case 'secondary':
-        return 'btn btn-secondary';
-      case 'outline':
-        return 'btn btn-outline';
-      case 'ghost':
-        return 'btn btn-ghost';
-      case 'danger':
-        return 'btn btn-danger';
-      default:
-        return 'btn btn-primary';
-    }
-  };
-
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return 'text-sm py-2 px-3';
-      case 'large':
-        return 'text-lg py-3 px-6';
-      default:
-        return 'text-base py-2 px-4';
-    }
-  };
-
-  const buttonClasses = [
-    getVariantClasses(),
-    getSizeClasses(),
-    fullWidth ? 'w-full' : '',
-    loading ? 'opacity-75 cursor-not-allowed' : '',
-    className
-  ].filter(Boolean).join(' ');
-
   return (
     <MuiButton
-      className={buttonClasses}
-      disabled={disabled || loading}
+      variant={variant}
+      color={color}
+      size={size}
       fullWidth={fullWidth}
+      disabled={disabled || loading}
+      startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
       {...props}
     >
-      {loading && (
-        <span className="mr-2 inline-block animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-      )}
       {children}
     </MuiButton>
   );
