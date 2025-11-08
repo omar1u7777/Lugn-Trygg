@@ -4,6 +4,8 @@ import { TrendingUp, TrendingDown, Star, EmojiEvents, TrackChanges, Favorite } f
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
+import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
+import useAuth from '../hooks/useAuth';
 
 interface StoryInsightsProps {
   userId?: string;
@@ -12,7 +14,9 @@ interface StoryInsightsProps {
 const StoryInsights = ({ userId }: StoryInsightsProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
+  const { user } = useAuth();
   const [insights, setInsights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     analytics.page('Story Insights', {
@@ -21,59 +25,130 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
     });
 
     loadInsights();
-  }, [userId]);
+  }, [userId, user]);
 
-  const loadInsights = () => {
-    // Mock insights data - replace with real API calls
-    const mockInsights = [
-      {
-        id: '1',
-        type: 'trend',
-        title: 'Din Veckotrend',
-        story: 'Du har haft en fantastisk vecka! Ditt humör har ökat med 15% jämfört med förra veckan. Detta visar på positiva förändringar i ditt välbefinnande.',
-        trend: 'up',
-        color: 'green',
-        icon: TrendingUp,
-        action: 'Se detaljer',
-        badge: null,
-      },
-      {
-        id: '2',
-        type: 'achievement',
-        title: 'Milstolpe Uppnådd!',
-        story: 'Grattis! Du har nu loggat humör 50 dagar i rad. Det är en imponerande prestation som visar ditt engagemang för bättre mental hälsa.',
-        trend: null,
-        color: 'gold',
-        icon: EmojiEvents,
-        action: 'Dela prestation',
-        badge: '🏆',
-      },
-      {
-        id: '3',
-        type: 'recommendation',
-        title: 'AI Rekommendation',
-        story: 'Baserat på dina mönster rekommenderar vi att du provar mindfulness-övningar på morgonen. Detta kan hjälpa till att starta dagen på ett mer balanserat sätt.',
-        trend: null,
-        color: 'blue',
-        icon: Favorite,
-        action: 'Prova nu',
-        badge: null,
-      },
-      {
-        id: '4',
-        type: 'goal',
-        title: 'Veckomål Nästan Klar',
-        story: 'Du har 6 av 7 humör-inlägg denna vecka. Bara ett till för att nå ditt mål! Konsekvent spårning hjälper dig förstå dina mönster bättre.',
-        trend: null,
-        color: 'orange',
-        icon: TrackChanges,
-        action: 'Logga nu',
-        badge: null,
-      },
-    ];
+  const loadInsights = async () => {
+    if (!user?.user_id) {
+      setLoading(false);
+      return;
+    }
 
-    setInsights(mockInsights);
-    announceToScreenReader(`${mockInsights.length} insikter laddade`, 'polite');
+    try {
+      setLoading(true);
+
+      // Load real data from backend APIs
+      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
+        getMoods(user.user_id).catch(() => []),
+        getWeeklyAnalysis(user.user_id).catch(() => ({})),
+        getChatHistory(user.user_id).catch(() => []),
+      ]);
+
+      // Calculate insights based on real data
+      const totalMoods = moodsData.length;
+      const streakDays = weeklyAnalysisData.streak_days || 0;
+      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
+      const weeklyGoal = weeklyAnalysisData.weekly_goal || 7;
+      const totalChats = chatHistoryData.length;
+
+      // Calculate average mood
+      const averageMood = totalMoods > 0
+        ? moodsData.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / totalMoods
+        : 0;
+
+      // Generate dynamic insights based on real data
+      const insights: any[] = [];
+
+      // Weekly trend insight
+      if (totalMoods >= 7) {
+        const recentMoods = moodsData.slice(0, 7);
+        const avgRecent = recentMoods.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / recentMoods.length;
+        const trend = avgRecent > averageMood ? 'up' : 'down';
+
+        insights.push({
+          id: 'weekly-trend',
+          type: 'trend',
+          title: 'Din Veckotrend',
+          story: `Du har haft ${trend === 'up' ? 'en positiv' : 'en utmanande'} vecka! Ditt genomsnittliga humör är ${avgRecent.toFixed(1)}/10. ${trend === 'up' ? 'Fortsätt det goda arbetet!' : 'Kom ihåg att varje dag är en ny möjlighet.'}`,
+          trend,
+          color: trend === 'up' ? 'green' : 'orange',
+          icon: trend === 'up' ? TrendingUp : TrendingDown,
+          action: 'Se detaljer',
+          badge: null,
+        });
+      }
+
+      // Achievement insight
+      if (streakDays >= 7) {
+        insights.push({
+          id: 'streak-achievement',
+          type: 'achievement',
+          title: 'Streak-prestation!',
+          story: `Fantastiskt! Du har loggat humör ${streakDays} dagar i rad. Detta visar på ett starkt engagemang för din mentala hälsa.`,
+          trend: null,
+          color: 'gold',
+          icon: EmojiEvents,
+          action: 'Dela prestation',
+          badge: '🔥',
+        });
+      }
+
+      // Goal progress insight
+      if (weeklyProgress < weeklyGoal) {
+        insights.push({
+          id: 'goal-progress',
+          type: 'goal',
+          title: 'Veckomål på gång',
+          story: `Du har ${weeklyProgress} av ${weeklyGoal} humör-inlägg denna vecka. ${weeklyGoal - weeklyProgress} till kvar för att nå ditt mål!`,
+          trend: null,
+          color: 'orange',
+          icon: TrackChanges,
+          action: 'Logga nu',
+          badge: null,
+        });
+      }
+
+      // AI interaction insight
+      if (totalChats > 0) {
+        insights.push({
+          id: 'ai-interaction',
+          type: 'recommendation',
+          title: 'AI-stöd tillgängligt',
+          story: `Du har haft ${totalChats} konversationer med AI-terapeuten. AI:n har lärt sig dina mönster och kan ge personliga råd.`,
+          trend: null,
+          color: 'blue',
+          icon: Favorite,
+          action: 'Prata med AI',
+          badge: null,
+        });
+      }
+
+      // First mood insight for new users
+      if (totalMoods === 1) {
+        insights.push({
+          id: 'welcome-insight',
+          type: 'recommendation',
+          title: 'Välkommen till din resa!',
+          story: 'Bra jobbat med ditt första humör-inlägg! Konsekvent spårning hjälper dig förstå dina mönster och förbättra ditt välbefinnande.',
+          trend: null,
+          color: 'blue',
+          icon: Star,
+          action: 'Fortsätt logga',
+          badge: '🎯',
+        });
+      }
+
+      setInsights(insights);
+      announceToScreenReader(`${insights.length} insikter laddade`, 'polite');
+
+    } catch (error) {
+      console.error('Failed to load insights:', error);
+      announceToScreenReader('Failed to load insights', 'assertive');
+
+      // Set fallback insights
+      setInsights([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInsightAction = (insight: any) => {
@@ -220,15 +295,15 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl font-bold">50</div>
+              <div className="text-2xl font-bold">{streakDays || 0}</div>
               <div className="text-sm opacity-90">Dagar i rad</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">7.2</div>
+              <div className="text-2xl font-bold">{averageMood.toFixed(1)}</div>
               <div className="text-sm opacity-90">Genomsnittligt humör</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">23</div>
+              <div className="text-2xl font-bold">{totalChats || 0}</div>
               <div className="text-sm opacity-90">AI-konversationer</div>
             </div>
           </div>

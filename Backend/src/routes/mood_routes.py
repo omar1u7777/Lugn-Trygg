@@ -26,7 +26,7 @@ def log_mood():
     logger.info("🎯 Mood log endpoint called")
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
         # Use Flask's g.user_id for authenticated user context
         from flask import g
@@ -58,8 +58,72 @@ def log_mood():
         #   - If you get 400 errors, check that frontend sends correct payload type
         #   - Dummy Firebase API key will block Google sign-in (expected in dev)
         #   - CSP may block Firebase Auth iframe; update CSP for local testing if needed
+
+        # Try to get JSON data, with fallback parsing for malformed requests
+        try:
+            data = request.get_json()
+        except Exception as json_error:
+            logger.error(f"JSON parsing failed: {json_error}")
+            logger.error(f"Raw request data: {request.get_data(as_text=True)}")
+
+            # Try to parse manually if JSON parsing fails
+            raw_data = request.get_data(as_text=True)
+            if raw_data:
+                try:
+                    # Parse the malformed data manually
+                    stripped_data = raw_data.strip()
+                    if stripped_data.startswith("'") and stripped_data.endswith("'"):
+                        stripped_data = stripped_data[1:-1]
+
+                    if stripped_data.startswith("{") and stripped_data.endswith("}"):
+                        content = stripped_data[1:-1]
+                        pairs = []
+                        current_pair = ""
+                        brace_count = 0
+
+                        for char in content:
+                            if char == "," and brace_count == 0:
+                                pairs.append(current_pair)
+                                current_pair = ""
+                            else:
+                                current_pair += char
+                                if char == "{":
+                                    brace_count += 1
+                                elif char == "}":
+                                    brace_count -= 1
+
+                        if current_pair:
+                            pairs.append(current_pair)
+
+                        data = {}
+                        for pair in pairs:
+                            if ":" in pair:
+                                key, value = pair.split(":", 1)
+                                key = key.strip()
+                                value = value.strip()
+                                if key.startswith("'") and key.endswith("'"):
+                                    key = key[1:-1]
+                                elif key.startswith('"') and key.endswith('"'):
+                                    key = key[1:-1]
+                                if value.startswith("'") and value.endswith("'"):
+                                    value = value[1:-1]
+                                elif value.startswith('"') and value.endswith('"'):
+                                    value = value[1:-1]
+                                data[key] = value
+
+                        logger.info(f"Successfully parsed malformed mood data: {data}")
+                    else:
+                        raise ValueError("Data does not look like a dict")
+                except Exception as parse_error:
+                    logger.error(f"Manual parsing failed: {parse_error}")
+                    return jsonify({'error': 'Invalid data format'}), 400
+            else:
+                return jsonify({'error': 'No data provided'}), 400
+
         if request.content_type and 'multipart/form-data' in request.content_type:
-            data = request.form.to_dict()
+            # Handle multipart data if needed
+            form_data = request.form.to_dict()
+            data.update(form_data)
             # Also handle file upload for audio
             audio_file = request.files.get('audio')
             if audio_file:
@@ -68,15 +132,14 @@ def log_mood():
             else:
                 voice_data = data.get('voice_data')
         else:
-            data = request.get_json()
             voice_data = data.get('voice_data')
             audio_file = None
 
-        if not data and not audio_file:
+        if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        mood_text = data.get('mood_text', '') if data else ''
-        timestamp = data.get('timestamp', datetime.utcnow().isoformat()) if data else datetime.utcnow().isoformat()
+        mood_text = data.get('mood_text', '') or data.get('mood', '')
+        timestamp = data.get('timestamp', datetime.utcnow().isoformat())
 
         # --- End unified payload handling ---
 

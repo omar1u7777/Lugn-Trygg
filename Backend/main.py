@@ -36,6 +36,11 @@ app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
 
+# JWT Extended Configuration
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
 # CORS configuration
 cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 
     'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001,'
@@ -60,6 +65,10 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
 )
+
+# Initialize JWT Manager
+from flask_jwt_extended import JWTManager
+jwt = JWTManager(app)
 
 # Import and initialize services
 try:

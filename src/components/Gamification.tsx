@@ -4,6 +4,8 @@ import { EmojiEvents, Star, TrendingUp, LocalFireDepartment, Psychology, Favorit
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
+import { getMoods, getWeeklyAnalysis } from '../api/api';
+import useAuth from '../hooks/useAuth';
 
 interface GamificationProps {
   userId?: string;
@@ -30,11 +32,13 @@ interface StreakData {
 const Gamification = ({ userId }: GamificationProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
+  const { user } = useAuth();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [streak, setStreak] = useState<StreakData>({ current: 0, longest: 0 });
+  const [streak, setStreakData] = useState<StreakData>({ current: 0, longest: 0 });
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [xpToNext, setXpToNext] = useState(100);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     analytics.page('Gamification', {
@@ -43,72 +47,119 @@ const Gamification = ({ userId }: GamificationProps) => {
     });
 
     loadGamificationData();
-  }, [userId]);
+  }, [userId, user]);
 
-  const loadGamificationData = () => {
-    // Mock achievements data
-    const mockAchievements: Achievement[] = [
-      {
-        id: 'first_mood',
-        title: 'Första Steget',
-        description: 'Logga ditt första humör',
-        icon: '🎯',
-        unlocked: true,
-        progress: 1,
-        maxProgress: 1,
-        rarity: 'common',
-        unlockedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7), // 1 week ago
-      },
-      {
-        id: 'week_warrior',
-        title: 'Veckokrigare',
-        description: 'Logga humör 7 dagar i rad',
-        icon: '⚔️',
-        unlocked: true,
-        progress: 7,
-        maxProgress: 7,
-        rarity: 'rare',
-        unlockedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-      },
-      {
-        id: 'mindful_master',
-        title: 'Medveten Mästare',
-        description: 'Genomför 10 mindfulness-sessioner',
-        icon: '🧘',
-        unlocked: false,
-        progress: 6,
-        maxProgress: 10,
-        rarity: 'epic',
-      },
-      {
-        id: 'chat_champion',
-        title: 'Chattmästare',
-        description: 'Ha 50 konversationer med AI-terapeuten',
-        icon: '💬',
-        unlocked: false,
-        progress: 23,
-        maxProgress: 50,
-        rarity: 'rare',
-      },
-      {
-        id: 'legendary_logger',
-        title: 'Legendarisk Logger',
-        description: 'Logga humör 100 dagar i rad',
-        icon: '👑',
-        unlocked: false,
-        progress: 50,
-        maxProgress: 100,
-        rarity: 'legendary',
-      },
-    ];
+  const loadGamificationData = async () => {
+    if (!user?.user_id) {
+      setLoading(false);
+      return;
+    }
 
-    setAchievements(mockAchievements);
-    setStreak({ current: 5, longest: 12, lastLogDate: new Date() });
-    setLevel(3);
-    setXp(250);
-    setXpToNext(100);
+    try {
+      setLoading(true);
 
-    announceToScreenReader(`${mockAchievements.filter(a => a.unlocked).length} achievements unlocked`, 'polite');
+      // Load real data from backend APIs
+      const [moodsData, weeklyAnalysisData] = await Promise.all([
+        getMoods(user.user_id).catch(() => []),
+        getWeeklyAnalysis(user.user_id).catch(() => ({})),
+      ]);
+
+      // Calculate achievements based on real data
+      const totalMoods = moodsData.length;
+      const streakDays = weeklyAnalysisData.streak_days || 0;
+      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
+
+      // Calculate XP based on activities (10 XP per mood, 5 XP per chat, etc.)
+      const baseXp = totalMoods * 10; // 10 XP per mood logged
+      const streakBonus = streakDays * 5; // 5 XP per streak day
+      const totalXp = baseXp + streakBonus;
+      const currentLevel = Math.floor(totalXp / 100) + 1;
+      const xpInLevel = totalXp % 100;
+      const xpToNextLevel = 100 - xpInLevel;
+
+      // Generate achievements based on real data
+      const achievements: Achievement[] = [
+        {
+          id: 'first_mood',
+          title: 'Första Steget',
+          description: 'Logga ditt första humör',
+          icon: '🎯',
+          unlocked: totalMoods >= 1,
+          progress: Math.min(totalMoods, 1),
+          maxProgress: 1,
+          rarity: 'common',
+          unlockedAt: totalMoods >= 1 ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 7) : undefined,
+        },
+        {
+          id: 'week_warrior',
+          title: 'Veckokrigare',
+          description: 'Logga humör 7 dagar i rad',
+          icon: '⚔️',
+          unlocked: streakDays >= 7,
+          progress: Math.min(streakDays, 7),
+          maxProgress: 7,
+          rarity: 'rare',
+          unlockedAt: streakDays >= 7 ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 2) : undefined,
+        },
+        {
+          id: 'consistent_logger',
+          title: 'Konsekvent Logger',
+          description: 'Logga humör 30 dagar totalt',
+          icon: '📅',
+          unlocked: totalMoods >= 30,
+          progress: Math.min(totalMoods, 30),
+          maxProgress: 30,
+          rarity: 'epic',
+          unlockedAt: totalMoods >= 30 ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 1) : undefined,
+        },
+        {
+          id: 'streak_master',
+          title: 'Streakmästare',
+          description: 'Uppnå 14 dagar i rad',
+          icon: '🔥',
+          unlocked: streakDays >= 14,
+          progress: Math.min(streakDays, 14),
+          maxProgress: 14,
+          rarity: 'epic',
+        },
+        {
+          id: 'legendary_logger',
+          title: 'Legendarisk Logger',
+          description: 'Logga humör 100 dagar totalt',
+          icon: '👑',
+          unlocked: totalMoods >= 100,
+          progress: Math.min(totalMoods, 100),
+          maxProgress: 100,
+          rarity: 'legendary',
+        },
+      ];
+
+      setAchievements(achievements);
+      setStreakData({
+        current: streakDays,
+        longest: Math.max(streakDays, weeklyAnalysisData.longest_streak || 0),
+        lastLogDate: moodsData.length > 0 ? new Date(moodsData[0].timestamp || Date.now()) : undefined
+      });
+      setLevel(currentLevel);
+      setXp(totalXp);
+      setXpToNext(xpToNextLevel);
+
+      const unlockedCount = achievements.filter(a => a.unlocked).length;
+      announceToScreenReader(`${unlockedCount} achievements unlocked`, 'polite');
+
+    } catch (error) {
+      console.error('Failed to load gamification data:', error);
+      announceToScreenReader('Failed to load gamification data', 'assertive');
+
+      // Set fallback data
+      setAchievements([]);
+      setStreakData({ current: 0, longest: 0 });
+      setLevel(1);
+      setXp(0);
+      setXpToNext(100);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getRarityColor = (rarity: string) => {

@@ -13,11 +13,12 @@ import "./styles/styles.css";
 import "./styles/responsive.css"; // Enhanced responsive design system
 import "./styles/design-system.css"; // Professional design system v2.0
 import "./styles/animations.css"; // Professional animations & micro-interactions
+import "./styles/world-class-design.css"; // WORLD-CLASS UNIFIED DESIGN SYSTEM
 
 // Lazy load route components for code splitting with error boundaries
 const LoginForm = lazy(() => import(/* webpackChunkName: "auth" */ "./components/Auth/LoginForm"));
 const RegisterForm = lazy(() => import(/* webpackChunkName: "auth" */ "./components/Auth/RegisterForm"));
-const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ "./components/Dashboard/Dashboard"));
+const WorldClassDashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ "./components/WorldClassDashboard"));
 const SubscriptionForm = lazy(() => import(/* webpackChunkName: "subscription" */ "./components/SubscriptionForm"));
 const AIStories = lazy(() => import(/* webpackChunkName: "ai-stories" */ "./components/AIStories"));
 const MoodAnalytics = lazy(() => import(/* webpackChunkName: "analytics" */ "./components/MoodAnalytics"));
@@ -94,7 +95,7 @@ function App() {
                                     path="/dashboard"
                                     element={
                                         <ProtectedRoute>
-                                            <Dashboard />
+                                            <WorldClassDashboard />
                                         </ProtectedRoute>
                                     }
                                 />

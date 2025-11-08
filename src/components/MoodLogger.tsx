@@ -3,6 +3,8 @@ import { Card, CardContent, Typography, Button, Box, Chip } from '@mui/material'
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
+import { logMood, getMoods } from '../api/api';
+import useAuth from '../hooks/useAuth';
 
 interface MoodLoggerProps {
   onMoodLogged?: (mood: number, note?: string) => void;
@@ -11,9 +13,11 @@ interface MoodLoggerProps {
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
+  const { user } = useAuth();
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [isLogging, setIsLogging] = useState(false);
+  const [recentMoods, setRecentMoods] = useState<any[]>([]);
 
   useEffect(() => {
     analytics.page('Mood Logger', {
@@ -42,12 +46,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   };
 
   const handleLogMood = async () => {
-    if (!selectedMood) return;
+    if (!selectedMood || !user?.user_id) return;
 
     setIsLogging(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Log mood to backend
+      await logMood(user.user_id, note || 'Inga kommentarer', selectedMood);
 
       analytics.track('Mood Logged', {
         mood_value: selectedMood,
@@ -61,6 +65,9 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         onMoodLogged(selectedMood, note);
       }
 
+      // Refresh recent moods
+      await loadRecentMoods();
+
       // Reset form
       setSelectedMood(null);
       setNote('');
@@ -72,6 +79,21 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       setIsLogging(false);
     }
   };
+
+  const loadRecentMoods = async () => {
+    if (!user?.user_id) return;
+
+    try {
+      const moods = await getMoods(user.user_id);
+      setRecentMoods(moods.slice(0, 5)); // Show last 5 moods
+    } catch (error) {
+      console.error('Failed to load recent moods:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadRecentMoods();
+  }, [user]);
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -195,17 +217,34 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             Dina senaste humör
           </Typography>
           <div className="space-y-3">
-            {/* Placeholder for recent moods */}
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">😊</span>
-                <div>
-                  <div className="font-medium">Glad</div>
-                  <div className="text-sm text-gray-500">Idag 14:30</div>
+            {recentMoods.length > 0 ? (
+              recentMoods.map((mood, index) => (
+                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {mood.score >= 8 ? '😊' : mood.score >= 6 ? '🙂' : mood.score >= 4 ? '😐' : mood.score >= 2 ? '😟' : '😢'}
+                    </span>
+                    <div>
+                      <div className="font-medium">{mood.mood || 'Humör'}</div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(mood.timestamp || Date.now()).toLocaleDateString('sv-SE', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  <Chip label={`${mood.score}/10`} size="small" />
                 </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-4">
+                <p>Inga humör loggade ännu</p>
+                <p className="text-sm">Börja logga dina humör för att se historik här</p>
               </div>
-              <Chip label="8/10" size="small" />
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>

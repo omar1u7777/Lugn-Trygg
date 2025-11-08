@@ -27,6 +27,8 @@ import { useAccessibility } from '../../hooks/useAccessibility';
 import { analytics } from '../../services/analytics';
 import { LoadingSpinner } from '../LoadingStates';
 import ErrorBoundary from '../ErrorBoundary';
+import { getMoods, getWeeklyAnalysis, getChatHistory } from '../../api/api';
+import useAuth from '../../hooks/useAuth';
 
 // Lazy load heavy components
 const MoodChart = lazy(() => import('./MoodChart'));
@@ -55,6 +57,7 @@ interface DashboardStats {
 const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalMoods: 0,
     totalChats: 0,
@@ -77,49 +80,77 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   }, [userId]);
 
   const loadDashboardData = async () => {
+    if (!user?.user_id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Simulate API call - replace with actual API calls
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          setStats({
-            totalMoods: 45,
-            totalChats: 23,
-            averageMood: 7.2,
-            streakDays: 5,
-            weeklyGoal: 7,
-            weeklyProgress: 5,
-            recentActivity: [
-              {
-                id: '1',
-                type: 'mood',
-                timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-                description: 'Logged mood: Glad (8/10)',
-              },
-              {
-                id: '2',
-                type: 'chat',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-                description: 'Chat session with AI therapist',
-              },
-              {
-                id: '3',
-                type: 'meditation',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-                description: 'Completed 10-minute meditation',
-              },
-            ],
-          });
+      // Load real data from backend APIs
+      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
+        getMoods(user.user_id).catch(() => []),
+        getWeeklyAnalysis(user.user_id).catch(() => ({})),
+        getChatHistory(user.user_id).catch(() => []),
+      ]);
 
-          announceToScreenReader('Dashboard data loaded successfully', 'polite');
-          resolve();
-        }, 1000);
+      // Process moods data
+      const totalMoods = moodsData.length;
+      const averageMood = totalMoods > 0
+        ? moodsData.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / totalMoods
+        : 0;
+
+      // Process weekly analysis
+      const weeklyGoal = weeklyAnalysisData.weekly_goal || 7;
+      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
+      const streakDays = weeklyAnalysisData.streak_days || 0;
+
+      // Process chat history
+      const totalChats = chatHistoryData.length;
+
+      // Create recent activity from moods and chats
+      const recentActivity = [
+        ...moodsData.slice(0, 3).map((mood: any, index: number) => ({
+          id: `mood-${index}`,
+          type: 'mood' as const,
+          timestamp: new Date(mood.timestamp || Date.now()),
+          description: `Logged mood: ${mood.mood || 'Unknown'} (${mood.score || 0}/10)`,
+        })),
+        ...chatHistoryData.slice(0, 2).map((chat: any, index: number) => ({
+          id: `chat-${index}`,
+          type: 'chat' as const,
+          timestamp: new Date(chat.timestamp || Date.now()),
+          description: 'Chat session with AI therapist',
+        })),
+      ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 5);
+
+      setStats({
+        totalMoods,
+        totalChats,
+        averageMood: Math.round(averageMood * 10) / 10,
+        streakDays,
+        weeklyGoal,
+        weeklyProgress,
+        recentActivity,
       });
+
+      announceToScreenReader('Dashboard data loaded successfully', 'polite');
 
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       announceToScreenReader('Failed to load dashboard data', 'assertive');
+
+      // Set fallback data
+      setStats({
+        totalMoods: 0,
+        totalChats: 0,
+        averageMood: 0,
+        streakDays: 0,
+        weeklyGoal: 7,
+        weeklyProgress: 0,
+        recentActivity: [],
+      });
     } finally {
       setLoading(false);
     }
