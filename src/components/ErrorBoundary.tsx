@@ -4,6 +4,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Box, Typography, Link } from '@mui/material';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 
@@ -97,23 +98,33 @@ class ErrorBoundary extends Component<Props, State> {
       const showDetails = this.props.showDetails || process.env.NODE_ENV === 'development';
 
       return (
-        <div
-          className="min-h-screen flex items-center justify-center p-4 bg-gray-50"
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 2,
+            bgcolor: "grey.50",
+          }}
           role="alert"
           aria-live="assertive"
           aria-atomic="true"
         >
           <Card
             title="🚨 Något gick fel"
-            className="max-w-md w-full"
+            sx={{
+              maxWidth: "md",
+              width: "100%",
+            }}
             elevation={2}
           >
-            <div className="text-center space-y-4">
-              <p className="text-gray-600">
+            <Box sx={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography color="text.secondary">
                 Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
-              </p>
+              </Typography>
 
-              <div className="flex flex-col gap-3">
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {canRetry ? (
                   <Button
                     onClick={this.handleRetry}
@@ -142,43 +153,91 @@ class ErrorBoundary extends Component<Props, State> {
                 >
                   ← Gå tillbaka
                 </Button>
-              </div>
+              </Box>
 
               {showDetails && error && (
-                <details className="mt-4 text-left">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                <Box component="details" sx={{ mt: 2, textAlign: "left" }}>
+                  <Box
+                    component="summary"
+                    sx={{
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                      fontWeight: "medium",
+                      color: "text.secondary",
+                      "&:hover": {
+                        color: "text.primary",
+                      },
+                    }}
+                  >
                     Tekniska detaljer (för utvecklare)
-                  </summary>
-                  <div className="mt-2 p-3 bg-gray-100 rounded text-xs font-mono overflow-auto max-h-40">
-                    <div className="font-semibold text-red-600 mb-2">Fel:</div>
-                    <div className="text-gray-800 mb-3">{error.toString()}</div>
+                  </Box>
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 1.5,
+                      bgcolor: "grey.100",
+                      borderRadius: 1,
+                      fontSize: "0.75rem",
+                      fontFamily: "monospace",
+                      overflowX: "auto",
+                      maxHeight: "160px",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      fontWeight="semibold"
+                      color="error.main"
+                      display="block"
+                      gutterBottom
+                    >
+                      Fel:
+                    </Typography>
+                    <Typography variant="caption" color="text.primary" display="block" sx={{ mb: 1.5 }}>
+                      {error.toString()}
+                    </Typography>
                     {errorInfo?.componentStack && (
                       <>
-                        <div className="font-semibold text-red-600 mb-2">Komponent stack:</div>
-                        <pre className="text-gray-700 whitespace-pre-wrap">
+                        <Typography
+                          variant="caption"
+                          fontWeight="semibold"
+                          color="error.main"
+                          display="block"
+                          gutterBottom
+                        >
+                          Komponent stack:
+                        </Typography>
+                        <Box
+                          component="pre"
+                          sx={{
+                            color: "text.secondary",
+                            whiteSpace: "pre-wrap",
+                            m: 0,
+                          }}
+                        >
                           {errorInfo.componentStack}
-                        </pre>
+                        </Box>
                       </>
                     )}
-                  </div>
-                </details>
+                  </Box>
+                </Box>
               )}
 
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">
+              <Box sx={{ pt: 2, borderTop: 1, borderColor: "divider" }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
                   Om problemet kvarstår, kontakta vår support:
-                </p>
-                <a
+                </Typography>
+                <Link
                   href="mailto:support@lugntrygg.se"
-                  className="text-primary hover:text-primary-dark underline"
+                  underline="hover"
+                  color="primary"
                   aria-label="Skicka e-post till support"
                 >
                   📧 support@lugntrygg.se
-                </a>
-              </div>
-            </div>
+                </Link>
+              </Box>
+            </Box>
           </Card>
-        </div>
+        </Box>
       );
     }
 
