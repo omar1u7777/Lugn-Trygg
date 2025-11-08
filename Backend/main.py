@@ -89,6 +89,9 @@ try:
     from src.routes.metrics_routes import metrics_bp
     from src.routes.predictive_routes import predictive_bp
     from src.routes.rate_limit_routes import rate_limit_bp
+    from src.routes.referral_routes import referral_bp
+    from src.routes.chatbot_routes import chatbot_bp
+    from src.routes.feedback_routes import feedback_bp
 
     # Initialize Firebase
     initialize_firebase()
@@ -108,6 +111,9 @@ try:
     app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
     app.register_blueprint(predictive_bp, url_prefix='/api/predictive')
     app.register_blueprint(rate_limit_bp, url_prefix='/api/rate-limit')
+    app.register_blueprint(referral_bp, url_prefix='/api/referral')
+    app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
+    app.register_blueprint(feedback_bp, url_prefix='/api/feedback')
 
     # Global request middleware
     @app.before_request
