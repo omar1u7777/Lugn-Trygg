@@ -6,7 +6,24 @@ import os
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-import resend
+
+# Try to import resend, fallback to mock if not available
+try:
+    import resend
+    RESEND_AVAILABLE = True
+except ImportError:
+    RESEND_AVAILABLE = False
+    logging.warning("⚠️ Resend package not available - email functionality disabled")
+    # Create a mock resend module for graceful degradation
+    class MockResend:
+        def __init__(self):
+            self.api_key = None
+        class Emails:
+            @staticmethod
+            def send(data):
+                logging.info(f"📧 Mock email sent to {data.get('to', 'unknown')}: {data.get('subject', 'no subject')}")
+                return {"id": "mock-email-id"}
+    resend = MockResend()
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +40,15 @@ class EmailService:
             self.client = None
             self.enabled = False
         else:
-            resend.api_key = self.api_key
-            self.client = resend
-            self.enabled = True
-            logger.info("✅ Resend client initialized")
+            if RESEND_AVAILABLE:
+                resend.api_key = self.api_key
+                self.client = resend
+                self.enabled = True
+                logger.info("✅ Resend client initialized")
+            else:
+                logger.warning("⚠️ Resend package not available - using mock email service")
+                self.client = resend  # Mock resend
+                self.enabled = False
     
     def send_referral_invitation(
         self,
