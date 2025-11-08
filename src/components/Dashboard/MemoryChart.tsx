@@ -1,28 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
 import { getMemories } from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+// Chart.js registration is handled in src/config/chartConfig.ts
 
 const MemoryChart: React.FC = () => {
   const { t } = useTranslation();

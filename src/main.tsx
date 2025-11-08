@@ -1,6 +1,15 @@
-// React imports
+// React imports - MUST be first for global availability
 import React, { StrictMode } from "react";
+import ReactDOM from "react-dom/client";
 import { createRoot } from "react-dom/client";
+
+// Expose React globally BEFORE any other imports
+if (typeof window !== 'undefined') {
+  (window as any).React = React;
+  (window as any).ReactDOM = ReactDOM;
+}
+
+// Now import everything else
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { Analytics } from "./shims/vercel-analytics";
@@ -17,13 +26,6 @@ import "./config/chartConfig"; // Initialize Chart.js
 // Import styles
 import "./styles/styles.css";
 import "./styles/accessibility.css";
-
-// Force React to be available globally for Chart.js and other libraries
-import * as React from 'react';
-if (typeof window !== 'undefined') {
-  (window as any).React = React;
-  (window as any).ReactDOM = await import('react-dom');
-}
 
 /**
  *  Huvudstartfil för Lugn & Trygg Desktop-App

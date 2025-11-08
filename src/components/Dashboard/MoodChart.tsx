@@ -1,31 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
 import { debounce } from 'lodash';
 import { getMoods } from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+// Chart.js registration is handled in src/config/chartConfig.ts
 
 const MoodChart: React.FC = () => {
   const { t } = useTranslation();

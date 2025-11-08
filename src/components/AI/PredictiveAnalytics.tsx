@@ -22,28 +22,8 @@ import {
 import api from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+// Chart.js registration is handled in src/config/chartConfig.ts
 
 interface ForecastData {
   daily_predictions: number[];
