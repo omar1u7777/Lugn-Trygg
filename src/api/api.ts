@@ -5,10 +5,6 @@ import { getBackendUrl, getEncryptionKey } from "../config/env";
 // 🔹 Bas-URL för API
 export const API_BASE_URL = getBackendUrl();
 
-// 🔹 Debug logging för API URL
-console.log("🔗 API Base URL:", API_BASE_URL);
-console.log("🔗 Using fallback URL:", API_BASE_URL === "http://localhost:5001");
-
 // 🔹 Force reload environment variables in development
 if (typeof import.meta !== "undefined" && import.meta.hot) {
   import.meta.hot.accept(() => {
@@ -161,9 +157,7 @@ export const loginUser = async (email: string, password: string) => {
 // 🔹 API-funktion för att registrera en användare
 export const registerUser = async (email: string, password: string, name?: string, referralCode?: string) => {
   try {
-    console.log("API: Sending registration request with data:", { email, password: "***", name, referralCode: referralCode || "none" });
     const response = await api.post("/api/auth/register", { email, password, name, referralCode });
-    console.log("API: Registration response:", response.data);
     return response.data;
   } catch (error: any) {
     console.error("❌ API Register error:", error);
@@ -372,9 +366,7 @@ export const resetPassword = async (email: string) => {
 // 🔹 Chatbot API-funktioner
 export const chatWithAI = async (userId: string, message: string) => {
   try {
-    console.log("API: Starting chatWithAI call", { userId, messageLength: message.length });
     const token = localStorage.getItem("token");
-    console.log("API: Token available:", !!token);
 
     const response = await api.post("/api/chatbot/chat", {
       user_id: userId,
@@ -383,44 +375,24 @@ export const chatWithAI = async (userId: string, message: string) => {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log("API: Chat response received successfully", {
-      hasResponse: !!response.data.response,
-      status: response.status
-    });
     return response.data;
   } catch (error: any) {
     console.error("❌ API Chat error:", error);
-    console.error("❌ API Chat error details:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
     throw new Error(error.response?.data?.error || "Ett fel uppstod vid chatt.");
   }
 };
 
 export const getChatHistory = async (userId: string) => {
   try {
-    console.log("API: Starting getChatHistory call for user:", userId);
     const token = localStorage.getItem("token");
-    console.log("API: Token available for history:", !!token);
 
     const response = await api.get(`/api/chatbot/history?user_id=${userId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log("API: Chat history response received", {
-      conversationLength: response.data.conversation?.length || 0,
-      status: response.status
-    });
     return response.data.conversation || [];
   } catch (error: any) {
     console.error("❌ API Chat History error:", error);
-    console.error("❌ API Chat History error details:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
     throw new Error(error.response?.data?.error || "Ett fel uppstod vid hämtning av chatt-historik.");
   }
 };

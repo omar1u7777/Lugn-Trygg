@@ -54,8 +54,6 @@ const RegisterForm: React.FC = () => {
 
     setLoading(true);
 
-    console.log("Sending registration data:", { email, password, name, referralCode: referralCode || "none" });
-
     try {
       const response = await registerUser(email, password, name, referralCode);
       
@@ -72,8 +70,7 @@ const RegisterForm: React.FC = () => {
       setConfirmPassword("");
       setReferralCode("");
     } catch (err: any) {
-      console.error("Registration error details:", err.response?.data);
-      console.error("Full error:", err);
+      console.error("Registration error:", err);
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);

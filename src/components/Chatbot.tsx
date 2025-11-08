@@ -87,32 +87,22 @@ const Chatbot: React.FC = () => {
 
   const loadChatHistory = async () => {
     if (!user?.user_id) {
-      console.log('Chatbot: No user_id available for loading chat history');
       return;
     }
 
-    console.log('Chatbot: Loading chat history for user:', user.user_id);
     try {
       const history = await getChatHistory(user.user_id);
-      console.log('Chatbot: Successfully loaded chat history:', history.length, 'messages');
       setMessages(history);
     } catch (error: any) {
-      console.error('Chatbot: Failed to load chat history:', error);
-      console.error('Chatbot: Error details:', error.response?.data || error.message);
+      console.error('Failed to load chat history:', error);
     }
   };
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || !user?.user_id || isLoading) {
-      console.log('Chatbot: Cannot send message - validation failed', {
-        hasMessage: !!inputMessage.trim(),
-        hasUserId: !!user?.user_id,
-        isLoading
-      });
       return;
     }
 
-    console.log('Chatbot: Sending message for user:', user.user_id);
     const userMessage: Message = {
       role: 'user',
       content: inputMessage,
@@ -124,14 +114,7 @@ const Chatbot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      console.log('Chatbot: Calling chatWithAI API...');
       const response = await chatWithAI(user.user_id, inputMessage);
-      console.log('Chatbot: Received AI response:', {
-        hasResponse: !!response.response,
-        emotionsDetected: response.emotions_detected,
-        crisisDetected: response.crisis_detected,
-        modelUsed: response.model_used
-      });
 
       const aiMessage: Message = {
         role: 'assistant',
@@ -149,14 +132,12 @@ const Chatbot: React.FC = () => {
 
       // Show crisis modal if crisis detected
       if (response.crisis_detected && response.crisis_analysis) {
-        console.log('Chatbot: Crisis detected, showing modal');
         setCrisisAnalysis(response.crisis_analysis);
         setShowCrisisModal(true);
       }
 
     } catch (error: any) {
-      console.error('Chatbot: Failed to send message:', error);
-      console.error('Chatbot: Error details:', error.response?.data || error.message);
+      console.error('Failed to send message:', error);
       const errorMessage: Message = {
         role: 'assistant',
         content: 'Förlåt, jag har tekniska problem just nu. Försök igen om en stund.',

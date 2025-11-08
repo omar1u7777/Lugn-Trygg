@@ -81,43 +81,46 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
       setLoading(true);
 
       // Simulate API call - replace with actual API calls
-      setTimeout(() => {
-        setStats({
-          totalMoods: 45,
-          totalChats: 23,
-          averageMood: 7.2,
-          streakDays: 5,
-          weeklyGoal: 7,
-          weeklyProgress: 5,
-          recentActivity: [
-            {
-              id: '1',
-              type: 'mood',
-              timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-              description: 'Logged mood: Glad (8/10)',
-            },
-            {
-              id: '2',
-              type: 'chat',
-              timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-              description: 'Chat session with AI therapist',
-            },
-            {
-              id: '3',
-              type: 'meditation',
-              timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-              description: 'Completed 10-minute meditation',
-            },
-          ],
-        });
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setStats({
+            totalMoods: 45,
+            totalChats: 23,
+            averageMood: 7.2,
+            streakDays: 5,
+            weeklyGoal: 7,
+            weeklyProgress: 5,
+            recentActivity: [
+              {
+                id: '1',
+                type: 'mood',
+                timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+                description: 'Logged mood: Glad (8/10)',
+              },
+              {
+                id: '2',
+                type: 'chat',
+                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+                description: 'Chat session with AI therapist',
+              },
+              {
+                id: '3',
+                type: 'meditation',
+                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+                description: 'Completed 10-minute meditation',
+              },
+            ],
+          });
 
-        setLoading(false);
-        announceToScreenReader('Dashboard data loaded successfully', 'polite');
-      }, 1000);
+          announceToScreenReader('Dashboard data loaded successfully', 'polite');
+          resolve();
+        }, 1000);
+      });
 
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       announceToScreenReader('Failed to load dashboard data', 'assertive');
+    } finally {
       setLoading(false);
     }
   };
