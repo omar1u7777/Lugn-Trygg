@@ -1,4 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { 
+    Box, 
+    Container, 
+    Typography, 
+    Button, 
+    Paper, 
+    Grid, 
+    Tabs,
+    Tab,
+    Alert,
+    CircularProgress,
+    Chip,
+    Card,
+    CardContent,
+    Divider,
+    useTheme
+} from '@mui/material';
+import { 
+    Edit as EditIcon,
+    History as HistoryIcon,
+    HourglassEmpty as PendingIcon,
+    Visibility as ReviewedIcon,
+    CheckCircle as ResolvedIcon,
+    Assessment as StatsIcon
+} from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import FeedbackForm from './FeedbackForm';
@@ -64,16 +89,18 @@ const FeedbackSystem: React.FC = () => {
         }
     };
 
-    const getStatusColor = (status: string) => {
+    const theme = useTheme();
+
+    const getStatusColor = (status: string): 'warning' | 'info' | 'success' | 'default' => {
         switch (status) {
             case 'pending':
-                return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200';
+                return 'warning';
             case 'reviewed':
-                return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200';
+                return 'info';
             case 'resolved':
-                return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+                return 'success';
             default:
-                return 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200';
+                return 'default';
         }
     };
 
@@ -103,184 +130,231 @@ const FeedbackSystem: React.FC = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             {/* Header */}
-            <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Typography variant="h3" fontWeight="bold" gutterBottom>
                     💬 Feedbacksystem
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+                </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
                     Dela dina åsikter och följ upp tidigare feedback
-                </p>
-            </div>
+                </Typography>
+            </Box>
 
             {/* Tabs */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-2 flex gap-2">
-                <button
-                    onClick={() => setActiveTab('submit')}
-                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
-                        activeTab === 'submit'
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
+            <Paper elevation={2} sx={{ mb: 3 }}>
+                <Tabs 
+                    value={activeTab} 
+                    onChange={(e, newValue) => setActiveTab(newValue)}
+                    variant="fullWidth"
+                    indicatorColor="primary"
+                    textColor="primary"
                 >
-                    ✍️ Skicka feedback
-                </button>
-                <button
-                    onClick={() => setActiveTab('history')}
-                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
-                        activeTab === 'history'
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                >
-                    📜 Min historik
-                </button>
-            </div>
+                    <Tab 
+                        value="submit" 
+                        label="✍️ Skicka feedback" 
+                        icon={<EditIcon />} 
+                        iconPosition="start"
+                    />
+                    <Tab 
+                        value="history" 
+                        label="📜 Min historik" 
+                        icon={<HistoryIcon />} 
+                        iconPosition="start"
+                    />
+                </Tabs>
+            </Paper>
 
             {/* Content */}
             {activeTab === 'submit' ? (
                 <FeedbackForm />
             ) : (
-                <div className="space-y-6">
+                <Box>
                     {/* Stats */}
                     {stats && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                                <div className="text-3xl mb-2">📊</div>
-                                <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                                    {stats.total}
-                                </div>
-                                <p className="text-slate-600 dark:text-slate-400">Totalt skickad</p>
-                            </div>
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6 shadow-sm">
-                                <div className="text-3xl mb-2">⏳</div>
-                                <div className="text-3xl font-bold text-yellow-900 dark:text-yellow-100">
-                                    {stats.pending}
-                                </div>
-                                <p className="text-yellow-800 dark:text-yellow-200">Väntar</p>
-                            </div>
-                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 shadow-sm">
-                                <div className="text-3xl mb-2">👀</div>
-                                <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-                                    {stats.reviewed}
-                                </div>
-                                <p className="text-blue-800 dark:text-blue-200">Granskad</p>
-                            </div>
-                            <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6 shadow-sm">
-                                <div className="text-3xl mb-2">✅</div>
-                                <div className="text-3xl font-bold text-green-900 dark:text-green-100">
-                                    {stats.resolved}
-                                </div>
-                                <p className="text-green-800 dark:text-green-200">Löst</p>
-                            </div>
-                        </div>
+                        <Grid container spacing={2} sx={{ mb: 3 }}>
+                            <Grid item xs={6} md={3}>
+                                <Card>
+                                    <CardContent sx={{ textAlign: 'center' }}>
+                                        <StatsIcon sx={{ fontSize: 40, mb: 1, color: 'text.secondary' }} />
+                                        <Typography variant="h4" fontWeight="bold">
+                                            {stats.total}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Totalt skickad
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Card sx={{ bgcolor: 'warning.light' }}>
+                                    <CardContent sx={{ textAlign: 'center' }}>
+                                        <PendingIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <Typography variant="h4" fontWeight="bold">
+                                            {stats.pending}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            Väntar
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Card sx={{ bgcolor: 'info.light' }}>
+                                    <CardContent sx={{ textAlign: 'center' }}>
+                                        <ReviewedIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <Typography variant="h4" fontWeight="bold">
+                                            {stats.reviewed}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            Granskad
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                                <Card sx={{ bgcolor: 'success.light' }}>
+                                    <CardContent sx={{ textAlign: 'center' }}>
+                                        <ResolvedIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <Typography variant="h4" fontWeight="bold">
+                                            {stats.resolved}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            Löst
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        </Grid>
                     )}
 
                     {/* Error Message */}
                     {error && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                            <p className="text-red-800 dark:text-red-200">❌ {error}</p>
-                        </div>
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
                     )}
 
                     {/* Loading State */}
                     {loading ? (
-                        <div className="text-center py-12">
-                            <div className="animate-spin text-6xl mb-4">⚙️</div>
-                            <p className="text-slate-600 dark:text-slate-400">Laddar feedbackhistorik...</p>
-                        </div>
+                        <Box sx={{ textAlign: 'center', py: 6 }}>
+                            <CircularProgress size={60} sx={{ mb: 2 }} />
+                            <Typography variant="body1" color="text.secondary">
+                                Laddar feedbackhistorik...
+                            </Typography>
+                        </Box>
                     ) : feedbacks.length === 0 ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-12 text-center">
-                            <div className="text-6xl mb-4">📭</div>
-                            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                        <Paper elevation={2} sx={{ p: 6, textAlign: 'center' }}>
+                            <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📭</Typography>
+                            <Typography variant="h5" fontWeight="bold" gutterBottom>
                                 Ingen feedback ännu
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-400 mb-6">
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
                                 Du har inte skickat någon feedback än. Börja genom att gå till "Skicka feedback".
-                            </p>
-                            <button
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<EditIcon />}
                                 onClick={() => setActiveTab('submit')}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                             >
                                 ✍️ Skicka din första feedback
-                            </button>
-                        </div>
+                            </Button>
+                        </Paper>
                     ) : (
-                        <div className="space-y-4">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {feedbacks.map((item) => (
-                                <div
+                                <Paper
                                     key={item.id}
-                                    className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                                    elevation={2}
+                                    sx={{ p: 3, '&:hover': { boxShadow: 6 }, transition: 'box-shadow 0.3s' }}
                                 >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="text-3xl">{getCategoryEmoji(item.category)}</div>
-                                            <div>
-                                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 capitalize">
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            <Typography variant="h3">{getCategoryEmoji(item.category)}</Typography>
+                                            <Box>
+                                                <Typography variant="h6" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
                                                     {item.category}
-                                                </h3>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
                                                     {new Date(item.created_at).toLocaleString('sv-SE')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <div className="flex">
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ display: 'flex' }}>
                                                 {[...Array(5)].map((_, i) => (
-                                                    <span key={i} className="text-xl">
+                                                    <span key={i} style={{ fontSize: '1.25rem' }}>
                                                         {i < item.rating ? '⭐' : '☆'}
                                                     </span>
                                                 ))}
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(item.status)}`}>
-                                                {getStatusText(item.status)}
-                                            </span>
-                                        </div>
-                                    </div>
+                                            </Box>
+                                            <Chip 
+                                                label={getStatusText(item.status)} 
+                                                color={getStatusColor(item.status)} 
+                                                size="small"
+                                            />
+                                        </Box>
+                                    </Box>
                                     
-                                    <div className="mb-4">
-                                        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                                            {item.message}
-                                        </p>
-                                    </div>
+                                    <Typography variant="body1" sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>
+                                        {item.message}
+                                    </Typography>
 
                                     {item.response && (
-                                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                            <div className="flex items-start space-x-2">
-                                                <div className="text-xl">💬</div>
-                                                <div className="flex-1">
-                                                    <p className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                                        <Paper 
+                                            elevation={0} 
+                                            sx={{ 
+                                                p: 2, 
+                                                bgcolor: 'info.light',
+                                                border: 1,
+                                                borderColor: 'info.main'
+                                            }}
+                                        >
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                <Typography variant="h6">💬</Typography>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
                                                         Svar från teamet:
-                                                    </p>
-                                                    <p className="text-blue-800 dark:text-blue-200">
+                                                    </Typography>
+                                                    <Typography variant="body2">
                                                         {item.response}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </Paper>
                                     )}
-                                </div>
+                                </Paper>
                             ))}
-                        </div>
+                        </Box>
                     )}
-                </div>
+                </Box>
             )}
 
             {/* Help Section */}
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-6">
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">
+            <Paper elevation={1} sx={{ p: 3, bgcolor: 'background.default', mt: 4 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
                     💡 Tips för bra feedback
-                </h3>
-                <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-2">
-                    <li>• Var specifik - beskriv exakt vad du upplever eller vad du vill förbättra</li>
-                    <li>• Inkludera steg för att återskapa buggar om möjligt</li>
-                    <li>• Förklara varför en funktion skulle vara användbar</li>
-                    <li>• Var respektfull och konstruktiv i din feedback</li>
-                    <li>• Kolla din feedbackhistorik för att se status på dina tidigare inlämningar</li>
-                </ul>
-            </div>
-        </div>
+                </Typography>
+                <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                        Var specifik - beskriv exakt vad du upplever eller vad du vill förbättra
+                    </Typography>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                        Inkludera steg för att återskapa buggar om möjligt
+                    </Typography>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                        Förklara varför en funktion skulle vara användbar
+                    </Typography>
+                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                        Var respektfull och konstruktiv i din feedback
+                    </Typography>
+                    <Typography component="li" variant="body2">
+                        Kolla din feedbackhistorik för att se status på dina tidigare inlämningar
+                    </Typography>
+                </Box>
+            </Paper>
+        </Container>
     );
 };
 

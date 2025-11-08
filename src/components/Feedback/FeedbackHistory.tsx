@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { 
+    Box, 
+    Typography, 
+    Paper, 
+    CircularProgress, 
+    Alert,
+    Chip,
+    Divider
+} from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 
@@ -58,10 +67,10 @@ const FeedbackHistory: React.FC = () => {
         content: 'Innehåll/Texter'
     };
 
-    const statusColors: Record<string, string> = {
-        pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200',
-        reviewed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200',
-        resolved: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200'
+    const statusColors: Record<string, 'warning' | 'info' | 'success' | 'default'> = {
+        pending: 'warning',
+        reviewed: 'info',
+        resolved: 'success'
     };
 
     const statusNames: Record<string, string> = {
@@ -83,111 +92,131 @@ const FeedbackHistory: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-12">
-                <div className="text-center">
-                    <div className="text-5xl mb-4 animate-spin">⚙️</div>
-                    <p className="text-slate-600 dark:text-slate-400">Laddar din feedback...</p>
-                </div>
-            </div>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
+                <CircularProgress size={60} sx={{ mb: 2 }} />
+                <Typography variant="body1" color="text.secondary">
+                    Laddar din feedback...
+                </Typography>
+            </Box>
         );
     }
 
     if (error) {
         return (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
-                <p className="text-red-800 dark:text-red-200">❌ {error}</p>
-            </div>
+            <Alert severity="error" sx={{ textAlign: 'center' }}>
+                {error}
+            </Alert>
         );
     }
 
     if (feedback.length === 0) {
         return (
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-12 text-center">
-                <div className="text-6xl mb-4">📭</div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <Paper elevation={2} sx={{ p: 6, textAlign: 'center', bgcolor: 'background.default' }}>
+                <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📭</Typography>
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
                     Ingen feedback ännu
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400">
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
                     Du har inte skickat någon feedback än. Dela dina tankar med oss!
-                </p>
-            </div>
+                </Typography>
+            </Paper>
         );
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h5" fontWeight="bold">
                     📜 Min Feedback-historik
-                </h2>
-                <span className="text-sm text-slate-600 dark:text-slate-400">
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                     {feedback.length} {feedback.length === 1 ? 'feedback' : 'feedbacks'}
-                </span>
-            </div>
+                </Typography>
+            </Box>
 
-            {feedback.map((item) => (
-                <div
-                    key={item.id}
-                    className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow"
-                >
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                            <span className="text-3xl">{categoryEmojis[item.category] || '💬'}</span>
-                            <div>
-                                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                                    {categoryNames[item.category] || item.category}
-                                </h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {formatDate(item.created_at)}
-                                </p>
-                            </div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[item.status] || statusColors.pending}`}>
-                            {statusNames[item.status] || item.status}
-                        </span>
-                    </div>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {feedback.map((item) => (
+                    <Paper
+                        key={item.id}
+                        elevation={2}
+                        sx={{ 
+                            p: 3,
+                            borderLeft: 4,
+                            borderColor: 'primary.main',
+                            '&:hover': { boxShadow: 6 },
+                            transition: 'box-shadow 0.3s'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Typography variant="h3">{categoryEmojis[item.category] || '💬'}</Typography>
+                                <Box>
+                                    <Typography variant="h6" fontWeight="bold">
+                                        {categoryNames[item.category] || item.category}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {formatDate(item.created_at)}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                            <Chip 
+                                label={statusNames[item.status] || item.status} 
+                                color={statusColors[item.status] || 'default'} 
+                                size="small"
+                            />
+                        </Box>
 
-                    <div className="mb-4">
-                        <div className="flex items-center gap-1 mb-2">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <span key={star} className="text-xl">
-                                    {star <= item.rating ? '⭐' : '☆'}
-                                </span>
-                            ))}
-                            <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">
-                                ({item.rating}/5)
-                            </span>
-                        </div>
-                        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                            {item.message}
-                        </p>
-                    </div>
-
-                    {item.response && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="text-lg">💬</span>
-                                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                                    Svar från teamet
-                                </span>
-                                {item.responded_at && (
-                                    <span className="text-xs text-blue-600 dark:text-blue-400">
-                                        • {formatDate(item.responded_at)}
+                        <Box sx={{ mb: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <span key={star} style={{ fontSize: '1.25rem' }}>
+                                        {star <= item.rating ? '⭐' : '☆'}
                                     </span>
-                                )}
-                            </div>
-                            <p className="text-blue-800 dark:text-blue-200">
-                                {item.response}
-                            </p>
-                        </div>
-                    )}
+                                ))}
+                                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                    ({item.rating}/5)
+                                </Typography>
+                            </Box>
+                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                {item.message}
+                            </Typography>
+                        </Box>
 
-                    <div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-                        Feedback-ID: #{item.id.slice(0, 8)}
-                    </div>
-                </div>
-            ))}
-        </div>
+                        {item.response && (
+                            <Paper 
+                                elevation={0}
+                                sx={{ 
+                                    p: 2, 
+                                    mt: 2,
+                                    bgcolor: 'info.light',
+                                    border: 1,
+                                    borderColor: 'info.main'
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                    <Typography variant="h6">💬</Typography>
+                                    <Typography variant="subtitle2" fontWeight="bold">
+                                        Svar från teamet
+                                    </Typography>
+                                    {item.responded_at && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            • {formatDate(item.responded_at)}
+                                        </Typography>
+                                    )}
+                                </Box>
+                                <Typography variant="body2">
+                                    {item.response}
+                                </Typography>
+                            </Paper>
+                        )}
+
+                        <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: 'block' }}>
+                            Feedback-ID: #{item.id.slice(0, 8)}
+                        </Typography>
+                    </Paper>
+                ))}
+            </Box>
+        </Box>
     );
 };
 

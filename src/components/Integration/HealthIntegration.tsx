@@ -1,4 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import {
+    Box,
+    Container,
+    Typography,
+    Button,
+    Paper,
+    Grid,
+    Card,
+    CardContent,
+    Alert,
+    CircularProgress,
+    Divider,
+    Snackbar
+} from '@mui/material';
+import {
+    DirectionsWalk as StepsIcon,
+    Favorite as HeartIcon,
+    Bedtime as SleepIcon,
+    LocalFireDepartment as CaloriesIcon,
+    Watch as WatchIcon,
+    Apple as AppleIcon,
+    DirectionsRun as FitnessIcon,
+    Smartphone as PhoneIcon,
+    Sync as SyncIcon,
+    LinkOff as DisconnectIcon,
+    Add as AddIcon,
+    LocalHospital as HospitalIcon,
+    Assessment as DataIcon,
+    SOS as SOSIcon
+} from '@mui/icons-material';
 import healthIntegrationService, { WearableDevice, WearableData } from '../../services/healthIntegrationService';
 
 const HealthIntegration: React.FC = () => {
@@ -97,122 +127,160 @@ const HealthIntegration: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin text-6xl mb-4">⚙️</div>
-                    <p className="text-slate-600 dark:text-slate-400">Laddar hälsodata...</p>
-                </div>
-            </div>
+            <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ textAlign: 'center' }}>
+                    <CircularProgress size={60} sx={{ mb: 2 }} />
+                    <Typography variant="body1" color="text.secondary">
+                        Laddar hälsodata...
+                    </Typography>
+                </Box>
+            </Box>
         );
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             {/* Header */}
-            <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Typography variant="h3" fontWeight="bold" gutterBottom>
                     ❤️ Hälsointegration
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+                </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
                     Anslut dina wearables och hälsoappar för att få bättre insikter om ditt välmående
-                </p>
-            </div>
+                </Typography>
+            </Box>
 
             {/* Error Message */}
             {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                    <p className="text-red-800 dark:text-red-200">❌ {error}</p>
-                </div>
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    {error}
+                </Alert>
             )}
 
             {/* Sync Status */}
             {syncStatus && (
-                <div className={`rounded-xl p-4 ${
-                    syncStatus === 'syncing' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' :
-                    syncStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' :
-                    'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                }`}>
-                    <p className={`${
-                        syncStatus === 'syncing' ? 'text-blue-800 dark:text-blue-200' :
-                        syncStatus === 'success' ? 'text-green-800 dark:text-green-200' :
-                        'text-red-800 dark:text-red-200'
-                    }`}>
-                        {syncStatus === 'syncing' && '⚙️ Synkroniserar...'}
-                        {syncStatus === 'success' && '✅ Synkronisering klar!'}
-                        {syncStatus === 'error' && '❌ Synkronisering misslyckades'}
-                    </p>
-                </div>
+                <Alert 
+                    severity={
+                        syncStatus === 'syncing' ? 'info' :
+                        syncStatus === 'success' ? 'success' :
+                        'error'
+                    }
+                    sx={{ mb: 3 }}
+                >
+                    {syncStatus === 'syncing' && '⚙️ Synkroniserar...'}
+                    {syncStatus === 'success' && '✅ Synkronisering klar!'}
+                    {syncStatus === 'error' && '❌ Synkronisering misslyckades'}
+                </Alert>
             )}
 
             {/* Current Health Data */}
             {wearableData && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <Grid container spacing={2} sx={{ mb: 4 }}>
                     {wearableData.steps !== undefined && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                            <div className="text-3xl mb-2">🚶</div>
-                            <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{wearableData.steps}</div>
-                            <p className="text-slate-600 dark:text-slate-400">Steg idag</p>
-                        </div>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                    <Typography variant="h2" sx={{ mb: 1 }}>🚶</Typography>
+                                    <Typography variant="h4" fontWeight="bold">
+                                        {wearableData.steps}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Steg idag
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     )}
                     {wearableData.heartRate !== undefined && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                            <div className="text-3xl mb-2">❤️</div>
-                            <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{wearableData.heartRate} bpm</div>
-                            <p className="text-slate-600 dark:text-slate-400">Hjärtfrekvens</p>
-                        </div>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                    <Typography variant="h2" sx={{ mb: 1 }}>❤️</Typography>
+                                    <Typography variant="h4" fontWeight="bold">
+                                        {wearableData.heartRate} bpm
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Hjärtfrekvens
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     )}
                     {wearableData.sleep !== undefined && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                            <div className="text-3xl mb-2">😴</div>
-                            <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{wearableData.sleep}h</div>
-                            <p className="text-slate-600 dark:text-slate-400">Sömn</p>
-                        </div>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                    <Typography variant="h2" sx={{ mb: 1 }}>😴</Typography>
+                                    <Typography variant="h4" fontWeight="bold">
+                                        {wearableData.sleep}h
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Sömn
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     )}
                     {wearableData.calories !== undefined && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
-                            <div className="text-3xl mb-2">🔥</div>
-                            <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{wearableData.calories}</div>
-                            <p className="text-slate-600 dark:text-slate-400">Kalorier</p>
-                        </div>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Card>
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                    <Typography variant="h2" sx={{ mb: 1 }}>🔥</Typography>
+                                    <Typography variant="h4" fontWeight="bold">
+                                        {wearableData.calories}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Kalorier
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     )}
-                </div>
+                </Grid>
             )}
 
             {/* Connected Devices */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
                     📱 Anslutna enheter
-                </h2>
+                </Typography>
                 
                 {devices.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="text-6xl mb-4">📱</div>
-                        <p className="text-slate-600 dark:text-slate-400 mb-4">
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📱</Typography>
+                        <Typography variant="body1" color="text.secondary" gutterBottom>
                             Inga enheter anslutna ännu
-                        </p>
-                        <p className="text-slate-500 dark:text-slate-500 text-sm">
+                        </Typography>
+                        <Typography variant="body2" color="text.disabled">
                             Anslut en enhet nedan för att börja synkronisera din hälsodata
-                        </p>
-                    </div>
+                        </Typography>
+                    </Box>
                 ) : (
-                    <div className="space-y-4">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {devices.map((device) => (
-                            <div
+                            <Paper
                                 key={device.id}
-                                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
+                                elevation={0}
+                                sx={{ 
+                                    p: 2, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between',
+                                    bgcolor: 'background.default'
+                                }}
                             >
-                                <div className="flex items-center space-x-4">
-                                    <div className="text-3xl">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Typography variant="h3">
                                         {device.type === 'fitbit' && '⌚'}
                                         {device.type === 'apple_health' && '🍎'}
                                         {device.type === 'google_fit' && '🏃'}
                                         {device.type === 'samsung_health' && '📱'}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                                    </Typography>
+                                    <Box>
+                                        <Typography variant="h6" fontWeight="bold">
                                             {device.name}
-                                        </h3>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
                                             {device.connected ? (
                                                 <>
                                                     ✅ Ansluten
@@ -221,83 +289,134 @@ const HealthIntegration: React.FC = () => {
                                             ) : (
                                                 '⚠️ Frånkopplad'
                                             )}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex space-x-2">
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
                                     {device.connected && (
-                                        <button
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            startIcon={<SyncIcon />}
                                             onClick={() => handleSyncWearable(device.id)}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                                             disabled={syncStatus === 'syncing'}
                                         >
-                                            🔄 Synka
-                                        </button>
+                                            Synka
+                                        </Button>
                                     )}
-                                    <button
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        startIcon={<DisconnectIcon />}
                                         onClick={() => handleDisconnectDevice(device.id)}
-                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                                     >
-                                        ❌ Koppla från
-                                    </button>
-                                </div>
-                            </div>
+                                        Koppla från
+                                    </Button>
+                                </Box>
+                            </Paper>
                         ))}
-                    </div>
+                    </Box>
                 )}
-            </div>
+            </Paper>
 
             {/* Add New Device */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
                     ➕ Anslut ny enhet
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <button
-                        onClick={() => handleConnectDevice('fitbit')}
-                        disabled={connectingDevice === 'fitbit'}
-                        className="p-6 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="text-4xl mb-2">{connectingDevice === 'fitbit' ? '⏳' : '⌚'}</div>
-                        <p className="font-semibold text-slate-900 dark:text-slate-100">Fitbit</p>
-                    </button>
-                    <button
-                        onClick={() => handleConnectDevice('apple_health')}
-                        disabled={connectingDevice === 'apple_health'}
-                        className="p-6 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="text-4xl mb-2">{connectingDevice === 'apple_health' ? '⏳' : '🍎'}</div>
-                        <p className="font-semibold text-slate-900 dark:text-slate-100">Apple Health</p>
-                    </button>
-                    <button
-                        onClick={() => handleConnectDevice('google_fit')}
-                        disabled={connectingDevice === 'google_fit'}
-                        className="p-6 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="text-4xl mb-2">{connectingDevice === 'google_fit' ? '⏳' : '🏃'}</div>
-                        <p className="font-semibold text-slate-900 dark:text-slate-100">Google Fit</p>
-                    </button>
-                    <button
-                        onClick={() => handleConnectDevice('samsung_health')}
-                        disabled={connectingDevice === 'samsung_health'}
-                        className="p-6 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <div className="text-4xl mb-2">{connectingDevice === 'samsung_health' ? '⏳' : '📱'}</div>
-                        <p className="font-semibold text-slate-900 dark:text-slate-100">Samsung Health</p>
-                    </button>
-                </div>
-            </div>
+                </Typography>
+                <Grid container spacing={2}>
+                    <Grid item xs={6} md={3}>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={() => handleConnectDevice('fitbit')}
+                            disabled={connectingDevice === 'fitbit'}
+                            sx={{ 
+                                py: 3, 
+                                flexDirection: 'column', 
+                                gap: 1,
+                                height: '100%'
+                            }}
+                        >
+                            <Typography variant="h3">
+                                {connectingDevice === 'fitbit' ? '⏳' : '⌚'}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">Fitbit</Typography>
+                        </Button>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={() => handleConnectDevice('apple_health')}
+                            disabled={connectingDevice === 'apple_health'}
+                            sx={{ 
+                                py: 3, 
+                                flexDirection: 'column', 
+                                gap: 1,
+                                height: '100%'
+                            }}
+                        >
+                            <Typography variant="h3">
+                                {connectingDevice === 'apple_health' ? '⏳' : '🍎'}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">Apple Health</Typography>
+                        </Button>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={() => handleConnectDevice('google_fit')}
+                            disabled={connectingDevice === 'google_fit'}
+                            sx={{ 
+                                py: 3, 
+                                flexDirection: 'column', 
+                                gap: 1,
+                                height: '100%'
+                            }}
+                        >
+                            <Typography variant="h3">
+                                {connectingDevice === 'google_fit' ? '⏳' : '🏃'}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">Google Fit</Typography>
+                        </Button>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={() => handleConnectDevice('samsung_health')}
+                            disabled={connectingDevice === 'samsung_health'}
+                            sx={{ 
+                                py: 3, 
+                                flexDirection: 'column', 
+                                gap: 1,
+                                height: '100%'
+                            }}
+                        >
+                            <Typography variant="h3">
+                                {connectingDevice === 'samsung_health' ? '⏳' : '📱'}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">Samsung Health</Typography>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Paper>
 
             {/* FHIR Integration */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
                     🏥 FHIR Integration
-                </h2>
-                <p className="text-slate-600 dark:text-slate-400 mb-4">
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
                     Anslut till sjukvårdssystem som stödjer FHIR-standarden för säker delning av hälsodata
-                </p>
-                <div className="flex gap-4">
-                    <button
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<HospitalIcon />}
                         onClick={async () => {
                             try {
                                 const patient = await healthIntegrationService.getFHIRPatient();
@@ -306,11 +425,13 @@ const HealthIntegration: React.FC = () => {
                                 alert('❌ ' + err.message);
                             }
                         }}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                     >
                         🔐 Visa patientdata
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<DataIcon />}
                         onClick={async () => {
                             try {
                                 const observations = await healthIntegrationService.getFHIRObservations();
@@ -319,28 +440,41 @@ const HealthIntegration: React.FC = () => {
                                 alert('❌ ' + err.message);
                             }
                         }}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                     >
                         📊 Visa observationer
-                    </button>
-                </div>
-            </div>
+                    </Button>
+                </Box>
+            </Paper>
 
             {/* Crisis Referral */}
-            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-orange-900 dark:text-orange-100 mb-4">
+            <Alert 
+                severity="warning" 
+                icon={<SOSIcon />}
+                sx={{ 
+                    bgcolor: 'warning.light',
+                    border: 1,
+                    borderColor: 'warning.main'
+                }}
+            >
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
                     🆘 Krishantering
-                </h2>
-                <p className="text-orange-800 dark:text-orange-200 mb-4">
+                </Typography>
+                <Typography variant="body1" gutterBottom>
                     Om du upplever en kris, kontakta omedelbart:
-                </p>
-                <div className="space-y-2">
-                    <p className="text-orange-900 dark:text-orange-100">📞 <strong>112</strong> - Akut nödläge</p>
-                    <p className="text-orange-900 dark:text-orange-100">📞 <strong>1177</strong> - Sjukvårdsrådgivning</p>
-                    <p className="text-orange-900 dark:text-orange-100">📞 <strong>Mind</strong> - Självmordslinjen 90101</p>
-                </div>
-            </div>
-        </div>
+                </Typography>
+                <Box sx={{ mt: 1 }}>
+                    <Typography variant="body2" fontWeight="bold" gutterBottom>
+                        📞 <strong>112</strong> - Akut nödläge
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold" gutterBottom>
+                        📞 <strong>1177</strong> - Sjukvårdsrådgivning
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                        📞 <strong>Mind</strong> - Självmordslinjen 90101
+                    </Typography>
+                </Box>
+            </Alert>
+        </Container>
     );
 };
 
