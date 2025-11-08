@@ -113,7 +113,7 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
       aria-atomic="true"
       aria-label={message}
     >
-      <Card className="loading-overlay-content" elevation="high">
+      <Card className="loading-overlay-content" elevation={3}>
         <Box className="flex flex-col items-center gap-4 p-6">
           <CircularProgress size={48} aria-hidden="true" />
           <Typography variant="h6" className="overlay-message text-center">

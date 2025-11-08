@@ -329,7 +329,8 @@ const TestingStrategy: React.FC = () => {
           {tabs.map((tab) => (
             <Button
               key={tab.id}
-              variant={activeTab === tab.id ? 'primary' : 'outline'}
+              variant={activeTab === tab.id ? 'contained' : 'outlined'}
+              color={activeTab === tab.id ? 'primary' : 'secondary'}
               onClick={() => setActiveTab(tab.id as any)}
               className="flex items-center gap-2"
             >

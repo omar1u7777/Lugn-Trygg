@@ -90,7 +90,7 @@ const LoginForm = () => {
       role="main"
       aria-labelledby="login-title"
     >
-      <Card className="w-full max-w-md" elevation="high">
+      <Card className="w-full max-w-md" elevation={3}>
         <div className="text-center mb-8">
           <h1
             id="login-title"
@@ -172,7 +172,7 @@ const LoginForm = () => {
 
             <Button
               type="submit"
-              variant="primary"
+              variant="contained"
               fullWidth
               loading={loading}
               disabled={loading}
@@ -190,7 +190,7 @@ const LoginForm = () => {
         </div>
 
         <Button
-          variant="outline"
+          variant="outlined"
           fullWidth
           onClick={handleGoogleSignIn}
           disabled={loading}

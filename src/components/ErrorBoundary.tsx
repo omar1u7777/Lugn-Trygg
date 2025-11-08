@@ -106,7 +106,7 @@ class ErrorBoundary extends Component<Props, State> {
           <Card
             title="🚨 Något gick fel"
             className="max-w-md w-full"
-            elevation="medium"
+            elevation={2}
           >
             <div className="text-center space-y-4">
               <p className="text-gray-600">
@@ -117,7 +117,7 @@ class ErrorBoundary extends Component<Props, State> {
                 {canRetry ? (
                   <Button
                     onClick={this.handleRetry}
-                    variant="primary"
+                    variant="contained"
                     fullWidth
                     aria-label={`Försök igen (${retryCount + 1}/${this.maxRetries + 1})`}
                   >
@@ -126,7 +126,7 @@ class ErrorBoundary extends Component<Props, State> {
                 ) : (
                   <Button
                     onClick={this.handleReload}
-                    variant="primary"
+                    variant="contained"
                     fullWidth
                     aria-label="Ladda om sidan"
                   >
@@ -136,7 +136,7 @@ class ErrorBoundary extends Component<Props, State> {
 
                 <Button
                   onClick={() => window.history.back()}
-                  variant="outline"
+                  variant="outlined"
                   fullWidth
                   aria-label="Gå tillbaka"
                 >

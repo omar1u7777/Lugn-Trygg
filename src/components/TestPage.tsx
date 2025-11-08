@@ -54,7 +54,7 @@ const TestPage: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-400 mb-4">
               View all UI components in different states
             </p>
-            <Button variant="outline" fullWidth>
+            <Button variant="outlined" fullWidth>
               View Gallery
             </Button>
           </Card>
@@ -84,7 +84,8 @@ const TestPage: React.FC = () => {
             </p>
             <Button
               onClick={() => setShowTestSuite(!showTestSuite)}
-              variant={showTestSuite ? "secondary" : "primary"}
+              variant={showTestSuite ? "contained" : "contained"}
+              color={showTestSuite ? "secondary" : "primary"}
               fullWidth
             >
               {showTestSuite ? 'Hide' : 'Show'} Test Suite
@@ -98,7 +99,7 @@ const TestPage: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-400 mb-4">
               Test WCAG 2.1 AA compliance
             </p>
-            <Button variant="outline" fullWidth>
+            <Button variant="outlined" fullWidth>
               Run Audit
             </Button>
           </Card>
@@ -118,10 +119,10 @@ const TestPage: React.FC = () => {
               </h3>
               <div className="flex flex-wrap gap-4">
                 <Button>Primary</Button>
-                <Button variant="secondary">Secondary</Button>
-                <Button variant="outline">Outline</Button>
-                <Button variant="ghost">Ghost</Button>
-                <Button variant="danger">Danger</Button>
+                <Button color="secondary">Secondary</Button>
+                <Button variant="outlined">Outline</Button>
+                <Button variant="text">Ghost</Button>
+                <Button color="error">Danger</Button>
                 <Button loading>Loading</Button>
               </div>
             </div>
@@ -160,7 +161,7 @@ const TestPage: React.FC = () => {
                 Cards
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card elevation="low">
+                <Card elevation={1}>
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">Low Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -168,7 +169,7 @@ const TestPage: React.FC = () => {
                     </p>
                   </div>
                 </Card>
-                <Card elevation="medium">
+                <Card elevation={2}>
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">Medium Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -176,7 +177,7 @@ const TestPage: React.FC = () => {
                     </p>
                   </div>
                 </Card>
-                <Card elevation="high">
+                <Card elevation={3}>
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">High Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
