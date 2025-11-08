@@ -29,7 +29,6 @@ const MoodList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setLoading(true);
         setError(null);
         const moodData = await getMoods(user.user_id);
-        console.log("📊 Hämtade humördata:", moodData);
         
         // Sort by timestamp, newest first
         const sortedMoods = (moodData || []).sort((a: any, b: any) => {

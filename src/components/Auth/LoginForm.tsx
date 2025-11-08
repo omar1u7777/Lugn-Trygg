@@ -72,8 +72,6 @@ const LoginForm = () => {
       });
 
       const data = response.data;
-      console.log('Google login response:', data);
-      console.log('Calling login with:', data.access_token, user.email!, data.user_id);
       login(data.access_token, user.email!, data.user_id);
       announceToScreenReader("Google-inloggning lyckades", "polite");
     } catch (err: any) {

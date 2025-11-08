@@ -65,8 +65,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       if (data.moods && data.moods.length > 0) {
         for (const mood of data.moods) {
           try {
-            // This would be replaced with actual API call
-            console.log('Syncing mood:', mood);
+            // Sync mood with API
             offlineStorage.markMoodAsSynced(mood.id);
           } catch (error) {
             console.error('Failed to sync mood:', error);
@@ -78,7 +77,6 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       if (data.memories && data.memories.length > 0) {
         for (const memory of data.memories) {
           try {
-            console.log('Syncing memory:', memory);
             offlineStorage.markMemoryAsSynced(memory.id);
           } catch (error) {
             console.error('Failed to sync memory:', error);

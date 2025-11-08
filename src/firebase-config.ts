@@ -9,11 +9,14 @@ import { getFirebaseConfig as loadFirebaseConfig } from "./config/env";
 // Initialisera Firebase-applikationen med den validerade konfigurationen
 const firebaseConfig = loadFirebaseConfig();
 
-console.log('🔥 Firebase Configuration Loaded:');
-console.log('   API Key:', firebaseConfig.apiKey?.substring(0, 10) + '...');
-console.log('   Auth Domain:', firebaseConfig.authDomain);
-console.log('   Project ID:', firebaseConfig.projectId);
-console.log('   Storage Bucket:', firebaseConfig.storageBucket);
+// Production build: No console output for security
+if (import.meta.env.DEV) {
+  console.log('🔥 Firebase Configuration Loaded:');
+  console.log('   API Key:', firebaseConfig.apiKey?.substring(0, 10) + '...');
+  console.log('   Auth Domain:', firebaseConfig.authDomain);
+  console.log('   Project ID:', firebaseConfig.projectId);
+  console.log('   Storage Bucket:', firebaseConfig.storageBucket);
+}
 
 const firebaseOptions: FirebaseOptions = {
   apiKey: firebaseConfig.apiKey ?? "dummy-api-key",
@@ -29,10 +32,14 @@ const firebaseOptions: FirebaseOptions = {
 
 // Kontrollera om någon av de nödvändiga variablerna saknas
 const missingKeys = Object.entries(firebaseConfig).filter(
-  ([, value]) => !value || value.startsWith("dummy")
+  ([key, value]) => {
+    // measurementId is optional, don't warn about it
+    if (key === 'measurementId') return false;
+    return !value || (typeof value === 'string' && value.startsWith("dummy"));
+  }
 );
 
-if (missingKeys.length > 0) {
+if (missingKeys.length > 0 && import.meta.env.DEV) {
   console.warn(
     `⚠️ Firebase-konfiguration saknas för följande nycklar: ${missingKeys
       .map(([key]) => key)

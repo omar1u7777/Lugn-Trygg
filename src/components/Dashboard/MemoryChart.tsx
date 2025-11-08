@@ -18,7 +18,6 @@ const MemoryChart: React.FC = () => {
     const fetchMemoryData = async () => {
       try {
         const memories = await getMemories(user.user_id);
-        console.log('MemoryChart: Fetched memories:', memories.length, 'memories');
 
         // Prepare data for last 7 days
         const last7Days: string[] = [];
@@ -52,16 +51,11 @@ const MemoryChart: React.FC = () => {
 
               if (isNaN(memoryDate.getTime())) return false;
               const dateString = memoryDate.toISOString().split('T')[0];
-              const matches = dateString === date;
-              if (matches) {
-                console.log('MemoryChart: Found memory for date', date, 'timestamp:', timestamp, 'parsed date:', memoryDate);
-              }
-              return matches;
+              return dateString === date;
             } catch {
               return false;
             }
           }).length;
-          console.log('MemoryChart: Count for date', date, ':', count);
           return count;
         });
 
@@ -77,7 +71,6 @@ const MemoryChart: React.FC = () => {
         };
 
         setChartData(data);
-        console.log('MemoryChart: Chart data updated:', data);
       } catch (error) {
         console.error('Failed to fetch memory data:', error);
       } finally {
