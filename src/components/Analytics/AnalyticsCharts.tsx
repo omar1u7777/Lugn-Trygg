@@ -1,4 +1,5 @@
 import React from 'react';
+import { Box, Paper, Typography } from '@mui/material';
 import {
     LineChart,
     Line,
@@ -37,13 +38,13 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
     }));
 
     return (
-        <div className="space-y-6">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Forecast Line Chart with Confidence Interval */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
+                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <span>📈</span>
                     7-dagars Humörprognos
-                </h3>
+                </Typography>
                 <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={forecastData}>
                         <defs>
@@ -100,17 +101,17 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                         />
                     </AreaChart>
                 </ResponsiveContainer>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 text-center">
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
                     Blå linje visar prognostiserat humör, ljusblå område visar osäkerhetsmarginal
-                </p>
-            </div>
+                </Typography>
+            </Paper>
 
             {/* Daily Predictions Bar Chart */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
+                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <span>📊</span>
                     Dagliga Humörvärden
-                </h3>
+                </Typography>
                 <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={forecastData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -141,15 +142,15 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                         />
                     </BarChart>
                 </ResponsiveContainer>
-            </div>
+            </Paper>
 
             {/* Historical Data Line Chart (if available) */}
             {historicalData.length > 0 && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
+                    <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <span>📉</span>
                         Historiskt Humör (30 dagar)
-                    </h3>
+                    </Typography>
                     <ResponsiveContainer width="100%" height={250}>
                         <LineChart data={historicalData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -183,9 +184,9 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                             />
                         </LineChart>
                     </ResponsiveContainer>
-                </div>
+                </Paper>
             )}
-        </div>
+        </Box>
     );
 };
 

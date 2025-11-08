@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import {
+    Box,
+    Paper,
+    Typography,
+    CircularProgress,
+    Alert,
+    Chip,
+    Button,
+    Divider,
+} from '@mui/material';
 
 interface ReferralHistoryEntry {
     invitee_name: string;
@@ -50,85 +60,112 @@ const ReferralHistory: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                    <div className="animate-spin text-3xl mb-2">📜</div>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm">Laddar historik...</p>
-                </div>
-            </div>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                    <CircularProgress size={40} sx={{ mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                        Laddar historik...
+                    </Typography>
+                </Box>
+            </Box>
         );
     }
 
     if (error) {
         return (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                <p className="text-red-800 dark:text-red-200 text-sm">❌ {error}</p>
-            </div>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
+                {error}
+            </Alert>
         );
     }
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     📜 Referenshistorik
-                </h2>
-                <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full">
-                    {history.length} totalt
-                </span>
-            </div>
+                </Typography>
+                <Chip
+                    label={`${history.length} totalt`}
+                    size="small"
+                    color="primary"
+                    sx={{ fontWeight: 600 }}
+                />
+            </Box>
 
             {history.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                    <p className="text-3xl mb-2">🌱</p>
-                    <p className="font-medium mb-1">Inga referenser än</p>
-                    <p className="text-sm">Dela din referenskod för att komma igång!</p>
-                </div>
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="h2" sx={{ fontSize: '3rem', mb: 1 }}>
+                        🌱
+                    </Typography>
+                    <Typography variant="body1" fontWeight="500" color="text.secondary" gutterBottom>
+                        Inga referenser än
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Dela din referenskod för att komma igång!
+                    </Typography>
+                </Box>
             ) : (
-                <div className="space-y-3">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     {history.map((entry, idx) => (
-                        <div
+                        <Paper
                             key={idx}
-                            className="flex items-start justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            elevation={0}
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'space-between',
+                                p: 2,
+                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+                                borderRadius: 2,
+                                transition: 'background-color 0.2s',
+                                '&:hover': {
+                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                                },
+                            }}
                         >
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-lg">👤</span>
-                                    <p className="font-semibold text-slate-900 dark:text-slate-100">
+                            <Box sx={{ flex: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                    <Typography variant="body1">👤</Typography>
+                                    <Typography variant="body1" fontWeight="600" color="text.primary">
                                         {entry.invitee_name}
-                                    </p>
-                                </div>
+                                    </Typography>
+                                </Box>
                                 {entry.invitee_email && (
-                                    <p className="text-sm text-slate-600 dark:text-slate-400 ml-7">
+                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 3.5 }}>
                                         📧 {entry.invitee_email}
-                                    </p>
+                                    </Typography>
                                 )}
-                                <p className="text-xs text-slate-500 dark:text-slate-500 ml-7 mt-1">
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 3.5, mt: 0.5, display: 'block' }}>
                                     🕐 {formatDate(entry.completed_at)}
-                                </p>
-                            </div>
+                                </Typography>
+                            </Box>
 
-                            <div className="flex-shrink-0 text-right">
-                                <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm font-semibold">
-                                    +{entry.rewards_granted} vecka
-                                </div>
-                            </div>
-                        </div>
+                            <Chip
+                                label={`+${entry.rewards_granted} vecka`}
+                                color="success"
+                                size="small"
+                                sx={{ fontWeight: 600, flexShrink: 0 }}
+                            />
+                        </Paper>
                     ))}
-                </div>
+                </Box>
             )}
 
             {history.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <button
+                <>
+                    <Divider sx={{ my: 2 }} />
+                    <Button
                         onClick={fetchHistory}
-                        className="w-full text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                        fullWidth
+                        variant="text"
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
                     >
                         🔄 Uppdatera historik
-                    </button>
-                </div>
+                    </Button>
+                </>
             )}
-        </div>
+        </Paper>
     );
 };
 
