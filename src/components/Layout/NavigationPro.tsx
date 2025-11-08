@@ -2,26 +2,51 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext";
+import { useTheme as useAppTheme } from "../../contexts/ThemeContext";
 import { extractDisplayName } from "../../utils/nameUtils";
 import LanguageSwitcher from "../LanguageSwitcher";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  Button,
+  IconButton,
+  Typography,
+  Drawer,
+  Paper,
+  BottomNavigation,
+  BottomNavigationAction,
+  Divider,
+  useTheme,
+  useMediaQuery,
+  Avatar,
+  Backdrop,
+} from "@mui/material";
+import {
+  Menu as MenuIcon,
+  Close as CloseIcon,
+  Check as CheckIcon,
+} from "@mui/icons-material";
 
 const NavigationPro: React.FC = () => {
-    const { isLoggedIn, logout, user } = useAuth();
-    const { isDarkMode } = useTheme();
-    const location = useLocation();
-    const { t } = useTranslation();
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
+  const { isLoggedIn, logout, user } = useAuth();
+  const { isDarkMode } = useAppTheme();
+  const location = useLocation();
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   // Close mobile menu on route change
@@ -29,252 +54,431 @@ const NavigationPro: React.FC = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Prevent body scroll when mobile menu is open
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [mobileMenuOpen]);
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen((prev) => !prev);
+  };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string): boolean => {
+    return location.pathname === path;
+  };
 
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
-
-  // Modern Bottom Tab Navigation for Mobile-First UX
-  const tabs = [
-    { id: 'home', icon: '🏠', label: 'Hem', path: '/dashboard' },
-    { id: 'mood', icon: '😊', label: 'Humör', path: '/mood' },
-    { id: 'chat', icon: '💬', label: 'Chat', path: '/chat' },
-    { id: 'insights', icon: '📊', label: 'Insikter', path: '/insights' },
-    { id: 'profile', icon: '👤', label: 'Profil', path: '/profile' },
+  // Navigation items configuration
+  const navItems = [
+    { path: "/", label: t("nav.home"), icon: "fa-home", emoji: "🏠" },
+    { path: "/dashboard", label: t("nav.dashboard"), icon: "fa-chart-line", emoji: "📊" },
+    { path: "/mood-tracker", label: t("nav.mood"), icon: "fa-smile", emoji: "😊" },
+    { path: "/memory-games", label: t("nav.games"), icon: "fa-gamepad", emoji: "🎮" },
+    { path: "/referral", label: t("nav.referral"), icon: "fa-users", emoji: "👥", highlight: true },
+    { path: "/health-sync", label: t("nav.health"), icon: "fa-heartbeat", emoji: "❤️" },
   ];
 
-  const navItems = isLoggedIn() ? [
-    { path: '/dashboard', icon: 'fa-tachometer-alt', label: t('nav.dashboard') },
-    { path: '/ai-stories', icon: 'fa-book-open', label: 'AI Stories' },
-    { path: '/analytics', icon: 'fa-chart-line', label: 'Analytics' },
-    { path: '/integrations', icon: 'fa-heart', label: 'Integration', emoji: '❤️' },
-    { path: '/referral', icon: 'fa-users', label: 'Referral', emoji: '🤝' },
-    { path: '/feedback', icon: 'fa-comment-dots', label: 'Feedback', emoji: '💬' },
-    { path: '/subscribe', icon: 'fa-crown', label: t('subscription.subscribe'), highlight: true },
-  ] : [
-    { path: '/login', icon: 'fa-sign-in-alt', label: t('auth.login') },
-    { path: '/register', icon: 'fa-user-plus', label: t('auth.register') },
-    { path: '/subscribe', icon: 'fa-crown', label: t('subscription.subscribe'), highlight: true },
+  // Bottom tabs for mobile (simpler navigation)
+  const tabs = [
+    { id: "home", path: "/", label: t("nav.home"), icon: "🏠" },
+    { id: "dashboard", path: "/dashboard", label: t("nav.dashboard"), icon: "📊" },
+    { id: "mood", path: "/mood-tracker", label: t("nav.mood"), icon: "😊" },
+    { id: "games", path: "/memory-games", label: t("nav.games"), icon: "🎮" },
   ];
 
   return (
     <>
-      {/* Desktop: Top Navigation */}
-      <nav className="hidden md:block fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16">
-          <div className="flex justify-between items-center h-full">
-            {/* Logo */}
-            <Link
-              to={isLoggedIn() ? "/dashboard" : "/"}
-              className="text-gray-900 font-bold text-xl flex items-center gap-3 hover:text-primary-600 transition-all duration-200 focus-ring"
-            >
-              <span className="text-2xl">🧘</span>
-              <span className="hidden sm:inline">{t('app.name')}</span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center gap-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
-                    ${isActive(item.path)
-                      ? item.highlight
-                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
-                        : 'bg-primary-500 text-white shadow-lg'
-                      : 'text-gray-700 hover:text-white hover:bg-gray-700'
-                    }
-                  `}
-                >
-                  {item.emoji ? (
-                    <span className="text-lg">{item.emoji}</span>
-                  ) : (
-                    <i className={`fas ${item.icon} ${item.highlight ? 'text-yellow-200' : ''}`}></i>
-                  )}
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-
-              {/* User Info (Desktop) */}
-              {isLoggedIn() && (
-                <div className="hidden xl:flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-full text-sm ml-2">
-                  <i className="fas fa-user text-primary-600"></i>
-                  <span>Hej, {extractDisplayName(user?.email || '')}</span>
-                </div>
-              )}
-
-              {/* Theme Toggle */}
-              <div className="ml-2">
-                <ThemeToggle />
-              </div>
-
-              {/* Language Switcher */}
-              <LanguageSwitcher />
-
-              {/* Logout Button (Desktop) */}
-              {isLoggedIn() && (
-                <button
-                  onClick={logout}
-                  className="btn-danger-pro btn-sm ml-2"
-                >
-                  <i className="fas fa-sign-out-alt"></i>
-                  <span className="hidden xl:inline">{t('nav.logout')}</span>
-                </button>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMobileMenu}
-              className="lg:hidden btn-ghost-pro btn-icon"
-              aria-label="Toggle menu"
-              aria-expanded={mobileMenuOpen}
-            >
-              <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Mobile: Bottom Tab Bar - Mobile-First UX */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
-        <div className="flex justify-around items-center py-2 px-2">
-          {tabs.map(tab => (
-            <Link
-              key={tab.id}
-              to={tab.path}
-              className={`
-                flex flex-col items-center py-3 px-4 rounded-xl transition-all duration-200 min-w-0 flex-1
-                ${isActive(tab.path)
-                  ? 'bg-primary-500 text-white shadow-lg'
-                  : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
-                }
-              `}
-            >
-              <span className="text-2xl mb-1">{tab.icon}</span>
-              <span className="text-xs font-medium truncate">{tab.label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden fade-in"
-          onClick={() => setMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Mobile Menu Drawer */}
-      <div
-        className={`
-          fixed top-0 right-0 bottom-0 w-full max-w-sm bg-white z-40 lg:hidden
-          transition-transform duration-300 ease-out overflow-y-auto shadow-2xl
-          ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
-        `}
+      {/* Desktop Navigation - Top Bar */}
+      <AppBar
+        position="fixed"
+        elevation={scrolled ? 4 : 1}
+        sx={{
+          display: { xs: "none", md: "block" },
+          transition: "all 0.3s ease",
+          bgcolor: "background.paper",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
       >
-        <div className="p-6 space-y-4">
-          {/* Close Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="btn-ghost-pro btn-icon"
-              aria-label="Close menu"
-            >
-              <i className="fas fa-times text-xl"></i>
-            </button>
-          </div>
+        <Toolbar
+          sx={{
+            maxWidth: "1200px",
+            width: "100%",
+            mx: "auto",
+            px: 3,
+          }}
+        >
+          {/* Logo */}
+          <Typography
+            component={Link}
+            to="/"
+            variant="h6"
+            sx={{
+              color: "text.primary",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              textDecoration: "none",
+              transition: "all 0.2s",
+              "&:hover": {
+                color: "primary.main",
+              },
+            }}
+          >
+            <span style={{ fontSize: "1.75rem" }}>🧠</span>
+            Lugn & Trygg
+          </Typography>
 
-          {/* User Info (Mobile) */}
-          {isLoggedIn() && (
-            <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
-                <i className="fas fa-user text-white text-xl"></i>
-              </div>
-              <div>
-                <p className="text-white font-medium">Hej,</p>
-                <p className="text-gray-600 text-sm">{extractDisplayName(user?.email || '')}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Nav Items */}
-          <nav className="space-y-2">
+          {/* Desktop Navigation Items */}
+          <Box
+            sx={{
+              display: { xs: "none", lg: "flex" },
+              alignItems: "center",
+              gap: 1,
+              ml: "auto",
+            }}
+          >
             {navItems.map((item) => (
-              <Link
+              <Button
                 key={item.path}
+                component={Link}
                 to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
-                  ${isActive(item.path)
+                sx={{
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: "medium",
+                  transition: "all 0.2s",
+                  ...(isActive(item.path)
                     ? item.highlight
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
-                      : 'bg-primary-500 text-white shadow-lg'
-                    : 'text-gray-700 hover:text-white hover:bg-gray-800'
-                  }
-                `}
+                      ? {
+                          background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                          color: "white",
+                          boxShadow: 2,
+                          "&:hover": {
+                            boxShadow: 3,
+                          },
+                        }
+                      : {
+                          bgcolor: "primary.main",
+                          color: "primary.contrastText",
+                          boxShadow: 2,
+                          "&:hover": {
+                            bgcolor: "primary.dark",
+                          },
+                        }
+                    : {
+                        color: "text.primary",
+                        "&:hover": {
+                          bgcolor: "action.hover",
+                          color: "primary.main",
+                        },
+                      }),
+                }}
               >
                 {item.emoji ? (
-                  <span className="text-2xl">{item.emoji}</span>
+                  <span style={{ fontSize: "1.125rem", marginRight: "0.5rem" }}>{item.emoji}</span>
                 ) : (
-                  <i className={`fas ${item.icon} text-lg ${item.highlight ? 'text-yellow-200' : ''}`}></i>
+                  <i
+                    className={`fas ${item.icon}`}
+                    style={{
+                      marginRight: "0.5rem",
+                      color: item.highlight && isActive(item.path) ? "#fef3c7" : undefined,
+                    }}
+                  />
                 )}
-                <span className="text-base">{item.label}</span>
-                {isActive(item.path) && (
-                  <i className="fas fa-check ml-auto text-sm"></i>
-                )}
-              </Link>
+                <span>{item.label}</span>
+              </Button>
             ))}
-          </nav>
 
-          {/* Mobile Actions */}
-          <div className="pt-6 border-t border-gray-200 space-y-3">
+            {/* User Info (Desktop) */}
+            {isLoggedIn() && (
+              <Box
+                sx={{
+                  display: { xs: "none", xl: "flex" },
+                  alignItems: "center",
+                  gap: 1,
+                  bgcolor: "grey.100",
+                  color: "grey.700",
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: "24px",
+                  fontSize: "0.875rem",
+                  ml: 1,
+                }}
+              >
+                <i className="fas fa-user" style={{ color: theme.palette.primary.main }}></i>
+                <span>Hej, {extractDisplayName(user?.email || "")}</span>
+              </Box>
+            )}
+
             {/* Theme Toggle */}
-            <div className="px-4 py-3">
+            <Box sx={{ ml: 1 }}>
               <ThemeToggle />
-            </div>
+            </Box>
 
             {/* Language Switcher */}
-            <div className="px-4">
-              <LanguageSwitcher />
-            </div>
+            <LanguageSwitcher />
 
-            {/* Logout Button (Mobile) */}
+            {/* Logout Button (Desktop) */}
             {isLoggedIn() && (
-              <button
-                onClick={() => {
-                  logout();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full btn-danger-pro"
+              <Button
+                onClick={logout}
+                variant="contained"
+                color="error"
+                size="small"
+                sx={{ ml: 1 }}
               >
-                <i className="fas fa-sign-out-alt"></i>
-                <span>{t('nav.logout')}</span>
-              </button>
+                <i className="fas fa-sign-out-alt" style={{ marginRight: "0.5rem" }}></i>
+                <Box component="span" sx={{ display: { xs: "none", xl: "inline" } }}>
+                  {t("nav.logout")}
+                </Box>
+              </Button>
             )}
-          </div>
-        </div>
-      </div>
+          </Box>
+
+          {/* Mobile Menu Button */}
+          <IconButton
+            onClick={toggleMobileMenu}
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+            sx={{
+              display: { lg: "block", xl: "none" },
+              ml: "auto",
+            }}
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      {/* Mobile: Bottom Tab Bar - Mobile-First UX */}
+      <Paper
+        elevation={3}
+        sx={{
+          display: { xs: "block", md: "none" },
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: theme.zIndex.appBar,
+        }}
+      >
+        <BottomNavigation
+          value={location.pathname}
+          sx={{
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          {tabs.map((tab) => (
+            <BottomNavigationAction
+              key={tab.id}
+              component={Link}
+              to={tab.path}
+              value={tab.path}
+              icon={<span style={{ fontSize: "1.5rem" }}>{tab.icon}</span>}
+              label={
+                <Typography variant="caption" fontWeight="medium">
+                  {tab.label}
+                </Typography>
+              }
+              sx={{
+                py: 1.5,
+                px: 2,
+                borderRadius: 3,
+                transition: "all 0.2s",
+                minWidth: 0,
+                flex: 1,
+                ...(isActive(tab.path)
+                  ? {
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      boxShadow: 2,
+                      "& .MuiBottomNavigationAction-label": {
+                        color: "primary.contrastText",
+                      },
+                    }
+                  : {
+                      color: "text.secondary",
+                      "&:hover": {
+                        color: "primary.main",
+                        bgcolor: "action.hover",
+                      },
+                    }),
+              }}
+            />
+          ))}
+        </BottomNavigation>
+      </Paper>
+
+      {/* Mobile Menu Backdrop */}
+      <Backdrop
+        open={mobileMenuOpen}
+        onClick={() => setMobileMenuOpen(false)}
+        sx={{
+          display: { lg: "none" },
+          zIndex: theme.zIndex.drawer - 1,
+        }}
+      />
+
+      {/* Mobile Menu Drawer */}
+      <Drawer
+        anchor="right"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        PaperProps={{
+          sx: {
+            width: "100%",
+            maxWidth: "400px",
+            p: 3,
+          },
+        }}
+        sx={{
+          display: { lg: "none" },
+        }}
+      >
+        {/* Close Button */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <IconButton
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close menu"
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* User Info (Mobile) */}
+        {isLoggedIn() && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              bgcolor: "grey.50",
+              p: 2,
+              borderRadius: 3,
+              mb: 3,
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 48,
+                height: 48,
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              }}
+            >
+              <i className="fas fa-user" style={{ color: "white", fontSize: "1.25rem" }}></i>
+            </Avatar>
+            <Box>
+              <Typography variant="body1" fontWeight="medium" color="text.primary">
+                Hej,
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {extractDisplayName(user?.email || "")}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        {/* Mobile Nav Items */}
+        <Box component="nav" sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {navItems.map((item) => (
+            <Button
+              key={item.path}
+              component={Link}
+              to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
+              fullWidth
+              sx={{
+                justifyContent: "flex-start",
+                px: 2,
+                py: 1.5,
+                borderRadius: 3,
+                fontWeight: "medium",
+                transition: "all 0.2s",
+                ...(isActive(item.path)
+                  ? item.highlight
+                    ? {
+                        background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                        color: "white",
+                        boxShadow: 2,
+                      }
+                    : {
+                        bgcolor: "primary.main",
+                        color: "primary.contrastText",
+                        boxShadow: 2,
+                      }
+                  : {
+                      color: "text.primary",
+                      "&:hover": {
+                        color: "primary.contrastText",
+                        bgcolor: "grey.800",
+                      },
+                    }),
+              }}
+            >
+              {item.emoji ? (
+                <span style={{ fontSize: "1.5rem", marginRight: "0.75rem" }}>{item.emoji}</span>
+              ) : (
+                <i
+                  className={`fas ${item.icon}`}
+                  style={{
+                    fontSize: "1.125rem",
+                    marginRight: "0.75rem",
+                    color: item.highlight && isActive(item.path) ? "#fef3c7" : undefined,
+                  }}
+                />
+              )}
+              <span style={{ fontSize: "1rem" }}>{item.label}</span>
+              {isActive(item.path) && (
+                <CheckIcon sx={{ ml: "auto", fontSize: "0.875rem" }} />
+              )}
+            </Button>
+          ))}
+        </Box>
+
+        {/* Mobile Actions */}
+        <Box sx={{ pt: 3, mt: 3, borderTop: 1, borderColor: "divider" }}>
+          {/* Theme Toggle */}
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <ThemeToggle />
+          </Box>
+
+          {/* Language Switcher */}
+          <Box sx={{ px: 2 }}>
+            <LanguageSwitcher />
+          </Box>
+
+          {/* Logout Button (Mobile) */}
+          {isLoggedIn() && (
+            <Button
+              onClick={() => {
+                logout();
+                setMobileMenuOpen(false);
+              }}
+              fullWidth
+              variant="contained"
+              color="error"
+              sx={{ mt: 1.5 }}
+            >
+              <i className="fas fa-sign-out-alt" style={{ marginRight: "0.5rem" }}></i>
+              <span>{t("nav.logout")}</span>
+            </Button>
+          )}
+        </Box>
+      </Drawer>
 
       {/* Spacer to prevent content from hiding under fixed nav */}
-      <div className="hidden md:block" style={{ height: '64px' }} aria-hidden="true" />
-      <div className="md:hidden" style={{ height: '80px' }} aria-hidden="true" />
+      <Box
+        sx={{
+          display: { xs: "none", md: "block" },
+          height: "64px",
+        }}
+        aria-hidden="true"
+      />
+      <Box
+        sx={{
+          display: { xs: "block", md: "none" },
+          height: "80px",
+        }}
+        aria-hidden="true"
+      />
     </>
   );
 };

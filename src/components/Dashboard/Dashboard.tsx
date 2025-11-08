@@ -189,94 +189,210 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: (theme) =>
+          theme.palette.mode === "dark"
+            ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
+            : "linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #faf5ff 100%)",
+      }}
+    >
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-16">
-        <div className="container mx-auto text-center px-4">
-          <h1 className="text-4xl font-bold mb-4">Välkommen tillbaka! 👋</h1>
-          <p className="text-xl opacity-90">Hur känns det idag?</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          background: (theme) =>
+            `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          color: "primary.contrastText",
+          py: 8,
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: "1200px",
+            mx: "auto",
+            textAlign: "center",
+            px: 2,
+          }}
+        >
+          <Typography variant="h3" fontWeight="bold" gutterBottom>
+            Välkommen tillbaka! 👋
+          </Typography>
+          <Typography variant="h5" sx={{ opacity: 0.9 }}>
+            Hur känns det idag?
+          </Typography>
+        </Box>
+      </Box>
 
       {/* Quick Actions Row */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-
+      <Box
+        sx={{
+          maxWidth: "1200px",
+          mx: "auto",
+          px: 2,
+          py: 4,
+        }}
+      >
+        <Grid container spacing={3} sx={{ mb: 6 }}>
           {/* Mood Logger Card */}
-          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
-            <CardContent className="p-8 text-center">
-              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">😊</div>
-              <h3 className="text-xl font-semibold mb-2">Logga Humör</h3>
-              <p className="text-gray-600">Snabbloggning med röst eller emoji</p>
-            </CardContent>
-          </Card>
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                height: "100%",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  boxShadow: 6,
+                  "& .emoji": {
+                    transform: "scale(1.1)",
+                  },
+                },
+              }}
+            >
+              <CardContent sx={{ p: 4, textAlign: "center" }}>
+                <Box
+                  className="emoji"
+                  sx={{
+                    fontSize: "4rem",
+                    mb: 2,
+                    transition: "transform 0.3s ease",
+                  }}
+                >
+                  😊
+                </Box>
+                <Typography variant="h6" fontWeight="semibold" gutterBottom>
+                  Logga Humör
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Snabbloggning med röst eller emoji
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
 
           {/* AI Chat Card */}
-          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
-            <CardContent className="p-8 text-center">
-              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🤖</div>
-              <h3 className="text-xl font-semibold mb-2">AI Terapeut</h3>
-              <p className="text-gray-600">Prata med din personliga AI</p>
-            </CardContent>
-          </Card>
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                height: "100%",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  boxShadow: 6,
+                  "& .emoji": {
+                    transform: "scale(1.1)",
+                  },
+                },
+              }}
+            >
+              <CardContent sx={{ p: 4, textAlign: "center" }}>
+                <Box
+                  className="emoji"
+                  sx={{
+                    fontSize: "4rem",
+                    mb: 2,
+                    transition: "transform 0.3s ease",
+                  }}
+                >
+                  🤖
+                </Box>
+                <Typography variant="h6" fontWeight="semibold" gutterBottom>
+                  AI Terapeut
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Prata med din personliga AI
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
 
           {/* Daily Check-in Card */}
-          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer group">
-            <CardContent className="p-8 text-center">
-              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">📊</div>
-              <h3 className="text-xl font-semibold mb-2">Daglig Översikt</h3>
-              <p className="text-gray-600">Se dina framsteg och insikter</p>
-            </CardContent>
-          </Card>
-        </div>
+          <Grid item xs={12} md={4}>
+            <Card
+              sx={{
+                height: "100%",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  boxShadow: 6,
+                  "& .emoji": {
+                    transform: "scale(1.1)",
+                  },
+                },
+              }}
+            >
+              <CardContent sx={{ p: 4, textAlign: "center" }}>
+                <Box
+                  className="emoji"
+                  sx={{
+                    fontSize: "4rem",
+                    mb: 2,
+                    transition: "transform 0.3s ease",
+                  }}
+                >
+                  📊
+                </Box>
+                <Typography variant="h6" fontWeight="semibold" gutterBottom>
+                  Daglig Översikt
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Se dina framsteg och insikter
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
         {/* Today's Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
+        <Grid container spacing={4}>
           {/* Mood Trend */}
-          <Card>
-            <CardContent className="p-6">
-              <Typography variant="h6" gutterBottom>
-                Din Humörtrend
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Favorite sx={{ color: 'success.main' }} />
-                <Box>
-                  <Typography variant="h5">
-                    {stats.averageMood}/10
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Trend uppåt
-                  </Typography>
+          <Grid item xs={12} lg={6}>
+            <Card>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Din Humörtrend
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Favorite sx={{ color: "success.main", fontSize: 40 }} />
+                  <Box>
+                    <Typography variant="h5">
+                      {stats.averageMood}/10
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Trend uppåt
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Grid>
 
           {/* AI Insights */}
-          <Card>
-            <CardContent className="p-6">
-              <Typography variant="h6" gutterBottom>
-                AI Insikter
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Analytics sx={{ color: 'info.main' }} />
-                <Box>
-                  <Typography variant="h5">
-                    {stats.totalMoods + stats.totalChats}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Totala interaktioner
-                  </Typography>
+          <Grid item xs={12} lg={6}>
+            <Card>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  AI Insikter
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Analytics sx={{ color: "info.main", fontSize: 40 }} />
+                  <Box>
+                    <Typography variant="h5">
+                      {stats.totalMoods + stats.totalChats}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Totala interaktioner
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
         {/* Weekly Progress */}
-        <Card sx={{ mt: 8 }}>
-          <CardContent className="p-6">
+        <Card sx={{ mt: 4 }}>
+          <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Veckoprogress
             </Typography>
@@ -308,8 +424,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
