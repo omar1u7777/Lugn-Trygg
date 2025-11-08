@@ -37,10 +37,21 @@ app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
 
 # CORS configuration
-cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001')
+cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 
+    'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001,'
+    'https://lugn-trygg.vercel.app,https://lugn-trygg-cicqazfhh-omaralhaeks-projects.vercel.app,'
+    'https://*.vercel.app'
+)
 cors_origins_list = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
 
-CORS(app, origins=cors_origins_list, supports_credentials=True)
+# Support wildcard domains for Vercel preview deployments
+if any('*' in origin for origin in cors_origins_list):
+    # Flask-CORS doesn't support wildcards in list, use regex
+    from flask_cors import CORS
+    CORS(app, origins='*', supports_credentials=True)
+    logger.warning("⚠️ CORS configured with wildcard - use specific origins in production!")
+else:
+    CORS(app, origins=cors_origins_list, supports_credentials=True)
 
 # Rate limiting
 limiter = Limiter(
