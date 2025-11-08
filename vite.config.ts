@@ -17,6 +17,24 @@ export default defineConfig({
         drop_debugger: true,
       },
     },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Put React and React-DOM in the vendor chunk that loads first
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'react-core';
+          }
+          // Put Chart.js in its own chunk AFTER React
+          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2')) {
+            return 'charts';
+          }
+          // Put MUI in its own chunk
+          if (id.includes('node_modules/@mui/')) {
+            return 'mui';
+          }
+        },
+      },
+    },
   },
   server: {
     port: 3000,

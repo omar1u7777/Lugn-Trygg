@@ -18,9 +18,11 @@ import "./config/chartConfig"; // Initialize Chart.js
 import "./styles/styles.css";
 import "./styles/accessibility.css";
 
-// Force React to be available globally for components that need it
+// Force React to be available globally for Chart.js and other libraries
+import * as React from 'react';
 if (typeof window !== 'undefined') {
   (window as any).React = React;
+  (window as any).ReactDOM = await import('react-dom');
 }
 
 /**
