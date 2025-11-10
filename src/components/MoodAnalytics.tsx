@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -396,7 +397,7 @@ const MoodAnalytics: React.FC = () => {
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mb: 3 }}>
+      <Alert severity="error" sx={{ mb: spacing.lg }}>
         {error}
       </Alert>
     );
@@ -416,13 +417,13 @@ const MoodAnalytics: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ p: spacing.lg }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <PsychologyIcon color="primary" />
           {t('analytics.title')}
         </Typography>
 
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: spacing.md }}>
           {t('analytics.description')}
         </Typography>
 
@@ -456,7 +457,7 @@ const MoodAnalytics: React.FC = () => {
             Exportera PDF
           </Button>
           {pdfError && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
+            <Alert severity="warning" sx={{ mt: spacing.md }}>
               {pdfError}
             </Alert>
           )}
@@ -467,7 +468,7 @@ const MoodAnalytics: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                   <TimelineIcon />
                   {t('analytics.currentAnalysis')}
                 </Typography>
@@ -483,7 +484,7 @@ const MoodAnalytics: React.FC = () => {
                       sx={{
                         flexGrow: 1,
                         height: 8,
-                        borderRadius: 4,
+                        borderRadius: borderRadius.xl,
                         backgroundColor: 'grey.300',
                         '& .MuiLinearProgress-bar': {
                           backgroundColor: getSentimentColor(forecast.current_analysis.recent_average),
@@ -515,7 +516,7 @@ const MoodAnalytics: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                   {getTrendIcon(forecast.forecast.trend)}
                   {t('analytics.forecastSummary')}
                 </Typography>
@@ -581,7 +582,7 @@ const MoodAnalytics: React.FC = () => {
                       key={index}
                       elevation={1}
                       sx={{
-                        p: 1,
+                        p: spacing.sm,
                         minWidth: 60,
                         textAlign: 'center',
                         backgroundColor: getSentimentColor(prediction),
@@ -606,7 +607,7 @@ const MoodAnalytics: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     <WarningIcon color="warning" />
                     {t('analytics.riskFactors')}
                   </Typography>
@@ -630,14 +631,14 @@ const MoodAnalytics: React.FC = () => {
           <Grid item xs={12} md={forecast.risk_factors.length > 0 ? 6 : 12}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                   <CheckCircleIcon color="success" />
                   {t('analytics.recommendations')}
                 </Typography>
 
                 <Box component="ul" sx={{ pl: 2, m: 0 }}>
                   {forecast.recommendations.map((rec, index) => (
-                    <Typography key={index} component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography key={index} component="li" variant="body2" sx={{ mb: spacing.sm }}>
                       {rec}
                     </Typography>
                   ))}

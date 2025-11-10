@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Dialog,
   DialogTitle,
@@ -146,7 +147,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
       aria-describedby="notification-dialog-description"
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          borderRadius: borderRadius.md,
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         },
       }}
@@ -158,7 +159,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
           paddingBottom: 0,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
           <NotificationsActiveIcon 
             sx={{ fontSize: '28px', color: '#667eea' }}
             aria-hidden="true"
@@ -171,18 +172,18 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ paddingTop: 2 }}>
+      <DialogContent sx={{ paddingTop: spacing.md }}>
         <Typography 
           id="notification-dialog-description"
           variant="body2"
-          sx={{ mb: 2, textAlign: 'center', color: '#666' }}
+          sx={{ mb: spacing.md, textAlign: 'center', color: '#666' }}
         >
           Get meditation reminders, mood check-ins, and personalized motivation.
         </Typography>
         {permissionState === 'granted' ? (
           <Box sx={{ textAlign: 'center' }}>
             <CheckCircleIcon 
-              sx={{ fontSize: '48px', color: '#4caf50', marginBottom: 1 }}
+              sx={{ fontSize: '48px', color: 'colors.mood.glad', marginBottom: 1 }}
               aria-hidden="true"
             />
             <Typography sx={{ color: '#666', marginBottom: 1 }}>
@@ -234,7 +235,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ padding: 2, gap: 1 }}>
+      <DialogActions sx={{ padding: 2, gap: spacing.sm }}>
         {permissionState === 'granted' ? (
           <Button
             onClick={() => onClose(true)}
@@ -257,7 +258,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
               fullWidth
               variant="contained"
               sx={{
-                background: '#f44336',
+                background: 'colors.mood.arg',
                 color: 'white',
               }}
             >

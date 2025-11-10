@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Box, Button, Card, CardContent, TextField, Typography, List, ListItem, ListItemText } from '@mui/material';
 import api from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,7 +40,7 @@ const ChatbotTherapist: React.FC = () => {
     <Card sx={{ maxWidth: 720, margin: '16px auto' }}>
       <CardContent>
         <Typography variant="h6">Chatbot Therapist</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
           A compassionate assistant to talk through your feelings. Not a replacement for professional care.
         </Typography>
 
@@ -51,7 +52,7 @@ const ChatbotTherapist: React.FC = () => {
           ))}
         </List>
 
-        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+        <Box sx={{ display: 'flex', gap: spacing.md, mt: spacing.md }}>
           <TextField fullWidth value={input} onChange={(e) => setInput(e.target.value)} placeholder="Skriv hur du känner" />
           <Button variant="contained" onClick={sendMessage} disabled={!input || loading}>
             Send
@@ -59,7 +60,7 @@ const ChatbotTherapist: React.FC = () => {
         </Box>
 
         {error && (
-          <Typography color="error" sx={{ mt: 2 }}>
+          <Typography color="error" sx={{ mt: spacing.md }}>
             {error}
           </Typography>
         )}

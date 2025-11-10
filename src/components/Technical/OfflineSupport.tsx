@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -86,11 +87,11 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <Card sx={{ maxWidth: 700, margin: '16px auto' }}>
       <CardContent>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           {isOnline ? <Wifi color="success" /> : <WifiOff color="error" />}
           Offline Support
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
           Your data is automatically synced when you're online. You can still use the app offline.
         </Typography>
 
@@ -98,7 +99,7 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
         <Alert
           severity={isOnline ? 'success' : 'warning'}
           icon={isOnline ? <CloudDone /> : <CloudOff />}
-          sx={{ mb: 3 }}
+          sx={{ mb: spacing.lg }}
         >
           {isOnline ? 'You are online. All changes will sync automatically.' : 'You are offline. Changes will sync when you reconnect.'}
         </Alert>
@@ -112,7 +113,7 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
             />
           }
           label="Enable Offline Mode (saves data for offline use)"
-          sx={{ mb: 3 }}
+          sx={{ mb: spacing.lg }}
         />
 
         {/* Sync Status */}
@@ -166,8 +167,8 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
         )}
 
         {/* Sync Button */}
-        <Box sx={{ mt: 3 }}>
-          {syncing && <LinearProgress sx={{ mb: 2 }} />}
+        <Box sx={{ mt: spacing.lg }}>
+          {syncing && <LinearProgress sx={{ mb: spacing.md }} />}
           <Button
             variant="contained"
             fullWidth
@@ -180,7 +181,7 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
         </Box>
 
         {/* Offline Features Info */}
-        <Alert severity="info" sx={{ mt: 3 }}>
+        <Alert severity="info" sx={{ mt: spacing.lg }}>
           <Typography variant="subtitle2" gutterBottom>
             Available Offline
           </Typography>

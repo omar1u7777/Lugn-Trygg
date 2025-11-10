@@ -1,12 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
-// Updated: 2025-11-08 - React global availability + Chart.js fix
+// Updated: 2025-11-10 - Fixed root path for index.html resolution
 export default defineConfig({
+  root: '.', // Explicit root at project level
   plugins: [react({
     jsxRuntime: 'automatic',
   })],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   optimizeDeps: {
     include: ['react', 'react-dom', 'chart.js', 'react-chartjs-2'],
   },
@@ -14,10 +21,12 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
+    chunkSizeWarningLimit: 1000,
     terserOptions: {
       compress: {
         drop_console: true,
         drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
       },
     },
     rollupOptions: {
@@ -39,7 +48,19 @@ export default defineConfig({
           if (id.includes('node_modules/firebase/') || id.includes('node_modules/@firebase/')) {
             return 'firebase';
           }
+          // Router and i18n together
+          if (id.includes('node_modules/react-router') || id.includes('node_modules/react-i18next')) {
+            return 'routing';
+          }
+          // Axios and API utilities
+          if (id.includes('node_modules/axios') || id.includes('node_modules/crypto-js')) {
+            return 'network';
+          }
         },
+        // Cache-busting with hashed filenames
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
       },
     },
   },

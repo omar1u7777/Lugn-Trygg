@@ -3,7 +3,8 @@
  * 3-step guided tutorial for new users
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Button,
@@ -48,10 +49,10 @@ const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: 
           onClick={() => toggleGoal(goal)}
           fullWidth
           sx={{
-            mb: 1,
-            backgroundColor: selectedGoals.includes(goal) ? '#3f51b5' : 'transparent',
+            mb: spacing.sm,
+            backgroundColor: selectedGoals.includes(goal) ? 'colors.mood.irriterad' : 'transparent',
             color: selectedGoals.includes(goal) ? 'white' : 'inherit',
-            borderColor: selectedGoals.includes(goal) ? '#3f51b5' : '#ccc',
+            borderColor: selectedGoals.includes(goal) ? 'colors.mood.irriterad' : '#ccc',
             '&:hover': {
               backgroundColor: selectedGoals.includes(goal) ? '#303f9f' : '#f5f5f5',
             },
@@ -61,7 +62,7 @@ const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: 
         </Button>
       ))}
     </Box>
-    <Typography variant="caption" sx={{ mt: 2, color: 'text.secondary' }}>
+    <Typography variant="caption" sx={{ mt: spacing.md, color: 'text.secondary' }}>
       ℹ️ Du kan välja ett eller flera mål
     </Typography>
   </Box>
@@ -81,10 +82,10 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
         <Typography variant="body2">
           Lugn & Trygg hjälper dig att hantera stress, förbättra din mental hälsa och hitta lugn i ditt dagliga liv.
         </Typography>
-        <Typography variant="body2" sx={{ mt: 2 }}>
+        <Typography variant="body2" sx={{ mt: spacing.md }}>
           <strong>✨ Din personliga resa börjar här</strong>
         </Typography>
-        <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+        <Typography variant="caption" sx={{ mt: spacing.sm, display: 'block', color: 'text.secondary' }}>
           Med dina valda mål kommer vi att ge dig personliga rekommendationer för att stötta din mental hälsa.
         </Typography>
       </Box>

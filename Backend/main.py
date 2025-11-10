@@ -16,6 +16,19 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
+# Initialize Sentry monitoring (must be before Flask app creation)
+try:
+    from src.monitoring.sentry_config import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_ENABLED = True
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️  Sentry SDK not available - monitoring disabled")
+    SENTRY_ENABLED = False
+    # Stub functions
+    def init_sentry(app=None): return False
+    def capture_exception(e, context=None): pass
+    def add_breadcrumb(message, **kwargs): pass
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +43,11 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Initialize Sentry monitoring for production
+if SENTRY_ENABLED:
+    init_sentry(app)
+    logger.info("✓ Sentry monitoring initialized")
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -58,12 +76,15 @@ if any('*' in origin for origin in cors_origins_list):
 else:
     CORS(app, origins=cors_origins_list, supports_credentials=True)
 
-# Rate limiting
+# Rate limiting - Production ready for 1000 users
+# Optimized for high traffic: 1000 users * ~100 requests/day = 100k requests
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"
+    default_limits=["5000 per day", "1000 per hour", "300 per minute"],  # ÖKAT för 1000 users production
+    storage_uri="memory://",
+    strategy="fixed-window",
+    headers_enabled=True  # Return rate limit headers
 )
 
 # Initialize JWT Manager
@@ -95,7 +116,7 @@ try:
     from src.routes.subscription_routes import subscription_bp
     from src.routes.docs_routes import docs_bp
     from src.routes.metrics_routes import metrics_bp
-    from src.routes.predictive_routes import predictive_bp
+    from src.routes.predictive_routes import predictive_bp  # ✅ RE-ENABLED for production!
     from src.routes.rate_limit_routes import rate_limit_bp
     from src.routes.referral_routes import referral_bp
     from src.routes.chatbot_routes import chatbot_bp
@@ -105,6 +126,7 @@ try:
     from src.routes.notifications_routes import notifications_bp
     from src.routes.sync_routes import sync_bp
     from src.routes.users_routes import users_bp
+    from src.routes.health_routes import health_bp  # 🏥 Health check endpoints
 
     # Initialize Firebase
     initialize_firebase()
@@ -114,6 +136,10 @@ try:
     init_validation_middleware(app)
 
     # Register blueprints
+    # Health checks first (no auth required)
+    app.register_blueprint(health_bp, url_prefix='/api')  # 🏥 /api/health endpoints
+    
+    # Auth & core routes
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(mood_bp, url_prefix='/api/mood')
     app.register_blueprint(ai_helpers_bp, url_prefix='/api/mood')  # ai_helpers routes under /api/mood
@@ -123,7 +149,7 @@ try:
     app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
     app.register_blueprint(docs_bp, url_prefix='/api/docs')
     app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
-    app.register_blueprint(predictive_bp, url_prefix='/api/predictive')
+    app.register_blueprint(predictive_bp, url_prefix='/api/predictive')  # ✅ RE-ENABLED!
     app.register_blueprint(rate_limit_bp, url_prefix='/api/rate-limit')
     app.register_blueprint(referral_bp, url_prefix='/api/referral')
     app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
@@ -132,6 +158,11 @@ try:
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(sync_bp, url_prefix='/api/sync')
     app.register_blueprint(users_bp, url_prefix='/api/users')
+    
+    # Dashboard routes - Optimized for high traffic
+    from src.routes.dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)  # Already has /api/dashboard prefix
+    logger.info("✅ Dashboard routes registered")
 
     # Global request middleware
     @app.before_request
@@ -191,7 +222,7 @@ try:
             'health': '/health'
         })
 
-    # Error handlers
+    # Error handlers with Sentry integration
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({
@@ -203,6 +234,8 @@ try:
     @app.errorhandler(500)
     def internal_error(error):
         logger.error(f"Internal server error: {error}")
+        if SENTRY_ENABLED:
+            capture_exception(error, context={'path': request.path, 'method': request.method})
         return jsonify({
             'error': 'Internal Server Error',
             'message': 'An unexpected error occurred'
@@ -215,6 +248,30 @@ try:
             'message': 'Too many requests. Please try again later.',
             'retry_after': error.description
         }), 429
+    
+    @app.errorhandler(Exception)
+    def handle_exception(error):
+        """Global exception handler with Sentry reporting"""
+        logger.error(f"Unhandled exception: {error}", exc_info=True)
+        if SENTRY_ENABLED:
+            capture_exception(error, context={
+                'path': request.path,
+                'method': request.method,
+                'user_agent': request.headers.get('User-Agent', 'unknown')
+            })
+        
+        # Don't expose internal error details in production
+        if app.config.get('DEBUG'):
+            return jsonify({
+                'error': 'Internal Error',
+                'message': str(error),
+                'type': type(error).__name__
+            }), 500
+        else:
+            return jsonify({
+                'error': 'Internal Error',
+                'message': 'An unexpected error occurred. Our team has been notified.'
+            }), 500
 
     # Start background services
     if not app.config['TESTING']:

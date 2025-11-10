@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
@@ -67,6 +68,12 @@ const NavigationPro: React.FC = () => {
     ? [
         { path: "/dashboard", label: t("nav.dashboard"), icon: "fa-chart-line", emoji: "📊" },
         { path: "/mood-tracker", label: t("nav.mood"), icon: "fa-smile", emoji: "😊" },
+        { path: "/wellness", label: "Wellness", icon: "fa-spa", emoji: "🌿" },
+        { path: "/social", label: "Social", icon: "fa-users", emoji: "🤝" },
+        { path: "/journal", label: "Journal", icon: "fa-book", emoji: "📖" },
+        { path: "/insights", label: "Insights", icon: "fa-chart-bar", emoji: "📊" },
+        { path: "/rewards", label: "Rewards", icon: "fa-trophy", emoji: "🏆" },
+        { path: "/profile", label: "Profile", icon: "fa-user", emoji: "👤" },
         { path: "/referral", label: t("nav.referral"), icon: "fa-users", emoji: "👥", highlight: true },
         { path: "/health-sync", label: t("nav.health"), icon: "fa-heartbeat", emoji: "❤️" },
       ]
@@ -79,7 +86,9 @@ const NavigationPro: React.FC = () => {
     ? [
         { id: "dashboard", path: "/dashboard", label: t("nav.dashboard"), icon: "📊" },
         { id: "mood", path: "/mood-tracker", label: t("nav.mood"), icon: "😊" },
-        { id: "referral", path: "/referral", label: t("nav.referral"), icon: "👥" },
+        { id: "wellness", path: "/wellness", label: "Wellness", icon: "🌿" },
+        { id: "social", path: "/social", label: "Social", icon: "🤝" },
+        { id: "journal", path: "/journal", label: "Journal", icon: "�" },
       ]
     : [
         { id: "home", path: "/", label: t("nav.home"), icon: "🏠" },
@@ -134,7 +143,7 @@ const NavigationPro: React.FC = () => {
             sx={{
               display: { xs: "none", lg: "flex" },
               alignItems: "center",
-              gap: 1,
+              gap: spacing.sm,
               ml: "auto",
             }}
           >
@@ -146,15 +155,15 @@ const NavigationPro: React.FC = () => {
                 sx={{
                   px: 2,
                   py: 1,
-                  borderRadius: 2,
+                  borderRadius: borderRadius.md,
                   fontWeight: "medium",
                   transition: "all 0.2s",
                   ...(isActive(item.path)
                     ? item.highlight
                       ? {
-                          background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                          background: "linear-gradient(135deg, colors.mood.sad 0%, #f97316 100%)",
                           color: "white",
-                          boxShadow: 2,
+                          boxShadow: shadows.md,
                           "&:hover": {
                             boxShadow: 3,
                           },
@@ -162,7 +171,7 @@ const NavigationPro: React.FC = () => {
                       : {
                           bgcolor: "primary.main",
                           color: "primary.contrastText",
-                          boxShadow: 2,
+                          boxShadow: shadows.md,
                           "&:hover": {
                             bgcolor: "primary.dark",
                           },
@@ -197,7 +206,7 @@ const NavigationPro: React.FC = () => {
                 sx={{
                   display: { xs: "none", xl: "flex" },
                   alignItems: "center",
-                  gap: 1,
+                  gap: spacing.sm,
                   bgcolor: "grey.100",
                   color: "grey.700",
                   px: 1.5,
@@ -267,7 +276,7 @@ const NavigationPro: React.FC = () => {
         <BottomNavigation
           value={location.pathname}
           sx={{
-            borderTop: 1,
+            borderTop: spacing.sm,
             borderColor: "divider",
           }}
         >
@@ -286,7 +295,7 @@ const NavigationPro: React.FC = () => {
               sx={{
                 py: 1.5,
                 px: 2,
-                borderRadius: 3,
+                borderRadius: borderRadius.lg,
                 transition: "all 0.2s",
                 minWidth: 0,
                 flex: 1,
@@ -294,7 +303,7 @@ const NavigationPro: React.FC = () => {
                   ? {
                       bgcolor: "primary.main",
                       color: "primary.contrastText",
-                      boxShadow: 2,
+                      boxShadow: shadows.md,
                       "& .MuiBottomNavigationAction-label": {
                         color: "primary.contrastText",
                       },
@@ -331,7 +340,7 @@ const NavigationPro: React.FC = () => {
           sx: {
             width: "100%",
             maxWidth: "400px",
-            p: 3,
+            p: spacing.lg,
           },
         }}
         sx={{
@@ -339,7 +348,7 @@ const NavigationPro: React.FC = () => {
         }}
       >
         {/* Close Button */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: spacing.md }}>
           <IconButton
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close menu"
@@ -356,9 +365,9 @@ const NavigationPro: React.FC = () => {
               alignItems: "center",
               gap: 1.5,
               bgcolor: "grey.50",
-              p: 2,
-              borderRadius: 3,
-              mb: 3,
+              p: spacing.md,
+              borderRadius: borderRadius.lg,
+              mb: spacing.lg,
             }}
           >
             <Avatar
@@ -382,7 +391,7 @@ const NavigationPro: React.FC = () => {
         )}
 
         {/* Mobile Nav Items */}
-        <Box component="nav" sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box component="nav" sx={{ display: "flex", flexDirection: "column", gap: spacing.sm }}>
           {navItems.map((item) => (
             <Button
               key={item.path}
@@ -394,20 +403,20 @@ const NavigationPro: React.FC = () => {
                 justifyContent: "flex-start",
                 px: 2,
                 py: 1.5,
-                borderRadius: 3,
+                borderRadius: borderRadius.lg,
                 fontWeight: "medium",
                 transition: "all 0.2s",
                 ...(isActive(item.path)
                   ? item.highlight
                     ? {
-                        background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                        background: "linear-gradient(135deg, colors.mood.sad 0%, #f97316 100%)",
                         color: "white",
-                        boxShadow: 2,
+                        boxShadow: shadows.md,
                       }
                     : {
                         bgcolor: "primary.main",
                         color: "primary.contrastText",
-                        boxShadow: 2,
+                        boxShadow: shadows.md,
                       }
                   : {
                       color: "text.primary",
@@ -439,7 +448,7 @@ const NavigationPro: React.FC = () => {
         </Box>
 
         {/* Mobile Actions */}
-        <Box sx={{ pt: 3, mt: 3, borderTop: 1, borderColor: "divider" }}>
+        <Box sx={{ pt: 3, mt: spacing.lg, borderTop: spacing.sm, borderColor: "divider" }}>
           {/* Theme Toggle */}
           <Box sx={{ px: 2, py: 1.5 }}>
             <ThemeToggle />

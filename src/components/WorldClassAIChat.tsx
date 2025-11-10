@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Typography,
@@ -189,11 +190,11 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <Box className="world-class-app" sx={{ p: 4, textAlign: 'center' }}>
+      <Box className="world-class-app" sx={{ p: spacing.xl, textAlign: 'center' }}>
         <Typography variant="h6" className="world-class-body">
           Laddar din AI-terapeut...
         </Typography>
-        <LinearProgress sx={{ mt: 2, borderRadius: 2, height: 8 }} />
+        <LinearProgress sx={{ mt: spacing.md, borderRadius: borderRadius.md, height: 8 }} />
       </Box>
     );
   }
@@ -205,14 +206,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, colors.text.inverse 50%, #f1f5f9 100%)',
       }}
     >
       {/* Header */}
       <Card className="world-class-dashboard-card" sx={{ borderRadius: 0, boxShadow: 1 }}>
-        <CardContent sx={{ py: 2, px: 3 }}>
+        <CardContent sx={{ py: spacing.md, px: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
               <Avatar sx={{ bgcolor: 'primary.main' }}>
                 <Psychology />
               </Avatar>
@@ -226,7 +227,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               <IconButton
                 onClick={toggleVoice}
                 color={voiceEnabled ? 'primary' : 'default'}
@@ -248,23 +249,23 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         sx={{
           flex: 1,
           overflowY: 'auto',
-          p: 2,
+          p: spacing.md,
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
+          gap: spacing.md,
         }}
       >
         {messages.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Psychology sx={{ fontSize: 64, color: 'primary.main', mb: 2, opacity: 0.5 }} />
+            <Psychology sx={{ fontSize: 64, color: 'primary.main', mb: spacing.md, opacity: 0.5 }} />
             <Typography variant="h6" className="world-class-heading-3" gutterBottom>
               Välkommen till din AI-terapeut!
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
               Jag är här för att lyssna och hjälpa dig. Vad ligger dig på hjärtat idag?
             </Typography>
 
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' }}>
               {quickSuggestions.map((suggestion, index) => (
                 <Chip
                   key={index}
@@ -286,7 +287,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             key={message.id}
             sx={{
               display: 'flex',
-              gap: 2,
+              gap: spacing.md,
               alignItems: 'flex-start',
               flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
             }}
@@ -304,20 +305,20 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             <Box
               sx={{
                 maxWidth: '70%',
-                p: 2,
-                borderRadius: 3,
+                p: spacing.md,
+                borderRadius: borderRadius.lg,
                 bgcolor: message.role === 'user' ? 'secondary.light' : 'grey.50',
                 border: message.role === 'user' ? 'none' : '1px solid',
                 borderColor: 'divider',
                 position: 'relative',
               }}
             >
-              <Typography variant="body1" sx={{ mb: 1 }}>
+              <Typography variant="body1" sx={{ mb: spacing.sm }}>
                 {message.content}
               </Typography>
 
               {message.sentiment && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mt: spacing.sm }}>
                   <Chip
                     size="small"
                     label={message.sentiment}
@@ -335,7 +336,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 </Box>
               )}
 
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: 'block' }}>
                 {message.timestamp.toLocaleTimeString('sv-SE', {
                   hour: '2-digit',
                   minute: '2-digit'
@@ -346,14 +347,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         ))}
 
         {isTyping && (
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+          <Box sx={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start' }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
               <SmartToy />
             </Avatar>
             <Box
               sx={{
-                p: 2,
-                borderRadius: 3,
+                p: spacing.md,
+                borderRadius: borderRadius.lg,
                 bgcolor: 'grey.50',
                 border: '1px solid',
                 borderColor: 'divider',
@@ -372,9 +373,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       </Box>
 
       {/* Input Area */}
-      <Card sx={{ borderRadius: 0, boxShadow: 2 }}>
-        <CardContent sx={{ py: 2, px: 3 }}>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+      <Card sx={{ borderRadius: 0, boxShadow: shadows.md }}>
+        <CardContent sx={{ py: spacing.md, px: 3 }}>
+          <Box sx={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>
             <TextField
               fullWidth
               multiline
@@ -387,7 +388,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               inputRef={inputRef}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
+                  borderRadius: borderRadius.lg,
                 }
               }}
             />
@@ -409,13 +410,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </Button>
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: spacing.sm }}>
             <Typography variant="caption" color="text.secondary">
               Tryck Enter för att skicka • Shift+Enter för ny rad
             </Typography>
 
             {messages.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: spacing.sm }}>
                 <IconButton size="small" aria-label="Thumbs up">
                   <ThumbUp fontSize="small" />
                 </IconButton>

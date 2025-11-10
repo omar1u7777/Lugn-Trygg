@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
@@ -194,7 +195,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
                 startIcon={<FingerprintIcon />}
                 onClick={() => setActiveStep(1)}
                 disabled={!biometricSupported}
-                sx={{ p: 3, justifyContent: 'flex-start' }}
+                sx={{ p: spacing.lg, justifyContent: 'flex-start' }}
               >
                 <Box textAlign="left">
                   <Typography variant="subtitle1">Biometric Authentication</Typography>
@@ -213,7 +214,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
                 variant="outlined"
                 startIcon={<SmartphoneIcon />}
                 onClick={() => setActiveStep(1)}
-                sx={{ p: 3, justifyContent: 'flex-start' }}
+                sx={{ p: spacing.lg, justifyContent: 'flex-start' }}
               >
                 <Box textAlign="left">
                   <Typography variant="subtitle1">SMS Authentication</Typography>
@@ -236,7 +237,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
 
             {biometricSupported && !phoneNumber ? (
               <Box textAlign="center">
-                <FingerprintIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                <FingerprintIcon sx={{ fontSize: 64, color: 'primary.main', mb: spacing.md }} />
                 <Typography variant="h6" gutterBottom>
                   Setup Biometric Authentication
                 </Typography>
@@ -266,7 +267,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       placeholder="+46 70 123 45 67"
-                      sx={{ mb: 2 }}
+                      sx={{ mb: spacing.md }}
                     />
                     <Button
                       fullWidth
@@ -290,7 +291,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
                       onChange={(e) => setVerificationCode(e.target.value)}
                       placeholder="123456"
                       inputProps={{ maxLength: 6 }}
-                      sx={{ mb: 2 }}
+                      sx={{ mb: spacing.md }}
                     />
                     <Button
                       fullWidth
@@ -311,7 +312,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
       case 2:
         return (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: spacing.md }} />
             <Typography variant="h6" gutterBottom>
               Two-Factor Authentication Setup Complete!
             </Typography>
@@ -320,7 +321,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
               when logging in from new devices.
             </Typography>
 
-            <Box sx={{ mt: 3 }}>
+            <Box sx={{ mt: spacing.lg }}>
               <Chip
                 icon={biometricEnrolled ? <FingerprintIcon /> : <SmartphoneIcon />}
                 label={biometricEnrolled ? "Biometric Authentication" : "SMS Authentication"}
@@ -345,7 +346,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
           >
-            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: spacing.md }} />
             <Typography variant="h5" gutterBottom>
               Setup Complete!
             </Typography>
@@ -360,13 +361,13 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
 
   return (
     <Dialog open={true} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <SecurityIcon />
         Setup Two-Factor Authentication
       </DialogTitle>
 
       <DialogContent>
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        <Stepper activeStep={activeStep} sx={{ mb: spacing.xl }}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -375,7 +376,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
         </Stepper>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: spacing.lg }}>
             {error}
           </Alert>
         )}

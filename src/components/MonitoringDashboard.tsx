@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -159,7 +160,7 @@ const MonitoringDashboard: React.FC = () => {
   );
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: spacing.lg, maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
@@ -245,12 +246,12 @@ const MonitoringDashboard: React.FC = () => {
       </Grid>
 
       {/* Performance Score Visualization */}
-      <Card sx={{ mb: 4 }}>
+      <Card sx={{ mb: spacing.xl }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Performance Score Breakdown
           </Typography>
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: spacing.md }}>
             <Box display="flex" justifyContent="space-between" mb={1}>
               <Typography variant="body2">Lighthouse Score</Typography>
               <Typography variant="body2">{metrics.performanceScore}/100</Typography>
@@ -259,7 +260,7 @@ const MonitoringDashboard: React.FC = () => {
               variant="determinate"
               value={metrics.performanceScore}
               color={metrics.performanceScore >= 90 ? 'success' : metrics.performanceScore >= 80 ? 'warning' : 'error'}
-              sx={{ height: 8, borderRadius: 4 }}
+              sx={{ height: 8, borderRadius: borderRadius.xl }}
             />
           </Box>
         </CardContent>

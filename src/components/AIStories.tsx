@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -156,9 +157,9 @@ const AIStories: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: spacing.lg }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <StoriesIcon color="primary" />
             {t('ai.stories.title')}
           </Typography>
@@ -177,7 +178,7 @@ const AIStories: React.FC = () => {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: spacing.lg }}>
             {error}
           </Alert>
         )}
@@ -244,7 +245,7 @@ const AIStories: React.FC = () => {
                       color="text.secondary"
                       sx={{
                         display: '-webkit-box',
-                        WebkitLineClamp: 3,
+                        WebkitLineClamp: spacing.lg,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
                       }}
@@ -285,7 +286,7 @@ const AIStories: React.FC = () => {
         >
           {selectedStory && (
             <>
-              <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <StoriesIcon />
                 {selectedStory.title}
                 <Chip
@@ -315,7 +316,7 @@ const AIStories: React.FC = () => {
                       sx={{
                         height: 4,
                         backgroundColor: 'grey.300',
-                        borderRadius: 2,
+                        borderRadius: borderRadius.md,
                         position: 'relative',
                       }}
                     >
@@ -323,7 +324,7 @@ const AIStories: React.FC = () => {
                         sx={{
                           height: '100%',
                           backgroundColor: 'primary.main',
-                          borderRadius: 2,
+                          borderRadius: borderRadius.md,
                           width: `${(currentTime / selectedStory.duration) * 100}%`,
                           transition: 'width 0.3s ease',
                         }}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { 
     Box, 
     Typography, 
@@ -158,7 +159,7 @@ const ReferralProgram: React.FC = () => {
                 }}
             >
                 <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={60} sx={{ mb: 2 }} />
+                    <CircularProgress size={60} sx={{ mb: spacing.md }} />
                     <Typography variant="body1" color="text.secondary">
                         Laddar referensprogram...
                     </Typography>
@@ -170,7 +171,7 @@ const ReferralProgram: React.FC = () => {
     if (error) {
         return (
             <Box sx={{ maxWidth: 'md', mx: 'auto' }}>
-                <Alert severity="error" icon={<span style={{ fontSize: '1.5rem' }}>❌</span>} sx={{ borderRadius: 3, p: 3 }}>
+                <Alert severity="error" icon={<span style={{ fontSize: '1.5rem' }}>❌</span>} sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
                         Något gick fel
                     </Typography>
@@ -185,7 +186,7 @@ const ReferralProgram: React.FC = () => {
     if (!referralData) {
         return (
             <Box sx={{ maxWidth: 'md', mx: 'auto' }}>
-                <Alert severity="warning" icon={<span style={{ fontSize: '1.5rem' }}>⚠️</span>} sx={{ borderRadius: 3, p: 3 }}>
+                <Alert severity="warning" icon={<span style={{ fontSize: '1.5rem' }}>⚠️</span>} sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
                         Ingen data tillgänglig
                     </Typography>
@@ -200,9 +201,9 @@ const ReferralProgram: React.FC = () => {
     const tierInfo = getTierInfo(referralData.tier);
 
     return (
-        <Box sx={{ maxWidth: '1400px', mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ maxWidth: '1400px', mx: 'auto', display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
                 <Typography variant="h3" fontWeight="bold" color="text.primary" gutterBottom>
                     🤝 Referensprogram
                 </Typography>
@@ -228,17 +229,17 @@ const ReferralProgram: React.FC = () => {
                 elevation={3}
                 sx={{
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: 3,
-                    p: 4,
+                    borderRadius: borderRadius.lg,
+                    p: spacing.xl,
                     color: 'white',
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.lg }}>
                     <Box>
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
                             Din nivå: {referralData.tier}
                         </Typography>
-                        <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                        <Typography variant="body1" sx={{ color: 'colors.overlay.medium' }}>
                             {tierInfo.nextTier 
                                 ? `${tierInfo.required! - referralData.referralCount} fler referenser till ${tierInfo.nextTier}`
                                 : 'Högsta nivån uppnådd! 🎉'}
@@ -251,12 +252,12 @@ const ReferralProgram: React.FC = () => {
                 
                 {/* Progress Bar */}
                 {tierInfo.nextTier && (
-                    <Box sx={{ mb: 3 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                    <Box sx={{ mb: spacing.lg }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: spacing.sm }}>
+                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                                 {referralData.tier}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                                 {tierInfo.nextTier}
                             </Typography>
                         </Box>
@@ -265,14 +266,14 @@ const ReferralProgram: React.FC = () => {
                             value={Math.min(100, (referralData.referralCount / tierInfo.required!) * 100)}
                             sx={{
                                 height: 12,
-                                borderRadius: 2,
-                                bgcolor: 'rgba(255,255,255,0.2)',
+                                borderRadius: borderRadius.md,
+                                bgcolor: 'colors.overlay.medium',
                                 '& .MuiLinearProgress-bar': {
                                     bgcolor: 'white',
                                 },
                             }}
                         />
-                        <Typography variant="body2" textAlign="center" sx={{ mt: 1, color: 'rgba(255,255,255,0.9)' }}>
+                        <Typography variant="body2" textAlign="center" sx={{ mt: spacing.sm, color: 'colors.overlay.medium' }}>
                             {referralData.referralCount} / {tierInfo.required!} referenser
                         </Typography>
                     </Box>
@@ -283,17 +284,17 @@ const ReferralProgram: React.FC = () => {
                         <Paper
                             elevation={0}
                             sx={{
-                                bgcolor: 'rgba(255,255,255,0.2)',
+                                bgcolor: 'colors.overlay.medium',
                                 backdropFilter: 'blur(10px)',
-                                p: 2,
-                                borderRadius: 2,
+                                p: spacing.md,
+                                borderRadius: borderRadius.md,
                                 textAlign: 'center',
                             }}
                         >
                             <Typography variant="h4" fontWeight="bold" color="white">
                                 {referralData.referralCount || 0}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                                 Totalt bjudna
                             </Typography>
                         </Paper>
@@ -302,17 +303,17 @@ const ReferralProgram: React.FC = () => {
                         <Paper
                             elevation={0}
                             sx={{
-                                bgcolor: 'rgba(255,255,255,0.2)',
+                                bgcolor: 'colors.overlay.medium',
                                 backdropFilter: 'blur(10px)',
-                                p: 2,
-                                borderRadius: 2,
+                                p: spacing.md,
+                                borderRadius: borderRadius.md,
                                 textAlign: 'center',
                             }}
                         >
                             <Typography variant="h4" fontWeight="bold" color="white">
                                 {stats?.active || 0}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                                 Aktiva användare
                             </Typography>
                         </Paper>
@@ -321,17 +322,17 @@ const ReferralProgram: React.FC = () => {
                         <Paper
                             elevation={0}
                             sx={{
-                                bgcolor: 'rgba(255,255,255,0.2)',
+                                bgcolor: 'colors.overlay.medium',
                                 backdropFilter: 'blur(10px)',
-                                p: 2,
-                                borderRadius: 2,
+                                p: spacing.md,
+                                borderRadius: borderRadius.md,
                                 textAlign: 'center',
                             }}
                         >
                             <Typography variant="h4" fontWeight="bold" color="white">
                                 {referralData.rewards || 0} veckor
                             </Typography>
-                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                                 Premium-belöning
                             </Typography>
                         </Paper>
@@ -340,7 +341,7 @@ const ReferralProgram: React.FC = () => {
             </Paper>
 
             {/* Referral Code */}
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
                     🎟️ Din referenskod
                 </Typography>
@@ -348,9 +349,9 @@ const ReferralProgram: React.FC = () => {
                     elevation={0}
                     sx={{
                         bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                        p: 3,
-                        mb: 2,
-                        borderRadius: 2,
+                        p: spacing.lg,
+                        mb: spacing.md,
+                        borderRadius: borderRadius.md,
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -376,8 +377,8 @@ const ReferralProgram: React.FC = () => {
                     elevation={0}
                     sx={{
                         bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                        p: 3,
-                        borderRadius: 2,
+                        p: spacing.lg,
+                        borderRadius: borderRadius.md,
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -407,7 +408,7 @@ const ReferralProgram: React.FC = () => {
             </Paper>
 
             {/* Share Options */}
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
                     📢 Dela med vänner
                 </Typography>
@@ -417,17 +418,17 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('whatsapp')}
                             fullWidth
                             sx={{
-                                p: 2,
+                                p: spacing.md,
                                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
                                 color: (theme) => theme.palette.mode === 'dark' ? 'rgb(134, 239, 172)' : 'rgb(22, 101, 52)',
                                 '&:hover': {
                                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.2)',
                                 },
-                                borderRadius: 2,
+                                borderRadius: borderRadius.md,
                                 flexDirection: 'column',
                             }}
                         >
-                            <Box sx={{ fontSize: '2rem', mb: 1 }}>📱</Box>
+                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>📱</Box>
                             <Typography variant="body1" fontWeight="600">
                                 WhatsApp
                             </Typography>
@@ -438,17 +439,17 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('facebook')}
                             fullWidth
                             sx={{
-                                p: 2,
+                                p: spacing.md,
                                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
                                 color: (theme) => theme.palette.mode === 'dark' ? 'rgb(147, 197, 253)' : 'rgb(30, 58, 138)',
                                 '&:hover': {
                                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)',
                                 },
-                                borderRadius: 2,
+                                borderRadius: borderRadius.md,
                                 flexDirection: 'column',
                             }}
                         >
-                            <Box sx={{ fontSize: '2rem', mb: 1 }}>👥</Box>
+                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>👥</Box>
                             <Typography variant="body1" fontWeight="600">
                                 Facebook
                             </Typography>
@@ -459,17 +460,17 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('twitter')}
                             fullWidth
                             sx={{
-                                p: 2,
+                                p: spacing.md,
                                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.1)',
                                 color: (theme) => theme.palette.mode === 'dark' ? 'rgb(125, 211, 252)' : 'rgb(12, 74, 110)',
                                 '&:hover': {
                                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.3)' : 'rgba(14, 165, 233, 0.2)',
                                 },
-                                borderRadius: 2,
+                                borderRadius: borderRadius.md,
                                 flexDirection: 'column',
                             }}
                         >
-                            <Box sx={{ fontSize: '2rem', mb: 1 }}>🐦</Box>
+                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>🐦</Box>
                             <Typography variant="body1" fontWeight="600">
                                 Twitter
                             </Typography>
@@ -480,17 +481,17 @@ const ReferralProgram: React.FC = () => {
                             onClick={() => handleShare('email')}
                             fullWidth
                             sx={{
-                                p: 2,
+                                p: spacing.md,
                                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.1)',
                                 color: (theme) => theme.palette.mode === 'dark' ? 'rgb(216, 180, 254)' : 'rgb(88, 28, 135)',
                                 '&:hover': {
                                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(168, 85, 247, 0.2)',
                                 },
-                                borderRadius: 2,
+                                borderRadius: borderRadius.md,
                                 flexDirection: 'column',
                             }}
                         >
-                            <Box sx={{ fontSize: '2rem', mb: 1 }}>📧</Box>
+                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>📧</Box>
                             <Typography variant="body1" fontWeight="600">
                                 Email
                             </Typography>
@@ -515,7 +516,7 @@ const ReferralProgram: React.FC = () => {
             <ReferralLeaderboard />
 
             {/* Rewards Info */}
-            <Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
                     🎁 Belöningar
                 </Typography>
@@ -583,8 +584,8 @@ const ReferralProgram: React.FC = () => {
                 elevation={0}
                 sx={{
                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                    p: 3,
-                    borderRadius: 3,
+                    p: spacing.lg,
+                    borderRadius: borderRadius.lg,
                 }}
             >
                 <Typography variant="h6" fontWeight="600" color="text.primary" gutterBottom>

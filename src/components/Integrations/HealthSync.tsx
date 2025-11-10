@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -165,24 +166,24 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
         <Typography variant="h5" gutterBottom>
           🏃 Health & Fitness Integration
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
           Sync your fitness data from Google Fit or Apple Health to get personalized mood insights based on physical activity, sleep, and heart rate.
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{ mb: spacing.md }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          <Alert severity="success" sx={{ mb: spacing.md }} onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
 
         {/* Integration Toggles */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: spacing.lg }}>
           <FormControlLabel
             control={
               <Switch
@@ -192,7 +193,7 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
               />
             }
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <OptimizedImage
                   src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png"
                   alt="Google Fit"
@@ -212,7 +213,7 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
           )}
         </Box>
 
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: spacing.lg }}>
           <FormControlLabel
             control={
               <Switch
@@ -222,7 +223,7 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
               />
             }
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <Favorite sx={{ color: '#FF2D55' }} />
                 <Typography>Apple Health</Typography>
                 {syncStatus.apple_health && <CheckCircle color="success" fontSize="small" />}
@@ -306,7 +307,7 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
         )}
 
         {/* Sync Button */}
-        <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+        <Box sx={{ mt: spacing.lg, display: 'flex', gap: spacing.md }}>
           <Button
             variant="contained"
             startIcon={<Sync />}
@@ -321,7 +322,7 @@ const HealthSync: React.FC<{ userId: string }> = ({ userId }) => {
           </Button>
         </Box>
 
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.md, display: 'block' }}>
           💡 Tip: Regular physical activity and good sleep are strongly linked to improved mood and mental wellbeing.
         </Typography>
       </CardContent>

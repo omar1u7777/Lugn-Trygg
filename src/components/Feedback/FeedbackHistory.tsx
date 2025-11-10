@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { 
     Box, 
     Typography, 
@@ -93,7 +94,7 @@ const FeedbackHistory: React.FC = () => {
     if (loading) {
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
-                <CircularProgress size={60} sx={{ mb: 2 }} />
+                <CircularProgress size={60} sx={{ mb: spacing.md }} />
                 <Typography variant="body1" color="text.secondary">
                     Laddar din feedback...
                 </Typography>
@@ -112,7 +113,7 @@ const FeedbackHistory: React.FC = () => {
     if (feedback.length === 0) {
         return (
             <Paper elevation={2} sx={{ p: 6, textAlign: 'center', bgcolor: 'background.default' }}>
-                <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📭</Typography>
+                <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>📭</Typography>
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     Ingen feedback ännu
                 </Typography>
@@ -125,7 +126,7 @@ const FeedbackHistory: React.FC = () => {
 
     return (
         <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold">
                     📜 Min Feedback-historik
                 </Typography>
@@ -134,21 +135,21 @@ const FeedbackHistory: React.FC = () => {
                 </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
                 {feedback.map((item) => (
                     <Paper
                         key={item.id}
                         elevation={2}
                         sx={{ 
-                            p: 3,
+                            p: spacing.lg,
                             borderLeft: 4,
                             borderColor: 'primary.main',
                             '&:hover': { boxShadow: 6 },
                             transition: 'box-shadow 0.3s'
                         }}
                     >
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: spacing.md }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                                 <Typography variant="h3">{categoryEmojis[item.category] || '💬'}</Typography>
                                 <Box>
                                     <Typography variant="h6" fontWeight="bold">
@@ -166,8 +167,8 @@ const FeedbackHistory: React.FC = () => {
                             />
                         </Box>
 
-                        <Box sx={{ mb: 2 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Box sx={{ mb: spacing.md }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: spacing.sm }}>
                                 {[1, 2, 3, 4, 5].map((star) => (
                                     <span key={star} style={{ fontSize: '1.25rem' }}>
                                         {star <= item.rating ? '⭐' : '☆'}
@@ -186,14 +187,14 @@ const FeedbackHistory: React.FC = () => {
                             <Paper 
                                 elevation={0}
                                 sx={{ 
-                                    p: 2, 
-                                    mt: 2,
+                                    p: spacing.md, 
+                                    mt: spacing.md,
                                     bgcolor: 'info.light',
                                     border: 1,
                                     borderColor: 'info.main'
                                 }}
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: spacing.sm }}>
                                     <Typography variant="h6">💬</Typography>
                                     <Typography variant="subtitle2" fontWeight="bold">
                                         Svar från teamet
@@ -210,7 +211,7 @@ const FeedbackHistory: React.FC = () => {
                             </Paper>
                         )}
 
-                        <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: 'block' }}>
+                        <Typography variant="caption" color="text.disabled" sx={{ mt: spacing.sm, display: 'block' }}>
                             Feedback-ID: #{item.id.slice(0, 8)}
                         </Typography>
                     </Paper>

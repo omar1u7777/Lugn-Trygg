@@ -137,6 +137,34 @@ class InputSanitizer:
 
         return sanitized
 
+    # Public convenience methods for direct access
+    
+    def sanitize_html(self, html_content: str) -> str:
+        """Public method to sanitize HTML content"""
+        return self._sanitize_html(html_content)
+    
+    def sanitize_email(self, email: str) -> str:
+        """Public method to sanitize email address"""
+        return self._sanitize_email(email)
+    
+    def sanitize_url(self, url: str) -> str:
+        """Public method to sanitize URL"""
+        return self._sanitize_url(url)
+    
+    def validate_phone(self, phone: str) -> bool:
+        """Validate phone number format"""
+        if not phone:
+            return False
+        
+        # Remove common formatting characters
+        clean_phone = re.sub(r'[\s\-\(\)\.]', '', phone)
+        
+        # Check if it's a valid phone number (international format)
+        # Accepts formats like: +46701234567, +1234567890, etc.
+        phone_pattern = r'^\+?[1-9]\d{1,14}$'
+        
+        return bool(re.match(phone_pattern, clean_phone))
+
     def _sanitize_text(self, text: str) -> str:
         """Sanitize plain text input"""
         if not text:

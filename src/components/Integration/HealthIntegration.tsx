@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
     Box,
     Container,
@@ -129,7 +130,7 @@ const HealthIntegration: React.FC = () => {
         return (
             <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={60} sx={{ mb: 2 }} />
+                    <CircularProgress size={60} sx={{ mb: spacing.md }} />
                     <Typography variant="body1" color="text.secondary">
                         Laddar hälsodata...
                     </Typography>
@@ -141,7 +142,7 @@ const HealthIntegration: React.FC = () => {
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
                 <Typography variant="h3" fontWeight="bold" gutterBottom>
                     ❤️ Hälsointegration
                 </Typography>
@@ -152,7 +153,7 @@ const HealthIntegration: React.FC = () => {
 
             {/* Error Message */}
             {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
+                <Alert severity="error" sx={{ mb: spacing.lg }}>
                     {error}
                 </Alert>
             )}
@@ -165,7 +166,7 @@ const HealthIntegration: React.FC = () => {
                         syncStatus === 'success' ? 'success' :
                         'error'
                     }
-                    sx={{ mb: 3 }}
+                    sx={{ mb: spacing.lg }}
                 >
                     {syncStatus === 'syncing' && '⚙️ Synkroniserar...'}
                     {syncStatus === 'success' && '✅ Synkronisering klar!'}
@@ -175,12 +176,12 @@ const HealthIntegration: React.FC = () => {
 
             {/* Current Health Data */}
             {wearableData && (
-                <Grid container spacing={2} sx={{ mb: 4 }}>
+                <Grid container spacing={2} sx={{ mb: spacing.xl }}>
                     {wearableData.steps !== undefined && (
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: 1 }}>🚶</Typography>
+                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>🚶</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.steps}
                                     </Typography>
@@ -195,7 +196,7 @@ const HealthIntegration: React.FC = () => {
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: 1 }}>❤️</Typography>
+                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>❤️</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.heartRate} bpm
                                     </Typography>
@@ -210,7 +211,7 @@ const HealthIntegration: React.FC = () => {
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: 1 }}>😴</Typography>
+                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>😴</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.sleep}h
                                     </Typography>
@@ -225,7 +226,7 @@ const HealthIntegration: React.FC = () => {
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
                                 <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: 1 }}>🔥</Typography>
+                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>🔥</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.calories}
                                     </Typography>
@@ -240,14 +241,14 @@ const HealthIntegration: React.FC = () => {
             )}
 
             {/* Connected Devices */}
-            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     📱 Anslutna enheter
                 </Typography>
                 
                 {devices.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📱</Typography>
+                        <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>📱</Typography>
                         <Typography variant="body1" color="text.secondary" gutterBottom>
                             Inga enheter anslutna ännu
                         </Typography>
@@ -256,20 +257,20 @@ const HealthIntegration: React.FC = () => {
                         </Typography>
                     </Box>
                 ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
                         {devices.map((device) => (
                             <Paper
                                 key={device.id}
                                 elevation={0}
                                 sx={{ 
-                                    p: 2, 
+                                    p: spacing.md, 
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     justifyContent: 'space-between',
                                     bgcolor: 'background.default'
                                 }}
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                                     <Typography variant="h3">
                                         {device.type === 'fitbit' && '⌚'}
                                         {device.type === 'apple_health' && '🍎'}
@@ -292,7 +293,7 @@ const HealthIntegration: React.FC = () => {
                                         </Typography>
                                     </Box>
                                 </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Box sx={{ display: 'flex', gap: spacing.sm }}>
                                     {device.connected && (
                                         <Button
                                             variant="contained"
@@ -320,7 +321,7 @@ const HealthIntegration: React.FC = () => {
             </Paper>
 
             {/* Add New Device */}
-            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     ➕ Anslut ny enhet
                 </Typography>
@@ -334,7 +335,7 @@ const HealthIntegration: React.FC = () => {
                             sx={{ 
                                 py: 3, 
                                 flexDirection: 'column', 
-                                gap: 1,
+                                gap: spacing.sm,
                                 height: '100%'
                             }}
                         >
@@ -353,7 +354,7 @@ const HealthIntegration: React.FC = () => {
                             sx={{ 
                                 py: 3, 
                                 flexDirection: 'column', 
-                                gap: 1,
+                                gap: spacing.sm,
                                 height: '100%'
                             }}
                         >
@@ -372,7 +373,7 @@ const HealthIntegration: React.FC = () => {
                             sx={{ 
                                 py: 3, 
                                 flexDirection: 'column', 
-                                gap: 1,
+                                gap: spacing.sm,
                                 height: '100%'
                             }}
                         >
@@ -391,7 +392,7 @@ const HealthIntegration: React.FC = () => {
                             sx={{ 
                                 py: 3, 
                                 flexDirection: 'column', 
-                                gap: 1,
+                                gap: spacing.sm,
                                 height: '100%'
                             }}
                         >
@@ -405,14 +406,14 @@ const HealthIntegration: React.FC = () => {
             </Paper>
 
             {/* FHIR Integration */}
-            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     🏥 FHIR Integration
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: spacing.md }}>
                     Anslut till sjukvårdssystem som stödjer FHIR-standarden för säker delning av hälsodata
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
                     <Button
                         variant="contained"
                         color="success"
@@ -462,7 +463,7 @@ const HealthIntegration: React.FC = () => {
                 <Typography variant="body1" gutterBottom>
                     Om du upplever en kris, kontakta omedelbart:
                 </Typography>
-                <Box sx={{ mt: 1 }}>
+                <Box sx={{ mt: spacing.sm }}>
                     <Typography variant="body2" fontWeight="bold" gutterBottom>
                         📞 <strong>112</strong> - Akut nödläge
                     </Typography>

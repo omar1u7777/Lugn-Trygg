@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Card, CardContent, Typography, Box, Chip, Button, LinearProgress, Avatar, Badge } from '@mui/material';
 import { EmojiEvents, Star, TrendingUp, LocalFireDepartment, Psychology, Favorite } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -227,7 +228,7 @@ const Gamification = ({ userId }: GamificationProps) => {
             value={(xp / (xp + xpToNext)) * 100}
             className="h-3 rounded-full"
             sx={{
-              backgroundColor: 'rgba(255,255,255,0.3)',
+              backgroundColor: 'colors.overlay.heavy',
               '& .MuiLinearProgress-bar': {
                 backgroundColor: 'white',
               },

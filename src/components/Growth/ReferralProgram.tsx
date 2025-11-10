@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -127,32 +128,32 @@ const ReferralProgram: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <Card sx={{ maxWidth: 700, margin: '16px auto' }}>
       <CardContent>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <EmojiEvents color="warning" />
           Referral Program
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
           Invite friends to Lugn & Trygg and earn rewards! Get 1 week of premium for every 5 successful referrals.
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{ mb: spacing.md }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          <Alert severity="success" sx={{ mb: spacing.md }} onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
 
-        {loading && <LinearProgress sx={{ mb: 2 }} />}
+        {loading && <LinearProgress sx={{ mb: spacing.md }} />}
 
         {stats && !loading && (
           <>
             {/* Stats Cards */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 2, mb: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: spacing.md, mb: spacing.lg }}>
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="h4" color="primary">
@@ -188,14 +189,14 @@ const ReferralProgram: React.FC<{ userId: string }> = ({ userId }) => {
             </Box>
 
             {/* Progress to Next Reward */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: spacing.lg }}>
               <Typography variant="subtitle2" gutterBottom>
                 Progress to Next Reward
               </Typography>
               <LinearProgress
                 variant="determinate"
                 value={progressToNextReward}
-                sx={{ height: 10, borderRadius: 5, mb: 1 }}
+                sx={{ height: 10, borderRadius: 5, mb: spacing.sm }}
               />
               <Typography variant="caption" color="text.secondary">
                 {stats.successful_referrals % 5} / 5 referrals
@@ -205,11 +206,11 @@ const ReferralProgram: React.FC<{ userId: string }> = ({ userId }) => {
             <Divider sx={{ my: 3 }} />
 
             {/* Referral Link */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: spacing.lg }}>
               <Typography variant="h6" gutterBottom>
                 Your Referral Link
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: spacing.sm }}>
                 <TextField
                   fullWidth
                   value={getReferralLink()}
@@ -224,18 +225,18 @@ const ReferralProgram: React.FC<{ userId: string }> = ({ userId }) => {
                 />
               </Box>
               {copied && (
-                <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block' }}>
+                <Typography variant="caption" color="success.main" sx={{ mt: spacing.sm, display: 'block' }}>
                   ✓ Copied to clipboard!
                 </Typography>
               )}
             </Box>
 
             {/* Share via Email */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: spacing.lg }}>
               <Typography variant="h6" gutterBottom>
                 Invite via Email
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: spacing.sm }}>
                 <TextField
                   fullWidth
                   type="email"
@@ -255,11 +256,11 @@ const ReferralProgram: React.FC<{ userId: string }> = ({ userId }) => {
             </Box>
 
             {/* Social Sharing */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: spacing.lg }}>
               <Typography variant="h6" gutterBottom>
                 Share on Social Media
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: spacing.md }}>
                 <Button
                   variant="outlined"
                   startIcon={<WhatsApp />}

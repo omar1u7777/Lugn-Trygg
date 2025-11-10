@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Typography,
@@ -91,7 +92,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       // Mock data - in real app, this would come from backend
       const mockStats: UserStats = {
         level: 3,
-        xp: 250,
+        xp: spacing.md50,
         xpToNext: 500,
         streakDays: 7,
         totalMoods: 23,
@@ -216,11 +217,11 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
   if (loading) {
     return (
-      <Box className="world-class-app" sx={{ p: 4, textAlign: 'center' }}>
+      <Box className="world-class-app" sx={{ p: spacing.xl, textAlign: 'center' }}>
         <Typography variant="h6" className="world-class-body">
           Laddar dina achievements...
         </Typography>
-        <LinearProgress sx={{ mt: 2, borderRadius: 2, height: 8 }} />
+        <LinearProgress sx={{ mt: spacing.md, borderRadius: borderRadius.md, height: 8 }} />
       </Box>
     );
   }
@@ -230,14 +231,14 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       className="world-class-app"
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%)',
-        p: 2,
+        background: 'linear-gradient(135deg, #f8fafc 0%, colors.text.inverse 50%, #f1f5f9 100%)',
+        p: spacing.md,
       }}
     >
       <Card className="world-class-dashboard-card" sx={{ maxWidth: 1200, mx: 'auto' }}>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: spacing.xl }}>
           {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.xl }}>
             <Typography variant="h4" className="world-class-heading-2">
               🏆 Dina Achievements & Framsteg
             </Typography>
@@ -247,10 +248,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           </Box>
 
           {/* Level & XP */}
-          <Card className="world-class-dashboard-card world-class-dashboard-card-premium" sx={{ mb: 4 }}>
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Card className="world-class-dashboard-card world-class-dashboard-card-premium" sx={{ mb: spacing.xl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.lg }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                   <Badge
                     badgeContent={stats.level}
                     color="primary"
@@ -271,35 +272,35 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                     <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
                       Nivå {stats.level}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                       {stats.xp} / {stats.xpToNext} XP till nästa nivå
                     </Typography>
                   </Box>
                 </Box>
 
                 <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
+                  <Typography variant="h6" sx={{ color: 'white', mb: spacing.sm }}>
                     {stats.streakDays} dagar i rad 🔥
                   </Typography>
                   <Chip
                     label={`${stats.achievementsUnlocked}/${stats.totalAchievements} Achievements`}
                     sx={{
-                      bgcolor: 'rgba(255,255,255,0.2)',
+                      bgcolor: 'colors.overlay.medium',
                       color: 'white',
-                      border: '1px solid rgba(255,255,255,0.3)',
+                      border: '1px solid colors.overlay.heavy',
                     }}
                   />
                 </Box>
               </Box>
 
-              <Box sx={{ mb: 2 }}>
+              <Box sx={{ mb: spacing.md }}>
                 <LinearProgress
                   variant="determinate"
                   value={(stats.xp / stats.xpToNext) * 100}
                   sx={{
                     height: 12,
                     borderRadius: 6,
-                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    backgroundColor: 'colors.overlay.medium',
                     '& .MuiLinearProgress-bar': {
                       backgroundColor: 'white',
                       borderRadius: 6,
@@ -311,7 +312,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           </Card>
 
           {/* Stats Overview */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid container spacing={3} sx={{ mb: spacing.xl }}>
             <Grid item xs={6} sm={3}>
               <Card className="world-class-analytics-card">
                 <Typography variant="h4" className="world-class-analytics-value">
@@ -358,7 +359,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           </Grid>
 
           {/* Unlocked Achievements */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: spacing.xl }}>
             <Typography variant="h5" className="world-class-heading-3" gutterBottom>
               🏅 Upplåsta Achievements ({unlockedAchievements.length})
             </Typography>
@@ -373,7 +374,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                       border: `2px solid ${getRarityColor(achievement.rarity)}`,
                     }}
                   >
-                    <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                    <CardContent sx={{ p: spacing.lg, textAlign: 'center' }}>
                       <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
                         <Typography variant="caption" sx={{ fontSize: '1.2rem' }}>
                           {getRarityIcon(achievement.rarity)}
@@ -386,7 +387,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                           height: 64,
                           bgcolor: 'success.main',
                           mx: 'auto',
-                          mb: 2,
+                          mb: spacing.md,
                         }}
                       >
                         {achievement.icon}
@@ -396,11 +397,11 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                         {achievement.title}
                       </Typography>
 
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
                         {achievement.description}
                       </Typography>
 
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
                         {getCategoryIcon(achievement.category)}
                         <Chip
                           label={achievement.category}
@@ -409,7 +410,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                         />
                       </Box>
 
-                      <CheckCircle sx={{ color: 'success.main', mt: 2, fontSize: 24 }} />
+                      <CheckCircle sx={{ color: 'success.main', mt: spacing.md, fontSize: 24 }} />
                     </CardContent>
                   </Card>
                 </Grid>
@@ -418,7 +419,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           </Box>
 
           {/* Locked Achievements */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: spacing.xl }}>
             <Typography variant="h5" className="world-class-heading-3" gutterBottom>
               🔒 Kommande Achievements ({lockedAchievements.length})
             </Typography>
@@ -434,14 +435,14 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                       border: `2px solid ${getRarityColor(achievement.rarity)}`,
                     }}
                   >
-                    <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                    <CardContent sx={{ p: spacing.lg, textAlign: 'center' }}>
                       <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
                         <Typography variant="caption" sx={{ fontSize: '1.2rem' }}>
                           {getRarityIcon(achievement.rarity)}
                         </Typography>
                       </Box>
 
-                      <Box sx={{ position: 'relative', display: 'inline-block', mb: 2 }}>
+                      <Box sx={{ position: 'relative', display: 'inline-block', mb: spacing.md }}>
                         <Avatar
                           sx={{
                             width: 64,
@@ -468,22 +469,22 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                         {achievement.title}
                       </Typography>
 
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
                         {achievement.description}
                       </Typography>
 
-                      <Box sx={{ mb: 2 }}>
+                      <Box sx={{ mb: spacing.md }}>
                         <Typography variant="caption" color="text.secondary" display="block">
                           Framsteg: {achievement.progress} / {achievement.maxProgress}
                         </Typography>
                         <LinearProgress
                           variant="determinate"
                           value={(achievement.progress / achievement.maxProgress) * 100}
-                          sx={{ mt: 1, height: 6, borderRadius: 3 }}
+                          sx={{ mt: spacing.sm, height: 6, borderRadius: borderRadius.lg }}
                         />
                       </Box>
 
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
                         {getCategoryIcon(achievement.category)}
                         <Chip
                           label={achievement.category}
@@ -500,15 +501,15 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
           {/* Motivation Section */}
           <Card className="world-class-dashboard-card" sx={{ bgcolor: 'primary.light', color: 'white' }}>
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
                 🚀 Fortsätt din resa!
               </Typography>
-              <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
+              <Typography variant="body1" sx={{ mb: spacing.lg, opacity: 0.9 }}>
                 Varje steg du tar mot bättre mental hälsa är viktigt. Du är på rätt väg!
               </Typography>
 
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', gap: spacing.md, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Button
                   variant="contained"
                   sx={{
@@ -526,7 +527,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                   sx={{
                     borderColor: 'white',
                     color: 'white',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                    '&:hover': { bgcolor: 'colors.overlay.light' }
                   }}
                   startIcon={<Share />}
                 >

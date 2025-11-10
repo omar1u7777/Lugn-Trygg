@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   LineChart,
   Line,
@@ -165,7 +166,7 @@ const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId, provider })
               <Bar
                 dataKey="steps"
                 name="Steg"
-                fill="#3b82f6"
+                fill="colors.mood.anxious"
                 radius={[8, 8, 0, 0]}
               />
             </BarChart>
@@ -206,9 +207,9 @@ const HealthDataCharts: React.FC<HealthDataChartsProps> = ({ userId, provider })
                 type="monotone"
                 dataKey="heartRate"
                 name="Puls (bpm)"
-                stroke="#ef4444"
+                stroke="colors.mood.depressed"
                 strokeWidth={3}
-                dot={{ fill: '#ef4444', r: 6 }}
+                dot={{ fill: 'colors.mood.depressed', r: 6 }}
                 activeDot={{ r: 8 }}
               />
             </LineChart>

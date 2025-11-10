@@ -3,7 +3,8 @@
  * User controls for data privacy and GDPR compliance
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -97,13 +98,13 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <SecurityIcon color="primary" />
         {t('privacy.title', 'Privacy & Security')}
       </Typography>
 
       {/* Encryption Settings */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: spacing.lg }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             <LockIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -128,7 +129,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       </Card>
 
       {/* Data Retention */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: spacing.lg }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             {t('privacy.dataRetention', 'Data Retention')}
@@ -136,7 +137,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           <Typography variant="body2" color="text.secondary" gutterBottom>
             {t('privacy.dataRetentionDesc', 'How long should we keep your data?')}
           </Typography>
-          <Box sx={{ px: 2, mt: 2 }}>
+          <Box sx={{ px: 2, mt: spacing.md }}>
             <Slider
               value={settings.dataRetentionDays}
               onChange={(_e, value) => handleSettingChange('dataRetentionDays', value)}
@@ -161,13 +162,13 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
               />
             }
             label={t('privacy.autoDelete', 'Automatically delete data older than retention period')}
-            sx={{ mt: 2 }}
+            sx={{ mt: spacing.md }}
           />
         </CardContent>
       </Card>
 
       {/* Analytics & Sharing */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: spacing.lg }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             <VisibilityOffIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -201,16 +202,16 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       <Divider sx={{ my: 3 }} />
 
       {/* GDPR Rights */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: spacing.lg }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             {t('privacy.yourRights', 'Your Privacy Rights')}
           </Typography>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: spacing.md }}>
             {t('privacy.gdprInfo', 'Under GDPR and data protection laws, you have the right to access, export, and delete your personal data.')}
           </Alert>
           
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
@@ -237,7 +238,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           <Typography variant="body2" gutterBottom>
             {t('privacy.exportDataDesc', 'We will create a JSON file containing all your personal data, including mood logs, memories, and settings.')}
           </Typography>
-          <Alert severity="info" sx={{ mt: 2 }}>
+          <Alert severity="info" sx={{ mt: spacing.md }}>
             {t('privacy.exportDataNote', 'This file will be downloaded to your device and can be used to back up your data or transfer it to another service.')}
           </Alert>
         </DialogContent>
@@ -257,7 +258,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
           {t('privacy.deleteDataTitle', 'Delete All Your Data')}
         </DialogTitle>
         <DialogContent>
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: spacing.md }}>
             {t('privacy.deleteDataWarning', 'This action is permanent and cannot be undone. All your mood logs, memories, and personal data will be deleted forever.')}
           </Alert>
           <Typography variant="body2" gutterBottom>
@@ -271,8 +272,8 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
             placeholder="delete my data"
             sx={{
               width: '100%',
-              mt: 2,
-              p: 1,
+              mt: spacing.md,
+              p: spacing.sm,
               border: '1px solid #ccc',
               borderRadius: 1,
               fontSize: '1rem',
@@ -295,7 +296,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
         </DialogActions>
       </Dialog>
 
-      <Box sx={{ mt: 3, p: 2, bgcolor: '#E8F5E9', borderRadius: 2 }}>
+      <Box sx={{ mt: spacing.lg, p: spacing.md, bgcolor: '#E8F5E9', borderRadius: borderRadius.md }}>
         <Typography variant="body2">
           🔒 <strong>{t('privacy.commitment', 'Our Commitment:')}</strong> {t('privacy.commitmentDesc', 'Your privacy and security are our top priority. We use industry-standard encryption and never share your personal data without your explicit consent.')}
         </Typography>

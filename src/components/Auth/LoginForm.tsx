@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Link } from "react-router-dom";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { Box, Typography, IconButton, Divider, Alert } from "@mui/material";
@@ -98,13 +99,13 @@ const LoginForm = () => {
         background: (theme) =>
           theme.palette.mode === "dark"
             ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
-            : "linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #faf5ff 100%)",
+            : "linear-gradient(135deg, #eff6ff 0%, colors.text.inverse 50%, #faf5ff 100%)",
       }}
       role="main"
       aria-labelledby="login-title"
     >
       <Card sx={{ width: "100%", maxWidth: "md" }} elevation={3}>
-        <Box sx={{ textAlign: "center", mb: 4 }}>
+        <Box sx={{ textAlign: "center", mb: spacing.xl }}>
           <Typography
             id="login-title"
             variant="h4"
@@ -130,7 +131,7 @@ const LoginForm = () => {
             severity="error"
             role="alert"
             aria-live="assertive"
-            sx={{ mb: 3 }}
+            sx={{ mb: spacing.lg }}
             icon={<span style={{ fontSize: "1.125rem" }}>⚠️</span>}
           >
             {error}
@@ -141,7 +142,7 @@ const LoginForm = () => {
           <Box
             component="form"
             onSubmit={handleSubmit}
-            sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+            sx={{ display: "flex", flexDirection: "column", gap: spacing.lg }}
             role="form"
             aria-labelledby="login-title"
           >
@@ -170,8 +171,8 @@ const LoginForm = () => {
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 1,
-                  mb: 1,
+                  gap: spacing.sm,
+                  mb: spacing.sm,
                 }}
               >
                 <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
@@ -250,7 +251,7 @@ const LoginForm = () => {
           Fortsätt med Google
         </Button>
 
-        <Box sx={{ mt: 4, textAlign: "center", display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box sx={{ mt: spacing.xl, textAlign: "center", display: "flex", flexDirection: "column", gap: spacing.sm }}>
           <Typography variant="body2" color="text.secondary">
             Har du inget konto?{" "}
             <Typography

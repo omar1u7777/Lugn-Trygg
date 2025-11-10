@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -104,28 +105,28 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
   return (
     <Card sx={{ maxWidth: 700, margin: '16px auto' }}>
       <CardContent>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <Feedback color="primary" />
           Send Feedback
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
           Your feedback helps us improve Lugn & Trygg. Share your thoughts, report bugs, or suggest new features.
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert severity="error" sx={{ mb: spacing.md }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" icon={<CheckCircle />} sx={{ mb: 2 }}>
+          <Alert severity="success" icon={<CheckCircle />} sx={{ mb: spacing.md }}>
             Thank you for your feedback! We'll review it and use it to improve the app.
           </Alert>
         )}
 
         {/* Rating */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: spacing.lg }}>
           <Typography variant="subtitle1" gutterBottom>
             How would you rate your experience?
           </Typography>
@@ -138,7 +139,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
         </Box>
 
         {/* Category */}
-        <FormControl component="fieldset" sx={{ mb: 3 }}>
+        <FormControl component="fieldset" sx={{ mb: spacing.lg }}>
           <FormLabel component="legend">Feedback Category</FormLabel>
           <RadioGroup
             row
@@ -153,7 +154,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
         </FormControl>
 
         {/* Quick Tags */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: spacing.lg }}>
           <Typography variant="subtitle2" gutterBottom>
             Quick Tags (click to add)
           </Typography>
@@ -165,7 +166,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
                 onClick={() => addQuickTag(tag)}
                 variant="outlined"
                 size="small"
-                sx={{ mb: 1 }}
+                sx={{ mb: spacing.sm }}
               />
             ))}
           </Stack>
@@ -180,7 +181,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Tell us what you think..."
-          sx={{ mb: 3 }}
+          sx={{ mb: spacing.lg }}
         />
 
         {/* Bug Report (conditional) */}
@@ -193,7 +194,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
             value={bugReport}
             onChange={(e) => setBugReport(e.target.value)}
             placeholder="Describe the bug: What happened? What did you expect? Steps to reproduce?"
-            sx={{ mb: 3 }}
+            sx={{ mb: spacing.lg }}
           />
         )}
 
@@ -207,7 +208,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
             value={featureRequest}
             onChange={(e) => setFeatureRequest(e.target.value)}
             placeholder="Describe the feature you'd like to see and why it would be helpful..."
-            sx={{ mb: 3 }}
+            sx={{ mb: spacing.lg }}
           />
         )}
 
@@ -223,7 +224,7 @@ const FeedbackSystem: React.FC<{ userId: string }> = ({ userId }) => {
           {loading ? 'Sending...' : success ? 'Sent!' : 'Send Feedback'}
         </Button>
 
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block', textAlign: 'center' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.md, display: 'block', textAlign: 'center' }}>
           💙 We read every piece of feedback and use it to make Lugn & Trygg better for everyone.
         </Typography>
       </CardContent>

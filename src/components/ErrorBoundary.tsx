@@ -3,7 +3,8 @@
  * WCAG 2.1 AA compliant error handling with accessibility features
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Box, Typography, Link } from '@mui/material';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -104,7 +105,7 @@ class ErrorBoundary extends Component<Props, State> {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            p: 2,
+            p: spacing.md,
             bgcolor: "grey.50",
           }}
           role="alert"
@@ -119,7 +120,7 @@ class ErrorBoundary extends Component<Props, State> {
             }}
             elevation={2}
           >
-            <Box sx={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ textAlign: "center", display: "flex", flexDirection: "column", gap: spacing.md }}>
               <Typography color="text.secondary">
                 Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
               </Typography>
@@ -156,7 +157,7 @@ class ErrorBoundary extends Component<Props, State> {
               </Box>
 
               {showDetails && error && (
-                <Box component="details" sx={{ mt: 2, textAlign: "left" }}>
+                <Box component="details" sx={{ mt: spacing.md, textAlign: "left" }}>
                   <Box
                     component="summary"
                     sx={{
@@ -173,7 +174,7 @@ class ErrorBoundary extends Component<Props, State> {
                   </Box>
                   <Box
                     sx={{
-                      mt: 1,
+                      mt: spacing.sm,
                       p: 1.5,
                       bgcolor: "grey.100",
                       borderRadius: 1,
@@ -222,7 +223,7 @@ class ErrorBoundary extends Component<Props, State> {
                 </Box>
               )}
 
-              <Box sx={{ pt: 2, borderTop: 1, borderColor: "divider" }}>
+              <Box sx={{ pt: 2, borderTop: spacing.sm, borderColor: "divider" }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Om problemet kvarstår, kontakta vår support:
                 </Typography>

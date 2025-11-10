@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Grid,
@@ -27,7 +28,7 @@ import { useAccessibility } from '../../hooks/useAccessibility';
 import { analytics } from '../../services/analytics';
 import { LoadingSpinner } from '../LoadingStates';
 import ErrorBoundary from '../ErrorBoundary';
-import { getMoods, getWeeklyAnalysis, getChatHistory } from '../../api/api';
+import { useDashboardData } from '../../hooks/useDashboardData';
 import useAuth from '../../hooks/useAuth';
 import MoodLogger from '../MoodLogger';
 import MemoryRecorder from '../MemoryRecorder';
@@ -61,113 +62,18 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalMoods: 0,
-    totalChats: 0,
-    averageMood: 0,
-    streakDays: 0,
-    weeklyGoal: 7,
-    weeklyProgress: 0,
-    recentActivity: [],
-  });
-  const [loading, setLoading] = useState(true);
+  
+  // ✅ Use optimized hook with caching
+  const { stats, loading, error, refresh } = useDashboardData(user?.user_id || userId);
+  
   const [activeTab, setActiveTab] = useState(0);
   const [showMoodLogger, setShowMoodLogger] = useState(false);
   const [showMemoryRecorder, setShowMemoryRecorder] = useState(false);
   const [showMemoryList, setShowMemoryList] = useState(false);
 
-  useEffect(() => {
-    analytics.page('Dashboard', {
-      component: 'Dashboard',
-      userId,
-    });
-
-    loadDashboardData();
-  }, [userId]);
-
-  const loadDashboardData = async () => {
-    if (!user?.user_id) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Load real data from backend APIs
-      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
-        getMoods(user.user_id).catch(() => []),
-        getWeeklyAnalysis(user.user_id).catch(() => ({})),
-        getChatHistory(user.user_id).catch(() => []),
-      ]);
-
-      // Process moods data
-      const totalMoods = moodsData.length;
-      const averageMood = totalMoods > 0
-        ? moodsData.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / totalMoods
-        : 0;
-
-      // Process weekly analysis
-      const weeklyGoal = weeklyAnalysisData.weekly_goal || 7;
-      const weeklyProgress = weeklyAnalysisData.weekly_progress || totalMoods;
-      const streakDays = weeklyAnalysisData.streak_days || Math.min(totalMoods, 7);
-
-      // Process chat history
-      const totalChats = chatHistoryData.length;
-
-      // Create recent activity from moods and chats
-      const recentActivity = [
-        ...moodsData.slice(0, 3).map((mood: any, index: number) => ({
-          id: `mood-${index}`,
-          type: 'mood' as const,
-          timestamp: new Date(mood.timestamp || Date.now()),
-          description: `Logged mood: ${mood.mood || 'Unknown'} (${mood.score || 0}/10)`,
-        })),
-        ...chatHistoryData.slice(0, 2).map((chat: any, index: number) => ({
-          id: `chat-${index}`,
-          type: 'chat' as const,
-          timestamp: new Date(chat.timestamp || Date.now()),
-          description: 'Chat session with AI therapist',
-        })),
-      ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 5);
-
-      setStats({
-        totalMoods,
-        totalChats,
-        averageMood: Math.round(averageMood * 10) / 10,
-        streakDays,
-        weeklyGoal,
-        weeklyProgress,
-        recentActivity,
-      });
-
-      announceToScreenReader('Dashboard data loaded successfully', 'polite');
-
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-      announceToScreenReader('Failed to load dashboard data', 'assertive');
-
-      // Set fallback data
-      setStats({
-        totalMoods: 0,
-        totalChats: 0,
-        averageMood: 0,
-        streakDays: 0,
-        weeklyGoal: 7,
-        weeklyProgress: 0,
-        recentActivity: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRefresh = () => {
-    analytics.track('Dashboard Refreshed', {
-      component: 'Dashboard',
-      userId,
-    });
-    loadDashboardData();
+    announceToScreenReader('Refreshing dashboard...', 'polite');
+    refresh();
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -216,7 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
 
   if (loading) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: spacing.lg }}>
         <Typography variant="h6" gutterBottom>
           Loading dashboard...
         </Typography>
@@ -232,7 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
         background: (theme) =>
           theme.palette.mode === "dark"
             ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
-            : "linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #faf5ff 100%)",
+            : "linear-gradient(135deg, #eff6ff 0%, colors.text.inverse 50%, #faf5ff 100%)",
       }}
     >
       {/* Hero Section */}
@@ -270,7 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
           py: 4,
         }}
       >
-        <Grid container spacing={3} sx={{ mb: 6 }}>
+        <Grid container spacing={3} sx={{ mb: spacing.xxl }}>
           {/* Mood Logger Card */}
           <Grid item xs={12} md={4}>
             <Card
@@ -287,12 +193,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
               }}
               onClick={() => setShowMoodLogger(true)}
             >
-              <CardContent sx={{ p: 4, textAlign: "center" }}>
+              <CardContent sx={{ p: spacing.xl, textAlign: "center" }}>
                 <Box
                   className="emoji"
                   sx={{
                     fontSize: "4rem",
-                    mb: 2,
+                    mb: spacing.md,
                     transition: "transform 0.3s ease",
                   }}
                 >
@@ -324,12 +230,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
               }}
               onClick={() => setShowMemoryRecorder(true)}
             >
-              <CardContent sx={{ p: 4, textAlign: "center" }}>
+              <CardContent sx={{ p: spacing.xl, textAlign: "center" }}>
                 <Box
                   className="emoji"
                   sx={{
                     fontSize: "4rem",
-                    mb: 2,
+                    mb: spacing.md,
                     transition: "transform 0.3s ease",
                   }}
                 >
@@ -361,12 +267,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
               }}
               onClick={() => setShowMemoryList(true)}
             >
-              <CardContent sx={{ p: 4, textAlign: "center" }}>
+              <CardContent sx={{ p: spacing.xl, textAlign: "center" }}>
                 <Box
                   className="emoji"
                   sx={{
                     fontSize: "4rem",
-                    mb: 2,
+                    mb: spacing.md,
                     transition: "transform 0.3s ease",
                   }}
                 >
@@ -388,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
           {/* Mood Trend */}
           <Grid item xs={12} lg={6}>
             <Card>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: spacing.lg }}>
                 <Typography variant="h6" gutterBottom>
                   Din Humörtrend
                 </Typography>
@@ -410,7 +316,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
           {/* AI Insights */}
           <Grid item xs={12} lg={6}>
             <Card>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: spacing.lg }}>
                 <Typography variant="h6" gutterBottom>
                   AI Insikter
                 </Typography>
@@ -431,13 +337,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
         </Grid>
 
         {/* Weekly Progress */}
-        <Card sx={{ mt: 4 }}>
-          <CardContent sx={{ p: 3 }}>
+        <Card sx={{ mt: spacing.xl }}>
+          <CardContent sx={{ p: spacing.lg }}>
             <Typography variant="h6" gutterBottom>
               Veckoprogress
             </Typography>
 
-            <Box sx={{ mb: 2 }}>
+            <Box sx={{ mb: spacing.md }}>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">
                   {stats.weeklyProgress} / {stats.weeklyGoal} inlägg
@@ -449,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
               <LinearProgress
                 variant="determinate"
                 value={(stats.weeklyProgress / stats.weeklyGoal) * 100}
-                sx={{ height: 8, borderRadius: 4 }}
+                sx={{ height: 8, borderRadius: borderRadius.xl }}
               />
             </Box>
 
@@ -484,7 +390,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
               </div>
               <MoodLogger onMoodLogged={() => {
                 setShowMoodLogger(false);
-                loadDashboardData(); // Refresh dashboard data
+                refresh(); // Refresh dashboard data
               }} />
             </div>
           </div>

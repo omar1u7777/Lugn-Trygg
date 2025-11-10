@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -33,8 +34,8 @@ import {
   Refresh,
   Analytics,
 } from '@mui/icons-material';
-import { analytics, performanceMonitor } from '../services/analytics';
-import { initializePerformanceMonitoring } from '../services/performanceMonitor';
+import { analytics } from '../services/analytics';
+import { initializePerformanceMonitoring, performanceMonitor } from '../services/performanceMonitor';
 
 interface PerformanceMetrics {
   coreWebVitals: {
@@ -110,8 +111,8 @@ const PerformanceDashboard: React.FC = () => {
         coreWebVitals: {
           cls: Math.random() * 0.2,
           fid: Math.random() * 150,
-          fcp: 1500 + Math.random() * 1000,
-          lcp: 2000 + Math.random() * 1500,
+          fcp: spacing.sm500 + Math.random() * 1000,
+          lcp: spacing.md000 + Math.random() * 1500,
           ttfb: 200 + Math.random() * 300,
         },
         budgets,
@@ -372,7 +373,7 @@ const PerformanceDashboard: React.FC = () => {
                   variant="determinate"
                   value={Math.min((budget.current / budget.budget) * 100, 100)}
                   color={budget.exceeded ? 'error' : 'success'}
-                  sx={{ height: 8, borderRadius: 4 }}
+                  sx={{ height: 8, borderRadius: borderRadius.xl }}
                 />
               </CardContent>
             </Card>
@@ -403,7 +404,7 @@ const PerformanceDashboard: React.FC = () => {
         <List>
           {issues.map((issue, index) => (
             <React.Fragment key={issue.id}>
-              <ListItem sx={{ borderRadius: 1, mb: 1, bgcolor: 'background.paper' }}>
+              <ListItem sx={{ borderRadius: 1, mb: spacing.sm, bgcolor: 'background.paper' }}>
                 <ListItemIcon>
                   {getSeverityIcon(issue.type)}
                 </ListItemIcon>
@@ -439,7 +440,7 @@ const PerformanceDashboard: React.FC = () => {
   );
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ p: spacing.lg, maxWidth: 1400, mx: 'auto' }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
@@ -462,7 +463,7 @@ const PerformanceDashboard: React.FC = () => {
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: spacing.lg }}>
         <Tabs value={selectedTab} onChange={(_, newValue) => setSelectedTab(newValue)}>
           <Tab label="Core Web Vitals" />
           <Tab label="Performance Budgets" />
@@ -471,7 +472,7 @@ const PerformanceDashboard: React.FC = () => {
       </Box>
 
       {/* Tab Content */}
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mt: spacing.lg }}>
         {selectedTab === 0 && <WebVitalsSection />}
         {selectedTab === 1 && <BudgetsSection />}
         {selectedTab === 2 && <IssuesSection />}

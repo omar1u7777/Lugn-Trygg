@@ -3,7 +3,8 @@
  * Share milestones and achievements with friends and community
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -148,7 +149,7 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
   return (
     <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <ShareIcon color="primary" />
           {t('share.title', 'Share Achievement')}
         </Box>
@@ -157,14 +158,14 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
         {/* Achievement Preview */}
         <Card
           sx={{
-            mb: 3,
+            mb: spacing.lg,
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
             textAlign: 'center',
-            p: 3,
+            p: spacing.lg,
           }}
         >
-          <Typography variant="h1" sx={{ mb: 2 }}>
+          <Typography variant="h1" sx={{ mb: spacing.md }}>
             {achievement.icon}
           </Typography>
           <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -174,7 +175,7 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
           <Chip
             label={new Date(achievement.date).toLocaleDateString()}
             size="small"
-            sx={{ mt: 2, bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+            sx={{ mt: spacing.md, bgcolor: 'colors.overlay.medium', color: 'white' }}
           />
         </Card>
 
@@ -186,7 +187,7 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
           label={t('share.message', 'Share Message')}
           value={shareMessage}
           onChange={(e) => setShareMessage(e.target.value)}
-          sx={{ mb: 2 }}
+          sx={{ mb: spacing.md }}
         />
 
         {/* Privacy Toggle */}
@@ -198,11 +199,11 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
             />
           }
           label={t('share.anonymous', 'Share anonymously (hide your name)')}
-          sx={{ mb: 2 }}
+          sx={{ mb: spacing.md }}
         />
 
         {shareAnonymously && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: spacing.md }}>
             {t('share.anonymousInfo', 'Your personal information will not be included when sharing.')}
           </Alert>
         )}
@@ -211,7 +212,7 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
         <Typography variant="subtitle2" gutterBottom>
           {t('share.platforms', 'Share to:')}
         </Typography>
-        <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid container spacing={2} sx={{ mb: spacing.md }}>
           <Grid xs={6}>
             <Button
               fullWidth

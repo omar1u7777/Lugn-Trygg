@@ -1,4 +1,5 @@
-import React from 'react';
+import React from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Box, Paper, Typography } from '@mui/material';
 import {
     LineChart,
@@ -38,10 +39,10 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
     }));
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
             {/* Forecast Line Chart with Confidence Interval */}
-            <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
+                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     <span>📈</span>
                     7-dagars Humörprognos
                 </Typography>
@@ -101,14 +102,14 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
                         />
                     </AreaChart>
                 </ResponsiveContainer>
-                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
+                <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: spacing.sm }}>
                     Blå linje visar prognostiserat humör, ljusblå område visar osäkerhetsmarginal
                 </Typography>
             </Paper>
 
             {/* Daily Predictions Bar Chart */}
-            <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
+                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     <span>📊</span>
                     Dagliga Humörvärden
                 </Typography>
@@ -146,8 +147,8 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
 
             {/* Historical Data Line Chart (if available) */}
             {historicalData.length > 0 && (
-                <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
-                    <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
+                    <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                         <span>📉</span>
                         Historiskt Humör (30 dagar)
                     </Typography>

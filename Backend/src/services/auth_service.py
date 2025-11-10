@@ -256,11 +256,14 @@ class AuthService:
                 pass
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
+                logger.warning(f"❌ Missing or invalid Authorization header from {request.remote_addr}")
                 return jsonify({"error": "Authorization header saknas eller är ogiltig!"}), 401
 
             token = auth_header.split(" ")[1]
             user_id, error = AuthService.verify_token(token)
             if error:
+                # Log auth failures for monitoring (but not the full token for security)
+                logger.warning(f"❌ JWT verification failed: {error} from {request.remote_addr}")
                 return jsonify({"error": error}), 401
 
             # Lägg till user_id i request context

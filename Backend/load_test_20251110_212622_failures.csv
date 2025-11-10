@@ -1,0 +1,21 @@
+Method,Name,Error,Occurrences
+POST,/api/memory/list,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",2953
+POST,/api/ai/history,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",4439
+POST,/api/ai/chat,HTTPError('404 Client Error: NOT FOUND for url: /api/ai/chat'),767
+POST,/api/mood/get,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",11693
+GET,/api/referral/leaderboard?limit=100,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",2932
+POST,/api/ai/history,HTTPError('404 Client Error: NOT FOUND for url: /api/ai/history'),700
+GET,/api/health,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",14620
+POST,/api/mood/weekly-analysis,HTTPError('500 Server Error: INTERNAL SERVER ERROR for url: /api/mood/weekly-analysis'),1268
+POST,/api/memory/list,HTTPError('500 Server Error: INTERNAL SERVER ERROR for url: /api/memory/list'),502
+POST,/api/mood/get,HTTPError('500 Server Error: INTERNAL SERVER ERROR for url: /api/mood/get'),2059
+POST,/api/mood/log,HTTPError('429 Client Error: TOO MANY REQUESTS for url: /api/mood/log'),762
+POST,/api/mood/log,HTTPError('401 Client Error: UNAUTHORIZED for url: /api/mood/log'),500
+GET,/api/metrics,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",1450
+POST,/api/mood/log,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",7310
+POST,/api/ai/chat,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",4479
+POST,/api/predictive/mood-forecast,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",1484
+GET,/api/health,HTTPError('429 Client Error: TOO MANY REQUESTS for url: /api/health'),1961
+GET,/api/referral/leaderboard?limit=100,HTTPError('429 Client Error: TOO MANY REQUESTS for url: /api/referral/leaderboard?limit=100'),17
+POST,/api/predictive/mood-forecast,HTTPError('404 Client Error: NOT FOUND for url: /api/predictive/mood-forecast'),249
+POST,/api/mood/weekly-analysis,"ConnectionRefusedError(10061, '[WinError 10061] Det gick inte att göra en anslutning eftersom måldatorn aktivt nekade det.')",7162

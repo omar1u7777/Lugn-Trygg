@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import {
@@ -62,7 +63,7 @@ const ReferralHistory: React.FC = () => {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={40} sx={{ mb: 1 }} />
+                    <CircularProgress size={40} sx={{ mb: spacing.sm }} />
                     <Typography variant="body2" color="text.secondary">
                         Laddar historik...
                     </Typography>
@@ -73,16 +74,16 @@ const ReferralHistory: React.FC = () => {
 
     if (error) {
         return (
-            <Alert severity="error" sx={{ borderRadius: 2 }}>
+            <Alert severity="error" sx={{ borderRadius: borderRadius.md }}>
                 {error}
             </Alert>
         );
     }
 
     return (
-        <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.md }}>
+                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     📜 Referenshistorik
                 </Typography>
                 <Chip
@@ -95,7 +96,7 @@ const ReferralHistory: React.FC = () => {
 
             {history.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h2" sx={{ fontSize: '3rem', mb: 1 }}>
+                    <Typography variant="h2" sx={{ fontSize: '3rem', mb: spacing.sm }}>
                         🌱
                     </Typography>
                     <Typography variant="body1" fontWeight="500" color="text.secondary" gutterBottom>
@@ -115,9 +116,9 @@ const ReferralHistory: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'flex-start',
                                 justifyContent: 'space-between',
-                                p: 2,
+                                p: spacing.md,
                                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                                borderRadius: 2,
+                                borderRadius: borderRadius.md,
                                 transition: 'background-color 0.2s',
                                 '&:hover': {
                                     bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
@@ -125,7 +126,7 @@ const ReferralHistory: React.FC = () => {
                             }}
                         >
                             <Box sx={{ flex: 1 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: 0.5 }}>
                                     <Typography variant="body1">👤</Typography>
                                     <Typography variant="body1" fontWeight="600" color="text.primary">
                                         {entry.invitee_name}

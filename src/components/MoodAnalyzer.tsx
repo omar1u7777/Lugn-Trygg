@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Box, Button, Card, CardContent, Typography, CircularProgress } from '@mui/material';
 import { analyzeText } from '../api/api';
 
@@ -44,7 +45,7 @@ const MoodAnalyzer: React.FC = () => {
     <Card sx={{ maxWidth: 720, margin: '16px auto' }}>
       <CardContent>
         <Typography variant="h6">Mood Analyzer</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
           Paste a short text about how you're feeling and get a quick sentiment analysis.
         </Typography>
 
@@ -56,7 +57,7 @@ const MoodAnalyzer: React.FC = () => {
           aria-label="Beskriv hur du känner dig"
         />
 
-        <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ mt: spacing.md, display: 'flex', gap: spacing.md, alignItems: 'center' }}>
           <Button variant="contained" onClick={analyze} disabled={!text || loading}>
             Analyze
           </Button>
@@ -64,13 +65,13 @@ const MoodAnalyzer: React.FC = () => {
         </Box>
 
         {error && (
-          <Typography color="error" sx={{ mt: 2 }}>
+          <Typography color="error" sx={{ mt: spacing.md }}>
             {error}
           </Typography>
         )}
 
         {result && (
-          <Box sx={{ mt: 3 }}>
+          <Box sx={{ mt: spacing.lg }}>
             <Typography variant="subtitle1">Result</Typography>
             <Typography>Sentiment: {result.sentiment}</Typography>
             <Typography>Score: {result.score.toFixed(2)}</Typography>

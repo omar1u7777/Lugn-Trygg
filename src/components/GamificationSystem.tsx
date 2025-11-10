@@ -2,7 +2,8 @@
  * Gamification System - Badges, Levels, and Achievements
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -176,10 +177,10 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
   return (
     <Box>
       {/* Level and XP Progress */}
-      <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      <Card sx={{ mb: spacing.lg, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.md }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
               <Avatar
                 sx={{
                   width: 60,
@@ -194,7 +195,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                 <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
                   Level {userLevel}
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                   {getLevelTitle(userLevel)}
                 </Typography>
               </Box>
@@ -207,7 +208,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                 icon={<StarIcon />}
                 label={`${Math.round(levelProgress)}%`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                sx={{ bgcolor: 'colors.overlay.medium', color: 'white' }}
               />
             </Box>
           </Box>
@@ -217,7 +218,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
             sx={{
               height: 10,
               borderRadius: 5,
-              bgcolor: 'rgba(255,255,255,0.2)',
+              bgcolor: 'colors.overlay.medium',
               '& .MuiLinearProgress-bar': {
                 bgcolor: RARITY_COLORS.legendary,
               },
@@ -228,8 +229,8 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
 
       {/* Weekly Challenges */}
       {challenges && challenges.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ mb: spacing.lg }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <LocalFireDepartmentIcon color="error" />
             {t('gamification.challenges', 'Weekly Challenges')}
           </Typography>
@@ -241,17 +242,17 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                     <Typography variant="subtitle1" fontWeight="bold">
                       {challenge.title}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
                       {challenge.description}
                     </Typography>
-                    <Box sx={{ mb: 1 }}>
+                    <Box sx={{ mb: spacing.sm }}>
                       <Typography variant="caption" color="text.secondary">
                         {challenge.progress} / {challenge.goal}
                       </Typography>
                       <LinearProgress
                         variant="determinate"
                         value={(challenge.progress / challenge.goal) * 100}
-                        sx={{ mt: 0.5, height: 8, borderRadius: 4 }}
+                        sx={{ mt: 0.5, height: 8, borderRadius: borderRadius.xl }}
                       />
                     </Box>
                     <Chip
@@ -270,7 +271,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
 
       {/* Badges */}
       <Box>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <EmojiEventsIcon color="warning" />
           {t('gamification.badges', 'Badges & Achievements')}
         </Typography>
@@ -302,7 +303,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                       }}
                     >
                       <CardContent sx={{ textAlign: 'center' }}>
-                        <Typography variant="h2" sx={{ mb: 1 }}>
+                        <Typography variant="h2" sx={{ mb: spacing.sm }}>
                           {badge.earned ? badge.icon : '🔒'}
                         </Typography>
                         <Typography variant="caption" fontWeight="bold">
@@ -312,7 +313,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                           label={badge.rarity}
                           size="small"
                           sx={{
-                            mt: 1,
+                            mt: spacing.sm,
                             bgcolor: RARITY_COLORS[badge.rarity],
                             color: 'white',
                             fontSize: '0.7rem',
@@ -332,7 +333,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
       <Dialog open={showBadgeDialog} onClose={() => setShowBadgeDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ textAlign: 'center' }}>
           <Typography variant="h3">{selectedBadge?.icon}</Typography>
-          <Typography variant="h6" sx={{ mt: 1 }}>
+          <Typography variant="h6" sx={{ mt: spacing.sm }}>
             {selectedBadge?.name}
           </Typography>
         </DialogTitle>
@@ -345,7 +346,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
               Earned on: {new Date(selectedBadge.earnedDate).toLocaleDateString()}
             </Typography>
           )}
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Box sx={{ mt: spacing.md, textAlign: 'center' }}>
             <Chip
               label={selectedBadge?.rarity}
               sx={{

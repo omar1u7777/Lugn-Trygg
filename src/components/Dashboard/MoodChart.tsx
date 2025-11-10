@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'react-chartjs-2';
 import { Box, Typography, CircularProgress } from '@mui/material';
@@ -104,7 +105,7 @@ const MoodChart: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: spacing.lg }}>
         <CircularProgress size={24} sx={{ mr: 2 }} />
         <Typography variant="body2" color="text.secondary">
           {t('common.loading')}
@@ -115,7 +116,7 @@ const MoodChart: React.FC = () => {
 
   if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: spacing.lg, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           {t('dashboard.noDataAvailable')}
         </Typography>

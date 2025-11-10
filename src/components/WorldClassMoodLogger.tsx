@@ -32,6 +32,7 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { logMood, analyzeText } from '../api/api';
 import useAuth from '../hooks/useAuth';
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import '../styles/world-class-design.css';
 
 interface WorldClassMoodLoggerProps {
@@ -67,7 +68,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Extatisk',
       description: 'Fantastiskt, överlycklig',
       score: 10,
-      color: '#10b981',
+      color: colors.mood.ecstatic,
       icon: <SentimentVerySatisfied />,
     },
     {
@@ -76,7 +77,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Glad',
       description: 'Positiv och nöjd',
       score: 8,
-      color: '#059669',
+      color: colors.mood.happy,
       icon: <SentimentSatisfied />,
     },
     {
@@ -85,7 +86,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Nöjd',
       description: 'Fridfull och harmonisk',
       score: 7,
-      color: '#0d9488',
+      color: colors.mood.content,
       icon: <SentimentNeutral />,
     },
     {
@@ -94,7 +95,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Neutral',
       description: 'Varken upp eller ner',
       score: 5,
-      color: '#6b7280',
+      color: colors.mood.neutral,
       icon: <SentimentNeutral />,
     },
     {
@@ -103,7 +104,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Ledsen',
       description: 'Nedstämd eller sorgsen',
       score: 3,
-      color: '#3b82f6',
+      color: colors.mood.anxious,
       icon: <SentimentDissatisfied />,
     },
     {
@@ -112,7 +113,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Ångest',
       description: 'Orolig eller stressad',
       score: 2,
-      color: '#f59e0b',
+      color: colors.mood.sad,
       icon: <SentimentDissatisfied />,
     },
     {
@@ -121,7 +122,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       label: 'Deprimerad',
       description: 'Djupt nedstämd',
       score: 1,
-      color: '#ef4444',
+      color: colors.mood.depressed,
       icon: <SentimentVeryDissatisfied />,
     },
   ];
@@ -239,7 +240,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
 
   if (success) {
     return (
-      <Box className="world-class-success-celebration" sx={{ p: 4, textAlign: 'center' }}>
+      <Box className="world-class-success-celebration" sx={{ p: spacing.xl, textAlign: 'center' }}>
         <Typography variant="h4" className="world-class-heading-2" gutterBottom>
           🎉 Humör loggat!
         </Typography>
@@ -255,14 +256,14 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       className="world-class-app"
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%)',
-        p: 2,
+        background: colors.background.gradient,
+        p: spacing.md,
       }}
     >
       <Card className="world-class-dashboard-card" sx={{ maxWidth: 800, mx: 'auto' }}>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: spacing.xl }}>
           {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.xl }}>
             <Typography variant="h4" className="world-class-heading-2">
               Hur känns det idag?
             </Typography>
@@ -272,7 +273,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
           </Box>
 
           {/* Mood Selection */}
-          <Box sx={{ mb: 6 }}>
+          <Box sx={{ mb: spacing.xxl }}>
             <Typography variant="h6" className="world-class-heading-3" gutterBottom>
               Välj ditt humör
             </Typography>
@@ -298,7 +299,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
                     }
                   }}
                 >
-                  <Box className="world-class-mood-emoji" sx={{ fontSize: '3rem', mb: 2 }}>
+                  <Box className="world-class-mood-emoji" sx={{ fontSize: '3rem', mb: spacing.md }}>
                     {mood.emoji}
                   </Box>
                   <Typography variant="h6" className="world-class-mood-label">
@@ -313,7 +314,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
           </Box>
 
           {/* Text Input */}
-          <Box sx={{ mb: 6 }}>
+          <Box sx={{ mb: spacing.xxl }}>
             <Typography variant="h6" className="world-class-heading-3" gutterBottom>
               Berätta mer (valfritt)
             </Typography>
@@ -328,7 +329,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
               variant="outlined"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
+                  borderRadius: borderRadius.lg,
                 }
               }}
             />
@@ -337,7 +338,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
               <Button
                 onClick={analyzeMoodText}
                 disabled={isAnalyzing}
-                sx={{ mt: 2 }}
+                sx={{ mt: spacing.md }}
                 variant="outlined"
                 startIcon={<Psychology />}
               >
@@ -348,8 +349,8 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
 
           {/* AI Analysis */}
           {analysis && (
-            <Box sx={{ mb: 6 }}>
-              <Alert severity="info" sx={{ borderRadius: 3 }}>
+            <Box sx={{ mb: spacing.xxl }}>
+              <Alert severity="info" sx={{ borderRadius: borderRadius.lg }}>
                 <Typography variant="h6" gutterBottom>
                   🤖 AI-analys
                 </Typography>
@@ -359,7 +360,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
                     <Chip
                       label={analysis.sentiment}
                       size="small"
-                      sx={{ ml: 1 }}
+                      sx={{ ml: spacing.sm }}
                       color={analysis.sentiment === 'POSITIVE' ? 'success' : 'warning'}
                     />
                   )}
@@ -370,27 +371,27 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
 
           {/* Recommendations */}
           {selectedMood && (
-            <Box sx={{ mb: 6 }}>
+            <Box sx={{ mb: spacing.xxl }}>
               <Typography variant="h6" className="world-class-heading-3" gutterBottom>
                 💡 Rekommendationer
               </Typography>
-              <Grid container spacing={2}>
+              <Grid container spacing={spacing.md / 8}>
                 {getRecommendations().map((rec, index) => (
                   <Grid item xs={12} sm={6} key={index}>
                     <Card
                       sx={{
-                        p: 2,
-                        borderRadius: 2,
+                        p: spacing.md,
+                        borderRadius: borderRadius.md,
                         border: '1px solid',
                         borderColor: 'divider',
                         transition: 'all 0.2s',
                         '&:hover': {
-                          boxShadow: 2,
+                          boxShadow: shadows.md,
                           transform: 'translateY(-2px)',
                         }
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                         <Box sx={{ color: 'primary.main' }}>
                           {rec.icon}
                         </Box>
@@ -414,18 +415,18 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
               size="large"
               startIcon={<Save />}
               sx={{
-                px: 6,
-                py: 2,
+                px: spacing.xxl,
+                py: spacing.md,
                 fontSize: '1.1rem',
-                borderRadius: 4,
+                borderRadius: borderRadius.xl,
               }}
             >
               {loading ? 'Sparar...' : 'Spara humör'}
             </Button>
 
             {loading && (
-              <Box sx={{ mt: 2 }}>
-                <LinearProgress sx={{ borderRadius: 2, height: 8 }} />
+              <Box sx={{ mt: spacing.md }}>
+                <LinearProgress sx={{ borderRadius: borderRadius.md, height: 8 }} />
               </Box>
             )}
           </Box>

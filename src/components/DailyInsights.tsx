@@ -3,7 +3,8 @@
  * AI-powered mood analysis and personalized recommendations
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -152,18 +153,18 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
   };
 
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box sx={{ mt: spacing.lg }}>
       <Typography variant="h6" gutterBottom>
         {t('insights.title', 'Your Daily Insights')}
       </Typography>
 
-      <Card sx={{ mb: 2 }}>
+      <Card sx={{ mb: spacing.md }}>
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.md }}>
             <Typography variant="body1">
               {t('insights.overallMood', 'Overall Mood Score')}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               {getTrendIcon()}
               <Typography variant="h4" color="primary">
                 {moodScore}%
@@ -198,12 +199,12 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
               <Paper
                 elevation={2}
                 sx={{
-                  p: 2,
+                  p: spacing.md,
                   borderLeft: `4px solid ${insight.color}`,
                   height: '100%',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: spacing.sm, mb: spacing.sm }}>
                   <Box sx={{ color: insight.color, mt: 0.5 }}>{insight.icon}</Box>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
@@ -218,7 +219,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
                   label={insight.type}
                   size="small"
                   sx={{
-                    mt: 1,
+                    mt: spacing.sm,
                     backgroundColor: `${insight.color}22`,
                     color: insight.color,
                   }}
@@ -230,11 +231,11 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
       </Grid>
 
       {insights.length === 0 && (
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
+        <Paper sx={{ p: spacing.lg, textAlign: 'center' }}>
           <Typography variant="body1" color="text.secondary">
             {t('insights.noData', 'Log more moods to see personalized insights!')}
           </Typography>
-          <Button variant="outlined" sx={{ mt: 2 }}>
+          <Button variant="outlined" sx={{ mt: spacing.md }}>
             {t('insights.logMood', 'Log Your Mood')}
           </Button>
         </Paper>

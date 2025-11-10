@@ -5,7 +5,8 @@
  * Använd detta som guide när du refaktorerar Dashboard.tsx
  */
 
-import React from 'react';
+import React from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from 'react-i18next';
 import { DashboardLayout, DashboardHeader, DashboardGrid, DashboardSection } from './Layout';
 import { BaseWidget, StatCard, ActionCard } from './Widgets';
@@ -53,7 +54,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
         span={3}
         delay={0.1}
       >
-        <DashboardGrid columns={{ mobile: 2, tablet: 3, desktop: 4 }} gap="md">
+        <DashboardGrid columns={{ mobile: 2, tablet: 3, desktop: spacing.xl }} gap="md">
           <StatCard
             label="Totala Humör"
             value={stats.totalMoods}
@@ -95,7 +96,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
         span={3}
         delay={0.2}
       >
-        <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap="md">
+        <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: spacing.xl }} gap="md">
           <ActionCard
             title="Logga Humör"
             description="Spåra ditt känslotillstånd"
@@ -136,7 +137,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
       </DashboardSection>
 
       {/* Widgets Section */}
-      <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }} gap="lg">
+      <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: spacing.lg }} gap="lg">
         {/* Analytics Widget Example */}
         <BaseWidget
           title="Humör Analys"
@@ -219,7 +220,7 @@ export default ModernDashboardExample;
  *    <motion.section className="grid grid-cols-1 sm:grid-cols-2...">
  *    MED:
  *    <DashboardSection title="...">
- *      <DashboardGrid columns={{mobile: 1, tablet: 2, desktop: 4}}>
+ *      <DashboardGrid columns={{mobile: 1, tablet: 2, desktop: spacing.xl}}>
  * 
  * 4. ERSÄTT Action Buttons:
  *    <motion.div className="bg-gradient-to-br...">

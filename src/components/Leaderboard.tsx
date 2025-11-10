@@ -3,7 +3,8 @@
  * Weekly challenges and community rankings
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -136,7 +137,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
 
   return (
     <Box>
-      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+      <Card sx={{ mb: spacing.md, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
@@ -146,7 +147,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
             <Chip
               icon={<TrendingUpIcon />}
               label={t('leaderboard.competitive', 'Competitive Mode')}
-              sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+              sx={{ bgcolor: 'colors.overlay.medium', color: 'white' }}
             />
           </Box>
         </CardContent>
@@ -155,7 +156,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
       <Tabs
         value={activeTab}
         onChange={handleTabChange}
-        sx={{ mb: 2 }}
+        sx={{ mb: spacing.md }}
         variant="fullWidth"
       >
         <Tab label={t('leaderboard.weekly', 'This Week')} />
@@ -172,7 +173,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
         >
           <Card
             sx={{
-              mb: 2,
+              mb: spacing.md,
               border: '2px solid #2196F3',
               background: 'linear-gradient(90deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%)',
             }}
@@ -182,13 +183,13 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
                 {t('leaderboard.yourRank', 'Your Position')}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                   <Avatar sx={{ bgcolor: getRankColor(userEntry.rank), width: 50, height: 50 }}>
                     {userEntry.rank}
                   </Avatar>
                   <Box>
                     <Typography variant="h6">{userEntry.displayName}</Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
                       <LocalFireDepartmentIcon sx={{ fontSize: '1rem', color: '#FF5722' }} />
                       <Typography variant="caption">{userEntry.streak} day streak</Typography>
                     </Box>
@@ -199,14 +200,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
                 </Typography>
               </Box>
               {userEntry.rank > 10 && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: spacing.md }}>
                   <Typography variant="caption" color="text.secondary">
                     Keep going! You're {userEntry.rank - 10} spots away from the top 10
                   </Typography>
                   <LinearProgress
                     variant="determinate"
                     value={((20 - userEntry.rank) / 20) * 100}
-                    sx={{ mt: 1, height: 6, borderRadius: 3 }}
+                    sx={{ mt: spacing.sm, height: 6, borderRadius: borderRadius.lg }}
                   />
                 </Box>
               )}
@@ -246,7 +247,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                         <Typography variant="body1" fontWeight={entry.rank <= 3 ? 'bold' : 'normal'}>
                           {entry.displayName}
                         </Typography>
@@ -271,7 +272,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ userId }) => {
         </List>
       </Card>
 
-      <Box sx={{ mt: 2, p: 2, bgcolor: '#FFF3E0', borderRadius: 2 }}>
+      <Box sx={{ mt: spacing.md, p: spacing.md, bgcolor: '#FFF3E0', borderRadius: borderRadius.md }}>
         <Typography variant="body2" color="text.secondary">
           💡 <strong>Tip:</strong> Earn points by logging moods daily, completing challenges, and maintaining streaks!
         </Typography>

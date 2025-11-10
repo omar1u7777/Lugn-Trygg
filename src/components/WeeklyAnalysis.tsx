@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react"
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from "react-i18next";
 import { getWeeklyAnalysis } from "../api/api";
 import useAuth from "../hooks/useAuth";
@@ -70,18 +71,18 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
 
   const getMoodColor = (mood: string) => {
     const colors: { [key: string]: string } = {
-      glad: '#4caf50',
-      lycklig: '#8bc34a',
-      nöjd: '#cddc39',
-      tacksam: '#ffeb3b',
-      positiv: '#ffc107',
-      ledsen: '#ff9800',
-      arg: '#f44336',
-      stressad: '#e91e63',
-      deppig: '#9c27b0',
-      frustrerad: '#673ab7',
-      irriterad: '#3f51b5',
-      orolig: '#2196f3'
+      glad: 'colors.mood.glad',
+      lycklig: 'colors.mood.lycklig',
+      nöjd: 'colors.mood.nöjd',
+      tacksam: 'colors.mood.tacksam',
+      positiv: 'colors.mood.positiv',
+      ledsen: 'colors.mood.ledsen',
+      arg: 'colors.mood.arg',
+      stressad: 'colors.mood.stressad',
+      deppig: 'colors.mood.deppig',
+      frustrerad: 'colors.mood.frustrerad',
+      irriterad: 'colors.mood.irriterad',
+      orolig: 'colors.mood.orolig'
     };
     return colors[mood] || '#9e9e9e';
   };

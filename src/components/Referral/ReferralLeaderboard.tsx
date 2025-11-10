@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import api from '../../api/api';
 import {
     Box,
@@ -53,7 +54,7 @@ const ReferralLeaderboard: React.FC = () => {
     };
 
     const getRankColor = (rank: number) => {
-        if (rank === 1) return 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'; // Gold
+        if (rank === 1) return 'linear-gradient(135deg, #fbbf24 0%, colors.mood.sad 100%)'; // Gold
         if (rank === 2) return 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)'; // Silver
         if (rank === 3) return 'linear-gradient(135deg, #d97706 0%, #92400e 100%)'; // Bronze
         return undefined; // Default MUI background
@@ -65,7 +66,7 @@ const ReferralLeaderboard: React.FC = () => {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                 <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={50} sx={{ mb: 1 }} />
+                    <CircularProgress size={50} sx={{ mb: spacing.sm }} />
                     <Typography variant="body1" color="text.secondary">
                         Laddar leaderboard...
                     </Typography>
@@ -76,16 +77,16 @@ const ReferralLeaderboard: React.FC = () => {
 
     if (error) {
         return (
-            <Alert severity="error" sx={{ borderRadius: 3, p: 3 }}>
+            <Alert severity="error" sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
                 {error}
             </Alert>
         );
     }
 
     return (
-        <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.lg }}>
+                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     🏆 Topplista
                 </Typography>
                 <Button
@@ -100,7 +101,7 @@ const ReferralLeaderboard: React.FC = () => {
 
             {leaderboard.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: 1 }}>
+                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.sm }}>
                         🌟
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
@@ -114,8 +115,8 @@ const ReferralLeaderboard: React.FC = () => {
                             key={entry.user_id}
                             elevation={isTopThree(entry.rank) ? 3 : 0}
                             sx={{
-                                p: 2,
-                                borderRadius: 2,
+                                p: spacing.md,
+                                borderRadius: borderRadius.md,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
@@ -126,7 +127,7 @@ const ReferralLeaderboard: React.FC = () => {
                                 ),
                             }}
                         >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md, flex: 1 }}>
                                 {/* Rank Badge */}
                                 <Box
                                     sx={{
@@ -145,7 +146,7 @@ const ReferralLeaderboard: React.FC = () => {
 
                                 {/* User Info */}
                                 <Box sx={{ flex: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: 0.5 }}>
                                         <Typography
                                             variant="body1"
                                             fontWeight="600"
@@ -165,7 +166,7 @@ const ReferralLeaderboard: React.FC = () => {
                                                 fontSize: '0.75rem',
                                                 height: 24,
                                                 bgcolor: isTopThree(entry.rank)
-                                                    ? 'rgba(255,255,255,0.2)'
+                                                    ? 'colors.overlay.medium'
                                                     : undefined,
                                                 color: isTopThree(entry.rank)
                                                     ? 'white'
@@ -177,7 +178,7 @@ const ReferralLeaderboard: React.FC = () => {
                                         variant="body2"
                                         sx={{
                                             color: isTopThree(entry.rank)
-                                                ? 'rgba(255,255,255,0.8)'
+                                                ? 'colors.overlay.medium'
                                                 : 'text.secondary',
                                         }}
                                     >
@@ -191,8 +192,8 @@ const ReferralLeaderboard: React.FC = () => {
             )}
 
             {/* Legend */}
-            <Box sx={{ mt: 3, pt: 3 }}>
-                <Divider sx={{ mb: 2 }} />
+            <Box sx={{ mt: spacing.lg, pt: 3 }}>
+                <Divider sx={{ mb: spacing.md }} />
                 <Typography variant="body2" color="text.secondary" fontWeight="600" gutterBottom>
                     🎯 Nivåer:
                 </Typography>

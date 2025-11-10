@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Card, CardContent, Button, Typography, Box, Chip, Alert } from '@mui/material';
 import { GetApp, Close, Star, Smartphone, Computer, Tablet } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -113,7 +114,7 @@ const PWAInstallPrompt: React.FC = () => {
         aria-labelledby="pwa-install-title"
         aria-describedby="pwa-install-description"
       >
-        <CardContent sx={{ p: 3 }}>
+        <CardContent sx={{ p: spacing.lg }}>
           <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2}>
             <Box display="flex" alignItems="center" gap={2}>
               <GetApp sx={{ color: 'primary.main', fontSize: 28 }} />
@@ -140,7 +141,7 @@ const PWAInstallPrompt: React.FC = () => {
             </Button>
           </Box>
 
-          <Typography id="pwa-install-description" variant="body2" sx={{ mb: 3 }}>
+          <Typography id="pwa-install-description" variant="body2" sx={{ mb: spacing.lg }}>
             Installera appen för snabb åtkomst, offline-funktionalitet och push-notiser.
             Fungerar även utan internetanslutning!
           </Typography>
@@ -188,7 +189,7 @@ const PWAInstallPrompt: React.FC = () => {
         <Card
           sx={{
             position: 'fixed',
-            top: 20,
+            top: spacing.md0,
             right: 20,
             maxWidth: 350,
             zIndex: 1000,
@@ -199,11 +200,11 @@ const PWAInstallPrompt: React.FC = () => {
           role="dialog"
           aria-labelledby="pwa-update-title"
         >
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: spacing.lg }}>
             <Typography id="pwa-update-title" variant="h6" gutterBottom>
               Uppdatering tillgänglig! 🚀
             </Typography>
-            <Typography variant="body2" sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: spacing.lg }}>
               En ny version av Lugn & Trygg är tillgänglig med förbättringar och nya funktioner.
             </Typography>
 
@@ -234,7 +235,7 @@ const PWAInstallPrompt: React.FC = () => {
           severity="success"
           sx={{
             position: 'fixed',
-            top: 20,
+            top: spacing.md0,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,

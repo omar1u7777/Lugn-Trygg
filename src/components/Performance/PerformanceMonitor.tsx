@@ -11,7 +11,8 @@
  * - Performance recommendations
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -247,12 +248,12 @@ const PerformanceMonitor: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <Speed /> Performance Monitor
       </Typography>
 
       {issues.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
+        <Alert severity="warning" sx={{ mb: spacing.lg }}>
           <Typography variant="subtitle2" gutterBottom>
             Performance Issues Detected:
           </Typography>
@@ -267,7 +268,7 @@ const PerformanceMonitor: React.FC = () => {
       )}
 
       {/* Real-time Metrics */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: spacing.lg }}>
         <Grid xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -284,7 +285,7 @@ const PerformanceMonitor: React.FC = () => {
                 label={metrics.fps >= 55 ? 'Excellent' : metrics.fps >= 30 ? 'Good' : 'Poor'}
                 color={metrics.fps >= 55 ? 'success' : metrics.fps >= 30 ? 'warning' : 'error'}
                 size="small"
-                sx={{ mt: 1 }}
+                sx={{ mt: spacing.sm }}
               />
             </CardContent>
           </Card>
@@ -312,7 +313,7 @@ const PerformanceMonitor: React.FC = () => {
                   metrics.memory.percentage < 60 ? 'success' :
                   metrics.memory.percentage < 80 ? 'warning' : 'error'
                 }
-                sx={{ mt: 1 }}
+                sx={{ mt: spacing.sm }}
               />
             </CardContent>
           </Card>
@@ -365,7 +366,7 @@ const PerformanceMonitor: React.FC = () => {
 
       {/* Performance History Chart */}
       {history.length > 0 && (
-        <Card sx={{ mb: 3 }}>
+        <Card sx={{ mb: spacing.lg }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Performance History (Last 30 seconds)
@@ -398,7 +399,7 @@ const PerformanceMonitor: React.FC = () => {
       )}
 
       {/* Recommendations */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: spacing.lg }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Performance Recommendations

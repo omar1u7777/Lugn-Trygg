@@ -51,18 +51,19 @@ if (!rootElement) {
   throw new Error("Root-element saknas i index.html!");
 }
 
-// Service Worker disabled to prevent MIME type errors in production
-// if ('serviceWorker' in navigator && import.meta.env.PROD) {
-//   window.addEventListener('load', () => {
-//     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-//       .then((registration) => {
-//         console.log('✅ Service Worker registered successfully:', registration.scope);
-//       })
-//       .catch((error) => {
-//         console.warn('⚠️ Service Worker registration failed:', error);
-//       });
-//   });
-// }
+// Service Worker för production - Offline Support & Caching
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        console.log('✅ Service Worker registered successfully:', registration.scope);
+        console.log('📦 Offline support activated for 1000 users');
+      })
+      .catch((error) => {
+        console.warn('⚠️ Service Worker registration failed:', error);
+      });
+  });
+}
 
 //  Skapa en React 18 root-instans och rendera appen
 createRoot(rootElement).render(

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Link, useSearchParams } from "react-router-dom";
 import { Box, Typography, IconButton, Alert, TextField } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -91,7 +92,7 @@ const RegisterForm: React.FC = () => {
         background: (theme) =>
           theme.palette.mode === "dark"
             ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
-            : "linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #faf5ff 100%)",
+            : "linear-gradient(135deg, #eff6ff 0%, colors.text.inverse 50%, #faf5ff 100%)",
       }}
       role="main"
       aria-labelledby="register-title"
@@ -101,9 +102,9 @@ const RegisterForm: React.FC = () => {
           width: "100%",
           maxWidth: "md",
           bgcolor: "background.paper",
-          borderRadius: 4,
+          borderRadius: borderRadius.xl,
           boxShadow: 6,
-          p: 4,
+          p: spacing.xl,
           border: 1,
           borderColor: "divider",
         }}
@@ -116,7 +117,7 @@ const RegisterForm: React.FC = () => {
             textAlign="center"
             color="text.primary"
             sx={{
-              mb: 4,
+              mb: spacing.xl,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -136,7 +137,7 @@ const RegisterForm: React.FC = () => {
             role="alert"
             aria-live="assertive"
             id="register-error"
-            sx={{ mb: 3 }}
+            sx={{ mb: spacing.lg }}
             icon={<span style={{ fontSize: "1.125rem" }}>⚠️</span>}
           >
             {error}
@@ -149,14 +150,14 @@ const RegisterForm: React.FC = () => {
             role="status"
             aria-live="polite"
             id="register-success"
-            sx={{ mb: 3 }}
+            sx={{ mb: spacing.lg }}
             icon={<span style={{ fontSize: "1.125rem" }}>✅</span>}
           >
             {success}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 3 }} noValidate>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: spacing.lg }} noValidate>
           <div>
             <Typography
               component="label"
@@ -164,7 +165,7 @@ const RegisterForm: React.FC = () => {
               variant="body2"
               fontWeight="medium"
               color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
             >
               <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
                 👤
@@ -194,7 +195,7 @@ const RegisterForm: React.FC = () => {
               variant="body2"
               fontWeight="medium"
               color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
             >
               <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
                 📧
@@ -248,7 +249,7 @@ const RegisterForm: React.FC = () => {
               variant="body2"
               fontWeight="medium"
               color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
             >
               <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
                 🔒
@@ -287,7 +288,7 @@ const RegisterForm: React.FC = () => {
                 {showPassword ? <VisibilityOff /> : <Visibility />}
               </IconButton>
             </Box>
-            <Typography id="password-help" variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+            <Typography id="password-help" variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: "block" }}>
               Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
             </Typography>
           </div>
@@ -299,7 +300,7 @@ const RegisterForm: React.FC = () => {
               variant="body2"
               fontWeight="medium"
               color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
             >
               <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
                 🔒
@@ -379,7 +380,7 @@ const RegisterForm: React.FC = () => {
           </Box>
         </Box>
 
-        <Box sx={{ mt: 4, textAlign: "center" }}>
+        <Box sx={{ mt: spacing.xl, textAlign: "center" }}>
           <Typography variant="body2" color="text.secondary">
             Har du redan ett konto?{" "}
             <Typography

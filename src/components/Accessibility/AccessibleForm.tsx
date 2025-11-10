@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   TextField,
@@ -244,7 +245,7 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
       sx={{ maxWidth: 600, mx: 'auto' }}
     >
       {fields.map(field => (
-        <Box key={field.id} sx={{ mb: 3 }}>
+        <Box key={field.id} sx={{ mb: spacing.lg }}>
           {renderField(field)}
         </Box>
       ))}
@@ -254,8 +255,8 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
           role="alert"
           aria-live="assertive"
           sx={{
-            mb: 2,
-            p: 2,
+            mb: spacing.md,
+            p: spacing.md,
             bgcolor: 'error.main',
             color: 'error.contrastText',
             borderRadius: 1,
@@ -270,8 +271,8 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
           role="status"
           aria-live="polite"
           sx={{
-            mb: 2,
-            p: 2,
+            mb: spacing.md,
+            p: spacing.md,
             bgcolor: 'success.main',
             color: 'success.contrastText',
             borderRadius: 1,

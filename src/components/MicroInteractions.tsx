@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Box, Button, Card, CardContent, Typography } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Favorite, ThumbUp, Star, CheckCircle, Error, Warning } from '@mui/icons-material';
@@ -87,7 +88,7 @@ const SuccessCheckmark = ({
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.1, type: "spring", stiffness: 500 }}
               >
-                <CheckCircle sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
+                <CheckCircle sx={{ fontSize: 48, color: 'success.main', mb: spacing.sm }} />
               </motion.div>
               <Typography variant="h6" color="success.main">
                 {message}
@@ -339,7 +340,7 @@ const InteractiveButton = ({
             width: 0,
             height: 0,
             borderRadius: '50%',
-            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            backgroundColor: 'colors.overlay.heavy',
             transition: 'width 0.6s, height 0.6s',
             transform: 'translate(-50%, -50%)',
           },
@@ -426,14 +427,14 @@ const ToastNotification = ({
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
           style={{
             position: 'fixed',
-            top: 20,
+            top: spacing.md0,
             right: 20,
             zIndex: 1000,
             minWidth: 300,
           }}
         >
           <Card sx={{ borderLeft: 4, borderColor: getColor() }}>
-            <CardContent sx={{ py: 2, px: 3 }}>
+            <CardContent sx={{ py: spacing.md, px: 3 }}>
               <Box display="flex" alignItems="center" gap={2}>
                 {getIcon()}
                 <Typography variant="body2" sx={{ flex: 1 }}>

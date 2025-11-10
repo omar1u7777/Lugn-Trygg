@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { motion } from 'framer-motion';
 import { Box, Typography, Paper, CircularProgress, Avatar } from '@mui/material';
 import api from '../../api/api';
@@ -149,13 +150,13 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
       <Paper
         elevation={1}
         sx={{
-          p: 3,
-          borderRadius: 4,
+          p: spacing.lg,
+          borderRadius: borderRadius.xl,
           border: 1,
           borderColor: 'divider',
         }}
       >
-        <Typography variant="h6" fontWeight="semibold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h6" fontWeight="semibold" sx={{ mb: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <span>📋</span>
           Senaste aktivitet
         </Typography>
@@ -164,7 +165,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
             <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
               <CircularProgress size={40} />
               <Box sx={{ flex: 1 }}>
-                <Box sx={{ height: 16, bgcolor: 'action.hover', borderRadius: 1, width: '75%', mb: 1 }} />
+                <Box sx={{ height: 16, bgcolor: 'action.hover', borderRadius: 1, width: '75%', mb: spacing.sm }} />
                 <Box sx={{ height: 12, bgcolor: 'action.hover', borderRadius: 1, width: '50%' }} />
               </Box>
             </Box>
@@ -178,13 +179,13 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
     <Paper
       elevation={1}
       sx={{
-        p: 3,
-        borderRadius: 4,
+        p: spacing.lg,
+        borderRadius: borderRadius.xl,
         border: 1,
         borderColor: 'divider',
       }}
     >
-      <Typography variant="h6" fontWeight="semibold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography variant="h6" fontWeight="semibold" sx={{ mb: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <span>📋</span>
         Senaste aktivitet
       </Typography>
@@ -215,7 +216,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
                   alignItems: 'flex-start',
                   gap: 1.5,
                   p: 1.5,
-                  borderRadius: 2,
+                  borderRadius: borderRadius.md,
                   border: 1,
                   bgcolor: colors.bg,
                   borderColor: colors.borderColor,

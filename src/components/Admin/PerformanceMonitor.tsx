@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -72,8 +73,8 @@ const PerformanceMonitor: React.FC = () => {
   return (
     <Card sx={{ maxWidth: 1000, margin: '16px auto' }}>
       <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.lg }}>
+          <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <Speed color="primary" />
             Performance Monitor
           </Typography>
@@ -82,12 +83,12 @@ const PerformanceMonitor: React.FC = () => {
           </Button>
         </Box>
 
-        {loading && <LinearProgress sx={{ mb: 2 }} />}
+        {loading && <LinearProgress sx={{ mb: spacing.md }} />}
 
         {metrics && !loading && (
           <>
             {/* Summary Cards */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: spacing.lg }}>
               <Grid xs={12} md={4}>
                 <Card variant="outlined">
                   <CardContent>
@@ -151,7 +152,7 @@ const PerformanceMonitor: React.FC = () => {
                           variant="determinate"
                           value={Math.min((stats.avg_duration / 2) * 100, 100)}
                           color={getPerformanceColor(stats.avg_duration)}
-                          sx={{ mt: 1 }}
+                          sx={{ mt: spacing.sm }}
                         />
                       </Box>
                     }
@@ -167,7 +168,7 @@ const PerformanceMonitor: React.FC = () => {
 
             {/* Errors */}
             {Object.keys(metrics.error_counts).length > 0 && (
-              <Alert severity="error" icon={<ErrorIcon />} sx={{ mt: 3 }}>
+              <Alert severity="error" icon={<ErrorIcon />} sx={{ mt: spacing.lg }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Error Summary
                 </Typography>
@@ -180,7 +181,7 @@ const PerformanceMonitor: React.FC = () => {
             )}
 
             {/* Recommendations */}
-            <Alert severity="info" icon={<TrendingUp />} sx={{ mt: 2 }}>
+            <Alert severity="info" icon={<TrendingUp />} sx={{ mt: spacing.md }}>
               <Typography variant="subtitle2" gutterBottom>
                 Optimization Recommendations
               </Typography>

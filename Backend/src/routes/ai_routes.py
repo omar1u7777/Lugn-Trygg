@@ -249,3 +249,92 @@ def get_forecast_history():
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av prognoshistorik: {e}")
         return jsonify({"error": "Ett internt fel uppstod vid hämtning av prognoshistorik."}), 500
+
+
+# 🔹 AI Chat Endpoint - NYTT för load test
+@ai_bp.route("/chat", methods=["POST", "OPTIONS"])
+def ai_chat():
+    """AI chatbot conversation endpoint"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        data = request.get_json(force=True, silent=False)
+        user_id = data.get("user_id", "").strip()
+        message = data.get("message", "").strip()
+        
+        if not user_id or not message:
+            return jsonify({"error": "user_id och message krävs"}), 400
+        
+        # Simple AI response (implementera med OpenAI senare)
+        from src.utils.ai_services import ai_services
+        
+        try:
+            response = ai_services.generate_chat_response(message, user_id)
+        except Exception:
+            # Fallback response
+            response = {
+                "message": f"Tack för ditt meddelande. Jag förstår att du säger: '{message[:50]}...'",
+                "sentiment": "NEUTRAL",
+                "suggestions": ["Berätta mer", "Hur känner du dig nu?", "Vill du prata om något specifikt?"]
+            }
+        
+        # Spara chat i databas
+        timestamp = datetime.now(timezone.utc).isoformat()
+        chat_ref = db.collection("users").document(user_id).collection("chat_history")
+        chat_ref.add({
+            "user_message": message,
+            "ai_response": response.get("message", ""),
+            "timestamp": timestamp,
+            "sentiment": response.get("sentiment", "NEUTRAL")
+        })
+        
+        return jsonify({
+            "response": response.get("message", ""),
+            "sentiment": response.get("sentiment", "NEUTRAL"),
+            "suggestions": response.get("suggestions", []),
+            "timestamp": timestamp
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ AI chat error: {str(e)}")
+        return jsonify({"error": f"Chat failed: {str(e)}"}), 500
+
+
+# 🔹 AI Chat History - NYTT för load test
+@ai_bp.route("/history", methods=["POST", "OPTIONS"])
+def ai_chat_history():
+    """Get user's chat history"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        data = request.get_json(force=True, silent=False)
+        user_id = data.get("user_id", "").strip()
+        
+        if not user_id:
+            return jsonify({"error": "user_id krävs"}), 400
+        
+        limit = data.get("limit", 50)
+        
+        # Hämta chat history
+        chat_ref = db.collection("users").document(user_id).collection("chat_history")
+        chats = chat_ref.order_by("timestamp", direction="DESCENDING").limit(limit).stream()
+        
+        history = []
+        for chat_doc in chats:
+            chat_data = chat_doc.to_dict()
+            history.append({
+                "id": chat_doc.id,
+                "user_message": chat_data.get("user_message", ""),
+                "ai_response": chat_data.get("ai_response", ""),
+                "timestamp": chat_data.get("timestamp", ""),
+                "sentiment": chat_data.get("sentiment", "NEUTRAL")
+            })
+        
+        return jsonify({
+            "history": history,
+            "count": len(history)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Chat history error: {str(e)}")
+        return jsonify({"error": f"Failed to get history: {str(e)}"}), 500

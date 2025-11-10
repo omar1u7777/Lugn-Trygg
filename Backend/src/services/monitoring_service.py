@@ -326,6 +326,97 @@ class MonitoringService:
         except:
             return False
 
+    # Additional methods for test coverage
+    
+    def track_request(self, endpoint: str, method: str, status_code: int, duration: float) -> None:
+        """Track HTTP request metrics"""
+        try:
+            if self.redis_client:
+                # Increment total requests
+                self.redis_client.incr('metrics:http_requests_total')
+                
+                # Track errors (4xx, 5xx)
+                if status_code >= 400:
+                    self.redis_client.incr('metrics:http_errors_total')
+                
+                # Update average response time
+                key = 'metrics:avg_response_time'
+                current_avg = float(self.redis_client.get(key) or 0)
+                new_avg = (current_avg + duration) / 2  # Simple moving average
+                self.redis_client.set(key, new_avg)
+                
+                # Log request details
+                logger.info(f"Request tracked: {method} {endpoint} - {status_code} ({duration:.2f}ms)")
+        except Exception as e:
+            logger.error(f"Failed to track request: {e}")
+
+    def track_error(self, error_type: str, endpoint: str, error_message: str) -> None:
+        """Track application errors"""
+        try:
+            error_data = {
+                'type': error_type,
+                'endpoint': endpoint,
+                'message': error_message,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+            if self.redis_client:
+                # Store error in Redis list
+                self.redis_client.lpush('errors:recent', json.dumps(error_data))
+                self.redis_client.ltrim('errors:recent', 0, 99)  # Keep last 100 errors
+                self.redis_client.incr('metrics:http_errors_total')
+            
+            logger.error(f"Error tracked: {error_type} at {endpoint} - {error_message}")
+        except Exception as e:
+            logger.error(f"Failed to track error: {e}")
+
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get comprehensive health status"""
+        try:
+            # Check system health
+            system_metrics = self.get_system_metrics()
+            
+            # Check services health
+            health_checks = {
+                'database': self._check_database_health(),
+                'redis': self._check_redis_health(),
+                'firebase': self._check_firebase_health(),
+                'openai': self._check_openai_health()
+            }
+            
+            # Determine overall status
+            all_healthy = all(health_checks.values())
+            any_unhealthy = not any(health_checks.values())
+            
+            if all_healthy:
+                status = 'healthy'
+                message = 'All systems operational'
+            elif any_unhealthy:
+                status = 'unhealthy'
+                message = 'Critical systems down'
+            else:
+                status = 'degraded'
+                message = 'Some systems experiencing issues'
+            
+            return {
+                'status': status,
+                'message': message,
+                'timestamp': datetime.utcnow().isoformat(),
+                'system': {
+                    'cpu_usage': system_metrics.cpu_usage,
+                    'memory_usage': system_metrics.memory_usage,
+                    'disk_usage': system_metrics.disk_usage
+                },
+                'services': health_checks
+            }
+        except Exception as e:
+            logger.error(f"Failed to get health status: {e}")
+            return {
+                'status': 'unknown',
+                'message': f'Health check failed: {str(e)}',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+
 # Global monitoring service instance
 monitoring_service = None
 

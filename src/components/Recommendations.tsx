@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Card, CardContent, Typography, Button, Box, Chip, Avatar, Rating } from '@mui/material';
 import { Lightbulb, ThumbUp, ThumbDown, Bookmark, Share, PlayArrow } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -326,7 +327,7 @@ const Recommendations: React.FC<RecommendationsProps> = ({ userId }) => {
       {/* Daily Inspiration */}
       <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
         <CardContent className="p-6 text-center">
-          <Lightbulb sx={{ fontSize: 48, mb: 2, opacity: 0.8 }} />
+          <Lightbulb sx={{ fontSize: 48, mb: spacing.md, opacity: 0.8 }} />
           <Typography variant="h6" gutterBottom>
             Dagens Inspiration
           </Typography>

@@ -426,3 +426,81 @@ export const analyzeText = async (text: string) => {
     throw new Error(error.response?.data?.error || "Ett fel uppstod vid textanalys.");
   }
 };
+
+// 🔹 Hämta leaderboard från backend (Referral Routes)
+export const getLeaderboard = async (limit: number = 10) => {
+  const startTime = performance.now();
+  try {
+    const response = await api.get(`/api/referral/leaderboard?limit=${limit}`);
+    const duration = performance.now() - startTime;
+    console.log(`✅ Leaderboard fetched in ${duration.toFixed(2)}ms`);
+    return response.data.leaderboard || [];
+  } catch (error: any) {
+    console.error("❌ API Leaderboard error:", error);
+    // Return empty array instead of throwing to allow graceful degradation
+    return [];
+  }
+};
+
+// 🔹 Hämta användarens referral stats
+export const getReferralStats = async (userId: string) => {
+  const startTime = performance.now();
+  try {
+    const response = await api.post("/api/referral/generate", { user_id: userId });
+    const duration = performance.now() - startTime;
+    console.log(`✅ Referral stats fetched in ${duration.toFixed(2)}ms`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ API Referral Stats error:", error);
+    return {
+      total_referrals: 0,
+      successful_referrals: 0,
+      rewards_earned: 0,
+      referral_code: ""
+    };
+  }
+};
+
+// ==========================================
+// DASHBOARD API - OPTIMIZED BATCHED ENDPOINTS
+// ==========================================
+
+/**
+ * Get complete dashboard summary in one API call
+ * Replaces multiple getMoods, getWeeklyAnalysis, getChatHistory calls
+ * Backend caches for 5 minutes for optimal performance
+ */
+export const getDashboardSummary = async (userId: string) => {
+  const startTime = performance.now();
+  try {
+    const response = await api.get(`/api/dashboard/${userId}/summary`);
+    const duration = performance.now() - startTime;
+    
+    // Log performance metrics
+    console.log(`✅ Dashboard summary fetched in ${duration.toFixed(2)}ms`, {
+      cached: response.data.cached || false,
+      responseTime: response.data.responseTime,
+      totalMoods: response.data.totalMoods,
+      totalChats: response.data.totalChats,
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Dashboard summary error:", error);
+    throw new Error(error.response?.data?.error || "Failed to load dashboard summary");
+  }
+};
+
+/**
+ * Get quick stats for real-time updates (1 minute cache)
+ * Ultra-fast endpoint for dashboard refresh
+ */
+export const getDashboardQuickStats = async (userId: string) => {
+  try {
+    const response = await api.get(`/api/dashboard/${userId}/quick-stats`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Quick stats error:", error);
+    return { totalMoods: 0, totalChats: 0, cached: false };
+  }
+};

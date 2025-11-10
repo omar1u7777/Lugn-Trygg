@@ -3,7 +3,8 @@
  * Anonymous peer-to-peer support chat for mental health discussions
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -207,7 +208,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
 
   return (
     <Box>
-      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      <Card sx={{ mb: spacing.md, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
@@ -226,14 +227,14 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onChange={(_e, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+      <Tabs value={activeTab} onChange={(_e, v) => setActiveTab(v)} sx={{ mb: spacing.md }}>
         <Tab label={t('chat.rooms', 'Chat Rooms')} />
         <Tab label={t('chat.activeChat', 'Active Chat')} disabled={!selectedRoom} />
       </Tabs>
 
       {activeTab === 0 && (
         <Box>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: spacing.md }}>
             {t('chat.anonymous', 'All chats are anonymous and moderated for safety. Be kind and supportive!')}
           </Alert>
           
@@ -246,7 +247,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
               >
                 <Card
                   sx={{
-                    mb: 2,
+                    mb: spacing.md,
                     cursor: 'pointer',
                     border: `2px solid ${room.color}`,
                     transition: 'all 0.3s',
@@ -285,7 +286,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
 
       {activeTab === 1 && selectedRoom && (
         <Box>
-          <Card sx={{ mb: 2 }}>
+          <Card sx={{ mb: spacing.md }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
@@ -302,7 +303,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
           </Card>
 
           <Card sx={{ height: 500, display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+            <Box sx={{ flex: 1, overflowY: 'auto', p: spacing.md }}>
               <AnimatePresence>
                 {messages.map((msg) => (
                   <motion.div
@@ -313,17 +314,17 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
                   >
                     <Card
                       sx={{
-                        mb: 2,
+                        mb: spacing.md,
                         bgcolor: msg.userId === userId ? '#E3F2FD' : 'white',
                       }}
                     >
                       <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md }}>
                           <Avatar sx={{ bgcolor: msg.isSupporter ? '#4CAF50' : '#9E9E9E' }}>
                             {msg.avatar}
                           </Avatar>
                           <Box sx={{ flex: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: spacing.sm }}>
                               <Typography variant="subtitle2" fontWeight="bold">
                                 {msg.username}
                               </Typography>
@@ -340,7 +341,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
                               </Typography>
                             </Box>
                             <Typography variant="body2">{msg.message}</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mt: spacing.sm }}>
                               <IconButton
                                 size="small"
                                 onClick={() => handleLikeMessage(msg.id)}
@@ -364,8 +365,8 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
               <div ref={messagesEndRef} />
             </Box>
 
-            <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ p: spacing.md, borderTop: '1px solid #e0e0e0' }}>
+              <Box sx={{ display: 'flex', gap: spacing.sm }}>
                 <TextField
                   fullWidth
                   multiline
@@ -389,7 +390,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
                   <SendIcon />
                 </Button>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: 'block' }}>
                 {t('chat.reminder', 'Be respectful and supportive. Crisis? Call your local helpline.')}
               </Typography>
             </Box>
@@ -401,7 +402,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
       <Dialog open={showGuidelines} onClose={() => setShowGuidelines(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('chat.guidelinesTitle', 'Community Guidelines')}</DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: spacing.md }}>
             {t('chat.safeSpace', 'This is a safe and supportive space for everyone.')}
           </Alert>
           <Typography variant="body2" paragraph>
@@ -413,7 +414,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
             <li>Encourage others on their journey</li>
             <li>Respect privacy and confidentiality</li>
           </ul>
-          <Typography variant="body2" paragraph sx={{ mt: 2 }}>
+          <Typography variant="body2" paragraph sx={{ mt: spacing.md }}>
             <strong>❌ Don't:</strong>
           </Typography>
           <ul>
@@ -422,7 +423,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId, userna
             <li>Bully, harass, or discriminate</li>
             <li>Share triggering or graphic content</li>
           </ul>
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <Alert severity="error" sx={{ mt: spacing.md }}>
             <strong>{t('chat.crisis', 'In Crisis?')}</strong> This is not a crisis service. Call your local emergency number or crisis helpline immediately.
           </Alert>
         </DialogContent>

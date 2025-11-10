@@ -3,7 +3,8 @@
  * Quick and visual way to log mood with emoji picker
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Button,
@@ -94,11 +95,11 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
         Select your current mood by choosing an emoji and intensity level
       </div>
       <DialogContent>
-        <Typography variant="body2" gutterBottom sx={{ mb: 2 }}>
+        <Typography variant="body2" gutterBottom sx={{ mb: spacing.md }}>
           {t('mood.selectEmoji', 'How are you feeling right now?')}
         </Typography>
 
-        <Grid container spacing={2} sx={{ mb: 3 }} role="radiogroup" aria-labelledby="emoji-mood-selector-title">
+        <Grid container spacing={2} sx={{ mb: spacing.lg }} role="radiogroup" aria-labelledby="emoji-mood-selector-title">
           {MOOD_OPTIONS.map((mood) => (
             <Grid item xs={3} key={mood.value}>
               <motion.div
@@ -118,7 +119,7 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
                     border: `2px solid ${
                       selectedMood?.value === mood.value ? mood.color : '#ddd'
                     }`,
-                    borderRadius: 2,
+                    borderRadius: borderRadius.md,
                     '&:hover': {
                       backgroundColor: `${mood.color}22`,
                     },
@@ -139,11 +140,11 @@ export const EmojiMoodSelector: React.FC<EmojiMoodSelectorProps> = ({
         </Grid>
 
         {selectedMood && (
-          <Box sx={{ mt: 2 }} role="radiogroup" aria-labelledby="intensity-label">
+          <Box sx={{ mt: spacing.md }} role="radiogroup" aria-labelledby="intensity-label">
             <Typography id="intensity-label" variant="body2" gutterBottom>
               {t('mood.intensity', 'How intense is this feeling?')}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+            <Box sx={{ display: 'flex', gap: spacing.sm, justifyContent: 'center' }}>
               {[1, 2, 3, 4, 5].map((level) => (
                 <Chip
                   key={level}

@@ -45,18 +45,19 @@ class AdvancedRateLimiter:
 
             # Mood endpoints - moderate limits
             'mood': {
-                'log': '60 per hour',  # Allow frequent mood logging
-                'get': '120 per hour',
-                'analyze': '30 per hour',
-                'weekly_analysis': '12 per hour'
+                'log': '300 per hour',  # Ökat från 60 till 300 för production
+                'get': '500 per hour',  # Ökat från 120 till 500
+                'analyze': '200 per hour',  # Ökat från 30 till 200
+                'weekly_analysis': '100 per hour'  # Ökat från 12 till 100
             },
 
             # AI endpoints - resource intensive, stricter limits
             'ai': {
-                'story': '20 per hour',  # AI story generation
-                'forecast': '30 per hour',  # ML predictions
-                'chat': '100 per hour',  # Chatbot interactions
-                'analyze': '50 per hour'
+                'story': '100 per hour',  # Ökat från 20 till 100
+                'forecast': '150 per hour',  # Ökat från 30 till 150
+                'chat': '500 per hour',  # Ökat från 100 till 500 för chatbot
+                'analyze': '200 per hour',  # Ökat från 50 till 200
+                'history': '500 per hour'  # NY: För chat history
             },
 
             # File upload endpoints - bandwidth limits

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -55,7 +56,7 @@ interface TabPanelProps {
 
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   <div role="tabpanel" hidden={value !== index}>
-    {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    {value === index && <Box sx={{ p: spacing.lg }}>{children}</Box>}
   </div>
 );
 
@@ -185,7 +186,7 @@ const AnalyticsDashboard: React.FC = () => {
   );
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ p: spacing.lg, maxWidth: 1400, mx: 'auto' }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
@@ -288,7 +289,7 @@ const AnalyticsDashboard: React.FC = () => {
               <LinearProgress
                 variant="determinate"
                 value={(data.averageMood / 10) * 100}
-                sx={{ height: 8, borderRadius: 4, mb: 1 }}
+                sx={{ height: 8, borderRadius: borderRadius.xl, mb: spacing.sm }}
               />
               <Typography variant="body2" color="text.secondary">
                 +2.1% from last period
@@ -310,7 +311,7 @@ const AnalyticsDashboard: React.FC = () => {
                 variant="determinate"
                 value={data.retentionRate}
                 color="success"
-                sx={{ height: 8, borderRadius: 4, mb: 1 }}
+                sx={{ height: 8, borderRadius: borderRadius.xl, mb: spacing.sm }}
               />
               <Typography variant="body2" color="text.secondary">
                 7-day retention rate
@@ -325,9 +326,9 @@ const AnalyticsDashboard: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Feature Usage
               </Typography>
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: spacing.md }}>
                 {data.topFeatures.slice(0, 3).map((feature, index) => (
-                  <Box key={feature.name} sx={{ mb: 1 }}>
+                  <Box key={feature.name} sx={{ mb: spacing.sm }}>
                     <Box display="flex" justifyContent="space-between" mb={0.5}>
                       <Typography variant="body2">{feature.name}</Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -337,7 +338,7 @@ const AnalyticsDashboard: React.FC = () => {
                     <LinearProgress
                       variant="determinate"
                       value={(feature.usage / data.topFeatures[0].usage) * 100}
-                      sx={{ height: 4, borderRadius: 2 }}
+                      sx={{ height: 4, borderRadius: borderRadius.md }}
                     />
                   </Box>
                 ))}
@@ -451,7 +452,7 @@ const AnalyticsDashboard: React.FC = () => {
       </Card>
 
       {/* Privacy Notice */}
-      <Alert severity="info" sx={{ mt: 3 }}>
+      <Alert severity="info" sx={{ mt: spacing.lg }}>
         <Typography variant="body2">
           All analytics data is collected and processed in compliance with GDPR and Swedish privacy regulations.
           User data is anonymized and aggregated for privacy protection.

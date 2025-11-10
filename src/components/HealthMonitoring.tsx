@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -215,7 +216,7 @@ const HealthMonitoring: React.FC = () => {
   );
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ p: spacing.lg, maxWidth: 1400, mx: 'auto' }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
@@ -256,7 +257,7 @@ const HealthMonitoring: React.FC = () => {
 
       {/* Critical Alert */}
       {metrics.crisisAlerts > 0 && (
-        <Alert severity="error" sx={{ mb: 4 }}>
+        <Alert severity="error" sx={{ mb: spacing.xl }}>
           <Typography variant="h6">
             🚨 {metrics.crisisAlerts} Active Crisis Alert{metrics.crisisAlerts > 1 ? 's' : ''}
           </Typography>
@@ -310,7 +311,7 @@ const HealthMonitoring: React.FC = () => {
       </Grid>
 
       {/* Risk Level Indicator */}
-      <Card sx={{ mb: 4 }}>
+      <Card sx={{ mb: spacing.xl }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6">
@@ -355,8 +356,8 @@ const HealthMonitoring: React.FC = () => {
                   sx={{
                     border: 1,
                     borderColor: 'divider',
-                    borderRadius: 2,
-                    mb: 2,
+                    borderRadius: borderRadius.md,
+                    mb: spacing.md,
                     bgcolor: indicator.resolved ? 'action.hover' : 'background.paper',
                   }}
                 >
@@ -452,10 +453,10 @@ const HealthMonitoring: React.FC = () => {
             rows={4}
             label="Action Notes"
             placeholder="Add any additional notes or context for this action..."
-            sx={{ mt: 2 }}
+            sx={{ mt: spacing.md }}
           />
 
-          <FormControl fullWidth sx={{ mt: 2 }}>
+          <FormControl fullWidth sx={{ mt: spacing.md }}>
             <InputLabel>Priority Level</InputLabel>
             <Select defaultValue="high">
               <MenuItem value="critical">Critical - Immediate Action Required</MenuItem>
@@ -488,7 +489,7 @@ const HealthMonitoring: React.FC = () => {
       </Dialog>
 
       {/* Privacy & Compliance Notice */}
-      <Alert severity="info" sx={{ mt: 3 }}>
+      <Alert severity="info" sx={{ mt: spacing.lg }}>
         <Typography variant="body2">
           <strong>Privacy & Compliance:</strong> All health monitoring data is processed in strict compliance with
           GDPR, HIPAA, and Swedish patient data regulations. User data is encrypted, anonymized, and only accessible

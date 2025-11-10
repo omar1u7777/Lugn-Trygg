@@ -3,7 +3,8 @@
  * Text-based mood logging with guided prompts
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Button,
@@ -118,11 +119,11 @@ export const JournalEntry: React.FC<JournalEntryProps> = ({
         {t('journal.title', 'Journal Entry')}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: spacing.lg }}>
           <Typography variant="body2" gutterBottom>
             {t('journal.promptLabel', 'Need inspiration? Try a prompt:')}
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, mt: spacing.sm }}>
             {JOURNAL_PROMPTS.map((prompt, index) => (
               <Chip
                 key={index}
@@ -146,10 +147,10 @@ export const JournalEntry: React.FC<JournalEntryProps> = ({
           value={journalText}
           onChange={handleTextChange}
           aria-label="Journal text entry"
-          sx={{ mb: 2 }}
+          sx={{ mb: spacing.md }}
         />
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: spacing.md }}>
           <Typography variant="caption" color="text.secondary">
             {t('journal.wordCount', `${wordCount} words`)}
           </Typography>
@@ -159,7 +160,7 @@ export const JournalEntry: React.FC<JournalEntryProps> = ({
           <Typography variant="body2" gutterBottom>
             {t('journal.tagsLabel', 'Tag your emotions:')}
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
             {MOOD_TAGS.map((tag) => (
               <Chip
                 key={tag}
@@ -183,8 +184,8 @@ export const JournalEntry: React.FC<JournalEntryProps> = ({
             <Paper
               elevation={1}
               sx={{
-                mt: 2,
-                p: 2,
+                mt: spacing.md,
+                p: spacing.md,
                 backgroundColor: '#E3F2FD',
                 borderLeft: '4px solid #2196F3',
               }}

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -144,11 +145,11 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
         <Typography variant="h5" gutterBottom>
           🔮 Predictive Mood Analytics
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
           AI-powered mood forecasting using machine learning models trained on your historical data.
         </Typography>
 
-        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <Box sx={{ mb: spacing.lg, display: 'flex', gap: spacing.md }}>
           <Button
             variant={daysAhead === 7 ? 'contained' : 'outlined'}
             onClick={() => setDaysAhead(7)}
@@ -179,7 +180,7 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: spacing.md }}>
             {error}
           </Alert>
         )}
@@ -187,15 +188,15 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
         {result && !loading && (
           <>
             {/* Trend Summary */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: spacing.lg }}>
               <Grid xs={12} md={4}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                       {getTrendIcon(result.forecast.trend)}
                       <Typography variant="h6">Trend</Typography>
                     </Box>
-                    <Typography variant="body1" sx={{ mt: 1, textTransform: 'capitalize' }}>
+                    <Typography variant="body1" sx={{ mt: spacing.sm, textTransform: 'capitalize' }}>
                       {result.forecast.trend}
                     </Typography>
                   </CardContent>
@@ -206,7 +207,7 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6">Average Forecast</Typography>
-                    <Typography variant="h4" color="primary" sx={{ mt: 1 }}>
+                    <Typography variant="h4" color="primary" sx={{ mt: spacing.sm }}>
                       {result.forecast.average_forecast.toFixed(2)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -220,13 +221,13 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6">Confidence</Typography>
-                    <Box sx={{ mt: 1 }}>
+                    <Box sx={{ mt: spacing.sm }}>
                       <LinearProgress
                         variant="determinate"
                         value={result.confidence * 100}
                         sx={{ height: 10, borderRadius: 5 }}
                       />
-                      <Typography variant="body2" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ mt: spacing.sm }}>
                         {(result.confidence * 100).toFixed(0)}%
                       </Typography>
                     </Box>
@@ -237,19 +238,19 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
 
             {/* Chart */}
             {chartData && (
-              <Box sx={{ mb: 3 }}>
+              <Box sx={{ mb: spacing.lg }}>
                 <Line data={chartData} options={chartOptions} />
               </Box>
             )}
 
             {/* Risk Factors */}
             {result.risk_factors.length > 0 && (
-              <Box sx={{ mb: 3 }}>
+              <Box sx={{ mb: spacing.lg }}>
                 <Alert severity={getRiskColor(result.risk_factors)} icon={<Warning />}>
                   <Typography variant="subtitle1" gutterBottom>
                     Risk Factors Detected
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                  <Box sx={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', mt: spacing.sm }}>
                     {result.risk_factors.map((factor, idx) => (
                       <Chip
                         key={idx}
@@ -264,14 +265,14 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
             )}
 
             {/* Recommendations */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ mb: spacing.md }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <CheckCircle color="primary" />
                 Personalized Recommendations
               </Typography>
               <Box sx={{ pl: 2 }}>
                 {result.recommendations.map((rec, idx) => (
-                  <Typography key={idx} variant="body2" sx={{ mb: 1 }}>
+                  <Typography key={idx} variant="body2" sx={{ mb: spacing.sm }}>
                     • {rec}
                   </Typography>
                 ))}
@@ -280,7 +281,7 @@ const PredictiveAnalytics: React.FC<{ userId: string }> = ({ userId }) => {
 
             {/* Model Info */}
             {result.model_info && (
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+              <Box sx={{ mt: spacing.lg, p: spacing.md, bgcolor: 'grey.100', borderRadius: 1 }}>
                 <Typography variant="caption" color="text.secondary">
                   Model: {result.model_info.algorithm} | RMSE: {result.model_info.training_rmse.toFixed(3)}
                 </Typography>

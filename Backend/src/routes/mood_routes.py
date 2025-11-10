@@ -1,4 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
+from functools import wraps
+import time
+
 # Lazy import to avoid OpenAI/Pydantic conflicts at module load time
 ai_services_module = None
 def _get_ai_services_module():
@@ -15,6 +18,47 @@ from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache for mood data (production: use Redis)
+_mood_cache = {}
+MOOD_CACHE_TTL = 60  # 1 minute for frequently accessed mood data
+
+def cached_mood_data(ttl=MOOD_CACHE_TTL):
+    """Cache decorator for mood endpoints"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            from flask import g
+            user_id = getattr(g, 'user_id', None)
+            if not user_id:
+                return f(*args, **kwargs)  # Skip cache if no user_id
+            
+            # Generate cache key from function name, user_id, and query params
+            query_params = str(sorted(request.args.items()))
+            cache_key = f"{f.__name__}:{user_id}:{query_params}"
+            
+            # Check cache
+            if cache_key in _mood_cache:
+                data, timestamp = _mood_cache[cache_key]
+                if time.time() - timestamp < ttl:
+                    logger.debug(f"✅ Cache hit for {cache_key}")
+                    # Return cached data
+                    if isinstance(data, tuple):
+                        cached_response, status_code = data
+                        return jsonify({**cached_response, "cached": True}), status_code
+                    return data
+            
+            # Call function and cache result
+            result = f(*args, **kwargs)
+            if isinstance(result, tuple):
+                response_data, status_code = result
+                if status_code == 200:
+                    # Cache successful responses only
+                    _mood_cache[cache_key] = (result, time.time())
+            
+            return result
+        return wrapper
+    return decorator
 
 class _AIServicesProxy:
     """Lazily proxy AI service calls so tests can patch the backend module."""
@@ -362,6 +406,7 @@ def log_mood():
 
 @mood_bp.route('/get', methods=['GET'])
 @AuthService.jwt_required
+@cached_mood_data(ttl=60)  # Cache for 1 minute
 def get_moods():
     """Get user's mood history"""
     try:
@@ -391,13 +436,23 @@ def get_moods():
             mood_ref = db.collection('users').document(user_id).collection('moods')
             query = mood_ref.order_by('timestamp', direction='DESCENDING')
 
-            # Apply date filters if provided
-            if start_date:
+            # Apply date filters if provided (only one range filter to avoid index issues)
+            if start_date and end_date:
+                # Use only start_date for range, filter end_date in memory
                 query = query.where('timestamp', '>=', start_date)
-            if end_date:
+            elif start_date:
+                query = query.where('timestamp', '>=', start_date)
+            elif end_date:
                 query = query.where('timestamp', '<=', end_date)
 
-            mood_docs = list(query.limit(limit).offset(offset).stream())
+            # Fetch more than needed if filtering by both dates
+            fetch_limit = limit * 2 if (start_date and end_date) else limit
+            mood_docs = list(query.limit(fetch_limit).offset(offset).stream())
+            
+            # Apply end_date filter in memory if both dates provided
+            if start_date and end_date:
+                mood_docs = [doc for doc in mood_docs 
+                           if doc.to_dict().get('timestamp', '') <= end_date][:limit]
 
             moods = []
             for doc in mood_docs:
@@ -450,6 +505,7 @@ def get_moods():
 
 @mood_bp.route('/weekly-analysis', methods=['GET'])
 @AuthService.jwt_required
+@cached_mood_data(ttl=180)  # Cache for 3 minutes (less volatile data)
 def get_weekly_analysis():
     """Get weekly mood analysis and insights"""
     try:
@@ -515,15 +571,35 @@ def get_weekly_analysis():
                 ]
             }
 
-        # Generate AI-powered insights
-        insights = ai_services.generate_weekly_insights(weekly_data, 'sv')
+        # Generate AI-powered insights with robust error handling
+        try:
+            insights = ai_services.generate_weekly_insights(weekly_data, 'sv')
+            if not insights or not isinstance(insights, dict):
+                raise ValueError("Invalid insights format returned from AI service")
+        except Exception as ai_error:
+            logger.error(f"AI insights generation failed: {str(ai_error)}, using fallback")
+            # Manual fallback if AI service completely fails
+            insights = {
+                "ai_generated": False,
+                "insights": "Denna vecka har du varit aktiv med din mental hälsa. Fortsätt logga ditt humör regelbundet och använd avslappningsfunktionerna när du känner stress.",
+                "confidence": 0.5,
+                "comprehensive": False,
+                "fallback": True
+            }
 
         audit_log('weekly_analysis_generated', user_id, {'insights_generated': insights.get('ai_generated', False)})
         return jsonify(insights), 200
 
     except Exception as e:
-        logger.error(f"Failed to generate weekly analysis: {str(e)}")
-        return jsonify({'error': 'Failed to generate analysis'}), 500
+        logger.error(f"Failed to generate weekly analysis: {str(e)}", exc_info=True)
+        # Return minimal fallback response instead of error
+        return jsonify({
+            "ai_generated": False,
+            "insights": "Tyvärr kunde vi inte generera en analys just nu. Försök igen senare.",
+            "confidence": 0.0,
+            "comprehensive": False,
+            "error_fallback": True
+        }), 200
 
 @mood_bp.route('/recommendations', methods=['GET'])
 @AuthService.jwt_required

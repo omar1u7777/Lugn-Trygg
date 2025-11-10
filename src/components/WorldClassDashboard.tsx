@@ -1,4 +1,6 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -46,11 +48,20 @@ import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import '../styles/world-class-design.css';
 
-// Lazy load components for performance
+// Lazy load components for performance - EXPANDED TO INCLUDE ALL FEATURES
 const WorldClassMoodLogger = lazy(() => import('./WorldClassMoodLogger'));
 const WorldClassAIChat = lazy(() => import('./WorldClassAIChat'));
 const WorldClassAnalytics = lazy(() => import('./WorldClassAnalytics'));
 const WorldClassGamification = lazy(() => import('./WorldClassGamification'));
+const DailyInsights = lazy(() => import('./DailyInsights'));
+const WeeklyAnalysis = lazy(() => import('./WeeklyAnalysis'));
+const Recommendations = lazy(() => import('./Recommendations'));
+const RelaxingSounds = lazy(() => import('./RelaxingSounds'));
+const JournalHub = lazy(() => import('./JournalHub'));
+const SocialHub = lazy(() => import('./SocialHub'));
+const WellnessHub = lazy(() => import('./WellnessHub'));
+const RewardsHub = lazy(() => import('./RewardsHub'));
+const InsightsHub = lazy(() => import('./InsightsHub'));
 
 interface WorldClassDashboardProps {
   userId?: string;
@@ -79,6 +90,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [stats, setStats] = useState<DashboardStats>({
     totalMoods: 0,
@@ -225,7 +237,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     ariaLabel?: string;
   }> = ({ title, value, icon, color = 'primary', trend, ariaLabel }) => (
     <Card className="world-class-dashboard-card world-class-animate-fade-in-up">
-      <CardContent sx={{ p: 3 }}>
+      <CardContent sx={{ p: spacing.lg }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Box>
             <Typography
@@ -265,7 +277,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   if (loading) {
     return (
-      <Box className="world-class-dashboard" sx={{ p: 3 }}>
+      <Box className="world-class-dashboard" sx={{ p: spacing.lg }}>
         <Typography variant="h6" gutterBottom className="world-class-body">
           Loading your personalized mental health dashboard...
         </Typography>
@@ -277,7 +289,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   if (activeView !== 'overview') {
     return (
       <Box className="world-class-dashboard">
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: spacing.md }}>
           <Button
             onClick={() => setActiveView('overview')}
             startIcon={<Refresh />}
@@ -305,12 +317,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           <Typography variant="h1" className="world-class-heading-1 world-class-brand-shadow">
             🌟 Välkommen tillbaka, {user?.email?.split('@')[0] || 'vän'}
           </Typography>
-          <Typography variant="h5" className="world-class-body-large" sx={{ opacity: 0.9, mt: 2 }}>
+          <Typography variant="h5" className="world-class-body-large" sx={{ opacity: 0.9, mt: spacing.md }}>
             Din personliga resa mot bättre mental hälsa börjar här
           </Typography>
 
           {/* Quick Stats Row */}
-          <Grid container spacing={4} sx={{ mt: 4 }}>
+          <Grid container spacing={4} sx={{ mt: spacing.xl }}>
             <Grid item xs={12} sm={6} md={3}>
               <StatCard
                 title="Humör idag"
@@ -356,8 +368,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       {/* Main Content */}
       <Box className="world-class-dashboard-content">
         {/* Quick Actions Grid */}
-        <Box sx={{ mb: 6 }}>
-          <Typography variant="h3" className="world-class-heading-2" sx={{ mb: 4, textAlign: 'center' }}>
+        <Box sx={{ mb: spacing.xxl }}>
+          <Typography variant="h3" className="world-class-heading-2" sx={{ mb: spacing.xl, textAlign: 'center' }}>
             Vad vill du göra idag?
           </Typography>
 
@@ -369,8 +381,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 sx={{ cursor: 'pointer', height: '100%' }}
                 onClick={() => handleQuickAction('mood')}
               >
-                <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                  <Box className="world-class-animate-breathe" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-breathe" sx={{ mb: spacing.lg }}>
                     <Favorite sx={{ fontSize: 64, color: 'secondary.main' }} />
                   </Box>
                   <Typography variant="h6" className="world-class-heading-3" gutterBottom>
@@ -382,7 +394,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   <Button
                     variant="contained"
                     className="world-class-btn-primary"
-                    sx={{ mt: 2 }}
+                    sx={{ mt: spacing.md }}
                     fullWidth
                   >
                     Börja nu
@@ -398,8 +410,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.1s' }}
                 onClick={() => handleQuickAction('chat')}
               >
-                <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                  <Box className="world-class-animate-float" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-float" sx={{ mb: spacing.lg }}>
                     <Psychology sx={{ fontSize: 64, color: 'primary.main' }} />
                   </Box>
                   <Typography variant="h6" className="world-class-heading-3" gutterBottom>
@@ -411,7 +423,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   <Button
                     variant="contained"
                     className="world-class-btn-primary"
-                    sx={{ mt: 2 }}
+                    sx={{ mt: spacing.md }}
                     fullWidth
                   >
                     Starta samtal
@@ -427,8 +439,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.2s' }}
                 onClick={() => handleQuickAction('meditation')}
               >
-                <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                  <Box className="world-class-animate-pulse-gentle" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-pulse-gentle" sx={{ mb: spacing.lg }}>
                     <SelfImprovement sx={{ fontSize: 64, color: 'success.main' }} />
                   </Box>
                   <Typography variant="h6" className="world-class-heading-3" gutterBottom>
@@ -440,7 +452,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   <Button
                     variant="outlined"
                     className="world-class-btn-secondary"
-                    sx={{ mt: 2 }}
+                    sx={{ mt: spacing.md }}
                     fullWidth
                   >
                     Börja meditera
@@ -454,10 +466,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <Card
                 className="world-class-dashboard-card world-class-animate-fade-in-up"
                 sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.3s' }}
-                onClick={() => handleQuickAction('journal')}
+                onClick={() => navigate('/journal')}
               >
-                <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                  <Box className="world-class-animate-glow" sx={{ mb: 3 }}>
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-glow" sx={{ mb: spacing.lg }}>
                     <MenuBook sx={{ fontSize: 64, color: 'info.main' }} />
                   </Box>
                   <Typography variant="h6" className="world-class-heading-3" gutterBottom>
@@ -469,10 +481,126 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   <Button
                     variant="outlined"
                     className="world-class-btn-secondary"
-                    sx={{ mt: 2 }}
+                    sx={{ mt: spacing.md }}
                     fullWidth
                   >
                     Öppna journal
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Wellness Hub */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                className="world-class-dashboard-card world-class-animate-fade-in-up"
+                sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.4s' }}
+                onClick={() => navigate('/wellness')}
+              >
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-breathe" sx={{ mb: spacing.lg }}>
+                    <Spa sx={{ fontSize: 64, color: 'success.main' }} />
+                  </Box>
+                  <Typography variant="h6" className="world-class-heading-3" gutterBottom>
+                    Wellness
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Meditation, avkoppling och mindfulness
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    className="world-class-btn-secondary"
+                    sx={{ mt: spacing.md }}
+                    fullWidth
+                  >
+                    Utforska wellness
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Social Hub */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                className="world-class-dashboard-card world-class-animate-fade-in-up"
+                sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.5s' }}
+                onClick={() => navigate('/social')}
+              >
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-pulse" sx={{ mb: spacing.lg }}>
+                    <Group sx={{ fontSize: 64, color: 'secondary.main' }} />
+                  </Box>
+                  <Typography variant="h6" className="world-class-heading-3" gutterBottom>
+                    Community
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Peer support, challenges och achievements
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    className="world-class-btn-secondary"
+                    sx={{ mt: spacing.md }}
+                    fullWidth
+                  >
+                    Gå med i communityn
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Insights Hub */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                className="world-class-dashboard-card world-class-animate-fade-in-up"
+                sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.6s' }}
+                onClick={() => navigate('/insights')}
+              >
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-glow" sx={{ mb: spacing.lg }}>
+                    <Insights sx={{ fontSize: 64, color: 'warning.main' }} />
+                  </Box>
+                  <Typography variant="h6" className="world-class-heading-3" gutterBottom>
+                    Insights
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    AI-drivna analyser och prediktioner
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    className="world-class-btn-secondary"
+                    sx={{ mt: spacing.md }}
+                    fullWidth
+                  >
+                    Se insikter
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Rewards Hub */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                className="world-class-dashboard-card world-class-animate-fade-in-up"
+                sx={{ cursor: 'pointer', height: '100%', animationDelay: '0.7s' }}
+                onClick={() => navigate('/rewards')}
+              >
+                <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+                  <Box className="world-class-animate-float" sx={{ mb: spacing.lg }}>
+                    <EmojiEvents sx={{ fontSize: 64, color: 'warning.main' }} />
+                  </Box>
+                  <Typography variant="h6" className="world-class-heading-3" gutterBottom>
+                    Rewards
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Badges, achievements och belöningar
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    className="world-class-btn-secondary"
+                    sx={{ mt: spacing.md }}
+                    fullWidth
+                  >
+                    Visa rewards
                   </Button>
                 </CardContent>
               </Card>
@@ -481,28 +609,28 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         </Box>
 
         {/* Weekly Progress */}
-        <Card className="world-class-dashboard-card world-class-dashboard-card-premium" sx={{ mb: 6 }}>
-          <CardContent sx={{ p: 4 }}>
+        <Card className="world-class-dashboard-card world-class-dashboard-card-premium" sx={{ mb: spacing.xxl }}>
+          <CardContent sx={{ p: spacing.xl }}>
             <Box display="flex" alignItems="center" gap={2} mb={3}>
               <TrackChanges sx={{ fontSize: 32, color: 'white' }} />
               <Box>
                 <Typography variant="h5" className="world-class-heading-3" sx={{ color: 'white' }}>
                   Veckoprogress
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                   {stats.weeklyProgress} av {stats.weeklyGoal} humör-inlägg denna vecka
                 </Typography>
               </Box>
             </Box>
 
-            <Box sx={{ mb: 2 }}>
+            <Box sx={{ mb: spacing.md }}>
               <LinearProgress
                 variant="determinate"
                 value={(stats.weeklyProgress / stats.weeklyGoal) * 100}
                 sx={{
                   height: 12,
                   borderRadius: 6,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  backgroundColor: 'colors.overlay.medium',
                   '& .MuiLinearProgress-bar': {
                     backgroundColor: 'white',
                     borderRadius: 6,
@@ -515,9 +643,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <Alert
                 severity="success"
                 sx={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  backgroundColor: 'colors.overlay.light',
                   color: 'white',
-                  border: '1px solid rgba(255,255,255,0.2)'
+                  border: '1px solid colors.overlay.medium'
                 }}
                 icon={<Celebration sx={{ color: 'white' }} />}
               >
@@ -526,7 +654,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 </Typography>
               </Alert>
             ) : (
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+              <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
                 {stats.weeklyGoal - stats.weeklyProgress} inlägg kvar till nästa achievement
               </Typography>
             )}
@@ -538,7 +666,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           {/* Recent Activity */}
           <Grid item xs={12} lg={6}>
             <Card className="world-class-dashboard-card">
-              <CardContent sx={{ p: 4 }}>
+              <CardContent sx={{ p: spacing.xl }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
                   <Timeline sx={{ color: 'primary.main', fontSize: 28 }} />
                   <Typography variant="h6" className="world-class-heading-3">
@@ -546,7 +674,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
                   {stats.recentActivity.length > 0 ? (
                     stats.recentActivity.map((activity) => (
                       <Box
@@ -554,9 +682,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 2,
-                          p: 2,
-                          borderRadius: 2,
+                          gap: spacing.md,
+                          p: spacing.md,
+                          borderRadius: borderRadius.md,
                           backgroundColor: 'grey.50',
                           transition: 'all 0.2s',
                           '&:hover': { backgroundColor: 'grey.100' }
@@ -581,7 +709,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                     ))
                   ) : (
                     <Box sx={{ textAlign: 'center', py: 4 }}>
-                      <AccessTime sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
+                      <AccessTime sx={{ fontSize: 48, color: 'grey.400', mb: spacing.md }} />
                       <Typography variant="body2" color="text.secondary">
                         Ingen aktivitet ännu. Börja med att logga ditt första humör!
                       </Typography>
@@ -595,7 +723,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           {/* AI Insights */}
           <Grid item xs={12} lg={6}>
             <Card className="world-class-dashboard-card">
-              <CardContent sx={{ p: 4 }}>
+              <CardContent sx={{ p: spacing.xl }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
                   <Insights sx={{ color: 'secondary.main', fontSize: 28 }} />
                   <Typography variant="h6" className="world-class-heading-3">
@@ -603,10 +731,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
                   <Alert
                     severity="info"
-                    sx={{ borderRadius: 3 }}
+                    sx={{ borderRadius: borderRadius.lg }}
                     icon={<Psychology sx={{ color: 'info.main' }} />}
                   >
                     <Typography variant="body2">
@@ -615,7 +743,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                     </Typography>
                   </Alert>
 
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
                     <Chip
                       icon={<Star />}
                       label={`${stats.insightsCount} Insikter`}
@@ -641,11 +769,303 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           </Grid>
         </Grid>
 
+        {/* INTEGRATED FEATURE SECTIONS - All Components Visible */}
+        <Box sx={{ mt: spacing.xxl }}>
+          <Typography variant="h4" className="world-class-heading-2" sx={{ mb: spacing.xl, textAlign: 'center' }}>
+            🌟 Dina Verktyg för Välmående
+          </Typography>
+
+          {/* Daily Insights Section */}
+          <Card className="world-class-dashboard-card" sx={{ mb: spacing.xxl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <Insights sx={{ color: 'primary.main', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" className="world-class-heading-3">
+                    Dagens Insikter
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Personliga rekommendationer baserat på dina mönster
+                  </Typography>
+                </Box>
+              </Box>
+              <Suspense fallback={<LoadingSpinner isLoading={true} message="Laddar insikter..." />}>
+                <DailyInsights userId={user?.user_id || ''} moodData={[]} />
+              </Suspense>
+            </CardContent>
+          </Card>
+
+          {/* Quick Mood & AI Chat Side by Side */}
+          <Grid container spacing={3} sx={{ mb: spacing.xxl }}>
+            <Grid item xs={12} lg={6}>
+              <Card className="world-class-dashboard-card" sx={{ height: '100%' }}>
+                <CardContent sx={{ p: spacing.xl }}>
+                  <Box display="flex" alignItems="center" gap={2} mb={3}>
+                    <Favorite sx={{ color: 'error.main', fontSize: 32 }} />
+                    <Box>
+                      <Typography variant="h5" className="world-class-heading-3">
+                        Snabblogg Humör
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Hur mår du just nu?
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={() => setActiveView('mood')}
+                    className="world-class-btn-primary"
+                  >
+                    Logga humör nu
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} lg={6}>
+              <Card className="world-class-dashboard-card" sx={{ height: '100%' }}>
+                <CardContent sx={{ p: spacing.xl }}>
+                  <Box display="flex" alignItems="center" gap={2} mb={3}>
+                    <Psychology sx={{ color: 'secondary.main', fontSize: 32 }} />
+                    <Box>
+                      <Typography variant="h5" className="world-class-heading-3">
+                        AI Terapeut
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Prata med din AI-terapeut
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={() => setActiveView('chat')}
+                    className="world-class-btn-secondary"
+                  >
+                    Starta samtal
+                  </Button>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Wellness & Relaxation Tools */}
+          <Card className="world-class-dashboard-card" sx={{ mb: spacing.xxl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <Spa sx={{ color: 'success.main', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" className="world-class-heading-3">
+                    Avkoppling & Mindfulness
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Lugnande ljud och övningar
+                  </Typography>
+                </Box>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<MusicNote />}
+                    onClick={() => navigate('/sounds')}
+                  >
+                    Lugnande ljud
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<SelfImprovement />}
+                    onClick={() => navigate('/wellness')}
+                  >
+                    Meditation
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<NatureOutlined />}
+                    onClick={() => navigate('/recommendations')}
+                  >
+                    Rekommendationer
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<Timeline />}
+                    onClick={() => navigate('/weekly-analysis')}
+                  >
+                    Veckoanalys
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Journal & Memory Hub */}
+          <Card className="world-class-dashboard-card" sx={{ mb: spacing.xxl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <MenuBook sx={{ color: 'info.main', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" className="world-class-heading-3">
+                    Dagbok & Minnen
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Dokumentera din resa
+                  </Typography>
+                </Box>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    size="large"
+                    onClick={() => navigate('/journal')}
+                    startIcon={<MenuBook />}
+                  >
+                    Öppna dagbok
+                  </Button>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    size="large"
+                    onClick={() => navigate('/memories')}
+                    startIcon={<Star />}
+                  >
+                    Spara minne
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Gamification Preview */}
+          <Card className="world-class-dashboard-card world-class-dashboard-card-premium" sx={{ mb: spacing.xxl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <EmojiEvents sx={{ color: 'white', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" className="world-class-heading-3" sx={{ color: 'white' }}>
+                    Dina Achievements
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
+                    Streak: {stats.streakDays} dagar 🔥 | Badges: {stats.achievementsCount}
+                  </Typography>
+                </Box>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.200' } }}
+                    onClick={() => navigate('/gamification')}
+                  >
+                    Se alla rewards
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'colors.overlay.light' } }}
+                    onClick={() => navigate('/leaderboard')}
+                  >
+                    Leaderboard
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'colors.overlay.light' } }}
+                    onClick={() => navigate('/challenges')}
+                  >
+                    Utmaningar
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'colors.overlay.light' } }}
+                    onClick={() => navigate('/badges')}
+                  >
+                    Mina badges
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Social & Community */}
+          <Card className="world-class-dashboard-card" sx={{ mb: spacing.xxl }}>
+            <CardContent sx={{ p: spacing.xl }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <Group sx={{ color: 'secondary.main', fontSize: 32 }} />
+                <Box>
+                  <Typography variant="h5" className="world-class-heading-3">
+                    Community & Support
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Anslut med andra och få stöd
+                  </Typography>
+                </Box>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/social')}
+                    startIcon={<Group />}
+                  >
+                    Social Hub
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/peer-support')}
+                    startIcon={<Chat />}
+                  >
+                    Peer Support
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/referral')}
+                    startIcon={<Star />}
+                  >
+                    Bjud in vänner
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Box>
+
         {/* Breathing Exercise Reminder */}
-        <Card className="world-class-breathing-guide world-class-dashboard-card" sx={{ mt: 6 }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Box className="world-class-breathing-circle" sx={{ mb: 3 }} />
-            <Typography variant="h6" className="world-class-breathing-text" sx={{ mb: 2 }}>
+        <Card className="world-class-breathing-guide world-class-dashboard-card" sx={{ mt: spacing.xxl }}>
+          <CardContent sx={{ p: spacing.xl, textAlign: 'center' }}>
+            <Box className="world-class-breathing-circle" sx={{ mb: spacing.lg }} />
+            <Typography variant="h6" className="world-class-breathing-text" sx={{ mb: spacing.md }}>
               Ta ett djupt andetag
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9 }}>
@@ -680,14 +1100,14 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             right: 24,
             zIndex: 1000,
             minWidth: 200,
-            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+            boxShadow: shadows.xl,
           }}
         >
-          <CardContent sx={{ p: 2 }}>
+          <CardContent sx={{ p: spacing.md }}>
             <Typography variant="h6" gutterBottom sx={{ fontSize: '1rem' }}>
               Snabbåtgärder
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
               <Button
                 size="small"
                 startIcon={<Favorite />}

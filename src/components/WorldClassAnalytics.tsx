@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Typography,
@@ -250,11 +251,11 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
   if (loading) {
     return (
-      <Box className="world-class-app" sx={{ p: 4, textAlign: 'center' }}>
+      <Box className="world-class-app" sx={{ p: spacing.xl, textAlign: 'center' }}>
         <Typography variant="h6" className="world-class-body">
           Analyserar dina data...
         </Typography>
-        <LinearProgress sx={{ mt: 2, borderRadius: 2, height: 8 }} />
+        <LinearProgress sx={{ mt: spacing.md, borderRadius: borderRadius.md, height: 8 }} />
       </Box>
     );
   }
@@ -264,18 +265,18 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
       className="world-class-app"
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%)',
-        p: 2,
+        background: 'linear-gradient(135deg, #f8fafc 0%, colors.text.inverse 50%, #f1f5f9 100%)',
+        p: spacing.md,
       }}
     >
       <Card className="world-class-dashboard-card" sx={{ maxWidth: 1200, mx: 'auto' }}>
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: spacing.xl }}>
           {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.xl }}>
             <Typography variant="h4" className="world-class-heading-2">
               📊 Dina Insikter & Analys
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: spacing.sm }}>
               <Button startIcon={<Refresh />} onClick={loadAnalyticsData}>
                 Uppdatera
               </Button>
@@ -289,7 +290,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
           </Box>
 
           {/* Key Metrics */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid container spacing={3} sx={{ mb: spacing.xl }}>
             <Grid item xs={12} sm={6} md={3}>
               <Card className="world-class-analytics-card">
                 <Typography variant="h4" className="world-class-analytics-value">
@@ -337,7 +338,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
           {/* Insights */}
           {data.insights.length > 0 && (
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: spacing.xl }}>
               <Typography variant="h5" className="world-class-heading-3" gutterBottom>
                 🤖 AI-Insikter
               </Typography>
@@ -347,7 +348,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
                   <Grid item xs={12} md={6} key={insight.id}>
                     <Alert
                       severity={insight.severity === 'high' ? 'error' : insight.severity === 'medium' ? 'warning' : 'info'}
-                      sx={{ borderRadius: 2 }}
+                      sx={{ borderRadius: borderRadius.md }}
                       icon={getSeverityIcon(insight.severity)}
                     >
                       <Typography variant="h6" gutterBottom>
@@ -364,7 +365,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
           )}
 
           {/* Mood Distribution */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: spacing.xl }}>
             <Typography variant="h5" className="world-class-heading-3" gutterBottom>
               📈 Humörfördelning
             </Typography>
@@ -372,7 +373,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
             <Grid container spacing={2}>
               {Object.entries(data.moodDistribution).map(([range, count]) => (
                 <Grid item xs={12} sm={6} md={4} key={range}>
-                  <Card sx={{ p: 2, textAlign: 'center' }}>
+                  <Card sx={{ p: spacing.md, textAlign: 'center' }}>
                     <Typography variant="h6" color="primary">
                       {count}
                     </Typography>
@@ -386,13 +387,13 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
           </Box>
 
           {/* Weekly Progress */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: spacing.xl }}>
             <Typography variant="h5" className="world-class-heading-3" gutterBottom>
               📅 Veckoöversikt
             </Typography>
 
-            <Card sx={{ p: 3 }}>
-              <Box sx={{ mb: 2 }}>
+            <Card sx={{ p: spacing.lg }}>
+              <Box sx={{ mb: spacing.md }}>
                 <Box display="flex" justifyContent="space-between" mb={1}>
                   <Typography variant="body1">
                     {data.weeklyProgress} / {data.weeklyGoal} humör-inlägg
@@ -440,13 +441,13 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
           </Box>
 
           {/* Trend Analysis */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: spacing.xl }}>
             <Typography variant="h5" className="world-class-heading-3" gutterBottom>
               📊 Trendanalys
             </Typography>
 
-            <Card sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Card sx={{ p: spacing.lg }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md, mb: spacing.md }}>
                 {data.moodTrend === 'up' && <TrendingUp sx={{ color: 'success.main', fontSize: 32 }} />}
                 {data.moodTrend === 'down' && <TrendingDown sx={{ color: 'error.main', fontSize: 32 }} />}
                 {data.moodTrend === 'stable' && <Timeline sx={{ color: 'warning.main', fontSize: 32 }} />}
@@ -464,7 +465,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
               </Box>
 
               {data.moodTrend === 'down' && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
+                <Alert severity="warning" sx={{ mt: spacing.md }}>
                   <Typography variant="body2">
                     Om du känner dig nedstämd, överväg att prata med en vän, familjemedlem eller professionell hjälpare.
                     Du är inte ensam i detta.
@@ -482,8 +483,8 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <Card sx={{ p: 3, bgcolor: 'primary.light', color: 'white' }}>
-                  <Psychology sx={{ fontSize: 32, mb: 2 }} />
+                <Card sx={{ p: spacing.lg, bgcolor: 'primary.light', color: 'white' }}>
+                  <Psychology sx={{ fontSize: 32, mb: spacing.md }} />
                   <Typography variant="h6" gutterBottom>
                     Fortsätt spåra regelbundet
                   </Typography>
@@ -494,8 +495,8 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Card sx={{ p: 3, bgcolor: 'secondary.light', color: 'white' }}>
-                  <Favorite sx={{ fontSize: 32, mb: 2 }} />
+                <Card sx={{ p: spacing.lg, bgcolor: 'secondary.light', color: 'white' }}>
+                  <Favorite sx={{ fontSize: 32, mb: spacing.md }} />
                   <Typography variant="h6" gutterBottom>
                     Fokusera på välbefinnande
                   </Typography>

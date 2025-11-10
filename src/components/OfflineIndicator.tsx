@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Alert, Snackbar, Box, CircularProgress, Button } from '@mui/material';
 import CloudOffOutlinedIcon from '@mui/icons-material/CloudOffOutlined';
 import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
@@ -121,7 +122,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           aria-atomic="true"
           sx={{
             borderRadius: 1,
-            boxShadow: 2,
+            boxShadow: shadows.md,
             minWidth: '300px',
             animation: isSyncing ? 'spin 1s linear infinite' : 'none',
             '@keyframes spin': {
@@ -131,14 +132,14 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           }}
         >
           {isSyncing ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               <CircularProgress size={16} sx={{ color: 'inherit' }} aria-hidden="true" />
               <span>
                 Syncing {unsyncedCount} unsaved item{unsyncedCount !== 1 ? 's' : ''}...
               </span>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               <span>You're offline</span>
               {unsyncedCount > 0 && (
                 <span>• {unsyncedCount} item{unsyncedCount !== 1 ? 's' : ''} waiting to sync</span>
@@ -156,7 +157,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
+        gap: spacing.sm,
         padding: '8px 12px',
         borderRadius: 1,
         backgroundColor: isOffline ? '#fff3cd' : '#d4edda',

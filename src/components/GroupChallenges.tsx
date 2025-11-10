@@ -3,7 +3,8 @@
  * Team-based wellness challenges for community engagement
  */
 
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import {
   Box,
   Card,
@@ -160,19 +161,19 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
 
   return (
     <Box>
-      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+      <Card sx={{ mb: spacing.md, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
         <CardContent>
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
             <GroupsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
             {t('challenges.groupTitle', 'Group Challenges')}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'colors.overlay.medium', mt: spacing.sm }}>
             {t('challenges.subtitle', 'Team up with others to achieve wellness goals together!')}
           </Typography>
         </CardContent>
       </Card>
 
-      <Alert severity="info" sx={{ mb: 2 }}>
+      <Alert severity="info" sx={{ mb: spacing.md }}>
         {t('challenges.info', 'Join a team challenge to earn bonus XP and exclusive badges. Work together to reach the goal!')}
       </Alert>
 
@@ -191,7 +192,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                 }}
               >
                 <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: spacing.md }}>
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         {challenge.title}
@@ -215,12 +216,12 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                     <EmojiEventsIcon sx={{ fontSize: 40, color: '#FFD700' }} />
                   </Box>
 
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
                     {challenge.description}
                   </Typography>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ mb: spacing.md }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: spacing.sm }}>
                       <Typography variant="caption">
                         {t('challenges.progress', 'Team Progress')}
                       </Typography>
@@ -242,7 +243,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                     />
                   </Box>
 
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.md }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
                         {t('challenges.teamSize', 'Team')}
@@ -262,7 +263,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                     )}
                   </Box>
 
-                  <Box sx={{ bgcolor: '#FFF3E0', p: 1, borderRadius: 1, mb: 2 }}>
+                  <Box sx={{ bgcolor: '#FFF3E0', p: spacing.sm, borderRadius: 1, mb: spacing.md }}>
                     <Typography variant="caption" color="text.secondary">
                       {t('challenges.reward', 'Reward:')}
                     </Typography>
@@ -304,11 +305,11 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
                 {selectedChallenge.description}
               </Typography>
 
-              <Alert severity="info" sx={{ mb: 2 }}>
+              <Alert severity="info" sx={{ mb: spacing.md }}>
                 {t('challenges.commitment', 'By joining, you commit to contributing to the team goal. Every action counts!')}
               </Alert>
 
-              <Box sx={{ bgcolor: '#E8F5E9', p: 2, borderRadius: 1 }}>
+              <Box sx={{ bgcolor: '#E8F5E9', p: spacing.md, borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   {t('challenges.details', 'Challenge Details:')}
                 </Typography>
@@ -327,7 +328,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
               </Box>
 
               {selectedChallenge.members.length > 0 && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: spacing.md }}>
                   <Typography variant="subtitle2" gutterBottom>
                     {t('challenges.topContributors', 'Top Contributors:')}
                   </Typography>

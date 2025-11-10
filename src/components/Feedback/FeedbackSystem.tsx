@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { 
     Box, 
     Container, 
@@ -132,7 +133,7 @@ const FeedbackSystem: React.FC = () => {
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
                 <Typography variant="h3" fontWeight="bold" gutterBottom>
                     💬 Feedbacksystem
                 </Typography>
@@ -142,7 +143,7 @@ const FeedbackSystem: React.FC = () => {
             </Box>
 
             {/* Tabs */}
-            <Paper elevation={2} sx={{ mb: 3 }}>
+            <Paper elevation={2} sx={{ mb: spacing.lg }}>
                 <Tabs 
                     value={activeTab} 
                     onChange={(e, newValue) => setActiveTab(newValue)}
@@ -172,11 +173,11 @@ const FeedbackSystem: React.FC = () => {
                 <Box>
                     {/* Stats */}
                     {stats && (
-                        <Grid container spacing={2} sx={{ mb: 3 }}>
+                        <Grid container spacing={2} sx={{ mb: spacing.lg }}>
                             <Grid item xs={6} md={3}>
                                 <Card>
                                     <CardContent sx={{ textAlign: 'center' }}>
-                                        <StatsIcon sx={{ fontSize: 40, mb: 1, color: 'text.secondary' }} />
+                                        <StatsIcon sx={{ fontSize: 40, mb: spacing.sm, color: 'text.secondary' }} />
                                         <Typography variant="h4" fontWeight="bold">
                                             {stats.total}
                                         </Typography>
@@ -189,7 +190,7 @@ const FeedbackSystem: React.FC = () => {
                             <Grid item xs={6} md={3}>
                                 <Card sx={{ bgcolor: 'warning.light' }}>
                                     <CardContent sx={{ textAlign: 'center' }}>
-                                        <PendingIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <PendingIcon sx={{ fontSize: 40, mb: spacing.sm }} />
                                         <Typography variant="h4" fontWeight="bold">
                                             {stats.pending}
                                         </Typography>
@@ -202,7 +203,7 @@ const FeedbackSystem: React.FC = () => {
                             <Grid item xs={6} md={3}>
                                 <Card sx={{ bgcolor: 'info.light' }}>
                                     <CardContent sx={{ textAlign: 'center' }}>
-                                        <ReviewedIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <ReviewedIcon sx={{ fontSize: 40, mb: spacing.sm }} />
                                         <Typography variant="h4" fontWeight="bold">
                                             {stats.reviewed}
                                         </Typography>
@@ -215,7 +216,7 @@ const FeedbackSystem: React.FC = () => {
                             <Grid item xs={6} md={3}>
                                 <Card sx={{ bgcolor: 'success.light' }}>
                                     <CardContent sx={{ textAlign: 'center' }}>
-                                        <ResolvedIcon sx={{ fontSize: 40, mb: 1 }} />
+                                        <ResolvedIcon sx={{ fontSize: 40, mb: spacing.sm }} />
                                         <Typography variant="h4" fontWeight="bold">
                                             {stats.resolved}
                                         </Typography>
@@ -230,7 +231,7 @@ const FeedbackSystem: React.FC = () => {
 
                     {/* Error Message */}
                     {error && (
-                        <Alert severity="error" sx={{ mb: 3 }}>
+                        <Alert severity="error" sx={{ mb: spacing.lg }}>
                             {error}
                         </Alert>
                     )}
@@ -238,18 +239,18 @@ const FeedbackSystem: React.FC = () => {
                     {/* Loading State */}
                     {loading ? (
                         <Box sx={{ textAlign: 'center', py: 6 }}>
-                            <CircularProgress size={60} sx={{ mb: 2 }} />
+                            <CircularProgress size={60} sx={{ mb: spacing.md }} />
                             <Typography variant="body1" color="text.secondary">
                                 Laddar feedbackhistorik...
                             </Typography>
                         </Box>
                     ) : feedbacks.length === 0 ? (
                         <Paper elevation={2} sx={{ p: 6, textAlign: 'center' }}>
-                            <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>📭</Typography>
+                            <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>📭</Typography>
                             <Typography variant="h5" fontWeight="bold" gutterBottom>
                                 Ingen feedback ännu
                             </Typography>
-                            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                            <Typography variant="body1" color="text.secondary" sx={{ mb: spacing.lg }}>
                                 Du har inte skickat någon feedback än. Börja genom att gå till "Skicka feedback".
                             </Typography>
                             <Button
@@ -262,15 +263,15 @@ const FeedbackSystem: React.FC = () => {
                             </Button>
                         </Paper>
                     ) : (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
                             {feedbacks.map((item) => (
                                 <Paper
                                     key={item.id}
                                     elevation={2}
-                                    sx={{ p: 3, '&:hover': { boxShadow: 6 }, transition: 'box-shadow 0.3s' }}
+                                    sx={{ p: spacing.lg, '&:hover': { boxShadow: 6 }, transition: 'box-shadow 0.3s' }}
                                 >
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: spacing.md }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                                             <Typography variant="h3">{getCategoryEmoji(item.category)}</Typography>
                                             <Box>
                                                 <Typography variant="h6" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
@@ -281,7 +282,7 @@ const FeedbackSystem: React.FC = () => {
                                                 </Typography>
                                             </Box>
                                         </Box>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                                             <Box sx={{ display: 'flex' }}>
                                                 {[...Array(5)].map((_, i) => (
                                                     <span key={i} style={{ fontSize: '1.25rem' }}>
@@ -297,7 +298,7 @@ const FeedbackSystem: React.FC = () => {
                                         </Box>
                                     </Box>
                                     
-                                    <Typography variant="body1" sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>
+                                    <Typography variant="body1" sx={{ mb: spacing.md, whiteSpace: 'pre-wrap' }}>
                                         {item.message}
                                     </Typography>
 
@@ -305,13 +306,13 @@ const FeedbackSystem: React.FC = () => {
                                         <Paper 
                                             elevation={0} 
                                             sx={{ 
-                                                p: 2, 
+                                                p: spacing.md, 
                                                 bgcolor: 'info.light',
                                                 border: 1,
                                                 borderColor: 'info.main'
                                             }}
                                         >
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: spacing.sm }}>
                                                 <Typography variant="h6">💬</Typography>
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -332,21 +333,21 @@ const FeedbackSystem: React.FC = () => {
             )}
 
             {/* Help Section */}
-            <Paper elevation={1} sx={{ p: 3, bgcolor: 'background.default', mt: 4 }}>
+            <Paper elevation={1} sx={{ p: spacing.lg, bgcolor: 'background.default', mt: spacing.xl }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                     💡 Tips för bra feedback
                 </Typography>
                 <Box component="ul" sx={{ pl: 2, color: 'text.secondary' }}>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: spacing.sm }}>
                         Var specifik - beskriv exakt vad du upplever eller vad du vill förbättra
                     </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: spacing.sm }}>
                         Inkludera steg för att återskapa buggar om möjligt
                     </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: spacing.sm }}>
                         Förklara varför en funktion skulle vara användbar
                     </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                    <Typography component="li" variant="body2" sx={{ mb: spacing.sm }}>
                         Var respektfull och konstruktiv i din feedback
                     </Typography>
                     <Typography component="li" variant="body2">

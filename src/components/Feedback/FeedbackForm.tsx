@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { 
     Box, 
     Container, 
@@ -119,17 +120,17 @@ const FeedbackForm: React.FC = () => {
                 <Paper 
                     elevation={3}
                     sx={{ 
-                        p: 4, 
+                        p: spacing.xl, 
                         textAlign: 'center',
                         bgcolor: 'success.light',
                         color: 'success.contrastText'
                     }}
                 >
-                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>✅</Typography>
+                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>✅</Typography>
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
                         Tack för din feedback!
                     </Typography>
-                    <Typography variant="body1" sx={{ mb: 3 }}>
+                    <Typography variant="body1" sx={{ mb: spacing.lg }}>
                         Din feedback hjälper oss att göra Lugn & Trygg bättre för alla användare.
                     </Typography>
                     <Button
@@ -150,11 +151,11 @@ const FeedbackForm: React.FC = () => {
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
                 <Typography variant="h3" fontWeight="bold" gutterBottom>
                     💬 Feedback
                 </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: 2 }}>
+                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: spacing.md }}>
                     Din åsikt är viktig för oss! Dela dina tankar, förslag eller rapportera problem.
                 </Typography>
                 
@@ -164,7 +165,7 @@ const FeedbackForm: React.FC = () => {
                     color="primary"
                     startIcon={showHistory ? <EditIcon /> : <HistoryIcon />}
                     onClick={() => setShowHistory(!showHistory)}
-                    sx={{ mt: 2 }}
+                    sx={{ mt: spacing.md }}
                 >
                     {showHistory ? '✍️ Ny feedback' : '📜 Visa min historik'}
                 </Button>
@@ -177,15 +178,15 @@ const FeedbackForm: React.FC = () => {
                 <Box>
                     {/* Error Message */}
                     {error && (
-                        <Alert severity="error" sx={{ mb: 3 }}>
+                        <Alert severity="error" sx={{ mb: spacing.lg }}>
                             {error}
                         </Alert>
                     )}
 
             {/* Main Form */}
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
                 {/* Category Selection */}
-                <Paper elevation={2} sx={{ p: 3 }}>
+                <Paper elevation={2} sx={{ p: spacing.lg }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
                         📁 Kategori
                     </Typography>
@@ -199,9 +200,9 @@ const FeedbackForm: React.FC = () => {
                                     onClick={() => setFeedback({ ...feedback, category: cat.value })}
                                     sx={{ 
                                         height: '100%',
-                                        py: 2,
+                                        py: spacing.md,
                                         flexDirection: 'column',
-                                        gap: 1
+                                        gap: spacing.sm
                                     }}
                                 >
                                     <Typography variant="h4">{cat.emoji}</Typography>
@@ -215,7 +216,7 @@ const FeedbackForm: React.FC = () => {
                 </Paper>
 
                 {/* Rating */}
-                <Paper elevation={2} sx={{ p: 3 }}>
+                <Paper elevation={2} sx={{ p: spacing.lg }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
                         ⭐ Hur nöjd är du med Lugn & Trygg?
                     </Typography>
@@ -241,7 +242,7 @@ const FeedbackForm: React.FC = () => {
                 </Paper>
 
                 {/* Message */}
-                <Paper elevation={2} sx={{ p: 3 }}>
+                <Paper elevation={2} sx={{ p: spacing.lg }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
                         ✍️ Ditt meddelande
                     </Typography>
@@ -255,13 +256,13 @@ const FeedbackForm: React.FC = () => {
                         required
                         inputProps={{ maxLength: 1000 }}
                     />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: 'block' }}>
                         {feedback.message.length}/1000 tecken
                     </Typography>
                 </Paper>
 
                 {/* Contact Info */}
-                <Paper elevation={2} sx={{ p: 3 }}>
+                <Paper elevation={2} sx={{ p: spacing.lg }}>
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -288,7 +289,7 @@ const FeedbackForm: React.FC = () => {
                             value={feedback.email}
                             onChange={(e) => setFeedback({ ...feedback, email: e.target.value })}
                             placeholder="din.email@exempel.se"
-                            sx={{ mt: 2 }}
+                            sx={{ mt: spacing.md }}
                         />
                     )}
                 </Paper>
@@ -315,15 +316,15 @@ const FeedbackForm: React.FC = () => {
             </Box>
 
             {/* Quick Actions */}
-            <Grid container spacing={2} sx={{ mt: 4 }}>
+            <Grid container spacing={2} sx={{ mt: spacing.xl }}>
                 <Grid item xs={12} md={4}>
                     <Card sx={{ height: '100%', bgcolor: 'info.light' }}>
                         <CardContent>
-                            <Typography variant="h3" sx={{ mb: 2 }}>📚</Typography>
+                            <Typography variant="h3" sx={{ mb: spacing.md }}>📚</Typography>
                             <Typography variant="h6" fontWeight="bold" gutterBottom>
                                 Hjälpcenter
                             </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
+                            <Typography variant="body2" sx={{ mb: spacing.md }}>
                                 Hitta svar på vanliga frågor
                             </Typography>
                             <MuiLink 
@@ -341,11 +342,11 @@ const FeedbackForm: React.FC = () => {
                 <Grid item xs={12} md={4}>
                     <Card sx={{ height: '100%', bgcolor: 'success.light' }}>
                         <CardContent>
-                            <Typography variant="h3" sx={{ mb: 2 }}>💬</Typography>
+                            <Typography variant="h3" sx={{ mb: spacing.md }}>💬</Typography>
                             <Typography variant="h6" fontWeight="bold" gutterBottom>
                                 Live Chat
                             </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
+                            <Typography variant="body2" sx={{ mb: spacing.md }}>
                                 Chatta med vårt AI support-team
                             </Typography>
                             <Button
@@ -360,11 +361,11 @@ const FeedbackForm: React.FC = () => {
                 <Grid item xs={12} md={4}>
                     <Card sx={{ height: '100%', bgcolor: 'secondary.light' }}>
                         <CardContent>
-                            <Typography variant="h3" sx={{ mb: 2 }}>📞</Typography>
+                            <Typography variant="h3" sx={{ mb: spacing.md }}>📞</Typography>
                             <Typography variant="h6" fontWeight="bold" gutterBottom>
                                 Kontakt
                             </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
+                            <Typography variant="body2" sx={{ mb: spacing.md }}>
                                 Skicka ett email till oss
                             </Typography>
                             <MuiLink 
