@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import oauthHealthService, { OAuthStatus, OAuthProvider } from '../../services/oauthHealthService';
 import { useAuth } from '../../contexts/AuthContext';
 import SyncHistory from './SyncHistory';
-import HealthDataCharts from './HealthDataCharts';
+import { LazyHealthDataCharts as HealthDataCharts } from '../Charts/LazyChartWrapper';
 
 interface AnalysisResult {
     status: string;
