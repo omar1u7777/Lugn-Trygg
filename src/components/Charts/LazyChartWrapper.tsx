@@ -1,77 +1,68 @@
 /**
- * Lazy Chart Wrapper - Forces all charts to load AFTER React is ready
- * This fixes the "Cannot read properties of undefined (reading 'useState')" error
- * by ensuring React hooks are available before chart libraries execute
+ * TEMPORARY DISABLED - Chart components causing React hooks error on Vercel
+ * TODO: Fix React/Recharts bundling issue and re-enable
+ * Error: "Cannot read properties of undefined (reading 'useState')"
+ * 
+ * This wrapper is DISABLED to unblock production deployment.
+ * Charts will be replaced with placeholder messages until fixed.
  */
-import { lazy, Suspense } from 'react';
-import { CircularProgress, Box } from '@mui/material';
+import { CircularProgress, Box, Typography, Alert } from '@mui/material';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
-// Lazy load ALL chart components to prevent React hooks errors
-const AnalyticsCharts = lazy(() => import('../Analytics/AnalyticsCharts'));
-const PredictiveAnalytics = lazy(() => import('../AI/PredictiveAnalytics'));
-const HealthDataCharts = lazy(() => import('../Integrations/HealthDataCharts'));
-const MoodChart = lazy(() => import('../Dashboard/MoodChart'));
-const MemoryChart = lazy(() => import('../Dashboard/MemoryChart'));
-const PerformanceMonitor = lazy(() => import('../Performance/PerformanceMonitor'));
+// TEMPORARILY DISABLED - Chart imports causing bundling issues
+// const AnalyticsCharts = lazy(() => import('../Analytics/AnalyticsCharts'));
+// const PredictiveAnalytics = lazy(() => import('../AI/PredictiveAnalytics'));
+// const HealthDataCharts = lazy(() => import('../Integrations/HealthDataCharts'));
+// const MoodChart = lazy(() => import('../Dashboard/MoodChart'));
+// const MemoryChart = lazy(() => import('../Dashboard/MemoryChart'));
+// const PerformanceMonitor = lazy(() => import('../Performance/PerformanceMonitor'));
 
-function ChartLoadingFallback() {
+function ChartPlaceholder({ title }: { title: string }) {
   return (
     <Box
       display="flex"
+      flexDirection="column"
       justifyContent="center"
       alignItems="center"
       minHeight={300}
       width="100%"
+      gap={2}
     >
-      <CircularProgress size={40} />
+      <BarChartIcon sx={{ fontSize: 60, color: 'text.disabled' }} />
+      <Alert severity="info" sx={{ maxWidth: 500 }}>
+        <Typography variant="h6" gutterBottom>
+          {title} - Temporary Unavailable
+        </Typography>
+        <Typography variant="body2">
+          Chart functionality is temporarily disabled due to a bundling issue. 
+          We're working on fixing this soon. Your data is safe!
+        </Typography>
+      </Alert>
     </Box>
   );
 }
 
-export function LazyAnalyticsCharts(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <AnalyticsCharts {...props} />
-    </Suspense>
-  );
+export function LazyAnalyticsCharts(_props: any) {
+  return <ChartPlaceholder title="Analytics Charts" />;
 }
 
-export function LazyPredictiveAnalytics(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <PredictiveAnalytics {...props} />
-    </Suspense>
-  );
+export function LazyPredictiveAnalytics(_props: any) {
+  return <ChartPlaceholder title="Predictive Analytics" />;
 }
 
-export function LazyHealthDataCharts(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <HealthDataCharts {...props} />
-    </Suspense>
-  );
+export function LazyHealthDataCharts(_props: any) {
+  return <ChartPlaceholder title="Health Data Charts" />;
 }
 
-export function LazyMoodChart(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <MoodChart {...props} />
-    </Suspense>
-  );
+export function LazyMoodChart(_props: any) {
+  return <ChartPlaceholder title="Mood Chart" />;
 }
 
-export function LazyMemoryChart(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <MemoryChart {...props} />
-    </Suspense>
-  );
+export function LazyMemoryChart(_props: any) {
+  return <ChartPlaceholder title="Memory Chart" />;
 }
 
-export function LazyPerformanceMonitor(props: any) {
-  return (
-    <Suspense fallback={<ChartLoadingFallback />}>
-      <PerformanceMonitor {...props} />
-    </Suspense>
-  );
+export function LazyPerformanceMonitor(_props: any) {
+  return <ChartPlaceholder title="Performance Monitor" />;
 }
+
