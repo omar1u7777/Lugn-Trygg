@@ -37,18 +37,17 @@ export default defineConfig({
         manualChunks(id) {
           // Critical: React must load first and be in a separate chunk
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'react-vendor';
+            return 'react-core'; // Match actual Vite output name
           }
-          // All chart libraries in ONE chunk to share React instance
-          if (id.includes('node_modules/chart.js') || 
-              id.includes('node_modules/react-chartjs-2') ||
-              id.includes('node_modules/recharts') ||
-              id.includes('node_modules/@mui/x-charts')) {
-            return 'charts';
-          }
-          // MUI in its own chunk
+          // MUI in its own chunk (BEFORE charts check to prevent MUI charts in wrong chunk)
           if (id.includes('node_modules/@mui/')) {
             return 'mui';
+          }
+          // All chart libraries in ONE chunk - React will be external
+          if (id.includes('node_modules/chart.js') || 
+              id.includes('node_modules/react-chartjs-2') ||
+              id.includes('node_modules/recharts')) {
+            return 'charts';
           }
           // Firebase in its own chunk
           if (id.includes('node_modules/firebase/') || id.includes('node_modules/@firebase/')) {

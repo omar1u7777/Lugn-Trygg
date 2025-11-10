@@ -24,7 +24,6 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.14.20",
-    "@mui/x-charts": "^6.0.0-alpha.2",
     "@sentry/react": "^7.80.1",
     "@types/amplitude-js": "^8.16.5",
     "@types/lodash": "^4.17.20",
