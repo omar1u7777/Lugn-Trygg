@@ -12,6 +12,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@/theme/tokens': path.resolve(__dirname, './src/theme/tokens.ts'),
+      '@/theme': path.resolve(__dirname, './src/theme'),
     },
   },
   optimizeDeps: {
