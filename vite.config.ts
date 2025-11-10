@@ -6,9 +6,31 @@ import path from 'path'
 // Updated: 2025-11-10 - Fixed root path for index.html resolution
 export default defineConfig({
   root: '.', // Explicit root at project level
-  plugins: [react({
-    jsxRuntime: 'automatic',
-  })],
+  plugins: [
+    react({
+      jsxRuntime: 'automatic',
+    }),
+    // CRITICAL: Custom plugin to use global React from CDN
+    {
+      name: 'external-react',
+      config() {
+        return {
+          build: {
+            rollupOptions: {
+              external: ['react', 'react-dom', 'react/jsx-runtime'],
+              output: {
+                globals: {
+                  react: 'React',
+                  'react-dom': 'ReactDOM',
+                  'react/jsx-runtime': 'React.jsxRuntime',
+                },
+              },
+            },
+          },
+        };
+      },
+    },
+  ],
   resolve: {
     dedupe: ['react', 'react-dom'], // Force single React instance across all chunks
     alias: {
@@ -18,13 +40,28 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'chart.js', 'react-chartjs-2', 'recharts', '@mui/x-charts'],
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+      'chart.js',
+      'react-chartjs-2',
+      'recharts',
+      '@mui/x-charts'
+    ],
+    // Force pre-bundling to create a single ESM bundle
+    force: true,
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
-    chunkSizeWarningLimit: 1000,
+    target: 'esnext', // Use esnext to prevent Vite's aggressive chunking
+    chunkSizeWarningLimit: 5000,
     // CRITICAL: Ensure React is treated as a common dependency
     commonjsOptions: {
       include: [/node_modules/],
@@ -39,15 +76,24 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        // CRITICAL FIX: Remove ALL manual chunking to prevent React undefined errors
-        // Letting Vite handle chunking automatically ensures React is properly shared
-        // Manual chunking was causing "Cannot read properties of undefined (reading 'ForwardRef')"
-        // in MUI and other libraries that depend on React
-        
-        // Cache-busting with hashed filenames
-        entryFileNames: 'assets/[name].[hash].js',
-        chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]',
+        // Keep manual chunks for better caching (React is external)
+        manualChunks: {
+          'mui-vendor': [
+            '@mui/material',
+            '@mui/icons-material',
+            '@mui/system',
+            '@mui/styles',
+            '@emotion/react',
+            '@emotion/styled'
+          ],
+          'firebase-vendor': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/storage',
+            'firebase/analytics'
+          ],
+        },
       },
     },
   },
