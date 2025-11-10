@@ -39,18 +39,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
+    minify: false, // DISABLE minification - may be breaking React references
     chunkSizeWarningLimit: 5000,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
-    },
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-      },
     },
     // Allow normal code splitting - React is guaranteed available globally via CDN
     rollupOptions: {
