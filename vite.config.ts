@@ -25,6 +25,11 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     chunkSizeWarningLimit: 1000,
+    // CRITICAL: Ensure React is treated as a common dependency
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
     terserOptions: {
       compress: {
         drop_console: true,
@@ -34,30 +39,11 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          // Let Vite handle React and charts automatically - don't force chunking
-          // This prevents React hooks from being undefined in chart libraries
-          
-          // MUI in its own chunk
-          if (id.includes('node_modules/@mui/material') || 
-              id.includes('node_modules/@mui/icons-material') ||
-              id.includes('node_modules/@emotion/')) {
-            return 'mui';
-          }
-          // Firebase in its own chunk
-          if (id.includes('node_modules/firebase/') || id.includes('node_modules/@firebase/')) {
-            return 'firebase';
-          }
-          // Router and i18n together
-          if (id.includes('node_modules/react-router') || id.includes('node_modules/react-i18next')) {
-            return 'routing';
-          }
-          // Axios and API utilities
-          if (id.includes('node_modules/axios') || id.includes('node_modules/crypto-js')) {
-            return 'network';
-          }
-          // Let Vite automatically chunk React, React-DOM, and all chart libraries
-        },
+        // CRITICAL FIX: Remove ALL manual chunking to prevent React undefined errors
+        // Letting Vite handle chunking automatically ensures React is properly shared
+        // Manual chunking was causing "Cannot read properties of undefined (reading 'ForwardRef')"
+        // in MUI and other libraries that depend on React
+        
         // Cache-busting with hashed filenames
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
