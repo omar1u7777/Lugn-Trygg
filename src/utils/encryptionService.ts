@@ -4,6 +4,25 @@
  * Uses Web Crypto API for strong encryption
  */
 
+// Type definitions for encrypted data structures
+interface EncryptedData {
+  encrypted: string;
+  iv: string;
+}
+
+interface MoodData {
+  mood_text?: string;
+  transcript?: string;
+  notes?: string;
+  [key: string]: any;
+}
+
+interface EncryptedMoodData extends MoodData {
+  mood_text_iv?: string;
+  transcript_iv?: string;
+  notes_iv?: string;
+}
+
 // Generate a secure encryption key
 export async function generateEncryptionKey(): Promise<CryptoKey> {
   return await window.crypto.subtle.generateKey(
@@ -38,10 +57,7 @@ export async function importKey(keyData: string): Promise<CryptoKey> {
 }
 
 // Encrypt sensitive data
-export async function encryptData(data: string, key: CryptoKey): Promise<{
-  encrypted: string;
-  iv: string;
-}> {
+export async function encryptData(data: string, key: CryptoKey): Promise<EncryptedData> {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
   
@@ -144,13 +160,14 @@ export async function deriveKeyFromPassword(
 }
 
 // Encrypt mood log entry
-export async function encryptMoodEntry(moodData: any, userKey: CryptoKey): Promise<any> {
-  const sensitiveFields = ['mood_text', 'transcript', 'notes'];
-  const encryptedData = { ...moodData };
+export async function encryptMoodEntry(moodData: MoodData, userKey: CryptoKey): Promise<EncryptedMoodData> {
+  const sensitiveFields: (keyof MoodData)[] = ['mood_text', 'transcript', 'notes'];
+  const encryptedData: EncryptedMoodData = { ...moodData };
   
   for (const field of sensitiveFields) {
-    if (moodData[field]) {
-      const { encrypted, iv } = await encryptData(moodData[field], userKey);
+    const value = moodData[field];
+    if (typeof value === 'string') {
+      const { encrypted, iv } = await encryptData(value, userKey);
       encryptedData[field] = encrypted;
       encryptedData[`${field}_iv`] = iv;
     }
@@ -160,22 +177,21 @@ export async function encryptMoodEntry(moodData: any, userKey: CryptoKey): Promi
 }
 
 // Decrypt mood log entry
-export async function decryptMoodEntry(encryptedData: any, userKey: CryptoKey): Promise<any> {
-  const sensitiveFields = ['mood_text', 'transcript', 'notes'];
-  const decryptedData = { ...encryptedData };
+export async function decryptMoodEntry(encryptedData: EncryptedMoodData, userKey: CryptoKey): Promise<MoodData> {
+  const sensitiveFields: (keyof MoodData)[] = ['mood_text', 'transcript', 'notes'];
+  const decryptedData: MoodData = { ...encryptedData };
   
   for (const field of sensitiveFields) {
-    if (encryptedData[field] && encryptedData[`${field}_iv`]) {
+    const encrypted = encryptedData[field];
+    const iv = encryptedData[`${field}_iv`];
+    
+    if (typeof encrypted === 'string' && typeof iv === 'string') {
       try {
-        decryptedData[field] = await decryptData(
-          encryptedData[field],
-          encryptedData[`${field}_iv`],
-          userKey
-        );
+        decryptedData[field] = await decryptData(encrypted, iv, userKey);
         // Remove IV from decrypted data
         delete decryptedData[`${field}_iv`];
       } catch (error) {
-        console.error(`Failed to decrypt ${field}:`, error);
+        console.error(`Failed to decrypt ${String(field)}:`, error);
         decryptedData[field] = '[Encrypted]';
       }
     }

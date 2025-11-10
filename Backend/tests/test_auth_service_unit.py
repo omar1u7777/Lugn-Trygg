@@ -99,7 +99,7 @@ def isolate_env(monkeypatch):
 def test_register_user_success(monkeypatch):
     def fake_create_user(email, password):
         return DummyFirebaseCreateUser(uid='uid-123')
-    monkeypatch.setattr(auth_mod.auth, 'create_user', fake_create_user)
+    monkeypatch.setattr(auth_mod.firebase_auth, 'create_user', fake_create_user)
 
     user, err = AuthService.register_user('a@b.com', 'pass')
     assert err is None
@@ -109,10 +109,10 @@ def test_register_user_success(monkeypatch):
 def test_register_user_email_exists(monkeypatch):
     class E(Exception):
         pass
-    monkeypatch.setattr(auth_mod.auth, 'EmailAlreadyExistsError', E)
+    monkeypatch.setattr(auth_mod.firebase_auth, 'EmailAlreadyExistsError', E)
     def raise_exists(email, password):
         raise E('exists')
-    monkeypatch.setattr(auth_mod.auth, 'create_user', raise_exists)
+    monkeypatch.setattr(auth_mod.firebase_auth, 'create_user', raise_exists)
 
     user, err = AuthService.register_user('a@b.com', 'pass')
     assert user is None
@@ -124,7 +124,9 @@ def test_login_user_success(monkeypatch):
         return FakeResponse(200, {'idToken': 'id-123', 'refreshToken': 'rt-123'})
     # requests in module expects an object with .post()
     monkeypatch.setattr('src.services.auth_service.requests', type('R', (), {'post': staticmethod(fake_post)})())
-    monkeypatch.setattr(auth_mod.auth, 'get_user_by_email', lambda email: DummyUserRecord(uid='uid-123', email=email))
+    monkeypatch.setattr(auth_mod.firebase_auth, 'verify_id_token', lambda token: {'uid': 'uid-123'})
+    monkeypatch.setattr(auth_mod.firebase_auth, 'get_user', lambda uid: DummyUserRecord(uid='uid-123', email='a@b.com'))
+    monkeypatch.setattr(auth_mod.firebase_auth, 'get_user_by_email', lambda email: DummyUserRecord(uid='uid-123', email=email))
 
     user, err, access_token, refresh_token = AuthService.login_user('a@b.com', 'pass')
     assert err is None
@@ -243,10 +245,13 @@ def test_login_user_user_not_found(monkeypatch):
 
     class UNF(Exception):
         pass
-    monkeypatch.setattr(auth_mod.auth, 'UserNotFoundError', UNF)
-    def raise_unf(email):
+    monkeypatch.setattr(auth_mod.firebase_auth, 'UserNotFoundError', UNF)
+    def raise_unf(token_or_uid):
         raise UNF('no')
-    monkeypatch.setattr(auth_mod.auth, 'get_user_by_email', raise_unf)
+    # Mock both verify_id_token and get_user to raise UserNotFoundError
+    monkeypatch.setattr(auth_mod.firebase_auth, 'verify_id_token', raise_unf)
+    monkeypatch.setattr(auth_mod.firebase_auth, 'get_user', raise_unf)
+    monkeypatch.setattr(auth_mod.firebase_auth, 'get_user_by_email', raise_unf)
 
     user, err, at, rt = AuthService.login_user('a@b.com', 'pass')
     assert user is None
@@ -257,7 +262,7 @@ def test_login_user_fallback_on_requests_exception(monkeypatch):
     def raise_exc(url, json=None):
         raise Exception('boom')
     monkeypatch.setattr('src.services.auth_service.requests', type('R', (), {'post': staticmethod(raise_exc)})())
-    monkeypatch.setattr(auth_mod.auth, 'get_user_by_email', lambda email: DummyUserRecord(uid='uid-999', email=email))
+    monkeypatch.setattr(auth_mod.firebase_auth, 'get_user_by_email', lambda email: DummyUserRecord(uid='uid-999', email=email))
 
     user, err, at, rt = AuthService.login_user('a@b.com', 'pass')
     assert err is None
@@ -410,3 +415,5 @@ def test_audit_log_error(monkeypatch):
     monkeypatch.setattr(auth_mod, 'request', None)
     # Should not raise
     AuthService._audit_log('E', 'u', {'k': 'v'})
+
+

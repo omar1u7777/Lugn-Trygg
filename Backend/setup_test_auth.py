@@ -2,6 +2,10 @@
 """
 Setup Test Authentication for Lugn-Trygg AI Testing
 
+⚠️  WARNING: THIS SCRIPT IS FOR DEVELOPMENT/TESTING ONLY!
+⚠️  DO NOT RUN IN PRODUCTION ENVIRONMENT!
+⚠️  Contains hardcoded test passwords - for test/demo purposes only!
+
 This script creates proper Firebase Auth users for testing the AI features.
 Run this before testing the login functionality.
 
@@ -11,6 +15,17 @@ Usage: python setup_test_auth.py
 import os
 import sys
 from datetime import datetime
+
+# PRODUCTION SAFETY CHECK
+if os.getenv('FLASK_ENV') == 'production' or os.getenv('ENVIRONMENT') == 'production':
+    print("❌ ERROR: Cannot run setup_test_auth.py in PRODUCTION environment!")
+    print("❌ This script contains test data and hardcoded passwords.")
+    print("❌ Set FLASK_ENV=development or ENVIRONMENT=development to proceed.")
+    sys.exit(1)
+
+print("⚠️  WARNING: Running test setup script with hardcoded passwords!")
+print("⚠️  This is for DEVELOPMENT/TESTING only - NOT for production!")
+print("")
 
 # Add the src directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))

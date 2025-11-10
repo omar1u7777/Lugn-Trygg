@@ -29,6 +29,9 @@ import { LoadingSpinner } from '../LoadingStates';
 import ErrorBoundary from '../ErrorBoundary';
 import { getMoods, getWeeklyAnalysis, getChatHistory } from '../../api/api';
 import useAuth from '../../hooks/useAuth';
+import MoodLogger from '../MoodLogger';
+import MemoryRecorder from '../MemoryRecorder';
+import MemoryList from '../MemoryList';
 
 // Lazy load heavy components
 const MoodChart = lazy(() => import('./MoodChart'));
@@ -69,6 +72,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [showMoodLogger, setShowMoodLogger] = useState(false);
+  const [showMemoryRecorder, setShowMemoryRecorder] = useState(false);
+  const [showMemoryList, setShowMemoryList] = useState(false);
 
   useEffect(() => {
     analytics.page('Dashboard', {
@@ -103,8 +109,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
 
       // Process weekly analysis
       const weeklyGoal = weeklyAnalysisData.weekly_goal || 7;
-      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
-      const streakDays = weeklyAnalysisData.streak_days || 0;
+      const weeklyProgress = weeklyAnalysisData.weekly_progress || totalMoods;
+      const streakDays = weeklyAnalysisData.streak_days || Math.min(totalMoods, 7);
 
       // Process chat history
       const totalChats = chatHistoryData.length;
@@ -279,6 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
                   },
                 },
               }}
+              onClick={() => setShowMoodLogger(true)}
             >
               <CardContent sx={{ p: 4, textAlign: "center" }}>
                 <Box
@@ -301,7 +308,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
             </Card>
           </Grid>
 
-          {/* AI Chat Card */}
+          {/* Memory Recorder Card */}
           <Grid item xs={12} md={4}>
             <Card
               sx={{
@@ -315,6 +322,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
                   },
                 },
               }}
+              onClick={() => setShowMemoryRecorder(true)}
             >
               <CardContent sx={{ p: 4, textAlign: "center" }}>
                 <Box
@@ -325,19 +333,19 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
                     transition: "transform 0.3s ease",
                   }}
                 >
-                  🤖
+                  🎙️
                 </Box>
                 <Typography variant="h6" fontWeight="semibold" gutterBottom>
-                  AI Terapeut
+                  Spela in Minne
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Prata med din personliga AI
+                  Spara viktiga tankar och känslor
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Daily Check-in Card */}
+          {/* Memory List Card */}
           <Grid item xs={12} md={4}>
             <Card
               sx={{
@@ -351,6 +359,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
                   },
                 },
               }}
+              onClick={() => setShowMemoryList(true)}
             >
               <CardContent sx={{ p: 4, textAlign: "center" }}>
                 <Box
@@ -361,13 +370,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
                     transition: "transform 0.3s ease",
                   }}
                 >
-                  📊
+                  💭
                 </Box>
                 <Typography variant="h6" fontWeight="semibold" gutterBottom>
-                  Daglig Översikt
+                  Dina Minnen
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Se dina framsteg och insikter
+                  Lyssna på sparade minnen
                 </Typography>
               </CardContent>
             </Card>
@@ -456,6 +465,44 @@ const Dashboard: React.FC<DashboardProps> = ({ userId }) => {
           </CardContent>
         </Card>
       </Box>
+
+      {/* Mood Logger Modal */}
+      {showMoodLogger && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  Logga Humör
+                </h2>
+                <button
+                  onClick={() => setShowMoodLogger(false)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+              <MoodLogger onMoodLogged={() => {
+                setShowMoodLogger(false);
+                loadDashboardData(); // Refresh dashboard data
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Memory Recorder Modal */}
+      {showMemoryRecorder && user?.user_id && (
+        <MemoryRecorder
+          userId={user.user_id}
+          onClose={() => setShowMemoryRecorder(false)}
+        />
+      )}
+
+      {/* Memory List Modal */}
+      {showMemoryList && (
+        <MemoryList onClose={() => setShowMemoryList(false)} />
+      )}
     </Box>
   );
 };

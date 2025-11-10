@@ -13,12 +13,21 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Import OpenAI exceptions for better error handling
-try:
-    from openai import RateLimitError, APIError
-except ImportError:
-    RateLimitError = Exception  # Fallback if not available
-    APIError = Exception
+# Lazy import OpenAI to avoid initialization errors
+RateLimitError = Exception  # Default fallback
+APIError = Exception  # Default fallback
+
+def _lazy_import_openai():
+    """Lazy import OpenAI to avoid conflicts with pydantic at module load time"""
+    global RateLimitError, APIError
+    try:
+        from openai import RateLimitError as _RateLimitError, APIError as _APIError
+        RateLimitError = _RateLimitError
+        APIError = _APIError
+        return True
+    except ImportError as e:
+        logger.warning(f"OpenAI import failed: {e}")
+        return False
 
 class AIServices:
     """Advanced AI services for mental health and wellness app"""

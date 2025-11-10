@@ -6,7 +6,7 @@ import bcrypt
 from unittest.mock import Mock, MagicMock, patch
 from firebase_admin import auth, firestore
 from src.utils import convert_email_to_punycode  # Ändrat från src.routes.auth
-from main import create_app
+from main import app as flask_app
 
 # Lägg till projektets rot till sys.path för korrekta importer
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,10 +17,11 @@ def client():
     """Skapar en testklient för Flask-applikationen med mockade beroenden."""
     with patch('src.firebase_config.initialize_firebase', return_value=True):
         try:
-            app = create_app(testing=True)
+            flask_app.config['TESTING'] = True
+            test_app = flask_app
         except Exception as e:
             pytest.fail(f"Misslyckades med att skapa appen: {str(e)}")
-        return app.test_client()
+        return test_app.test_client()
 
 # 🔹 Mocka Firebase Authentication & REST API
 @pytest.fixture(scope="function")
@@ -89,12 +90,12 @@ def mock_firebase_auth(mocker):
     mock_auth.create_user = create_user
     mock_requests.side_effect = mock_post
 
-    mocker.patch('src.services.auth_service.auth.get_user_by_email', side_effect=get_user_by_email)
-    mocker.patch('src.services.auth_service.auth.create_user', side_effect=create_user)
+    mocker.patch('src.services.auth_service.firebase_auth.get_user_by_email', side_effect=get_user_by_email)
+    mocker.patch('src.services.auth_service.firebase_auth.create_user', side_effect=create_user)
     mocker.patch('src.services.auth_service.requests.post', side_effect=mock_post)
 
     # Mock password verification to avoid bcrypt issues in tests
-    mocker.patch('src.routes.auth.verify_password', return_value=True)
+    mocker.patch('src.routes.auth_routes.verify_password', return_value=True)
 
     # Mock JWT functionality
     mocker.patch('src.services.auth_service.AuthService.generate_access_token', return_value='mock-access-token')

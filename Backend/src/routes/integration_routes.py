@@ -494,50 +494,21 @@ def get_wearable_status():
         logger.exception(f"Error getting wearable status: {e}")
         return jsonify({"error": str(e)}), 500
 
+# PRODUCTION: Deprecated MOCK endpoint removed
+# Use real OAuth flow instead: GET /api/integration/oauth/{provider}/authorize
+"""
 @integration_bp.route("/wearable/connect", methods=["POST"])
 @jwt_required()
 def connect_wearable():
-    """Connect a new wearable device - DEPRECATED: Creates MOCK connection"""
-    try:
-        user_id = g.get('user_id') or get_jwt_identity()
-        
-        logger.warning(f"⚠️ DEPRECATED ENDPOINT CALLED: /wearable/connect creates MOCK device!")
-        logger.warning(f"⚠️ USE INSTEAD: GET /api/integration/oauth/*/authorize for real OAuth")
-        
-        data = request.get_json()
-        device_type = data.get('device_type', 'fitbit')
-
-        # Device name mapping
-        device_names = {
-            'fitbit': 'Fitbit Charge 5',
-            'apple_health': 'Apple Health',
-            'google_fit': 'Google Fit',
-            'samsung_health': 'Samsung Health'
+    return jsonify({
+        "error": "Endpoint deprecated - use OAuth flow",
+        "oauth_endpoints": {
+            "fitbit": "/api/integration/oauth/fitbit/authorize",
+            "google_fit": "/api/integration/oauth/google-fit/authorize",
+            "apple_health": "/api/integration/oauth/apple-health/authorize"
         }
-
-        # Create new device
-        new_device = {
-            "id": f"{device_type}-{int(datetime.utcnow().timestamp())}",
-            "name": device_names.get(device_type, f"{device_type.title()} Device"),
-            "type": device_type,
-            "connected": True,
-            "lastSync": datetime.utcnow().isoformat()
-        }
-
-        # Add to user's devices
-        add_user_device(user_id, new_device)
-
-        audit_log('wearable_connected', user_id, {'device_type': device_type})
-
-        return jsonify({
-            "success": True,
-            "message": f"{device_names.get(device_type, device_type)} connected successfully",
-            "device": new_device
-        }), 200
-
-    except Exception as e:
-        logger.exception(f"Error connecting wearable: {e}")
-        return jsonify({"error": str(e)}), 500
+    }), 410
+"""
 
 @integration_bp.route("/wearable/disconnect", methods=["POST"])
 @jwt_required()

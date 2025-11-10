@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 from unittest.mock import Mock, patch
-from main import create_app
+from main import app as flask_app
 import base64
 from io import BytesIO
 
@@ -14,10 +14,11 @@ def client():
     """Skapar en testklient för Flask-applikationen med mockade beroenden."""
     with patch('src.firebase_config.initialize_firebase', return_value=True):
         try:
-            app = create_app(testing=True)
+            flask_app.config['TESTING'] = True
+            test_app = flask_app
         except Exception as e:
             pytest.fail(f"Misslyckades med att skapa appen: {str(e)}")
-        return app.test_client()
+        return test_app.test_client()
 
 
 @pytest.fixture(scope="function")

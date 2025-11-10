@@ -84,7 +84,6 @@ try:
     # Middleware
     from src.middleware.security_headers import init_security_headers
     from src.middleware.validation import init_validation_middleware
-    from src.utils.input_sanitization import sanitize_request
     from src.utils.sql_injection_protection import protect_sql_injection
 
     # Routes
@@ -101,6 +100,11 @@ try:
     from src.routes.referral_routes import referral_bp
     from src.routes.chatbot_routes import chatbot_bp
     from src.routes.feedback_routes import feedback_bp
+    from src.routes.admin_routes import admin_bp
+    from src.routes.ai_helpers_routes import ai_helpers_bp
+    from src.routes.notifications_routes import notifications_bp
+    from src.routes.sync_routes import sync_bp
+    from src.routes.users_routes import users_bp
 
     # Initialize Firebase
     initialize_firebase()
@@ -112,6 +116,7 @@ try:
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(mood_bp, url_prefix='/api/mood')
+    app.register_blueprint(ai_helpers_bp, url_prefix='/api/mood')  # ai_helpers routes under /api/mood
     app.register_blueprint(memory_bp, url_prefix='/api/memory')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     app.register_blueprint(integration_bp, url_prefix='/api/integration')
@@ -123,6 +128,10 @@ try:
     app.register_blueprint(referral_bp, url_prefix='/api/referral')
     app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
     app.register_blueprint(feedback_bp, url_prefix='/api/feedback')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+    app.register_blueprint(sync_bp, url_prefix='/api/sync')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
 
     # Global request middleware
     @app.before_request
@@ -131,11 +140,14 @@ try:
         g.request_start_time = datetime.utcnow()
         g.request_id = os.urandom(8).hex()
 
-        # Sanitize request data
+        # Sanitize request data using InputSanitizer directly
         try:
-            sanitize_request()
+            from src.utils.input_sanitization import input_sanitizer
+            sanitized_data = input_sanitizer.sanitize_request_data()
+            g.sanitized_data = sanitized_data
         except Exception as e:
             logger.warning(f"Request sanitization failed: {e}")
+            g.sanitized_data = {}
 
         # Log request
         logger.info(f"Request: {request.method} {request.path} from {get_remote_address()}")
@@ -208,9 +220,10 @@ try:
     if not app.config['TESTING']:
         try:
             start_key_rotation()
-            backup_service.start_scheduler()
-            monitoring_service.start_monitoring()
-            logger.info("✅ All background services started")
+            # Note: backup_service uses lazy initialization, skip scheduler for now
+            # backup_service.start_scheduler()  # Method doesn't exist yet
+            # monitoring_service.start_monitoring()  # Method doesn't exist yet
+            logger.info("✅ Background services started (backup/monitoring schedulers pending implementation)")
         except Exception as e:
             logger.error(f"Failed to start background services: {e}")
 

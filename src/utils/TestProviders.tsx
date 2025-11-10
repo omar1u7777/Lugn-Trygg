@@ -9,15 +9,20 @@ import i18n from "../i18n";
 // Force Swedish for tests before rendering
 i18n.changeLanguage('sv');
 
-// Seed a dummy authenticated user and mark onboarding as complete for tests
+// ⚠️ DEVELOPMENT ONLY: Seed test user data for testing
+// This code is ONLY executed in test environment and NEVER in production
 const TEST_USER = { email: 'test@example.com', user_id: 'test-user' };
-try {
-  if (typeof window !== 'undefined') {
+
+// SECURITY: Only inject test data if explicitly enabled AND in test/dev environment
+if (typeof window !== 'undefined' && typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+  try {
     localStorage.setItem('token', 'test-token');
     localStorage.setItem('user', JSON.stringify(TEST_USER));
     localStorage.setItem(`onboarding_${TEST_USER.user_id}_complete`, 'true');
+  } catch (error) {
+    console.warn('Failed to seed test data:', error);
   }
-} catch {}
+}
 
 const TestProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (

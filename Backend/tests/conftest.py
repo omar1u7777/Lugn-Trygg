@@ -30,7 +30,7 @@ mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection()
 sys.modules['src.firebase_config'] = MagicMock()
 sys.modules['src.firebase_config'].db = mock_db
 
-from main import create_app  # NOW import create_app
+from main import app as flask_app  # Import app directly
 
 
 @pytest.fixture(scope='module')
@@ -49,17 +49,18 @@ def app():
         mock_firebase.return_value = True  # Mockar Firebase-initialisering
 
         try:
-            # Skapa appen med inställningar för testning
-            app = create_app(testing=True)
+            # Use the imported Flask app directly
+            flask_app.config['TESTING'] = True
+            test_app = flask_app
         except Exception as e:
             pytest.fail(f"Misslyckades med att skapa appen för testning: {str(e)}")
 
         # Kör Flask-applikationen och tillhandahåll den till tester
-        yield app
+        yield test_app
 
         # Rensning efter testerna (valfritt beroende på behov)
         # Här kan du t.ex. stänga ner resurser om det behövs
-        logger = app.logger
+        logger = test_app.logger
         logger.info("✅ Testmiljö rensad efter körning.")
 
 @pytest.fixture(scope='module')

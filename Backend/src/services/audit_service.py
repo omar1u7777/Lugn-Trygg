@@ -9,12 +9,17 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     def __init__(self):
-        # Generate or load encryption key for HIPAA compliance
+        # CRITICAL: HIPAA encryption key MUST be set in environment
         self.encryption_key = os.getenv('HIPAA_ENCRYPTION_KEY')
         if not self.encryption_key:
-            # Generate a new key if not set (in production, this should be securely stored)
-            self.encryption_key = Fernet.generate_key().decode()
-            logger.warning("HIPAA_ENCRYPTION_KEY not set, generated new key. Store securely!")
+            error_msg = (
+                "❌ CRITICAL: HIPAA_ENCRYPTION_KEY environment variable is not set!\n"
+                "This key is REQUIRED for HIPAA compliance and data encryption.\n"
+                "Generate a secure key with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'\n"
+                "Add it to your .env file: HIPAA_ENCRYPTION_KEY=<generated_key>"
+            )
+            logger.critical(error_msg)
+            raise ValueError(error_msg)
         self.cipher = Fernet(self.encryption_key.encode())
 
     def encrypt_data(self, data: str) -> str:
@@ -128,8 +133,26 @@ class AuditService:
 
         return decrypted_data
 
-# Create a global audit service instance
-audit_service = AuditService()
+# Global audit service instance - lazy initialization
+_audit_service_instance = None
+
+def get_audit_service():
+    """Get or create the global audit service instance (lazy initialization)"""
+    global _audit_service_instance
+    if _audit_service_instance is None:
+        _audit_service_instance = AuditService()
+    return _audit_service_instance
+
+# Legacy compatibility - property-like access
+class AuditServiceProxy:
+    """Proxy to provide lazy initialization for audit_service"""
+    def __getattr__(self, name):
+        return getattr(get_audit_service(), name)
+    
+    def log_event(self, *args, **kwargs):
+        return get_audit_service().log_event(*args, **kwargs)
+
+audit_service = AuditServiceProxy()
 
 
 def audit_log(
@@ -140,7 +163,7 @@ def audit_log(
     user_agent: Optional[str] = None,
 ) -> None:
     """Global audit logging function."""
-    audit_service.log_event(event_type, user_id, details, ip_address, user_agent)
+    get_audit_service().log_event(event_type, user_id, details, ip_address, user_agent)
 
 
 def log_admin_action(

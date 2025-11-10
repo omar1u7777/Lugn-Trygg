@@ -9,6 +9,8 @@ from datetime import timedelta
 from dotenv import load_dotenv
 import json
 import tempfile
+from pathlib import Path
+from typing import Any, Type, cast
 
 # 🔹 Ladda miljövariabler från .env-filen
 load_dotenv()
@@ -20,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def get_env_variable(var_name: str, default=None, required=False, hide_value=False, cast_type=str):
+def get_env_variable(var_name: str, default: Any = None, required: bool = False, hide_value: bool = False, cast_type: Type[Any] = str) -> Any:
     """
     Hämtar en miljövariabel och kastar fel om den saknas (om `required=True`).
 
@@ -60,14 +62,14 @@ def get_env_variable(var_name: str, default=None, required=False, hide_value=Fal
     return value
 
 # 🔹 Serverkonfiguration
-PORT = get_env_variable("PORT", 5001, cast_type=int)
-DEBUG = get_env_variable("FLASK_DEBUG", "False", cast_type=bool)
+PORT = cast(int, get_env_variable("PORT", 5001, cast_type=int))
+DEBUG = cast(bool, get_env_variable("FLASK_DEBUG", "False", cast_type=bool))
 
 # 🔹 JWT-konfiguration
 JWT_SECRET_KEY = get_env_variable("JWT_SECRET_KEY", required=True, hide_value=True)
 JWT_REFRESH_SECRET_KEY = get_env_variable("JWT_REFRESH_SECRET_KEY", required=True, hide_value=True)
-ACCESS_TOKEN_EXPIRES = timedelta(minutes=get_env_variable("JWT_EXPIRATION_MINUTES", 15, cast_type=int))
-REFRESH_TOKEN_EXPIRES = timedelta(days=get_env_variable("JWT_REFRESH_EXPIRATION_DAYS", 360, cast_type=int))
+ACCESS_TOKEN_EXPIRES = timedelta(minutes=cast(int, get_env_variable("JWT_EXPIRATION_MINUTES", 15, cast_type=int)))
+REFRESH_TOKEN_EXPIRES = timedelta(days=cast(int, get_env_variable("JWT_REFRESH_EXPIRATION_DAYS", 360, cast_type=int)))
 
 # 🔹 Firebase-konfiguration
 FIREBASE_WEB_API_KEY = get_env_variable("FIREBASE_WEB_API_KEY", required=True, hide_value=True)
@@ -78,6 +80,13 @@ FIREBASE_STORAGE_BUCKET = get_env_variable("FIREBASE_STORAGE_BUCKET", required=T
 # 🔹 Firebase Credentials - kan vara filepath ELLER JSON string från env
 FIREBASE_CREDENTIALS_RAW = get_env_variable("FIREBASE_CREDENTIALS", "serviceAccountKey.json", required=True)
 FIREBASE_CREDENTIALS_RAW = str(FIREBASE_CREDENTIALS_RAW).strip()  # Konvertera till string
+
+# Tillåt alternativt att ange en separat path-variabel för containeriserade miljöer
+FIREBASE_CREDENTIALS_PATH_OVERRIDE = os.getenv("FIREBASE_CREDENTIALS_PATH")
+if FIREBASE_CREDENTIALS_PATH_OVERRIDE:
+    FIREBASE_CREDENTIALS_RAW = FIREBASE_CREDENTIALS_PATH_OVERRIDE.strip()
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 # Om det är en JSON string (från Render env), spara som tempfil; annars använd filepath
 if FIREBASE_CREDENTIALS_RAW.startswith("{"):
@@ -90,19 +99,24 @@ if FIREBASE_CREDENTIALS_RAW.startswith("{"):
             FIREBASE_CREDENTIALS = tf.name
         logger.info(f"🔹 Firebase credentials från JSON env-variabel - sparad till {FIREBASE_CREDENTIALS}")
     except json.JSONDecodeError as e:
-        logger.error(f"❌ Kunde inte parse Firebase credentials JSON: {e}")
-        FIREBASE_CREDENTIALS = FIREBASE_CREDENTIALS_RAW
+        raise ValueError("FIREBASE_CREDENTIALS innehåller ogiltig JSON. Kontrollera att värdet är en giltig service account payload.") from e
 else:
     # Det är en filepath
-    FIREBASE_CREDENTIALS = FIREBASE_CREDENTIALS_RAW
-    if not os.path.exists(FIREBASE_CREDENTIALS):
-        logger.warning(f"⚠️ Firebase credentials-filen saknas: {FIREBASE_CREDENTIALS}. Backend kommer köra i begränsad dev-läge.")
-    else:
-        try:
-            with open(FIREBASE_CREDENTIALS, "r") as f:
-                f.read()  # Testa att filen är läsbar
-        except Exception as e:
-            logger.warning(f"⚠️ Firebase credentials-filen kunde inte läsas: {e}. Backend kommer köra i begränsad dev-läge.")
+    credentials_path = Path(FIREBASE_CREDENTIALS_RAW)
+    if not credentials_path.is_absolute():
+        credentials_path = (BACKEND_ROOT / credentials_path).resolve()
+
+    if not credentials_path.exists():
+        raise FileNotFoundError(
+            "Firebase credentials-filen saknas. Se till att FIREBASE_CREDENTIALS eller FIREBASE_CREDENTIALS_PATH pekar på en giltig service-account JSON."
+        )
+
+    try:
+        credentials_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        raise RuntimeError("Firebase credentials-filen kunde inte läsas. Kontrollera filens behörigheter och format.") from exc
+
+    FIREBASE_CREDENTIALS = str(credentials_path)
 
 # 🔹 Stripe-konfiguration
 STRIPE_SECRET_KEY = get_env_variable("STRIPE_SECRET_KEY", required=False, hide_value=True)

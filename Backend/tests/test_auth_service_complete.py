@@ -16,7 +16,7 @@ from firebase_admin import auth, exceptions
 class TestRegisterUser:
     """Test register_user method"""
     
-    @patch('src.services.auth_service.auth')
+    @patch('src.services.auth_service.firebase_auth')
     @patch('src.services.auth_service.db')
     @patch('src.services.auth_service.AuditService')
     def test_register_user_success(self, mock_audit, mock_db, mock_auth):
@@ -47,7 +47,7 @@ class TestRegisterUser:
         mock_db.collection.assert_called_with('users')
     
     @patch('src.services.auth_service.db')
-    @patch('src.services.auth_service.auth')
+    @patch('src.services.auth_service.firebase_auth')
     def test_register_user_email_already_exists(self, mock_auth, mock_db):
         """Test registration with existing email"""
         # Create a proper exception that inherits from BaseException
@@ -69,7 +69,7 @@ class TestLoginUser:
     """Test login_user method"""
     
     @patch('src.services.auth_service.requests')
-    @patch('src.services.auth_service.auth')
+    @patch('src.services.auth_service.firebase_auth')
     @patch('src.services.auth_service.db')
     @patch('src.services.auth_service.AuditService')
     def test_login_user_success(self, mock_audit, mock_db, mock_auth, mock_requests):
@@ -83,10 +83,12 @@ class TestLoginUser:
         }
         mock_requests.post.return_value = mock_response
         
-        # Mock Firebase get_user_by_email
+        # Mock Firebase auth methods
         mock_user_record = Mock()
         mock_user_record.uid = 'test-uid-123'
         mock_user_record.email = 'test@example.com'
+        mock_auth.verify_id_token.return_value = {'uid': 'test-uid-123'}
+        mock_auth.get_user.return_value = mock_user_record
         mock_auth.get_user_by_email.return_value = mock_user_record
         
         # Mock Firestore
@@ -617,3 +619,4 @@ class TestAuditLog:
                 AuthService._audit_log('TEST_EVENT', 'test-uid-123', {})
         except Exception:
             pytest.fail('_audit_log should not raise exception')
+

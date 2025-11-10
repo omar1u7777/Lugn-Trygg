@@ -33,11 +33,10 @@ class BackupService:
         self.encryption_key = encryption_key or os.getenv('BACKUP_ENCRYPTION_KEY')
         self.enable_encryption = bool(self.encryption_key)
 
-        # Firebase services
-        self.db = firestore.client()
-        # Get storage bucket name from environment or use default
-        bucket_name = os.getenv('FIREBASE_STORAGE_BUCKET', 'lugn-trygg-53d75.appspot.com')
-        self.bucket = storage.bucket(bucket_name)
+        # Firebase services - lazy initialization
+        self._db = None
+        self._bucket = None
+        self._bucket_name = os.getenv('FIREBASE_STORAGE_BUCKET', 'lugn-trygg-53d75.appspot.com')
 
         # Backup configuration
         self.backup_schedules = {
@@ -61,6 +60,20 @@ class BackupService:
         # Callbacks
         self.backup_callbacks: List[Callable] = []
         self.restore_callbacks: List[Callable] = []
+    
+    @property
+    def db(self):
+        """Lazy initialize Firestore client"""
+        if self._db is None:
+            self._db = firestore.client()
+        return self._db
+    
+    @property
+    def bucket(self):
+        """Lazy initialize Storage bucket"""
+        if self._bucket is None:
+            self._bucket = storage.bucket(self._bucket_name)
+        return self._bucket
 
     def start_automated_backups(self):
         """Start automated backup scheduling"""
@@ -573,28 +586,35 @@ class BackupService:
 
         return backups
 
-# Global backup service instance
-backup_service = BackupService()
+# Global backup service instance (lazy initialization to avoid Firebase init at import time)
+backup_service = None
+
+def _get_backup_service():
+    """Lazy initialization of backup service"""
+    global backup_service
+    if backup_service is None:
+        backup_service = BackupService()
+    return backup_service
 
 def start_backup_service():
     """Start the automated backup service"""
-    backup_service.start_automated_backups()
+    _get_backup_service().start_automated_backups()
 
 def stop_backup_service():
     """Stop the automated backup service"""
-    backup_service.stop_automated_backups()
+    _get_backup_service().stop_automated_backups()
 
 def create_backup(schedule_type: str = 'manual', backup_type: str = 'firestore') -> Optional[str]:
     """Create a backup"""
-    return backup_service.create_backup(schedule_type, backup_type)
+    return _get_backup_service().create_backup(schedule_type, backup_type)
 
 def restore_backup(backup_id: str, collections: Optional[List[str]] = None) -> bool:
     """Restore from backup"""
-    return backup_service.restore_backup(backup_id, collections)
+    return _get_backup_service().restore_backup(backup_id, collections)
 
 def get_backup_status() -> Dict[str, Any]:
     """Get backup service status"""
-    return backup_service.get_backup_status()
+    return _get_backup_service().get_backup_status()
 
 __all__ = [
     'BackupService',

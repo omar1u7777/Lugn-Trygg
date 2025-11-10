@@ -1,6 +1,7 @@
-import axios from "axios"; // @ts-ignore
+import axios from "axios";
 import CryptoJS from "crypto-js";
 import { getBackendUrl, getEncryptionKey } from "../config/env";
+import { tokenStorage } from "../utils/secureStorage";
 
 // 🔹 Bas-URL för API
 export const API_BASE_URL = getBackendUrl();
@@ -21,8 +22,9 @@ export const api = axios.create({
 
 // 🔹 Request interceptor för att lägga till Authorization header
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
+  async (config) => {
+    // Get token from secure storage
+    const token = await tokenStorage.getAccessToken();
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -97,7 +99,7 @@ api.interceptors.response.use(
       try {
         const newAccessToken = await refreshAccessToken();
         if (newAccessToken) {
-          localStorage.setItem("token", newAccessToken);
+          await tokenStorage.setAccessToken(newAccessToken);
           api.defaults.headers["Authorization"] = `Bearer ${newAccessToken}`;
           originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
           console.log("🔄 Token refreshed successfully");
@@ -141,15 +143,17 @@ export const loginUser = async (email: string, password: string) => {
     const response = await api.post("/api/auth/login", { email, password });
 
     if (response.data?.access_token) {
-      localStorage.setItem("token", response.data.access_token);
-      localStorage.setItem("refresh_token", response.data.refresh_token);
+      await tokenStorage.setAccessToken(response.data.access_token);
+      if (response.data.refresh_token) {
+        await tokenStorage.setRefreshToken(response.data.refresh_token);
+      }
       return response.data;
     } else {
       throw new Error("Inloggning misslyckades: Saknar access-token");
     }
   } catch (error: any) {
     console.error("❌ API Login error:", error);
-    localStorage.clear();
+    tokenStorage.clearTokens();
     throw new Error(error.response?.data?.error || "Felaktiga inloggningsuppgifter.");
   }
 };
@@ -187,7 +191,10 @@ export const logoutUser = async () => {
       if (value) savedOnboarding[key] = value;
     });
     
-    // Clear all localStorage
+    // Clear secure token storage
+    tokenStorage.clearTokens();
+    
+    // Clear all localStorage except onboarding
     localStorage.clear();
     
     // Restore onboarding status (users shouldn't see onboarding again after logout)
@@ -220,9 +227,9 @@ export const refreshAccessToken = async () => {
     });
 
     if (response.data?.access_token) {
-      localStorage.setItem("token", response.data.access_token);
-      if (response.data?.refresh_token) {
-        localStorage.setItem("refresh_token", response.data.refresh_token);
+      await tokenStorage.setAccessToken(response.data.access_token);
+      if (response.data.refresh_token) {
+        await tokenStorage.setRefreshToken(response.data.refresh_token);
       }
       return response.data.access_token;
     } else {
@@ -279,7 +286,7 @@ const encryptData = (data: string): string => {
 // 🔹 API-funktioner för humörloggning
 export const logMood = async (userId: string, mood: string, score: number) => {
   try {
-    const token = localStorage.getItem("token");
+    // Token added automatically by interceptor
     // Encrypt sensitive mood data
     const encryptedMood = encryptData(mood);
 
@@ -287,8 +294,6 @@ export const logMood = async (userId: string, mood: string, score: number) => {
       user_id: userId,
       mood: encryptedMood,
       score
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
   } catch (error: any) {
@@ -299,10 +304,8 @@ export const logMood = async (userId: string, mood: string, score: number) => {
 
 export const getMoods = async (userId: string) => {
   try {
-    const token = localStorage.getItem("token");
-    const response = await api.get(`/api/mood/get?user_id=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token added automatically by interceptor
+    const response = await api.get(`/api/mood/get?user_id=${userId}`);
     return response.data.moods || [];
   } catch (error: any) {
     console.error("❌ API Mood Fetch error:", error);
@@ -313,10 +316,8 @@ export const getMoods = async (userId: string) => {
 // 🔹 API-funktion för veckoanalys
 export const getWeeklyAnalysis = async (userId: string) => {
   try {
-    const token = localStorage.getItem("token");
-    const response = await api.get(`/api/mood/weekly-analysis?user_id=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token added automatically by interceptor
+    const response = await api.get(`/api/mood/weekly-analysis?user_id=${userId}`);
     return response.data;
   } catch (error: any) {
     console.error("❌ API Weekly Analysis error:", error);
@@ -327,10 +328,8 @@ export const getWeeklyAnalysis = async (userId: string) => {
 // 🔹 API-funktioner för minneshantering
 export const getMemories = async (userId: string) => {
   try {
-    const token = localStorage.getItem("token");
-    const response = await api.get(`/api/memory/list?user_id=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token added automatically by interceptor
+    const response = await api.get(`/api/memory/list?user_id=${userId}`);
     return response.data.memories || [];
   } catch (error: any) {
     console.error("❌ API Memory Fetch error:", error);
@@ -341,10 +340,8 @@ export const getMemories = async (userId: string) => {
 // 🔹 Hämta signerad URL för minne
 export const getMemoryUrl = async (userId: string, filePath: string) => {
   try {
-    const token = localStorage.getItem("token");
-    const response = await api.get(`/api/memory/get?user_id=${userId}&file_path=${encodeURIComponent(filePath)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token added automatically by interceptor
+    const response = await api.get(`/api/memory/get?user_id=${userId}&file_path=${encodeURIComponent(filePath)}`);
     return response.data.url;
   } catch (error: any) {
     console.error("❌ API Memory URL error:", error);
@@ -366,13 +363,10 @@ export const resetPassword = async (email: string) => {
 // 🔹 Chatbot API-funktioner
 export const chatWithAI = async (userId: string, message: string) => {
   try {
-    const token = localStorage.getItem("token");
-
+    // Token added automatically by interceptor
     const response = await api.post("/api/chatbot/chat", {
       user_id: userId,
       message: message
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
 
     return response.data;
@@ -384,11 +378,8 @@ export const chatWithAI = async (userId: string, message: string) => {
 
 export const getChatHistory = async (userId: string) => {
   try {
-    const token = localStorage.getItem("token");
-
-    const response = await api.get(`/api/chatbot/history?user_id=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token added automatically by interceptor
+    const response = await api.get(`/api/chatbot/history?user_id=${userId}`);
 
     return response.data.conversation || [];
   } catch (error: any) {
@@ -399,11 +390,9 @@ export const getChatHistory = async (userId: string) => {
 
 export const analyzeMoodPatterns = async (userId: string) => {
   try {
-    const token = localStorage.getItem("token");
+    // Token added automatically by interceptor
     const response = await api.post("/api/chatbot/analyze-patterns", {
       user_id: userId
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
   } catch (error: any) {
@@ -414,13 +403,11 @@ export const analyzeMoodPatterns = async (userId: string) => {
 
 export const analyzeVoiceEmotion = async (userId: string, audioData: string, transcript: string) => {
   try {
-    const token = localStorage.getItem("token");
+    // Token added automatically by interceptor
     const response = await api.post("/api/mood/analyze-voice", {
       user_id: userId,
       audio_data: audioData,
       transcript: transcript
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
   } catch (error: any) {

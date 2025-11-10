@@ -446,13 +446,23 @@ class QueryPerformanceMonitor:
         logger.info(f"📊 Performance data exported to {filename}")
         return filename
 
-# Global monitor instance
-query_monitor = QueryPerformanceMonitor()
+# Global monitor instance (lazy initialization)
+query_monitor = None
+
+def _get_query_monitor():
+    """Lazy initialization of query monitor"""
+    global query_monitor
+    if query_monitor is None:
+        query_monitor = QueryPerformanceMonitor()
+    return query_monitor
 
 def monitor_query(collection: str = None):
     """Decorator to monitor query performance"""
     def decorator(func):
         def wrapper(*args, **kwargs):
+            # Get the monitor instance
+            monitor = _get_query_monitor()
+            
             # Generate query ID
             query_id = f"{func.__name__}_{threading.get_ident()}_{int(time.time()*1000)}"
 
@@ -470,7 +480,7 @@ def monitor_query(collection: str = None):
                 'kwargs_keys': list(kwargs.keys())
             }
 
-            query_monitor.monitor_query(query_id, query_collection or 'unknown', query_details)
+            monitor.monitor_query(query_id, query_collection or 'unknown', query_details)
 
             try:
                 # Execute the query
@@ -485,13 +495,13 @@ def monitor_query(collection: str = None):
                         result_count = 0
 
                 # Complete monitoring
-                query_monitor.complete_query(query_id, result_count)
+                monitor.complete_query(query_id, result_count)
 
                 return result
 
             except Exception as e:
                 # Complete monitoring with error
-                query_monitor.complete_query(query_id, error=str(e))
+                monitor.complete_query(query_id, error=str(e))
                 raise
 
         return wrapper

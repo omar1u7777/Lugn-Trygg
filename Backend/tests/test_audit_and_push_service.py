@@ -140,8 +140,12 @@ def test_log_event_and_get_audit_trail(monkeypatch, fake_db):
     assert called['r'] is True
 
 
-def test_get_audit_trail_handles_exception(monkeypatch):
-    # Make db.collection.throw to simulate exception
+def test_apply_retention_policy_handles_exception(monkeypatch):
+    """Test retention policy handles exceptions gracefully"""
+    # Set HIPAA key FIRST before creating service
+    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
+    
+    # Make db.collection throw to simulate exception
     def bad_collection(name):
         raise Exception('db fail')
     monkeypatch.setattr(audit_mod, 'db', type('DB', (), {'collection': staticmethod(bad_collection)})())
@@ -159,6 +163,7 @@ def test_log_baa_agreement(monkeypatch, fake_db):
 
 
 def test_log_event_handles_exception(monkeypatch):
+    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
     # Patch db.collection to raise an exception
     def bad_collection(name):
         raise Exception('log fail')
@@ -189,6 +194,34 @@ def test_decrypt_sensitive_data_handles_decrypt_error(monkeypatch):
     # Should not raise, but should log warning and leave value as 'should-fail'
     res = svc.decrypt_sensitive_data(data)
     assert res['email'] == 'should-fail'
+
+
+def test_get_audit_trail_decryption_failure(monkeypatch, fake_db):
+    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
+    svc = AuditService()
+    fake_db.storage.setdefault('audit_logs', {})['bad1'] = {
+        'event_type': 'BAD',
+        'user_id': 'u1',
+        'details': 'not-a-valid-token',
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    }
+
+    trail = svc.get_audit_trail('u1')
+    assert len(trail) == 1
+    assert trail[0]['details'] == 'Decryption failed'
+
+
+def test_apply_retention_policy_exception(monkeypatch):
+    """Test that _apply_retention_policy handles database exceptions"""
+    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
+    # Patch db.collection to raise an exception
+    def bad_collection(name):
+        raise Exception('retention fail')
+    monkeypatch.setattr(audit_mod, 'db', type('DB', (), {'collection': staticmethod(bad_collection)})())
+    svc = AuditService()
+    # Should not raise, but should log error
+    svc._apply_retention_policy()
+    # No assertion needed; coverage is for error path
 
 
 # PushNotification tests
@@ -292,59 +325,6 @@ def test_push_service_disabled(monkeypatch):
     svc = PushNotificationService()
     res = svc.send_referral_success_notification('t', 'a', 'b', 1)
     assert res['success'] is False
-
-def test_get_audit_trail_decryption_failure(monkeypatch, fake_db):
-    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
-    svc = AuditService()
-    fake_db.storage.setdefault('audit_logs', {})['bad1'] = {
-        'event_type': 'BAD',
-        'user_id': 'u1',
-        'details': 'not-a-valid-token',
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    }
-
-    trail = svc.get_audit_trail('u1')
-    assert len(trail) == 1
-    assert trail[0]['details'] == 'Decryption failed'
-
-def test_apply_retention_policy_handles_exception(monkeypatch):
-    # Patch db.collection to raise an exception
-    def bad_collection(name):
-        raise Exception('retention fail')
-    monkeypatch.setattr(audit_mod, 'db', type('DB', (), {'collection': staticmethod(bad_collection)})())
-    svc = AuditService()
-    # Should not raise, but should log error
-    svc._apply_retention_policy()
-    # No assertion needed; coverage is for error path
-    monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', Fernet.generate_key().decode())
-    svc = AuditService()
-    fake_db.storage.setdefault('audit_logs', {})['bad1'] = {
-        'event_type': 'BAD',
-        'user_id': 'u1',
-        'details': 'not-a-valid-token',
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    }
-
-    trail = svc.get_audit_trail('u1')
-    assert len(trail) == 1
-    assert trail[0]['details'] == 'Decryption failed'
-
-
-def test_apply_retention_policy_handles_exception(monkeypatch):
-    # Patch db.collection to raise an exception
-    def bad_collection(name):
-        raise Exception('retention fail')
-    monkeypatch.setattr(audit_mod, 'db', type('DB', (), {'collection': staticmethod(bad_collection)})())
-    svc = AuditService()
-    # Should not raise, but should log error
-    svc._apply_retention_policy()
-    # No assertion needed; coverage is for error path
-    called = {}
-    def spy(e, u, d, ip=None, ua=None):
-        called['ok'] = True
-    monkeypatch.setattr(audit_mod.audit_service, 'log_event', spy)
-    audit_mod.audit_log('E', 'u', {'k': 'v'})
-    assert called.get('ok', False) is True
 
 
 def test_send_referral_send_exception(monkeypatch):

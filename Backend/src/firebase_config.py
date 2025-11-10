@@ -1,8 +1,13 @@
 import os
 import logging
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
+
 import firebase_admin
-from firebase_admin import credentials, auth, firestore, storage, exceptions
+from firebase_admin import credentials, firestore, storage, exceptions as firebase_admin_exceptions
+from firebase_admin import auth as firebase_admin_auth_module
 
 # 🔹 Ladda miljövariabler från .env
 load_dotenv()
@@ -14,7 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def get_env_variable(var_name: str, default=None, required=False, hide_value=False, cast_type=str):
+
+def get_env_variable(var_name: str, default=None, required: bool = False, hide_value: bool = False, cast_type=str):
     """
     Hämtar en miljövariabel och kastar fel om den saknas (om `required=True`).
     
@@ -52,93 +58,102 @@ def get_env_variable(var_name: str, default=None, required=False, hide_value=Fal
     logger.info(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
 
     return value
+db: Optional[Any] = None
+auth: Optional[Any] = None
+firebase_admin_auth: Optional[Any] = None
+firebase_storage: Optional[Any] = None
+firebase_exceptions = firebase_admin_exceptions
 
-def initialize_firebase() -> bool:
-    try:
-        if firebase_admin._apps:
-            logger.info("✅ Firebase är redan initierat.")
+
+def _firebase_initialized() -> bool:
+    return bool(getattr(firebase_admin, "_apps", None))
+
+
+def _bind_services() -> None:
+    global db, auth, firebase_admin_auth, firebase_storage, firebase_exceptions
+
+    db = firestore.client()
+    firebase_admin_auth = firebase_admin_auth_module
+    auth = firebase_admin_auth
+    firebase_storage = storage
+    firebase_exceptions = firebase_admin_exceptions
+
+
+def initialize_firebase(force_reinitialize: bool = False) -> bool:
+    global db, auth, firebase_admin_auth, firebase_storage, firebase_exceptions
+
+    if _firebase_initialized():
+        if not force_reinitialize:
+            _bind_services()
             return True
+        firebase_admin.delete_app(firebase_admin.get_app())
 
-        cred_path_raw = get_env_variable("FIREBASE_CREDENTIALS", required=True)
-        cred_path_raw = str(cred_path_raw).strip()
-        
-        # Check if it's a JSON string (starts with {) or a filepath
-        if cred_path_raw.startswith("{"):
-            # It's a JSON string from Render env - parse and write to temp file
-            import json
-            import tempfile
-            try:
-                creds_json = json.loads(cred_path_raw)
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tf:
-                    json.dump(creds_json, tf)
-                    cred_path = tf.name
-                logger.info(f"🔹 Firebase credentials från JSON env-variabel - sparad till {cred_path}")
-            except json.JSONDecodeError as e:
-                logger.error(f"❌ Kunde inte parse Firebase credentials JSON: {e}")
-                raise ValueError(f"Invalid Firebase credentials JSON: {e}") from e
-        else:
-            # It's a filepath - process normally
-            cred_path = cred_path_raw
-            
-            # Om sökvägen är relativ, gör den absolut baserat på Backend-katalogen
-            if not os.path.isabs(cred_path):
-                backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                cred_path = os.path.join(backend_dir, cred_path)
-                logger.info(f"🔹 Konverterade relativ sökväg till absolut: {cred_path}")
-        
-        if not os.path.exists(cred_path):
-            raise FileNotFoundError(f"❌ Firebase credentials-filen saknas: {cred_path}. Kontrollera sökvägen!")
+    cred_path_raw = str(get_env_variable("FIREBASE_CREDENTIALS", required=True)).strip()
 
-        # Försök att läsa filen
+    path_override = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    if path_override:
+        cred_path_raw = path_override.strip()
+
+    if cred_path_raw.startswith("{"):
+        import json
+        import tempfile
+
         try:
-            with open(cred_path, "r") as f:
-                f.read()  # Kontrollera att filen kan läsas
-        except Exception as e:
-            logger.critical(f"❌ Firebase credentials-filen kunde inte läsas: {e}")
-            raise FileNotFoundError(f"Firebase credentials-filen kunde inte läsas: {e}")
+            creds_json = json.loads(cred_path_raw)
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tf:
+                json.dump(creds_json, tf)
+                cred_path = tf.name
+            logger.info("🔹 Firebase credentials från JSON env-variabel - sparad till %s", cred_path)
+        except json.JSONDecodeError as exc:  # pragma: no cover - configuration error path
+            raise RuntimeError(f"Invalid Firebase credentials JSON: {exc}") from exc
+    else:
+        cred_path = cred_path_raw
+        if not os.path.isabs(cred_path):
+            backend_dir = Path(__file__).resolve().parents[1]
+            cred_path = str((backend_dir / cred_path).resolve())
+            logger.info("🔹 Konverterade relativ sökväg till absolut: %s", cred_path)
 
-        # Initiera Firebase med credentials
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred)
-        logger.info("✅ Firebase-initialisering lyckades!")
-        return True
+    if not os.path.exists(cred_path):
+        raise FileNotFoundError(f"Firebase credentials-filen saknas: {cred_path}")
 
-    except exceptions.FirebaseError as fe:
-        logger.exception(f"🔥 Firebase-specifikt initieringsfel: {str(fe)}")
-        raise RuntimeError(f"Firebase kunde inte initieras: {str(fe)}") from fe
-    except Exception as e:
-        logger.exception(f"🔥 Kritiskt fel vid Firebase-initiering: {str(e)}")
-        raise RuntimeError(f"Firebase-initialisering misslyckades: {str(e)}") from e
+    with open(cred_path, "r", encoding="utf-8") as fp:
+        fp.read()
 
-def get_firebase_services() -> dict:
-    if not firebase_admin._apps:
+    cred = credentials.Certificate(cred_path)
+
+    options: Dict[str, Any] = {}
+    database_url = os.getenv("FIREBASE_DATABASE_URL")
+    if database_url:
+        options["databaseURL"] = database_url
+    storage_bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
+    if storage_bucket_name:
+        options["storageBucket"] = storage_bucket_name
+
+    firebase_admin.initialize_app(cred, options or None)
+    if options:
+        logger.info("🔹 Firebase initierad med extra konfiguration: %s", ", ".join(options.keys()))
+
+    _bind_services()
+    logger.info("✅ Firebase-initialisering lyckades!")
+    return True
+
+
+def get_firebase_services() -> Dict[str, Any]:
+    if not _firebase_initialized():
         raise RuntimeError("❌ Firebase är inte initierat. Kör initialize_firebase() först.")
 
-    try:
-        return {
-            "auth": auth,
-            "db": firestore.client(),
-            "storage": storage,
-        }
-    except Exception as e:
-        logger.exception(f"🔥 Fel vid hämtning av Firebase-tjänster: {e}")
-        raise RuntimeError("Kunde inte hämta Firebase-tjänster. Kontrollera konfigurationen.") from e
+    return {
+        "auth": auth,
+        "db": db,
+        "storage": firebase_storage,
+    }
 
-# Ensure exported names exist even if initialization fails
-db = None
-auth = None
-firebase_admin_auth = None
 
-# 🔹 Försök att initiera Firebase och hämta tjänster
-try:
-    if initialize_firebase():
-        firebase_services = get_firebase_services()
-        db = firebase_services["db"]
-        auth = firebase_services["auth"]
-        firebase_admin_auth = auth  # Alias for easier import
-        logger.info("✅ Firebase-tjänster laddades framgångsrikt!")
-except RuntimeError as e:
-    # Do not raise here; instead expose None values so the application can run in a degraded
-    # local development mode where Firebase admin credentials are not present.
-    logger.critical(f"🚨 Firebase kunde inte startas: {e}")
-    logger.warning("⚠️ Kör i lokal degraderad läge - Firebase-admin är inte initierat. Endast begränsad funktionalitet är tillgänglig.")
+initialize_firebase()
+services = get_firebase_services()
+db = services.get("db")
+auth = services.get("auth")
+firebase_admin_auth = auth
+firebase_storage = services.get("storage")
+firebase_exceptions = firebase_admin_exceptions
+logger.info("✅ Firebase-tjänster laddades framgångsrikt (live)")

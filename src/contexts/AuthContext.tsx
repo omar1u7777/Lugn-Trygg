@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { logoutUser, refreshAccessToken } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
+import { tokenStorage } from "../utils/secureStorage";
 
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-   const [token, setTokenState] = useState<string | null>(localStorage.getItem("token"));
+   const [token, setTokenState] = useState<string | null>(null);
    const [user, setUserState] = useState<User | null>(() => {
       try {
         const savedUser = localStorage.getItem("user");
@@ -48,18 +49,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     hasInitializedRef.current = true;
 
-    if (!token || !user) {
-      // Don't redirect if already on login or register pages
-      const currentPath = location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/register') {
-        console.warn("⚠️ No valid session found, redirecting to /login...");
-        navigate("/login", { replace: true });
+    // Load token from secure storage
+    tokenStorage.getAccessToken().then(storedToken => {
+      if (!storedToken || !user) {
+        // Don't redirect if already on login or register pages
+        const currentPath = location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/register') {
+          console.warn("⚠️ No valid session found, redirecting to /login...");
+          navigate("/login", { replace: true });
+        }
+      } else {
+        console.log("✅ Token & user loaded from secure storage:", user);
+        setTokenState(storedToken);
       }
-    } else {
-      console.log("✅ Token & user loaded from localStorage:", user);
-    }
-    setIsInitialized(true);
-  }, [token, user, navigate, setIsInitialized, location]);
+      setIsInitialized(true);
+    }).catch(error => {
+      console.error("❌ Failed to load token from secure storage:", error);
+      setIsInitialized(true);
+    });
+  }, [user, navigate, setIsInitialized, location]);
 
   // 🔄 Automatisk token-förnyelse - Förbättrad version
  useEffect(() => {
@@ -72,7 +80,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
        const newAccessToken = await refreshAccessToken();
        if (newAccessToken) {
          setTokenState(newAccessToken);
-         localStorage.setItem("token", newAccessToken);
+         await tokenStorage.setAccessToken(newAccessToken);
          console.log("🔄 Token refreshed automatically.");
        }
      } catch (error) {
@@ -87,12 +95,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isLoggedIn = useCallback(() => Boolean(token && user && user.user_id), [token, user]);
 
   // 🔓 Hantera inloggning och lagra användarinformation
-  const login = useCallback((accessToken: string, email: string, user_id: string) => {
+  const login = useCallback(async (accessToken: string, email: string, user_id: string) => {
     const userData: User = { email, user_id };
     setTokenState(accessToken);
     setUserState(userData);
 
-    localStorage.setItem("token", accessToken);
+    // Store token securely
+    await tokenStorage.setAccessToken(accessToken);
     localStorage.setItem("user", JSON.stringify(userData));
     console.log("✅ Användaren är inloggad:", userData);
 
@@ -109,8 +118,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setTokenState(null);
       setUserState(null);
+      // Clear secure storage
+      tokenStorage.clearTokens();
       // Keep consent_given in localStorage, only clear auth-related items
-      localStorage.removeItem("token");
       localStorage.removeItem("user");
       navigate("/login");
     }

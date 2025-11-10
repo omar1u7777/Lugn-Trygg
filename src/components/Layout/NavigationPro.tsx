@@ -62,23 +62,28 @@ const NavigationPro: React.FC = () => {
     return location.pathname === path;
   };
 
-  // Navigation items configuration
-  const navItems = [
-    { path: "/", label: t("nav.home"), icon: "fa-home", emoji: "🏠" },
-    { path: "/dashboard", label: t("nav.dashboard"), icon: "fa-chart-line", emoji: "📊" },
-    { path: "/mood-tracker", label: t("nav.mood"), icon: "fa-smile", emoji: "😊" },
-    { path: "/memory-games", label: t("nav.games"), icon: "fa-gamepad", emoji: "🎮" },
-    { path: "/referral", label: t("nav.referral"), icon: "fa-users", emoji: "👥", highlight: true },
-    { path: "/health-sync", label: t("nav.health"), icon: "fa-heartbeat", emoji: "❤️" },
-  ];
+  // Navigation items configuration - only show appropriate items based on auth status
+  const navItems = isLoggedIn()
+    ? [
+        { path: "/dashboard", label: t("nav.dashboard"), icon: "fa-chart-line", emoji: "📊" },
+        { path: "/mood-tracker", label: t("nav.mood"), icon: "fa-smile", emoji: "😊" },
+        { path: "/referral", label: t("nav.referral"), icon: "fa-users", emoji: "👥", highlight: true },
+        { path: "/health-sync", label: t("nav.health"), icon: "fa-heartbeat", emoji: "❤️" },
+      ]
+    : [
+        { path: "/", label: t("nav.home"), icon: "fa-home", emoji: "🏠" },
+      ];
 
-  // Bottom tabs for mobile (simpler navigation)
-  const tabs = [
-    { id: "home", path: "/", label: t("nav.home"), icon: "🏠" },
-    { id: "dashboard", path: "/dashboard", label: t("nav.dashboard"), icon: "📊" },
-    { id: "mood", path: "/mood-tracker", label: t("nav.mood"), icon: "😊" },
-    { id: "games", path: "/memory-games", label: t("nav.games"), icon: "🎮" },
-  ];
+  // Bottom tabs for mobile (simpler navigation) - only show appropriate tabs based on auth status
+  const tabs = isLoggedIn()
+    ? [
+        { id: "dashboard", path: "/dashboard", label: t("nav.dashboard"), icon: "📊" },
+        { id: "mood", path: "/mood-tracker", label: t("nav.mood"), icon: "😊" },
+        { id: "referral", path: "/referral", label: t("nav.referral"), icon: "👥" },
+      ]
+    : [
+        { id: "home", path: "/", label: t("nav.home"), icon: "🏠" },
+      ];
 
   return (
     <>
@@ -238,7 +243,7 @@ const NavigationPro: React.FC = () => {
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
             sx={{
-              display: { lg: "block", xl: "none" },
+              display: { md: "block", lg: "none" },
               ml: "auto",
             }}
           >

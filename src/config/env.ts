@@ -10,17 +10,20 @@ type SupportedEnvKeys =
   | 'VITE_FIREBASE_VAPID_KEY'
   | 'VITE_ENCRYPTION_KEY';
 
+// ⚠️ SECURITY: NO DEFAULT VALUES FOR SENSITIVE KEYS!
+// All sensitive configuration MUST be set via environment variables.
+// This prevents accidental exposure of credentials in source code.
 const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
-  VITE_BACKEND_URL: 'https://lugn-trygg-backend.onrender.com',
-  VITE_FIREBASE_API_KEY: 'AIzaSyAxs7Monr1bJaXmUecl8eICvDaDhUkCFYY',
-  VITE_FIREBASE_AUTH_DOMAIN: 'lugn-trygg.firebaseapp.com',
-  VITE_FIREBASE_PROJECT_ID: 'lugn-trygg',
-  VITE_FIREBASE_STORAGE_BUCKET: 'lugn-trygg.firebasestorage.app',
-  VITE_FIREBASE_MESSAGING_SENDER_ID: '412776932054',
-  VITE_FIREBASE_APP_ID: '1:412776932054:web:7c4c72c93eb9b5c49fdaf0',
-  VITE_FIREBASE_MEASUREMENT_ID: undefined, // Disabled to prevent 403 errors
-  VITE_FIREBASE_VAPID_KEY: undefined,
-  VITE_ENCRYPTION_KEY: 'your-encryption-key-here',
+  VITE_BACKEND_URL: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_API_KEY: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_AUTH_DOMAIN: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_PROJECT_ID: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_STORAGE_BUCKET: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_MESSAGING_SENDER_ID: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_APP_ID: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_FIREBASE_MEASUREMENT_ID: undefined,  // Optional: Analytics measurement ID
+  VITE_FIREBASE_VAPID_KEY: undefined,  // Optional: Push notifications VAPID key
+  VITE_ENCRYPTION_KEY: undefined,  // ✅ REQUIRED: Must be set via .env - NEVER hardcode!
 };
 
 declare global {
@@ -97,21 +100,84 @@ export const getEnvValue = (key: SupportedEnvKeys): string | undefined => {
   return value ?? DEFAULTS[key];
 };
 
-export const getBackendUrl = (): string => getEnvValue('VITE_BACKEND_URL') ?? 'https://lugn-trygg-backend.onrender.com';
+// ✅ Validation: Ensure critical environment variables are set
+const validateRequiredEnvVars = () => {
+  const required: SupportedEnvKeys[] = [
+    'VITE_BACKEND_URL',
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_ENCRYPTION_KEY',
+  ];
 
-export const getFirebaseConfig = () => ({
-  apiKey: getEnvValue('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnvValue('VITE_FIREBASE_APP_ID'),
-  measurementId: getEnvValue('VITE_FIREBASE_MEASUREMENT_ID'),
-});
+  const missing = required.filter(key => {
+    const value = getEnvValue(key);
+    return !value || value === 'your-encryption-key-here' || value === 'undefined';
+  });
+
+  if (missing.length > 0 && typeof process !== 'undefined' && process.env?.NODE_ENV !== 'test') {
+    const errorMsg = `
+❌ CRITICAL: Missing required environment variables!
+
+Missing: ${missing.join(', ')}
+
+Please create a .env file with:
+${missing.map(key => `${key}=your-actual-value-here`).join('\n')}
+
+See .env.example for template.
+    `.trim();
+    
+    console.error(errorMsg);
+    
+    // In production, throw error to prevent app from running with invalid config
+    if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+      throw new Error('Missing required environment variables. Check console for details.');
+    }
+  }
+};
+
+// Run validation on module load (but not during tests)
+if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
+  validateRequiredEnvVars();
+}
+
+export const getBackendUrl = (): string => {
+  const url = getEnvValue('VITE_BACKEND_URL');
+  if (!url) {
+    throw new Error('VITE_BACKEND_URL is required but not set!');
+  }
+  return url;
+};
+
+export const getFirebaseConfig = () => {
+  const config = {
+    apiKey: getEnvValue('VITE_FIREBASE_API_KEY'),
+    authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN'),
+    projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID'),
+    storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET'),
+    messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+    appId: getEnvValue('VITE_FIREBASE_APP_ID'),
+    measurementId: getEnvValue('VITE_FIREBASE_MEASUREMENT_ID'),
+  };
+
+  // Validate Firebase config has required fields
+  if (!config.apiKey || !config.authDomain || !config.projectId) {
+    throw new Error('Firebase configuration is incomplete. Check your .env file.');
+  }
+
+  return config;
+};
 
 export const getFirebaseVapidKey = (): string | undefined => getEnvValue('VITE_FIREBASE_VAPID_KEY');
 
-export const getEncryptionKey = (): string | undefined => getEnvValue('VITE_ENCRYPTION_KEY');
+export const getEncryptionKey = (): string => {
+  const key = getEnvValue('VITE_ENCRYPTION_KEY');
+  if (!key || key === 'your-encryption-key-here') {
+    throw new Error('VITE_ENCRYPTION_KEY must be set to a secure random value!');
+  }
+  return key;
+};
 
 export const isDevEnvironment = (): boolean => {
   if (typeof process !== 'undefined' && process.env?.NODE_ENV) {

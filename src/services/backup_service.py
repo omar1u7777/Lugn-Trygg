@@ -573,28 +573,35 @@ class BackupService:
 
         return backups
 
-# Global backup service instance
-backup_service = BackupService()
+# Global backup service instance (lazy initialization)
+backup_service = None
+
+def _get_backup_service():
+    """Lazy initialization of backup service"""
+    global backup_service
+    if backup_service is None:
+        backup_service = BackupService()
+    return backup_service
 
 def start_backup_service():
     """Start the automated backup service"""
-    backup_service.start_automated_backups()
+    _get_backup_service().start_automated_backups()
 
 def stop_backup_service():
     """Stop the automated backup service"""
-    backup_service.stop_automated_backups()
+    _get_backup_service().stop_automated_backups()
 
 def create_backup(schedule_type: str = 'manual', backup_type: str = 'firestore') -> Optional[str]:
     """Create a backup"""
-    return backup_service.create_backup(schedule_type, backup_type)
+    return _get_backup_service().create_backup(schedule_type, backup_type)
 
 def restore_backup(backup_id: str, collections: Optional[List[str]] = None) -> bool:
     """Restore from backup"""
-    return backup_service.restore_backup(backup_id, collections)
+    return _get_backup_service().restore_backup(backup_id, collections)
 
 def get_backup_status() -> Dict[str, Any]:
     """Get backup service status"""
-    return backup_service.get_backup_status()
+    return _get_backup_service().get_backup_status()
 
 __all__ = [
     'BackupService',

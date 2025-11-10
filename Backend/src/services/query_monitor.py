@@ -20,7 +20,7 @@ class QueryPerformanceMonitor:
     """Monitors and analyzes database query performance in real-time"""
 
     def __init__(self, db=None, alert_thresholds: Dict[str, float] = None):
-        self.db = db or firestore.client()
+        self._db = db  # Lazy initialization - don't call firestore.client() immediately
         self.is_monitoring = False
         self.monitor_thread = None
 
@@ -46,6 +46,13 @@ class QueryPerformanceMonitor:
 
         # Callbacks for alerts
         self.alert_callbacks: List[Callable] = []
+    
+    @property
+    def db(self):
+        """Lazy initialize Firestore client"""
+        if self._db is None:
+            self._db = firestore.client()
+        return self._db
 
     def start_monitoring(self):
         """Start the performance monitoring system"""
@@ -446,8 +453,15 @@ class QueryPerformanceMonitor:
         logger.info(f"📊 Performance data exported to {filename}")
         return filename
 
-# Global monitor instance
-query_monitor = QueryPerformanceMonitor()
+# Global monitor instance (lazy initialization)
+query_monitor = None
+
+def _get_query_monitor():
+    """Lazy initialization of query monitor"""
+    global query_monitor
+    if query_monitor is None:
+        query_monitor = QueryPerformanceMonitor()
+    return query_monitor
 
 def monitor_query(collection: str = None):
     """Decorator to monitor query performance"""
@@ -470,7 +484,8 @@ def monitor_query(collection: str = None):
                 'kwargs_keys': list(kwargs.keys())
             }
 
-            query_monitor.monitor_query(query_id, query_collection or 'unknown', query_details)
+            monitor = _get_query_monitor()
+            monitor.monitor_query(query_id, query_collection or 'unknown', query_details)
 
             try:
                 # Execute the query
@@ -485,13 +500,13 @@ def monitor_query(collection: str = None):
                         result_count = 0
 
                 # Complete monitoring
-                query_monitor.complete_query(query_id, result_count)
+                monitor.complete_query(query_id, result_count)
 
                 return result
 
             except Exception as e:
                 # Complete monitoring with error
-                query_monitor.complete_query(query_id, error=str(e))
+                monitor.complete_query(query_id, error=str(e))
                 raise
 
         return wrapper

@@ -100,6 +100,14 @@ function App() {
                                     }
                                 />
                                 <Route
+                                    path="/mood-tracker"
+                                    element={
+                                        <ProtectedRoute>
+                                            <WorldClassDashboard />
+                                        </ProtectedRoute>
+                                    }
+                                />
+                                <Route
                                     path="/subscribe"
                                     element={
                                         <ProtectedRoute>
@@ -136,6 +144,14 @@ function App() {
                                     element={
                                         <ProtectedRoute>
                                             <ReferralProgram />
+                                        </ProtectedRoute>
+                                    }
+                                />
+                                <Route
+                                    path="/health-sync"
+                                    element={
+                                        <ProtectedRoute>
+                                            <OAuthHealthIntegrations />
                                         </ProtectedRoute>
                                     }
                                 />

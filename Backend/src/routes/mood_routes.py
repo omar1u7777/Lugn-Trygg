@@ -1,5 +1,13 @@
 from flask import Blueprint, request, jsonify, current_app
-import src.utils.ai_services as ai_services_module
+# Lazy import to avoid OpenAI/Pydantic conflicts at module load time
+ai_services_module = None
+def _get_ai_services_module():
+    global ai_services_module
+    if ai_services_module is None:
+        import src.utils.ai_services as _ai_services_module
+        ai_services_module = _ai_services_module
+    return ai_services_module
+
 from ..models.user import User
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
@@ -12,7 +20,7 @@ class _AIServicesProxy:
     """Lazily proxy AI service calls so tests can patch the backend module."""
 
     def __getattr__(self, item):
-        return getattr(ai_services_module.ai_services, item)
+        return getattr(_get_ai_services_module().ai_services, item)
 
 
 ai_services = _AIServicesProxy()
@@ -59,81 +67,86 @@ def log_mood():
         #   - Dummy Firebase API key will block Google sign-in (expected in dev)
         #   - CSP may block Firebase Auth iframe; update CSP for local testing if needed
 
-        # Try to get JSON data, with fallback parsing for malformed requests
-        try:
-            data = request.get_json()
-        except Exception as json_error:
-            logger.error(f"JSON parsing failed: {json_error}")
-            logger.error(f"Raw request data: {request.get_data(as_text=True)}")
+        # Initialize data and voice_data
+        data = {}
+        voice_data = None
+        audio_file = None
 
-            # Try to parse manually if JSON parsing fails
-            raw_data = request.get_data(as_text=True)
-            if raw_data:
-                try:
-                    # Parse the malformed data manually
-                    stripped_data = raw_data.strip()
-                    if stripped_data.startswith("'") and stripped_data.endswith("'"):
-                        stripped_data = stripped_data[1:-1]
-
-                    if stripped_data.startswith("{") and stripped_data.endswith("}"):
-                        content = stripped_data[1:-1]
-                        pairs = []
-                        current_pair = ""
-                        brace_count = 0
-
-                        for char in content:
-                            if char == "," and brace_count == 0:
-                                pairs.append(current_pair)
-                                current_pair = ""
-                            else:
-                                current_pair += char
-                                if char == "{":
-                                    brace_count += 1
-                                elif char == "}":
-                                    brace_count -= 1
-
-                        if current_pair:
-                            pairs.append(current_pair)
-
-                        data = {}
-                        for pair in pairs:
-                            if ":" in pair:
-                                key, value = pair.split(":", 1)
-                                key = key.strip()
-                                value = value.strip()
-                                if key.startswith("'") and key.endswith("'"):
-                                    key = key[1:-1]
-                                elif key.startswith('"') and key.endswith('"'):
-                                    key = key[1:-1]
-                                if value.startswith("'") and value.endswith("'"):
-                                    value = value[1:-1]
-                                elif value.startswith('"') and value.endswith('"'):
-                                    value = value[1:-1]
-                                data[key] = value
-
-                        logger.info(f"Successfully parsed malformed mood data: {data}")
-                    else:
-                        raise ValueError("Data does not look like a dict")
-                except Exception as parse_error:
-                    logger.error(f"Manual parsing failed: {parse_error}")
-                    return jsonify({'error': 'Invalid data format'}), 400
-            else:
-                return jsonify({'error': 'No data provided'}), 400
-
+        # Handle multipart/form-data FIRST (for audio uploads)
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Handle multipart data if needed
+            # Handle multipart data
             form_data = request.form.to_dict()
             data.update(form_data)
-            # Also handle file upload for audio
+            # Handle file upload for audio
             audio_file = request.files.get('audio')
             if audio_file:
                 audio_bytes = audio_file.read()
                 voice_data = audio_bytes  # Store raw bytes for analysis
-            else:
-                voice_data = data.get('voice_data')
         else:
-            voice_data = data.get('voice_data')
-            audio_file = None
+            # Try to get JSON data, with fallback parsing for malformed requests
+            try:
+                data = request.get_json()
+            except Exception as json_error:
+                logger.error(f"JSON parsing failed: {json_error}")
+                logger.error(f"Raw request data: {request.get_data(as_text=True)}")
+
+                # Try to parse manually if JSON parsing fails
+                raw_data = request.get_data(as_text=True)
+                if raw_data:
+                    try:
+                        # Parse the malformed data manually
+                        stripped_data = raw_data.strip()
+                        if stripped_data.startswith("'") and stripped_data.endswith("'"):
+                            stripped_data = stripped_data[1:-1]
+
+                        if stripped_data.startswith("{") and stripped_data.endswith("}"):
+                            content = stripped_data[1:-1]
+                            pairs = []
+                            current_pair = ""
+                            brace_count = 0
+
+                            for char in content:
+                                if char == "," and brace_count == 0:
+                                    pairs.append(current_pair)
+                                    current_pair = ""
+                                else:
+                                    current_pair += char
+                                    if char == "{":
+                                        brace_count += 1
+                                    elif char == "}":
+                                        brace_count -= 1
+
+                            if current_pair:
+                                pairs.append(current_pair)
+
+                            data = {}
+                            for pair in pairs:
+                                if ":" in pair:
+                                    key, value = pair.split(":", 1)
+                                    key = key.strip()
+                                    value = value.strip()
+                                    if key.startswith("'") and key.endswith("'"):
+                                        key = key[1:-1]
+                                    elif key.startswith('"') and key.endswith('"'):
+                                        key = key[1:-1]
+                                    if value.startswith("'") and value.endswith("'"):
+                                        value = value[1:-1]
+                                    elif value.startswith('"') and value.endswith('"'):
+                                        value = value[1:-1]
+                                    data[key] = value
+
+                            logger.info(f"Successfully parsed malformed mood data: {data}")
+                        else:
+                            raise ValueError("Data does not look like a dict")
+                    except Exception as parse_error:
+                        logger.error(f"Manual parsing failed: {parse_error}")
+                        return jsonify({'error': 'Invalid data format'}), 400
+                else:
+                    return jsonify({'error': 'No data provided'}), 400
+            
+            # For JSON requests, get voice_data from JSON
+            if data:
+                voice_data = data.get('voice_data')
 
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -455,18 +468,52 @@ def get_weekly_analysis():
             logger.error(f"Firebase query failed: {str(e)}")
             return jsonify({'error': 'Service temporarily unavailable'}), 503
 
-        # Get user's recent mood data (mock for now)
-        weekly_data = {
-            'moods': [
-                {'sentiment': 'POSITIVE', 'timestamp': '2024-01-15T10:00:00Z'},
-                {'sentiment': 'NEUTRAL', 'timestamp': '2024-01-16T14:30:00Z'},
-                {'sentiment': 'NEGATIVE', 'timestamp': '2024-01-17T09:15:00Z'},
-            ],
-            'memories': [
-                {'content': 'En vacker promenad i parken', 'timestamp': '2024-01-15T11:00:00Z'},
-                {'content': 'Träffade gamla vänner', 'timestamp': '2024-01-16T16:00:00Z'}
-            ]
-        }
+        # Get user's recent mood data from database
+        try:
+            mood_ref = db.collection('users').document(user_id).collection('moods')
+            mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(30).stream())
+
+            memory_ref = db.collection('users').document(user_id).collection('memories')
+            memory_docs = list(memory_ref.order_by('timestamp', direction='DESCENDING').limit(10).stream())
+
+            moods = []
+            for doc in mood_docs:
+                mood_data = doc.to_dict()
+                moods.append({
+                    'sentiment': mood_data.get('sentiment', 'NEUTRAL'),
+                    'timestamp': mood_data.get('timestamp', ''),
+                    'score': mood_data.get('score', 0)
+                })
+
+            memories = []
+            for doc in memory_docs:
+                memory_data = doc.to_dict()
+                memories.append({
+                    'content': memory_data.get('content', ''),
+                    'timestamp': memory_data.get('timestamp', '')
+                })
+
+            weekly_data = {
+                'moods': moods,
+                'memories': memories
+            }
+
+            logger.info(f"Retrieved {len(moods)} moods and {len(memories)} memories for weekly analysis")
+
+        except Exception as db_error:
+            logger.warning(f"Failed to retrieve weekly data from database: {str(db_error)}, using mock data")
+            # Fallback to mock data
+            weekly_data = {
+                'moods': [
+                    {'sentiment': 'POSITIVE', 'timestamp': '2024-01-15T10:00:00Z'},
+                    {'sentiment': 'NEUTRAL', 'timestamp': '2024-01-16T14:30:00Z'},
+                    {'sentiment': 'NEGATIVE', 'timestamp': '2024-01-17T09:15:00Z'},
+                ],
+                'memories': [
+                    {'content': 'En vacker promenad i parken', 'timestamp': '2024-01-15T11:00:00Z'},
+                    {'content': 'Träffade gamla vänner', 'timestamp': '2024-01-16T16:00:00Z'}
+                ]
+            }
 
         # Generate AI-powered insights
         insights = ai_services.generate_weekly_insights(weekly_data, 'sv')

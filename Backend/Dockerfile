@@ -1,16 +1,15 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Multi-stage build for production-ready image
+FROM python:3.11-slim as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libffi-dev \
     libssl-dev \
-    curl \
     portaudio19-dev \
     libasound2-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -18,66 +17,49 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install torch separately for better caching (CPU-only version to reduce size)
-RUN pip install --no-cache-dir torch==2.8.0+cpu --index-url https://download.pytorch.org/whl/cpu
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Python dependencies in batches to avoid timeout
-# Core dependencies
-RUN pip install --no-cache-dir \
-    firebase-admin>=6.0.1 \
-    python-dotenv==1.0.0 \
-    requests==2.28.1 \
-    flask==3.0.3 \
-    flask-cors==3.0.10 \
-    Flask-Babel>=3.0.0 \
-    werkzeug==3.0.1 \
-    bcrypt==4.0.1 \
-    PyJWT>=2.0.0 \
-    numpy>=1.21.0
+# Install torch separately (CPU-only to reduce size)
+RUN pip install --no-cache-dir torch==2.0.0+cpu torchvision==0.15.0+cpu --index-url https://download.pytorch.org/whl/cpu
 
-# Voice and audio dependencies
-RUN pip install --no-cache-dir \
-    pyttsx3==2.90 \
-    SpeechRecognition==3.8.1 \
-    pyaudio==0.2.13 \
-    google-cloud-speech>=2.0.0 \
-    google-cloud-language>=2.0.0 \
-    sounddevice==0.4.5 \
-    soundfile==0.11.0
+# Install all other dependencies from requirements
+RUN pip install --no-cache-dir -r requirements.txt
 
-# AI and ML dependencies
-RUN pip install --no-cache-dir \
-    openai>=1.0.0 \
-    transformers>=4.0.0 \
-    librosa>=0.9.2
+# Production stage
+FROM python:3.11-slim
 
-# Security and rate limiting
-RUN pip install --no-cache-dir \
-    flask-limiter>=3.0.0 \
-    pycryptodome>=3.0.0 \
-    redis>=4.0.0
+WORKDIR /app
 
-# Testing dependencies
-RUN pip install --no-cache-dir \
-    pytest>=7.0.0 \
-    pytest-mock>=3.10.0 \
-    unittest2>=1.1.0 \
-    selenium>=4.0.0
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    portaudio19-dev \
+    libasound2-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
-COPY . .
+COPY --chown=app:app . .
 
 # Create non-root user
-RUN useradd --create-home --shell /bin/bash app \
+RUN useradd --create-home --shell /bin/bash --uid 10000 app \
     && chown -R app:app /app
+
+# Switch to non-root user
 USER app
 
 # Expose port
 EXPOSE 5001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5001/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:5001/health || exit 1
 
-# Run the application
-CMD ["python", "main.py"]
+# Use gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--worker-class", "gevent", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "main:app"]
