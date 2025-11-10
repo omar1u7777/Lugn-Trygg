@@ -52,6 +52,20 @@
     (function() {
       'use strict';
       
+      // Global error handler for React undefined errors
+      window.addEventListener('error', function(event) {
+        var errorMsg = event.message || '';
+        // Catch MUI ForwardRef errors and React undefined errors
+        if (errorMsg.includes('ForwardRef') || 
+            errorMsg.includes('Cannot read properties of undefined') ||
+            errorMsg.includes('React') && errorMsg.includes('undefined')) {
+          console.error('CRITICAL React error detected:', errorMsg);
+          // Redirect to fallback page
+          window.location.href = '/error-fallback.html';
+          return;
+        }
+      });
+      
       // Check if React is loaded from CDN
       if (typeof window.React !== 'undefined' && typeof window.ReactDOM !== 'undefined') {
         console.log('✓ React ' + window.React.version + ' loaded from CDN');

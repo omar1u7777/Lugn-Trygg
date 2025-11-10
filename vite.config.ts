@@ -39,30 +39,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: false, // DISABLE minification - may be breaking React references
-    chunkSizeWarningLimit: 5000,
+    minify: 'esbuild', // Use esbuild for faster minification
+    chunkSizeWarningLimit: 10000, // Allow large bundles
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
     },
-    // Allow normal code splitting - React is guaranteed available globally via CDN
     rollupOptions: {
+      // Force maximum chunk size to bundle more together
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'mui-vendor': [
-            '@mui/material',
-            '@mui/icons-material',
-            '@emotion/react',
-            '@emotion/styled'
-          ],
-          'firebase-vendor': [
-            'firebase/app',
-            'firebase/auth',
-            'firebase/firestore',
-            'firebase/storage'
-          ],
-        },
+        experimentalMinChunkSize: 999999, // Force everything below 1MB into same chunk
       },
     },
   },
