@@ -10,6 +10,7 @@ export default defineConfig({
     jsxRuntime: 'automatic',
   })],
   resolve: {
+    dedupe: ['react', 'react-dom'], // Force single React instance across all chunks
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@/theme/tokens': path.resolve(__dirname, './src/theme/tokens.ts'),
