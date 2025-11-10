@@ -1,33 +1,35 @@
-/**
- * Chart.js Configuration
- * Register all required Chart.js components
+﻿/**
+ * Chart.js Configuration - DISABLED
+ * Temporarily disabled to fix React hooks bundling error on Vercel
  */
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-  ArcElement,
-} from 'chart.js';
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-  ArcElement
-);
+// All Chart.js imports commented out to prevent bundling
+// import {
+//   Chart as ChartJS,
+//   CategoryScale,
+//   LinearScale,
+//   PointElement,
+//   LineElement,
+//   BarElement,
+//   Title,
+//   Tooltip,
+//   Legend,
+//   Filler,
+//   ArcElement,
+// } from 'chart.js';
 
-export default ChartJS;
+// ChartJS.register(
+//   CategoryScale,
+//   LinearScale,
+//   PointElement,
+//   LineElement,
+//   BarElement,
+//   Title,
+//   Tooltip,
+//   Legend,
+//   Filler,
+//   ArcElement
+// );
+
+// Export empty object as placeholder
+export default {};

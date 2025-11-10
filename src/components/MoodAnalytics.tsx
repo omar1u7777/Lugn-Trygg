@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -28,9 +28,9 @@ import {
   CheckCircle as CheckCircleIcon,
   FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
+import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
 
-// Lazy load heavy components
-const AnalyticsCharts = lazy(() => import('./Analytics/AnalyticsCharts'));
+// Lazy load heavy components - Analytics charts now using placeholder
 
 declare global {
   interface Window {

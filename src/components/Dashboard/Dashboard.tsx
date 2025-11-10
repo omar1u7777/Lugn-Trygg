@@ -33,10 +33,9 @@ import useAuth from '../../hooks/useAuth';
 import MoodLogger from '../MoodLogger';
 import MemoryRecorder from '../MemoryRecorder';
 import MemoryList from '../MemoryList';
+import { LazyMoodChart as MoodChart, LazyMemoryChart as MemoryChart } from '../Charts/LazyChartWrapper';
 
 // Lazy load heavy components
-const MoodChart = lazy(() => import('./MoodChart'));
-const MemoryChart = lazy(() => import('./MemoryChart'));
 const AnalyticsWidget = lazy(() => import('./AnalyticsWidget'));
 
 interface DashboardProps {
