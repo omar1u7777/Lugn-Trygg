@@ -35,19 +35,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Critical: React must load first and be in a separate chunk
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'react-core'; // Match actual Vite output name
-          }
-          // MUI in its own chunk (BEFORE charts check to prevent MUI charts in wrong chunk)
-          if (id.includes('node_modules/@mui/')) {
+          // Let Vite handle React and charts automatically - don't force chunking
+          // This prevents React hooks from being undefined in chart libraries
+          
+          // MUI in its own chunk
+          if (id.includes('node_modules/@mui/material') || 
+              id.includes('node_modules/@mui/icons-material') ||
+              id.includes('node_modules/@emotion/')) {
             return 'mui';
-          }
-          // All chart libraries in ONE chunk - React will be external
-          if (id.includes('node_modules/chart.js') || 
-              id.includes('node_modules/react-chartjs-2') ||
-              id.includes('node_modules/recharts')) {
-            return 'charts';
           }
           // Firebase in its own chunk
           if (id.includes('node_modules/firebase/') || id.includes('node_modules/@firebase/')) {
@@ -61,6 +56,7 @@ export default defineConfig({
           if (id.includes('node_modules/axios') || id.includes('node_modules/crypto-js')) {
             return 'network';
           }
+          // Let Vite automatically chunk React, React-DOM, and all chart libraries
         },
         // Cache-busting with hashed filenames
         entryFileNames: 'assets/[name].[hash].js',

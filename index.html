@@ -45,7 +45,7 @@
 
   <!--  jsPDF via CDN for PDF export functionality -->
   <script id="jspdf-cdn" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
-  <!--  Laddar React-applikationen -->
-  <script type="module" src="/src/main.tsx" defer></script>
+  <!--  Laddar React-applikationen - NO DEFER to ensure proper module load order -->
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
