@@ -11,7 +11,7 @@ services:
     rootDir: Backend
 
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT main:app
+    startCommand: python start_waitress.py
 
     envVars:
       - key: FLASK_ENV
@@ -20,5 +20,13 @@ services:
         value: "False"
       - key: PYTHONUNBUFFERED
         value: "True"
+      - key: PORT
+        sync: false
       - key: FIREBASE_STORAGE_BUCKET
         value: lugn-trygg-53d75.appspot.com
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_REFRESH_SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
