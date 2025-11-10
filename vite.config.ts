@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'chart.js', 'react-chartjs-2'],
+    include: ['react', 'react-dom', 'chart.js', 'react-chartjs-2', 'recharts', '@mui/x-charts'],
   },
   build: {
     outDir: 'dist',
@@ -38,8 +38,11 @@ export default defineConfig({
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
             return 'react-vendor';
           }
-          // Chart.js loads after React
-          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2')) {
+          // All chart libraries in ONE chunk to share React instance
+          if (id.includes('node_modules/chart.js') || 
+              id.includes('node_modules/react-chartjs-2') ||
+              id.includes('node_modules/recharts') ||
+              id.includes('node_modules/@mui/x-charts')) {
             return 'charts';
           }
           // MUI in its own chunk
