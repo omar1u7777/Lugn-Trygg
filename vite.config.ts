@@ -10,26 +10,6 @@ export default defineConfig({
     react({
       jsxRuntime: 'automatic',
     }),
-    // CRITICAL: Custom plugin to use global React from CDN
-    {
-      name: 'external-react',
-      config() {
-        return {
-          build: {
-            rollupOptions: {
-              external: ['react', 'react-dom', 'react/jsx-runtime'],
-              output: {
-                globals: {
-                  react: 'React',
-                  'react-dom': 'ReactDOM',
-                  'react/jsx-runtime': 'React.jsxRuntime',
-                },
-              },
-            },
-          },
-        };
-      },
-    },
   ],
   resolve: {
     dedupe: ['react', 'react-dom'], // Force single React instance across all chunks
@@ -60,9 +40,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
-    target: 'esnext', // Use esnext to prevent Vite's aggressive chunking
     chunkSizeWarningLimit: 5000,
-    // CRITICAL: Ensure React is treated as a common dependency
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
@@ -74,15 +52,14 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug'],
       },
     },
+    // Allow normal code splitting - React is guaranteed available globally via CDN
     rollupOptions: {
       output: {
-        // Keep manual chunks for better caching (React is external)
         manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'mui-vendor': [
             '@mui/material',
             '@mui/icons-material',
-            '@mui/system',
-            '@mui/styles',
             '@emotion/react',
             '@emotion/styled'
           ],
@@ -90,8 +67,7 @@ export default defineConfig({
             'firebase/app',
             'firebase/auth',
             'firebase/firestore',
-            'firebase/storage',
-            'firebase/analytics'
+            'firebase/storage'
           ],
         },
       },

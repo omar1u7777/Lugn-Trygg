@@ -43,13 +43,16 @@
   <!--  Root-element där React-applikationen renderas -->
   <div id="root"></div>
 
-  <!--  CRITICAL FIX: Load React globally to prevent undefined errors in chunks -->
+  <!--  CRITICAL FIX: Load React SYNCHRONOUSLY before any modules -->
   <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  
+  <!--  React shim to ensure all chunks can find React -->
+  <script src="/react-shim.js"></script>
 
   <!--  jsPDF via CDN for PDF export functionality -->
   <script id="jspdf-cdn" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
-  <!--  Laddar React-applikationen - NO DEFER to ensure proper module load order -->
+  <!--  Laddar React-applikationen - AFTER React is verified -->
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
