@@ -128,7 +128,7 @@ docker-compose*.yml
 babel.config.*
 postcss.config.*
 tailwind.config.*
-vite.config.*
+# vite.config.* - REMOVED: Vercel needs this!
 tsconfig*.json
 jest.config.*
 vitest.config.*
