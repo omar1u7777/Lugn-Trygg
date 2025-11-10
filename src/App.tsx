@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useEffect, useState, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "./components/Layout/ProtectedRoute";
 import NavigationPro from "./components/Layout/NavigationPro";
@@ -16,55 +16,56 @@ import "./styles/design-system.css"; // Professional design system v2.0
 import "./styles/animations.css"; // Professional animations & micro-interactions
 import "./styles/world-class-design.css"; // WORLD-CLASS UNIFIED DESIGN SYSTEM
 
-// Lazy load route components for code splitting with error boundaries
-const LoginForm = lazy(() => import(/* webpackChunkName: "auth" */ "./components/Auth/LoginForm"));
-const RegisterForm = lazy(() => import(/* webpackChunkName: "auth" */ "./components/Auth/RegisterForm"));
-const WorldClassDashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ "./components/WorldClassDashboard"));
-const SubscriptionForm = lazy(() => import(/* webpackChunkName: "subscription" */ "./components/SubscriptionForm"));
-const AIStories = lazy(() => import(/* webpackChunkName: "ai-stories" */ "./components/AIStories"));
-const MoodAnalytics = lazy(() => import(/* webpackChunkName: "analytics" */ "./components/MoodAnalytics"));
-const OAuthHealthIntegrations = lazy(() => import(/* webpackChunkName: "integrations" */ "./components/Integrations/OAuthHealthIntegrations"));
-const ReferralProgram = lazy(() => import(/* webpackChunkName: "referral" */ "./components/Referral/ReferralProgram"));
-const FeedbackForm = lazy(() => import(/* webpackChunkName: "feedback" */ "./components/Feedback/FeedbackForm"));
-const WellnessHub = lazy(() => import(/* webpackChunkName: "wellness" */ "./components/WellnessHub"));
-const SocialHub = lazy(() => import(/* webpackChunkName: "social" */ "./components/SocialHub"));
-const JournalHub = lazy(() => import(/* webpackChunkName: "journal" */ "./components/JournalHub"));
-const InsightsHub = lazy(() => import(/* webpackChunkName: "insights" */ "./components/InsightsHub"));
-const RewardsHub = lazy(() => import(/* webpackChunkName: "rewards" */ "./components/RewardsHub"));
-const ProfileHub = lazy(() => import(/* webpackChunkName: "profile" */ "./components/ProfileHub"));
+// CRITICAL FIX: Direct imports instead of lazy loading to prevent React undefined errors
+// This forces everything into single bundle, guaranteeing React instance is shared
+import LoginForm from "./components/Auth/LoginForm";
+import RegisterForm from "./components/Auth/RegisterForm";
+import WorldClassDashboard from "./components/WorldClassDashboard";
+import SubscriptionForm from "./components/SubscriptionForm";
+import AIStories from "./components/AIStories";
+import MoodAnalytics from "./components/MoodAnalytics";
+import OAuthHealthIntegrations from "./components/Integrations/OAuthHealthIntegrations";
+import ReferralProgram from "./components/Referral/ReferralProgram";
+import FeedbackForm from "./components/Feedback/FeedbackForm";
+import WellnessHub from "./components/WellnessHub";
+import SocialHub from "./components/SocialHub";
+import JournalHub from "./components/JournalHub";
+import InsightsHub from "./components/InsightsHub";
+import RewardsHub from "./components/RewardsHub";
+import ProfileHub from "./components/ProfileHub";
 
 // Additional feature components - making ALL components accessible
-const WorldClassAIChat = lazy(() => import(/* webpackChunkName: "ai-chat" */ "./components/WorldClassAIChat"));
-const WorldClassGamification = lazy(() => import(/* webpackChunkName: "gamification" */ "./components/WorldClassGamification"));
-const WorldClassAnalytics = lazy(() => import(/* webpackChunkName: "analytics-pro" */ "./components/WorldClassAnalytics"));
-const WorldClassMoodLogger = lazy(() => import(/* webpackChunkName: "mood-logger" */ "./components/WorldClassMoodLogger"));
-const Chatbot = lazy(() => import(/* webpackChunkName: "chatbot" */ "./components/Chatbot"));
-const ChatbotTherapist = lazy(() => import(/* webpackChunkName: "therapist" */ "./components/ChatbotTherapist"));
-const MoodLogger = lazy(() => import(/* webpackChunkName: "mood-basic" */ "./components/MoodLogger"));
-const RelaxingSounds = lazy(() => import(/* webpackChunkName: "sounds" */ "./components/RelaxingSounds"));
-const MemoryRecorder = lazy(() => import(/* webpackChunkName: "memory" */ "./components/MemoryRecorder"));
-const MemoryList = lazy(() => import(/* webpackChunkName: "memory-list" */ "./components/MemoryList"));
-const GroupChallenges = lazy(() => import(/* webpackChunkName: "challenges" */ "./components/GroupChallenges"));
-const DailyInsights = lazy(() => import(/* webpackChunkName: "daily" */ "./components/DailyInsights"));
-const Recommendations = lazy(() => import(/* webpackChunkName: "recommendations" */ "./components/Recommendations"));
-const VoiceChat = lazy(() => import(/* webpackChunkName: "voice" */ "./components/VoiceChat"));
-const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ "./components/Leaderboard"));
-const PeerSupportChat = lazy(() => import(/* webpackChunkName: "peer-support" */ "./components/PeerSupportChat"));
-const CrisisAlert = lazy(() => import(/* webpackChunkName: "crisis" */ "./components/CrisisAlert"));
-const WeeklyAnalysis = lazy(() => import(/* webpackChunkName: "weekly" */ "./components/WeeklyAnalysis"));
-const HealthMonitoring = lazy(() => import(/* webpackChunkName: "health-monitor" */ "./components/HealthMonitoring"));
-const StoryInsights = lazy(() => import(/* webpackChunkName: "story-insights" */ "./components/StoryInsights"));
-const PerformanceDashboard = lazy(() => import(/* webpackChunkName: "performance" */ "./components/PerformanceDashboard"));
-const MonitoringDashboard = lazy(() => import(/* webpackChunkName: "monitoring" */ "./components/MonitoringDashboard"));
-const Gamification = lazy(() => import(/* webpackChunkName: "gamification-basic" */ "./components/Gamification"));
-const GamificationSystem = lazy(() => import(/* webpackChunkName: "gamification-system" */ "./components/GamificationSystem"));
-const BadgeDisplay = lazy(() => import(/* webpackChunkName: "badges" */ "./components/BadgeDisplay"));
-const AchievementSharing = lazy(() => import(/* webpackChunkName: "achievements" */ "./components/AchievementSharing"));
-const OnboardingFlow = lazy(() => import(/* webpackChunkName: "onboarding" */ "./components/OnboardingFlow"));
-const PrivacySettings = lazy(() => import(/* webpackChunkName: "privacy" */ "./components/PrivacySettings"));
-const AnalyticsDashboard = lazy(() => import(/* webpackChunkName: "analytics-dashboard" */ "./components/AnalyticsDashboard"));
-const MoodAnalyzer = lazy(() => import(/* webpackChunkName: "mood-analyzer" */ "./components/MoodAnalyzer"));
-const JournalEntry = lazy(() => import(/* webpackChunkName: "journal-entry" */ "./components/JournalEntry"));
+import WorldClassAIChat from "./components/WorldClassAIChat";
+import WorldClassGamification from "./components/WorldClassGamification";
+import WorldClassAnalytics from "./components/WorldClassAnalytics";
+import WorldClassMoodLogger from "./components/WorldClassMoodLogger";
+import Chatbot from "./components/Chatbot";
+import ChatbotTherapist from "./components/ChatbotTherapist";
+import MoodLogger from "./components/MoodLogger";
+import RelaxingSounds from "./components/RelaxingSounds";
+import MemoryRecorder from "./components/MemoryRecorder";
+import MemoryList from "./components/MemoryList";
+import GroupChallenges from "./components/GroupChallenges";
+import DailyInsights from "./components/DailyInsights";
+import Recommendations from "./components/Recommendations";
+import VoiceChat from "./components/VoiceChat";
+import Leaderboard from "./components/Leaderboard";
+import PeerSupportChat from "./components/PeerSupportChat";
+import CrisisAlert from "./components/CrisisAlert";
+import WeeklyAnalysis from "./components/WeeklyAnalysis";
+import HealthMonitoring from "./components/HealthMonitoring";
+import StoryInsights from "./components/StoryInsights";
+import PerformanceDashboard from "./components/PerformanceDashboard";
+import MonitoringDashboard from "./components/MonitoringDashboard";
+import Gamification from "./components/Gamification";
+import GamificationSystem from "./components/GamificationSystem";
+import BadgeDisplay from "./components/BadgeDisplay";
+import AchievementSharing from "./components/AchievementSharing";
+import OnboardingFlow from "./components/OnboardingFlow";
+import PrivacySettings from "./components/PrivacySettings";
+import AnalyticsDashboard from "./components/AnalyticsDashboard";
+import MoodAnalyzer from "./components/MoodAnalyzer";
+import JournalEntry from "./components/JournalEntry";
 
 // Route wrappers for components that require props
 import {
@@ -146,11 +147,6 @@ function App() {
                 <main className="pt-20 pb-8 px-4 sm:px-6 lg:px-8">
                 <div className="container-custom">
                     <ErrorBoundary>
-                        <Suspense fallback={
-                          <div className="min-h-[60vh] flex items-center justify-center">
-                            <LoadingSpinner isLoading={true} message="Laddar sida..." />
-                          </div>
-                        }>
                             <Routes>
                                 <Route path="/" element={<LoginForm />} />
                                 <Route path="/login" element={<LoginForm />} />
@@ -573,7 +569,6 @@ function App() {
                                     }
                                 />
                             </Routes>
-                        </Suspense>
                     </ErrorBoundary>
                 </div>
             </main>

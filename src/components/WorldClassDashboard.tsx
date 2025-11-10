@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react'
+import React, { useState, useEffect } from 'react'
 import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -48,20 +48,20 @@ import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import '../styles/world-class-design.css';
 
-// Lazy load components for performance - EXPANDED TO INCLUDE ALL FEATURES
-const WorldClassMoodLogger = lazy(() => import('./WorldClassMoodLogger'));
-const WorldClassAIChat = lazy(() => import('./WorldClassAIChat'));
-const WorldClassAnalytics = lazy(() => import('./WorldClassAnalytics'));
-const WorldClassGamification = lazy(() => import('./WorldClassGamification'));
-const DailyInsights = lazy(() => import('./DailyInsights'));
-const WeeklyAnalysis = lazy(() => import('./WeeklyAnalysis'));
-const Recommendations = lazy(() => import('./Recommendations'));
-const RelaxingSounds = lazy(() => import('./RelaxingSounds'));
-const JournalHub = lazy(() => import('./JournalHub'));
-const SocialHub = lazy(() => import('./SocialHub'));
-const WellnessHub = lazy(() => import('./WellnessHub'));
-const RewardsHub = lazy(() => import('./RewardsHub'));
-const InsightsHub = lazy(() => import('./InsightsHub'));
+// Direct imports to prevent code splitting and React undefined errors
+import WorldClassMoodLogger from './WorldClassMoodLogger';
+import WorldClassAIChat from './WorldClassAIChat';
+import WorldClassAnalytics from './WorldClassAnalytics';
+import WorldClassGamification from './WorldClassGamification';
+import DailyInsights from './DailyInsights';
+import WeeklyAnalysis from './WeeklyAnalysis';
+import Recommendations from './Recommendations';
+import RelaxingSounds from './RelaxingSounds';
+import JournalHub from './JournalHub';
+import SocialHub from './SocialHub';
+import WellnessHub from './WellnessHub';
+import RewardsHub from './RewardsHub';
+import InsightsHub from './InsightsHub';
 
 interface WorldClassDashboardProps {
   userId?: string;
@@ -299,12 +299,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           </Button>
         </Box>
 
-        <Suspense fallback={<LoadingSpinner isLoading={true} message="Loading..." />}>
           {activeView === 'mood' && <WorldClassMoodLogger onClose={() => setActiveView('overview')} />}
           {activeView === 'chat' && <WorldClassAIChat onClose={() => setActiveView('overview')} />}
           {activeView === 'analytics' && <WorldClassAnalytics onClose={() => setActiveView('overview')} />}
           {activeView === 'gamification' && <WorldClassGamification onClose={() => setActiveView('overview')} />}
-        </Suspense>
       </Box>
     );
   }
@@ -789,9 +787,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   </Typography>
                 </Box>
               </Box>
-              <Suspense fallback={<LoadingSpinner isLoading={true} message="Laddar insikter..." />}>
                 <DailyInsights userId={user?.user_id || ''} moodData={[]} />
-              </Suspense>
             </CardContent>
           </Card>
 
