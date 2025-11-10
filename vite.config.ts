@@ -39,18 +39,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'esbuild', // Use esbuild for faster minification
-    chunkSizeWarningLimit: 10000, // Allow large bundles
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 10000,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
     },
-    rollupOptions: {
-      // Force maximum chunk size to bundle more together
-      output: {
-        experimentalMinChunkSize: 999999, // Force everything below 1MB into same chunk
-      },
-    },
+    // NO external config - it doesn't work for browser builds
+    // Accept that we'll have chunks, just make sure app works
+    rollupOptions: {},
   },
   server: {
     port: 3000,

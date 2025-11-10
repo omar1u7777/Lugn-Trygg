@@ -43,80 +43,20 @@
   <!--  Root-element där React-applikationen renderas -->
   <div id="root"></div>
 
-  <!--  CRITICAL FIX: Load React SYNCHRONOUSLY before any modules -->
+  <!--  ULTIMATE FIX: Pre-load MUI from CDN to prevent chunk loading issues -->
   <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@mui/material@5.14.18/umd/material-ui.production.min.js"></script>
   
-  <!--  React shim INLINE to ensure all chunks can find React -->
   <script>
-    (function() {
-      'use strict';
-      
-      // Global error handler for React undefined errors
-      window.addEventListener('error', function(event) {
-        var errorMsg = event.message || '';
-        // Catch MUI ForwardRef errors and React undefined errors
-        if (errorMsg.includes('ForwardRef') || 
-            errorMsg.includes('Cannot read properties of undefined') ||
-            errorMsg.includes('React') && errorMsg.includes('undefined')) {
-          console.error('CRITICAL React error detected:', errorMsg);
-          // Redirect to fallback page
-          window.location.href = '/error-fallback.html';
-          return;
-        }
-      });
-      
-      // Check if React is loaded from CDN
-      if (typeof window.React !== 'undefined' && typeof window.ReactDOM !== 'undefined') {
-        console.log('✓ React ' + window.React.version + ' loaded from CDN');
-        
-        // Make React available as ES module exports for compatibility with bundled code
-        if (typeof window.require === 'undefined') {
-          window.require = function(moduleName) {
-            if (moduleName === 'react') return window.React;
-            if (moduleName === 'react-dom') return window.ReactDOM;
-            if (moduleName === 'react/jsx-runtime') {
-              return {
-                jsx: window.React.createElement,
-                jsxs: window.React.createElement,
-                Fragment: window.React.Fragment
-              };
-            }
-            throw new Error('Module not found: ' + moduleName);
-          };
-        }
-        
-        // Patch any module loaders to use global React
-        var originalDefine = window.define;
-        if (typeof originalDefine === 'function' && originalDefine.amd) {
-          window.define = function(name, deps, factory) {
-            if (Array.isArray(deps)) {
-              deps = deps.map(function(dep) {
-                if (dep === 'react') return window.React;
-                if (dep === 'react-dom') return window.ReactDOM;
-                return dep;
-              });
-            }
-            return originalDefine.call(this, name, deps, factory);
-          };
-          window.define.amd = originalDefine.amd;
-        }
-        
-      } else {
-        console.error('⚠️ React NOT loaded! App will fail.');
-        document.getElementById('root').innerHTML = 
-          '<div style="padding:2rem;background:#fee;color:#c00;text-align:center;">' +
-          '<h1>⚠️ Tekniskt fel</h1>' +
-          '<p>React kunde inte laddas från CDN. Ladda om sidan.</p>' +
-          '<p style="font-size:0.9em;color:#666;">Kontakta support om problemet kvarstår.</p>' +
-          '</div>';
-      }
-    })();
+    // Make libraries globally available
+    window.MaterialUI = window['material-ui'];
+    console.log('✓ React', React.version, '+ MUI loaded from CDN');
   </script>
 
   <!--  jsPDF via CDN for PDF export functionality -->
   <script id="jspdf-cdn" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
-  <!--  Laddar React-applikationen - AFTER React is verified -->
+  <!--  Laddar React-applikationen -->
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
