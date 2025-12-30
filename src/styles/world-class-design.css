@@ -18,36 +18,46 @@
 
 /* ===== ROOT DESIGN TOKENS ===== */
 :root {
-  /* Therapeutic Color Palette */
-  --color-primary: #2563eb;        /* Professional blue */
-  --color-primary-light: #3b82f6;  /* Lighter blue */
-  --color-primary-dark: #1d4ed8;   /* Darker blue */
-  --color-secondary: #059669;      /* Calming green */
-  --color-secondary-light: #10b981; /* Light green */
-  --color-secondary-dark: #047857;  /* Dark green */
+  /* Lugn & Trygg - Warm Therapeutic Color Palette */
+  --color-primary: #2c8374;        /* Calming teal */
+  --color-primary-light: #3a9d8c;  /* Lighter teal */
+  --color-primary-dark: #1e5f54;   /* Darker teal */
+  --color-secondary: #c08a5d;      /* Warm sand/terracotta */
+  --color-secondary-light: #d4a373; /* Light sand */
+  --color-secondary-dark: #8f6a4a;  /* Dark sand */
   --color-accent: #f59e0b;         /* Warm amber */
   --color-accent-light: #fbbf24;   /* Light amber */
   --color-accent-dark: #d97706;    /* Dark amber */
 
-  /* Neutral Therapeutic Colors */
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-400: #94a3b8;
-  --color-neutral-500: #64748b;
-  --color-neutral-600: #475569;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
+  /* Warm Neutral Colors - Cream/Beige based */
+  --color-neutral-50: #fff7f0;     /* Warm cream background */
+  --color-neutral-100: #fff6ed;    /* Light cream */
+  --color-neutral-200: #f2e4d4;    /* Warm beige border */
+  --color-neutral-300: #e8dcd0;    /* Medium beige */
+  --color-neutral-400: #a89f97;    /* Warm gray */
+  --color-neutral-500: #7e6f64;    /* Medium brown-gray */
+  --color-neutral-600: #6d645d;    /* Dark warm gray */
+  --color-neutral-700: #4d473f;    /* Darker brown */
+  --color-neutral-800: #2f2a24;    /* Primary text - dark brown */
+  --color-neutral-900: #1a1714;    /* Darkest brown */
 
-  /* Emotional State Colors */
-  --color-calm: #06b6d4;          /* Cyan for calm */
-  --color-peaceful: #8b5cf6;      /* Purple for peaceful */
-  --color-joyful: #f59e0b;        /* Amber for joyful */
-  --color-anxious: #ef4444;       /* Red for anxious */
-  --color-sad: #6366f1;           /* Indigo for sad */
-  --color-angry: #dc2626;         /* Red for angry */
+  /* Design Token Gradients */
+  --gradient-background: linear-gradient(180deg, #fff7f0 0%, #fffaf5 100%);
+
+  /* Emotional State Colors - Soft, Non-Judgmental */
+  --color-mood-great: #a8e6cf;    /* Soft mint green */
+  --color-mood-good: #dcedc1;     /* Light sage */
+  --color-mood-okay: #ffd8a8;     /* Warm peach */
+  --color-mood-low: #e4c1f9;      /* Soft lavender */
+  --color-mood-difficult: #ffb3ba; /* Gentle coral */
+  
+  /* Legacy emotional colors */
+  --color-calm: #a8e6cf;          /* Soft mint for calm */
+  --color-peaceful: #e4c1f9;      /* Soft lavender for peaceful */
+  --color-joyful: #ffd8a8;        /* Warm peach for joyful */
+  --color-anxious: #ffb3ba;       /* Gentle coral for anxious */
+  --color-sad: #bae1ff;           /* Soft sky blue for sad */
+  --color-angry: #ffc9c9;         /* Soft rose for angry */
 
   /* Typography Scale (Professional) */
   --font-size-xs: 0.75rem;        /* 12px */
@@ -75,20 +85,22 @@
   --space-20: 5rem;     /* 80px */
   --space-24: 6rem;     /* 96px */
 
-  /* Border Radius (Soft, therapeutic) */
-  --radius-sm: 0.375rem;  /* 6px */
-  --radius-md: 0.5rem;    /* 8px */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
-  --radius-2xl: 1.5rem;   /* 24px */
+  /* Border Radius (Extra soft, therapeutic) */
+  --radius-sm: 0.5rem;    /* 8px */
+  --radius-md: 0.75rem;   /* 12px */
+  --radius-lg: 1rem;      /* 16px */
+  --radius-xl: 1.25rem;   /* 20px */
+  --radius-2xl: 1.75rem;  /* 28px */
+  --radius-3xl: 2rem;     /* 32px */
   --radius-full: 9999px;  /* Fully rounded */
 
-  /* Shadows (Soft, professional) */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  /* Shadows (Ultra-soft, calming) */
+  --shadow-sm: 0 2px 8px 0 rgb(47 42 36 / 0.04);
+  --shadow-md: 0 4px 16px -2px rgb(47 42 36 / 0.06);
+  --shadow-lg: 0 12px 32px -4px rgb(47 42 36 / 0.08);
+  --shadow-xl: 0 20px 48px -8px rgb(47 42 36 / 0.10);
+  --shadow-2xl: 0 32px 64px -12px rgb(47 42 36 / 0.12);
+  --shadow-card: 0 20px 60px rgba(47, 42, 36, 0.04);
 
   /* Animations (Therapeutic pacing) */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -430,8 +442,8 @@
 }
 
 @keyframes world-class-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(37, 99, 235, 0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(44, 131, 116, 0.2); }
+  50% { box-shadow: 0 0 35px rgba(44, 131, 116, 0.4); }
 }
 
 @keyframes world-class-fade-in-up {
@@ -443,6 +455,22 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes loading {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @keyframes world-class-pulse-gentle {
@@ -470,17 +498,57 @@
   animation: world-class-pulse-gentle 3s ease-in-out infinite;
 }
 
+/* 2026 UI Overhaul Additions */
+@keyframes world-class-breathe-slow {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(44, 131, 116, 0.2); }
+  50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(44, 131, 116, 0.4); }
+}
+
+.animate-breathe-slow {
+  animation: world-class-breathe-slow 8s ease-in-out infinite;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(47, 42, 36, 0.05);
+}
+
+.glass-panel-dark {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-class-animate-breathe,
+  .world-class-animate-float,
+  .world-class-animate-glow,
+  .world-class-animate-fade-in-up,
+  .world-class-animate-pulse-gentle,
+  .world-class-animate-breathe::before,
+  .world-class-dashboard-card:hover,
+  .world-class-dashboard-card,
+  .world-class-dashboard-header,
+  .world-class-dashboard {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* ===== DASHBOARD LAYOUT ===== */
 .world-class-dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-neutral-50) 0%, white 50%, var(--color-neutral-100) 100%);
+  background: var(--gradient-background);
 }
 
 .world-class-dashboard-header {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
-  color: white;
-  padding: var(--space-12) 0;
-  text-align: center;
+  background: #fff7f0;
+  color: #2f2a24;
+  padding: var(--space-12) var(--space-6);
+  text-align: left;
   position: relative;
   overflow: hidden;
 }
@@ -492,8 +560,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="50" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="50" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-  opacity: 0.3;
+  background: transparent;
+  opacity: 0;
 }
 
 .world-class-dashboard-content {
@@ -510,44 +578,40 @@
 }
 
 .world-class-dashboard-card {
-  background: white;
-  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-2xl);
   padding: var(--space-6);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--color-neutral-200);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
 }
 
 .world-class-dashboard-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  content: none; /* Remove the top gradient bar for cleaner look */
 }
 
 .world-class-dashboard-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-neutral-200);
 }
 
 .world-class-dashboard-card-premium {
-  background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border: none;
 }
 
 .world-class-dashboard-card-premium::before {
-  background: linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
+  content: none;
 }
 
 /* ===== AI THERAPIST INTERFACE ===== */
 .world-class-ai-chat {
-  background: linear-gradient(135deg, var(--color-neutral-50) 0%, white 100%);
+  background: var(--gradient-background);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
   max-height: 600px;
@@ -576,16 +640,16 @@
   align-self: flex-end;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
   color: white;
-  border-bottom-right-radius: var(--space-1);
+  border-bottom-right-radius: var(--radius-sm);
 }
 
 .world-class-ai-message-assistant {
   align-self: flex-start;
-  background: white;
-  color: var(--color-neutral-900);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-800);
   border: 1px solid var(--color-neutral-200);
   box-shadow: var(--shadow-sm);
-  border-bottom-left-radius: var(--space-1);
+  border-bottom-left-radius: var(--radius-sm);
 }
 
 .world-class-ai-input-area {
@@ -979,7 +1043,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--color-neutral-900);
+  color: var(--color-neutral-800);
   background: var(--color-neutral-50);
   min-height: 100vh;
 }
@@ -1002,4 +1066,57 @@
 .world-class-app:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* ===== MICRO-INTERACTION UTILITIES ===== */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(47, 42, 36, 0.08);
+}
+
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(44, 131, 116, 0.25);
+}
+
+/* Smooth loading shimmer */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-100) 0%,
+    var(--color-neutral-50) 50%,
+    var(--color-neutral-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Calm pulse animation for loading states */
+.pulse-calm {
+  animation: world-class-pulse-gentle 2s ease-in-out infinite;
+}
+
+/* Breathe animation for mindfulness elements */
+.breathe {
+  animation: world-class-breathe 4s ease-in-out infinite;
+}
+
+/* Float animation for decorative elements */
+.float {
+  animation: world-class-float 6s ease-in-out infinite;
 }

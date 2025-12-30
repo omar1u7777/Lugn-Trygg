@@ -1,38 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  LinearProgress,
-  Chip,
-  Alert,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
-} from '@mui/material';
-import {
-  TrendingUp,
-  TrendingDown,
-  Error,
-  CheckCircle,
-  Warning,
-  Info,
-  Refresh,
-  Analytics,
-  Security,
-  Speed,
-} from '@mui/icons-material';
+import React, { useState, useEffect, useRef, useId } from 'react';
+import { Card, Button } from './ui/tailwind';
 import { analytics } from '../services/analytics';
+import { useTranslation } from 'react-i18next';
+import FocusTrap from './Accessibility/FocusTrap';
+import { formatNumber, formatDateTime } from '../utils/intlFormatters';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, ShieldCheckIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface SystemMetrics {
   uptime: number;
@@ -53,6 +25,7 @@ interface AlertItem {
 }
 
 const MonitoringDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [metrics, setMetrics] = useState<SystemMetrics>({
     uptime: 99.9,
     responseTime: 245,
@@ -83,6 +56,13 @@ const MonitoringDashboard: React.FC = () => {
 
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const dialogCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (selectedAlert && dialogCloseRef.current) {
+      dialogCloseRef.current.focus();
+    }
+  }, [selectedAlert]);
 
   useEffect(() => {
     analytics.page('Monitoring Dashboard', {
@@ -115,10 +95,10 @@ const MonitoringDashboard: React.FC = () => {
 
   const getStatusIcon = (type: string) => {
     switch (type) {
-      case 'error': return <Error color="error" />;
-      case 'warning': return <Warning color="warning" />;
-      case 'info': return <Info color="info" />;
-      default: return <Info />;
+      case 'error': return <ExclamationCircleIcon className="w-5 h-5 text-error-600" />;
+      case 'warning': return <ExclamationTriangleIcon className="w-5 h-5 text-warning-600" />;
+      case 'info': return <InformationCircleIcon className="w-5 h-5 text-blue-600" />;
+      default: return <InformationCircleIcon className="w-5 h-5" />;
     }
   };
 
@@ -129,238 +109,300 @@ const MonitoringDashboard: React.FC = () => {
     trend?: 'up' | 'down' | 'stable';
     status?: 'success' | 'warning' | 'error';
     icon: React.ReactNode;
-  }> = ({ title, value, unit, trend, status = 'success', icon }) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box display="flex" alignItems="center" gap={1}>
-            {icon}
-            <Typography variant="h6" color="text.secondary">
+    screenReaderLabel: string;
+  }> = ({ title, value, unit, trend, status = 'success', icon, screenReaderLabel }) => {
+    const titleId = useId();
+    const statusId = useId();
+    const statusText = status === 'success'
+      ? t('monitoring.metricGood', 'Healthy')
+      : status === 'warning'
+        ? t('monitoring.metricWarning', 'Warning')
+        : t('monitoring.metricCritical', 'Critical');
+
+    return (
+      <Card
+        role="group"
+        aria-labelledby={titleId}
+        aria-describedby={statusId}
+        aria-label={screenReaderLabel}
+      >
+        <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="text-primary-600 dark:text-primary-500">
+              {icon}
+            </div>
+            <h3 id={titleId} className="text-base font-medium text-gray-600 dark:text-gray-400">
               {title}
-            </Typography>
-          </Box>
+            </h3>
+          </div>
           {trend && (
-            trend === 'up' ? <TrendingUp color="success" /> :
-            trend === 'down' ? <TrendingDown color="error" /> :
-            <Box sx={{ width: 20, height: 20 }} />
+            <div className="text-sm">
+              {trend === 'up' ? <ArrowTrendingUpIcon className="w-5 h-5 text-success-600" /> :
+               trend === 'down' ? <ArrowTrendingUpIcon className="w-5 h-5 text-error-600 rotate-180" /> :
+               <div />}
+            </div>
           )}
-        </Box>
+        </div>
 
-        <Typography variant="h4" component="div" gutterBottom>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2" aria-live="polite">
           {value}{unit}
-        </Typography>
+        </p>
 
-        <Chip
-          label={status === 'success' ? 'Good' : status === 'warning' ? 'Warning' : 'Critical'}
-          color={status}
-          size="small"
-        />
-      </CardContent>
-    </Card>
-  );
+        <span
+          id={statusId}
+          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+            status === 'success' ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' :
+            status === 'warning' ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400' :
+            'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
+          }`}
+        >
+          {statusText}
+        </span>
+      </div>
+      </Card>
+    );
+  };
 
   return (
-    <Box sx={{ p: spacing.lg, maxWidth: 1200, mx: 'auto' }}>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            System Monitoring
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Real-time health metrics and system status
-          </Typography>
-        </Box>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            {t('monitoring.title', 'System Monitoring')}
+          </h1>
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
+            {t('monitoring.description', 'Real-time health metrics and system status')}
+          </p>
+        </div>
 
         <Button
-          variant="outlined"
-          startIcon={<Refresh />}
+          variant="outline"
           onClick={handleRefresh}
           disabled={refreshing}
+          className="flex items-center gap-2"
         >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
+          <ArrowPathIcon className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? t('monitoring.refreshing', 'Refreshing...') : t('monitoring.refresh', 'Refresh')}
         </Button>
-      </Box>
+      </div>
 
       {/* Metrics Grid */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="System Uptime"
-            value={metrics.uptime}
-            unit="%"
-            status={getStatusColor(metrics.uptime, { good: 99.5, warning: 99 })}
-            icon={<CheckCircle />}
-          />
-        </Grid>
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+        role="region"
+        aria-live="polite"
+        aria-label={t('common.liveRegionLabel', 'Live updates')}
+      >
+        <MetricCard
+          title="System Uptime"
+          value={formatNumber(metrics.uptime, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+          unit="%"
+          status={getStatusColor(metrics.uptime, { good: 99.5, warning: 99 })}
+          icon={<CheckCircleIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'System uptime' })}
+        />
 
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="Response Time"
-            value={metrics.responseTime}
-            unit="ms"
-            trend={metrics.responseTime < 250 ? 'up' : 'down'}
-            status={getStatusColor(300 - metrics.responseTime, { good: 50, warning: 20 })}
-            icon={<Speed />}
-          />
-        </Grid>
+        <MetricCard
+          title="Response Time"
+          value={formatNumber(metrics.responseTime, { maximumFractionDigits: 0 })}
+          unit="ms"
+          trend={metrics.responseTime < 250 ? 'up' : 'down'}
+          status={getStatusColor(300 - metrics.responseTime, { good: 50, warning: 20 })}
+          icon={<ChartBarIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Response time' })}
+        />
 
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="Error Rate"
-            value={metrics.errorRate}
-            unit="%"
-            status={getStatusColor(1 - metrics.errorRate, { good: 0.95, warning: 0.98 })}
-            icon={<Error />}
-          />
-        </Grid>
+        <MetricCard
+          title="Error Rate"
+          value={formatNumber(metrics.errorRate, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}
+          unit="%"
+          status={getStatusColor(1 - metrics.errorRate, { good: 0.95, warning: 0.98 })}
+          icon={<ExclamationCircleIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Error rate' })}
+        />
 
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="Active Users"
-            value={metrics.activeUsers.toLocaleString()}
-            trend="up"
-            status="success"
-            icon={<Analytics />}
-          />
-        </Grid>
+        <MetricCard
+          title="Active Users"
+          value={formatNumber(metrics.activeUsers)}
+          trend="up"
+          status="success"
+          icon={<ChartBarIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Active users' })}
+        />
 
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="Performance Score"
-            value={metrics.performanceScore}
-            unit="/100"
-            status={getStatusColor(metrics.performanceScore, { good: 90, warning: 80 })}
-            icon={<TrendingUp />}
-          />
-        </Grid>
+        <MetricCard
+          title="Performance Score"
+          value={formatNumber(metrics.performanceScore)}
+          unit="/100"
+          status={getStatusColor(metrics.performanceScore, { good: 90, warning: 80 })}
+          icon={<ArrowTrendingUpIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Performance score' })}
+        />
 
-        <Grid item xs={12} sm={6} md={4}>
-          <MetricCard
-            title="Security Incidents"
-            value={metrics.securityIncidents}
-            status={metrics.securityIncidents === 0 ? 'success' : 'error'}
-            icon={<Security />}
-          />
-        </Grid>
-      </Grid>
+        <MetricCard
+          title="Security Incidents"
+          value={metrics.securityIncidents}
+          status={metrics.securityIncidents === 0 ? 'success' : 'error'}
+          icon={<ShieldCheckIcon className="w-5 h-5" />}
+          screenReaderLabel={t('monitoring.screenReaderWidgetLabel', { metric: 'Security incidents' })}
+        />
+      </div>
 
       {/* Performance Score Visualization */}
-      <Card sx={{ mb: spacing.xl }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Performance Score Breakdown
-          </Typography>
-          <Box sx={{ mb: spacing.md }}>
-            <Box display="flex" justifyContent="space-between" mb={1}>
-              <Typography variant="body2">Lighthouse Score</Typography>
-              <Typography variant="body2">{metrics.performanceScore}/100</Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={metrics.performanceScore}
-              color={metrics.performanceScore >= 90 ? 'success' : metrics.performanceScore >= 80 ? 'warning' : 'error'}
-              sx={{ height: 8, borderRadius: borderRadius.xl }}
-            />
-          </Box>
-        </CardContent>
+      <Card>
+        <div className="p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            {t('monitoring.performanceBreakdown', 'Performance score breakdown')}
+          </h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Lighthouse Score</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{metrics.performanceScore}/100</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${
+                  metrics.performanceScore >= 90 ? 'bg-success-600' :
+                  metrics.performanceScore >= 80 ? 'bg-warning-600' :
+                  'bg-error-600'
+                }`}
+                style={{ width: `${metrics.performanceScore}%` }}
+                role="progressbar"
+                aria-valuenow={metrics.performanceScore}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              ></div>
+            </div>
+          </div>
+        </div>
       </Card>
 
       {/* Alerts Section */}
       <Card>
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-            <Typography variant="h6">
-              System Alerts
-            </Typography>
-            <Chip
-              label={`${alerts.filter(a => !a.resolved).length} Active`}
-              color={alerts.filter(a => !a.resolved).length > 0 ? 'warning' : 'success'}
-              size="small"
-            />
-          </Box>
+        <div className="p-4 sm:p-6" role="region" aria-label={t('monitoring.alertsHeading', 'System alerts')} aria-live="polite">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t('monitoring.alertsHeading', 'System alerts')}
+            </h3>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              alerts.filter(a => !a.resolved).length > 0
+                ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400'
+                : 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+            }`} role="status" aria-live="polite">
+              {t('common.alertsActiveCount', { count: alerts.filter(a => !a.resolved).length })}
+            </span>
+          </div>
 
-          <List>
-            {alerts.map((alert, index) => (
-              <React.Fragment key={alert.id}>
-                <ListItem
-                  button
-                  onClick={() => setSelectedAlert(alert)}
-                  sx={{
-                    bgcolor: alert.resolved ? 'action.hover' : 'transparent',
-                    borderRadius: 1,
-                  }}
-                >
-                  <ListItemIcon>
-                    {getStatusIcon(alert.type)}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={alert.title}
-                    secondary={`${alert.message} • ${alert.timestamp.toLocaleString()}`}
-                  />
-                  <Chip
-                    label={alert.resolved ? 'Resolved' : 'Active'}
-                    color={alert.resolved ? 'success' : 'warning'}
-                    size="small"
-                  />
-                </ListItem>
-                {index < alerts.length - 1 && <Divider />}
-              </React.Fragment>
+          <div className="divide-y divide-gray-200 dark:divide-gray-700" role="list">
+            {alerts.map((alert) => (
+              <button
+                key={alert.id}
+                onClick={() => setSelectedAlert(alert)}
+                className="w-full flex items-start gap-3 py-4 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+                aria-expanded={selectedAlert?.id === alert.id}
+                aria-controls={`alert-${alert.id}`}
+              >
+                <div className="flex-shrink-0 mt-1">
+                  {getStatusIcon(alert.type)}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-medium text-gray-900 dark:text-white mb-1">{alert.title}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {alert.message} • {formatDateTime(alert.timestamp)}
+                  </p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  alert.resolved
+                    ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+                    : 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400'
+                }`}>
+                  {alert.resolved ? 'Resolved' : 'Active'}
+                </span>
+              </button>
             ))}
-          </List>
-        </CardContent>
+          </div>
+        </div>
       </Card>
 
       {/* Alert Detail Dialog */}
-      <Dialog
-        open={!!selectedAlert}
-        onClose={() => setSelectedAlert(null)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {selectedAlert?.title}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" paragraph>
-            {selectedAlert?.message}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Timestamp: {selectedAlert?.timestamp.toLocaleString()}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Status: {selectedAlert?.resolved ? 'Resolved' : 'Active'}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          {!selectedAlert?.resolved && (
-            <Button
-              onClick={() => {
-                if (selectedAlert) {
-                  setAlerts(prev =>
-                    prev.map(a =>
-                      a.id === selectedAlert.id ? { ...a, resolved: true } : a
-                    )
-                  );
-                  analytics.track('Alert Resolved', {
-                    alertId: selectedAlert.id,
-                    component: 'MonitoringDashboard',
-                  });
-                  setSelectedAlert(null);
-                }
-              }}
-              color="primary"
+      {selectedAlert && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedAlert(null)}
+          aria-live="assertive"
+        >
+          <FocusTrap active={true} onEscape={() => setSelectedAlert(null)}>
+            <div
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={`alert-dialog-${selectedAlert.id}`}
+              aria-describedby={`alert-dialog-desc-${selectedAlert.id}`}
             >
-              Mark as Resolved
-            </Button>
-          )}
-          <Button onClick={() => setSelectedAlert(null)}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+            <div className="flex items-start justify-between mb-4">
+              <h2 id={`alert-dialog-${selectedAlert.id}`} className="text-xl font-semibold text-gray-900 dark:text-white">
+                {selectedAlert.title}
+              </h2>
+              <button
+                onClick={() => setSelectedAlert(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                aria-label={t('monitoring.alertClose', 'Close dialog')}
+                ref={dialogCloseRef}
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4" id={`alert-dialog-desc-${selectedAlert.id}`}>
+              <p className="text-base text-gray-700 dark:text-gray-300">
+                {selectedAlert.message}
+              </p>
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <p>{t('monitoring.alertTimestamp', 'Timestamp')}: {formatDateTime(selectedAlert.timestamp)}</p>
+                <p>
+                  {t('common.status', 'Status')}: {selectedAlert.resolved ? t('monitoring.alertStatusResolved', 'Resolved') : t('monitoring.alertStatusActive', 'Active')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              {!selectedAlert.resolved && (
+                <Button
+                  onClick={() => {
+                    setAlerts(prev =>
+                      prev.map(a =>
+                        a.id === selectedAlert.id ? { ...a, resolved: true } : a
+                      )
+                    );
+                    analytics.track('Alert Resolved', {
+                      alertId: selectedAlert.id,
+                      component: 'MonitoringDashboard',
+                    });
+                    setSelectedAlert(null);
+                  }}
+                  variant="primary"
+                  aria-label={t('monitoring.alertResolve', 'Mark alert as resolved')}
+                >
+                  {t('monitoring.alertResolve', 'Mark as resolved')}
+                </Button>
+              )}
+              <Button onClick={() => setSelectedAlert(null)} variant="outline" aria-label={t('monitoring.alertClose', 'Close dialog')}>
+                {t('monitoring.alertClose', 'Close dialog')}
+              </Button>
+            </div>
+            </div>
+          </FocusTrap>
+        </div>
+      )}
+    </div>
   );
 };
 
 export default MonitoringDashboard;
+
+
+
+

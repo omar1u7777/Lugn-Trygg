@@ -1,11 +1,11 @@
 /**
  * Enhanced Loading States & Indicators - Lugn & Trygg Design System
  * WCAG 2.1 AA compliant loading components with accessibility features
+ * 100% Tailwind CSS - NO MUI dependencies
  */
 
 import React from 'react';
-import { CircularProgress, Skeleton, Box, Typography } from '@mui/material';
-import { Card } from './ui/Card';
+import { Card } from './ui/tailwind';
 import './LoadingStates.css';
 
 interface LoadingProps {
@@ -32,19 +32,31 @@ export const LoadingSpinner: React.FC<LoadingProps> = ({
     large: 70,
   };
 
+  const sizeClasses = {
+    small: 'w-8 h-8',
+    medium: 'w-12 h-12',
+    large: 'w-16 h-16',
+  };
+
   return (
-    <Box 
-      className="loading-spinner-container"
+    <div
+      className="loading-spinner-container flex flex-col items-center justify-center gap-4"
       role="status"
       aria-live="polite"
+      aria-busy="true"
       aria-atomic="true"
+      aria-label={message}
     >
-      <CircularProgress 
-        size={sizeMap[size]}
-        aria-hidden="true"
-      />
-      {message && <Typography className="loading-message">{message}</Typography>}
-    </Box>
+      <div
+        className={`flex items-center justify-center`}
+        role="progressbar"
+        aria-label={message}
+        aria-valuetext={message}
+      >
+        <div className={`${sizeClasses[size]} border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin`} />
+      </div>
+      {message && <p className="loading-message text-gray-700 dark:text-gray-300">{message}</p>}
+    </div>
   );
 };
 
@@ -59,40 +71,70 @@ export const SkeletonLoader: React.FC<{
 
   if (type === 'card') {
     return (
-      <Box className="skeleton-card-container">
+      <div
+        className="skeleton-card-container grid gap-4"
+        role="status"
+        aria-live="polite"
+        aria-label="Laddar kort"
+      >
         {items.map((_, idx) => (
-          <Box key={idx} className="skeleton-card">
-            <Skeleton variant="rectangular" height={200} />
-            <Skeleton variant="text" height={30} style={{ marginTop: '10px' }} />
-            <Skeleton variant="text" height={20} style={{ marginTop: '5px' }} />
-          </Box>
+          <div
+            key={idx}
+            className="skeleton-card"
+            role="progressbar"
+            aria-label={`Laddar kort ${idx + 1} av ${count}`}
+          >
+            <div className="h-[200px] bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+            <div className="h-[30px] bg-gray-200 dark:bg-gray-700 rounded mt-2.5 animate-pulse" />
+            <div className="h-[20px] bg-gray-200 dark:bg-gray-700 rounded mt-1.5 animate-pulse" />
+          </div>
         ))}
-      </Box>
+      </div>
     );
   }
 
   if (type === 'list') {
     return (
-      <Box className="skeleton-list-container">
+      <div
+        className="skeleton-list-container space-y-4"
+        role="status"
+        aria-live="polite"
+        aria-label="Laddar lista"
+      >
         {items.map((_, idx) => (
-          <Box key={idx} className="skeleton-list-item">
-            <Skeleton variant="circular" width={40} height={40} />
-            <Box style={{ flex: 1, marginLeft: '10px' }}>
-              <Skeleton variant="text" height={20} />
-              <Skeleton variant="text" height={16} width="80%" />
-            </Box>
-          </Box>
+          <div
+            key={idx}
+            className="skeleton-list-item flex items-center gap-2.5"
+            role="progressbar"
+            aria-label={`Laddar listobjekt ${idx + 1} av ${count}`}
+          >
+            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/5 animate-pulse" />
+            </div>
+          </div>
         ))}
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box className="skeleton-text-container">
+    <div
+      className="skeleton-text-container space-y-2"
+      role="status"
+      aria-live="polite"
+      aria-label="Laddar innehåll"
+    >
       {items.map((_, idx) => (
-        <Skeleton key={idx} variant="text" height={20} style={{ marginBottom: '8px' }} />
+        <div
+          key={idx}
+          className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"
+          role="progressbar"
+          aria-label={`Laddar rad ${idx + 1} av ${count}`}
+        />
       ))}
-    </Box>
+    </div>
   );
 };
 
@@ -106,22 +148,28 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
   if (!isLoading) return null;
 
   return (
-    <Box
-      className="loading-overlay"
+    <div
+      className="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       role="status"
       aria-live="polite"
       aria-atomic="true"
+      aria-busy="true"
       aria-label={message}
     >
-      <Card className="loading-overlay-content" elevation={3}>
-        <Box className="flex flex-col items-center gap-4 p-6">
-          <CircularProgress size={48} aria-hidden="true" />
-          <Typography variant="h6" className="overlay-message text-center">
+      <Card className="loading-overlay-content shadow-lg">
+        <div className="flex flex-col items-center gap-4 p-6">
+          <div
+            className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"
+            role="progressbar"
+            aria-label={message}
+            aria-valuetext={message}
+          />
+          <h6 className="overlay-message text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
             {message}
-          </Typography>
-        </Box>
+          </h6>
+        </div>
       </Card>
-    </Box>
+    </div>
   );
 };
 
@@ -134,7 +182,7 @@ export const PulseLoader: React.FC<{ size?: number }> = ({ size = 30 }) => {
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return (
-    <Box
+    <div
       className={`pulse-loader ${prefersReducedMotion ? 'no-animation' : ''}`}
       style={{
         width: size,
@@ -143,12 +191,10 @@ export const PulseLoader: React.FC<{ size?: number }> = ({ size = 30 }) => {
       role="status"
       aria-label="Loading"
       aria-live="polite"
+      aria-busy="true"
     >
-      <Box
-        className="pulse-item"
-        aria-hidden="true"
-      />
-    </Box>
+      <div className="pulse-item" aria-hidden="true" />
+    </div>
   );
 };
 
@@ -173,3 +219,5 @@ export default {
   PulseLoader,
   ProgressiveLoad,
 };
+
+

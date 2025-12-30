@@ -1,5 +1,5 @@
 # 🐳 Docker Compose - PRODUCTION Configuration
-# Deploy full stack for 1000 users
+# Deploy full stack for 10k users
 
 version: '3.8'
 
@@ -34,11 +34,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 2G
+          cpus: '8.0'
+          memory: 16G
         reservations:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '4.0'
+          memory: 8G
 
   # Frontend Web App
   frontend:

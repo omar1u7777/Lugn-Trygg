@@ -3,27 +3,9 @@
  */
 
 import React, { useState } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  LinearProgress,
-  Chip,
-  Avatar,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Grid
-} from '@mui/material';
-
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import StarIcon from '@mui/icons-material/Star';
-import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import { TrophyIcon, StarIcon, FireIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { trackEvent } from '../services/analytics';
 
 interface Badge {
@@ -175,191 +157,196 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
   };
 
   return (
-    <Box>
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Level and XP Progress */}
-      <Card sx={{ mb: spacing.lg, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.md }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-              <Avatar
-                sx={{
-                  width: 60,
-                  height: 60,
-                  bgcolor: RARITY_COLORS.legendary,
-                  fontSize: '2rem',
-                }}
-              >
-                {userLevel}
-              </Avatar>
-              <Box>
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Level {userLevel}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
-                  {getLevelTitle(userLevel)}
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="h6" sx={{ color: 'white' }}>
-                {userXP} / {nextLevelXP} XP
-              </Typography>
-              <Chip
-                icon={<StarIcon />}
-                label={`${Math.round(levelProgress)}%`}
-                size="small"
-                sx={{ bgcolor: 'colors.overlay.medium', color: 'white' }}
-              />
-            </Box>
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={levelProgress}
-            sx={{
-              height: 10,
-              borderRadius: 5,
-              bgcolor: 'colors.overlay.medium',
-              '& .MuiLinearProgress-bar': {
-                bgcolor: RARITY_COLORS.legendary,
-              },
-            }}
+      <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
+              {userLevel}
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold">
+                Level {userLevel}
+              </h3>
+              <p className="text-white/80 text-sm">
+                {getLevelTitle(userLevel)}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-semibold">
+              {userXP} / {nextLevelXP} XP
+            </p>
+            <div className="flex items-center gap-2 justify-end mt-1">
+              <StarIcon className="w-4 h-4" aria-hidden="true" />
+              <span className="text-sm">{Math.round(levelProgress)}%</span>
+            </div>
+          </div>
+        </div>
+        <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+          <div
+            className="h-full bg-white rounded-full transition-all duration-500"
+            style={{ width: `${levelProgress}%` }}
+            role="progressbar"
+            aria-valuenow={levelProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Weekly Challenges */}
       {challenges && challenges.length > 0 && (
-        <Box sx={{ mb: spacing.lg }}>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-            <LocalFireDepartmentIcon color="error" />
-            {t('gamification.challenges', 'Weekly Challenges')}
-          </Typography>
-          <Grid container spacing={2}>
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <FireIcon className="w-6 h-6 text-error-500" aria-hidden="true" />
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {t('gamification.challenges', 'Weekly Challenges')}
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {challenges.map((challenge) => (
-              <Grid xs={12} md={6} key={challenge.id}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {challenge.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.md }}>
-                      {challenge.description}
-                    </Typography>
-                    <Box sx={{ mb: spacing.sm }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {challenge.progress} / {challenge.goal}
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(challenge.progress / challenge.goal) * 100}
-                        sx={{ mt: 0.5, height: 8, borderRadius: borderRadius.xl }}
-                      />
-                    </Box>
-                    <Chip
-                      label={`Reward: ${challenge.reward}`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
+              <div key={challenge.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  {challenge.title}
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  {challenge.description}
+                </p>
+                <div className="mb-3">
+                  <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <span>{challenge.progress} / {challenge.goal}</span>
+                    <span>{Math.round((challenge.progress / challenge.goal) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(challenge.progress / challenge.goal) * 100}%` }}
+                      role="progressbar"
+                      aria-valuenow={(challenge.progress / challenge.goal) * 100}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
                     />
-                  </CardContent>
-                </Card>
-              </Grid>
+                  </div>
+                </div>
+                <span className="inline-block px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 text-xs font-medium rounded-full border border-primary-200 dark:border-primary-800">
+                  Reward: {challenge.reward}
+                </span>
+                {challenge.expiresAt && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Expires: {new Date(challenge.expiresAt).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
             ))}
-          </Grid>
-        </Box>
+          </div>
+        </div>
       )}
 
       {/* Badges */}
-      <Box>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <EmojiEventsIcon color="warning" />
-          {t('gamification.badges', 'Badges & Achievements')}
-        </Typography>
-        <Grid container spacing={2}>
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <TrophyIcon className="w-6 h-6 text-warning-500" aria-hidden="true" />
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {t('gamification.badges', 'Badges & Achievements')}
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {BADGE_DEFINITIONS.map((badgeDef) => {
             const earnedBadge = badges.find((b) => b.id === badgeDef.id);
             const badge: Badge = earnedBadge || { ...badgeDef, earned: false };
 
             return (
-              <Grid xs={6} sm={4} md={3} key={badge.id}>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+              <motion.div
+                key={badge.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <button
+                  onClick={() => handleBadgeClick(badge)}
+                  className="w-full bg-white dark:bg-gray-800 rounded-lg border-2 p-4 text-center transition-all duration-300 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                  style={{
+                    borderColor: RARITY_COLORS[badge.rarity],
+                    opacity: badge.earned ? 1 : 0.4,
+                  }}
+                  aria-label={`${badge.name} - ${badge.earned ? 'Earned' : 'Locked'} - ${badge.description}`}
+                  title={badge.earned ? badge.description : `🔒 ${badge.description}`}
                 >
-                  <Tooltip
-                    title={badge.earned ? badge.description : `🔒 ${badge.description}`}
-                    arrow
+                  <div className="text-4xl mb-2">
+                    {badge.earned ? badge.icon : '🔒'}
+                  </div>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white mb-1 truncate">
+                    {badge.name}
+                  </p>
+                  <span
+                    className="inline-block px-2 py-0.5 text-xs font-medium rounded-full text-white"
+                    style={{ backgroundColor: RARITY_COLORS[badge.rarity] }}
                   >
-                    <Card
-                      onClick={() => handleBadgeClick(badge)}
-                      sx={{
-                        cursor: 'pointer',
-                        opacity: badge.earned ? 1 : 0.4,
-                        border: `2px solid ${RARITY_COLORS[badge.rarity]}`,
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          boxShadow: `0 0 20px ${RARITY_COLORS[badge.rarity]}`,
-                        },
-                      }}
-                    >
-                      <CardContent sx={{ textAlign: 'center' }}>
-                        <Typography variant="h2" sx={{ mb: spacing.sm }}>
-                          {badge.earned ? badge.icon : '🔒'}
-                        </Typography>
-                        <Typography variant="caption" fontWeight="bold">
-                          {badge.name}
-                        </Typography>
-                        <Chip
-                          label={badge.rarity}
-                          size="small"
-                          sx={{
-                            mt: spacing.sm,
-                            bgcolor: RARITY_COLORS[badge.rarity],
-                            color: 'white',
-                            fontSize: '0.7rem',
-                          }}
-                        />
-                      </CardContent>
-                    </Card>
-                  </Tooltip>
-                </motion.div>
-              </Grid>
+                    {badge.rarity}
+                  </span>
+                </button>
+              </motion.div>
             );
           })}
-        </Grid>
-      </Box>
+        </div>
+      </div>
 
       {/* Badge Detail Dialog */}
-      <Dialog open={showBadgeDialog} onClose={() => setShowBadgeDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ textAlign: 'center' }}>
-          <Typography variant="h3">{selectedBadge?.icon}</Typography>
-          <Typography variant="h6" sx={{ mt: spacing.sm }}>
-            {selectedBadge?.name}
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            {selectedBadge?.description}
-          </Typography>
-          {selectedBadge?.earned && selectedBadge.earnedDate && (
-            <Typography variant="caption" color="text.secondary">
-              Earned on: {new Date(selectedBadge.earnedDate).toLocaleDateString()}
-            </Typography>
-          )}
-          <Box sx={{ mt: spacing.md, textAlign: 'center' }}>
-            <Chip
-              label={selectedBadge?.rarity}
-              sx={{
-                bgcolor: selectedBadge ? RARITY_COLORS[selectedBadge.rarity] : 'grey',
-                color: 'white',
-                fontWeight: 'bold',
-              }}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
-    </Box>
+      {showBadgeDialog && selectedBadge && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowBadgeDialog(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="text-5xl">{selectedBadge.icon}</div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {selectedBadge.name}
+                  </h3>
+                  <span
+                    className="inline-block px-3 py-1 text-xs font-medium rounded-full text-white mt-1"
+                    style={{ backgroundColor: RARITY_COLORS[selectedBadge.rarity] }}
+                  >
+                    {selectedBadge.rarity}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBadgeDialog(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                aria-label="Close dialog"
+              >
+                <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
+              {selectedBadge.description}
+            </p>
+            {selectedBadge.earned && selectedBadge.earnedDate && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Earned on: {new Date(selectedBadge.earnedDate).toLocaleDateString()}
+              </p>
+            )}
+            {!selectedBadge.earned && (
+              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  🔒 Keep working to unlock this badge!
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
 export default GamificationSystem;
+
+

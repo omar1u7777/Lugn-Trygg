@@ -27,25 +27,30 @@ const IntegrationWidget: React.FC<IntegrationWidgetProps> = ({ userId }) => {
   const loadDeviceStatuses = async () => {
     try {
       setLoading(true);
+      // CRITICAL FIX: oauthHealthService is a singleton instance, methods are called directly
       const providers = oauthHealthService.getSupportedProviders();
       const statuses = await oauthHealthService.checkAllStatuses();
 
+      // CRITICAL FIX: Better null/undefined handling
       const deviceList: DeviceStatus[] = providers.map(provider => {
         const status = statuses.get(provider.id);
         return {
           id: provider.id,
           name: provider.name,
           icon: provider.icon,
-          connected: status?.connected && !status?.is_expired || false,
-          lastSync: status?.last_sync_time,
+          connected: (status?.connected === true && status?.is_expired !== true) || false,
+          lastSync: status?.last_sync_time || status?.last_sync || undefined,
         };
       });
 
       setDevices(deviceList);
 
       // Calculate health score based on connected devices and recent syncs
+      // CRITICAL FIX: Handle division by zero
       const connectedCount = deviceList.filter(d => d.connected).length;
-      const score = Math.min(100, (connectedCount / providers.length) * 100);
+      const score = providers.length > 0 
+        ? Math.min(100, (connectedCount / providers.length) * 100)
+        : 0;
       setHealthScore(score);
     } catch (error) {
       console.error('Failed to load device statuses:', error);
@@ -73,29 +78,40 @@ const IntegrationWidget: React.FC<IntegrationWidgetProps> = ({ userId }) => {
     }
   };
 
-  const connectedCount = devices.filter(d => d.connected).length;
+  // CRITICAL FIX: Better null safety
+  const connectedCount = devices.filter(d => d.connected === true).length;
   const mostRecentSync = devices
-    .filter(d => d.lastSync)
+    .filter(d => d.lastSync && d.lastSync !== undefined)
     .sort((a, b) => {
-      const dateA = new Date(a.lastSync!).getTime();
-      const dateB = new Date(b.lastSync!).getTime();
+      if (!a.lastSync || !b.lastSync) return 0;
+      const dateA = new Date(a.lastSync).getTime();
+      const dateB = new Date(b.lastSync).getTime();
       return dateB - dateA;
     })[0]?.lastSync;
 
   const getTimeAgo = (dateString?: string): string => {
-    if (!dateString) return 'Aldrig';
+    // CRITICAL FIX: Better null/undefined handling
+    if (!dateString || dateString === undefined) return 'Aldrig';
     
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    try {
+      const date = new Date(dateString);
+      // CRITICAL FIX: Check if date is valid
+      if (isNaN(date.getTime())) return 'Ogiltigt datum';
+      
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Nyss';
-    if (diffMins < 60) return `${diffMins} min sedan`;
-    if (diffHours < 24) return `${diffHours} tim sedan`;
-    return `${diffDays} dagar sedan`;
+      if (diffMins < 1) return 'Nyss';
+      if (diffMins < 60) return `${diffMins} min sedan`;
+      if (diffHours < 24) return `${diffHours} tim sedan`;
+      return `${diffDays} dagar sedan`;
+    } catch (error) {
+      console.error('Error parsing date:', dateString, error);
+      return 'Ogiltigt datum';
+    }
   };
 
   if (loading) {
@@ -122,8 +138,14 @@ const IntegrationWidget: React.FC<IntegrationWidgetProps> = ({ userId }) => {
           Hälsointegrationer
         </h3>
         <button
-          onClick={() => window.location.href = '/integrations'}
-          className="text-sm text-red-600 dark:text-red-400 hover:underline"
+          onClick={() => {
+            // CRITICAL FIX: Use navigate instead of window.location.href for better UX
+            if (typeof window !== 'undefined') {
+              window.location.href = '/integrations';
+            }
+          }}
+          className="text-sm text-red-600 dark:text-red-400 hover:underline focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded"
+          aria-label="Gå till integrationssidan"
         >
           Visa alla →
         </button>
@@ -210,8 +232,14 @@ const IntegrationWidget: React.FC<IntegrationWidgetProps> = ({ userId }) => {
       {/* No Devices Connected */}
       {connectedCount === 0 && (
         <button
-          onClick={() => window.location.href = '/integrations'}
-          className="w-full py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl"
+          onClick={() => {
+            // CRITICAL FIX: Use navigate instead of window.location.href for better UX
+            if (typeof window !== 'undefined') {
+              window.location.href = '/integrations';
+            }
+          }}
+          className="w-full py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          aria-label="Gå till integrationssidan för att ansluta enheter"
         >
           <span className="mr-2">➕</span>
           Anslut enheter

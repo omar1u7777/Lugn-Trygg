@@ -3,7 +3,7 @@ Health Check & Monitoring Endpoints
 Critical for production monitoring and load balancer health checks
 """
 from flask import Blueprint, jsonify
-from datetime import datetime
+from datetime import datetime, timezone
 import psutil
 import os
 from src.firebase_config import db, _firebase_initialized
@@ -18,7 +18,7 @@ def health_check():
     """
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'service': 'Lugn & Trygg API'
     }), 200
 
@@ -31,7 +31,7 @@ def readiness_check():
     checks = {
         'server': True,
         'firebase': False,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }
     
     # Check Firebase connection
@@ -66,7 +66,7 @@ def liveness_check():
     return jsonify({
         'status': 'alive',
         'pid': os.getpid(),
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     }), 200
 
 @health_bp.route('/metrics', methods=['GET'])
@@ -80,7 +80,7 @@ def metrics():
         memory_info = process.memory_info()
         
         return jsonify({
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'system': {
                 'cpu_percent': psutil.cpu_percent(interval=0.1),
                 'cpu_count': psutil.cpu_count(),
@@ -114,7 +114,7 @@ def database_health():
     Verifies Firestore connectivity and performance
     """
     try:
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         
         # Test read operation
         test_collection = db.collection('_health_check')
@@ -123,23 +123,23 @@ def database_health():
         # Test write operation
         test_doc = test_collection.document('test')
         test_doc.set({
-            'last_check': datetime.utcnow().isoformat(),
+            'last_check': datetime.now(timezone.utc).isoformat(),
             'status': 'ok'
         })
         
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         latency_ms = (end_time - start_time).total_seconds() * 1000
         
         return jsonify({
             'status': 'healthy',
             'database': 'firestore',
             'latency_ms': round(latency_ms, 2),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 200
         
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 503

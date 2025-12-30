@@ -39,7 +39,6 @@
 #### Mental Health Features (20 komponenter)
 - [ ] **MoodLogger** - Standard mood logger (ersatt av WorldClass version)
 - [ ] **MoodList** - Lista över mood logs
-- [ ] **MoodAnalyzer** - Analys av humör
 - [ ] **WeeklyAnalysis** - Veckoanalys
 - [ ] **DailyInsights** - Dagliga insikter
 - [ ] **EmojiMoodSelector** - Emoji-baserad mood selection

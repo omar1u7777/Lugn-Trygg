@@ -1,12 +1,17 @@
+version: "3.9"
+
 services:
   backend:
-    build: ./Backend
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: lugn-trygg-backend
     ports:
       - "5001:5001"
     environment:
-      - FLASK_DEBUG=false
-      - PORT=5001
-      - REDIS_URL=redis://redis:6379
+      FLASK_ENV: production
+      PORT: 5001
+      REDIS_URL: redis://redis:6379/0
     env_file:
       - Backend/.env
     volumes:
@@ -16,7 +21,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -29,18 +34,21 @@ services:
       - app_network
 
   frontend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lugn-trygg-frontend
     ports:
       - "3000:80"
     environment:
-      - NODE_ENV=production
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:5001}
-      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
-      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
-      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
-      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET}
-      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
-      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
+      NODE_ENV: production
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5001}
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+      VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
     env_file:
       - .env
     restart: unless-stopped
@@ -62,6 +70,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: lugn-trygg-redis
     ports:
       - "6379:6379"
     restart: unless-stopped

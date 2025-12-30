@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api/api';
+import { api } from '../../api/api';
 
 interface ReferralStats {
     referral_code: string;
@@ -61,8 +61,14 @@ const ReferralWidget: React.FC<ReferralWidgetProps> = ({ userId }) => {
                     </div>
                 </div>
                 <button
-                    onClick={() => window.location.href = '/referral'}
-                    className="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                    onClick={() => {
+                        // CRITICAL FIX: Better navigation handling
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/referral';
+                        }
+                    }}
+                    className="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 rounded"
+                    aria-label="Gå till referensprogramsidan"
                 >
                     Visa mer →
                 </button>

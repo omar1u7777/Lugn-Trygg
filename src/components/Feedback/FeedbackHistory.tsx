@@ -1,14 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { 
-    Box, 
-    Typography, 
-    Paper, 
-    CircularProgress, 
-    Alert,
-    Chip,
-    Divider
-} from '@mui/material';
+import React, { useState, useEffect, useCallback } from 'react'
+import { Card, Alert } from '../ui/tailwind';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 
@@ -29,26 +20,26 @@ const FeedbackHistory: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user?.user_id) {
-            fetchFeedback();
-        }
-    }, [user]);
-
-    const fetchFeedback = async () => {
+    const fetchFeedback = useCallback(async () => {
         if (!user?.user_id) return;
 
         try {
             setLoading(true);
             const response = await api.get(`/api/feedback/my-feedback?user_id=${user.user_id}`);
             setFeedback(response.data.feedback || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to fetch feedback history:', err);
             setError('Kunde inte hämta din feedback-historik');
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.user_id]);
+
+    useEffect(() => {
+        if (user?.user_id) {
+            fetchFeedback();
+        }
+    }, [user?.user_id, fetchFeedback]);
 
     const categoryEmojis: Record<string, string> = {
         general: '💬',
@@ -66,12 +57,6 @@ const FeedbackHistory: React.FC = () => {
         ui: 'Användargränssnitt',
         performance: 'Prestanda',
         content: 'Innehåll/Texter'
-    };
-
-    const statusColors: Record<string, 'warning' | 'info' | 'success' | 'default'> = {
-        pending: 'warning',
-        reviewed: 'info',
-        resolved: 'success'
     };
 
     const statusNames: Record<string, string> = {
@@ -93,18 +78,18 @@ const FeedbackHistory: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6 }}>
-                <CircularProgress size={60} sx={{ mb: spacing.md }} />
-                <Typography variant="body1" color="text.secondary">
+            <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">
                     Laddar din feedback...
-                </Typography>
-            </Box>
+                </p>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Alert severity="error" sx={{ textAlign: 'center' }}>
+            <Alert variant="error">
                 {error}
             </Alert>
         );
@@ -112,113 +97,102 @@ const FeedbackHistory: React.FC = () => {
 
     if (feedback.length === 0) {
         return (
-            <Paper elevation={2} sx={{ p: 6, textAlign: 'center', bgcolor: 'background.default' }}>
-                <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>📭</Typography>
-                <Typography variant="h5" fontWeight="bold" gutterBottom>
+            <Card className="p-8 text-center">
+                <div className="text-6xl mb-4">📭</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     Ingen feedback ännu
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
                     Du har inte skickat någon feedback än. Dela dina tankar med oss!
-                </Typography>
-            </Paper>
+                </p>
+            </Card>
         );
     }
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.lg }}>
-                <Typography variant="h5" fontWeight="bold">
+        <div className="space-y-6">
+            <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                     📜 Min Feedback-historik
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                     {feedback.length} {feedback.length === 1 ? 'feedback' : 'feedbacks'}
-                </Typography>
-            </Box>
+                </p>
+            </div>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            <div className="space-y-4">
                 {feedback.map((item) => (
-                    <Paper
+                    <Card
                         key={item.id}
-                        elevation={2}
-                        sx={{ 
-                            p: spacing.lg,
-                            borderLeft: 4,
-                            borderColor: 'primary.main',
-                            '&:hover': { boxShadow: 6 },
-                            transition: 'box-shadow 0.3s'
-                        }}
+                        className="p-6 border-l-4 border-primary-500 hover:shadow-lg transition-shadow duration-300"
                     >
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: spacing.md }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-                                <Typography variant="h3">{categoryEmojis[item.category] || '💬'}</Typography>
-                                <Box>
-                                    <Typography variant="h6" fontWeight="bold">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-start gap-3">
+                                <div className="text-3xl">{categoryEmojis[item.category] || '💬'}</div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                                         {categoryNames[item.category] || item.category}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                         {formatDate(item.created_at)}
-                                    </Typography>
-                                </Box>
-                            </Box>
-                            <Chip 
-                                label={statusNames[item.status] || item.status} 
-                                color={statusColors[item.status] || 'default'} 
-                                size="small"
-                            />
-                        </Box>
+                                    </p>
+                                </div>
+                            </div>
+                            <span 
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    item.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                    item.status === 'reviewed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                    'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                }`}
+                            >
+                                {statusNames[item.status] || item.status}
+                            </span>
+                        </div>
 
-                        <Box sx={{ mb: spacing.md }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: spacing.sm }}>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
                                 {[1, 2, 3, 4, 5].map((star) => (
-                                    <span key={star} style={{ fontSize: '1.25rem' }}>
+                                    <span key={star} className="text-xl">
                                         {star <= item.rating ? '⭐' : '☆'}
                                     </span>
                                 ))}
-                                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
                                     ({item.rating}/5)
-                                </Typography>
-                            </Box>
-                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                </span>
+                            </div>
+                            <p className="text-gray-700 dark:text-gray-300">
                                 {item.message}
-                            </Typography>
-                        </Box>
+                            </p>
+                        </div>
 
                         {item.response && (
-                            <Paper 
-                                elevation={0}
-                                sx={{ 
-                                    p: spacing.md, 
-                                    mt: spacing.md,
-                                    bgcolor: 'info.light',
-                                    border: 1,
-                                    borderColor: 'info.main'
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: spacing.sm }}>
-                                    <Typography variant="h6">💬</Typography>
-                                    <Typography variant="subtitle2" fontWeight="bold">
+                            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xl">💬</span>
+                                    <span className="font-semibold text-gray-900 dark:text-white">
                                         Svar från teamet
-                                    </Typography>
+                                    </span>
                                     {item.responded_at && (
-                                        <Typography variant="caption" color="text.secondary">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
                                             • {formatDate(item.responded_at)}
-                                        </Typography>
+                                        </span>
                                     )}
-                                </Box>
-                                <Typography variant="body2">
+                                </div>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
                                     {item.response}
-                                </Typography>
-                            </Paper>
+                                </p>
+                            </div>
                         )}
 
-                        <Typography variant="caption" color="text.disabled" sx={{ mt: spacing.sm, display: 'block' }}>
+                        <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
                             Feedback-ID: #{item.id.slice(0, 8)}
-                        </Typography>
-                    </Paper>
+                        </p>
+                    </Card>
                 ))}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };
 
 export default FeedbackHistory;
+

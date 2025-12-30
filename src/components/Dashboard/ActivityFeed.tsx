@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { motion } from 'framer-motion';
-import { Box, Typography, Paper, CircularProgress, Avatar } from '@mui/material';
-import api from '../../api/api';
+import { Typography, Card } from '../ui/tailwind';
+import { api } from '../../api/api';
 
 interface ActivityFeedProps {
   userId: string;
@@ -23,78 +22,136 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadActivities();
+    if (userId) {
+      loadActivities();
+    }
   }, [userId]);
 
   const loadActivities = async () => {
+    // CRITICAL FIX: Check userId before making API calls
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const allActivities: Activity[] = [];
 
       // Fetch moods
       try {
-        const moodsResponse = await api.get(`/api/mood?user_id=${userId}`);
-        const moods = (moodsResponse.data || []).slice(0, 5);
+        const moodsResponse = await api.get(`/api/mood/get?user_id=${userId}`);
+        // CRITICAL FIX: Better data extraction
+        const moods = (moodsResponse.data?.moods || moodsResponse.data || []).slice(0, 5);
         moods.forEach((mood: any) => {
-          const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
-          allActivities.push({
-            id: `mood-${mood.id || Math.random()}`,
-            type: 'mood',
-            title: 'Humörloggning',
-            description: `Loggade humör: ${mood.mood_text || 'Okänt'}`,
-            timestamp: moodDate,
-            icon: '😊',
-            color: 'blue',
-          });
+          try {
+            const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+            // CRITICAL FIX: Validate date
+            if (isNaN(moodDate.getTime())) return;
+            
+            // Get mood text, handle encrypted data
+            let moodText = mood.mood_text || 'Okänt';
+            if (moodText.startsWith('U2FsdGVk')) {
+              // Encrypted, use score-based label
+              const s = mood.score ?? 5;
+              if (s >= 8) moodText = 'Glad';
+              else if (s >= 6) moodText = 'Bra';
+              else if (s >= 4) moodText = 'Neutral';
+              else if (s >= 2) moodText = 'Orolig';
+              else moodText = 'Ledsen';
+            }
+            
+            allActivities.push({
+              id: `mood-${mood.id || Math.random()}`,
+              type: 'mood',
+              title: 'Humörloggning',
+              description: `Loggade humör: ${moodText}`,
+              timestamp: moodDate,
+              icon: '😊',
+              color: 'blue',
+            });
+          } catch (error) {
+            console.warn('Error processing mood:', error);
+          }
         });
       } catch (error) {
-        console.log('Could not load moods for activity feed');
+        // CRITICAL FIX: Better error handling
+        console.log('Could not load moods for activity feed:', error);
       }
 
       // Fetch referrals
       try {
-        const referralResponse = await api.get('/api/referral/history');
-        const referrals = (referralResponse.data?.referrals || []).slice(0, 3);
+        const referralResponse = await api.get(`/api/referral/history?user_id=${userId}`);
+        const referrals = (referralResponse.data?.referrals || referralResponse.data || []).slice(0, 3);
         referrals.forEach((ref: any) => {
-          allActivities.push({
-            id: `referral-${ref.referred_user_id}`,
-            type: 'referral',
-            title: 'Ny referens',
-            description: `${ref.referred_email} gick med via din kod!`,
-            timestamp: new Date(ref.completed_at),
-            icon: '🎁',
-            color: 'purple',
-          });
+          try {
+            if (!ref.completed_at) return;
+            const refDate = new Date(ref.completed_at);
+            // CRITICAL FIX: Validate date
+            if (isNaN(refDate.getTime())) return;
+            
+            allActivities.push({
+              id: `referral-${ref.referred_user_id || ref.id || Math.random()}`,
+              type: 'referral',
+              title: 'Ny referens',
+              description: `${ref.referred_email || 'Någon'} gick med via din kod!`,
+              timestamp: refDate,
+              icon: '🎁',
+              color: 'purple',
+            });
+          } catch (error) {
+            console.warn('Error processing referral:', error);
+          }
         });
       } catch (error) {
-        console.log('Could not load referrals for activity feed');
+        // CRITICAL FIX: Better error handling
+        console.log('Could not load referrals for activity feed:', error);
       }
 
       // Fetch feedback
       try {
-        const feedbackResponse = await api.get('/api/feedback/my-feedback');
-        const feedbacks = (feedbackResponse.data?.feedback || []).slice(0, 3);
+        const feedbackResponse = await api.get(`/api/feedback/my-feedback?user_id=${userId}`);
+        const feedbacks = (feedbackResponse.data?.feedback || feedbackResponse.data || []).slice(0, 3);
         feedbacks.forEach((fb: any) => {
-          allActivities.push({
-            id: `feedback-${fb.id}`,
-            type: 'feedback',
-            title: 'Feedback skickad',
-            description: `Kategori: ${fb.category}`,
-            timestamp: new Date(fb.timestamp),
-            icon: '💬',
-            color: 'green',
-          });
+          try {
+            if (!fb.timestamp && !fb.created_at) return;
+            const fbDate = new Date(fb.timestamp || fb.created_at);
+            // CRITICAL FIX: Validate date
+            if (isNaN(fbDate.getTime())) return;
+            
+            allActivities.push({
+              id: `feedback-${fb.id || Math.random()}`,
+              type: 'feedback',
+              title: 'Feedback skickad',
+              description: `Kategori: ${fb.category || 'Okänd'}`,
+              timestamp: fbDate,
+              icon: '💬',
+              color: 'green',
+            });
+          } catch (error) {
+            console.warn('Error processing feedback:', error);
+          }
         });
       } catch (error) {
-        console.log('Could not load feedback for activity feed');
+        // CRITICAL FIX: Better error handling
+        console.log('Could not load feedback for activity feed:', error);
       }
 
       // Sort by timestamp (newest first)
-      allActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      // CRITICAL FIX: Better error handling for sorting
+      allActivities.sort((a, b) => {
+        try {
+          return b.timestamp.getTime() - a.timestamp.getTime();
+        } catch (error) {
+          return 0;
+        }
+      });
 
       setActivities(allActivities.slice(0, 10)); // Show latest 10
-    } catch (error) {
+    } catch (error: unknown) {
+      // CRITICAL FIX: Better error handling
       console.error('Failed to load activity feed:', error);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -116,141 +173,118 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ userId }) => {
     switch (color) {
       case 'blue':
         return {
-          bg: 'info.light',
-          borderColor: 'info.main',
-          textColor: 'info.dark',
-          iconBg: 'info.main',
+          bg: 'bg-blue-50 dark:bg-blue-900/20',
+          borderColor: 'border-blue-200 dark:border-blue-800',
+          textColor: 'text-blue-700 dark:text-blue-300',
+          iconBg: 'blue',
         };
       case 'purple':
         return {
-          bg: 'secondary.light',
-          borderColor: 'secondary.main',
-          textColor: 'secondary.dark',
-          iconBg: 'secondary.main',
+          bg: 'bg-purple-50 dark:bg-purple-900/20',
+          borderColor: 'border-purple-200 dark:border-purple-800',
+          textColor: 'text-purple-700 dark:text-purple-300',
+          iconBg: 'purple',
         };
       case 'green':
         return {
-          bg: 'success.light',
-          borderColor: 'success.main',
-          textColor: 'success.dark',
-          iconBg: 'success.main',
+          bg: 'bg-green-50 dark:bg-green-900/20',
+          borderColor: 'border-green-200 dark:border-green-800',
+          textColor: 'text-green-700 dark:text-green-300',
+          iconBg: 'green',
         };
       default:
         return {
-          bg: 'grey.100',
-          borderColor: 'grey.300',
-          textColor: 'text.primary',
-          iconBg: 'grey.500',
+          bg: 'bg-gray-50 dark:bg-gray-800',
+          borderColor: 'border-gray-200 dark:border-gray-700',
+          textColor: 'text-gray-900 dark:text-gray-100',
+          iconBg: 'gray',
         };
     }
   };
 
   if (loading) {
     return (
-      <Paper
-        elevation={1}
-        sx={{
-          p: spacing.lg,
-          borderRadius: borderRadius.xl,
-          border: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Typography variant="h6" fontWeight="semibold" sx={{ mb: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <span>📋</span>
-          Senaste aktivitet
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {[1, 2, 3].map((i) => (
-            <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-              <CircularProgress size={40} />
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ height: 16, bgcolor: 'action.hover', borderRadius: 1, width: '75%', mb: spacing.sm }} />
-                <Box sx={{ height: 12, bgcolor: 'action.hover', borderRadius: 1, width: '50%' }} />
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      </Paper>
+      <Card className="shadow-sm">
+        <div className="p-6">
+          <Typography variant="h6" className="font-semibold mb-4 flex items-center gap-2">
+            <span>📋</span>
+            Senaste aktivitet
+          </Typography>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-4 animate-pulse">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
     );
   }
 
   return (
-    <Paper
-      elevation={1}
-      sx={{
-        p: spacing.lg,
-        borderRadius: borderRadius.xl,
-        border: 1,
-        borderColor: 'divider',
-      }}
-    >
-      <Typography variant="h6" fontWeight="semibold" sx={{ mb: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-        <span>📋</span>
-        Senaste aktivitet
-      </Typography>
+    <Card className="shadow-sm">
+      <div className="p-6">
+        <Typography variant="h6" className="font-semibold mb-4 flex items-center gap-2">
+          <span>📋</span>
+          Senaste aktivitet
+        </Typography>
 
-      {activities.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 4 }}>
-          <Typography variant="h3" sx={{ mb: 1.5 }}>🌱</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Ingen aktivitet än.
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            Börja genom att logga ditt humör!
-          </Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, maxHeight: '500px', overflowY: 'auto' }}>
-          {activities.map((activity, index) => {
-            const colors = getColorStyles(activity.color);
-            return (
-              <Box
-                component={motion.div}
-                key={activity.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 1.5,
-                  p: 1.5,
-                  borderRadius: borderRadius.md,
-                  border: 1,
-                  bgcolor: colors.bg,
-                  borderColor: colors.borderColor,
-                }}
-              >
-                <Avatar
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    bgcolor: colors.iconBg,
-                    fontSize: '1.25rem',
-                    flexShrink: 0,
-                  }}
+        {activities.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-6xl mb-4" aria-hidden="true">🌱</div>
+            <Typography variant="body2" className="text-gray-600 dark:text-gray-400 mb-2">
+              Ingen aktivitet än.
+            </Typography>
+            <Typography variant="caption" className="text-gray-500 dark:text-gray-500">
+              Börja genom att logga ditt humör!
+            </Typography>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activities.map((activity, index) => {
+              const colors = getColorStyles(activity.color);
+              return (
+                <motion.div
+                  key={activity.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 >
-                  {activity.icon}
-                </Avatar>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight="semibold" color={colors.textColor} noWrap>
-                    {activity.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {activity.description}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    {getTimeAgo(activity.timestamp)}
-                  </Typography>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-    </Paper>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    colors.iconBg === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                    colors.iconBg === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                    colors.iconBg === 'green' ? 'bg-green-100 dark:bg-green-900/30' :
+                    'bg-gray-100 dark:bg-gray-800'
+                  }`}>
+                    <span className="text-xl">{activity.icon}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Typography variant="body2" className={`font-semibold mb-1 truncate ${colors.textColor}`}>
+                      {activity.title}
+                    </Typography>
+                    <Typography variant="caption" className="text-gray-600 dark:text-gray-400 block truncate mb-1">
+                      {activity.description}
+                    </Typography>
+                    <Typography variant="caption" className="text-gray-500 dark:text-gray-500 text-xs">
+                      {getTimeAgo(activity.timestamp)}
+                    </Typography>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 };
 
 export default ActivityFeed;
+
+

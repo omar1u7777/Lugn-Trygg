@@ -5,12 +5,15 @@ Handles OAuth 2.0 flows for Google Fit, Fitbit, Samsung Health, etc.
 import os
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, Any, Optional
 from urllib.parse import urlencode
 import secrets
 
 logger = logging.getLogger(__name__)
+
+# Best practice: Define timeout for OAuth requests to prevent hanging
+OAUTH_REQUEST_TIMEOUT = 30  # seconds
 
 class OAuthService:
     """Service for handling OAuth 2.0 authentication with health platforms"""
@@ -82,7 +85,7 @@ class OAuthService:
             self.oauth_states[state] = {
                 'user_id': user_id,
                 'provider': provider,
-                'created_at': datetime.utcnow().isoformat()
+                'created_at': datetime.now(UTC).isoformat()
             }
             
             # Build authorization URL
@@ -157,7 +160,8 @@ class OAuthService:
             response = requests.post(
                 config['token_url'],
                 data=data,
-                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=OAUTH_REQUEST_TIMEOUT
             )
             
             if response.status_code != 200:
@@ -169,7 +173,7 @@ class OAuthService:
             # Add metadata
             token_data['provider'] = provider
             token_data['user_id'] = state_data['user_id']
-            token_data['obtained_at'] = datetime.utcnow().isoformat()
+            token_data['obtained_at'] = datetime.now(UTC).isoformat()
             
             # Clean up state
             del self.oauth_states[state]
@@ -208,16 +212,17 @@ class OAuthService:
             response = requests.post(
                 config['token_url'],
                 data=data,
-                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=OAUTH_REQUEST_TIMEOUT
             )
-            
+
             if response.status_code != 200:
                 logger.error(f"Token refresh failed for {provider}: {response.text}")
                 raise Exception(f"Failed to refresh token: {response.status_code}")
             
             token_data = response.json()
             token_data['provider'] = provider
-            token_data['refreshed_at'] = datetime.utcnow().isoformat()
+            token_data['refreshed_at'] = datetime.now(UTC).isoformat()
             
             logger.info(f"Successfully refreshed token for {provider}")
             
@@ -241,14 +246,15 @@ class OAuthService:
         try:
             if provider == 'google_fit':
                 revoke_url = 'https://oauth2.googleapis.com/revoke'
-                response = requests.post(revoke_url, params={'token': token})
+                response = requests.post(revoke_url, params={'token': token}, timeout=OAUTH_REQUEST_TIMEOUT)
             elif provider == 'fitbit':
                 config = self._get_provider_config(provider)
                 revoke_url = 'https://api.fitbit.com/oauth2/revoke'
                 response = requests.post(
                     revoke_url,
                     data={'token': token},
-                    auth=(config['client_id'], config['client_secret'])
+                    auth=(config['client_id'], config['client_secret']),
+                    timeout=OAUTH_REQUEST_TIMEOUT
                 )
             else:
                 logger.warning(f"Token revocation not implemented for {provider}")

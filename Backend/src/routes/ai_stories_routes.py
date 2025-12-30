@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.ai_services import ai_services
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def get_stories():
                 'category': 'healing',
                 'duration': 300,  # 5 minutes
                 'isFavorite': False,
-                'createdAt': datetime.utcnow().isoformat()
+                'createdAt': datetime.now(timezone.utc).isoformat()
             },
             {
                 'id': '2',
@@ -48,7 +48,7 @@ def get_stories():
                 'category': 'inspiration',
                 'duration': 420,  # 7 minutes
                 'isFavorite': True,
-                'createdAt': datetime.utcnow().isoformat()
+                'createdAt': datetime.now(timezone.utc).isoformat()
             }
         ]
 
@@ -59,7 +59,7 @@ def get_stories():
         logger.error(f"Failed to get AI stories: {str(e)}")
         return jsonify({'error': 'Failed to load stories'}), 500
 
-@ai_stories_bp.route('/stories/generate', methods=['POST', 'OPTIONS'])
+@ai_stories_bp.route('/story', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 def generate_story():
     """Generate a personalized AI story"""
@@ -114,7 +114,7 @@ def generate_story():
                 'category': 'calming',
                 'duration': 180,  # 3 minutes
                 'isFavorite': False,
-                'createdAt': datetime.utcnow().isoformat(),
+                'createdAt': datetime.now(timezone.utc).isoformat(),
                 'ai_generated': False
             }
         else:
@@ -126,7 +126,7 @@ def generate_story():
                 'category': 'personalized',
                 'duration': 240,  # 4 minutes
                 'isFavorite': False,
-                'createdAt': datetime.utcnow().isoformat(),
+                'createdAt': datetime.now(timezone.utc).isoformat(),
                 'ai_generated': True,
                 'confidence': story_result.get('confidence', 0.8)
             }

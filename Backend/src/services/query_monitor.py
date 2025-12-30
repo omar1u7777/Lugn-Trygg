@@ -8,7 +8,7 @@ import threading
 import psutil
 from typing import Dict, List, Optional, Any, Tuple, Callable
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import json
 from firebase_admin import firestore
@@ -101,14 +101,14 @@ class QueryPerformanceMonitor:
             # CPU usage
             cpu_percent = psutil.cpu_percent(interval=1)
             self.system_metrics['cpu_percent'].append({
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': cpu_percent
             })
 
             # Memory usage
             memory = psutil.virtual_memory()
             self.system_metrics['memory_percent'].append({
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': memory.percent
             })
 
@@ -117,11 +117,11 @@ class QueryPerformanceMonitor:
                 disk_io = psutil.disk_io_counters()
                 if disk_io:
                     self.system_metrics['disk_read_bytes'].append({
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'value': disk_io.read_bytes
                     })
                     self.system_metrics['disk_write_bytes'].append({
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'value': disk_io.write_bytes
                     })
             except:
@@ -132,11 +132,11 @@ class QueryPerformanceMonitor:
                 net_io = psutil.net_io_counters()
                 if net_io:
                     self.system_metrics['network_bytes_sent'].append({
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'value': net_io.bytes_sent
                     })
                     self.system_metrics['network_bytes_recv'].append({
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'value': net_io.bytes_recv
                     })
             except:
@@ -150,7 +150,7 @@ class QueryPerformanceMonitor:
 
     def _check_system_thresholds(self, cpu_percent: float, memory_percent: float):
         """Check system metrics against thresholds"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if cpu_percent > self.alert_thresholds['high_cpu_percent']:
             self._create_alert('high_cpu', f'CPU usage at {cpu_percent:.1f}%', 'warning')
@@ -171,7 +171,7 @@ class QueryPerformanceMonitor:
             'query_details': query_details,
             'start_time': time.time(),
             'thread_id': threading.get_ident(),
-            'start_timestamp': datetime.utcnow()
+            'start_timestamp': datetime.now(timezone.utc)
         }
 
     def complete_query(self, query_id: str, result_count: int = 0, error: Optional[str] = None):
@@ -190,7 +190,7 @@ class QueryPerformanceMonitor:
             'execution_time_ms': execution_time_ms,
             'result_count': result_count,
             'error': error,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'query_details': query_info['query_details'],
             'thread_id': query_info['thread_id']
         }
@@ -307,7 +307,7 @@ class QueryPerformanceMonitor:
 
     def _cleanup_old_data(self):
         """Clean up old monitoring data"""
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         # Clean old alerts (keep last 100)
         if len(self.alerts) > 100:
@@ -327,7 +327,7 @@ class QueryPerformanceMonitor:
             'type': alert_type,
             'message': message,
             'severity': severity,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'resolved': False
         }
 
@@ -381,7 +381,7 @@ class QueryPerformanceMonitor:
                 'avg_response_time': stats['avg_time'],
                 'slow_queries': stats['slow_queries'],
                 'error_rate': (stats['error_count'] / stats['total_queries']) * 100 if stats['total_queries'] > 0 else 0,
-                'throughput': stats['total_queries'] / ((datetime.utcnow() - stats['last_query']).total_seconds() / 3600) if stats['last_query'] else 0
+                'throughput': stats['total_queries'] / ((datetime.now(timezone.utc) - stats['last_query']).total_seconds() / 3600) if stats['last_query'] else 0
             }
 
         # Generate recommendations
@@ -440,7 +440,7 @@ class QueryPerformanceMonitor:
             filename = f"performance_report_{int(time.time())}.json"
 
         data = {
-            'export_timestamp': datetime.utcnow().isoformat(),
+            'export_timestamp': datetime.now(timezone.utc).isoformat(),
             'performance_report': self.get_performance_report(),
             'raw_history': list(self.performance_history),
             'system_metrics': dict(self.system_metrics),

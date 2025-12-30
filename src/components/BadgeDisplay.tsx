@@ -3,27 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { getMoods } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Chip,
-  LinearProgress,
-  Paper,
-  Avatar,
-  Badge as MuiBadge,
-} from '@mui/material';
-import {
-  EmojiEvents as TrophyIcon,
-  Whatshot as StreakIcon,
-  Star as StarIcon,
-  Psychology as MindIcon,
-  Favorite as HeartIcon,
-  TrendingUp as TrendingIcon,
-  CheckCircle as CheckIcon,
-  Lock as LockIcon,
-} from '@mui/icons-material';
+import { LockClosedIcon } from '@heroicons/react/24/outline';
 
 interface Badge {
   id: string;
@@ -180,7 +160,12 @@ const BadgeDisplay: React.FC = () => {
     calculateBadges();
   }, [user?.user_id, t]);
 
-  const calculateCurrentStreak = (moods: any[]): number => {
+  interface MoodEntry {
+    timestamp: any; // Firestore Timestamp or Date
+    [key: string]: any;
+  }
+
+  const calculateCurrentStreak = (moods: MoodEntry[]): number => {
     if (moods.length === 0) return 0;
 
     const sortedMoods = moods.sort((a, b) => {
@@ -210,7 +195,7 @@ const BadgeDisplay: React.FC = () => {
     return streak;
   };
 
-  const calculateLongestStreak = (moods: any[]): number => {
+  const calculateLongestStreak = (moods: MoodEntry[]): number => {
     if (moods.length === 0) return 0;
 
     const sortedMoods = moods.sort((a, b) => {
@@ -317,7 +302,7 @@ const BadgeDisplay: React.FC = () => {
                     ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-lg'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                 }`}>
-                  {badge.earned ? badge.icon : <LockIcon />}
+                  {badge.earned ? badge.icon : <LockClosedIcon className="w-5 h-5" />}
                 </div>
 
                 <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">

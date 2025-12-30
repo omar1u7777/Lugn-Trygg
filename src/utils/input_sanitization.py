@@ -18,12 +18,29 @@ class InputSanitizer:
     """Comprehensive input sanitization and validation"""
 
     def __init__(self):
-        # XSS prevention patterns
+        # XSS prevention patterns - Enhanced for all attack vectors
         self.xss_patterns = [
+            # Script tags and includes
             r'<script[^>]*>.*?</script>',
+            r'<script[^>]*>',
+
+            # JavaScript/VBScript protocols
             r'javascript:',
             r'vbscript:',
+            r'data:',
+
+            # Event handlers
             r'on\w+\s*=',
+            r'onload\s*=',
+            r'onerror\s*=',
+            r'onclick\s*=',
+            r'onmouseover\s*=',
+            r'onmouseout\s*=',
+            r'onkeydown\s*=',
+            r'onkeyup\s*=',
+            r'onkeypress\s*=',
+
+            # HTML elements that can execute code
             r'<iframe[^>]*>.*?</iframe>',
             r'<object[^>]*>.*?</object>',
             r'<embed[^>]*>.*?</embed>',
@@ -31,6 +48,21 @@ class InputSanitizer:
             r'<input[^>]*>',
             r'<meta[^>]*>',
             r'<link[^>]*>',
+            r'<img[^>]*>',
+            r'<svg[^>]*>.*?</svg>',
+            r'<math[^>]*>.*?</math>',
+
+            # Style-based XSS
+            r'style\s*=\s*["\'][^"\']*expression\s*\(',
+            r'style\s*=\s*["\'][^"\']*javascript:',
+            r'style\s*=\s*["\'][^"\']*vbscript:',
+
+            # Base64 encoded scripts
+            r'base64,',
+
+            # XML/XHTML attack vectors
+            r'<!\[CDATA\[.*?\]\]>',
+            r'<\?xml-stylesheet.*?>',
         ]
 
         # SQL injection patterns (additional to Pydantic validation)
@@ -56,7 +88,6 @@ class InputSanitizer:
             'tags': ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                     'ul', 'ol', 'li', 'blockquote', 'code', 'pre'],
             'attributes': {},
-            'styles': [],
             'strip': True,
             'strip_comments': True,
         }
@@ -168,7 +199,6 @@ class InputSanitizer:
                 html_content,
                 tags=self.bleach_config['tags'],
                 attributes=self.bleach_config['attributes'],
-                styles=self.bleach_config['styles'],
                 strip=self.bleach_config['strip'],
                 strip_comments=self.bleach_config['strip_comments']
             )

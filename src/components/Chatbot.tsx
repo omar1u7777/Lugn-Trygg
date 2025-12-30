@@ -5,7 +5,7 @@ import useAuth from '../hooks/useAuth';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
+  timestamp: Date;
   emotions_detected?: string[];
   suggested_actions?: string[];
   crisis_detected?: boolean;
@@ -78,12 +78,33 @@ const Chatbot: React.FC = () => {
   useEffect(() => {
     if (user?.user_id) {
       loadChatHistory();
+    } else {
+      setMessages([]);
     }
-  }, [user]);
+  }, [user?.user_id]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const normalizeMessage = (msg: any): Message => {
+    const rawTimestamp = msg?.timestamp;
+    const timestamp = rawTimestamp?.toDate
+      ? rawTimestamp.toDate()
+      : new Date(rawTimestamp || Date.now());
+
+    return {
+      role: msg?.role === 'user' ? 'user' : 'assistant',
+      content: msg?.content || msg?.message || '',
+      timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
+      emotions_detected: msg?.emotions_detected,
+      suggested_actions: msg?.suggested_actions,
+      crisis_detected: msg?.crisis_detected,
+      crisis_analysis: msg?.crisis_analysis,
+      ai_generated: msg?.ai_generated,
+      model_used: msg?.model_used,
+    };
+  };
 
   const loadChatHistory = async () => {
     if (!user?.user_id) {
@@ -92,7 +113,8 @@ const Chatbot: React.FC = () => {
 
     try {
       const history = await getChatHistory(user.user_id);
-      setMessages(history);
+      const normalizedHistory = (history || []).map(normalizeMessage);
+      setMessages(normalizedHistory);
     } catch (error: any) {
       console.error('Failed to load chat history:', error);
     }
@@ -103,10 +125,11 @@ const Chatbot: React.FC = () => {
       return;
     }
 
+    const timestamp = new Date();
     const userMessage: Message = {
       role: 'user',
       content: inputMessage,
-      timestamp: new Date().toISOString(),
+      timestamp,
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -119,7 +142,7 @@ const Chatbot: React.FC = () => {
       const aiMessage: Message = {
         role: 'assistant',
         content: response.response,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         emotions_detected: response.emotions_detected,
         suggested_actions: response.suggested_actions,
         crisis_detected: response.crisis_detected,

@@ -1,33 +1,7 @@
 import React, { useState } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { 
-    Box, 
-    Container, 
-    Typography, 
-    Button, 
-    TextField, 
-    Paper, 
-    Grid, 
-    Alert,
-    FormControlLabel,
-    Checkbox,
-    CircularProgress,
-    ButtonGroup,
-    Rating,
-    Card,
-    CardContent,
-    Link as MuiLink,
-    useTheme
-} from '@mui/material';
-import { 
-    Send as SendIcon, 
-    History as HistoryIcon, 
-    Edit as EditIcon,
-    Email as EmailIcon,
-    Help as HelpIcon,
-    Chat as ChatIcon,
-    Phone as PhoneIcon
-} from '@mui/icons-material';
+import { Button, Card, Alert, Input } from '../ui/tailwind';
+import { PaperAirplaneIcon, ClockIcon, PencilIcon, StarIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import FeedbackHistory from './FeedbackHistory';
@@ -102,9 +76,12 @@ const FeedbackForm: React.FC = () => {
                 });
                 setSubmitted(false);
             }, 3000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to submit feedback:', err);
-            setError(err.response?.data?.message || 'Något gick fel vid inlämnandet. Försök igen.');
+            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'message' in err.response.data
+                ? String(err.response.data.message)
+                : 'Något gick fel vid inlämnandet. Försök igen.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -116,272 +93,257 @@ const FeedbackForm: React.FC = () => {
 
     if (submitted) {
         return (
-            <Container maxWidth="sm">
-                <Paper 
-                    elevation={3}
-                    sx={{ 
-                        p: spacing.xl, 
-                        textAlign: 'center',
-                        bgcolor: 'success.light',
-                        color: 'success.contrastText'
-                    }}
-                >
-                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>✅</Typography>
-                    <Typography variant="h4" fontWeight="bold" gutterBottom>
+            <div className="min-h-screen flex items-center justify-center px-4 py-12">
+                <Card className="max-w-md w-full p-8 text-center shadow-xl">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                         Tack för din feedback!
-                    </Typography>
-                    <Typography variant="body1" sx={{ mb: spacing.lg }}>
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
                         Din feedback hjälper oss att göra Lugn & Trygg bättre för alla användare.
-                    </Typography>
+                    </p>
                     <Button
-                        variant="contained"
-                        color="success"
-                        size="large"
+                        variant="success"
+                        size="lg"
                         onClick={() => setSubmitted(false)}
+                        className="w-full"
                     >
                         Skicka mer feedback
                     </Button>
-                </Paper>
-            </Container>
+                </Card>
+            </div>
         );
     }
 
-    const theme = useTheme();
-
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <div className="max-w-7xl mx-auto px-4 py-8">
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
-                <Typography variant="h3" fontWeight="bold" gutterBottom>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-gray-100">
                     💬 Feedback
-                </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: spacing.md }}>
+                </h1>
+                <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
                     Din åsikt är viktig för oss! Dela dina tankar, förslag eller rapportera problem.
-                </Typography>
+                </p>
                 
                 {/* Toggle History Button */}
                 <Button
-                    variant={showHistory ? "outlined" : "contained"}
-                    color="primary"
-                    startIcon={showHistory ? <EditIcon /> : <HistoryIcon />}
+                    variant={showHistory ? "outline" : "primary"}
                     onClick={() => setShowHistory(!showHistory)}
-                    sx={{ mt: spacing.md }}
+                    className="flex items-center gap-2"
                 >
-                    {showHistory ? '✍️ Ny feedback' : '📜 Visa min historik'}
+                    {showHistory ? (
+                        <>
+                            <PencilIcon className="w-5 h-5" />
+                            ✍️ Ny feedback
+                        </>
+                    ) : (
+                        <>
+                            <ClockIcon className="w-5 h-5" />
+                            📜 Visa min historik
+                        </>
+                    )}
                 </Button>
-            </Box>
+            </div>
 
             {/* Show history or form */}
             {showHistory ? (
                 <FeedbackHistory />
             ) : (
-                <Box>
+                <div className="space-y-6">
                     {/* Error Message */}
                     {error && (
-                        <Alert severity="error" sx={{ mb: spacing.lg }}>
+                        <Alert variant="error">
                             {error}
                         </Alert>
                     )}
 
             {/* Main Form */}
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+            <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Category Selection */}
-                <Paper elevation={2} sx={{ p: spacing.lg }}>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Card className="p-6">
+                    <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                         📁 Kategori
-                    </Typography>
-                    <Grid container spacing={2}>
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {categories.map((cat) => (
-                            <Grid item xs={6} md={4} key={cat.value}>
-                                <Button
-                                    fullWidth
-                                    variant={feedback.category === cat.value ? "contained" : "outlined"}
-                                    color={feedback.category === cat.value ? "primary" : "inherit"}
-                                    onClick={() => setFeedback({ ...feedback, category: cat.value })}
-                                    sx={{ 
-                                        height: '100%',
-                                        py: spacing.md,
-                                        flexDirection: 'column',
-                                        gap: spacing.sm
-                                    }}
-                                >
-                                    <Typography variant="h4">{cat.emoji}</Typography>
-                                    <Typography variant="body2" fontWeight="medium">
-                                        {cat.label.replace(cat.emoji + ' ', '')}
-                                    </Typography>
-                                </Button>
-                            </Grid>
+                            <Button
+                                key={cat.value}
+                                type="button"
+                                variant={feedback.category === cat.value ? "primary" : "outline"}
+                                onClick={() => setFeedback({ ...feedback, category: cat.value })}
+                                className="flex flex-col items-center justify-center py-4 h-auto"
+                            >
+                                <span className="text-4xl mb-2">{cat.emoji}</span>
+                                <span className="text-sm font-medium">
+                                    {cat.label.replace(cat.emoji + ' ', '')}
+                                </span>
+                            </Button>
                         ))}
-                    </Grid>
-                </Paper>
+                    </div>
+                </Card>
 
                 {/* Rating */}
-                <Paper elevation={2} sx={{ p: spacing.lg }}>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Card className="p-6">
+                    <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                         ⭐ Hur nöjd är du med Lugn & Trygg?
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                        <Rating
-                            value={feedback.rating}
-                            onChange={(event, newValue) => {
-                                if (newValue !== null) {
-                                    setFeedback({ ...feedback, rating: newValue });
-                                }
-                            }}
-                            size="large"
-                            sx={{ fontSize: '3rem' }}
-                        />
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                    </h2>
+                    <div className="flex justify-center gap-2 mb-4">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleRatingClick(star)}
+                                className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                            >
+                                {star <= feedback.rating ? (
+                                    <StarIconSolid className="w-10 h-10 text-yellow-400" />
+                                ) : (
+                                    <StarIcon className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-sm text-center text-gray-600 dark:text-gray-400">
                         {feedback.rating === 1 && 'Mycket missnöjd'}
                         {feedback.rating === 2 && 'Missnöjd'}
                         {feedback.rating === 3 && 'Okej'}
                         {feedback.rating === 4 && 'Nöjd'}
                         {feedback.rating === 5 && 'Mycket nöjd'}
-                    </Typography>
-                </Paper>
+                    </p>
+                </Card>
 
                 {/* Message */}
-                <Paper elevation={2} sx={{ p: spacing.lg }}>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Card className="p-6">
+                    <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                         ✍️ Ditt meddelande
-                    </Typography>
-                    <TextField
-                        fullWidth
-                        multiline
+                    </h2>
+                    <textarea
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                         rows={6}
                         value={feedback.message}
                         onChange={(e) => setFeedback({ ...feedback, message: e.target.value })}
                         placeholder="Berätta vad du tycker, föreslå förbättringar eller rapportera problem..."
                         required
-                        inputProps={{ maxLength: 1000 }}
+                        maxLength={1000}
                     />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: 'block' }}>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
                         {feedback.message.length}/1000 tecken
-                    </Typography>
-                </Paper>
+                    </p>
+                </Card>
 
                 {/* Contact Info */}
-                <Paper elevation={2} sx={{ p: spacing.lg }}>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={feedback.allowContact}
-                                onChange={(e) => setFeedback({ ...feedback, allowContact: e.target.checked })}
-                                color="primary"
-                            />
-                        }
-                        label={
-                            <Box>
-                                <Typography fontWeight="bold">Jag vill bli kontaktad</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Vi kanske behöver mer information om din feedback
-                                </Typography>
-                            </Box>
-                        }
-                    />
+                <Card className="p-6">
+                    <label className="flex items-start gap-3 cursor-pointer mb-4">
+                        <input
+                            type="checkbox"
+                            checked={feedback.allowContact}
+                            onChange={(e) => setFeedback({ ...feedback, allowContact: e.target.checked })}
+                            className="w-5 h-5 mt-1 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary"
+                        />
+                        <div>
+                            <p className="font-bold text-gray-900 dark:text-gray-100">
+                                Jag vill bli kontaktad
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Vi kanske behöver mer information om din feedback
+                            </p>
+                        </div>
+                    </label>
                     
                     {feedback.allowContact && (
-                        <TextField
-                            fullWidth
-                            type="email"
-                            label="📧 E-postadress"
-                            value={feedback.email}
-                            onChange={(e) => setFeedback({ ...feedback, email: e.target.value })}
-                            placeholder="din.email@exempel.se"
-                            sx={{ mt: spacing.md }}
-                        />
+                        <div>
+                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                                📧 E-postadress
+                            </label>
+                            <Input
+                                type="email"
+                                value={feedback.email}
+                                onChange={(e) => setFeedback({ ...feedback, email: e.target.value })}
+                                placeholder="din.email@exempel.se"
+                                className="w-full"
+                            />
+                        </div>
                     )}
-                </Paper>
+                </Card>
 
                 {/* Submit Button */}
-                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="flex justify-center">
                     <Button
                         type="submit"
-                        variant="contained"
-                        color="primary"
-                        size="large"
+                        variant="primary"
+                        size="lg"
                         disabled={loading}
-                        startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-                        sx={{ 
-                            px: 4, 
-                            py: 1.5,
-                            fontSize: '1.1rem',
-                            fontWeight: 'bold'
-                        }}
+                        className="flex items-center gap-2 px-8"
                     >
-                        {loading ? 'Skickar...' : '📤 Skicka feedback'}
+                        {loading ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Skickar...
+                            </>
+                        ) : (
+                            <>
+                                <PaperAirplaneIcon className="w-5 h-5" />
+                                📤 Skicka feedback
+                            </>
+                        )}
                     </Button>
-                </Box>
-            </Box>
+                </div>
+            </form>
 
             {/* Quick Actions */}
-            <Grid container spacing={2} sx={{ mt: spacing.xl }}>
-                <Grid item xs={12} md={4}>
-                    <Card sx={{ height: '100%', bgcolor: 'info.light' }}>
-                        <CardContent>
-                            <Typography variant="h3" sx={{ mb: spacing.md }}>📚</Typography>
-                            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                                Hjälpcenter
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: spacing.md }}>
-                                Hitta svar på vanliga frågor
-                            </Typography>
-                            <MuiLink 
-                                href="https://github.com/omar1u7777/Lugn-Trygg/wiki" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                underline="hover"
-                                fontWeight="medium"
-                            >
-                                Besök hjälpcenter →
-                            </MuiLink>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                    <Card sx={{ height: '100%', bgcolor: 'success.light' }}>
-                        <CardContent>
-                            <Typography variant="h3" sx={{ mb: spacing.md }}>💬</Typography>
-                            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                                Live Chat
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: spacing.md }}>
-                                Chatta med vårt AI support-team
-                            </Typography>
-                            <Button
-                                onClick={() => window.location.href = '/chatbot'}
-                                sx={{ p: 0, textTransform: 'none', fontWeight: 'medium' }}
-                            >
-                                Starta chatt →
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                    <Card sx={{ height: '100%', bgcolor: 'secondary.light' }}>
-                        <CardContent>
-                            <Typography variant="h3" sx={{ mb: spacing.md }}>📞</Typography>
-                            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                                Kontakt
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: spacing.md }}>
-                                Skicka ett email till oss
-                            </Typography>
-                            <MuiLink 
-                                href="mailto:support@lugn-trygg.se"
-                                underline="hover"
-                                fontWeight="medium"
-                            >
-                                support@lugn-trygg.se →
-                            </MuiLink>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-            </Box>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                <Card className="p-6 text-center">
+                    <div className="text-4xl mb-3">📚</div>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                        Hjälpcenter
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Hitta svar på vanliga frågor
+                    </p>
+                    <a 
+                        href="https://github.com/omar1u7777/Lugn-Trygg/wiki" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                    >
+                        Besök hjälpcenter →
+                    </a>
+                </Card>
+                <Card className="p-6 text-center">
+                    <div className="text-4xl mb-3">💬</div>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                        Live Chat
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Chatta med vårt AI support-team
+                    </p>
+                    <Button
+                        variant="outline"
+                        onClick={() => window.location.href = '/chatbot'}
+                    >
+                        Starta chatt →
+                    </Button>
+                </Card>
+                <Card className="p-6 text-center">
+                    <div className="text-4xl mb-3">📞</div>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                        Kontakt
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Skicka ett email till oss
+                    </p>
+                    <a 
+                        href="mailto:support@lugn-trygg.se"
+                        className="text-primary hover:underline font-medium"
+                    >
+                        support@lugn-trygg.se →
+                    </a>
+                </Card>
+            </div>
+            </div>
             )}
-        </Container>
+        </div>
     );
 };
 

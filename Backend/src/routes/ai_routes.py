@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 from src.firebase_config import db
+from src.services.auth_service import AuthService
 
 ai_bp = Blueprint("ai", __name__)
 logger = logging.getLogger(__name__)
@@ -187,10 +188,12 @@ def predictive_mood_forecast():
 
 # 🔹 Get User's Story History
 @ai_bp.route("/stories", methods=["GET"])
+@AuthService.jwt_required
 def get_story_history():
     """Get user's generated therapeutic stories history"""
     try:
-        user_id = request.args.get("user_id", "").strip()
+        # Get user_id from JWT (set by jwt_required decorator)
+        user_id = getattr(request, 'user_id', None) or request.args.get("user_id", "").strip()
         if not user_id:
             return jsonify({"error": "Användar-ID krävs!"}), 400
 
@@ -220,10 +223,12 @@ def get_story_history():
 
 # 🔹 Get User's Forecast History
 @ai_bp.route("/forecasts", methods=["GET"])
+@AuthService.jwt_required
 def get_forecast_history():
     """Get user's mood forecast history"""
     try:
-        user_id = request.args.get("user_id", "").strip()
+        # Get user_id from JWT (set by jwt_required decorator)
+        user_id = getattr(request, 'user_id', None) or request.args.get("user_id", "").strip()
         if not user_id:
             return jsonify({"error": "Användar-ID krävs!"}), 400
 
@@ -253,27 +258,44 @@ def get_forecast_history():
 
 # 🔹 AI Chat Endpoint - NYTT för load test
 @ai_bp.route("/chat", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
 def ai_chat():
-    """AI chatbot conversation endpoint"""
+    """AI chatbot conversation endpoint with wellness goal context"""
     if request.method == 'OPTIONS':
         return '', 204
     try:
         data = request.get_json(force=True, silent=False)
-        user_id = data.get("user_id", "").strip()
+        # Get user_id from JWT (set by jwt_required decorator), fallback to request body
+        user_id = getattr(request, 'user_id', None) or data.get("user_id", "").strip()
         message = data.get("message", "").strip()
         
         if not user_id or not message:
             return jsonify({"error": "user_id och message krävs"}), 400
         
+        # Get user's wellness goals for personalization
+        user_ref = db.collection("users").document(user_id)
+        user_doc = user_ref.get()
+        wellness_goals = []
+        
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            wellness_goals = user_data.get("wellness_goals", [])
+            logger.info(f"🎯 User wellness goals: {wellness_goals}")
+        
         # Simple AI response (implementera med OpenAI senare)
         from src.utils.ai_services import ai_services
         
         try:
-            response = ai_services.generate_chat_response(message, user_id)
-        except Exception:
-            # Fallback response
+            response = ai_services.generate_chat_response(message, user_id, wellness_goals=wellness_goals)
+        except Exception as e:
+            logger.warning(f"AI response generation failed: {e}, using fallback")
+            # Fallback response - personalized based on goals
+            goal_context = ""
+            if wellness_goals:
+                goal_context = f" Jag ser att du arbetar med: {', '.join(wellness_goals)}."
+            
             response = {
-                "message": f"Tack för ditt meddelande. Jag förstår att du säger: '{message[:50]}...'",
+                "message": f"Tack för ditt meddelande.{goal_context} Hur kan jag stötta dig idag?",
                 "sentiment": "NEUTRAL",
                 "suggestions": ["Berätta mer", "Hur känner du dig nu?", "Vill du prata om något specifikt?"]
             }
@@ -302,13 +324,15 @@ def ai_chat():
 
 # 🔹 AI Chat History - NYTT för load test
 @ai_bp.route("/history", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
 def ai_chat_history():
     """Get user's chat history"""
     if request.method == 'OPTIONS':
         return '', 204
     try:
-        data = request.get_json(force=True, silent=False)
-        user_id = data.get("user_id", "").strip()
+        data = request.get_json(force=True, silent=False) if request.data else {}
+        # Get user_id from JWT (set by jwt_required decorator), fallback to request body
+        user_id = getattr(request, 'user_id', None) or data.get("user_id", "").strip()
         
         if not user_id:
             return jsonify({"error": "user_id krävs"}), 400

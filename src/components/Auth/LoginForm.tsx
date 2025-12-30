@@ -1,129 +1,182 @@
-import { useState, useEffect } from "react"
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
+import { useState, useCallback } from "react"
 import { Link } from "react-router-dom";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { Box, Typography, IconButton, Divider, Alert } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { loginUser, api } from "../../api/api";
+import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { loginUser, api } from "../../api/index";
 import { useAuth } from "../../contexts/AuthContext";
-import { auth as firebaseAuth } from "../../firebase-config";
+import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
 import ForgotPassword from "./ForgotPassword";
-import { Card } from "../ui/Card";
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
+import { Card } from "../ui/tailwind/Card";
+import { Input } from "../ui/tailwind/Input";
+import { Button } from "../ui/tailwind/Button";
+import { Alert } from "../ui/tailwind/Feedback";
+import { Typography } from "../ui/tailwind/Typography";
+import { Divider } from "../ui/tailwind/Display";
 import { LoadingSpinner } from "../LoadingStates";
 import { useAccessibility } from "../../hooks/useAccessibility";
-import AccessibleDialog from "../Accessibility/AccessibleDialog";
+import { usePasswordToggle } from "../../hooks/usePasswordToggle";
 import { ScreenReaderAnnouncer } from "../Accessibility/ScreenReader";
+
+// Constants for messages and strings
+const MESSAGES = {
+  LOGIN_SUCCESS: "Inloggning lyckades",
+  LOGIN_FAILED: "Inloggning misslyckades",
+  GOOGLE_LOGIN_SUCCESS: "Google-inloggning lyckades",
+  GOOGLE_LOGIN_FAILED: "Google-inloggning misslyckades",
+  DEFAULT_ERROR: "Ett fel uppstod vid inloggning",
+  LOGGING_IN: "Loggar in...",
+  LOGGING_IN_GOOGLE: "Loggar in med Google...",
+  INVALID_EMAIL: "Ange en giltig e-postadress",
+  PASSWORD_REQUIRED: "Lösenord är obligatoriskt",
+} as const;
+
+// Helper function to extract error message from API errors
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === "object" && "response" in err) {
+    const response = (err as any).response;
+    if (response?.data?.error && typeof response.data.error === "string") {
+      return response.data.error;
+    }
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return MESSAGES.DEFAULT_ERROR;
+};
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
+  
+  // ✅ Använd custom hook istället för local state
+  const { showPassword, togglePassword } = usePasswordToggle();
+  
   const { login } = useAuth();
   const { announceToScreenReader } = useAccessibility();
 
+  // ✅ Memoize handlers för bättre performance
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  }, []);
+
+  // Validation function
+  const validateForm = (): boolean => {
+    const errors: { email?: string; password?: string } = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email.trim()) {
+      errors.email = MESSAGES.INVALID_EMAIL;
+    } else if (!emailRegex.test(email)) {
+      errors.email = MESSAGES.INVALID_EMAIL;
+    }
+
+    if (!password.trim()) {
+      errors.password = MESSAGES.PASSWORD_REQUIRED;
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (loading) return; // Prevent multiple submissions
+
+    if (!validateForm()) {
+      announceToScreenReader("Formuläret innehåller fel. Korrigera och försök igen.", "assertive");
+      return;
+    }
+
+    console.log('🔑 LOGIN - Form submitted', { email });
     setLoading(true);
     setError("");
+    setValidationErrors({});
 
-    announceToScreenReader("Loggar in...", "polite");
+    announceToScreenReader(MESSAGES.LOGGING_IN, "polite");
 
     try {
+      console.log('📝 LOGIN - Calling loginUser API...');
       const data = await loginUser(email, password);
+      console.log('✅ LOGIN - Success', { userId: data.user_id });
       login(data.access_token, email, data.user_id);
-      announceToScreenReader("Inloggning lyckades", "polite");
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || err.message;
+      announceToScreenReader(MESSAGES.LOGIN_SUCCESS, "polite");
+    } catch (err: unknown) {
+      console.error('❌ LOGIN - Failed:', err);
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
-      announceToScreenReader(`Inloggning misslyckades: ${errorMessage}`, "assertive");
+      announceToScreenReader(`${MESSAGES.LOGIN_FAILED}: ${errorMessage}`, "assertive");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (loading) return; // Prevent multiple submissions
+
+    console.log('🔑 LOGIN - Google sign-in initiated');
     setLoading(true);
     setError("");
+    setValidationErrors({});
 
-    announceToScreenReader("Loggar in med Google...", "polite");
+    announceToScreenReader(MESSAGES.LOGGING_IN_GOOGLE, "polite");
 
     try {
-      // Configure the provider to allow popups
+      const { firebaseAuth, authModule } = await loadFirebaseAuthBundle();
+      const { GoogleAuthProvider, signInWithPopup } = authModule;
+
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      provider.setCustomParameters({ prompt: 'select_account' });
 
       const result = await signInWithPopup(firebaseAuth, provider);
       const user = result.user;
 
-      // Add a small delay to ensure token is valid (Firebase timing issue)
+      // Delay to ensure token validity
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Send the Firebase ID token to our backend
       const idToken = await user.getIdToken();
-
-      // Use axios for consistency with other API calls
-      // Note: baseURL is http://localhost:54112, blueprint is /api/auth, so full path is /api/auth/google-login
-      const response = await api.post('/api/auth/google-login', {
-        id_token: idToken
-      });
+      const response = await api.post('/api/auth/google-login', { id_token: idToken });
 
       const data = response.data;
       login(data.access_token, user.email!, data.user_id);
-      announceToScreenReader("Google-inloggning lyckades", "polite");
-    } catch (err: any) {
+      announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
+    } catch (err: unknown) {
       console.error('Google sign-in error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Google-inloggning misslyckades';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
-      announceToScreenReader(`Google-inloggning misslyckades: ${errorMessage}`, "assertive");
+      announceToScreenReader(`${MESSAGES.GOOGLE_LOGIN_FAILED}: ${errorMessage}`, "assertive");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        px: 2,
-        py: 6,
-        background: (theme) =>
-          theme.palette.mode === "dark"
-            ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
-            : "linear-gradient(135deg, #eff6ff 0%, colors.text.inverse 50%, #faf5ff 100%)",
-      }}
+    <div 
+      className="px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 min-h-screen flex justify-center items-center bg-gradient-to-b from-[#fff7f0] to-[#fffaf5]"
       role="main"
       aria-labelledby="login-title"
     >
-      <Card sx={{ width: "100%", maxWidth: "md" }} elevation={3}>
-        <Box sx={{ textAlign: "center", mb: spacing.xl }}>
+      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg shadow-[0_20px_60px_rgba(47,42,36,0.08)] p-4 sm:p-6 md:p-8 border border-[#f2e4d4]">
+        <div className="text-center mb-6 sm:mb-8">
           <Typography
             id="login-title"
             variant="h4"
-            fontWeight="bold"
+            className="p-1.5 flex justify-center items-center gap-1.5 font-bold text-xl sm:text-2xl md:text-3xl text-[#2f2a24]"
             color="text.primary"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 1.5,
-            }}
           >
-            <Box component="span" sx={{ fontSize: "1.5rem" }} aria-hidden="true">
+            <span className="text-2xl" aria-hidden="true">
               🔐
-            </Box>
+            </span>
             Logga in
           </Typography>
-        </Box>
+        </div>
 
         {error && (
           <Alert
@@ -131,7 +184,7 @@ const LoginForm = () => {
             severity="error"
             role="alert"
             aria-live="assertive"
-            sx={{ mb: spacing.lg }}
+            className="mb-6"
             icon={<span style={{ fontSize: "1.125rem" }}>⚠️</span>}
           >
             {error}
@@ -139,10 +192,9 @@ const LoginForm = () => {
         )}
 
         <LoadingSpinner isLoading={loading} message="Loggar in...">
-          <Box
-            component="form"
+          <form
             onSubmit={handleSubmit}
-            sx={{ display: "flex", flexDirection: "column", gap: spacing.lg }}
+            className="flex flex-col gap-4 sm:gap-5 md:gap-6"
             role="form"
             aria-labelledby="login-title"
           >
@@ -152,97 +204,92 @@ const LoginForm = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
                 placeholder="Ange din e-postadress"
                 required
                 disabled={loading}
-                aria-describedby={error ? "login-error" : undefined}
-                aria-invalid={!!error}
+                aria-describedby={error || validationErrors.email ? "login-error email-error" : undefined}
+                aria-invalid={!!(error || validationErrors.email)}
               />
+              {validationErrors.email && (
+                <Typography variant="body2" color="error" className="mt-1 text-sm">
+                  {validationErrors.email}
+                </Typography>
+              )}
             </div>
 
             <div>
-              <Typography
-                component="label"
+              <label
                 htmlFor="password"
-                variant="body2"
-                fontWeight="medium"
-                color="text.primary"
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: spacing.sm,
-                  mb: spacing.sm,
-                }}
+                className="flex items-center text-sm font-medium text-gray-900 dark:text-gray-100"
               >
-                <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
+                <span className="text-primary" aria-hidden="true">
                   🔒
-                </Box>
+                </span>
                 Lösenord
-              </Typography>
-              <Box sx={{ position: "relative" }}>
+              </label>
+              <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   placeholder="Ange ditt lösenord"
                   required
                   disabled={loading}
-                  sx={{ pr: 6 }}
-                  aria-describedby={error ? "login-error" : undefined}
-                  aria-invalid={!!error}
+                  className="pr-12"
+                  aria-describedby={error || validationErrors.password ? "login-error password-error" : undefined}
+                  aria-invalid={!!(error || validationErrors.password)}
                 />
-                <IconButton
-                  onClick={() => setShowPassword(!showPassword)}
+                <button
+                  type="button"
+                  onClick={togglePassword}
                   disabled={loading}
                   title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                   aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                   aria-pressed={showPassword}
-                  sx={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
-                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </Box>
+                  {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
+              {validationErrors.password && (
+                <Typography variant="body2" color="error" className="mt-1 text-sm">
+                  {validationErrors.password}
+                </Typography>
+              )}
             </div>
 
             <Button
               type="submit"
-              variant="contained"
+              variant="primary"
+              size="lg"
               fullWidth
               loading={loading}
               disabled={loading}
+              className="min-h-[44px] sm:min-h-[48px]"
             >
-              <i className="fas fa-sign-in-alt mr-2"></i>
+              <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
               Logga in
             </Button>
-          </Box>
+          </form>
         </LoadingSpinner>
 
-        <Divider sx={{ my: 4 }}>
+        <Divider className="my-6 sm:my-8">
           <Typography variant="body2" color="text.secondary" fontWeight="medium">
             eller
           </Typography>
         </Divider>
 
         <Button
-          variant="outlined"
+          variant="outline"
+          size="lg"
           fullWidth
           onClick={handleGoogleSignIn}
           disabled={loading}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 1.5,
-          }}
+          className="p-3 sm:p-3.5 flex justify-center items-center gap-2 min-h-[44px] sm:min-h-[48px]"
         >
-          <svg style={{ width: "20px", height: "20px" }} viewBox="0 0 24 24">
+          <svg style={{ width: "20px", height: "20px" }} viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -251,44 +298,28 @@ const LoginForm = () => {
           Fortsätt med Google
         </Button>
 
-        <Box sx={{ mt: spacing.xl, textAlign: "center", display: "flex", flexDirection: "column", gap: spacing.sm }}>
-          <Typography variant="body2" color="text.secondary">
+        <div className="flex flex-col gap-3 sm:gap-4 text-center mt-6 sm:mt-8">
+          <Typography variant="body2" color="text.secondary" className="text-sm sm:text-base">
             Har du inget konto?{" "}
-            <Typography
-              component={Link}
+            <Link
               to="/register"
-              variant="body2"
-              color="primary"
-              fontWeight="semibold"
-              sx={{
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
+              className="text-primary-600 dark:text-primary-400 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
               aria-label="Gå till registreringssidan"
             >
               Registrera dig här
-            </Typography>
+            </Link>
           </Typography>
-          <Typography
-            component="button"
-            variant="body2"
-            color="primary"
-            fontWeight="semibold"
+          <button
+            type="button"
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
+            className="text-sm sm:text-base font-semibold text-primary-600 dark:text-primary-400 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
             aria-label="Öppna glömt lösenord-dialog"
             aria-haspopup="dialog"
-            sx={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              textDecoration: "none",
-              "&:hover": { textDecoration: "underline" },
-            }}
           >
             Glömt lösenord?
-          </Typography>
-        </Box>
+          </button>
+        </div>
       </Card>
 
       {/* Forgot Password Modal */}
@@ -298,7 +329,8 @@ const LoginForm = () => {
           onSuccess={() => setShowForgotPassword(false)}
         />
       )}
-    </Box>
+      <ScreenReaderAnnouncer message={""} />
+    </div>
   );
 };
 

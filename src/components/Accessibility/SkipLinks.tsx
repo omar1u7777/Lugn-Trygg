@@ -1,63 +1,57 @@
-import React from 'react';
-import { Box, Button } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { KeyboardArrowDown } from '@mui/icons-material';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SkipLink } from './SkipLink';
 
-const SkipLinkButton = styled(Button)(({ theme }) => ({
-  position: 'absolute',
-  top: '-40px',
-  left: '6px',
-  zIndex: 1000,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  padding: theme.spacing(1, 2),
-  borderRadius: theme.shape.borderRadius,
-  fontSize: '14px',
-  fontWeight: 600,
-  textTransform: 'none',
-  boxShadow: theme.shadows[4],
-  transition: theme.transitions.create(['top'], {
-    duration: theme.transitions.duration.short,
-  }),
-  '&:focus': {
-    top: '6px',
-  },
-  '&:hover': {
-    backgroundColor: theme.palette.primary.dark,
-  },
-}));
-
+/**
+ * Props for the SkipLinks component.
+ */
 interface SkipLinksProps {
+  /**
+   * Optional array of skip links. Each link should have an href (anchor) and label.
+   */
   links?: Array<{
     href: string;
     label: string;
   }>;
 }
 
-const SkipLinks: React.FC<SkipLinksProps> = ({
-  links = [
-    { href: '#main-content', label: 'Hoppa till huvudinnehåll' },
-    { href: '#navigation', label: 'Hoppa till navigation' },
-    { href: '#search', label: 'Hoppa till sök' },
-  ]
-}) => {
+/**
+ * Default fallback skip links used when no custom links are provided.
+ */
+const FALLBACK_LINKS = [
+  { href: '#main-content', labelKey: 'common.skipToContent', fallback: 'Hoppa till huvudinnehåll' },
+  { href: '#navigation', labelKey: 'common.skipToNavigation', fallback: 'Hoppa till navigation' },
+  { href: '#search', labelKey: 'common.skipToSearch', fallback: 'Hoppa till sök' },
+];
+
+/**
+ * SkipLinks component provides keyboard navigation shortcuts to important sections of the page.
+ * It renders a list of SkipLink components that allow users to skip to specific content areas.
+ */
+const SkipLinks: React.FC<SkipLinksProps> = ({ links }) => {
+  const { t } = useTranslation();
+
+  // Memoize the resolved links to avoid unnecessary recalculations on re-renders
+  const displayLinks = useMemo(() => {
+    if (links && Array.isArray(links) && links.length > 0) {
+      // Filter out invalid links and ensure href and label are strings
+      return links.filter(link => typeof link.href === 'string' && typeof link.label === 'string' && link.href.trim() && link.label.trim());
+    }
+    // Use fallback links with translated labels
+    return FALLBACK_LINKS.map(link => ({
+      href: link.href,
+      label: t(link.labelKey, link.fallback),
+    }));
+  }, [links, t]);
+
   return (
-    <Box sx={{ position: 'relative' }}>
-      {links.map((link, index) => (
-        <SkipLinkButton
-          key={link.href}
-          component="a"
-          href={link.href}
-          sx={{
-            left: index * 200 + 6, // Space them out horizontally
-          }}
-          endIcon={<KeyboardArrowDown />}
-          aria-label={`${link.label}. Tryck Enter för att hoppa.`}
-        >
+    <div aria-label={t('accessibility.skipLinksLabel', 'Tillgängliga genvägar')} className="flex gap-2">
+      {displayLinks.map((link) => (
+        <SkipLink key={link.href} targetId={link.href.slice(1)}>
           {link.label}
-        </SkipLinkButton>
+        </SkipLink>
       ))}
-    </Box>
+    </div>
   );
 };
 

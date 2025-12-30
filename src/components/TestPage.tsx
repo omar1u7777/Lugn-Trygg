@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { TestSuite } from './ui/TestSuite';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Card, Button, Input } from './ui/tailwind';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { LoadingSpinner } from './LoadingStates';
 
@@ -161,7 +159,7 @@ const TestPage: React.FC = () => {
                 Cards
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card elevation={1}>
+                <Card className="shadow-sm">
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">Low Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -169,7 +167,7 @@ const TestPage: React.FC = () => {
                     </p>
                   </div>
                 </Card>
-                <Card elevation={2}>
+                <Card className="shadow-md">
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">Medium Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -177,7 +175,7 @@ const TestPage: React.FC = () => {
                     </p>
                   </div>
                 </Card>
-                <Card elevation={3}>
+                <Card className="shadow-lg">
                   <div className="p-4">
                     <h4 className="font-semibold mb-2">High Elevation</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">

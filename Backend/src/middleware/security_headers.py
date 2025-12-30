@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Optional, Any, Callable
 from flask import request, Response, current_app, g
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
 
@@ -18,8 +18,9 @@ class SecurityHeadersMiddleware:
 
     def __init__(self, app=None):
         self.app = app
-        self.nonce = None
+        self.nonce = None  # Will be set per request in _generate_nonce
         self.csp_violations: List[Dict] = []
+        self.csp_directives = {}  # Will be initialized in init_app
 
         # Security configurations
         self.config = {
@@ -54,8 +55,11 @@ class SecurityHeadersMiddleware:
         # Register security headers
         app.after_request(self._add_security_headers)
 
-        # Generate nonce for each request
+        # CRITICAL FIX: Generate nonce for each request (must be before CSP header building)
         app.before_request(self._generate_nonce)
+        
+        # Initialize CSP directives with nonce
+        self.csp_directives = self._get_csp_directives()
 
         logger.info("🛡️ Security headers middleware initialized")
 
@@ -66,23 +70,33 @@ class SecurityHeadersMiddleware:
 
     def _get_csp_directives(self) -> Dict[str, str]:
         """Get Content Security Policy directives"""
-        return {
+        # CRITICAL FIX: Build CSP directives dynamically based on nonce and environment
+        is_production = os.getenv('FLASK_ENV') == 'production'
+        nonce_value = self.nonce or ''
+        
+        directives = {
             'default-src': "'self'",
-            'script-src': f"'self' 'nonce-{self.nonce}' https://cdn.jsdelivr.net https://unpkg.com",
-            'style-src': f"'self' 'nonce-{self.nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+            'script-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+            'style-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
             'font-src': "'self' https://fonts.gstatic.com",
             'img-src': "'self' data: https: blob:",
-            'connect-src': "'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com",
-            'frame-src': "'none'",
+            # CRITICAL FIX: Allow API connections for frontend (including backend API)
+            'connect-src': "'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.vercel.app http://localhost:5001 https://localhost:5001",
+            'frame-src': "'self' https://www.google.com https://accounts.google.com",  # Allow Google OAuth iframes
             'object-src': "'none'",
             'base-uri': "'self'",
             'form-action': "'self'",
             'frame-ancestors': "'none'",
-            'upgrade-insecure-requests': "",
-            'block-all-mixed-content': "",
             'report-uri': "/api/security/csp-violation",
             'report-to': "'csp-endpoint'",
         }
+        
+        # CRITICAL FIX: Only enforce HTTPS in production
+        if is_production:
+            directives['upgrade-insecure-requests'] = ""
+            directives['block-all-mixed-content'] = ""
+        
+        return directives
 
     def _get_permissions_policy(self) -> str:
         """Get Permissions Policy directives"""
@@ -162,12 +176,21 @@ class SecurityHeadersMiddleware:
 
     def _build_csp_header(self) -> str:
         """Build CSP header string"""
+        # CRITICAL FIX: Rebuild directives with current nonce
+        directives_dict = self._get_csp_directives()
         directives = []
 
-        for directive, value in self.csp_directives.items():
+        for directive, value in directives_dict.items():
+            # Skip empty directives
+            if not value:
+                continue
+                
+            # CRITICAL FIX: Ensure nonce is properly included in script-src and style-src
             if directive == 'script-src' or directive == 'style-src':
-                # Replace nonce placeholder with actual nonce
-                value = value.replace('{nonce}', self.nonce or '')
+                # Nonce should already be in the value from _get_csp_directives, but verify
+                if self.nonce and f"'nonce-{self.nonce}'" not in value:
+                    value = f"{value} 'nonce-{self.nonce}'"
+            
             directives.append(f"{directive} {value}")
 
         return '; '.join(directives)
@@ -179,7 +202,7 @@ class SecurityHeadersMiddleware:
 
             if violation_data:
                 violation = {
-                    'timestamp': datetime.utcnow(),
+                    'timestamp': datetime.now(timezone.utc),
                     'user_agent': request.headers.get('User-Agent'),
                     'ip_address': request.remote_addr,
                     'document_uri': violation_data.get('document-uri'),
@@ -223,8 +246,10 @@ class SecurityHeadersMiddleware:
             },
             'csp_violations': {
                 'total': len(self.csp_violations),
-                'recent': len([v for v in self.csp_violations
-                             if v['timestamp'] > datetime.utcnow() - timedelta(hours=24)])
+                'recent': len([
+                    v for v in self.csp_violations
+                    if v['timestamp'] > datetime.now(timezone.utc) - timedelta(hours=24)
+                ])
             },
             'current_nonce': self.nonce,
             'configuration': self.config

@@ -1,0 +1,16 @@
+// Re-export everything from the modular API files
+export * from './auth';
+export * from './client';
+export * from './mood';
+export * from './dashboard';
+export * from './errors';
+export * from './logger';
+export * from './constants';
+export * from './notifications';
+export * from './journaling';
+export * from './meditation';
+export * from './onboarding';
+
+// Legacy exports for backward compatibility
+export { api as default } from './client';
+export { API_BASE_URL } from './client';

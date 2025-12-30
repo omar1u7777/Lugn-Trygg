@@ -1,6 +1,7 @@
 ﻿import logging
 import os
 import re
+import time
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 import json
@@ -13,6 +14,13 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Import audit service for compliance logging
+try:
+    from src.services.audit_service import audit_service
+except ImportError:
+    audit_service = None
+    logger.warning("Audit service not available for AI processing logging")
+
 # Import OpenAI exceptions for better error handling
 try:
     from openai import RateLimitError, APIError
@@ -23,6 +31,11 @@ except ImportError:
 class AIServices:
     """Advanced AI services for mental health and wellness app"""
 
+    # CRITICAL FIX: ML model cache with size limits to prevent memory exhaustion
+    _ml_cache = {}
+    _cache_ttl = 3600  # 1 hour
+    _max_cache_size = 1000  # Prevent memory exhaustion for 10k users
+
     def __init__(self):
         logger.info("🤖 Initializing AI Services...")
         self.client = None
@@ -30,6 +43,50 @@ class AIServices:
         self._openai_available = False
         self.google_nlp_available = self._check_google_nlp()
         logger.info(f"🤖 AI Services initialized - Google NLP: {self.google_nlp_available}, OpenAI: lazy loaded")
+
+    def _cleanup_ml_cache(self):
+        """Cleanup expired ML cache entries and enforce size limits"""
+        current_time = time.time()
+        total_cleaned = 0
+
+        # Remove expired entries
+        expired_keys = [
+            key for key, (_, timestamp) in self._ml_cache.items()
+            if current_time - timestamp > self._cache_ttl
+        ]
+        for key in expired_keys:
+            del self._ml_cache[key]
+        total_cleaned += len(expired_keys)
+
+        # Enforce size limit (LRU eviction)
+        if len(self._ml_cache) > self._max_cache_size:
+            # Sort by timestamp (oldest first) and remove excess
+            sorted_items = sorted(self._ml_cache.items(), key=lambda x: x[1][1])
+            excess_count = len(self._ml_cache) - self._max_cache_size
+            for key, _ in sorted_items[:excess_count]:
+                del self._ml_cache[key]
+            total_cleaned += excess_count
+
+        if total_cleaned > 0:
+            logger.info(f"🧹 ML cache cleanup: {total_cleaned} entries removed")
+
+    def _get_cached_ml_result(self, cache_key: str):
+        """Get cached ML result if valid"""
+        self._cleanup_ml_cache()
+        if cache_key in self._ml_cache:
+            data, timestamp = self._ml_cache[cache_key]
+            if time.time() - timestamp < self._cache_ttl:
+                logger.info(f"✅ ML cache hit for {cache_key}")
+                return data
+            else:
+                del self._ml_cache[cache_key]
+        return None
+
+    def _set_cached_ml_result(self, cache_key: str, data):
+        """Cache ML result"""
+        self._cleanup_ml_cache()
+        self._ml_cache[cache_key] = (data, time.time())
+        logger.info(f"💾 ML result cached: {cache_key}")
 
     async def get_openai_client(self):
         """Lazy load OpenAI client asynchronously"""
@@ -148,6 +205,19 @@ class AIServices:
             "method": "google_nlp"
         }
 
+        # Audit logging for AI processing
+        if audit_service:
+            audit_service.log_event(
+                'AI_SENTIMENT_ANALYSIS',
+                'SYSTEM',  # No user context in this method
+                {
+                    'method': result.get('method', 'unknown'),
+                    'sentiment': result.get('sentiment'),
+                    'confidence': result.get('confidence', 0),
+                    'text_length': len(text) if text else 0
+                }
+            )
+
         logger.info(f"Google NLP sentiment analysis completed: {result['sentiment']} ({result['score']:.2f})")
         return result
 
@@ -176,7 +246,8 @@ Var noga med att returnera endast giltig JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=200,
-                temperature=0.3
+                temperature=0.3,
+                timeout=30  # CRITICAL FIX: Respect 30s timeout configuration for reliability
             )
 
             result_text = response.choices[0].message.content.strip()
@@ -324,6 +395,20 @@ Var noga med att returnera endast giltig JSON."""
 
             # Combine transcript and audio analysis for better accuracy
             combined_confidence = (transcript_analysis["confidence"] + voice_characteristics["confidence"]) / 2
+
+            # Audit logging for voice emotion analysis
+            if audit_service:
+                audit_service.log_event(
+                    'AI_VOICE_EMOTION_ANALYSIS',
+                    'SYSTEM',  # No user context in this method
+                    {
+                        'primary_emotion': transcript_analysis["emotions"][0] if transcript_analysis["emotions"] else "neutral",
+                        'confidence': combined_confidence,
+                        'transcript_sentiment': transcript_analysis["sentiment"],
+                        'audio_available': True,
+                        'transcript_length': len(transcript) if transcript else 0
+                    }
+                )
 
             return {
                 "primary_emotion": transcript_analysis["emotions"][0] if transcript_analysis["emotions"] else "neutral",
@@ -535,7 +620,8 @@ Var noga med att returnera endast giltig JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=500,
-                temperature=0.7
+                temperature=0.7,
+                timeout=30  # CRITICAL FIX: Respect 30s timeout configuration for reliability
             )
 
             recommendations = response.choices[0].message.content.strip()
@@ -682,7 +768,8 @@ Långsiktiga välbefinnande-strategier:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=400,
-                temperature=0.6
+                temperature=0.6,
+                timeout=30  # CRITICAL FIX: Respect 30s timeout configuration for reliability
             )
 
             insights = response.choices[0].message.content.strip()
@@ -990,14 +1077,25 @@ Långsiktiga välbefinnande-strategier:
     def predictive_mood_analytics(self, mood_history: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
         """
         Advanced predictive analytics for mood forecasting using ML techniques
+        CRITICAL FIX: Cache results to prevent memory exhaustion for 10k users
         """
+        # Create cache key based on mood history hash and parameters
+        cache_key = f"predictive_analytics:{hash(str(mood_history))}_{days_ahead}"
+
+        # Check cache first
+        cached_result = self._get_cached_ml_result(cache_key)
+        if cached_result:
+            return cached_result
+
         if len(mood_history) < 14:
-            return {
+            result = {
                 "forecast": "Otillräcklig data för prediktion",
                 "confidence": 0.0,
                 "risk_factors": [],
                 "recommendations": ["Logga fler humör för bättre prediktioner"]
             }
+            self._set_cached_ml_result(cache_key, result)
+            return result
 
         try:
             # Extract and prepare data
@@ -1073,7 +1171,7 @@ Långsiktiga välbefinnande-strategier:
             data_quantity = min(1.0, len(scores_array) / 60.0)  # More data = higher confidence
             confidence = (data_consistency + data_quantity) / 2.0
 
-            return {
+            result = {
                 "forecast": {
                     "next_week_average": float(np.mean(future_predictions)),
                     "trend_direction": "improving" if current_trend > 0.05 else "declining" if current_trend < -0.05 else "stable",
@@ -1091,6 +1189,10 @@ Långsiktiga välbefinnande-strategier:
                 "confidence": float(confidence),
                 "data_points_used": len(scores_array)
             }
+
+            # Cache the result to prevent memory exhaustion
+            self._set_cached_ml_result(cache_key, result)
+            return result
 
         except Exception as e:
             logger.error(f"Predictive analytics failed: {str(e)}")
@@ -1312,7 +1414,8 @@ Långsiktiga välbefinnande-strategier:
                 max_tokens=400,
                 temperature=0.7,
                 presence_penalty=0.1,
-                frequency_penalty=0.1
+                frequency_penalty=0.1,
+                timeout=30  # CRITICAL FIX: Respect 30s timeout configuration for reliability
             )
 
             ai_response = response.choices[0].message.content.strip()
@@ -1509,7 +1612,8 @@ Historien skal være på norsk, empatisk og støttende."""
                 ],
                 max_tokens=600,
                 temperature=0.8,
-                presence_penalty=0.3
+                presence_penalty=0.3,
+                timeout=30  # CRITICAL FIX: Respect 30s timeout configuration for reliability
             )
 
             story = response.choices[0].message.content.strip()

@@ -1,0 +1,30 @@
+<svg width="640" height="480" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Lugn &amp; Trygg Dashboard Hero</title>
+  <desc id="desc">Soft abstract gradient illustrating balance and calm.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d1fae5" />
+      <stop offset="50%" stop-color="#bfdbfe" />
+      <stop offset="100%" stop-color="#ede9fe" />
+    </linearGradient>
+    <linearGradient id="orb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#fb923c" stop-opacity="0.9" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" rx="48" fill="url(#bg)" />
+  <circle cx="520" cy="120" r="90" fill="url(#orb)" opacity="0.25" />
+  <circle cx="140" cy="80" r="70" fill="url(#orb)" opacity="0.15" />
+  <path d="M40 300 C160 260, 200 360, 320 320 C420 290, 460 360, 600 320 L600 480 L40 480 Z" fill="url(#wave)" opacity="0.85" />
+  <rect x="120" y="160" width="400" height="200" rx="32" fill="#fff" opacity="0.9" />
+  <rect x="150" y="190" width="160" height="20" rx="10" fill="#dbeafe" />
+  <rect x="150" y="226" width="260" height="18" rx="9" fill="#c7d2fe" />
+  <rect x="150" y="256" width="220" height="18" rx="9" fill="#d1fae5" />
+  <rect x="150" y="286" width="280" height="18" rx="9" fill="#fde68a" />
+  <circle cx="440" cy="210" r="42" fill="#fcd34d" opacity="0.85" />
+  <path d="M440 182 L448 210 L420 210 Z" fill="#f59e0b" opacity="0.9" />
+</svg>

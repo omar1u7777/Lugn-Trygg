@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/api';
+import { api } from '../../api/api';
 
 interface FeedbackWidgetProps {
     userId: string;
@@ -22,31 +22,49 @@ const FeedbackWidget: React.FC<FeedbackWidgetProps> = ({ userId }) => {
 
     const fetchStats = async () => {
         try {
+            setLoading(true);
             const response = await api.get(`/api/feedback/my-feedback?user_id=${userId}`);
-            const feedbackList = response.data.feedback || [];
+            const feedbackList = response.data?.feedback || [];
             
+            // CRITICAL FIX: Better error handling and null safety
             setStats({
-                totalFeedback: feedbackList.length,
-                lastFeedbackAt: feedbackList.length > 0 ? feedbackList[0].created_at : null
+                totalFeedback: feedbackList.length || 0,
+                lastFeedbackAt: feedbackList.length > 0 && feedbackList[0]?.created_at ? feedbackList[0].created_at : null
             });
-        } catch (err) {
+        } catch (err: unknown) {
+            // CRITICAL FIX: Better error handling
             console.error('Failed to fetch feedback stats:', err);
+            setStats({
+                totalFeedback: 0,
+                lastFeedbackAt: null
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const formatDate = (dateString: string | null) => {
+        // CRITICAL FIX: Handle null/undefined
+        if (!dateString) return 'Aldrig';
         
-        if (days === 0) return 'Idag';
-        if (days === 1) return 'Igår';
-        if (days < 7) return `${days} dagar sedan`;
-        if (days < 30) return `${Math.floor(days / 7)} veckor sedan`;
-        return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+        try {
+            const date = new Date(dateString);
+            // CRITICAL FIX: Check if date is valid
+            if (isNaN(date.getTime())) return 'Ogiltigt datum';
+            
+            const now = new Date();
+            const diff = now.getTime() - date.getTime();
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return 'Idag';
+            if (days === 1) return 'Igår';
+            if (days < 7) return `${days} dagar sedan`;
+            if (days < 30) return `${Math.floor(days / 7)} veckor sedan`;
+            return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+        } catch (error) {
+            console.error('Error formatting date:', dateString, error);
+            return 'Ogiltigt datum';
+        }
     };
 
     if (loading) {

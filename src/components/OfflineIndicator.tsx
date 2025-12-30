@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { Alert, Snackbar, Box, CircularProgress, Button } from '@mui/material';
-import CloudOffOutlinedIcon from '@mui/icons-material/CloudOffOutlined';
-import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
-import SyncIcon from '@mui/icons-material/Sync';
+import { CloudIcon, CloudArrowUpIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import offlineStorage from '../services/offlineStorage';
 
 interface OfflineIndicatorProps {
@@ -94,105 +90,84 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   };
 
   if (variant === 'snackbar') {
+    if (!showAlert || (!isOffline && !isSyncing)) return null;
+    
+    const bgClass = isSyncing 
+      ? 'bg-info-50 dark:bg-info-900/20 border-info-200 dark:border-info-800' 
+      : 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800';
+    
+    const iconClass = isSyncing 
+      ? 'text-info-600 dark:text-info-400' 
+      : 'text-warning-600 dark:text-warning-400';
+
     return (
-      <Snackbar
-        open={showAlert && (isOffline || isSyncing)}
-        autoHideDuration={isOffline ? null : 3000}
-        onClose={() => !isOffline && setShowAlert(false)}
-        anchorOrigin={{
-          vertical: position === 'top' ? 'top' : 'bottom',
-          horizontal: 'center',
-        }}
-        action={
-          <Button 
-            color="inherit" 
-            size="small" 
-            onClick={() => setShowAlert(false)}
-            aria-label="Dismiss offline status notification"
-          >
-            Close
-          </Button>
-        }
+      <div
+        className={`fixed ${position === 'top' ? 'top-4' : 'bottom-4'} left-1/2 -translate-x-1/2 z-50 min-w-[300px] max-w-md`}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
-        <Alert
-          severity={isSyncing ? 'info' : 'warning'}
-          icon={isSyncing ? <SyncIcon aria-hidden="true" /> : <CloudOffOutlinedIcon aria-hidden="true" />}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          sx={{
-            borderRadius: 1,
-            boxShadow: shadows.md,
-            minWidth: '300px',
-            animation: isSyncing ? 'spin 1s linear infinite' : 'none',
-            '@keyframes spin': {
-              '0%': { transform: 'rotate(0deg)' },
-              '100%': { transform: 'rotate(360deg)' },
-            },
-          }}
-        >
+        <div className={`${bgClass} border rounded-lg shadow-lg p-4 flex items-start gap-3`}>
           {isSyncing ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-              <CircularProgress size={16} sx={{ color: 'inherit' }} aria-hidden="true" />
-              <span>
-                Syncing {unsyncedCount} unsaved item{unsyncedCount !== 1 ? 's' : ''}...
-              </span>
-            </Box>
+            <CloudArrowUpIcon className={`h-6 w-6 ${iconClass} flex-shrink-0`} aria-hidden="true" />
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-              <span>You're offline</span>
-              {unsyncedCount > 0 && (
-                <span>• {unsyncedCount} item{unsyncedCount !== 1 ? 's' : ''} waiting to sync</span>
-              )}
-            </Box>
+            <CloudIcon className={`h-6 w-6 ${iconClass} flex-shrink-0`} aria-hidden="true" />
           )}
-        </Alert>
-      </Snackbar>
+          
+          <div className="flex-1 text-sm text-gray-900 dark:text-white">
+            {isSyncing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-info-300 border-t-info-600 rounded-full animate-spin" aria-hidden="true" />
+                <span>
+                  Syncing {unsyncedCount} unsaved item{unsyncedCount !== 1 ? 's' : ''}...
+                </span>
+              </div>
+            ) : (
+              <div>
+                <span className="font-medium">You're offline</span>
+                {unsyncedCount > 0 && (
+                  <span> • {unsyncedCount} item{unsyncedCount !== 1 ? 's' : ''} waiting to sync</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!isOffline && (
+            <button
+              onClick={() => setShowAlert(false)}
+              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 flex-shrink-0"
+              aria-label="Close notification"
+            >
+              <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
 
   // Badge variant for header
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: spacing.sm,
-        padding: '8px 12px',
-        borderRadius: 1,
-        backgroundColor: isOffline ? '#fff3cd' : '#d4edda',
-        color: isOffline ? '#856404' : '#155724',
-        fontSize: '12px',
-        fontWeight: 500,
-      }}
-    >
+    <div className="flex items-center gap-2">
       {isSyncing ? (
         <>
-          <SyncIcon
-            sx={{
-              fontSize: '16px',
-              animation: 'spin 1s linear infinite',
-              '@keyframes spin': {
-                '0%': { transform: 'rotate(0deg)' },
-                '100%': { transform: 'rotate(360deg)' },
-              },
-            }}
-          />
-          <span>Syncing...</span>
+          <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+          <span className="text-sm">Syncing...</span>
         </>
       ) : isOffline ? (
         <>
-          <CloudOffOutlinedIcon sx={{ fontSize: '16px' }} />
-          <span>Offline</span>
+          <CloudIcon className="w-5 h-5 text-yellow-500" aria-hidden="true" />
+          <span className="text-sm text-yellow-500">Offline</span>
         </>
       ) : (
         <>
-          <CloudDoneOutlinedIcon sx={{ fontSize: '16px' }} />
-          <span>Synced</span>
+          <CloudIcon className="w-5 h-5 text-green-500" aria-hidden="true" />
+          <span className="text-sm text-green-500">Synced</span>
         </>
       )}
-    </Box>
+    </div>
   );
 };
 
 export default OfflineIndicator;
+

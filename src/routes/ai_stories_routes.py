@@ -59,7 +59,7 @@ def get_stories():
         logger.error(f"Failed to get AI stories: {str(e)}")
         return jsonify({'error': 'Failed to load stories'}), 500
 
-@ai_stories_bp.route('/stories/generate', methods=['POST', 'OPTIONS'])
+@ai_stories_bp.route('/story', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 def generate_story():
     """Generate a personalized AI story"""

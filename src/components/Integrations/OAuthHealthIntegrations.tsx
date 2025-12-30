@@ -36,7 +36,7 @@ const OAuthHealthIntegrations: React.FC = () => {
         try {
             const allStatuses = await oauthHealthService.checkAllStatuses();
             setStatuses(allStatuses);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to load OAuth statuses:', err);
         }
     };
@@ -50,8 +50,9 @@ const OAuthHealthIntegrations: React.FC = () => {
             await oauthHealthService.connectProvider(providerId);
             await loadAllStatuses();
             setSuccess(`Successfully connected to ${providerId}!`);
-        } catch (err: any) {
-            setError(err.message || `Failed to connect to ${providerId}`);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : `Failed to connect to ${providerId}`;
+            setError(errorMessage);
         } finally {
             setLoading(prev => new Map(prev).set(providerId, false));
         }
@@ -66,8 +67,9 @@ const OAuthHealthIntegrations: React.FC = () => {
             await oauthHealthService.disconnect(providerId);
             await loadAllStatuses();
             setSuccess(`Successfully disconnected from ${providerId}`);
-        } catch (err: any) {
-            setError(err.message || `Failed to disconnect from ${providerId}`);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : `Failed to disconnect from ${providerId}`;
+            setError(errorMessage);
         } finally {
             setLoading(prev => new Map(prev).set(providerId, false));
         }
@@ -98,8 +100,9 @@ const OAuthHealthIntegrations: React.FC = () => {
                     
                 setSuccess(`✅ Successfully synced data from ${providerId}!\n${dataDisplay}`);
             }
-        } catch (err: any) {
-            setError(err.message || `Failed to sync data from ${providerId}`);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : `Failed to sync data from ${providerId}`;
+            setError(errorMessage);
         } finally {
             setSyncing(prev => new Map(prev).set(providerId, false));
         }
@@ -131,8 +134,9 @@ const OAuthHealthIntegrations: React.FC = () => {
             } else if (result.status === 'success') {
                 setSuccess('✅ Analysis completed successfully!');
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to analyze health data');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to analyze health data';
+            setError(errorMessage);
         } finally {
             setAnalyzing(false);
         }

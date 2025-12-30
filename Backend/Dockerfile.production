@@ -1,5 +1,5 @@
 # 🐳 Production Dockerfile - Lugn & Trygg Backend
-# Optimized for 1000 users with multi-stage build
+# Optimized for 10k users with multi-stage build
 
 # Stage 1: Builder
 FROM python:3.11-slim as builder

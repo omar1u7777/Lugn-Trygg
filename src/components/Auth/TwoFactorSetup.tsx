@@ -1,33 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Button,
-  TextField,
-  Alert,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Stepper,
-  Step,
-  StepLabel,
-  Chip,
-} from '@mui/material';
-import {
-  Security as SecurityIcon,
-  Fingerprint as FingerprintIcon,
-  Smartphone as SmartphoneIcon,
-  CheckCircle as CheckIcon,
-  Error as ErrorIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
+import { FingerprintIcon, DevicePhoneMobileIcon, CheckCircleIcon, XCircleIcon, ShieldCheckIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { Dialog } from '../ui/tailwind/Dialog';
+import { Button } from '../ui/tailwind/Button';
+import { Input } from '../ui/tailwind/Input';
+import { Alert } from '../ui/tailwind/Feedback';
+import { Typography } from '../ui/tailwind/Typography';
+import { Card } from '../ui/tailwind/Card';
 
 interface TwoFactorSetupProps {
   onComplete: () => void;
@@ -35,7 +15,8 @@ interface TwoFactorSetupProps {
 }
 
 const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel }) => {
-  const { t } = useTranslation();
+  // t används för framtida internationalisering
+  useTranslation();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +25,7 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
   // Biometric/WebAuthn state
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricEnrolled, setBiometricEnrolled] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<'biometric' | 'sms' | null>(null);
 
   // SMS/Phone state
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -108,17 +90,21 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
           },
           timeout: 60000,
         },
-      });
+      } as CredentialCreationOptions);
 
       if (credential) {
         // In a real implementation, send the credential to the server
-        console.log('Biometric credential created:', credential);
+        if ((import.meta as any).env?.DEV) {
+          console.log('Biometric credential created:', credential);
+        }
         setBiometricEnrolled(true);
         setActiveStep(2);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Biometric setup failed:', err);
-      setError(err.message || 'Failed to setup biometric authentication');
+      // CRITICAL FIX: Better error handling
+      const errorMessage = err instanceof Error ? err.message : 'Failed to setup biometric authentication';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -138,7 +124,8 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
       // For demo, we'll simulate success
       await new Promise(resolve => setTimeout(resolve, 2000));
       setActiveStep(1);
-    } catch (err) {
+    } catch {
+      // CRITICAL FIX: Better error handling
       setError('Failed to send verification code');
     } finally {
       setLoading(false);
@@ -163,7 +150,8 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
       } else {
         setError('Invalid verification code');
       }
-    } catch (err) {
+    } catch {
+      // CRITICAL FIX: Better error handling
       setError('Failed to verify code');
     } finally {
       setLoading(false);
@@ -181,155 +169,206 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
     switch (activeStep) {
       case 0:
         return (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="h6" gutterBottom>
+          <div className="space-y-4">
+            <Typography variant="h6" className="mb-2">
               Choose Your 2FA Method
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" className="text-gray-600 dark:text-gray-400 mb-4">
               Select how you want to secure your account with two-factor authentication.
             </Typography>
 
-            <Box display="flex" flexDirection="column" gap={2} maxWidth={400} mx="auto">
-              <Button
-                variant="outlined"
-                startIcon={<FingerprintIcon />}
-                onClick={() => setActiveStep(1)}
-                disabled={!biometricSupported}
-                sx={{ p: spacing.lg, justifyContent: 'flex-start' }}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card 
+                className={`p-4 cursor-pointer transition-all hover:shadow-lg ${
+                  !biometricSupported ? 'opacity-50 cursor-not-allowed' : ''
+                } ${selectedMethod === 'biometric' ? 'ring-2 ring-primary-500' : ''}`}
+                onClick={() => {
+                  if (biometricSupported) {
+                    setSelectedMethod('biometric');
+                    setActiveStep(1);
+                  }
+                }}
               >
-                <Box textAlign="left">
-                  <Typography variant="subtitle1">Biometric Authentication</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Use fingerprint or face recognition
-                  </Typography>
-                </Box>
-                {biometricSupported ? (
-                  <CheckIcon color="success" sx={{ ml: 'auto' }} />
-                ) : (
-                  <ErrorIcon color="error" sx={{ ml: 'auto' }} />
-                )}
-              </Button>
+                <div className="flex items-start gap-3">
+                  <FingerprintIcon className="w-6 h-6 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <Typography variant="subtitle1" className="font-semibold mb-1">
+                      Biometric Authentication
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600 dark:text-gray-400 text-sm">
+                      Use fingerprint or face recognition
+                    </Typography>
+                  </div>
+                  {biometricSupported ? (
+                    <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  ) : (
+                    <XCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  )}
+                </div>
+              </Card>
 
-              <Button
-                variant="outlined"
-                startIcon={<SmartphoneIcon />}
-                onClick={() => setActiveStep(1)}
-                sx={{ p: spacing.lg, justifyContent: 'flex-start' }}
+              <Card 
+                className={`p-4 cursor-pointer transition-all hover:shadow-lg ${
+                  selectedMethod === 'sms' ? 'ring-2 ring-primary-500' : ''
+                }`}
+                onClick={() => {
+                  setSelectedMethod('sms');
+                  setActiveStep(1);
+                }}
               >
-                <Box textAlign="left">
-                  <Typography variant="subtitle1">SMS Authentication</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Receive codes via text message
-                  </Typography>
-                </Box>
-                <CheckIcon color="success" sx={{ ml: 'auto' }} />
-              </Button>
-            </Box>
-          </Box>
+                <div className="flex items-start gap-3">
+                  <DevicePhoneMobileIcon className="w-6 h-6 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <Typography variant="subtitle1" className="font-semibold mb-1">
+                      SMS Authentication
+                    </Typography>
+                    <Typography variant="body2" className="text-gray-600 dark:text-gray-400 text-sm">
+                      Receive codes via text message
+                    </Typography>
+                  </div>
+                  <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" />
+                </div>
+              </Card>
+            </div>
+          </div>
         );
 
       case 1:
         return (
-          <Box sx={{ py: 4 }}>
-            <Typography variant="h6" gutterBottom>
+          <div className="space-y-4">
+            <Typography variant="h6" className="mb-2">
               Setup Authentication
             </Typography>
 
-            {biometricSupported && !phoneNumber ? (
-              <Box textAlign="center">
-                <FingerprintIcon sx={{ fontSize: 64, color: 'primary.main', mb: spacing.md }} />
-                <Typography variant="h6" gutterBottom>
+            {selectedMethod === 'biometric' && biometricSupported && !phoneNumber ? (
+              <div className="text-center space-y-4">
+                <FingerprintIcon className="w-16 h-16 text-primary-600 dark:text-primary-400 mx-auto" />
+                <Typography variant="h6" className="mb-2">
                   Setup Biometric Authentication
                 </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
+                <Typography variant="body2" className="text-gray-600 dark:text-gray-400 mb-4">
                   Use your fingerprint or face to securely log in to your account.
                 </Typography>
                 <Button
-                  variant="contained"
-                  startIcon={loading ? <CircularProgress size={20} /> : <FingerprintIcon />}
+                  variant="primary"
+                  size="lg"
                   onClick={handleBiometricSetup}
                   disabled={loading}
-                  size="large"
+                  className="w-full"
                 >
-                  {loading ? 'Setting up...' : 'Setup Biometric Login'}
+                  {loading ? (
+                    <>
+                      <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                      Setting up...
+                    </>
+                  ) : (
+                    <>
+                      <FingerprintIcon className="w-5 h-5 mr-2" />
+                      Setup Biometric Login
+                    </>
+                  )}
                 </Button>
-              </Box>
+              </div>
             ) : (
-              <Box maxWidth={400} mx="auto">
+              <div className="space-y-4">
                 {!phoneVerified ? (
                   <>
-                    <Typography variant="body1" gutterBottom>
+                    <Typography variant="body1" className="mb-2">
                       Enter your phone number to receive verification codes.
                     </Typography>
-                    <TextField
-                      fullWidth
+                    <Input
                       label="Phone Number"
+                      type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       placeholder="+46 70 123 45 67"
-                      sx={{ mb: spacing.md }}
+                      required
+                      disabled={loading}
                     />
                     <Button
+                      variant="primary"
+                      size="lg"
                       fullWidth
-                      variant="contained"
-                      startIcon={loading ? <CircularProgress size={20} /> : <SmartphoneIcon />}
                       onClick={handlePhoneSetup}
                       disabled={loading || !phoneNumber.trim()}
                     >
-                      {loading ? 'Sending...' : 'Send Verification Code'}
+                      {loading ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <DevicePhoneMobileIcon className="w-5 h-5 mr-2" />
+                          Send Verification Code
+                        </>
+                      )}
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Typography variant="body1" gutterBottom>
+                    <Typography variant="body1" className="mb-2">
                       Enter the 6-digit code sent to {phoneNumber}
                     </Typography>
-                    <TextField
-                      fullWidth
+                    <Input
                       label="Verification Code"
+                      type="text"
                       value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="123456"
-                      inputProps={{ maxLength: 6 }}
-                      sx={{ mb: spacing.md }}
+                      maxLength={6}
+                      required
+                      disabled={loading}
                     />
                     <Button
+                      variant="primary"
+                      size="lg"
                       fullWidth
-                      variant="contained"
-                      startIcon={loading ? <CircularProgress size={20} /> : <CheckIcon />}
                       onClick={handlePhoneVerification}
                       disabled={loading || verificationCode.length !== 6}
                     >
-                      {loading ? 'Verifying...' : 'Verify Code'}
+                      {loading ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+                          Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className="w-5 h-5 mr-2" />
+                          Verify Code
+                        </>
+                      )}
                     </Button>
                   </>
                 )}
-              </Box>
+              </div>
             )}
-          </Box>
+          </div>
         );
 
       case 2:
         return (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: spacing.md }} />
-            <Typography variant="h6" gutterBottom>
+          <div className="text-center space-y-4">
+            <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto" />
+            <Typography variant="h6" className="mb-2">
               Two-Factor Authentication Setup Complete!
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" className="text-gray-600 dark:text-gray-400 mb-4">
               Your account is now secured with 2FA. You'll be prompted to authenticate
               when logging in from new devices.
             </Typography>
 
-            <Box sx={{ mt: spacing.lg }}>
-              <Chip
-                icon={biometricEnrolled ? <FingerprintIcon /> : <SmartphoneIcon />}
-                label={biometricEnrolled ? "Biometric Authentication" : "SMS Authentication"}
-                color="success"
-                variant="outlined"
-              />
-            </Box>
-          </Box>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              {biometricEnrolled ? (
+                <FingerprintIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <DevicePhoneMobileIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+              )}
+              <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                {biometricEnrolled ? "Biometric Authentication" : "SMS Authentication"}
+              </span>
+            </div>
+          </div>
         );
 
       default:
@@ -339,73 +378,109 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ onComplete, onCancel })
 
   if (success) {
     return (
-      <Dialog open={true} maxWidth="sm" fullWidth>
-        <DialogContent sx={{ textAlign: 'center', py: 4 }}>
+      <Dialog open={true} onClose={onComplete} size="md">
+        <div className="p-6 text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
           >
-            <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: spacing.md }} />
-            <Typography variant="h5" gutterBottom>
+            <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <Typography variant="h5" className="mb-2">
               Setup Complete!
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" className="text-gray-600 dark:text-gray-400">
               Two-factor authentication has been successfully configured.
             </Typography>
           </motion.div>
-        </DialogContent>
+        </div>
       </Dialog>
     );
   }
 
   return (
-    <Dialog open={true} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-        <SecurityIcon />
-        Setup Two-Factor Authentication
-      </DialogTitle>
+    <Dialog open={true} onClose={onCancel} size="lg">
+      <div className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <ShieldCheckIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          <Typography variant="h5">
+            Setup Two-Factor Authentication
+          </Typography>
+        </div>
 
-      <DialogContent>
-        <Stepper activeStep={activeStep} sx={{ mb: spacing.xl }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
+        {/* Step Indicator */}
+        <div className="flex items-center justify-between mb-6">
+          {steps.map((label, index) => (
+            <React.Fragment key={label}>
+              <div className="flex items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                    index <= activeStep
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  {index < activeStep ? (
+                    <CheckIcon className="w-5 h-5" />
+                  ) : (
+                    index + 1
+                  )}
+                </div>
+                <span className={`ml-2 text-sm ${
+                  index <= activeStep
+                    ? 'text-primary-600 dark:text-primary-400 font-semibold'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {label}
+                </span>
+              </div>
+              {index < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-2 ${
+                  index < activeStep
+                    ? 'bg-primary-600'
+                    : 'bg-gray-200 dark:bg-gray-700'
+                }`} />
+              )}
+            </React.Fragment>
           ))}
-        </Stepper>
+        </div>
 
         {error && (
-          <Alert severity="error" sx={{ mb: spacing.lg }}>
+          <Alert variant="error" className="mb-4">
             {error}
           </Alert>
         )}
 
         {renderStepContent()}
-      </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onCancel} disabled={loading}>
-          Cancel
-        </Button>
-        {activeStep === 2 && (
+        <div className="flex justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button
-            onClick={handleComplete}
-            variant="contained"
+            onClick={onCancel}
             disabled={loading}
+            variant="outline"
           >
-            Complete Setup
+            Cancel
           </Button>
-        )}
-        {activeStep > 0 && activeStep < 2 && (
-          <Button
-            onClick={() => setActiveStep(activeStep - 1)}
-            disabled={loading}
-          >
-            Back
-          </Button>
-        )}
-      </DialogActions>
+          {activeStep === 2 && (
+            <Button
+              onClick={handleComplete}
+              variant="primary"
+              disabled={loading}
+            >
+              Complete Setup
+            </Button>
+          )}
+          {activeStep > 0 && activeStep < 2 && (
+            <Button
+              onClick={() => setActiveStep(activeStep - 1)}
+              disabled={loading}
+              variant="outline"
+            >
+              Back
+            </Button>
+          )}
+        </div>
+      </div>
     </Dialog>
   );
 };

@@ -144,10 +144,17 @@
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
+    "status": "Status",
     "offlineTitle": "🚫 You are offline!",
     "offlineMessage": "Check your internet connection and try again.",
     "retry": "🔄 Try again",
-    "pageNotFound": "🚫 Page not found!"
+    "pageNotFound": "🚫 Page not found!",
+    "skipToContent": "Skip to main content",
+    "skipToNavigation": "Skip to navigation",
+    "skipToSearch": "Skip to search",
+    "liveRegionLabel": "Live updates",
+    "alertsLiveRegion": "System alerts update in real time",
+    "alertsActiveCount": "{count} active alerts"
   },
   "settings": {
     "title": "Settings",
@@ -158,6 +165,24 @@
     "theme": "Theme",
     "darkMode": "Dark mode",
     "lightMode": "Light mode"
+  },
+  "monitoring": {
+    "title": "System monitoring",
+    "description": "Real-time health metrics",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "performanceBreakdown": "Performance score",
+    "alertsHeading": "System alerts",
+    "alertTimestamp": "Timestamp",
+    "alertStatusResolved": "Resolved",
+    "alertStatusActive": "Active",
+    "alertResolve": "Mark as resolved",
+    "alertClose": "Close dialog",
+    "noAlerts": "No active alerts",
+    "metricGood": "Healthy",
+    "metricWarning": "Warning",
+    "metricCritical": "Critical",
+    "screenReaderWidgetLabel": "Status card for {metric}"
   },
   "language": {
     "swedish": "Svenska",

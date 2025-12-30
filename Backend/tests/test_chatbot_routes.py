@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
 import json
+from src.services.subscription_service import SubscriptionLimitError
 
 class TestChatEndpoint:
     """Tests for /chat endpoint"""
@@ -67,16 +68,41 @@ class TestChatEndpoint:
         assert "error" in data
         assert "krävs" in data["error"].lower()
     
-    def test_chat_missing_user_id(self, client):
-        """Test chat without user_id"""
+    @patch('src.routes.chatbot_routes.db')
+    @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
+    @patch('src.routes.chatbot_routes.generate_ai_feature_suggestions')
+    def test_chat_missing_user_id(self, mock_suggestions, mock_response, mock_db, client):
+        """Test chat without payload user_id falls back to token identity"""
+        mock_collection = Mock()
+        mock_document = Mock()
+        mock_subcollection = Mock()
+        mock_db.collection.return_value = mock_collection
+        mock_collection.document.return_value = mock_document
+        mock_document.collection.return_value = mock_subcollection
+        mock_subcollection.order_by.return_value.limit.return_value.stream.return_value = []
+
+        mock_response.return_value = {
+            "response": "Hej!",
+            "emotions_detected": [],
+            "suggested_actions": [],
+            "crisis_detected": False,
+            "ai_generated": True,
+            "model_used": "test",
+            "sentiment_analysis": {"sentiment": "NEUTRAL"}
+        }
+        mock_suggestions.return_value = {"suggest_story": False, "suggest_forecast": False}
+
         response = client.post('/api/chatbot/chat',
             json={"message": "Hej"},
             content_type='application/json'
         )
-        
-        assert response.status_code == 400
+
+        assert response.status_code == 200
         data = response.get_json()
-        assert "error" in data
+        assert data["response"] == "Hej!"
+        assert data["ai_generated"] is True
+        assert data["sentiment_analysis"]["sentiment"] == "NEUTRAL"
+        assert data["ai_feature_suggestions"]["suggest_story"] is False
     
     def test_chat_empty_message(self, client):
         """Test chat with empty message"""
@@ -91,10 +117,32 @@ class TestChatEndpoint:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
-        assert "tomma" in data["error"].lower()
+        assert "meddelande" in data["error"].lower()
     
-    def test_chat_empty_user_id(self, client):
-        """Test chat with empty user_id"""
+    @patch('src.routes.chatbot_routes.db')
+    @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
+    @patch('src.routes.chatbot_routes.generate_ai_feature_suggestions')
+    def test_chat_empty_user_id(self, mock_suggestions, mock_response, mock_db, client):
+        """Test chat with empty user_id still succeeds via token context"""
+        mock_collection = Mock()
+        mock_document = Mock()
+        mock_subcollection = Mock()
+        mock_db.collection.return_value = mock_collection
+        mock_collection.document.return_value = mock_document
+        mock_document.collection.return_value = mock_subcollection
+        mock_subcollection.order_by.return_value.limit.return_value.stream.return_value = []
+
+        mock_response.return_value = {
+            "response": "Allt är bra",
+            "emotions_detected": [],
+            "suggested_actions": [],
+            "crisis_detected": False,
+            "ai_generated": True,
+            "model_used": "test",
+            "sentiment_analysis": {"sentiment": "NEUTRAL"}
+        }
+        mock_suggestions.return_value = {"suggest_story": False, "suggest_forecast": False}
+
         response = client.post('/api/chatbot/chat',
             json={
                 "user_id": "  ",
@@ -102,10 +150,60 @@ class TestChatEndpoint:
             },
             content_type='application/json'
         )
-        
-        assert response.status_code == 400
+
+        assert response.status_code == 200
         data = response.get_json()
-        assert "error" in data
+        assert data["response"] == "Allt är bra"
+        assert data["sentiment_analysis"]["sentiment"] == "NEUTRAL"
+
+    @patch('src.routes.chatbot_routes.db')
+    @patch('src.routes.chatbot_routes.SubscriptionService.consume_quota')
+    def test_chat_quota_limit_returns_429(self, mock_quota, mock_db, client):
+        """Test chat returns 429 when subscription quota is exceeded"""
+        mock_quota.side_effect = SubscriptionLimitError("chat_messages", 5)
+
+        mock_collection = Mock()
+        mock_document = Mock()
+        mock_document.get.return_value = Mock(exists=False, to_dict=lambda: {})
+        mock_collection.document.return_value = mock_document
+        mock_db.collection.return_value = mock_collection
+
+        response = client.post('/api/chatbot/chat',
+            json={
+                "user_id": "test-user-123",
+                "message": "Hej"
+            },
+            content_type='application/json'
+        )
+
+        assert response.status_code == 429
+        data = response.get_json()
+        assert "limit" in data
+        assert data["limit"] == 5
+
+    @patch('src.routes.chatbot_routes.db')
+    @patch('src.routes.chatbot_routes.SubscriptionService.consume_quota')
+    def test_legacy_alias_respects_quota(self, mock_quota, mock_db, client):
+        """Test /api/chatbot/message alias inherits quota enforcement"""
+        mock_quota.side_effect = SubscriptionLimitError("chat_messages", 3)
+
+        mock_collection = Mock()
+        mock_document = Mock()
+        mock_document.get.return_value = Mock(exists=False, to_dict=lambda: {})
+        mock_collection.document.return_value = mock_document
+        mock_db.collection.return_value = mock_collection
+
+        response = client.post('/api/chatbot/message',
+            json={
+                "user_id": "test-user-123",
+                "message": "Behöver stöd"
+            },
+            content_type='application/json'
+        )
+
+        assert response.status_code == 429
+        data = response.get_json()
+        assert data["limit"] == 3
     
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')

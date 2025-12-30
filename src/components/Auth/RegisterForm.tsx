@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react"
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { Link, useSearchParams } from "react-router-dom";
-import { Box, Typography, IconButton, Alert, TextField } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { Alert, Input, Card, Button } from "../ui/tailwind";
+import { EyeIcon, EyeSlashIcon, ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
+import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
 
 const RegisterForm: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -15,8 +15,14 @@ const RegisterForm: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // ✅ Använd custom hooks
+  const { 
+    showPassword, 
+    showConfirmPassword, 
+    togglePassword, 
+    toggleConfirmPassword 
+  } = useMultiplePasswordToggle();
 
   // Check for referral code in URL
   useEffect(() => {
@@ -41,6 +47,7 @@ const RegisterForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🔐 REGISTER - Form submitted', { email, name, hasReferralCode: !!referralCode });
     setError("");
     setSuccess("");
 
@@ -72,107 +79,74 @@ const RegisterForm: React.FC = () => {
       setPassword("");
       setConfirmPassword("");
       setReferralCode("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration error:", err);
-      setError(err.response?.data?.error || err.message);
+      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+        ? String(err.response.data.error)
+        : err instanceof Error ? err.message : 'Registration failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        px: 2,
-        py: 6,
-        background: (theme) =>
-          theme.palette.mode === "dark"
-            ? "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)"
-            : "linear-gradient(135deg, #eff6ff 0%, colors.text.inverse 50%, #faf5ff 100%)",
-      }}
+    <div
+      className="min-h-screen flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 bg-gradient-to-b from-[#fff7f0] to-[#fffaf5]"
       role="main"
       aria-labelledby="register-title"
     >
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: "md",
-          bgcolor: "background.paper",
-          borderRadius: borderRadius.xl,
-          boxShadow: 6,
-          p: spacing.xl,
-          border: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Box component="header">
-          <Typography
+      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg p-4 sm:p-6 md:p-8 shadow-[0_20px_60px_rgba(47,42,36,0.08)] border border-[#f2e4d4]">
+        <header>
+          <h1
             id="register-title"
-            variant="h4"
-            fontWeight="bold"
-            textAlign="center"
-            color="text.primary"
-            sx={{
-              mb: spacing.xl,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 1.5,
-            }}
+            className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 flex items-center justify-center gap-2 sm:gap-3 text-[#2f2a24]"
           >
-            <Box component="span" sx={{ fontSize: "1.5rem" }} aria-hidden="true">
+            <span className="text-2xl" aria-hidden="true">
               👤
-            </Box>
+            </span>
             Skapa konto
-          </Typography>
-        </Box>
+          </h1>
+        </header>
 
         {error && (
           <Alert
-            severity="error"
+            variant="error"
             role="alert"
             aria-live="assertive"
             id="register-error"
-            sx={{ mb: spacing.lg }}
-            icon={<span style={{ fontSize: "1.125rem" }}>⚠️</span>}
+            className="mb-6"
           >
+            <span className="text-lg mr-2" aria-hidden="true">⚠️</span>
             {error}
           </Alert>
         )}
 
         {success && (
           <Alert
-            severity="success"
+            variant="success"
             role="status"
             aria-live="polite"
             id="register-success"
-            sx={{ mb: spacing.lg }}
-            icon={<span style={{ fontSize: "1.125rem" }}>✅</span>}
+            className="mb-6"
           >
+            <span className="text-lg mr-2" aria-hidden="true">✅</span>
             {success}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: spacing.lg }} noValidate>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-5 md:gap-6" noValidate>
           <div>
-            <Typography
-              component="label"
+            <label
               htmlFor="name"
-              variant="body2"
-              fontWeight="medium"
-              color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
+              className="flex items-center gap-2 mb-2 text-sm font-medium"
             >
-              <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
+              <span className="text-primary" aria-hidden="true">
                 👤
-              </Box>
+              </span>
               Namn
-            </Typography>
-            <TextField
+            </label>
+            <Input
               id="name"
               type="text"
               value={name}
@@ -180,29 +154,22 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange ditt namn"
               required
               disabled={loading}
-              fullWidth
-              inputProps={{
-                "aria-describedby": error ? "register-error" : undefined,
-                "aria-invalid": !!error,
-              }}
+              aria-describedby={error ? "register-error" : undefined}
+              aria-invalid={!!error}
             />
           </div>
 
           <div>
-            <Typography
-              component="label"
+            <label
               htmlFor="email"
-              variant="body2"
-              fontWeight="medium"
-              color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
+              className="flex items-center gap-2 mb-2 text-sm font-medium"
             >
-              <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
+              <span className="text-primary" aria-hidden="true">
                 📧
-              </Box>
+              </span>
               E-postadress
-            </Typography>
-            <TextField
+            </label>
+            <Input
               id="email"
               type="email"
               value={email}
@@ -210,54 +177,46 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange din e-postadress"
               required
               disabled={loading}
-              fullWidth
-              inputProps={{
-                "aria-describedby": error ? "register-error" : undefined,
-                "aria-invalid": !!error,
-              }}
+              aria-describedby={error ? "register-error" : undefined}
+              aria-invalid={!!error}
             />
           </div>
 
           {/* Referral Code Input */}
           {referralCode && (
             <Alert
-              severity="success"
+              variant="success"
               role="status"
               aria-live="polite"
-              icon={<span style={{ fontSize: "1.5rem" }}>🎁</span>}
-              sx={{
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark" ? "success.dark" : "success.light",
-              }}
+              className="bg-green-50 dark:bg-green-900/20"
             >
-              <Typography variant="body2" fontWeight="semibold" gutterBottom>
-                Referenskod aktiv!
-              </Typography>
-              <Typography variant="caption" display="block" gutterBottom>
-                Du och din vän får båda 1 vecka gratis premium! 🎉
-              </Typography>
-              <Typography variant="caption" fontWeight="medium" sx={{ mt: 1.5, display: "block" }}>
-                Kod: <Box component="span" sx={{ fontFamily: "monospace", fontWeight: "bold" }}>{referralCode}</Box>
-              </Typography>
+              <span className="text-2xl mr-2" aria-hidden="true">🎁</span>
+              <div>
+                <p className="text-sm font-semibold mb-1">
+                  Referenskod aktiv!
+                </p>
+                <p className="text-xs mb-2">
+                  Du och din vän får båda 1 vecka gratis premium! 🎉
+                </p>
+                <p className="text-xs font-medium mt-3">
+                  Kod: <span className="font-mono font-bold">{referralCode}</span>
+                </p>
+              </div>
             </Alert>
           )}
 
           <div>
-            <Typography
-              component="label"
+            <label
               htmlFor="password"
-              variant="body2"
-              fontWeight="medium"
-              color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
+              className="flex items-center gap-2 mb-2 text-sm font-medium"
             >
-              <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
+              <span className="text-primary" aria-hidden="true">
                 🔒
-              </Box>
+              </span>
               Lösenord
-            </Typography>
-            <Box sx={{ position: "relative" }}>
-              <TextField
+            </label>
+            <div className="relative">
+              <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -265,50 +224,39 @@ const RegisterForm: React.FC = () => {
                 placeholder="Skapa ett starkt lösenord"
                 required
                 disabled={loading}
-                fullWidth
-                inputProps={{
-                  "aria-describedby": error ? "register-error" : "password-help",
-                  "aria-invalid": !!error,
-                }}
-                sx={{ pr: 6 }}
+                className="pr-12"
+                aria-describedby={error ? "register-error" : "password-help"}
+                aria-invalid={!!error}
               />
-              <IconButton
-                onClick={() => setShowPassword(!showPassword)}
+              <button
+                type="button"
+                onClick={togglePassword}
                 disabled={loading}
                 title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                 aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                 aria-pressed={showPassword}
-                sx={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
-                {showPassword ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </Box>
-            <Typography id="password-help" variant="caption" color="text.secondary" sx={{ mt: spacing.sm, display: "block" }}>
+                {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+              </button>
+            </div>
+            <p id="password-help" className="text-xs text-gray-600 dark:text-gray-400 mt-2">
               Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
-            </Typography>
+            </p>
           </div>
 
           <div>
-            <Typography
-              component="label"
+            <label
               htmlFor="confirmPassword"
-              variant="body2"
-              fontWeight="medium"
-              color="text.primary"
-              sx={{ display: "flex", alignItems: "center", gap: spacing.sm, mb: spacing.sm }}
+              className="flex items-center gap-2 mb-2 text-sm font-medium"
             >
-              <Box component="span" sx={{ color: "primary.main" }} aria-hidden="true">
+              <span className="text-primary" aria-hidden="true">
                 🔒
-              </Box>
+              </span>
               Bekräfta lösenord
-            </Typography>
-            <Box sx={{ position: "relative" }}>
-              <TextField
+            </label>
+            <div className="relative">
+              <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
@@ -316,91 +264,60 @@ const RegisterForm: React.FC = () => {
                 placeholder="Bekräfta ditt lösenord"
                 required
                 disabled={loading}
-                fullWidth
-                inputProps={{
-                  "aria-describedby": error ? "register-error" : undefined,
-                  "aria-invalid": !!error,
-                }}
-                sx={{ pr: 6 }}
+                className="pr-12"
+                aria-describedby={error ? "register-error" : undefined}
+                aria-invalid={!!error}
               />
-              <IconButton
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              <button
+                type="button"
+                onClick={toggleConfirmPassword}
                 disabled={loading}
                 title={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
                 aria-label={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
                 aria-pressed={showConfirmPassword}
-                sx={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
-                {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </Box>
+                {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
-          <Box
-            component="button"
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
             disabled={loading}
-            sx={{
-              width: "100%",
-              py: 1.5,
-              fontSize: "1.125rem",
-              fontWeight: "semibold",
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              border: "none",
-              borderRadius: 1,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-              transition: "all 0.2s",
-              "&:hover": {
-                bgcolor: loading ? "primary.main" : "primary.dark",
-              },
-              "&:disabled": {
-                cursor: "not-allowed",
-              },
-            }}
+            className="w-full min-h-[44px] sm:min-h-[48px]"
             aria-describedby={loading ? "register-loading" : undefined}
           >
             {loading ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>
+                <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
                 <span id="register-loading">Skapar konto...</span>
               </>
             ) : (
               <>
-                <i className="fas fa-user-plus mr-2" aria-hidden="true"></i>
+                <UserPlusIcon className="w-5 h-5 mr-2" aria-hidden="true" />
                 Skapa konto
               </>
             )}
-          </Box>
-        </Box>
+          </Button>
+        </form>
 
-        <Box sx={{ mt: spacing.xl, textAlign: "center" }}>
-          <Typography variant="body2" color="text.secondary">
+        <div className="mt-6 sm:mt-8 text-center">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Har du redan ett konto?{" "}
-            <Typography
-              component={Link}
+            <Link
               to="/login"
-              variant="body2"
-              color="primary"
-              fontWeight="semibold"
-              sx={{
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
+              className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
               aria-label="Gå till inloggningssidan"
             >
               Logga in här
-            </Typography>
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+            </Link>
+          </p>
+        </div>
+      </Card>
+    </div>
   );
 };
 

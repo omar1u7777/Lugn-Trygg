@@ -1,18 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface SyncHistoryEntry {
-  id: string;
-  provider: string;
-  providerName: string;
-  providerIcon: string;
-  timestamp: string;
-  status: 'success' | 'failed' | 'partial';
-  dataTypes: string[];
-  recordCount?: number;
-  duration?: number;
-  error?: string;
-}
+import { getSyncHistory, retrySyncOperation, SyncHistoryEntry } from '../../api/api';
 
 interface SyncHistoryProps {
   userId: string;
@@ -24,6 +12,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState<string>(providerFilter || 'all');
   const [dateRange, setDateRange] = useState<'7days' | '30days' | '90days'>('7days');
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSyncHistory();
@@ -33,64 +22,35 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
     try {
       setLoading(true);
       
-      // Load from Firebase (mock data for now - replace with actual Firebase query)
-      // dateRange will be used in future Firebase query: where('timestamp', '>', Date.now() - days * 86400000)
-      const mockHistory: SyncHistoryEntry[] = [
-        {
-          id: '1',
-          provider: 'google_fit',
-          providerName: 'Google Fit',
-          providerIcon: '🏃',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          status: 'success',
-          dataTypes: ['steps', 'heart_rate', 'sleep'],
-          recordCount: 156,
-          duration: 2.3,
-        },
-        {
-          id: '2',
-          provider: 'fitbit',
-          providerName: 'Fitbit',
-          providerIcon: '⌚',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          status: 'success',
-          dataTypes: ['steps', 'calories', 'distance'],
-          recordCount: 89,
-          duration: 1.8,
-        },
-        {
-          id: '3',
-          provider: 'samsung_health',
-          providerName: 'Samsung Health',
-          providerIcon: '💪',
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          status: 'failed',
-          dataTypes: ['steps'],
-          error: 'Token expired',
-        },
-        {
-          id: '4',
-          provider: 'google_fit',
-          providerName: 'Google Fit',
-          providerIcon: '🏃',
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'partial',
-          dataTypes: ['steps', 'heart_rate'],
-          recordCount: 42,
-          duration: 3.1,
-        },
-      ];
-
-      // Filter by provider if selected
-      const filtered = selectedProvider === 'all' 
-        ? mockHistory 
-        : mockHistory.filter(h => h.provider === selectedProvider);
-
-      setHistory(filtered);
+      // Convert date range to days
+      const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
+      const days = daysMap[dateRange];
+      
+      // REAL API CALL - Get sync history from Firebase via backend
+      const historyData = await getSyncHistory(selectedProvider, days, 50);
+      
+      setHistory(historyData);
+      console.log('📊 Loaded sync history:', historyData.length, 'entries');
     } catch (error) {
       console.error('Failed to load sync history:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetry = async (syncId: string) => {
+    try {
+      setRetryingId(syncId);
+      const result = await retrySyncOperation(syncId);
+      if (result.success) {
+        console.log('🔄 Retry job created:', result.retry_id);
+        // Refresh history after retry
+        await loadSyncHistory();
+      }
+    } catch (error) {
+      console.error('Failed to retry sync:', error);
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -269,6 +229,16 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
                       <span className="text-red-600 dark:text-red-400 font-medium">
                         ⚠️ {entry.error}
                       </span>
+                    )}
+                    {/* Retry button for failed syncs */}
+                    {entry.status === 'failed' && (
+                      <button
+                        onClick={() => handleRetry(entry.id)}
+                        disabled={retryingId === entry.id}
+                        className="ml-auto px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                      >
+                        {retryingId === entry.id ? '⏳ Försöker...' : '🔄 Försök igen'}
+                      </button>
                     )}
                   </div>
                 </div>

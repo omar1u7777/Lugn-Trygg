@@ -281,7 +281,7 @@ export class AccessibilityAuditor {
 
       // Check for descriptions
       const elementsWithDescribedBy = document.querySelectorAll('[aria-describedby]');
-      let hasDescriptions = elementsWithDescribedBy.length > 0;
+      const hasDescriptions = elementsWithDescribedBy.length > 0;
 
       const details: AriaComplianceResult = {
         hasLabels,
@@ -420,6 +420,52 @@ export class AccessibilityAuditor {
     } catch (error) {
       console.error('Keyboard navigation test failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Audit keyboard navigation
+   */
+  async auditKeyboardNavigation(): Promise<AuditResult> {
+    const violations: string[] = [];
+    const warnings: string[] = [];
+
+    try {
+      const hasProperKeyboardNav = await this.testKeyboardNavigation();
+      
+      if (!hasProperKeyboardNav) {
+        violations.push('Some focusable elements have negative tabindex');
+      }
+
+      const focusableElements = document.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements.length === 0) {
+        warnings.push('No focusable elements found on page');
+      }
+
+      const score = violations.length === 0 ? 100 : 50;
+
+      return {
+        passed: violations.length === 0,
+        violations,
+        warnings,
+        score,
+        details: {
+          hasProperKeyboardNav,
+          focusableElementsCount: focusableElements.length,
+        },
+      };
+    } catch (error) {
+      violations.push(`Keyboard navigation audit failed: ${error}`);
+      return {
+        passed: false,
+        violations,
+        warnings,
+        score: 0,
+        details: {},
+      };
     }
   }
 

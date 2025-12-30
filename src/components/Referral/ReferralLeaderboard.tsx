@@ -1,17 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import api from '../../api/api';
-import {
-    Box,
-    Paper,
-    Typography,
-    CircularProgress,
-    Alert,
-    Button,
-    Chip,
-    Grid,
-    Divider,
-} from '@mui/material';
+import { Paper, Spinner, Alert, Chip, Divider, Button, Grid } from '../ui/tailwind';
 
 interface LeaderboardEntry {
     rank: number;
@@ -38,7 +27,7 @@ const ReferralLeaderboard: React.FC = () => {
             const response = await api.get('/api/referral/leaderboard?limit=20');
             setLeaderboard(response.data.leaderboard || []);
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to fetch leaderboard:', err);
             setError('Kunde inte ladda leaderboard');
         } finally {
@@ -64,176 +53,130 @@ const ReferralLeaderboard: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={50} sx={{ mb: spacing.sm }} />
-                    <Typography variant="body1" color="text.secondary">
+            <div className="flex items-center justify-center p-8">
+                <div className="text-center space-y-3">
+                    <Spinner size="sm" />
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                         Laddar leaderboard...
-                    </Typography>
-                </Box>
-            </Box>
+                    </p>
+                </div>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Alert severity="error" sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
+            <Alert variant="error">
                 {error}
             </Alert>
         );
     }
 
     return (
-        <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.lg }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+        <Paper className="shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                     🏆 Topplista
-                </Typography>
+                </h2>
                 <Button
                     onClick={fetchLeaderboard}
                     variant="text"
                     size="small"
-                    sx={{ textTransform: 'none', fontWeight: 600 }}
                 >
                     🔄 Uppdatera
                 </Button>
-            </Box>
+            </div>
 
             {leaderboard.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.sm }}>
-                        🌟
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="text-6xl mb-4">🌟</div>
+                    <p className="text-base text-gray-600 dark:text-gray-400">
                         Inga referenser än. Bli den första!
-                    </Typography>
-                </Box>
+                    </p>
+                </div>
             ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <div className="space-y-4">
                     {leaderboard.map((entry) => (
-                        <Paper
+                        <div
                             key={entry.user_id}
-                            elevation={isTopThree(entry.rank) ? 3 : 0}
-                            sx={{
-                                p: spacing.md,
-                                borderRadius: borderRadius.md,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: getRankColor(entry.rank) || (
-                                    (theme) => theme.palette.mode === 'dark' 
-                                        ? 'rgba(0,0,0,0.2)' 
-                                        : 'rgba(0,0,0,0.03)'
-                                ),
-                            }}
+                            className={`p-4 rounded-lg ${
+                                isTopThree(entry.rank)
+                                    ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
+                                    : 'bg-gray-50 dark:bg-gray-800/50'
+                            }`}
                         >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md, flex: 1 }}>
+                            <div className="flex items-center gap-4">
                                 {/* Rank Badge */}
-                                <Box
-                                    sx={{
-                                        width: 48,
-                                        height: 48,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    <Typography variant="h5" fontWeight="bold">
-                                        {getRankBadge(entry.rank)}
-                                    </Typography>
-                                </Box>
+                                <div className="text-2xl font-bold">
+                                    {getRankBadge(entry.rank)}
+                                </div>
 
                                 {/* User Info */}
-                                <Box sx={{ flex: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: 0.5 }}>
-                                        <Typography
-                                            variant="body1"
-                                            fontWeight="600"
-                                            sx={{
-                                                color: isTopThree(entry.rank) 
-                                                    ? 'white' 
-                                                    : 'text.primary',
-                                            }}
-                                        >
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
                                             {entry.name}
-                                        </Typography>
-                                        <Typography variant="h6">{entry.tier_emoji}</Typography>
+                                        </p>
+                                        <span className="text-xl">{entry.tier_emoji}</span>
                                         <Chip
                                             label={entry.tier}
                                             size="small"
-                                            sx={{
-                                                fontSize: '0.75rem',
-                                                height: 24,
-                                                bgcolor: isTopThree(entry.rank)
-                                                    ? 'colors.overlay.medium'
-                                                    : undefined,
-                                                color: isTopThree(entry.rank)
-                                                    ? 'white'
-                                                    : undefined,
-                                            }}
                                         />
-                                    </Box>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: isTopThree(entry.rank)
-                                                ? 'colors.overlay.medium'
-                                                : 'text.secondary',
-                                        }}
-                                    >
+                                    </div>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
                                         {entry.successful_referrals} referenser • {entry.rewards_earned} veckor premium
-                                    </Typography>
-                                </Box>
-                            </Box>
-                        </Paper>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     ))}
-                </Box>
+                </div>
             )}
 
             {/* Legend */}
-            <Box sx={{ mt: spacing.lg, pt: 3 }}>
-                <Divider sx={{ mb: spacing.md }} />
-                <Typography variant="body2" color="text.secondary" fontWeight="600" gutterBottom>
+            <div className="mt-6">
+                <Divider />
+                <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 mt-4">
                     🎯 Nivåer:
-                </Typography>
-                <Grid container spacing={1}>
+                </p>
+                <Grid container spacing={2}>
                     <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="body2">🥉</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                        <div className="flex flex-col items-center text-center">
+                            <span className="text-2xl mb-1">🥉</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
                                 Bronze: 0-4
-                            </Typography>
-                        </Box>
+                            </p>
+                        </div>
                     </Grid>
                     <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="body2">🥈</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                        <div className="flex flex-col items-center text-center">
+                            <span className="text-2xl mb-1">🥈</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
                                 Silver: 5-14
-                            </Typography>
-                        </Box>
+                            </p>
+                        </div>
                     </Grid>
                     <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="body2">🥇</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                        <div className="flex flex-col items-center text-center">
+                            <span className="text-2xl mb-1">🥇</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
                                 Gold: 15-29
-                            </Typography>
-                        </Box>
+                            </p>
+                        </div>
                     </Grid>
                     <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="body2">💎</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                        <div className="flex flex-col items-center text-center">
+                            <span className="text-2xl mb-1">💎</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
                                 Platinum: 30+
-                            </Typography>
-                        </Box>
+                            </p>
+                        </div>
                     </Grid>
                 </Grid>
-            </Box>
+            </div>
         </Paper>
     );
 };
 
 export default ReferralLeaderboard;
+

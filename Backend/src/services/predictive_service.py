@@ -92,8 +92,8 @@ class PredictiveAnalyticsService:
         # Weekend factor
         df['weekend_factor'] = df['day_of_week'].isin([5, 6]).astype(int)
 
-        # Fill NaN values
-        df = df.fillna(method='ffill').fillna(method='bfill').fillna(3)
+        # Fill NaN values (using modern pandas methods)
+        df = df.ffill().bfill().fillna(3)
 
         return df
 

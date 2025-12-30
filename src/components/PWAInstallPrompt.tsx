@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { Card, CardContent, Button, Typography, Box, Chip, Alert } from '@mui/material';
-import { GetApp, Close, Star, Smartphone, Computer, Tablet } from '@mui/icons-material';
-import { useTranslation } from 'react-i18next';
 import { usePWA } from '../hooks/usePWA';
 import { analytics } from '../services/analytics';
+import { 
+  StarIcon, 
+  XMarkIcon, 
+  ArrowDownTrayIcon,
+  DevicePhoneMobileIcon,
+  ComputerDesktopIcon,
+  DeviceTabletIcon
+} from '@heroicons/react/24/outline';
 
 const PWAInstallPrompt: React.FC = () => {
-  const { t } = useTranslation();
   const {
     isInstallable,
     isInstalled,
@@ -33,6 +36,7 @@ const PWAInstallPrompt: React.FC = () => {
         setDismissed(true);
       }
     }
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -41,6 +45,7 @@ const PWAInstallPrompt: React.FC = () => {
       const timer = setTimeout(() => setShowSuccess(false), 5000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [installSuccess]);
 
   const handleInstall = async () => {
@@ -69,15 +74,13 @@ const PWAInstallPrompt: React.FC = () => {
   const getPlatformIcon = () => {
     switch (platform) {
       case 'ios':
-        return <Smartphone sx={{ color: 'primary.main' }} />;
       case 'android':
-        return <Smartphone sx={{ color: 'success.main' }} />;
+        return <DevicePhoneMobileIcon className="w-5 h-5" />;
       case 'windows':
-        return <Computer sx={{ color: 'info.main' }} />;
       case 'macos':
-        return <Computer sx={{ color: 'secondary.main' }} />;
+        return <ComputerDesktopIcon className="w-5 h-5" />;
       default:
-        return <Tablet sx={{ color: 'warning.main' }} />;
+        return <DeviceTabletIcon className="w-5 h-5" />;
     }
   };
 
@@ -99,156 +102,125 @@ const PWAInstallPrompt: React.FC = () => {
   return (
     <>
       {/* Install Prompt */}
-      <Card
-        sx={{
-          position: 'fixed',
-          bottom: 20,
-          right: 20,
-          maxWidth: 400,
-          zIndex: 1000,
-          boxShadow: 6,
-          border: '2px solid',
-          borderColor: 'primary.main',
-        }}
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 shadow-lg"
         role="dialog"
         aria-labelledby="pwa-install-title"
         aria-describedby="pwa-install-description"
       >
-        <CardContent sx={{ p: spacing.lg }}>
-          <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2}>
-            <Box display="flex" alignItems="center" gap={2}>
-              <GetApp sx={{ color: 'primary.main', fontSize: 28 }} />
-              <Box>
-                <Typography id="pwa-install-title" variant="h6" component="h2">
-                  Installera Lugn & Trygg
-                </Typography>
-                <Box display="flex" alignItems="center" gap={1}>
-                  {getPlatformIcon()}
-                  <Typography variant="body2" color="text.secondary">
-                    För {getPlatformName()}
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900/20 rounded-lg">
+              <ArrowDownTrayIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 id="pwa-install-title" className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                Installera Lugn & Trygg
+              </h2>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                {getPlatformIcon()}
+                <span>För {getPlatformName()}</span>
+              </div>
+            </div>
+          </div>
 
-            <Button
-              size="small"
-              onClick={handleDismiss}
-              aria-label="Stäng installationsprompt"
-              sx={{ minWidth: 'auto', p: 0.5 }}
-            >
-              <Close fontSize="small" />
-            </Button>
-          </Box>
+          <button
+            onClick={handleDismiss}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            aria-label="Stäng installationsprompt"
+          >
+            <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
 
-          <Typography id="pwa-install-description" variant="body2" sx={{ mb: spacing.lg }}>
-            Installera appen för snabb åtkomst, offline-funktionalitet och push-notiser.
-            Fungerar även utan internetanslutning!
-          </Typography>
+        <p id="pwa-install-description" className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+          Installera appen för snabb åtkomst, offline-funktionalitet och push-notiser.
+          Fungerar även utan internetanslutning!
+        </p>
 
-          <Box display="flex" flexWrap="wrap" gap={1} mb={3}>
-            <Chip
-              icon={<Star />}
-              label="Offline-först"
-              size="small"
-              color="primary"
-              variant="outlined"
-            />
-            <Chip
-              icon={<Smartphone />}
-              label="Snabb åtkomst"
-              size="small"
-              color="secondary"
-              variant="outlined"
-            />
-            <Chip
-              icon={<GetApp />}
-              label="Push-notiser"
-              size="small"
-              color="success"
-              variant="outlined"
-            />
-          </Box>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 text-xs font-medium rounded-full border border-primary-200 dark:border-primary-800">
+            <StarIcon className="w-4 h-4" aria-hidden="true" />
+            Offline-först
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary-50 dark:bg-secondary-900/20 text-secondary-700 dark:text-secondary-300 text-xs font-medium rounded-full border border-secondary-200 dark:border-secondary-800">
+            <DevicePhoneMobileIcon className="w-4 h-4" aria-hidden="true" />
+            Snabb åtkomst
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 text-xs font-medium rounded-full border border-success-200 dark:border-success-800">
+            <ArrowDownTrayIcon className="w-4 h-4" aria-hidden="true" />
+            Push-notiser
+          </span>
+        </div>
 
-          <Box display="flex" gap={2}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleInstall}
-              startIcon={<GetApp />}
-              size="large"
-            >
-              Installera nu
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+        <button
+          onClick={handleInstall}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+        >
+          <ArrowDownTrayIcon className="w-5 h-5" aria-hidden="true" />
+          Installera nu
+        </button>
+      </div>
 
       {/* Update Prompt */}
       {updateAvailable && (
-        <Card
-          sx={{
-            position: 'fixed',
-            top: spacing.md0,
-            right: 20,
-            maxWidth: 350,
-            zIndex: 1000,
-            boxShadow: 6,
-            border: '2px solid',
-            borderColor: 'warning.main',
-          }}
+        <div
+          className="bg-white dark:bg-gray-800 rounded-lg border border-warning-200 dark:border-warning-800 p-4 sm:p-6 shadow-lg"
           role="dialog"
           aria-labelledby="pwa-update-title"
         >
-          <CardContent sx={{ p: spacing.lg }}>
-            <Typography id="pwa-update-title" variant="h6" gutterBottom>
-              Uppdatering tillgänglig! 🚀
-            </Typography>
-            <Typography variant="body2" sx={{ mb: spacing.lg }}>
-              En ny version av Lugn & Trygg är tillgänglig med förbättringar och nya funktioner.
-            </Typography>
+          <h2 id="pwa-update-title" className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+            Uppdatering tillgänglig! 🚀
+          </h2>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+            En ny version av Lugn & Trygg är tillgänglig med förbättringar och nya funktioner.
+          </p>
 
-            <Box display="flex" gap={2}>
-              <Button
-                variant="contained"
-                color="warning"
-                onClick={handleUpdate}
-                fullWidth
-              >
-                Uppdatera nu
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setDismissed(true)}
-                fullWidth
-              >
-                Senare
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={handleUpdate}
+              className="flex-1 px-6 py-2 bg-warning-600 hover:bg-warning-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-warning-500 min-h-[44px]"
+            >
+              Uppdatera nu
+            </button>
+            <button
+              onClick={() => setDismissed(true)}
+              className="flex-1 px-6 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px]"
+            >
+              Senare
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Success Message */}
       {showSuccess && (
-        <Alert
-          severity="success"
-          sx={{
-            position: 'fixed',
-            top: spacing.md0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1000,
-            minWidth: 300,
-            boxShadow: 6,
-          }}
-          onClose={() => setShowSuccess(false)}
+        <div
+          className="fixed top-4 right-4 z-50 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg shadow-lg p-4 max-w-md"
+          role="alert"
+          aria-live="assertive"
         >
-          🎉 Lugn & Trygg har installerats framgångsrikt!
-        </Alert>
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🎉</div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-success-900 dark:text-success-100">
+                Lugn & Trygg har installerats framgångsrikt!
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSuccess(false)}
+              className="p-1 hover:bg-success-100 dark:hover:bg-success-900/40 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-success-500"
+              aria-label="Stäng meddelande"
+            >
+              <XMarkIcon className="w-5 h-5 text-success-700 dark:text-success-300" />
+            </button>
+          </div>
+        </div>
       )}
     </>
   );
 };
 
 export default PWAInstallPrompt;
+
+

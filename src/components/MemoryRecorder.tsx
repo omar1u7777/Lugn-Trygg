@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../api/api";
 
-const MemoryRecorder = ({ userId, onClose }: { userId: string; onClose: () => void }) => {
+const MemoryRecorder = ({ userId, onClose, inline = false }: { userId: string; onClose?: () => void; inline?: boolean }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -79,8 +79,11 @@ const MemoryRecorder = ({ userId, onClose }: { userId: string; onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in">
+    <div className={inline ? "w-full" : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm"}>
+      <div className={inline
+        ? "bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-h-[70vh] flex flex-col"
+        : "bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in"
+      }>
         <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3">
           <span className="text-2xl">🎙️</span>
           Spela in Minne
@@ -109,13 +112,15 @@ const MemoryRecorder = ({ userId, onClose }: { userId: string; onClose: () => vo
         </div>
 
         {/* 🚪 Stäng-knapp */}
-        <button
-          className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
-          onClick={onClose}
-          aria-label="Stäng"
-        >
-          ✕
-        </button>
+        {!inline && (
+          <button
+            className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
+            onClick={onClose}
+            aria-label="Stäng"
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

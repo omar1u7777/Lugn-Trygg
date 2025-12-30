@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
+import { Card, Button } from './ui/tailwind';
 import { TestSuite } from './ui/TestSuite';
 
 /**

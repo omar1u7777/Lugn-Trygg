@@ -1,39 +1,26 @@
-import React, { useState, useEffect } from 'react';
+```typescript
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box,
-  Typography,
-  Button,
-  Card,
-  CardContent,
-  Grid,
-  TextField,
-  Chip,
-  Alert,
-  IconButton,
-  LinearProgress,
-} from '@mui/material';
-import {
-  Favorite,
-  SentimentVeryDissatisfied,
-  SentimentDissatisfied,
-  SentimentNeutral,
-  SentimentSatisfied,
-  SentimentVerySatisfied,
-  Close,
-  Save,
-  Psychology,
-  SelfImprovement,
-  MusicNote,
-  Nature,
-  Brightness6,
-} from '@mui/icons-material';
-import { useTranslation } from 'react-i18next';
+  XMarkIcon,
+  MicrophoneIcon,
+  StopIcon,
+  PlayIcon,
+  SparklesIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon, // Added ArrowLeftIcon
+  CheckCircleIcon // Added appropriate icon
+} from '@heroicons/react/24/outline'; // Correct import source
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { logMood, analyzeText } from '../api/api';
+import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import '../styles/world-class-design.css';
+
+// ----------------------------------------------------------------------
+// Types & Constants
+// ----------------------------------------------------------------------
 
 interface WorldClassMoodLoggerProps {
   onClose: () => void;
@@ -43,396 +30,363 @@ interface MoodOption {
   id: string;
   emoji: string;
   label: string;
-  description: string;
   score: number;
   color: string;
-  icon: React.ReactNode;
 }
 
-const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) => {
-  const { t } = useTranslation();
-  const { announceToScreenReader } = useAccessibility();
-  const { user } = useAuth();
+const MOOD_OPTIONS: MoodOption[] = [
+  { id: 'ecstatic', emoji: '🤩', label: 'Fantastiskt', score: 10, color: 'from-yellow-300 to-amber-500' },
+  { id: 'happy', emoji: '😊', label: 'Bra', score: 8, color: 'from-green-300 to-emerald-500' },
+  { id: 'neutral', emoji: '😐', label: 'Helt okej', score: 5, color: 'from-gray-300 to-slate-400' },
+  { id: 'anxious', emoji: '😰', label: 'Orolig', score: 4, color: 'from-orange-300 to-red-400' },
+  { id: 'sad', emoji: '😢', label: 'Nere', score: 3, color: 'from-blue-300 to-indigo-500' },
+  { id: 'angry', emoji: '😠', label: 'Arg', score: 2, color: 'from-red-400 to-rose-600' },
+];
 
-  const [selectedMood, setSelectedMood] = useState<MoodOption | null>(null);
-  const [moodText, setMoodText] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+const FACTORS = [
+  { id: 'sleep', label: 'Sömn', icon: '😴' },
+  { id: 'work', label: 'Jobb/Skola', icon: '💼' },
+  { id: 'family', label: 'Familj', icon: '👨‍👩‍👧' },
+  { id: 'friends', label: 'Vänner', icon: '👯‍♀️' },
+  { id: 'health', label: 'Hälsa', icon: '❤️' },
+  { id: 'exercise', label: 'Träning', icon: '💪' },
+  { id: 'food', label: 'Mat', icon: '🥗' },
+  { id: 'weather', label: 'Väder', icon: '🌤️' },
+];
 
-  const moodOptions: MoodOption[] = [
-    {
-      id: 'ecstatic',
-      emoji: '🤩',
-      label: 'Extatisk',
-      description: 'Fantastiskt, överlycklig',
-      score: 10,
-      color: colors.mood.ecstatic,
-      icon: <SentimentVerySatisfied />,
-    },
-    {
-      id: 'happy',
-      emoji: '😊',
-      label: 'Glad',
-      description: 'Positiv och nöjd',
-      score: 8,
-      color: colors.mood.happy,
-      icon: <SentimentSatisfied />,
-    },
-    {
-      id: 'content',
-      emoji: '🙂',
-      label: 'Nöjd',
-      description: 'Fridfull och harmonisk',
-      score: 7,
-      color: colors.mood.content,
-      icon: <SentimentNeutral />,
-    },
-    {
-      id: 'neutral',
-      emoji: '😐',
-      label: 'Neutral',
-      description: 'Varken upp eller ner',
-      score: 5,
-      color: colors.mood.neutral,
-      icon: <SentimentNeutral />,
-    },
-    {
-      id: 'sad',
-      emoji: '😢',
-      label: 'Ledsen',
-      description: 'Nedstämd eller sorgsen',
-      score: 3,
-      color: colors.mood.anxious,
-      icon: <SentimentDissatisfied />,
-    },
-    {
-      id: 'anxious',
-      emoji: '😰',
-      label: 'Ångest',
-      description: 'Orolig eller stressad',
-      score: 2,
-      color: colors.mood.sad,
-      icon: <SentimentDissatisfied />,
-    },
-    {
-      id: 'depressed',
-      emoji: '😔',
-      label: 'Deprimerad',
-      description: 'Djupt nedstämd',
-      score: 1,
-      color: colors.mood.depressed,
-      icon: <SentimentVeryDissatisfied />,
-    },
-  ];
+// ----------------------------------------------------------------------
+// Component: Step 1 - Mood Selection (3D Emojis)
+// ----------------------------------------------------------------------
 
-  useEffect(() => {
-    analytics.page('World Class Mood Logger', {
-      component: 'WorldClassMoodLogger',
-    });
-
-    announceToScreenReader('Mood logger loaded. Select how you are feeling today.', 'polite');
-  }, []);
-
-  const handleMoodSelect = async (mood: MoodOption) => {
-    setSelectedMood(mood);
-    analytics.track('Mood Selected', {
-      mood_id: mood.id,
-      mood_score: mood.score,
-      component: 'WorldClassMoodLogger',
-    });
-
-    // Auto-analyze if text is provided
-    if (moodText.trim()) {
-      await analyzeMoodText();
-    }
-
-    announceToScreenReader(`Selected mood: ${mood.label}`, 'polite');
-  };
-
-  const analyzeMoodText = async () => {
-    if (!moodText.trim()) return;
-
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzeText(moodText);
-      setAnalysis(result);
-      announceToScreenReader('Text analysis completed', 'polite');
-    } catch (error) {
-      console.error('Analysis failed:', error);
-      announceToScreenReader('Text analysis failed', 'polite');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!selectedMood || !user?.user_id) return;
-
-    setLoading(true);
-    try {
-      await logMood(user.user_id, moodText || selectedMood.label, selectedMood.score);
-
-      analytics.track('Mood Logged', {
-        mood_id: selectedMood.id,
-        mood_score: selectedMood.score,
-        has_text: !!moodText.trim(),
-        component: 'WorldClassMoodLogger',
-      });
-
-      setSuccess(true);
-      announceToScreenReader('Mood logged successfully!', 'polite');
-
-      // Auto-close after success
-      setTimeout(() => {
-        onClose();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Failed to log mood:', error);
-      announceToScreenReader('Failed to log mood. Please try again.', 'assertive');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getRecommendations = () => {
-    if (!selectedMood) return [];
-
-    const recommendations = [];
-
-    if (selectedMood.score <= 3) {
-      recommendations.push({
-        icon: <Psychology />,
-        text: 'Överväg att prata med en professionell terapeut',
-        type: 'professional',
-      });
-      recommendations.push({
-        icon: <SelfImprovement />,
-        text: 'Prova guidad meditation för stressreduktion',
-        type: 'meditation',
-      });
-    }
-
-    if (selectedMood.score >= 7) {
-      recommendations.push({
-        icon: <MusicNote />,
-        text: 'Lyssna på uppmuntrande musik för att behålla det positiva',
-        type: 'music',
-      });
-    }
-
-    recommendations.push({
-      icon: <Nature />,
-      text: 'Ta en promenad i naturen för bättre perspektiv',
-      type: 'nature',
-    });
-
-    recommendations.push({
-      icon: <Brightness6 />,
-      text: 'Se till att få tillräckligt med sömn ikväll',
-      type: 'sleep',
-    });
-
-    return recommendations;
-  };
-
-  if (success) {
-    return (
-      <Box className="world-class-success-celebration" sx={{ p: spacing.xl, textAlign: 'center' }}>
-        <Typography variant="h4" className="world-class-heading-2" gutterBottom>
-          🎉 Humör loggat!
-        </Typography>
-        <Typography variant="body1" className="world-class-body">
-          Tack för att du delar dina känslor. Detta hjälper dig förstå dina mönster bättre.
-        </Typography>
-      </Box>
-    );
-  }
-
+const MoodSelectionStep: React.FC<{
+  selectedMood: MoodOption | null;
+  onSelect: (mood: MoodOption) => void;
+}> = ({ selectedMood, onSelect }) => {
   return (
-    <Box
-      className="world-class-app"
-      sx={{
-        minHeight: '100vh',
-        background: colors.background.gradient,
-        p: spacing.md,
-      }}
-    >
-      <Card className="world-class-dashboard-card" sx={{ maxWidth: 800, mx: 'auto' }}>
-        <CardContent sx={{ p: spacing.xl }}>
-          {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: spacing.xl }}>
-            <Typography variant="h4" className="world-class-heading-2">
-              Hur känns det idag?
-            </Typography>
-            <IconButton onClick={onClose} aria-label="Close mood logger">
-              <Close />
-            </IconButton>
-          </Box>
+    <div className="space-y-8 animate-fade-in-up">
+      <div className="text-center">
+        <h2 className="world-class-heading-2 mb-2">Hur känns det just nu?</h2>
+        <p className="text-gray-500 dark:text-gray-400">Välj det som passar bäst</p>
+      </div>
 
-          {/* Mood Selection */}
-          <Box sx={{ mb: spacing.xxl }}>
-            <Typography variant="h6" className="world-class-heading-3" gutterBottom>
-              Välj ditt humör
-            </Typography>
-            <Box className="world-class-mood-selector">
-              {moodOptions.map((mood, index) => (
-                <Box
-                  key={mood.id}
-                  className={`world-class-mood-option world-class-animate-fade-in-up ${
-                    selectedMood?.id === mood.id ? 'selected' : ''
-                  }`}
-                  onClick={() => handleMoodSelect(mood)}
-                  sx={{
-                    animationDelay: `${index * 0.1}s`,
-                    cursor: 'pointer',
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select mood: ${mood.label} - ${mood.description}`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleMoodSelect(mood);
-                    }
-                  }}
-                >
-                  <Box className="world-class-mood-emoji" sx={{ fontSize: '3rem', mb: spacing.md }}>
-                    {mood.emoji}
-                  </Box>
-                  <Typography variant="h6" className="world-class-mood-label">
-                    {mood.label}
-                  </Typography>
-                  <Typography variant="body2" className="world-class-mood-description">
-                    {mood.description}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          {/* Text Input */}
-          <Box sx={{ mb: spacing.xxl }}>
-            <Typography variant="h6" className="world-class-heading-3" gutterBottom>
-              Berätta mer (valfritt)
-            </Typography>
-            <TextField
-              multiline
-              rows={4}
-              fullWidth
-              placeholder="Vad händer i ditt liv just nu? Hur påverkar det ditt humör?"
-              value={moodText}
-              onChange={(e) => setMoodText(e.target.value)}
-              className="world-class-textarea"
-              variant="outlined"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: borderRadius.lg,
-                }
-              }}
-            />
-
-            {moodText.trim() && (
-              <Button
-                onClick={analyzeMoodText}
-                disabled={isAnalyzing}
-                sx={{ mt: spacing.md }}
-                variant="outlined"
-                startIcon={<Psychology />}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        {MOOD_OPTIONS.map((mood, index) => {
+          const isSelected = selectedMood?.id === mood.id;
+          return (
+            <button
+              key={mood.id}
+              onClick={() => onSelect(mood)}
+              className={`group relative p - 6 rounded - [2rem] transition - all duration - 300 border - 2
+                ${
+  isSelected
+    ? 'border-primary-500 bg-white dark:bg-slate-800 shadow-xl scale-105'
+    : 'border-transparent bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:scale-105'
+}
+`}
+              style={{ animationDelay: `${ index * 50 } ms` }}
+            >
+              <div 
+                className={`text - 6xl mb - 4 transition - transform duration - 500 
+                  ${ isSelected ? 'scale-125 rotate-6' : 'group-hover:scale-110 group-hover:rotate-6' }
+                  filter drop - shadow - md
+  `}
               >
-                {isAnalyzing ? 'Analyserar...' : 'Analysera text'}
-              </Button>
-            )}
-          </Box>
+                {mood.emoji}
+              </div>
+              <div className="font-bold text-gray-900 dark:text-gray-100">{mood.label}</div>
+              
+              {/* Active Indicator */}
+              {isSelected && (
+                <div className="absolute top-4 right-4 text-primary-500">
+                  <CheckCircleIcon className="w-6 h-6" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
-          {/* AI Analysis */}
-          {analysis && (
-            <Box sx={{ mb: spacing.xxl }}>
-              <Alert severity="info" sx={{ borderRadius: borderRadius.lg }}>
-                <Typography variant="h6" gutterBottom>
-                  🤖 AI-analys
-                </Typography>
-                <Typography variant="body2">
-                  {analysis.emotion || 'Din text visar på följande känslor:'}
-                  {analysis.sentiment && (
-                    <Chip
-                      label={analysis.sentiment}
-                      size="small"
-                      sx={{ ml: spacing.sm }}
-                      color={analysis.sentiment === 'POSITIVE' ? 'success' : 'warning'}
-                    />
-                  )}
-                </Typography>
+// ----------------------------------------------------------------------
+// Component: Step 2 - Factors (Chips)
+// ----------------------------------------------------------------------
+
+const FactorsStep: React.FC<{
+  selectedFactors: string[];
+  toggleFactor: (id: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}> = ({ selectedFactors, toggleFactor, onNext, onBack }) => {
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      <div className="text-center">
+        <h2 className="world-class-heading-2 mb-2">Vad har påverkat dig?</h2>
+        <p className="text-gray-500 dark:text-gray-400">Välj en eller flera (valfritt)</p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-3">
+        {FACTORS.map((factor, index) => {
+          const isSelected = selectedFactors.includes(factor.id);
+          return (
+            <button
+              key={factor.id}
+              onClick={() => toggleFactor(factor.id)}
+              className={`flex items - center gap - 2 px - 6 py - 3 rounded - full text - base font - medium transition - all duration - 200
+                ${
+  isSelected
+    ? 'bg-primary-600 text-white shadow-md transform scale-105'
+    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-gray-700'
+}
+`}
+              style={{ animationDelay: `${ index * 50 } ms` }}
+            >
+              <span>{factor.icon}</span>
+              <span>{factor.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-between pt-8">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 px-6 py-3 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+        >
+          <ArrowLeftIcon className="w-5 h-5" />
+          Tillbaka
+        </button>
+        <button
+          onClick={onNext}
+          className="flex items-center gap-2 px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-full font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
+        >
+          Nästa
+          <ArrowRightIcon className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------------
+// Component: Step 3 - Elaborate (Text & Voice)
+// ----------------------------------------------------------------------
+
+const ElaborateStep: React.FC<{
+  note: string;
+  setNote: (note: string) => void;
+  onSave: () => void;
+  isSaving: boolean;
+  onBack: () => void;
+}> = ({ note, setNote, onSave, isSaving, onBack }) => {
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+       <div className="text-center">
+        <h2 className="world-class-heading-2 mb-2">Vill du berätta mer?</h2>
+        <p className="text-gray-500 dark:text-gray-400">Sätt ord på dina känslor (valfritt)</p>
+      </div>
+
+      <div className="glass-panel rounded-[2rem] p-6">
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Skriv dina tankar här..."
+          className="w-full h-40 bg-transparent border-none focus:ring-0 text-lg placeholder-gray-400 dark:placeholder-gray-600 resize-none"
+        />
+        
+        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
+           <button className="p-3 text-primary-600 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/20 rounded-full transition-colors" title="Röstinspelning (Kommer snart)">
+             <MicrophoneIcon className="w-6 h-6" />
+           </button>
+        </div>
+      </div>
+
+      <div className="flex justify-between pt-4">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 px-6 py-3 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+        >
+          <ArrowLeftIcon className="w-5 h-5" />
+          Tillbaka
+        </button>
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 px-8 py-3 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-full font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSaving ? 'Sparar...' : 'Spara Logg'}
+          {!isSaving && <CheckCircleIcon className="w-5 h-5" />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------------
+// Main Component
+// ----------------------------------------------------------------------
+
+const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) => {
+  const { user } = useAuth();
+  const { announceToScreenReader } = useAccessibility();
+  const { incrementMoodLog, canLogMood } = useSubscription();
+
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedMood, setSelectedMood] = useState<MoodOption | null>(null);
+  const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
+  const [note, setNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sound effects refs (omitted for brevity, assume implementation)
+
+  const handleMoodSelect = (mood: MoodOption) => {
+    setSelectedMood(mood);
+    // Subtle delay for visual feedback before auto-advance
+    setTimeout(() => setStep(2), 300);
+  };
+
+  const toggleFactor = (id: string) => {
+    setSelectedFactors(prev => 
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    );
+                  </h4>
+                  <p className="text-sm">
+                    {analysis.emotion || 'Din text visar på följande känslor:'}
+                    {analysis.sentiment && (
+                      <span
+                        className={`ml - 2 inline - flex items - center px - 2.5 py - 0.5 rounded - full text - xs font - medium ${
+  analysis.sentiment === 'POSITIVE'
+    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+} `}
+                      >
+                        {analysis.sentiment}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </Alert>
-            </Box>
+            </div>
+          )}
+
+          {/* Voice Analysis */}
+          {voiceAnalysis && (
+            <div className="mb-12">
+              <Alert variant="info">
+                <div>
+                  <h4 className="text-lg font-semibold mb-2">
+                    🎤 AI-analys av röst
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      <strong>Känsla från röst:</strong> {voiceAnalysis.emotion || 'Analyseras...'}
+                      {voiceAnalysis.sentiment && (
+                        <span
+                          className={`ml - 2 inline - flex items - center px - 2.5 py - 0.5 rounded - full text - xs font - medium ${
+  voiceAnalysis.sentiment === 'POSITIVE'
+    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    : voiceAnalysis.sentiment === 'NEGATIVE'
+      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+} `}
+                        >
+                          {voiceAnalysis.sentiment}
+                        </span>
+                      )}
+                    </p>
+                    {voiceAnalysis.confidence && (
+                      <p>
+                        <strong>Konfidens:</strong> {Math.round(voiceAnalysis.confidence * 100)}%
+                      </p>
+                    )}
+                    {voiceAnalysis.intensity && (
+                      <p>
+                        <strong>Intensitet:</strong> {Math.round(voiceAnalysis.intensity * 100)}%
+                      </p>
+                    )}
+                    {voiceAnalysis.suggested_mood_score && (
+                      <p>
+                        <strong>Föreslagen humör-poäng:</strong> {voiceAnalysis.suggested_mood_score}/10
+                        <span className="text-xs text-gray-500 ml-2">
+                          (baserat på röstanalys)
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Alert>
+            </div>
           )}
 
           {/* Recommendations */}
           {selectedMood && (
-            <Box sx={{ mb: spacing.xxl }}>
-              <Typography variant="h6" className="world-class-heading-3" gutterBottom>
+            <div className="mb-12">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
                 💡 Rekommendationer
-              </Typography>
-              <Grid container spacing={spacing.md / 8}>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {getRecommendations().map((rec, index) => (
-                  <Grid item xs={12} sm={6} key={index}>
-                    <Card
-                      sx={{
-                        p: spacing.md,
-                        borderRadius: borderRadius.md,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          boxShadow: shadows.md,
-                          transform: 'translateY(-2px)',
-                        }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-                        <Box sx={{ color: 'primary.main' }}>
-                          {rec.icon}
-                        </Box>
-                        <Typography variant="body2">
-                          {rec.text}
-                        </Typography>
-                      </Box>
-                    </Card>
-                  </Grid>
+                  <Card
+                    key={index}
+                    className="p-4 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div style={{ color: colors.primary.main }}>
+                        {rec.icon}
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {rec.text}
+                      </p>
+                    </div>
+                  </Card>
                 ))}
-              </Grid>
-            </Box>
+              </div>
+            </div>
+          )}
+
+          {/* HONEST transparency - ONLY show in development/debug mode */}
+          {process.env.NODE_ENV === 'development' && (
+            <Alert variant="info" className="mb-6">
+              <div className="text-sm">
+                <p className="font-semibold mb-2">🔍 DEV MODE: Vad händer när du sparar:</p>
+                <div className="space-y-1 text-xs">
+                  <p>• Humör-poäng ({useCustomScore ? customMoodScore : selectedMood?.score || 'X'}/10) sparas exakt</p>
+                  <p>• Text sparas ordagrant - INGA ändringar</p>
+                  {recordedAudio && <p>• Röst: AI-analys med fallback till neutral</p>}
+                  <p>• Timestamp: {new Date().toLocaleString('sv-SE')}</p>
+                  <p>• Lagringsplats: Firebase Firestore</p>
+                  <p>• AI: OpenAI med fallback</p>
+                  <p>• Cache: Rensas för omedelbar synkronisering</p>
+                </div>
+              </div>
+            </Alert>
           )}
 
           {/* Save Button */}
-          <Box sx={{ textAlign: 'center' }}>
+          <div className="text-center">
             <Button
               onClick={handleSave}
-              disabled={!selectedMood || loading}
-              className="world-class-btn-primary"
-              size="large"
-              startIcon={<Save />}
-              sx={{
-                px: spacing.xxl,
-                py: spacing.md,
-                fontSize: '1.1rem',
-                borderRadius: borderRadius.xl,
-              }}
+              disabled={(!selectedMood && !useCustomScore) || (useCustomScore && !customMoodScore) || loading}
+              variant="primary"
+              size="lg"
+              className="world-class-btn-primary px-12 py-3 text-lg rounded-2xl"
             >
+              <CheckIcon className="w-5 h-5 mr-2" />
               {loading ? 'Sparar...' : 'Spara humör'}
             </Button>
 
             {loading && (
-              <Box sx={{ mt: spacing.md }}>
-                <LinearProgress sx={{ borderRadius: borderRadius.md, height: 8 }} />
-              </Box>
+              <div className="mt-4">
+                <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: colors.background.default }}>
+                  <div className="h-full animate-pulse" style={{ width: '100%', backgroundColor: colors.primary.main }} />
+                </div>
+              </div>
             )}
-          </Box>
-        </CardContent>
+          </div>
+        </div>
       </Card>
-    </Box>
+    </div>
   );
 };
 

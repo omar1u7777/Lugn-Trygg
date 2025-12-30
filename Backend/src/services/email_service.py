@@ -165,14 +165,27 @@ Lugn & Trygg - Mental hälsa & välmående
 © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
 """
             
-            # Send email via Resend
-            response = self.client.Emails.send({
-                "from": f"{self.from_name} <{self.from_email}>",
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-                "text": plain_text
-            })
+            # CRITICAL FIX: Graceful degradation if API key is invalid
+            try:
+                # Send email via Resend
+                response = self.client.Emails.send({
+                    "from": f"{self.from_name} <{self.from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                    "text": plain_text
+                })
+            except Exception as send_error:
+                error_str = str(send_error).lower()
+                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
+                    logger.warning(f"⚠️ Resend API key invalid for referral email - skipping email send")
+                    # Return success=False but don't crash the application
+                    return {
+                        "success": False,
+                        "error": "Email service temporarily unavailable",
+                        "email_id": None
+                    }
+                raise  # Re-raise if it's a different error
             
             logger.info(f"✅ Referral email sent to {to_email} (id: {response.get('id', 'N/A')})")
             
@@ -763,12 +776,143 @@ Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
         
         return self._send_email(user_email, subject, html_content, plain_content)
     
+    def send_password_reset_email(self, to_email: str, reset_token: str, reset_link: str) -> Dict[str, Any]:
+        """Send password reset email"""
+        if not self.client:
+            logger.error("❌ Resend not configured")
+            return {"success": False, "error": "Email service not configured"}
+
+        try:
+            subject = "Återställ ditt lösenord - Lugn & Trygg"
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .reset-box {{ background: white; border: 2px solid #667eea; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }}
+        .reset-link {{ display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }}
+        .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }}
+        .footer {{ text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Återställ ditt lösenord</h1>
+            <p style="font-size: 18px; margin: 10px 0;">Vi hjälper dig att få tillbaka åtkomst till ditt konto</p>
+        </div>
+
+        <div class="content">
+            <p>Hej!</p>
+
+            <p>Du har begärt att återställa ditt lösenord för ditt konto på Lugn & Trygg. Klicka på knappen nedan för att skapa ett nytt lösenord:</p>
+
+            <div class="reset-box">
+                <p style="margin: 0; color: #666;">Din återställningslänk:</p>
+                <a href="{reset_link}" class="reset-link">Återställ lösenord →</a>
+                <p style="margin: 15px 0 0 0; color: #666; font-size: 14px;">
+                    Länken är giltig i 1 timme från att detta mejl skickades.
+                </p>
+            </div>
+
+            <div class="warning">
+                <p style="margin: 0; color: #856404;">
+                    <strong>⚠️ Säkerhetsvarning:</strong> Om du inte begärde denna återställning, ignorera detta mejl. Ditt lösenord kommer inte att ändras.
+                </p>
+            </div>
+
+            <p>Om knappen ovan inte fungerar, kopiera och klistra in denna länk i din webbläsare:</p>
+            <p style="word-break: break-all; background: #f0f0f0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                {reset_link}
+            </p>
+
+            <p>Med vänliga hälsningar,<br>Lugn & Trygg Team</p>
+        </div>
+
+        <div class="footer">
+            <p>Lugn & Trygg - Mental hälsa & välmående</p>
+            <p>
+                <a href="https://lugn-trygg.vercel.app/privacy-policy.html" style="color: #667eea;">Integritetspolicy</a> |
+                <a href="https://lugn-trygg.vercel.app/terms-of-service.html" style="color: #667eea;">Användarvillkor</a>
+            </p>
+            <p style="margin-top: 10px;">
+                © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+            plain_text = f"""
+Återställ ditt lösenord - Lugn & Trygg
+
+Hej!
+
+Du har begärt att återställa ditt lösenord för ditt konto på Lugn & Trygg.
+
+Klicka på denna länk för att skapa ett nytt lösenord:
+{reset_link}
+
+Länken är giltig i 1 timme från att detta mejl skickades.
+
+VIKTIGT: Om du inte begärde denna återställning, ignorera detta mejl. Ditt lösenord kommer inte att ändras.
+
+Med vänliga hälsningar,
+Lugn & Trygg Team
+
+---
+Lugn & Trygg - Mental hälsa & välmående
+© 2025 Lugn & Trygg. Alla rättigheter förbehållna.
+"""
+
+            # CRITICAL FIX: Graceful degradation if API key is invalid
+            try:
+                response = self.client.Emails.send({
+                    "from": f"{self.from_name} <{self.from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                    "text": plain_text
+                })
+            except Exception as send_error:
+                error_str = str(send_error).lower()
+                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
+                    logger.warning(f"⚠️ Resend API key invalid for password reset email - skipping email send")
+                    return {
+                        "success": False,
+                        "error": "Email service temporarily unavailable",
+                        "email_id": None
+                    }
+                raise  # Re-raise if it's a different error
+
+            logger.info(f"✅ Password reset email sent to {to_email} (id: {response.get('id', 'N/A')})")
+
+            return {
+                "success": True,
+                "email_id": response.get("id"),
+                "message": "Password reset email sent successfully"
+            }
+
+        except Exception as e:
+            logger.exception(f"❌ Failed to send password reset email to {to_email}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     def _send_email(self, to_email: str, subject: str, html_content: str, plain_content: str = None) -> bool:
         """Helper method to send email via Resend"""
         if not self.enabled:
             logger.warning(f"Resend not configured, skipping email to {to_email}")
             return False
-        
+
         try:
             email_data = {
                 "from": f"{self.from_name} <{self.from_email}>",
@@ -776,14 +920,24 @@ Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
                 "subject": subject,
                 "html": html_content
             }
-            
+
             if plain_content:
                 email_data["text"] = plain_content
-            
-            response = self.client.Emails.send(email_data)
-            logger.info(f"✅ Email sent to {to_email} (id: {response.get('id', 'N/A')})")
-            return True
-            
+
+            # CRITICAL FIX: Graceful degradation if API key is invalid
+            try:
+                response = self.client.Emails.send(email_data)
+                logger.info(f"✅ Email sent to {to_email} (id: {response.get('id', 'N/A')})")
+                return True
+            except Exception as send_error:
+                error_str = str(send_error).lower()
+                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
+                    logger.warning(f"⚠️ Resend API key invalid or unauthorized - email service disabled")
+                    # Return False but don't crash the application
+                    return False
+                # Re-raise if it's a different error
+                raise
+
         except Exception as e:
             logger.exception(f"❌ Failed to send email to {to_email}: {e}")
             return False

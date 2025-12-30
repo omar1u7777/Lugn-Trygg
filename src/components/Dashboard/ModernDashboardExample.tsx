@@ -6,7 +6,6 @@
  */
 
 import React from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useTranslation } from 'react-i18next';
 import { DashboardLayout, DashboardHeader, DashboardGrid, DashboardSection } from './Layout';
 import { BaseWidget, StatCard, ActionCard } from './Widgets';
@@ -54,7 +53,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
         span={3}
         delay={0.1}
       >
-        <DashboardGrid columns={{ mobile: 2, tablet: 3, desktop: spacing.xl }} gap="md">
+        <DashboardGrid columns={{ mobile: 2, tablet: 3, desktop: 4 }}>
           <StatCard
             label="Totala Humör"
             value={stats.totalMoods}
@@ -96,7 +95,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
         span={3}
         delay={0.2}
       >
-        <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: spacing.xl }} gap="md">
+        <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }}>
           <ActionCard
             title="Logga Humör"
             description="Spåra ditt känslotillstånd"
@@ -137,7 +136,7 @@ const ModernDashboardExample: React.FC<ModernDashboardExampleProps> = ({
       </DashboardSection>
 
       {/* Widgets Section */}
-      <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: spacing.lg }} gap="lg">
+      <DashboardGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }}>
         {/* Analytics Widget Example */}
         <BaseWidget
           title="Humör Analys"
@@ -250,3 +249,4 @@ export default ModernDashboardExample;
  * - Inbyggd loading/error states
  * - Professionell animations
  */
+

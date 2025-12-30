@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Z-INDEX SYSTEM - Lugn & Trygg
+ * ==============================
+ * Documented stacking context hierarchy to prevent overlap issues.
+ * 
+ * z-[1]     - Base content (cards, sections)
+ * z-10      - Elevated content (sticky headers within content)
+ * z-20      - Floating elements (tooltips, popovers within page)
+ * z-50      - Modals, overlays, dialogs
+ * z-[90]    - Floating action buttons (FeatureNavigationHub button)
+ * z-[100]   - Main navigation bar (always visible)
+ * z-[110]   - Navigation dropdowns (above nav bar)
+ * z-[200]   - Drawer/Slide-out panels (FeatureNavigationHub drawer)
+ * z-[1000]  - Critical overlays (loading spinners, micro-interactions)
+ * 
+ * RULES:
+ * - Content should never exceed z-50 unless it's a modal
+ * - Navigation is ALWAYS z-[100]+
+ * - Full-page overlays use z-[200]+
+ */
+
 /* Custom base styles for Lugn & Trygg */
 @layer base {
   html {

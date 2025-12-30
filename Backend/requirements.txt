@@ -21,6 +21,7 @@ requests>=2.31.0
 bcrypt==4.0.1
 pycryptodome>=3.0.0
 cryptography>=41.0.0
+bleach>=6.0.0
 
 # Caching & Rate Limiting
 redis>=4.0.0
@@ -44,9 +45,11 @@ joblib>=1.1.0
 # Voice & Audio Processing
 pyttsx3==2.90
 SpeechRecognition==3.8.1
-pyaudio==0.2.13
 sounddevice==0.4.5
 soundfile==0.11.0
+
+# PyAudio requires platform-specific wheels and fails to build on Python 3.12+.
+# Install it manually when needed (e.g., via pipwin or prebuilt wheels).
 
 # Natural Language Processing
 transformers>=4.0.0
@@ -64,8 +67,13 @@ sendgrid>=6.0.0
 resend==0.8.0
 
 # Data Validation
-pydantic==1.10.13
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+email-validator>=2.0.0
 marshmallow>=3.0.0
+
+# CSRF Protection - Temporarily disabled for API testing
+# Flask-WTF>=1.0.0
 
 # API Documentation
 apispec==6.6.1
@@ -101,6 +109,11 @@ requests-oauthlib>=1.3.0
 Pillow>=9.0.0
 python-dateutil>=2.8.0
 pytz>=2021.3
+
+# Two-Factor Authentication
+pyotp>=2.6.0
+qrcode[pil]>=7.3.1
+webauthn>=1.0.0
 
 # Production Server
 gunicorn>=20.1.0

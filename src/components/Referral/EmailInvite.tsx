@@ -47,11 +47,14 @@ const EmailInvite: React.FC<EmailInviteProps> = () => {
                     text: 'Kunde inte skicka inbjudan' 
                 });
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to send invite:', err);
+            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+                ? String(err.response.data.error)
+                : 'Något gick fel';
             setMessage({ 
                 type: 'error', 
-                text: err.response?.data?.error || 'Något gick fel' 
+                text: errorMessage
             });
         } finally {
             setSending(false);

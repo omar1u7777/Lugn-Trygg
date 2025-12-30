@@ -6,7 +6,7 @@ Provides comprehensive monitoring, alerting, and health checks
 import time
 import psutil
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import requests
@@ -81,11 +81,11 @@ class MonitoringService:
                 memory_usage=memory.percent,
                 disk_usage=disk.percent,
                 network_connections=network,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
         except Exception as e:
             logger.error(f"Failed to get system metrics: {e}")
-            return SystemMetrics(0, 0, 0, 0, datetime.utcnow())
+            return SystemMetrics(0, 0, 0, 0, datetime.now(UTC))
 
     def get_application_metrics(self) -> ApplicationMetrics:
         """Get application-specific metrics"""
@@ -105,11 +105,11 @@ class MonitoringService:
                 avg_response_time=avg_response_time,
                 database_connections=db_connections,
                 cache_hit_rate=cache_hit_rate,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
         except Exception as e:
             logger.error(f"Failed to get application metrics: {e}")
-            return ApplicationMetrics(0, 0, 0, 0, 0, 0, datetime.utcnow())
+            return ApplicationMetrics(0, 0, 0, 0, 0, 0, datetime.now(UTC))
 
     def perform_health_check(self) -> HealthStatus:
         """Perform comprehensive health check"""
@@ -154,7 +154,7 @@ class MonitoringService:
                 status=status,
                 checks=checks,
                 message=message,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
 
         except Exception as e:
@@ -163,7 +163,7 @@ class MonitoringService:
                 status='unhealthy',
                 checks={'health_check': False},
                 message=f'Health check error: {str(e)}',
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
 
     def log_performance_metric(self, name: str, value: float, tags: Dict[str, str] = None):
@@ -173,7 +173,7 @@ class MonitoringService:
                 'name': name,
                 'value': value,
                 'tags': tags or {},
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
 
             # Store in Redis for short-term metrics
@@ -192,7 +192,7 @@ class MonitoringService:
             event_data = {
                 'event_type': event_type,
                 'properties': properties or {},
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
                 'source': 'backend'
             }
 
@@ -357,7 +357,7 @@ class MonitoringService:
                 'type': error_type,
                 'endpoint': endpoint,
                 'message': error_message,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
             
             if self.redis_client:
@@ -370,52 +370,26 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"Failed to track error: {e}")
 
-    def get_health_status(self) -> Dict[str, Any]:
-        """Get comprehensive health status"""
+    def start_monitoring(self) -> None:
+        """Start monitoring services and background tasks"""
         try:
-            # Check system health
+            logger.info("Starting monitoring service...")
+            
+            # Log initial system metrics
             system_metrics = self.get_system_metrics()
+            logger.info(f"Initial system metrics: CPU={system_metrics.cpu_usage:.1f}%, "
+                       f"Memory={system_metrics.memory_usage:.1f}%, "
+                       f"Disk={system_metrics.disk_usage:.1f}%")
             
-            # Check services health
-            health_checks = {
-                'database': self._check_database_health(),
-                'redis': self._check_redis_health(),
-                'firebase': self._check_firebase_health(),
-                'openai': self._check_openai_health()
-            }
+            # Perform initial health check
+            health_status = self.perform_health_check()
+            logger.info(f"Initial health check: {health_status.status} - {health_status.message}")
             
-            # Determine overall status
-            all_healthy = all(health_checks.values())
-            any_unhealthy = not any(health_checks.values())
+            logger.info("Monitoring service started successfully")
             
-            if all_healthy:
-                status = 'healthy'
-                message = 'All systems operational'
-            elif any_unhealthy:
-                status = 'unhealthy'
-                message = 'Critical systems down'
-            else:
-                status = 'degraded'
-                message = 'Some systems experiencing issues'
-            
-            return {
-                'status': status,
-                'message': message,
-                'timestamp': datetime.utcnow().isoformat(),
-                'system': {
-                    'cpu_usage': system_metrics.cpu_usage,
-                    'memory_usage': system_metrics.memory_usage,
-                    'disk_usage': system_metrics.disk_usage
-                },
-                'services': health_checks
-            }
         except Exception as e:
-            logger.error(f"Failed to get health status: {e}")
-            return {
-                'status': 'unknown',
-                'message': f'Health check failed: {str(e)}',
-                'timestamp': datetime.utcnow().isoformat()
-            }
+            logger.error(f"Failed to start monitoring service: {e}")
+            raise
 
 # Global monitoring service instance
 monitoring_service = None

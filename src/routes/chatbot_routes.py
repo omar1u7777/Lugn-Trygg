@@ -11,10 +11,71 @@ logger = logging.getLogger(__name__)
 def chat_with_ai():
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
         logger.info("🔄 Chat endpoint called")
-        data = request.get_json(force=True, silent=False)
+
+        # Try to get JSON data, with fallback parsing for malformed requests
+        try:
+            data = request.get_json(force=True, silent=False)
+        except Exception as json_error:
+            logger.error(f"JSON parsing failed: {json_error}")
+            logger.error(f"Raw request data: {request.get_data(as_text=True)}")
+
+            # Try to parse manually if JSON parsing fails
+            raw_data = request.get_data(as_text=True)
+            if raw_data:
+                try:
+                    # Parse the malformed data manually
+                    stripped_data = raw_data.strip()
+                    if stripped_data.startswith("'") and stripped_data.endswith("'"):
+                        stripped_data = stripped_data[1:-1]
+
+                    if stripped_data.startswith("{") and stripped_data.endswith("}"):
+                        content = stripped_data[1:-1]
+                        pairs = []
+                        current_pair = ""
+                        brace_count = 0
+
+                        for char in content:
+                            if char == "," and brace_count == 0:
+                                pairs.append(current_pair)
+                                current_pair = ""
+                            else:
+                                current_pair += char
+                                if char == "{":
+                                    brace_count += 1
+                                elif char == "}":
+                                    brace_count -= 1
+
+                        if current_pair:
+                            pairs.append(current_pair)
+
+                        data = {}
+                        for pair in pairs:
+                            if ":" in pair:
+                                key, value = pair.split(":", 1)
+                                key = key.strip()
+                                value = value.strip()
+                                if key.startswith("'") and key.endswith("'"):
+                                    key = key[1:-1]
+                                elif key.startswith('"') and key.endswith('"'):
+                                    key = key[1:-1]
+                                if value.startswith("'") and value.endswith("'"):
+                                    value = value[1:-1]
+                                elif value.startswith('"') and value.endswith('"'):
+                                    value = value[1:-1]
+                                data[key] = value
+
+                        logger.info(f"Successfully parsed malformed chat data: {data}")
+                    else:
+                        raise ValueError("Data does not look like a dict")
+                except Exception as parse_error:
+                    logger.error(f"Manual parsing failed: {parse_error}")
+                    return jsonify({"error": "Invalid data format"}), 400
+            else:
+                return jsonify({"error": "No data provided"}), 400
+
         logger.info(f"📨 Received data: {data}")
 
         if not data or "message" not in data or "user_id" not in data:

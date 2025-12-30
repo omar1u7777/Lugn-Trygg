@@ -7,15 +7,14 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  Brain,
-  Calendar,
-  Target,
-  BarChart3,
-  Activity
-} from 'lucide-react';
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  ExclamationTriangleIcon,
+  LightBulbIcon,
+  CalendarIcon,
+  ChartBarIcon,
+  HeartIcon
+} from '@heroicons/react/24/outline';
 import { predictiveService, MoodPrediction, CrisisRiskAssessment } from '../../services/predictiveService';
 import { useAccessibility } from '../../hooks/useAccessibility';
 import { ScreenReaderAnnouncer } from '../Accessibility/ScreenReader';
@@ -72,24 +71,24 @@ const PredictiveDashboard: React.FC = () => {
   const getRiskIcon = (riskLevel: string) => {
     switch (riskLevel) {
       case 'high':
-        return <AlertTriangle className="w-6 h-6 text-red-500" />;
+        return <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />;
       case 'medium':
-        return <AlertTriangle className="w-6 h-6 text-yellow-500" />;
+        return <ExclamationTriangleIcon className="w-6 h-6 text-yellow-500" />;
       case 'low':
-        return <Activity className="w-6 h-6 text-green-500" />;
+        return <HeartIcon className="w-6 h-6 text-green-500" />;
       default:
-        return <Activity className="w-6 h-6 text-gray-400" />;
+        return <HeartIcon className="w-6 h-6 text-gray-400" />;
     }
   };
 
   const getTrendIcon = (direction: string) => {
     switch (direction) {
       case 'improving':
-        return <TrendingUp className="w-5 h-5 text-green-500" />;
+        return <ArrowTrendingUpIcon className="w-5 h-5 text-green-500" />;
       case 'declining':
-        return <TrendingDown className="w-5 h-5 text-red-500" />;
+        return <ArrowTrendingDownIcon className="w-5 h-5 text-red-500" />;
       default:
-        return <BarChart3 className="w-5 h-5 text-gray-400" />;
+        return <ChartBarIcon className="w-5 h-5 text-gray-400" />;
     }
   };
 
@@ -112,7 +111,7 @@ const PredictiveDashboard: React.FC = () => {
     return (
       <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-6 h-6 text-red-500" />
+          <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />
           <div>
             <h3 className="text-lg font-semibold text-red-800 dark:text-red-300">
               {t('predictive.error.title', 'Fel vid laddning')}
@@ -135,7 +134,7 @@ const PredictiveDashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-            <Brain className="w-8 h-8 text-primary-500" />
+            <LightBulbIcon className="w-8 h-8 text-primary-500" />
             {t('predictive.title', 'Prediktiv Analys')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -161,7 +160,7 @@ const PredictiveDashboard: React.FC = () => {
           aria-live="assertive"
         >
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-500 mt-1" />
+            <ExclamationTriangleIcon className="w-6 h-6 text-red-500 mt-1" />
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-red-800 dark:text-red-300">
                 {t('predictive.crisis.highRisk', 'Hög Krishändelse Risk')}
@@ -193,7 +192,7 @@ const PredictiveDashboard: React.FC = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary-500" />
+              <CalendarIcon className="w-5 h-5 text-primary-500" />
               {t('predictive.predictions.title', 'Kommande Dagar')}
             </h2>
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -331,7 +330,7 @@ const PredictiveDashboard: React.FC = () => {
           className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2"
         >
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
-            <Target className="w-5 h-5 text-primary-500" />
+            <ChartBarIcon className="w-5 h-5 text-primary-500" />
             {t('predictive.stats.title', 'Snabbstatistik')}
           </h2>
 

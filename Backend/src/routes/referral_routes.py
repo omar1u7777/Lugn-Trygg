@@ -5,9 +5,9 @@ Handles user referrals, tracking, and rewards
 import logging
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
-from src.firebase_config import db
-from src.services.email_service import email_service
-from src.services.push_notification_service import push_notification_service
+from ..firebase_config import db
+from ..services.email_service import email_service
+from ..services.push_notification_service import push_notification_service
 import random
 import string
 
@@ -23,13 +23,16 @@ def generate_referral_code(user_id: str) -> str:
 @referral_bp.route("/generate", methods=["POST", "OPTIONS"])
 def generate_referral():
     """Generate referral code and data for user"""
+    logger.info("🎁 REFERRAL - GENERATE endpoint called")
     if request.method == "OPTIONS":
+        logger.info("✅ REFERRAL - OPTIONS preflight")
         # Handle CORS preflight
         return "", 204
     
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = data.get("user_id", "").strip()
+        logger.info(f"👤 REFERRAL - Generating for user: {user_id}")
         
         if not user_id:
             return jsonify({"error": "user_id required"}), 400
@@ -51,10 +54,12 @@ def generate_referral():
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             referral_ref.set(referral_data)
+            logger.info(f"✅ REFERRAL - Created new referral code {referral_code} for user {user_id}")
             return jsonify(referral_data), 200
 
         # Return existing referral data
         referral_data = referral_doc.to_dict()
+        logger.info(f"✅ REFERRAL - Returning existing referral data for user {user_id}")
         return jsonify(referral_data), 200
 
     except Exception as e:
@@ -64,12 +69,15 @@ def generate_referral():
 @referral_bp.route("/stats", methods=["GET", "OPTIONS"])
 def get_referral_stats():
     """Get user's referral statistics"""
+    logger.info("📊 REFERRAL - STATS endpoint called")
     if request.method == "OPTIONS":
+        logger.info("✅ REFERRAL - OPTIONS preflight")
         # Handle CORS preflight
         return "", 204
     
     try:
         user_id = request.args.get("user_id", "").strip()
+        logger.info(f"👤 REFERRAL - Getting stats for user: {user_id}")
         if not user_id:
             return jsonify({"error": "user_id required"}), 400
 
@@ -384,8 +392,9 @@ def get_referral_history():
             return jsonify({"error": "user_id required"}), 400
 
         # Get referral history (no order_by to avoid composite index requirement)
+        from google.cloud.firestore import FieldFilter
         history_ref = db.collection("referral_history").where(
-            "referrer_id", "==", user_id
+            filter=FieldFilter("referrer_id", "==", user_id)
         )
         
         history_docs = history_ref.get()

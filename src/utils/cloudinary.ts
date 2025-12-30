@@ -40,7 +40,7 @@ export const getOptimizedImageUrl = (
     height && `h_${height}`,
   ].filter(Boolean);
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'lugn-trygg';
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dxmijbysc';
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transformations.join(',')}/${publicId}`;
 };
 

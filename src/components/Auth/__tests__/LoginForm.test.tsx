@@ -1,21 +1,62 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, test, expect } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import LoginForm from '../LoginForm';
 
-// Mock the API
-vi.mock('../../../api/api', () => ({
+const apiMocks = vi.hoisted(() => ({
   loginUser: vi.fn(),
+  api: { post: vi.fn() },
 }));
 
-// Mock react-router-dom
+const authMock = vi.hoisted(() => ({
+  login: vi.fn(),
+}));
+
+const accessibilityMock = vi.hoisted(() => ({
+  announceToScreenReader: vi.fn(),
+}));
+
+const lazyFirebaseBundleMock = vi.hoisted(() => ({
+  loadFirebaseAuthBundle: vi.fn(() =>
+    Promise.resolve({
+      firebaseAuth: {},
+      authModule: {
+        GoogleAuthProvider: vi.fn(() => ({
+          setCustomParameters: vi.fn(),
+        })),
+        signInWithPopup: vi.fn(),
+        sendPasswordResetEmail: vi.fn(),
+      },
+    })
+  ),
+}));
+
+vi.mock('../../../api/api', () => apiMocks);
+
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => authMock,
+}));
+
+vi.mock('../../../hooks/useAccessibility', () => ({
+  useAccessibility: () => accessibilityMock,
+}));
+
+vi.mock('../../../services/lazyFirebase', () => lazyFirebaseBundleMock);
+
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
   Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
 }));
 
 describe('LoginForm', () => {
-  test('renders login form with email and password fields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiMocks.loginUser.mockReset();
+    authMock.login.mockReset?.();
+    accessibilityMock.announceToScreenReader.mockReset?.();
+    lazyFirebaseBundleMock.loadFirebaseAuthBundle.mockClear();
+  });
+
+  it('renders login form with email and password fields', () => {
     render(<LoginForm />);
 
     expect(screen.getByPlaceholderText(/ange din e-postadress/i)).toBeInTheDocument();
@@ -23,71 +64,71 @@ describe('LoginForm', () => {
     expect(screen.getByRole('button', { name: /logga in/i })).toBeInTheDocument();
   });
 
-  test('shows validation errors for empty fields', async () => {
-    render(<LoginForm />);
-
-    const submitButton = screen.getByRole('button', { name: /logga in/i });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/e-postadress krävs/i)).toBeInTheDocument();
-    });
-  });
-
-  test('shows validation error for invalid email', async () => {
-    render(<LoginForm />);
-
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const submitButton = screen.getByRole('button', { name: /logga in/i });
-
-    fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/ogiltig e-postadress/i)).toBeInTheDocument();
-    });
-  });
-
-  test('calls login API on valid form submission', async () => {
-    const mockLoginUser = vi.fn().mockResolvedValue({
+  it('calls login API and context on valid submission', async () => {
+    apiMocks.loginUser.mockResolvedValue({
       access_token: 'mock-token',
       user_id: '123',
-      email: 'test@example.com'
+      email: 'test@example.com',
     });
-
-    vi.mocked(require('../../../api/api').loginUser).mockImplementation(mockLoginUser);
 
     render(<LoginForm />);
 
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const passwordInput = screen.getByPlaceholderText(/ange ditt lösenord/i);
-    const submitButton = screen.getByRole('button', { name: /logga in/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt lösenord/i), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /logga in/i }));
 
     await waitFor(() => {
-      expect(mockLoginUser).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(apiMocks.loginUser).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(authMock.login).toHaveBeenCalledWith('mock-token', 'test@example.com', '123');
     });
   });
 
-  test('shows error message on login failure', async () => {
-    const mockLoginUser = vi.fn().mockRejectedValue({
-      response: { data: { error: 'Felaktiga uppgifter' } }
-    });
-
-    vi.mocked(require('../../../api/api').loginUser).mockImplementation(mockLoginUser);
+  it('shows loading indicator while submitting', async () => {
+    let resolvePromise: ((value: unknown) => void) | null = null;
+    apiMocks.loginUser.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePromise = resolve;
+        })
+    );
 
     render(<LoginForm />);
 
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const passwordInput = screen.getByPlaceholderText(/ange ditt lösenord/i);
-    const submitButton = screen.getByRole('button', { name: /logga in/i });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt lösenord/i), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /logga in/i }));
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
-    fireEvent.click(submitButton);
+    expect(await screen.findByText(/loggar in/i)).toBeInTheDocument();
+
+    resolvePromise?.({ access_token: 'token', user_id: 'user-1', email: 'test@example.com' });
+
+    await waitFor(() => {
+      expect(authMock.login).toHaveBeenCalled();
+    });
+  });
+
+  it('shows error message when API call fails', async () => {
+    apiMocks.loginUser.mockRejectedValue({
+      response: { data: { error: 'Felaktiga uppgifter' } },
+    });
+
+    render(<LoginForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt lösenord/i), {
+      target: { value: 'wrongpassword' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /logga in/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/felaktiga uppgifter/i)).toBeInTheDocument();

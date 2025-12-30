@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { 
-    Box, 
-    Typography, 
-    Paper, 
-    Grid, 
-    Button, 
-    LinearProgress, 
-    Alert,
-    CircularProgress,
-    Snackbar,
-} from '@mui/material';
-import { ContentCopy } from '@mui/icons-material';
+import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import ReferralLeaderboard from './ReferralLeaderboard';
@@ -70,9 +58,12 @@ const ReferralProgram: React.FC = () => {
                 tier: calculateTier(data.successful_referrals || 0)
             });
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to fetch referral data:', err);
-            setError(err.response?.data?.error || 'Failed to load referral data');
+            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+                ? String(err.response.data.error)
+                : 'Failed to load referral data';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -90,7 +81,7 @@ const ReferralProgram: React.FC = () => {
                 active: data.successful_referrals || 0,
                 converted: data.successful_referrals || 0
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to fetch referral stats:', err);
         }
     };
@@ -150,464 +141,341 @@ const ReferralProgram: React.FC = () => {
 
     if (loading) {
         return (
-            <Box
-                sx={{
-                    minHeight: '60vh',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={60} sx={{ mb: spacing.md }} />
-                    <Typography variant="body1" color="text.secondary">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-slate-900 dark:to-slate-800">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mb-4"></div>
+                    <p className="text-lg text-slate-600 dark:text-slate-400">
                         Laddar referensprogram...
-                    </Typography>
-                </Box>
-            </Box>
+                    </p>
+                </div>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Box sx={{ maxWidth: 'md', mx: 'auto' }}>
-                <Alert severity="error" icon={<span style={{ fontSize: '1.5rem' }}>❌</span>} sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        Något gick fel
-                    </Typography>
-                    <Typography variant="body2">
-                        {error}
-                    </Typography>
-                </Alert>
-            </Box>
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                    <div className="flex items-start gap-3">
+                        <span className="text-2xl">❌</span>
+                        <div>
+                            <h3 className="text-lg font-bold text-red-900 dark:text-red-100 mb-2">
+                                Något gick fel
+                            </h3>
+                            <p className="text-sm text-red-700 dark:text-red-300">
+                                {error}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         );
     }
 
     if (!referralData) {
         return (
-            <Box sx={{ maxWidth: 'md', mx: 'auto' }}>
-                <Alert severity="warning" icon={<span style={{ fontSize: '1.5rem' }}>⚠️</span>} sx={{ borderRadius: borderRadius.lg, p: spacing.lg }}>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        Ingen data tillgänglig
-                    </Typography>
-                    <Typography variant="body2">
-                        Kunde inte ladda referensdata.
-                    </Typography>
-                </Alert>
-            </Box>
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6">
+                    <div className="flex items-start gap-3">
+                        <span className="text-2xl">⚠️</span>
+                        <div>
+                            <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100 mb-2">
+                                Ingen data tillgänglig
+                            </h3>
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
+                                Kunde inte ladda referensdata.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         );
     }
 
     const tierInfo = getTierInfo(referralData.tier);
+    const progress = tierInfo.required ? Math.min(100, (referralData.referralCount / tierInfo.required) * 100) : 100;
 
     return (
-        <Box sx={{ maxWidth: '1400px', mx: 'auto', display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
-            {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
-                <Typography variant="h3" fontWeight="bold" color="text.primary" gutterBottom>
-                    🤝 Referensprogram
-                </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 'md', mx: 'auto' }}>
-                    Bjud in vänner och få belöningar! Både du och din vän tjänar på det.
-                </Typography>
-            </Box>
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto space-y-6">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-3">
+                        🤝 Referensprogram
+                    </h1>
+                    <p className="text-xl text-slate-600 dark:text-slate-400">
+                        Bjud in vänner och få belöningar! Både du och din vän tjänar på det.
+                    </p>
+                </div>
 
-            {/* Copy Confirmation Snackbar */}
-            <Snackbar
-                open={copied}
-                autoHideDuration={3000}
-                onClose={() => setCopied(false)}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-                <Alert severity="success" sx={{ width: '100%' }}>
-                    ✅ Kopierat till urklipp!
-                </Alert>
-            </Snackbar>
-
-            {/* Tier Status */}
-            <Paper
-                elevation={3}
-                sx={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: borderRadius.lg,
-                    p: spacing.xl,
-                    color: 'white',
-                }}
-            >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.lg }}>
-                    <Box>
-                        <Typography variant="h4" fontWeight="bold" gutterBottom>
-                            Din nivå: {referralData.tier}
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: 'colors.overlay.medium' }}>
-                            {tierInfo.nextTier 
-                                ? `${tierInfo.required! - referralData.referralCount} fler referenser till ${tierInfo.nextTier}`
-                                : 'Högsta nivån uppnådd! 🎉'}
-                        </Typography>
-                    </Box>
-                    <Typography variant="h1" sx={{ fontSize: '4rem' }}>
-                        {tierInfo.emoji}
-                    </Typography>
-                </Box>
-                
-                {/* Progress Bar */}
-                {tierInfo.nextTier && (
-                    <Box sx={{ mb: spacing.lg }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: spacing.sm }}>
-                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
-                                {referralData.tier}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
-                                {tierInfo.nextTier}
-                            </Typography>
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={Math.min(100, (referralData.referralCount / tierInfo.required!) * 100)}
-                            sx={{
-                                height: 12,
-                                borderRadius: borderRadius.md,
-                                bgcolor: 'colors.overlay.medium',
-                                '& .MuiLinearProgress-bar': {
-                                    bgcolor: 'white',
-                                },
-                            }}
-                        />
-                        <Typography variant="body2" textAlign="center" sx={{ mt: spacing.sm, color: 'colors.overlay.medium' }}>
-                            {referralData.referralCount} / {tierInfo.required!} referenser
-                        </Typography>
-                    </Box>
+                {/* Copy Confirmation Toast */}
+                {copied && (
+                    <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in-right">
+                        <span>✅</span>
+                        <span className="font-medium">Kopierat till urklipp!</span>
+                    </div>
                 )}
-                
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                bgcolor: 'colors.overlay.medium',
-                                backdropFilter: 'blur(10px)',
-                                p: spacing.md,
-                                borderRadius: borderRadius.md,
-                                textAlign: 'center',
-                            }}
-                        >
-                            <Typography variant="h4" fontWeight="bold" color="white">
+
+                {/* Tier Status Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                                Din nivå: {referralData.tier}
+                            </h2>
+                            <p className="text-slate-600 dark:text-slate-400">
+                                {tierInfo.nextTier 
+                                    ? `${tierInfo.required! - referralData.referralCount} fler referenser till ${tierInfo.nextTier}`
+                                    : 'Högsta nivån uppnådd! 🎉'}
+                            </p>
+                        </div>
+                        <div className="text-6xl">
+                            {tierInfo.emoji}
+                        </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    {tierInfo.nextTier && (
+                        <div className="mb-6">
+                            <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                <span>{referralData.tier}</span>
+                                <span>{tierInfo.nextTier}</span>
+                            </div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+                                <div 
+                                    className="bg-gradient-to-r from-primary-500 to-secondary-500 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                            <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-2">
+                                {referralData.referralCount} / {tierInfo.required!} referenser
+                            </p>
+                        </div>
+                    )}
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-4 text-white text-center">
+                            <div className="text-3xl font-bold mb-1">
                                 {referralData.referralCount || 0}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
+                            </div>
+                            <div className="text-sm opacity-90">
                                 Totalt bjudna
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                bgcolor: 'colors.overlay.medium',
-                                backdropFilter: 'blur(10px)',
-                                p: spacing.md,
-                                borderRadius: borderRadius.md,
-                                textAlign: 'center',
-                            }}
-                        >
-                            <Typography variant="h4" fontWeight="bold" color="white">
+                            </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-lg p-4 text-white text-center">
+                            <div className="text-3xl font-bold mb-1">
                                 {stats?.active || 0}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
+                            </div>
+                            <div className="text-sm opacity-90">
                                 Aktiva användare
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                bgcolor: 'colors.overlay.medium',
-                                backdropFilter: 'blur(10px)',
-                                p: spacing.md,
-                                borderRadius: borderRadius.md,
-                                textAlign: 'center',
-                            }}
-                        >
-                            <Typography variant="h4" fontWeight="bold" color="white">
+                            </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-success-500 to-success-600 rounded-lg p-4 text-white text-center">
+                            <div className="text-3xl font-bold mb-1">
                                 {referralData.rewards || 0} veckor
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'colors.overlay.medium' }}>
+                            </div>
+                            <div className="text-sm opacity-90">
                                 Premium-belöning
-                            </Typography>
-                        </Paper>
-                    </Grid>
-                </Grid>
-            </Paper>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Referral Code */}
-            <Paper elevation={3} sx={{ p: spacing.lg }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                    🎟️ Din referenskod
-                </Typography>
-                <Paper
-                    elevation={0}
-                    sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                        p: spacing.lg,
-                        mb: spacing.md,
-                        borderRadius: borderRadius.md,
-                    }}
-                >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="caption" color="text.secondary" gutterBottom>
-                                Referenskod
-                            </Typography>
-                            <Typography variant="h4" fontFamily="monospace" fontWeight="bold" color="text.primary">
-                                {referralData.referralCode}
-                            </Typography>
-                        </Box>
-                        <Button
-                            onClick={handleCopyCode}
-                            variant="contained"
-                            startIcon={<ContentCopy />}
-                            sx={{ ml: 2, px: 3, py: 1.5 }}
-                        >
-                            Kopiera
-                        </Button>
-                    </Box>
-                </Paper>
-                <Paper
-                    elevation={0}
-                    sx={{
-                        bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                        p: spacing.lg,
-                        borderRadius: borderRadius.md,
-                    }}
-                >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                            <Typography variant="caption" color="text.secondary" gutterBottom>
-                                Referenslänk
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                fontFamily="monospace"
-                                color="text.primary"
-                                sx={{ wordBreak: 'break-all' }}
-                            >
-                                {referralData.referralLink}
-                            </Typography>
-                        </Box>
-                        <Button
-                            onClick={handleCopyLink}
-                            variant="contained"
-                            startIcon={<ContentCopy />}
-                            sx={{ ml: 2, px: 3, py: 1.5, flexShrink: 0 }}
-                        >
-                            Kopiera
-                        </Button>
-                    </Box>
-                </Paper>
-            </Paper>
+                {/* Referral Code Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+                        🎟️ Din referenskod
+                    </h2>
+                    
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                        Referenskod
+                                    </p>
+                                    <p className="text-2xl font-mono font-bold text-slate-900 dark:text-slate-100">
+                                        {referralData.referralCode}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleCopyCode}
+                                    className="btn btn-primary flex items-center gap-2"
+                                >
+                                    <DocumentDuplicateIcon className="h-5 w-5" />
+                                    Kopiera
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                        Referenslänk
+                                    </p>
+                                    <p className="text-sm font-mono text-slate-700 dark:text-slate-300 break-all">
+                                        {referralData.referralLink}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleCopyLink}
+                                    className="btn btn-primary flex items-center gap-2 ml-4"
+                                >
+                                    <DocumentDuplicateIcon className="h-5 w-5" />
+                                    Kopiera
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Share Options */}
-            <Paper elevation={3} sx={{ p: spacing.lg }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                    📢 Dela med vänner
-                </Typography>
-                <Grid container spacing={2}>
-                    <Grid item xs={6} md={3}>
-                        <Button
+                {/* Share Options Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+                        📢 Dela med vänner
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <button
                             onClick={() => handleShare('whatsapp')}
-                            fullWidth
-                            sx={{
-                                p: spacing.md,
-                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
-                                color: (theme) => theme.palette.mode === 'dark' ? 'rgb(134, 239, 172)' : 'rgb(22, 101, 52)',
-                                '&:hover': {
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.2)',
-                                },
-                                borderRadius: borderRadius.md,
-                                flexDirection: 'column',
-                            }}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 transition-colors"
                         >
-                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>📱</Box>
-                            <Typography variant="body1" fontWeight="600">
-                                WhatsApp
-                            </Typography>
-                        </Button>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Button
+                            <span className="text-3xl">📱</span>
+                            <span className="font-semibold">WhatsApp</span>
+                        </button>
+                        <button
                             onClick={() => handleShare('facebook')}
-                            fullWidth
-                            sx={{
-                                p: spacing.md,
-                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
-                                color: (theme) => theme.palette.mode === 'dark' ? 'rgb(147, 197, 253)' : 'rgb(30, 58, 138)',
-                                '&:hover': {
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)',
-                                },
-                                borderRadius: borderRadius.md,
-                                flexDirection: 'column',
-                            }}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 transition-colors"
                         >
-                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>👥</Box>
-                            <Typography variant="body1" fontWeight="600">
-                                Facebook
-                            </Typography>
-                        </Button>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Button
+                            <span className="text-3xl">👥</span>
+                            <span className="font-semibold">Facebook</span>
+                        </button>
+                        <button
                             onClick={() => handleShare('twitter')}
-                            fullWidth
-                            sx={{
-                                p: spacing.md,
-                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.1)',
-                                color: (theme) => theme.palette.mode === 'dark' ? 'rgb(125, 211, 252)' : 'rgb(12, 74, 110)',
-                                '&:hover': {
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.3)' : 'rgba(14, 165, 233, 0.2)',
-                                },
-                                borderRadius: borderRadius.md,
-                                flexDirection: 'column',
-                            }}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30 text-sky-700 dark:text-sky-300 transition-colors"
                         >
-                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>🐦</Box>
-                            <Typography variant="body1" fontWeight="600">
-                                Twitter
-                            </Typography>
-                        </Button>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Button
+                            <span className="text-3xl">🐦</span>
+                            <span className="font-semibold">Twitter</span>
+                        </button>
+                        <button
                             onClick={() => handleShare('email')}
-                            fullWidth
-                            sx={{
-                                p: spacing.md,
-                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.1)',
-                                color: (theme) => theme.palette.mode === 'dark' ? 'rgb(216, 180, 254)' : 'rgb(88, 28, 135)',
-                                '&:hover': {
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(168, 85, 247, 0.2)',
-                                },
-                                borderRadius: borderRadius.md,
-                                flexDirection: 'column',
-                            }}
+                            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300 transition-colors"
                         >
-                            <Box sx={{ fontSize: '2rem', mb: spacing.sm }}>📧</Box>
-                            <Typography variant="body1" fontWeight="600">
-                                Email
-                            </Typography>
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Paper>
+                            <span className="text-3xl">📧</span>
+                            <span className="font-semibold">Email</span>
+                        </button>
+                    </div>
+                </div>
 
-            {/* Email Invitation */}
-            <EmailInvite referralCode={referralData.referralCode} />
+                {/* Email Invitation */}
+                <EmailInvite referralCode={referralData.referralCode} />
 
-            {/* Rewards Catalog */}
-            <RewardsCatalog 
-                availableWeeks={referralData.rewards || 0}
-                onRedemption={fetchReferralData}
-            />
+                {/* Rewards Catalog */}
+                <RewardsCatalog 
+                    availableWeeks={referralData.rewards || 0}
+                    onRedemption={fetchReferralData}
+                />
 
-            {/* Referral History */}
-            <ReferralHistory />
+                {/* Referral History */}
+                <ReferralHistory />
 
-            {/* Leaderboard */}
-            <ReferralLeaderboard />
+                {/* Leaderboard */}
+                <ReferralLeaderboard />
 
-            {/* Rewards Info */}
-            <Paper elevation={3} sx={{ p: spacing.lg }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" gutterBottom>
-                    🎁 Belöningar
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography variant="h5">✅</Typography>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600" color="text.primary">
-                                Varje ny användare
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Du och din vän får båda 1 vecka gratis premium
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography variant="h5">🥈</Typography>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600" color="text.primary">
-                                Silver-nivå (5 referenser)
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                1 månad gratis premium + prioriterad support
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography variant="h5">🥇</Typography>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600" color="text.primary">
-                                Gold-nivå (15 referenser)
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                3 månader gratis premium + exklusiva funktioner
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography variant="h5">💎</Typography>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600" color="text.primary">
-                                Platinum-nivå (30 referenser)
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                6 månader gratis premium + VIP-support + Lugn & Trygg merchandise
-                            </Typography>
-                        </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                        <Typography variant="h5">🎁</Typography>
-                        <Box>
-                            <Typography variant="body1" fontWeight="600" color="text.primary">
-                                Bonus: Varje 10:e referens
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Extra 2 veckor premium + överraskning!
-                            </Typography>
-                        </Box>
-                    </Box>
-                </Box>
-            </Paper>
+                {/* Rewards Info Card */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+                        🎁 Belöningar
+                    </h2>
+                    <div className="space-y-4">
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                            <span className="text-3xl">✅</span>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                    Varje ny användare
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    Du och din vän får båda 1 vecka gratis premium
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                            <span className="text-3xl">🥈</span>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                    Silver-nivå (5 referenser)
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    1 månad gratis premium + prioriterad support
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                            <span className="text-3xl">🥇</span>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                    Gold-nivå (15 referenser)
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    3 månader gratis premium + exklusiva funktioner
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                            <span className="text-3xl">💎</span>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                    Platinum-nivå (30 referenser)
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    6 månader gratis premium + VIP-support + Lugn & Trygg merchandise
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                            <span className="text-3xl">🎁</span>
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                    Bonus: Varje 10:e referens
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    Extra 2 veckor premium + överraskning!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Terms */}
-            <Paper
-                elevation={0}
-                sx={{
-                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                    p: spacing.lg,
-                    borderRadius: borderRadius.lg,
-                }}
-            >
-                <Typography variant="h6" fontWeight="600" color="text.primary" gutterBottom>
-                    📋 Villkor
-                </Typography>
-                <Box component="ul" sx={{ pl: 0, listStyle: 'none', color: 'text.secondary' }}>
-                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        • Båda parter måste vara nya användare eller ha aktivt konto
-                    </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        • Belöningen aktiveras när din vän slutför registreringen
-                    </Typography>
-                    <Typography component="li" variant="body2" sx={{ mb: 0.5 }}>
-                        • Belöningar kan inte växlas till kontanter
-                    </Typography>
-                    <Typography component="li" variant="body2">
-                        • Lugn & Trygg förbehåller sig rätten att ändra villkoren
-                    </Typography>
-                </Box>
-            </Paper>
-        </Box>
+                {/* Terms Card */}
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                        📋 Villkor
+                    </h3>
+                    <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                        <li className="flex items-start gap-2">
+                            <span className="mt-1">•</span>
+                            <span>Båda parter måste vara nya användare eller ha aktivt konto</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="mt-1">•</span>
+                            <span>Belöningen aktiveras när din vän slutför registreringen</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="mt-1">•</span>
+                            <span>Belöningar kan inte växlas till kontanter</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <span className="mt-1">•</span>
+                            <span>Lugn & Trygg förbehåller sig rätten att ändra villkoren</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     );
 };
 
 export default ReferralProgram;
+
+

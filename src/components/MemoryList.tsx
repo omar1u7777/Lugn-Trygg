@@ -16,7 +16,7 @@ const parseTimestamp = (timestamp: string): Date | null => {
   return utcDate;
 };
 
-const MemoryList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const MemoryList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClose, inline = false }) => {
   const { user } = useAuth();
   const [memories, setMemories] = useState<{ id: string; title: string; audioUrl: string; timestamp?: string; date?: Date; filePath?: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,8 +34,11 @@ const MemoryList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           return { id: mem.id, title: `Minne ${mem.timestamp}`, audioUrl: "", timestamp: mem.timestamp, date, filePath: mem.file_path };
         });
         setMemories(memoriesWithoutUrls);
-      } catch (err: any) {
-        setError(err.response?.data?.error || "❌ Ett fel uppstod vid hämtning av minnen.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+          ? String(err.response.data.error)
+          : "❌ Ett fel uppstod vid hämtning av minnen.";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -45,8 +48,11 @@ const MemoryList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }, [user]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in max-h-[80vh] flex flex-col">
+    <div className={inline ? "w-full" : "fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm"}>
+      <div className={inline
+        ? "bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-h-[70vh] flex flex-col"
+        : "bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 animate-fade-in max-h-[80vh] flex flex-col"
+      }>
         <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-3 flex-shrink-0">
           <span className="text-2xl">💭</span>
           Dina Minnen
@@ -118,13 +124,15 @@ const MemoryList: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         )}
 
         {/* 🚪 Stäng-knapp */}
-        <button
-          className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg flex-shrink-0"
-          onClick={onClose}
-          aria-label="Stäng"
-        >
-          ✕
-        </button>
+        {!inline && (
+          <button
+            className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg flex-shrink-0"
+            onClick={onClose}
+            aria-label="Stäng"
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

@@ -4,10 +4,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { Box, Typography, Link } from '@mui/material';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   children: ReactNode;
@@ -55,7 +52,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // Enhanced error tracking with analytics
-    import('../services/analytics').then(({ analytics }) => {
+    import('../services/analytics.lazy').then(({ analytics }) => {
       analytics.error(error, {
         component: 'ErrorBoundary',
         action: 'component_error',
@@ -99,146 +96,94 @@ class ErrorBoundary extends Component<Props, State> {
       const showDetails = this.props.showDetails || process.env.NODE_ENV === 'development';
 
       return (
-        <Box
-          sx={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            p: spacing.md,
-            bgcolor: "grey.50",
-          }}
+        <div className="min-h-screen flex justify-center items-center p-4 bg-gray-50 dark:bg-gray-900"
           role="alert"
           aria-live="assertive"
           aria-atomic="true"
         >
-          <Card
-            title="🚨 Något gick fel"
-            sx={{
-              maxWidth: "md",
-              width: "100%",
-            }}
-            elevation={2}
-          >
-            <Box sx={{ textAlign: "center", display: "flex", flexDirection: "column", gap: spacing.md }}>
-              <Typography color="text.secondary">
-                Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
-              </Typography>
+          <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
+            <div className="flex items-center justify-center mb-6">
+              <ExclamationTriangleIcon className="w-16 h-16 text-error-500" aria-hidden="true" />
+            </div>
 
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-white mb-4">
+              🚨 Något gick fel
+            </h2>
+
+            <div className="flex flex-col text-center space-y-6">
+              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
+                Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
+              </p>
+
+              <div className="flex flex-col gap-3">
                 {canRetry ? (
-                  <Button
+                  <button
                     onClick={this.handleRetry}
-                    variant="contained"
-                    fullWidth
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                     aria-label={`Försök igen (${retryCount + 1}/${this.maxRetries + 1})`}
                   >
                     🔄 Försök igen {retryCount > 0 && `(${retryCount}/${this.maxRetries})`}
-                  </Button>
+                  </button>
                 ) : (
-                  <Button
+                  <button
                     onClick={this.handleReload}
-                    variant="contained"
-                    fullWidth
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                     aria-label="Ladda om sidan"
                   >
                     🔄 Ladda om sidan
-                  </Button>
+                  </button>
                 )}
 
-                <Button
+                <button
                   onClick={() => window.history.back()}
-                  variant="outlined"
-                  fullWidth
+                  className="w-full px-6 py-3 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg border border-gray-300 dark:border-gray-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
                   aria-label="Gå tillbaka"
                 >
                   ← Gå tillbaka
-                </Button>
-              </Box>
+                </button>
+              </div>
 
               {showDetails && error && (
-                <Box component="details" sx={{ mt: spacing.md, textAlign: "left" }}>
-                  <Box
-                    component="summary"
-                    sx={{
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                      fontWeight: "medium",
-                      color: "text.secondary",
-                      "&:hover": {
-                        color: "text.primary",
-                      },
-                    }}
-                  >
+                <details className="text-left">
+                  <summary className="cursor-pointer text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 py-2">
                     Tekniska detaljer (för utvecklare)
-                  </Box>
-                  <Box
-                    sx={{
-                      mt: spacing.sm,
-                      p: 1.5,
-                      bgcolor: "grey.100",
-                      borderRadius: 1,
-                      fontSize: "0.75rem",
-                      fontFamily: "monospace",
-                      overflowX: "auto",
-                      maxHeight: "160px",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      fontWeight="semibold"
-                      color="error.main"
-                      display="block"
-                      gutterBottom
-                    >
+                  </summary>
+                  <div className="mt-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                    <p className="block font-semibold text-error-600 dark:text-error-400 text-sm mb-2">
                       Fel:
-                    </Typography>
-                    <Typography variant="caption" color="text.primary" display="block" sx={{ mb: 1.5 }}>
+                    </p>
+                    <p className="block text-sm text-gray-900 dark:text-gray-100 mb-4 break-words">
                       {error.toString()}
-                    </Typography>
+                    </p>
                     {errorInfo?.componentStack && (
                       <>
-                        <Typography
-                          variant="caption"
-                          fontWeight="semibold"
-                          color="error.main"
-                          display="block"
-                          gutterBottom
-                        >
+                        <p className="block font-semibold text-error-600 dark:text-error-400 text-sm mb-2">
                           Komponent stack:
-                        </Typography>
-                        <Box
-                          component="pre"
-                          sx={{
-                            color: "text.secondary",
-                            whiteSpace: "pre-wrap",
-                            m: 0,
-                          }}
-                        >
+                        </p>
+                        <pre className="m-0 text-xs overflow-x-auto text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
                           {errorInfo.componentStack}
-                        </Box>
+                        </pre>
                       </>
                     )}
-                  </Box>
-                </Box>
+                  </div>
+                </details>
               )}
 
-              <Box sx={{ pt: 2, borderTop: spacing.sm, borderColor: "divider" }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Om problemet kvarstår, kontakta vår support:
-                </Typography>
-                <Link
+                </p>
+                <a
                   href="mailto:support@lugntrygg.se"
-                  underline="hover"
-                  color="primary"
+                  className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
                   aria-label="Skicka e-post till support"
                 >
                   📧 support@lugntrygg.se
-                </Link>
-              </Box>
-            </Box>
-          </Card>
-        </Box>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       );
     }
 

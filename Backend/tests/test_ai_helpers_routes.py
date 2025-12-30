@@ -26,7 +26,7 @@ def test_analyze_text_success(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Jag känner mig jätteglad idag!"}
     )
     
@@ -53,7 +53,7 @@ def test_analyze_text_negative_sentiment(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Jag mår inte bra, känner mig ledsen"}
     )
     
@@ -77,7 +77,7 @@ def test_analyze_text_neutral_sentiment(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Jag går till affären"}
     )
     
@@ -89,7 +89,7 @@ def test_analyze_text_neutral_sentiment(client, mocker):
 def test_analyze_text_empty_text(client):
     """Test analysis with empty text field"""
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": ""}
     )
     
@@ -102,7 +102,7 @@ def test_analyze_text_empty_text(client):
 def test_analyze_text_whitespace_only(client):
     """Test analysis with only whitespace"""
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "   \n\t   "}
     )
     
@@ -123,7 +123,7 @@ def test_analyze_text_missing_text_field(client, mocker):
     }
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={}
     )
     
@@ -133,7 +133,7 @@ def test_analyze_text_missing_text_field(client, mocker):
 
 def test_analyze_text_no_json_body(client):
     """Test analysis without JSON body"""
-    response = client.post('/api/mood/analyze-text')
+    response = client.post('/api/ai-helpers/analyze-text')
     
     # With silent=True, returns {} which has empty text
     assert response.status_code == 400
@@ -142,7 +142,7 @@ def test_analyze_text_no_json_body(client):
 def test_analyze_text_invalid_json(client):
     """Test analysis with malformed JSON"""
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         data='invalid json{',
         content_type='application/json'
     )
@@ -165,7 +165,7 @@ def test_analyze_text_with_emotions_detected_key(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "I feel amazing today!"}
     )
     
@@ -189,7 +189,7 @@ def test_analyze_text_no_emotions_key(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Normal day"}
     )
     
@@ -214,7 +214,7 @@ def test_analyze_text_long_text(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": long_text}
     )
     
@@ -238,7 +238,7 @@ def test_analyze_text_special_characters(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": text}
     )
     
@@ -253,7 +253,7 @@ def test_analyze_text_exception_handling(client, mocker):
     mock_ai_services.analyze_sentiment.side_effect = Exception("AI service unavailable")
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Test text"}
     )
     
@@ -269,7 +269,7 @@ def test_analyze_text_runtime_error(client, mocker):
     mock_ai_services.analyze_sentiment.side_effect = RuntimeError("Model not loaded")
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Test text"}
     )
     
@@ -282,7 +282,7 @@ def test_analyze_text_value_error(client, mocker):
     mock_ai_services.analyze_sentiment.side_effect = ValueError("Invalid input format")
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Test text"}
     )
     
@@ -291,7 +291,7 @@ def test_analyze_text_value_error(client, mocker):
 
 def test_analyze_text_options_request(client):
     """Test OPTIONS request for CORS preflight"""
-    response = client.options('/api/mood/analyze-text')
+    response = client.options('/api/ai-helpers/analyze-text')
     
     assert response.status_code == 204
     assert response.data == b''
@@ -299,7 +299,7 @@ def test_analyze_text_options_request(client):
 
 def test_analyze_text_options_no_body(client):
     """Test OPTIONS returns no content"""
-    response = client.options('/api/mood/analyze-text')
+    response = client.options('/api/ai-helpers/analyze-text')
     
     assert response.status_code == 204
     assert len(response.data) == 0
@@ -313,7 +313,7 @@ def test_analyze_text_with_logger_call(client, mocker):
     mock_logger = mocker.patch('src.routes.ai_helpers_routes.logger')
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Test"}
     )
     
@@ -343,7 +343,7 @@ def test_analyze_text_multilingual(client, mocker):
         }
         
         response = client.post(
-            '/api/mood/analyze-text',
+            '/api/ai-helpers/analyze-text',
             json={"text": text}
         )
         
@@ -364,7 +364,7 @@ def test_analyze_text_multiple_emotions(client, mocker):
     mock_ai_services.analyze_sentiment.return_value = mock_analysis
     
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         json={"text": "Jag är nervös men också spänd inför intervjun"}
     )
     
@@ -386,7 +386,7 @@ def test_analyze_text_force_and_silent_flags(client, mocker):
     
     # Send invalid JSON but force=True and silent=True should handle it
     response = client.post(
-        '/api/mood/analyze-text',
+        '/api/ai-helpers/analyze-text',
         data='not really json',
         content_type='application/json'
     )

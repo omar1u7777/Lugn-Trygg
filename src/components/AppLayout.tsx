@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { Box, Container, useTheme } from '@mui/material';
 import { useAccessibility } from '../hooks/useAccessibility';
 import SkipLinks from './Accessibility/SkipLinks';
 import { accessibilityAuditor } from '../utils/accessibilityAudit';
@@ -16,7 +15,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   title = 'Lugn & Trygg',
   showSkipLinks = true,
 }) => {
-  const theme = useTheme();
+  // ✅ REMOVED: const theme = useTheme(); - Not needed with Tailwind
   const { announceToScreenReader } = useAccessibility();
 
   useEffect(() => {
@@ -37,13 +36,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   }, [title, announceToScreenReader]);
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        backgroundColor: theme.palette.background.default,
-        color: theme.palette.text.primary,
-      }}
-    >
+    <div >
       {/* Skip Links for Keyboard Navigation */}
       {showSkipLinks && <SkipLinks />}
 
@@ -51,17 +44,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       <OfflineIndicator variant="snackbar" position="top" />
 
       {/* Main Content Container */}
-      <Container
-        component="main"
+      <main
         id="main-content"
-        maxWidth="lg"
-        sx={{
-          py: 4,
-          minHeight: 'calc(100vh - 64px)', // Account for potential header
-        }}
+        role="main"
+        className="min-h-screen"
       >
         {children}
-      </Container>
+      </main>
 
       {/* Screen Reader Status Announcements */}
       <div
@@ -76,7 +65,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
         }}
         id="sr-status"
       />
-    </Box>
+    </div>
   );
 };
 

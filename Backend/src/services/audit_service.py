@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from cryptography.fernet import Fernet
 import os
-from src.firebase_config import db
+from ..firebase_config import db
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class AuditService:
             retention_date = datetime.now(timezone.utc) - timedelta(days=2555)  # 7 years approx
             retention_iso = retention_date.isoformat()
 
-            # Query and delete old logs
+            # Query and delete old logs using standard Firestore syntax
             old_logs = db.collection("audit_logs").where("timestamp", "<", retention_iso).stream()
             for doc in old_logs:
                 doc.reference.delete()
@@ -77,6 +77,7 @@ class AuditService:
     def get_audit_trail(self, user_id: str, limit: int = 100) -> list:
         """Retrieve audit trail for a user (decrypted)"""
         try:
+            # Use standard Firestore where() syntax
             logs = db.collection("audit_logs").where("user_id", "==", user_id)\
                     .order_by("timestamp", direction="DESCENDING").limit(limit).stream()
 

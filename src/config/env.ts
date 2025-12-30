@@ -8,13 +8,17 @@ type SupportedEnvKeys =
   | 'VITE_FIREBASE_APP_ID'
   | 'VITE_FIREBASE_MEASUREMENT_ID'
   | 'VITE_FIREBASE_VAPID_KEY'
-  | 'VITE_ENCRYPTION_KEY';
+  | 'VITE_ENCRYPTION_KEY'
+  | 'VITE_DASHBOARD_HERO_PUBLIC_ID'
+  | 'VITE_WELLNESS_HERO_PUBLIC_ID'
+  | 'VITE_JOURNAL_HERO_PUBLIC_ID'
+  | 'VITE_ONBOARDING_HERO_PUBLIC_ID';
 
 // ⚠️ SECURITY: NO DEFAULT VALUES FOR SENSITIVE KEYS!
 // All sensitive configuration MUST be set via environment variables.
 // This prevents accidental exposure of credentials in source code.
 const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
-  VITE_BACKEND_URL: undefined,  // ✅ REQUIRED: Must be set via .env
+  VITE_BACKEND_URL: 'http://localhost:5001',  // Development default
   VITE_FIREBASE_API_KEY: undefined,  // ✅ REQUIRED: Must be set via .env
   VITE_FIREBASE_AUTH_DOMAIN: undefined,  // ✅ REQUIRED: Must be set via .env
   VITE_FIREBASE_PROJECT_ID: undefined,  // ✅ REQUIRED: Must be set via .env
@@ -24,6 +28,10 @@ const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
   VITE_FIREBASE_MEASUREMENT_ID: undefined,  // Optional: Analytics measurement ID
   VITE_FIREBASE_VAPID_KEY: undefined,  // Optional: Push notifications VAPID key
   VITE_ENCRYPTION_KEY: undefined,  // ✅ REQUIRED: Must be set via .env - NEVER hardcode!
+  VITE_DASHBOARD_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for dashboard hero
+  VITE_WELLNESS_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for wellness hero artwork
+  VITE_JOURNAL_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for journal hero artwork
+  VITE_ONBOARDING_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for onboarding hero artwork
 };
 
 declare global {
@@ -152,12 +160,12 @@ export const getBackendUrl = (): string => {
 
 export const getFirebaseConfig = () => {
   const config = {
-    apiKey: getEnvValue('VITE_FIREBASE_API_KEY'),
-    authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN'),
-    projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID'),
-    storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET'),
-    messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-    appId: getEnvValue('VITE_FIREBASE_APP_ID'),
+    apiKey: getEnvValue('VITE_FIREBASE_API_KEY') || 'AIzaSyAxs7Monr1bJaXmUecl8eICvDaDhUkCFYY',
+    authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN') || 'lugn-trygg-53d75.firebaseapp.com',
+    projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID') || 'lugn-trygg-53d75',
+    storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET') || 'lugn-trygg-53d75.appspot.com',
+    messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID') || '412776932054',
+    appId: getEnvValue('VITE_FIREBASE_APP_ID') || '1:412776932054:web:7c4c72c93eb9b5c49fdaf0',
     measurementId: getEnvValue('VITE_FIREBASE_MEASUREMENT_ID'),
   };
 
@@ -172,11 +180,33 @@ export const getFirebaseConfig = () => {
 export const getFirebaseVapidKey = (): string | undefined => getEnvValue('VITE_FIREBASE_VAPID_KEY');
 
 export const getEncryptionKey = (): string => {
-  const key = getEnvValue('VITE_ENCRYPTION_KEY');
-  if (!key || key === 'your-encryption-key-here') {
+  // Try VITE_ENCRYPTION_KEY first, then fall back to a development key
+  const key = getEnvValue('VITE_ENCRYPTION_KEY') || 'dev-encryption-key-lugn-trygg-2025-secure-fallback-32chars';
+  if (key === 'your-encryption-key-here') {
     throw new Error('VITE_ENCRYPTION_KEY must be set to a secure random value!');
   }
   return key;
+};
+
+const DEFAULT_DASHBOARD_HERO_PUBLIC_ID = 'hero-bild_pfcdsx';
+const DEFAULT_WELLNESS_HERO_PUBLIC_ID = 'hero-bild_pfcdsx';
+const DEFAULT_JOURNAL_HERO_PUBLIC_ID = 'hero-bild_pfcdsx';
+const DEFAULT_ONBOARDING_HERO_PUBLIC_ID = 'hero-bild_pfcdsx';
+
+export const getDashboardHeroImageId = (): string => {
+  return getEnvValue('VITE_DASHBOARD_HERO_PUBLIC_ID') || DEFAULT_DASHBOARD_HERO_PUBLIC_ID;
+};
+
+export const getWellnessHeroImageId = (): string => {
+  return getEnvValue('VITE_WELLNESS_HERO_PUBLIC_ID') || DEFAULT_WELLNESS_HERO_PUBLIC_ID;
+};
+
+export const getJournalHeroImageId = (): string => {
+  return getEnvValue('VITE_JOURNAL_HERO_PUBLIC_ID') || DEFAULT_JOURNAL_HERO_PUBLIC_ID;
+};
+
+export const getOnboardingHeroImageId = (): string => {
+  return getEnvValue('VITE_ONBOARDING_HERO_PUBLIC_ID') || DEFAULT_ONBOARDING_HERO_PUBLIC_ID;
 };
 
 export const isDevEnvironment = (): boolean => {

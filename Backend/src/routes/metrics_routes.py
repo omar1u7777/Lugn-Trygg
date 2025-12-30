@@ -6,7 +6,7 @@ Provides Prometheus-compatible metrics and health checks
 from flask import Blueprint, Response, jsonify
 import psutil
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import prometheus_client as prom
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
@@ -44,8 +44,8 @@ def health_check():
         # Check database connection (simplified)
         # In real implementation, check actual DB connection
 
-        # Check system resources
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # Check system resources (non-blocking)
+        cpu_percent = psutil.cpu_percent(interval=None)  # Non-blocking
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
 
@@ -56,7 +56,7 @@ def health_check():
 
         health_data = {
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'version': '1.0.0',
             'system': {
                 'cpu_usage': f"{cpu_percent:.1f}%",
@@ -79,7 +79,7 @@ def health_check():
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 503
 
 @metrics_bp.route('/metrics')

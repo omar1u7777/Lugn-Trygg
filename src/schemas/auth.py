@@ -61,9 +61,18 @@ class ChangePasswordRequest(BaseRequest):
     def validate_new_password(cls, v):
         return validate_password(v)
 
+class ConfirmPasswordResetRequest(BaseRequest):
+    """Confirm password reset request"""
+    token: str = Field(..., description="Password reset token")
+    new_password: str = Field(..., min_length=8, description="New password")
+
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        return validate_password(v)
+
 class TwoFactorSetupRequest(BaseRequest):
     """2FA setup request"""
-    method: str = Field(..., regex=r'^(sms|app)$', description="2FA method (sms or app)")
+    method: str = Field(..., pattern=r'^(sms|app)$', description="2FA method (sms or app)")
     phone_number: Optional[str] = None
 
     @validator('phone_number')
@@ -74,7 +83,7 @@ class TwoFactorSetupRequest(BaseRequest):
 
 class TwoFactorVerifyRequest(BaseRequest):
     """2FA verification request"""
-    code: str = Field(..., min_length=6, max_length=6, regex=r'^\d{6}$', description="6-digit verification code")
+    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$', description="6-digit verification code")
 
 # User profile schemas
 class UserProfile(BaseModel):

@@ -1,31 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Alert,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  LinearProgress,
-  Switch,
-  FormControlLabel
-} from '@mui/material';
-import {
-  CloudDone,
-  CloudOff,
-  Sync,
-  CheckCircle,
-  Error as ErrorIcon,
-  Wifi,
-  WifiOff
-} from '@mui/icons-material';
+import { Card, CardContent, Typography, Button, Alert, Progress } from '../ui/tailwind';
+// TODO: Replace icons with Heroicons
 import api from '../../api/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { ArrowPathIcon, CloudIcon, WifiIcon, CheckCircleIcon, ArrowPathIcon as Sync, ExclamationCircleIcon as ErrorIcon } from '@heroicons/react/24/outline';
 
 interface SyncStatus {
   pending_count: number;
@@ -85,104 +63,82 @@ const OfflineSupport: React.FC<{ userId: string }> = ({ userId }) => {
   };
 
   return (
-    <Card sx={{ maxWidth: 700, margin: '16px auto' }}>
+    <Card>
       <CardContent>
-        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          {isOnline ? <Wifi color="success" /> : <WifiOff color="error" />}
+        <Typography variant="h5" gutterBottom>
+          {isOnline ? <WifiIcon className="text-green-500" /> : <WifiIcon className="text-red-500" />}
           Offline Support
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: spacing.lg }}>
+        <Typography variant="body2" color="text.secondary">
           Your data is automatically synced when you're online. You can still use the app offline.
         </Typography>
 
         {/* Connection Status */}
         <Alert
           severity={isOnline ? 'success' : 'warning'}
-          icon={isOnline ? <CloudDone /> : <CloudOff />}
-          sx={{ mb: spacing.lg }}
+          icon={isOnline ? <CloudIcon className="w-5 h-5" /> : <CloudIcon className="w-5 h-5" />}
         >
           {isOnline ? 'You are online. All changes will sync automatically.' : 'You are offline. Changes will sync when you reconnect.'}
         </Alert>
 
         {/* Offline Mode Toggle */}
-        <FormControlLabel
-          control={
-            <Switch
-              checked={offlineMode}
-              onChange={(e) => setOfflineMode(e.target.checked)}
-            />
-          }
-          label="Enable Offline Mode (saves data for offline use)"
-          sx={{ mb: spacing.lg }}
-        />
+        <div className="flex items-center justify-between mt-4">
+          <Typography variant="body1">Enable Offline Mode</Typography>
+          <input
+            type="checkbox"
+            checked={offlineMode}
+            onChange={(e) => setOfflineMode(e.target.checked)}
+            className="toggle-switch"
+          />
+        </div>
 
         {/* Sync Status */}
         {syncStatus && (
-          <>
+          <div className="mt-4">
             <Typography variant="h6" gutterBottom>
               Sync Status
             </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <CheckCircle color="success" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Synced"
-                  secondary={`${syncStatus.synced_count} items`}
-                />
-              </ListItem>
-
-              <ListItem>
-                <ListItemIcon>
-                  <Sync color="warning" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Pending Sync"
-                  secondary={`${syncStatus.pending_count} items`}
-                />
-              </ListItem>
-
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
+                <Typography variant="body2">Synced: {syncStatus.synced_count} items</Typography>
+              </div>
+              <div className="flex items-center">
+                <Sync className="w-5 h-5 text-yellow-500 mr-2" />
+                <Typography variant="body2">Pending Sync: {syncStatus.pending_count} items</Typography>
+              </div>
               {syncStatus.failed_count > 0 && (
-                <ListItem>
-                  <ListItemIcon>
-                    <ErrorIcon color="error" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Failed"
-                    secondary={`${syncStatus.failed_count} items`}
-                  />
-                </ListItem>
+                <div className="flex items-center">
+                  <ErrorIcon className="w-5 h-5 text-red-500 mr-2" />
+                  <Typography variant="body2">Failed: {syncStatus.failed_count} items</Typography>
+                </div>
               )}
-
               {syncStatus.last_sync && (
-                <ListItem>
-                  <ListItemText
-                    secondary={`Last sync: ${new Date(syncStatus.last_sync).toLocaleString()}`}
-                  />
-                </ListItem>
+                <Typography variant="caption" className="text-gray-500">
+                  Last sync: {new Date(syncStatus.last_sync).toLocaleString()}
+                </Typography>
               )}
-            </List>
-          </>
+            </div>
+          </div>
         )}
 
         {/* Sync Button */}
-        <Box sx={{ mt: spacing.lg }}>
-          {syncing && <LinearProgress sx={{ mb: spacing.md }} />}
+        <div>
+          {syncing && <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-primary animate-pulse"></div></div>}
           <Button
-            variant="contained"
+            variant="primary"
             fullWidth
-            startIcon={<Sync />}
+            startIcon={<ArrowPathIcon className="w-5 h-5" />}
             onClick={syncNow}
             disabled={!isOnline || syncing}
           >
             {syncing ? 'Syncing...' : 'Sync Now'}
           </Button>
-        </Box>
+        </div>
 
         {/* Offline Features Info */}
-        <Alert severity="info" sx={{ mt: spacing.lg }}>
-          <Typography variant="subtitle2" gutterBottom>
+        <Alert severity="info">
+          <Typography variant="body1" gutterBottom>
             Available Offline
           </Typography>
           <Typography variant="body2">

@@ -3,9 +3,10 @@ Base Pydantic schemas for Lugn & Trygg API
 Common models, validators, and utilities for request/response validation
 """
 
-from pydantic import BaseModel, Field, validator, EmailStr, HttpUrl
-from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date
+from pydantic import BaseModel, Field, field_validator, EmailStr, HttpUrl, ConfigDict
+from pydantic.functional_validators import BeforeValidator
+from typing import Optional, List, Dict, Any, Union, Annotated
+from datetime import datetime, date, timezone
 from enum import Enum
 import re
 import bleach
@@ -36,45 +37,36 @@ class SubscriptionPlan(str, Enum):
     PREMIUM = "premium"
     ENTERPRISE = "enterprise"
 
-class SanitizedString(str):
-    """String that gets automatically sanitized"""
+def _sanitize_string(v: Any) -> str:
+    """Sanitize string input"""
+    if not isinstance(v, str):
+        v = str(v)
+    # Remove HTML tags and sanitize
+    cleaned = bleach.clean(v, tags=[], strip=True)
+    # Remove potential script injections
+    cleaned = re.sub(r'<script[^>]*>.*?</script>', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r'javascript:', '', cleaned, flags=re.IGNORECASE)
+    # Trim whitespace
+    return cleaned.strip()
 
-    @classmethod
-    def __get_validators__(cls):
-        yield cls._sanitize
-
-    @classmethod
-    def _sanitize(cls, v):
-        if not isinstance(v, str):
-            return str(v)
-        # Remove HTML tags and sanitize
-        cleaned = bleach.clean(v, tags=[], strip=True)
-        # Remove potential script injections
-        cleaned = re.sub(r'<script[^>]*>.*?</script>', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
-        cleaned = re.sub(r'javascript:', '', cleaned, flags=re.IGNORECASE)
-        # Trim whitespace
-        return cleaned.strip()
+# Pydantic V2 style annotated type
+SanitizedString = Annotated[str, BeforeValidator(_sanitize_string)]
 
 class BaseRequest(BaseModel):
     """Base class for all API requests"""
-    class Config:
-        validate_assignment = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            date: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
 class BaseResponse(BaseModel):
     """Base class for all API responses"""
     success: bool = True
     message: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        validate_assignment = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
 
 class ErrorResponse(BaseResponse):
     """Standard error response"""
@@ -88,13 +80,15 @@ class PaginatedResponse(BaseResponse):
     data: List[Any]
     pagination: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator('pagination', pre=True, always=True)
-    def set_pagination(cls, v, values):
+    @field_validator('pagination', mode='before')
+    @classmethod
+    def set_pagination(cls, v, info):
         if not v:
+            data = info.data.get('data', []) if info.data else []
             return {
                 'page': 1,
                 'per_page': 20,
-                'total': len(values.get('data', [])),
+                'total': len(data),
                 'total_pages': 1
             }
         return v
@@ -172,7 +166,10 @@ class ContactInfo(BaseModel):
     emergency_contact: Optional[str] = None
     emergency_phone: Optional[str] = None
 
-    _validate_phone = validator('phone', 'emergency_phone')(validate_phone)
+    @field_validator('phone', 'emergency_phone', mode='before')
+    @classmethod
+    def validate_phone_fields(cls, v):
+        return validate_phone(v)
 
 class HealthMetrics(BaseModel):
     """Basic health metrics"""

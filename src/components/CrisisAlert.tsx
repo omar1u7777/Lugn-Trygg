@@ -21,6 +21,7 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
             </h2>
             <button
               onClick={onClose}
+              aria-label="Close crisis alert"
               className="text-gray-500 hover:text-gray-700 text-2xl"
             >
               ×
@@ -29,8 +30,12 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
 
           <div className="space-y-4 text-sm text-gray-700">
             <p>
-              Vi ser att du har haft det svårt. Du är inte ensam och det finns hjälp att få.
-              Här är några resurser som kan stödja dig:
+              🚨 <strong>Viktig information:</strong> Denna sida visar hjälpresurser för alla som behöver stöd med mental hälsa.
+              Du är inte ensam och professionell hjälp finns tillgänglig dygnet runt.
+            </p>
+            <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+              💡 <strong>Ärligt råd:</strong> Om du känner att livet känns outhärdligt, ring 112 eller självmordslinjen genast.
+              Det finns alltid någon som vill hjälpa dig.
             </p>
 
             <div className="space-y-3">

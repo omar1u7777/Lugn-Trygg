@@ -9,6 +9,11 @@ from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Best practice: Define timeout constant for all external API calls
+# Prevents hanging connections that can exhaust server resources
+REQUEST_TIMEOUT = 30  # seconds
+
+
 class HealthDataService:
     """Service for fetching health data from various platforms"""
     
@@ -51,7 +56,7 @@ class HealthDataService:
                 "endTimeMillis": end_ns // 1000000
             }
             
-            steps_response = requests.post(steps_url, json=steps_payload, headers=headers)
+            steps_response = requests.post(steps_url, json=steps_payload, headers=headers, timeout=REQUEST_TIMEOUT)
             if steps_response.status_code == 200:
                 steps_data = steps_response.json()
                 total_steps = self._extract_google_fit_steps(steps_data)
@@ -59,7 +64,7 @@ class HealthDataService:
             
             # Fetch heart rate
             hr_url = f"{base_url}/dataSources/derived:com.google.heart_rate.bpm:com.google.android.gms:merge_heart_rate_bpm/datasets/{start_ns}-{end_ns}"
-            hr_response = requests.get(hr_url, headers=headers)
+            hr_response = requests.get(hr_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if hr_response.status_code == 200:
                 hr_data = hr_response.json()
                 avg_hr = self._extract_google_fit_heart_rate(hr_data)
@@ -72,7 +77,7 @@ class HealthDataService:
                 'endTime': end_date.isoformat() + 'Z',
                 'activityType': 72  # Sleep activity type
             }
-            sleep_response = requests.get(sleep_url, params=sleep_params, headers=headers)
+            sleep_response = requests.get(sleep_url, params=sleep_params, headers=headers, timeout=REQUEST_TIMEOUT)
             if sleep_response.status_code == 200:
                 sleep_data = sleep_response.json()
                 total_sleep = self._extract_google_fit_sleep(sleep_data)
@@ -88,7 +93,7 @@ class HealthDataService:
                 "startTimeMillis": start_ns // 1000000,
                 "endTimeMillis": end_ns // 1000000
             }
-            calories_response = requests.post(calories_url, json=calories_payload, headers=headers)
+            calories_response = requests.post(calories_url, json=calories_payload, headers=headers, timeout=REQUEST_TIMEOUT)
             if calories_response.status_code == 200:
                 calories_data = calories_response.json()
                 total_calories = self._extract_google_fit_calories(calories_data)
@@ -97,6 +102,9 @@ class HealthDataService:
             logger.info(f"Successfully fetched Google Fit data: {len(health_data)} metrics")
             return health_data
             
+        except requests.Timeout:
+            logger.error("Google Fit API request timed out")
+            raise
         except Exception as e:
             logger.error(f"Error fetching Google Fit data: {str(e)}")
             raise
@@ -129,7 +137,7 @@ class HealthDataService:
             
             # Fetch activity summary
             activity_url = f"{base_url}/activities/date/{date_str}/{period}.json"
-            activity_response = requests.get(activity_url, headers=headers)
+            activity_response = requests.get(activity_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if activity_response.status_code == 200:
                 activity_data = activity_response.json()
                 if 'activities-steps' in activity_data:
@@ -138,7 +146,7 @@ class HealthDataService:
             
             # Fetch heart rate
             hr_url = f"{base_url}/activities/heart/date/{date_str}/{period}.json"
-            hr_response = requests.get(hr_url, headers=headers)
+            hr_response = requests.get(hr_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if hr_response.status_code == 200:
                 hr_data = hr_response.json()
                 if 'activities-heart' in hr_data and len(hr_data['activities-heart']) > 0:
@@ -152,7 +160,7 @@ class HealthDataService:
             
             # Fetch sleep
             sleep_url = f"{base_url}/sleep/date/{date_str}/{period}.json"
-            sleep_response = requests.get(sleep_url, headers=headers)
+            sleep_response = requests.get(sleep_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if sleep_response.status_code == 200:
                 sleep_data = sleep_response.json()
                 if 'sleep' in sleep_data:
@@ -161,7 +169,7 @@ class HealthDataService:
             
             # Fetch calories
             calories_url = f"{base_url}/activities/calories/date/{date_str}/{period}.json"
-            calories_response = requests.get(calories_url, headers=headers)
+            calories_response = requests.get(calories_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if calories_response.status_code == 200:
                 calories_data = calories_response.json()
                 if 'activities-calories' in calories_data:
@@ -171,6 +179,9 @@ class HealthDataService:
             logger.info(f"Successfully fetched Fitbit data: {len(health_data)} metrics")
             return health_data
             
+        except requests.Timeout:
+            logger.error("Fitbit API request timed out")
+            raise
         except Exception as e:
             logger.error(f"Error fetching Fitbit data: {str(e)}")
             raise
@@ -207,7 +218,7 @@ class HealthDataService:
                 'start_time': start_ms,
                 'end_time': end_ms
             }
-            steps_response = requests.get(steps_url, params=steps_params, headers=headers)
+            steps_response = requests.get(steps_url, params=steps_params, headers=headers, timeout=REQUEST_TIMEOUT)
             if steps_response.status_code == 200:
                 steps_data = steps_response.json()
                 total_steps = sum(item.get('count', 0) for item in steps_data.get('data', []))
@@ -219,7 +230,7 @@ class HealthDataService:
                 'start_time': start_ms,
                 'end_time': end_ms
             }
-            hr_response = requests.get(hr_url, params=hr_params, headers=headers)
+            hr_response = requests.get(hr_url, params=hr_params, headers=headers, timeout=REQUEST_TIMEOUT)
             if hr_response.status_code == 200:
                 hr_data = hr_response.json()
                 hr_values = [item.get('heart_rate', 0) for item in hr_data.get('data', [])]
@@ -232,7 +243,7 @@ class HealthDataService:
                 'start_time': start_ms,
                 'end_time': end_ms
             }
-            sleep_response = requests.get(sleep_url, params=sleep_params, headers=headers)
+            sleep_response = requests.get(sleep_url, params=sleep_params, headers=headers, timeout=REQUEST_TIMEOUT)
             if sleep_response.status_code == 200:
                 sleep_data = sleep_response.json()
                 total_minutes = sum(item.get('duration', 0) for item in sleep_data.get('data', []))
@@ -241,6 +252,9 @@ class HealthDataService:
             logger.info(f"Successfully fetched Samsung Health data: {len(health_data)} metrics")
             return health_data
             
+        except requests.Timeout:
+            logger.error("Samsung Health API request timed out")
+            raise
         except Exception as e:
             logger.error(f"Error fetching Samsung Health data: {str(e)}")
             raise

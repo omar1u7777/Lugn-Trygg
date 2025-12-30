@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
-import {
-    Box,
-    Paper,
-    Typography,
-    CircularProgress,
-    Alert,
-    Chip,
-    Button,
-    Divider,
-} from '@mui/material';
+import { Paper, Spinner, Alert, Chip, Divider, Button } from '../ui/tailwind';
 
 interface ReferralHistoryEntry {
     invitee_name: string;
@@ -40,7 +30,7 @@ const ReferralHistory: React.FC = () => {
             const response = await api.get(`/api/referral/history?user_id=${user.user_id}`);
             setHistory(response.data.history || []);
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to fetch referral history:', err);
             setError('Kunde inte ladda historik');
         } finally {
@@ -61,113 +51,97 @@ const ReferralHistory: React.FC = () => {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={40} sx={{ mb: spacing.sm }} />
-                    <Typography variant="body2" color="text.secondary">
+            <div className="flex items-center justify-center p-8">
+                <div className="flex flex-col items-center gap-4">
+                    <Spinner size="sm" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                         Laddar historik...
-                    </Typography>
-                </Box>
-            </Box>
+                    </p>
+                </div>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Alert severity="error" sx={{ borderRadius: borderRadius.md }}>
+            <Alert severity="error">
                 {error}
             </Alert>
         );
     }
 
     return (
-        <Paper elevation={3} sx={{ p: spacing.lg, borderRadius: borderRadius.lg }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: spacing.md }}>
-                <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+        <Paper className="shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                     📜 Referenshistorik
-                </Typography>
+                </h2>
                 <Chip
                     label={`${history.length} totalt`}
                     size="small"
                     color="primary"
-                    sx={{ fontWeight: 600 }}
                 />
-            </Box>
+            </div>
 
             {history.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h2" sx={{ fontSize: '3rem', mb: spacing.sm }}>
-                        🌱
-                    </Typography>
-                    <Typography variant="body1" fontWeight="500" color="text.secondary" gutterBottom>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="text-6xl mb-4">🌱</div>
+                    <p className="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">
                         Inga referenser än
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
                         Dela din referenskod för att komma igång!
-                    </Typography>
-                </Box>
+                    </p>
+                </div>
             ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <div className="space-y-4">
                     {history.map((entry, idx) => (
-                        <Paper
+                        <div
                             key={idx}
-                            elevation={0}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                justifyContent: 'space-between',
-                                p: spacing.md,
-                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                                borderRadius: borderRadius.md,
-                                transition: 'background-color 0.2s',
-                                '&:hover': {
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
-                                },
-                            }}
+                            className="flex items-start justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/70"
                         >
-                            <Box sx={{ flex: 1 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm, mb: 0.5 }}>
-                                    <Typography variant="body1">👤</Typography>
-                                    <Typography variant="body1" fontWeight="600" color="text.primary">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">👤</span>
+                                    <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
                                         {entry.invitee_name}
-                                    </Typography>
-                                </Box>
+                                    </p>
+                                </div>
                                 {entry.invitee_email && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 3.5 }}>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                                         📧 {entry.invitee_email}
-                                    </Typography>
+                                    </p>
                                 )}
-                                <Typography variant="caption" color="text.secondary" sx={{ ml: 3.5, mt: 0.5, display: 'block' }}>
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
                                     🕐 {formatDate(entry.completed_at)}
-                                </Typography>
-                            </Box>
+                                </p>
+                            </div>
 
                             <Chip
                                 label={`+${entry.rewards_granted} vecka`}
                                 color="success"
                                 size="small"
-                                sx={{ fontWeight: 600, flexShrink: 0 }}
                             />
-                        </Paper>
+                        </div>
                     ))}
-                </Box>
+                </div>
             )}
 
             {history.length > 0 && (
-                <>
-                    <Divider sx={{ my: 2 }} />
+                <div className="mt-6">
+                    <Divider />
                     <Button
                         onClick={fetchHistory}
-                        fullWidth
+                        className="w-full mt-4"
                         variant="text"
-                        sx={{ textTransform: 'none', fontWeight: 600 }}
                     >
                         🔄 Uppdatera historik
                     </Button>
-                </>
+                </div>
             )}
         </Paper>
     );
 };
 
 export default ReferralHistory;
+

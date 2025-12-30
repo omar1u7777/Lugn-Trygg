@@ -57,10 +57,13 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
             setMessage({ type: 'success', text: 'Belöning inlöst! 🎉' });
             setTimeout(() => setMessage(null), 3000);
             onRedemption(); // Refresh parent data
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+                ? String(err.response.data.error)
+                : 'Kunde inte lösa in belöning';
             setMessage({ 
                 type: 'error', 
-                text: err.response?.data?.error || 'Kunde inte lösa in belöning' 
+                text: errorMessage
             });
             setTimeout(() => setMessage(null), 3000);
         } finally {

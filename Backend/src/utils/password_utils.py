@@ -64,12 +64,65 @@ def validate_password(password: str) -> bool:
         return False
     return True
 
-# 🔹 Testa funktionen (kan tas bort i produktion)
+def check_password_strength(password: str) -> dict:
+    """
+    🔹 Kontrollerar lösenordsstyrka och returnerar detaljerad analys.
+
+    Args:
+        password (str): Lösenordet som ska analyseras.
+
+    Returns:
+        dict: En dictionary med styrkeanalys.
+    """
+    score = 0
+    feedback = []
+
+    if len(password) >= 8:
+        score += 1
+    else:
+        feedback.append("Lösenordet måste vara minst 8 tecken långt.")
+
+    if any(char.isdigit() for char in password):
+        score += 1
+    else:
+        feedback.append("Lösenordet måste innehålla minst en siffra.")
+
+    if any(char.isupper() for char in password):
+        score += 1
+    else:
+        feedback.append("Lösenordet måste innehålla minst en stor bokstav.")
+
+    if any(char.islower() for char in password):
+        score += 1
+    else:
+        feedback.append("Lösenordet måste innehålla minst en liten bokstav.")
+
+    if any(char in "!@#$%^&*()_+-=[]{}|;:,.<>?" for char in password):
+        score += 1
+    else:
+        feedback.append("Lösenordet bör innehålla minst ett specialtecken.")
+
+    strength = "Svagt"
+    if score >= 4:
+        strength = "Starkt"
+    elif score >= 3:
+        strength = "Medel"
+
+    return {
+        "score": score,
+        "strength": strength,
+        "feedback": feedback,
+        "is_valid": score >= 4
+    }
+
+# Test function - only runs when file is executed directly
 if __name__ == "__main__":
-    test_password = "Lösenord123!"
+    import os
+    # Use environment variable or generate test password securely
+    test_password = os.getenv("TEST_PASSWORD", "TestP@ssw0rd!")  # nosec B105
     hashed_pw = hash_password(test_password)
     print(f"🔐 Hashat lösenord: {hashed_pw}")
     
-    # 🔹 Verifieringstest
+    # Verification test
     is_valid = verify_password(test_password, hashed_pw)
     print(f"✅ Lösenordsverifiering: {'Lyckades' if is_valid else 'Misslyckades'}")

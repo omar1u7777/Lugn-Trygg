@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from statistics import mean, stdev
 
+from ..utils.timestamp_utils import parse_iso_timestamp
+
 logger = logging.getLogger(__name__)
 
 class HealthAnalyticsService:
@@ -116,15 +118,15 @@ class HealthAnalyticsService:
         """Check if two dates are the same day"""
         try:
             if isinstance(date1, str):
-                date1 = datetime.fromisoformat(date1).date()
+                date1 = parse_iso_timestamp(date1).date()
             elif isinstance(date1, datetime):
                 date1 = date1.date()
-                
+
             if isinstance(date2, str):
-                date2 = datetime.fromisoformat(date2).date()
+                date2 = parse_iso_timestamp(date2).date()
             elif isinstance(date2, datetime):
                 date2 = date2.date()
-                
+
             return date1 == date2
         except:
             return False

@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { Card, CardContent, Typography, Box, Chip, Button, LinearProgress, Avatar, Badge } from '@mui/material';
-import { EmojiEvents, Star, TrendingUp, LocalFireDepartment, Psychology, Favorite } from '@mui/icons-material';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useCallback } from 'react'
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { getMoods, getWeeklyAnalysis } from '../api/api';
 import useAuth from '../hooks/useAuth';
+import { ArrowTrendingUpIcon, StarIcon, TrophyIcon, FireIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Card } from './ui/tailwind';
 
 interface GamificationProps {
   userId?: string;
@@ -31,7 +29,6 @@ interface StreakData {
 }
 
 const Gamification = ({ userId }: GamificationProps) => {
-  const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -39,26 +36,13 @@ const Gamification = ({ userId }: GamificationProps) => {
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [xpToNext, setXpToNext] = useState(100);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    analytics.page('Gamification', {
-      component: 'Gamification',
-      userId,
-    });
-
-    loadGamificationData();
-  }, [userId, user]);
-
-  const loadGamificationData = async () => {
+  const loadGamificationData = useCallback(async () => {
     if (!user?.user_id) {
-      setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
-
       // Load real data from backend APIs
       const [moodsData, weeklyAnalysisData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
@@ -68,7 +52,6 @@ const Gamification = ({ userId }: GamificationProps) => {
       // Calculate achievements based on real data
       const totalMoods = moodsData.length;
       const streakDays = weeklyAnalysisData.streak_days || 0;
-      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
 
       // Calculate XP based on activities (10 XP per mood, 5 XP per chat, etc.)
       const baseXp = totalMoods * 10; // 10 XP per mood logged
@@ -158,10 +141,17 @@ const Gamification = ({ userId }: GamificationProps) => {
       setLevel(1);
       setXp(0);
       setXpToNext(100);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [announceToScreenReader, user]);
+
+  useEffect(() => {
+    analytics.page('Gamification', {
+      component: 'Gamification',
+      userId,
+    });
+
+    loadGamificationData();
+  }, [loadGamificationData, userId]);
 
   const getRarityColor = (rarity: string) => {
     const colors = {
@@ -195,93 +185,93 @@ const Gamification = ({ userId }: GamificationProps) => {
 
       {/* Level & XP Progress */}
       <Card className="mb-8 bg-gradient-to-r from-primary-500 to-secondary-500 text-white">
-        <CardContent className="p-6">
+        <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <Badge badgeContent={level} color="secondary">
-                <Avatar sx={{ width: 60, height: 60 }} className="bg-white/20">
-                  <Star sx={{ fontSize: 30 }} />
-                </Avatar>
-              </Badge>
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <StarIcon className="w-8 h-8" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-secondary-500 rounded-full flex items-center justify-center text-xs font-bold">
+                  {level}
+                </div>
+              </div>
               <div>
-                <Typography variant="h5" className="font-bold">
+                <h2 className="text-2xl font-bold mb-1">
                   Nivå {level}
-                </Typography>
-                <Typography variant="body2" className="opacity-90">
+                </h2>
+                <p className="text-sm opacity-90">
                   {xp} / {xp + xpToNext} XP
-                </Typography>
+                </p>
               </div>
             </div>
 
             <div className="text-right">
-              <Typography variant="h6" className="font-bold">
+              <p className="text-xl font-bold mb-1">
                 {Math.round((xp / (xp + xpToNext)) * 100)}% klart
-              </Typography>
-              <Typography variant="body2" className="opacity-90">
+              </p>
+              <p className="text-sm opacity-90">
                 {xpToNext} XP till nästa nivå
-              </Typography>
+              </p>
             </div>
           </div>
 
-          <LinearProgress
-            variant="determinate"
-            value={(xp / (xp + xpToNext)) * 100}
-            className="h-3 rounded-full"
-            sx={{
-              backgroundColor: 'colors.overlay.heavy',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: 'white',
-              },
-            }}
-          />
-        </CardContent>
+          <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-all duration-500"
+              style={{ width: `${(xp / (xp + xpToNext)) * 100}%` }}
+              role="progressbar"
+              aria-valuenow={(xp / (xp + xpToNext)) * 100}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            ></div>
+          </div>
+        </div>
       </Card>
 
       {/* Current Streak */}
       <Card className="mb-8">
-        <CardContent className="p-6">
+        <div className="p-6">
           <div className="flex items-center gap-4">
-            <div className="text-4xl">
-              <LocalFireDepartment className="text-orange-500" sx={{ fontSize: 48 }} />
+            <div className="text-5xl">
+              <FireIcon className="w-16 h-16 text-orange-500" />
             </div>
             <div className="flex-1">
-              <Typography variant="h6" gutterBottom>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                 Nuvarande Streak
-              </Typography>
-              <div className="flex items-center gap-4">
+              </h3>
+              <div className="flex items-center gap-6">
                 <div className="text-center">
-                  <Typography variant="h4" className="font-bold text-orange-600">
+                  <p className="text-4xl font-bold text-orange-600 dark:text-orange-500 mb-1">
                     {streak.current}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     dagar
-                  </Typography>
+                  </p>
                 </div>
                 <div className="text-center">
-                  <Typography variant="h6" className="font-semibold">
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white mb-1">
                     {streak.longest}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     längst streak
-                  </Typography>
+                  </p>
                 </div>
               </div>
             </div>
-            <Chip
-              label="Pågående! 🔥"
-              color="warning"
-              variant="filled"
-            />
+            <span className="px-4 py-2 bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300 rounded-full font-medium text-sm">
+              Pågående! 🔥
+            </span>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Achievements Grid */}
       <div className="mb-8">
-        <Typography variant="h5" gutterBottom className="flex items-center gap-2">
-          <EmojiEvents />
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+          <TrophyIcon className="w-7 h-7 text-primary-600 dark:text-primary-500" />
           Dina Achievements
-        </Typography>
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {achievements.map((achievement) => (
@@ -289,18 +279,16 @@ const Gamification = ({ userId }: GamificationProps) => {
               key={achievement.id}
               className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
                 achievement.unlocked
-                  ? 'border-2 border-green-200 bg-green-50 dark:bg-green-900/20'
-                  : 'border border-gray-200'
+                  ? 'border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
+                  : 'border border-gray-200 dark:border-gray-700'
               }`}
             >
-              <CardContent className="p-6">
+              <div className="p-6">
                 {/* Rarity Badge */}
                 <div className="absolute top-3 right-3">
-                  <Chip
-                    label={`${getRarityIcon(achievement.rarity)} ${achievement.rarity}`}
-                    size="small"
-                    className={`text-xs ${getRarityColor(achievement.rarity)}`}
-                  />
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getRarityColor(achievement.rarity)}`}>
+                    {getRarityIcon(achievement.rarity)} {achievement.rarity}
+                  </span>
                 </div>
 
                 {/* Achievement Icon */}
@@ -311,8 +299,8 @@ const Gamification = ({ userId }: GamificationProps) => {
 
                   {achievement.unlocked && (
                     <div className="absolute top-3 left-3">
-                      <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">✓</span>
+                      <div className="w-6 h-6 bg-green-500 dark:bg-green-600 rounded-full flex items-center justify-center">
+                        <CheckCircleIcon className="w-4 h-4 text-white" />
                       </div>
                     </div>
                   )}
@@ -320,40 +308,44 @@ const Gamification = ({ userId }: GamificationProps) => {
 
                 {/* Achievement Details */}
                 <div className="text-center">
-                  <Typography variant="h6" gutterBottom className={achievement.unlocked ? '' : 'text-gray-500'}>
+                  <h3 className={`text-xl font-semibold mb-2 ${achievement.unlocked ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
                     {achievement.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" className="mb-4">
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     {achievement.description}
-                  </Typography>
+                  </p>
 
                   {/* Progress Bar */}
                   <div className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Framsteg</span>
-                      <span>{achievement.progress}/{achievement.maxProgress}</span>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-600 dark:text-gray-400">Framsteg</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{achievement.progress}/{achievement.maxProgress}</span>
                     </div>
-                    <LinearProgress
-                      variant="determinate"
-                      value={(achievement.progress / achievement.maxProgress) * 100}
-                      className="h-2 rounded-full"
-                      color={achievement.unlocked ? 'success' : 'primary'}
-                    />
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          achievement.unlocked ? 'bg-green-500' : 'bg-primary-600'
+                        }`}
+                        style={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
+                        role="progressbar"
+                        aria-valuenow={(achievement.progress / achievement.maxProgress) * 100}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      ></div>
+                    </div>
                   </div>
 
                   {/* Unlock Date */}
                   {achievement.unlocked && achievement.unlockedAt && (
-                    <Typography variant="caption" color="text.secondary">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                       Upplåst {achievement.unlockedAt.toLocaleDateString()}
-                    </Typography>
+                    </p>
                   )}
 
                   {/* Action Button for Incomplete */}
                   {!achievement.unlocked && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      className="mt-3"
+                    <button
+                      className="mt-3 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => {
                         analytics.track('Achievement Action', {
                           achievementId: achievement.id,
@@ -362,10 +354,10 @@ const Gamification = ({ userId }: GamificationProps) => {
                       }}
                     >
                       Fortsätt
-                    </Button>
+                    </button>
                   )}
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
@@ -373,65 +365,66 @@ const Gamification = ({ userId }: GamificationProps) => {
 
       {/* Stats Summary */}
       <Card>
-        <CardContent className="p-6">
-          <Typography variant="h6" gutterBottom className="flex items-center gap-2">
-            <TrendingUp />
+        <div className="p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <ArrowTrendingUpIcon className="w-6 h-6 text-primary-600 dark:text-primary-500" />
             Din Statistik
-          </Typography>
+          </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <Typography variant="h4" className="font-bold text-primary-600">
+              <p className="text-4xl font-bold text-primary-600 dark:text-primary-500 mb-2">
                 {achievements.filter(a => a.unlocked).length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Upplåsta Achievements
-              </Typography>
+              </p>
             </div>
 
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <Typography variant="h4" className="font-bold text-secondary-600">
+              <p className="text-4xl font-bold text-secondary-600 dark:text-secondary-500 mb-2">
                 {streak.longest}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Längsta Streak
-              </Typography>
+              </p>
             </div>
 
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <Typography variant="h4" className="font-bold text-success-600">
+              <p className="text-4xl font-bold text-success-600 dark:text-success-500 mb-2">
                 {level}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Nuvarande Nivå
-              </Typography>
+              </p>
             </div>
 
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <Typography variant="h4" className="font-bold text-warning-600">
+              <p className="text-4xl font-bold text-warning-600 dark:text-warning-500 mb-2">
                 {xp}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Total XP
-              </Typography>
+              </p>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Motivational Message */}
       <Card className="mt-8 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-        <CardContent className="p-6 text-center">
-          <Typography variant="h6" gutterBottom>
+        <div className="p-6 text-center">
+          <h3 className="text-xl font-semibold mb-2">
             Fortsätt din resa! 🌟
-          </Typography>
-          <Typography variant="body1" className="opacity-90">
+          </h3>
+          <p className="opacity-90">
             Varje liten steg räknas. Du gör fantastiska framsteg på din mentala häls resa.
-          </Typography>
-        </CardContent>
+          </p>
+        </div>
       </Card>
     </div>
   );
 };
 
 export default Gamification;
+

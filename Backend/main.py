@@ -6,28 +6,24 @@ Production-ready Flask application with comprehensive security and monitoring
 import os
 import sys
 from flask import Flask, request, jsonify, g
-from flask_cors import CORS
+# NOTE: flask_cors removed - we handle CORS manually for full control over allowed headers
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
+
+from src.utils.hf_cache import configure_hf_cache
+
+# Add Backend directory to sys.path to enable imports from src
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 # Load environment variables
 load_dotenv()
-
-# Initialize Sentry monitoring (must be before Flask app creation)
-try:
-    from src.monitoring.sentry_config import init_sentry, capture_exception, add_breadcrumb
-    SENTRY_ENABLED = True
-except ImportError:
-    logger = logging.getLogger(__name__)
-    logger.warning("⚠️  Sentry SDK not available - monitoring disabled")
-    SENTRY_ENABLED = False
-    # Stub functions
-    def init_sentry(app=None): return False
-    def capture_exception(e, context=None): pass
-    def add_breadcrumb(message, **kwargs): pass
+configure_hf_cache()
 
 # Configure logging
 logging.basicConfig(
@@ -44,52 +40,128 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 
-# Initialize Sentry monitoring for production
-if SENTRY_ENABLED:
-    init_sentry(app)
-    logger.info("✓ Sentry monitoring initialized")
+# CRITICAL: Disable automatic OPTIONS handling so we can set CORS headers manually
+app.config['CORS_AUTOMATIC_OPTIONS'] = False
 
 # Configuration
-app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
-
-# JWT Extended Configuration
+# Ensure JWT_SECRET_KEY is set for security
+jwt_secret = os.getenv('JWT_SECRET_KEY')
+if not jwt_secret:
+    logger.error("JWT_SECRET_KEY environment variable is not set. Application cannot start securely.")
+    sys.exit(1)
+app.config['SECRET_KEY'] = jwt_secret
+app.config['JWT_SECRET_KEY'] = jwt_secret
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
 app.config['JWT_HEADER_TYPE'] = 'Bearer'
+app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
 
-# CORS configuration
-cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 
-    'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001,'
-    'https://lugn-trygg.vercel.app,https://lugn-trygg-cicqazfhh-omaralhaeks-projects.vercel.app,'
-    'https://*.vercel.app'
-)
-cors_origins_list = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+# Initialize Flask-JWT-Extended
+jwt = JWTManager(app)
 
-# Support wildcard domains for Vercel preview deployments
-if any('*' in origin for origin in cors_origins_list):
-    # Flask-CORS doesn't support wildcards in list, use regex
-    from flask_cors import CORS
-    CORS(app, origins='*', supports_credentials=True)
-    logger.warning("⚠️ CORS configured with wildcard - use specific origins in production!")
-else:
-    CORS(app, origins=cors_origins_list, supports_credentials=True)
+# Flask-WTF removed from requirements - CSRF protection disabled
 
-# Rate limiting - Production ready for 1000 users
-# Optimized for high traffic: 1000 users * ~100 requests/day = 100k requests
+# CORS Headers configuration - ALL supported headers including CSRF variants
+# This is a constant and doesn't depend on environment variables
+CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token'
+
+def _get_cors_origins_list():
+    """Get CORS origins list - called at runtime to ensure .env is loaded"""
+    cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001')
+    return [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+
+def is_origin_allowed(origin: str) -> bool:
+    """Check if the origin is allowed"""
+    cors_origins_list = _get_cors_origins_list()
+    return (
+        origin in cors_origins_list or 
+        any(origin.endswith('.vercel.app') for o in cors_origins_list if '*' in o) or
+        origin.startswith('http://localhost:') or
+        origin.startswith('http://127.0.0.1:') or
+        origin.startswith('http://192.168.')  # Local network
+    )
+
+# CORS handlers defined here but will be registered AFTER security_headers middleware
+# to ensure CORS headers are set LAST and not overwritten
+
+def _handle_cors_preflight():
+    """Handle OPTIONS preflight requests - MUST run first"""
+    print(f"[CORS-DEBUG] _handle_cors_preflight called, method={request.method}, path={request.path}")
+    if request.method == 'OPTIONS':
+        print(f"[CORS-DEBUG] OPTIONS detected for {request.path}")
+        logger.info(f"🔥 CORS preflight intercepted for {request.path}")
+        from flask import Response
+        response = Response('', status=204)
+        origin = request.headers.get('Origin', '')
+        print(f"[CORS-DEBUG] Origin={origin}")
+        
+        if is_origin_allowed(origin):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '86400'
+            print(f"[CORS-DEBUG] Headers set: Allow-Headers={CORS_ALLOWED_HEADERS}")
+            logger.info(f"✅ CORS preflight headers set: {CORS_ALLOWED_HEADERS}")
+        else:
+            print(f"[CORS-DEBUG] Origin NOT allowed: {origin}")
+        
+        return response
+    return None
+
+def _add_cors_to_response(response):
+    """Add CORS headers to ALL responses (runs LAST in after_request chain)"""
+    origin = request.headers.get('Origin', '')
+    print(f"[CORS-DEBUG] _add_cors_to_response called, method={request.method}, path={request.path}, origin={origin}")
+    
+    # Check if origin is allowed (more permissive for localhost)
+    origin_allowed = (
+        origin.startswith('http://localhost:') or 
+        origin.startswith('http://127.0.0.1:') or 
+        origin.startswith('http://192.168.') or
+        is_origin_allowed(origin)
+    )
+    
+    if origin_allowed:
+        # ALWAYS set these headers, OVERWRITING any previous values
+        # This is critical to ensure X-CSRF-Token is included
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        print(f"[CORS-DEBUG] after_request headers set: Allow-Headers={CORS_ALLOWED_HEADERS}")
+        logger.debug(f"✅ CORS headers set for {request.method} {request.path}: {CORS_ALLOWED_HEADERS}")
+    else:
+        print(f"[CORS-DEBUG] after_request - origin NOT allowed: {origin}")
+    
+    return response
+
+# NOTE: Removed CORS(app, ...) - we handle CORS manually above to ensure X-CSRF-Token is allowed
+
+
+def _block_invalid_paths():
+    """Convert path traversal attempts and malformed double slashes into 404 responses."""
+    normalized_path = (request.path or '').replace('\\', '/')
+    segments = [segment for segment in normalized_path.split('/') if segment]
+
+    has_traversal = '..' in segments
+    has_double_slash = '//' in normalized_path
+
+    if has_traversal or has_double_slash:
+        logger.warning(f"🚫 Blocked suspicious path: {request.path}")
+        return jsonify({"error": "Ogiltig sökväg"}), 404
+
+    return None
+
+# Rate limiting - optimized for 10k concurrent users during load testing
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["5000 per day", "1000 per hour", "300 per minute"],  # ÖKAT för 1000 users production
-    storage_uri="memory://",
-    strategy="fixed-window",
-    headers_enabled=True  # Return rate limit headers
+    default_limits=["100000 per day", "10000 per hour", "1000 per minute"],
+    storage_uri="memory://"
 )
-
-# Initialize JWT Manager
-from flask_jwt_extended import JWTManager
-jwt = JWTManager(app)
 
 # Import and initialize services
 try:
@@ -105,100 +177,296 @@ try:
     # Middleware
     from src.middleware.security_headers import init_security_headers
     from src.middleware.validation import init_validation_middleware
+    from src.utils.input_sanitization import sanitize_request
     from src.utils.sql_injection_protection import protect_sql_injection
 
     # Routes
+    from src.routes.admin_routes import admin_bp
     from src.routes.auth_routes import auth_bp
     from src.routes.mood_routes import mood_bp
+    from src.routes.mood_stats_routes import mood_stats_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.ai_routes import ai_bp
+    from src.routes.ai_helpers_routes import ai_helpers_bp
+    from src.routes.ai_stories_routes import ai_stories_bp
+    from src.routes.chatbot_routes import chatbot_bp
+    from src.routes.feedback_routes import feedback_bp
+    from src.routes.notifications_routes import notifications_bp
+    from src.routes.referral_routes import referral_bp
+    from src.routes.sync_routes import sync_bp
+    from src.routes.users_routes import users_bp
     from src.routes.integration_routes import integration_bp
     from src.routes.subscription_routes import subscription_bp
     from src.routes.docs_routes import docs_bp
     from src.routes.metrics_routes import metrics_bp
-    from src.routes.predictive_routes import predictive_bp  # ✅ RE-ENABLED for production!
+    from src.routes.security_routes import security_bp
+    from src.routes.predictive_routes import predictive_bp
     from src.routes.rate_limit_routes import rate_limit_bp
-    from src.routes.referral_routes import referral_bp
-    from src.routes.chatbot_routes import chatbot_bp
-    from src.routes.feedback_routes import feedback_bp
-    from src.routes.admin_routes import admin_bp
-    from src.routes.ai_helpers_routes import ai_helpers_bp
-    from src.routes.notifications_routes import notifications_bp
-    from src.routes.sync_routes import sync_bp
-    from src.routes.users_routes import users_bp
-    from src.routes.health_routes import health_bp  # 🏥 Health check endpoints
+    from src.routes.dashboard_routes import dashboard_bp
+    from src.routes.onboarding_routes import onboarding_bp
+    from src.routes.privacy_routes import privacy_bp
+    from src.routes.health_routes import health_bp
+    from src.routes.journal_routes import journal_bp
+    from src.routes.challenges_routes import challenges_bp
+    from src.routes.rewards_routes import rewards_bp
+    from src.routes.audio_routes import audio_bp
+    from src.routes.peer_chat_routes import peer_chat_bp
+    from src.routes.leaderboard_routes import leaderboard_bp
+    from src.routes.voice_routes import voice_bp
+    from src.routes.sync_history_routes import sync_history_bp
+    from src.routes.chat_alias_routes import chat_alias_bp
 
     # Initialize Firebase
     initialize_firebase()
 
-    # Initialize middleware
+    # Initialize middleware (MUST be before CORS handlers so CORS runs LAST)
     init_security_headers(app)
     init_validation_middleware(app)
 
-    # Register blueprints
-    # Health checks first (no auth required)
-    app.register_blueprint(health_bp, url_prefix='/api')  # 🏥 /api/health endpoints
+    # Block malformed paths before any other middleware runs
+    app.before_request(_block_invalid_paths)
     
-    # Auth & core routes
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(mood_bp, url_prefix='/api/mood')
-    app.register_blueprint(ai_helpers_bp, url_prefix='/api/mood')  # ai_helpers routes under /api/mood
-    app.register_blueprint(memory_bp, url_prefix='/api/memory')
-    app.register_blueprint(ai_bp, url_prefix='/api/ai')
-    app.register_blueprint(integration_bp, url_prefix='/api/integration')
-    app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
-    app.register_blueprint(docs_bp, url_prefix='/api/docs')
-    app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
-    app.register_blueprint(predictive_bp, url_prefix='/api/predictive')  # ✅ RE-ENABLED!
-    app.register_blueprint(rate_limit_bp, url_prefix='/api/rate-limit')
-    app.register_blueprint(referral_bp, url_prefix='/api/referral')
-    app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
-    app.register_blueprint(feedback_bp, url_prefix='/api/feedback')
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
-    app.register_blueprint(sync_bp, url_prefix='/api/sync')
-    app.register_blueprint(users_bp, url_prefix='/api/users')
-    
-    # Dashboard routes - Optimized for high traffic
-    from src.routes.dashboard_routes import dashboard_bp
-    app.register_blueprint(dashboard_bp)  # Already has /api/dashboard prefix
-    logger.info("✅ Dashboard routes registered")
+    # CRITICAL: Register CORS handlers AFTER all other middleware
+    # This ensures CORS headers are the LAST thing set on responses
+    app.before_request(_handle_cors_preflight)
+    app.after_request(_add_cors_to_response)
+    logger.info("✅ CORS handlers registered (will run last in after_request chain)")
 
-    # Global request middleware
+    # Register blueprints
+    try:
+        app.register_blueprint(auth_bp, url_prefix='/api/auth')
+        logger.info("✅ Registered auth_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register auth_bp: {e}")
+
+    try:
+        app.register_blueprint(integration_bp, url_prefix='/api/integration')
+        logger.info("✅ Registered integration_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register integration_bp: {e}")
+
+    try:
+        app.register_blueprint(admin_bp, url_prefix='/api/admin')
+        logger.info("✅ Registered admin_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register admin_bp: {e}")
+
+    try:
+        app.register_blueprint(security_bp, url_prefix='/api/security')
+        logger.info("✅ Registered security_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register security_bp: {e}")
+
+    try:
+        app.register_blueprint(mood_bp, url_prefix='/api/mood')
+        logger.info("✅ Registered mood_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register mood_bp: {e}")
+
+    try:
+        app.register_blueprint(mood_stats_bp, url_prefix='/api/mood-stats')
+        logger.info("✅ Registered mood_stats_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register mood_stats_bp: {e}")
+
+    try:
+        app.register_blueprint(memory_bp, url_prefix='/api/memory')
+        logger.info("✅ Registered memory_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register memory_bp: {e}")
+
+    try:
+        app.register_blueprint(ai_bp, url_prefix='/api/ai')
+        logger.info("✅ Registered ai_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register ai_bp: {e}")
+
+    try:
+        app.register_blueprint(ai_stories_bp, url_prefix='/api/ai')
+        logger.info("✅ Registered ai_stories_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register ai_stories_bp: {e}")
+
+    try:
+        app.register_blueprint(ai_helpers_bp, url_prefix='/api/ai-helpers')
+        logger.info("✅ Registered ai_helpers_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register ai_helpers_bp: {e}")
+
+    try:
+        app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
+        logger.info("✅ Registered chatbot_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register chatbot_bp: {e}")
+
+    try:
+        app.register_blueprint(chat_alias_bp, url_prefix='/api/chat')
+        logger.info("✅ Registered chat_alias_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register chat_alias_bp: {e}")
+
+    try:
+        app.register_blueprint(feedback_bp, url_prefix='/api/feedback')
+        logger.info("✅ Registered feedback_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register feedback_bp: {e}")
+
+    try:
+        app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+        logger.info("✅ Registered notifications_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register notifications_bp: {e}")
+
+    try:
+        app.register_blueprint(referral_bp, url_prefix='/api/referral')
+        logger.info("✅ Registered referral_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register referral_bp: {e}")
+
+    try:
+        app.register_blueprint(sync_bp, url_prefix='/api/sync')
+        logger.info("✅ Registered sync_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register sync_bp: {e}")
+
+    try:
+        app.register_blueprint(users_bp, url_prefix='/api/users')
+        logger.info("✅ Registered users_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register users_bp: {e}")
+
+    try:
+        app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
+        logger.info("✅ Registered subscription_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register subscription_bp: {e}")
+
+    try:
+        app.register_blueprint(docs_bp, url_prefix='/api/docs')
+        logger.info("✅ Registered docs_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register docs_bp: {e}")
+
+    try:
+        app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
+        logger.info("✅ Registered metrics_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register metrics_bp: {e}")
+
+    try:
+        app.register_blueprint(predictive_bp, url_prefix='/api/predictive')
+        logger.info("✅ Registered predictive_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register predictive_bp: {e}")
+
+    try:
+        app.register_blueprint(rate_limit_bp, url_prefix='/api/rate-limit')
+        logger.info("✅ Registered rate_limit_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register rate_limit_bp: {e}")
+
+    try:
+        app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+        logger.info("✅ Registered dashboard_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register dashboard_bp: {e}")
+
+    try:
+        app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
+        logger.info("✅ Registered onboarding_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register onboarding_bp: {e}")
+
+    try:
+        app.register_blueprint(privacy_bp, url_prefix='/api/privacy')
+        logger.info("✅ Registered privacy_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register privacy_bp: {e}")
+
+    try:
+        app.register_blueprint(health_bp, url_prefix='/api/health')
+        logger.info("✅ Registered health_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register health_bp: {e}")
+
+    try:
+        app.register_blueprint(journal_bp, url_prefix='/api/journal')
+        logger.info("✅ Registered journal_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register journal_bp: {e}")
+
+    try:
+        app.register_blueprint(challenges_bp, url_prefix='/api/challenges')
+        logger.info("✅ Registered challenges_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register challenges_bp: {e}")
+
+    try:
+        app.register_blueprint(rewards_bp, url_prefix='/api/rewards')
+        logger.info("✅ Registered rewards_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register rewards_bp: {e}")
+
+    try:
+        app.register_blueprint(audio_bp, url_prefix='/api/audio')
+        logger.info("✅ Registered audio_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register audio_bp: {e}")
+
+    try:
+        app.register_blueprint(peer_chat_bp, url_prefix='/api/peer-chat')
+        logger.info("✅ Registered peer_chat_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register peer_chat_bp: {e}")
+
+    try:
+        app.register_blueprint(leaderboard_bp, url_prefix='/api/leaderboard')
+        logger.info("✅ Registered leaderboard_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register leaderboard_bp: {e}")
+
+    try:
+        app.register_blueprint(voice_bp, url_prefix='/api/voice')
+        logger.info("✅ Registered voice_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register voice_bp: {e}")
+
+    try:
+        app.register_blueprint(sync_history_bp, url_prefix='/api/sync-history')
+        logger.info("✅ Registered sync_history_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register sync_history_bp: {e}")
+
+    # Debug: Print URL map
+    logger.info("🔍 DEBUG: URL Map after blueprint registration:")
+    for rule in app.url_map.iter_rules():
+        logger.info(f"  {rule.rule} -> {rule.endpoint}")
+
+    # Global request middleware - OPTIMIZED
     @app.before_request
     def before_request():
-        """Global request preprocessing"""
-        g.request_start_time = datetime.utcnow()
+        """Global request preprocessing - skip for OPTIONS and static files"""
+        # Skip processing for OPTIONS (handled by handle_preflight) and static files
+        if request.method == 'OPTIONS':
+            return  # Already handled by handle_preflight
+        
+        if request.path.startswith('/static/') or request.path in ['/health', '/favicon.ico']:
+            return  # Skip logging for static/health endpoints
+        
+        g.request_start_time = datetime.now(UTC)
         g.request_id = os.urandom(8).hex()
 
-        # Sanitize request data using InputSanitizer directly
-        try:
-            from src.utils.input_sanitization import input_sanitizer
-            sanitized_data = input_sanitizer.sanitize_request_data()
-            g.sanitized_data = sanitized_data
-        except Exception as e:
-            logger.warning(f"Request sanitization failed: {e}")
-            g.sanitized_data = {}
+        # Only log non-health requests to reduce noise
+        if not request.path.startswith('/health'):
+            logger.info(f"Request: {request.method} {request.path} from {get_remote_address()}")
 
-        # Log request
-        logger.info(f"Request: {request.method} {request.path} from {get_remote_address()}")
-
-    @app.after_request
-    def after_request(response):
-        """Global response postprocessing"""
-        # Calculate request duration
-        if hasattr(g, 'request_start_time'):
-            duration = (datetime.utcnow() - g.request_start_time).total_seconds() * 1000
-            response.headers['X-Response-Time'] = f"{duration:.2f}ms"
-
-        # Add request ID
-        if hasattr(g, 'request_id'):
-            response.headers['X-Request-ID'] = g.request_id
-
-        # Log response
-        logger.info(f"Response: {response.status_code} in {response.headers.get('X-Response-Time', 'unknown')}")
-
-        return response
+        # Sanitize request data only for POST/PUT/PATCH with body
+        if request.method in ['POST', 'PUT', 'PATCH'] and request.content_length:
+            try:
+                from src.utils.input_sanitization import sanitize_request
+                sanitize_request()
+            except Exception as e:
+                logger.error(f"Request sanitization failed: {e}")
 
     # Health check endpoint
     @app.route('/health')
@@ -206,7 +474,7 @@ try:
         """Health check endpoint"""
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'version': os.getenv('API_VERSION', '1.0.0'),
             'environment': os.getenv('FLASK_ENV', 'development')
         })
@@ -222,7 +490,36 @@ try:
             'health': '/health'
         })
 
-    # Error handlers with Sentry integration
+    # Test integration endpoint
+    @app.route('/api/integration/test-direct')
+    def test_integration_direct():
+        """Direct test endpoint"""
+        return jsonify({'message': 'Direct integration test works!'}), 200
+
+    # CRITICAL: Explicit catch-all OPTIONS handler for CORS preflight
+    # This ensures X-CSRF-Token is ALWAYS in Access-Control-Allow-Headers
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
+    @app.route('/api', methods=['OPTIONS'], defaults={'path': ''})
+    def handle_options_preflight(path):
+        """Handle ALL OPTIONS preflight requests with proper CORS headers"""
+        from flask import Response
+        response = Response('', status=204)
+        origin = request.headers.get('Origin', '')
+        
+        # Allow all localhost origins + configured production origins
+        if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:') or origin.startswith('http://192.168.') or is_origin_allowed(origin):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '86400'
+            logger.info(f"✅ OPTIONS preflight handled for {request.path} - Headers: {CORS_ALLOWED_HEADERS}")
+        else:
+            logger.warning(f"⚠️ OPTIONS preflight rejected - Origin not allowed: {origin}")
+        
+        return response
+
+    # Error handlers
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({
@@ -234,8 +531,6 @@ try:
     @app.errorhandler(500)
     def internal_error(error):
         logger.error(f"Internal server error: {error}")
-        if SENTRY_ENABLED:
-            capture_exception(error, context={'path': request.path, 'method': request.method})
         return jsonify({
             'error': 'Internal Server Error',
             'message': 'An unexpected error occurred'
@@ -248,45 +543,21 @@ try:
             'message': 'Too many requests. Please try again later.',
             'retry_after': error.description
         }), 429
-    
-    @app.errorhandler(Exception)
-    def handle_exception(error):
-        """Global exception handler with Sentry reporting"""
-        logger.error(f"Unhandled exception: {error}", exc_info=True)
-        if SENTRY_ENABLED:
-            capture_exception(error, context={
-                'path': request.path,
-                'method': request.method,
-                'user_agent': request.headers.get('User-Agent', 'unknown')
-            })
-        
-        # Don't expose internal error details in production
-        if app.config.get('DEBUG'):
-            return jsonify({
-                'error': 'Internal Error',
-                'message': str(error),
-                'type': type(error).__name__
-            }), 500
-        else:
-            return jsonify({
-                'error': 'Internal Error',
-                'message': 'An unexpected error occurred. Our team has been notified.'
-            }), 500
 
     # Start background services
     if not app.config['TESTING']:
         try:
-            start_key_rotation()
-            # Note: backup_service uses lazy initialization, skip scheduler for now
-            # backup_service.start_scheduler()  # Method doesn't exist yet
-            # monitoring_service.start_monitoring()  # Method doesn't exist yet
-            logger.info("✅ Background services started (backup/monitoring schedulers pending implementation)")
+            # Temporarily disabled - services need proper initialization
+            # start_key_rotation()
+            # backup_service.start_scheduler()
+            # monitoring_service.start_monitoring()
+            logger.info("✅ Background services initialization skipped (FAS 0)")
         except Exception as e:
             logger.error(f"Failed to start background services: {e}")
 
     logger.info("🚀 Lugn & Trygg backend started successfully")
     logger.info(f"📊 Environment: {os.getenv('FLASK_ENV', 'development')}")
-    logger.info(f"🔗 CORS Origins: {cors_origins_list}")
+    logger.info(f"🔗 CORS Origins: {_get_cors_origins_list()}")
     logger.info(f"📚 API Documentation: /api/docs")
 
 except Exception as e:

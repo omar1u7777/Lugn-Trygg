@@ -234,7 +234,8 @@ class TestGetSubscriptionStatus:
         data = response.get_json()
         assert data["status"] == "active"
         assert data["plan"] == "premium"
-        assert "start_date" in data
+        assert data["limits"]["chatMessagesPerDay"] == -1
+        assert data["usage"].get("chat_messages") == 0
 
     def test_get_status_free_tier(self, mock_db, client):
         """Test getting status for free tier user"""
@@ -884,8 +885,7 @@ class TestCancelSubscription:
         
         assert response.status_code == 503
 
-    @patch('src.routes.subscription_routes.stripe')
-    def test_cancel_subscription_stripe_error(self, mock_stripe, mock_db, mock_stripe_available, client):
+    def test_cancel_subscription_stripe_error(self, mock_db, mock_stripe, mock_stripe_available, client):
         """Test canceling with Stripe error"""
         mock_doc = Mock()
         mock_doc.exists = True

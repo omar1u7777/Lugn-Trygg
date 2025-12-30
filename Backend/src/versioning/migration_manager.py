@@ -5,7 +5,7 @@ Handles data migrations, schema updates, and backward compatibility
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Callable
 from flask import current_app
 import logging
@@ -37,7 +37,7 @@ class Migration:
             else:
                 raise ValueError(f"Invalid migration direction: {direction}")
 
-            self.applied_at = datetime.utcnow()
+            self.applied_at = datetime.now(timezone.utc)
             logger.info(f"✅ Migration {self.version} applied ({direction})")
             return True
 
@@ -178,7 +178,7 @@ def create_initial_schema():
     for collection in collections:
         # Just ensure the collection exists by adding a dummy document and deleting it
         doc_ref = db.collection(collection).document('_migration_check')
-        doc_ref.set({'_migration': True, 'created_at': datetime.utcnow()})
+        doc_ref.set({'_migration': True, 'created_at': datetime.now(timezone.utc)})
         doc_ref.delete()
 
     logger.info("✅ Initial schema created")

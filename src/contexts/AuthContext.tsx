@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { logoutUser, refreshAccessToken } from "../api/api";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 import { tokenStorage } from "../utils/secureStorage";
@@ -15,7 +15,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const savedUser = localStorage.getItem("user");
         return savedUser ? JSON.parse(savedUser) : null;
       } catch (error) {
-        console.warn("Failed to parse user data from localStorage:", error);
+        if ((import.meta as any).env?.DEV) {
+          console.warn("Failed to parse user data from localStorage:", error);
+        }
         return null;
       }
     });
@@ -40,73 +42,81 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    // Ref to track if initialization has been attempted
    const hasInitializedRef = useRef(false);
    const navigate = useNavigate();
-   const location = useLocation();
 
-  // ✅ Retrieve and validate token & user data on startup
+  // ✅ Retrieve and validate token & user data on startup - FIXED: Proper loading state
   useEffect(() => {
     // Prevent multiple initialization attempts
-    if (hasInitializedRef.current) return;
+    if (hasInitializedRef.current) {
+      return;
+    }
 
     hasInitializedRef.current = true;
 
-    // Load token from secure storage
-    tokenStorage.getAccessToken().then(storedToken => {
-      if (!storedToken || !user) {
-        // Don't redirect if already on login or register pages
-        const currentPath = location.pathname;
-        if (currentPath !== '/login' && currentPath !== '/register') {
-          console.warn("⚠️ No valid session found, redirecting to /login...");
-          navigate("/login", { replace: true });
+    const initializeAuth = async () => {
+      try {
+        // Load token from secure storage
+        const storedToken = await tokenStorage.getAccessToken();
+        const savedUser = localStorage.getItem("user");
+        const userData = savedUser ? JSON.parse(savedUser) : null;
+        
+        if (storedToken && userData) {
+          // Valid session exists - restore it BEFORE marking as initialized
+          if ((import.meta as any).env?.DEV) {
+            console.log("✅ Token & user loaded from secure storage:", userData);
+          }
+          setTokenState(storedToken);
+          setUserState(userData);
         }
-      } else {
-        console.log("✅ Token & user loaded from secure storage:", user);
-        setTokenState(storedToken);
+      } catch (error) {
+        console.error("❌ Failed to load token from secure storage:", error);
+      } finally {
+        // Mark as initialized AFTER state has been set
+        setTimeout(() => setIsInitialized(true), 0);
       }
-      setIsInitialized(true);
-    }).catch(error => {
-      console.error("❌ Failed to load token from secure storage:", error);
-      setIsInitialized(true);
-    });
-  }, [user, navigate, setIsInitialized, location]);
+    };
 
-  // 🔄 Automatisk token-förnyelse - Förbättrad version
- useEffect(() => {
-   if (!token || !user?.user_id) return;
+    initializeAuth();
+  }, []); // Empty deps - only run once on mount
 
-   // Refresh token proactively every 20 hours (JWT expires after 24h)
-   // This ensures token is always fresh before it expires
-   const interval = setInterval(async () => {
-     try {
-       const newAccessToken = await refreshAccessToken();
-       if (newAccessToken) {
-         setTokenState(newAccessToken);
-         await tokenStorage.setAccessToken(newAccessToken);
-         console.log("🔄 Token refreshed automatically.");
-       }
-     } catch (error) {
-       console.warn("⚠️ Token refresh failed. Please log in again.");
-     }
-   }, 20 * 60 * 60 * 1000); // 20 hours
-   
-   return () => clearInterval(interval);
- }, [token, user?.user_id]);
-
-  // 🔑 Kontrollera om användaren är inloggad
-  const isLoggedIn = useCallback(() => Boolean(token && user && user.user_id), [token, user]);
+  // 🔑 Kontrollera om användaren är inloggad (memoized for performance)
+  const isLoggedIn = useMemo(() => {
+    return Boolean(token && user && user.user_id);
+  }, [token, user]);
 
   // 🔓 Hantera inloggning och lagra användarinformation
-  const login = useCallback(async (accessToken: string, email: string, user_id: string) => {
-    const userData: User = { email, user_id };
-    setTokenState(accessToken);
-    setUserState(userData);
+  const login = useCallback(async (accessToken: string, emailOrUser: string | User, userId?: string) => {
+    console.log('🔑 AUTH CONTEXT - Login called', { email: typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email });
 
-    // Store token securely
-    await tokenStorage.setAccessToken(accessToken);
-    localStorage.setItem("user", JSON.stringify(userData));
-    console.log("✅ Användaren är inloggad:", userData);
+    try {
+      // Store token securely
+      await tokenStorage.setAccessToken(accessToken);
+      setTokenState(accessToken);
 
-    // Navigate to dashboard after successful login
-    navigate("/dashboard");
+      // Handle user data
+      let userData: User;
+      if (typeof emailOrUser === 'string') {
+        // Old signature: (token, email, userId)
+        userData = {
+          email: emailOrUser,
+          user_id: userId || ''
+        };
+      } else {
+        // New signature: (token, user)
+        userData = emailOrUser;
+      }
+
+      setUserState(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      console.log('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
+
+      // ✅ FIX: Navigate to dashboard after successful login
+      navigate("/dashboard");
+
+    } catch (error) {
+      console.error('❌ AUTH CONTEXT - Login failed:', error);
+      throw error;
+    }
   }, [navigate]);
 
   // 🚪 Hantera utloggning och rensa användardata
@@ -114,7 +124,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await logoutUser();
     } catch (error) {
-      console.warn("⚠️ Utloggning misslyckades, rensar ändå lokalt.");
+      if ((import.meta as any).env?.DEV) {
+        console.warn("⚠️ Utloggning misslyckades, rensar ändå lokalt.");
+      }
     } finally {
       setTokenState(null);
       setUserState(null);
@@ -126,10 +138,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [navigate]);
 
-  // � Optimera prestanda genom att memo-isera autentiseringskontexten
+  // 📦 Optimera prestanda genom att memo-isera autentiseringskontexten
   const value = useMemo<AuthContextProps>(
-    () => ({ user, setUser: setUserState, token, setToken: setTokenState, isLoggedIn, login, logout: handleLogout }),
-    [user, token, login, handleLogout, isLoggedIn]
+    () => ({ 
+      user, 
+      setUser: setUserState, 
+      token, 
+      setToken: setTokenState, 
+      isLoggedIn, 
+      login, 
+      logout: handleLogout,
+      isInitialized: uiState.isInitialized 
+    }),
+    [user, token, login, handleLogout, isLoggedIn, uiState.isInitialized]
   );
 
   const handleConsentClose = () => {

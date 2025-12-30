@@ -34,39 +34,75 @@ def init_sentry(app=None):
         event_level=logging.ERROR  # Send errors as events
     )
     
-    # Initialize Sentry
-    sentry_sdk.init(
-        dsn=sentry_dsn,
-        integrations=[
-            FlaskIntegration(),
-            logging_integration,
-        ],
+    # CRITICAL FIX: Initialize Sentry with production-ready configuration
+    try:
+        # Define endpoint-specific sampling rates for 10k users
+        def traces_sampler(context):
+            """Sample traces based on endpoint for performance optimization"""
+            transaction_name = context.get('transaction_context', {}).get('name', '')
+            
+            # Health checks: very low sampling (1%)
+            if '/health' in transaction_name:
+                return 0.01
+            
+            # High-traffic endpoints: moderate sampling (5-10%)
+            if '/api/mood/get' in transaction_name or '/api/dashboard' in transaction_name:
+                return 0.05
+            
+            # Write endpoints: higher sampling (10%)
+            if '/api/mood/log' in transaction_name:
+                return 0.1
+            
+            # AI endpoints: higher sampling (20%) due to potential issues
+            if '/api/ai' in transaction_name or '/api/chatbot' in transaction_name:
+                return 0.2
+            
+            # Default sampling rate
+            return traces_sample_rate
         
-        # Performance Monitoring
-        traces_sample_rate=traces_sample_rate,
-        profiles_sample_rate=profiles_sample_rate,
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[
+                FlaskIntegration(
+                    transaction_style='endpoint',  # Track by endpoint
+                    traces_sample_rate=traces_sample_rate,
+                ),
+                logging_integration,
+            ],
+            
+            # Performance Monitoring
+            traces_sample_rate=traces_sample_rate,
+            profiles_sample_rate=profiles_sample_rate,
+            traces_sampler=traces_sampler,  # Custom sampler for 10k users
+            
+            # Release tracking
+            release=os.getenv('SENTRY_RELEASE', 'lugn-trygg@1.0.0'),
+            
+            # Environment
+            environment=environment,
+            
+            # Additional options
+            send_default_pii=False,  # HIPAA compliance - don't send PII
+            attach_stacktrace=True,
+            max_breadcrumbs=50,
+            
+            # CRITICAL FIX: Error filtering for production
+            before_send=before_send_filter,
+            before_breadcrumb=before_breadcrumb_filter,
+            
+            # CRITICAL FIX: Performance monitoring for 10k users
+            enable_tracing=True,
+        )
         
-        # Release tracking
-        release=os.getenv('SENTRY_RELEASE', 'lugn-trygg@1.0.0'),
+        logging.info(f"✓ Sentry initialized for {environment} environment")
+        logging.info(f"  - Traces sample rate: {traces_sample_rate*100}%")
+        logging.info(f"  - Profiles sample rate: {profiles_sample_rate*100}%")
+        logging.info(f"  - Error tracking: ENABLED")
+        logging.info(f"  - Performance monitoring: ENABLED")
         
-        # Environment
-        environment=environment,
-        
-        # Additional options
-        send_default_pii=False,  # HIPAA compliance - don't send PII
-        attach_stacktrace=True,
-        max_breadcrumbs=50,
-        
-        # Before send hook for filtering
-        before_send=before_send_filter,
-        
-        # Before breadcrumb hook
-        before_breadcrumb=before_breadcrumb_filter,
-    )
-    
-    logging.info(f"✓ Sentry initialized for {environment} environment")
-    logging.info(f"  - Traces sample rate: {traces_sample_rate*100}%")
-    logging.info(f"  - Profiles sample rate: {profiles_sample_rate*100}%")
+    except Exception as e:
+        logging.error(f"❌ Failed to initialize Sentry: {e}")
+        return False
     
     return True
 

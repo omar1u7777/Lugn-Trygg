@@ -9,7 +9,7 @@ import gzip
 import shutil
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Callable
 from pathlib import Path
 import logging
@@ -114,7 +114,7 @@ class BackupService:
         )
 
         # Monthly backups on 1st at 4 AM (keep 12 months)
-        schedule.every().month.at("04:00").do(
+        schedule.every(30).days.at("04:00").do(
             lambda: self.create_backup('monthly', 'full')
         )
 
@@ -140,7 +140,7 @@ class BackupService:
             Backup filename if successful
         """
         try:
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             backup_id = f"{schedule_type}_{timestamp}"
 
             logger.info(f"📦 Creating {schedule_type} backup: {backup_id}")
@@ -149,7 +149,7 @@ class BackupService:
                 'backup_id': backup_id,
                 'schedule_type': schedule_type,
                 'backup_type': backup_type,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'collections': {},
                 'metadata': {
                     'version': '1.0',
@@ -192,7 +192,7 @@ class BackupService:
             # Update status
             self.backup_status[backup_id] = {
                 'status': 'completed',
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'filename': filename,
                 'size': os.path.getsize(filename) if filename and os.path.exists(filename) else 0
             }
@@ -214,7 +214,7 @@ class BackupService:
             if 'backup_id' in locals():
                 self.backup_status[backup_id] = {
                     'status': 'failed',
-                    'timestamp': datetime.utcnow(),
+                    'timestamp': datetime.now(timezone.utc),
                     'error': str(e)
                 }
 
@@ -223,15 +223,18 @@ class BackupService:
     def _backup_collection(self, collection: str, batch_size: int = 1000) -> List[Dict]:
         """Backup all documents in a collection"""
         docs = []
-        query = self.db.collection(collection).limit(batch_size)
+        # Order by document ID to enable cursors
+        query = self.db.collection(collection).order_by('__name__').limit(batch_size)
 
+        last_doc_ref = None
         while True:
             batch_docs = []
             for doc in query.stream():
                 doc_data = doc.to_dict()
                 doc_data['_id'] = doc.id
-                doc_data['_backup_timestamp'] = datetime.utcnow()
+                doc_data['_backup_timestamp'] = datetime.now(timezone.utc)
                 batch_docs.append(doc_data)
+                last_doc_ref = doc
 
             docs.extend(batch_docs)
 
@@ -239,10 +242,9 @@ class BackupService:
             if len(batch_docs) < batch_size:
                 break
 
-            # Get the last document for pagination
-            last_doc = batch_docs[-1] if batch_docs else None
-            if last_doc:
-                query = self.db.collection(collection).start_after(last_doc['_backup_timestamp']).limit(batch_size)
+            # Get the last document reference for pagination
+            if last_doc_ref:
+                query = self.db.collection(collection).order_by('__name__').start_after(last_doc_ref).limit(batch_size)
 
         return docs
 
@@ -346,11 +348,14 @@ class BackupService:
             backup_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
 
             # Remove files older than retention period
-            cutoff_time = datetime.utcnow() - timedelta(days=retention_days)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
             removed_count = 0
             for backup_file in backup_files[1:]:  # Keep the newest
-                file_time = datetime.fromtimestamp(backup_file.stat().st_mtime)
+                file_time = datetime.fromtimestamp(
+                    backup_file.stat().st_mtime,
+                    tz=timezone.utc,
+                )
                 if file_time < cutoff_time:
                     backup_file.unlink()
                     removed_count += 1
@@ -521,7 +526,7 @@ class BackupService:
         """Get next scheduled run time"""
         # This is a simplified implementation
         # In a real system, you'd query the schedule library
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if schedule_type == 'hourly':
             # Next hour

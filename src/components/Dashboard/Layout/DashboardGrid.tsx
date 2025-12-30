@@ -1,5 +1,4 @@
 import React from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
 
 interface DashboardGridProps {
   children: React.ReactNode;
@@ -18,7 +17,8 @@ interface DashboardGridProps {
  */
 const DashboardGrid: React.FC<DashboardGridProps> = ({
   children,
-  columns = { mobile: 1, tablet: 2, desktop: spacing.lg },
+  // CRITICAL FIX: Removed undefined 'spacing.lg', using number instead
+  columns = { mobile: 1, tablet: 2, desktop: 3 },
   gap = 'md',
   className = '',
 }) => {

@@ -1,0 +1,103 @@
+global:
+  imageRegistry: ghcr.io/lugntrygg
+  replicaCount:
+    frontend: 3
+    backend: 3
+  domain:
+    app: app.lugntrygg.se
+    api: api.lugntrygg.se
+  tlsSecretName: lugn-trygg-tls
+
+frontend:
+  image:
+    repository: frontend
+    tag: latest
+    pullPolicy: Always
+  service:
+    type: LoadBalancer
+    port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  env:
+    apiUrl: https://api.lugntrygg.se
+    cdnUrl: https://cdn.lugntrygg.se
+
+backend:
+  image:
+    repository: backend
+    tag: latest
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 5001
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 750m
+      memory: 1Gi
+  env:
+    corsOrigins: "https://app.lugntrygg.se,https://lugntrygg.se"
+    redisDb: 0
+    redisHost: lugn-trygg-redis
+    redisPort: 6379
+
+redis:
+  enabled: true
+  storage: 2Gi
+
+hpa:
+  frontend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    cpu: 60
+    memory: 70
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    cpu: 65
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: app.lugntrygg.se
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+    - host: api.lugntrygg.se
+      paths:
+        - path: /
+          pathType: Prefix
+          service: backend
+  tls:
+    - secretName: lugn-trygg-tls
+      hosts:
+        - app.lugntrygg.se
+        - api.lugntrygg.se
+
+secrets:
+  firebaseApiKey: ""
+  firebaseAuthDomain: ""
+  firebaseProjectId: ""
+  firebaseStorageBucket: ""
+  firebaseSenderId: ""
+  firebaseAppId: ""
+  firebaseWebApiKey: ""
+  firebaseServiceAccount: ""
+  jwtSecret: ""
+  jwtRefreshSecret: ""
+  stripeSecret: ""
+  openAiKey: ""
+  sentryDsn: ""

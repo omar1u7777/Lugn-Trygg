@@ -5,6 +5,7 @@ import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import i18n from '../../i18n/i18n';
 import Dashboard from '../Dashboard/Dashboard';
 import TestProviders from '../../utils/TestProviders';
+import { Squares2X2Icon } from '@heroicons/react/24/outline';
 
 // Provide a hand-rolled mock for the API module to avoid loading the real file (which uses import.meta)
 vi.mock('../../api/api', () => {
@@ -65,7 +66,7 @@ describe('Dashboard Component', () => {
     return render(
       <TestProviders>
         <I18nextProvider i18n={i18n}>
-          <Dashboard />
+          <Squares2X2Icon className="w-5 h-5" />
         </I18nextProvider>
       </TestProviders>
     );

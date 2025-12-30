@@ -22,6 +22,7 @@ interface AccessibilityActions {
   skipToContent: (targetId: string) => void;
   updateLiveRegion: (message: string, priority?: 'polite' | 'assertive') => void;
   handleKeyboardNavigation: (event: KeyboardEvent) => boolean;
+  getAriaLabel: (content: string, tooltip?: string) => string;
 }
 
 export const useAccessibility = (): AccessibilityState & AccessibilityActions => {
@@ -273,6 +274,14 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
     announceToScreenReader(message, priority);
   }, [announceToScreenReader]);
 
+  // Generate ARIA label from content and tooltip
+  const getAriaLabel = useCallback((content: string, tooltip?: string): string => {
+    if (tooltip) {
+      return `${content}, ${tooltip}`;
+    }
+    return content;
+  }, []);
+
   // Enhanced keyboard navigation handler
   const handleKeyboardNavigation = useCallback((event: KeyboardEvent): boolean => {
     // Handle arrow key navigation for custom components
@@ -291,24 +300,24 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
         case 'ArrowDown':
           event.preventDefault();
           const nextIndex = (currentIndex + 1) % focusableElements.length;
-          setFocus(focusableElements[nextIndex]);
+          setFocus(focusableElements[nextIndex] || null);
           return true;
 
         case 'ArrowLeft':
         case 'ArrowUp':
           event.preventDefault();
           const prevIndex = currentIndex - 1 < 0 ? focusableElements.length - 1 : currentIndex - 1;
-          setFocus(focusableElements[prevIndex]);
+          setFocus(focusableElements[prevIndex] || null);
           return true;
 
         case 'Home':
           event.preventDefault();
-          setFocus(focusableElements[0]);
+          setFocus(focusableElements[0] || null);
           return true;
 
         case 'End':
           event.preventDefault();
-          setFocus(focusableElements[focusableElements.length - 1]);
+          setFocus(focusableElements[focusableElements.length - 1] || null);
           return true;
       }
     }
@@ -324,6 +333,7 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
     skipToContent,
     updateLiveRegion,
     handleKeyboardNavigation,
+    getAriaLabel,
   };
 };
 
@@ -353,12 +363,13 @@ export const accessibilityAudit = {
     const missingLabels: HTMLElement[] = [];
 
     inputs.forEach(input => {
-      const hasLabel = document.querySelector(`label[for="${input.id}"]`) ||
-                      input.getAttribute('aria-label') ||
-                      input.getAttribute('aria-labelledby');
+      const htmlInput = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      const hasLabel = document.querySelector(`label[for="${htmlInput.id}"]`) ||
+                       htmlInput.getAttribute('aria-label') ||
+                       htmlInput.getAttribute('aria-labelledby');
 
-      if (!hasLabel && input.type !== 'hidden') {
-        missingLabels.push(input);
+      if (!hasLabel && htmlInput.type !== 'hidden') {
+        missingLabels.push(htmlInput);
       }
     });
 

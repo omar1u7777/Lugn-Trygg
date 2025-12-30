@@ -8,7 +8,7 @@ from functools import wraps
 from flask import request, jsonify, g, current_app
 from typing import Dict, List, Optional, Callable, Any
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class APIVersion:
         self.major = major
         self.minor = minor
         self.patch = patch
-        self.release_date = release_date or datetime.utcnow()
+        self.release_date = release_date or datetime.now(timezone.utc)
         self.deprecated = deprecated
         self.sunset_date = sunset_date
         self.version_string = f"v{major}.{minor}.{patch}"
@@ -93,7 +93,7 @@ class APIVersionManager:
     def is_version_supported(self, version: APIVersion) -> bool:
         """Check if version is still supported"""
         if version.deprecated and version.sunset_date:
-            return datetime.utcnow() < version.sunset_date
+            return datetime.now(timezone.utc) < version.sunset_date
         return version in self.supported_versions
 
     def get_latest_version(self) -> APIVersion:

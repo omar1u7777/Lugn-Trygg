@@ -1,330 +1,272 @@
-name: CI/CD Pipeline - Lugn-Trygg
+---
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
-  workflow_dispatch:
-
-env:
-  NODE_VERSION: '20.x'
-  PYTHON_VERSION: '3.11'
 
 jobs:
-  # ============================================
-  # FRONTEND CI/CD
-  # ============================================
-  frontend-lint-and-type-check:
-    name: 🔍 Frontend Lint & Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci
-
-      - name: 🔍 Run ESLint
-        run: npm run lint
-
-      - name: 🧪 TypeScript type check
-        run: npm run type-check
-
-  frontend-security-audit:
-    name: 🔒 Frontend Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci
-
-      - name: 🔒 Run npm audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: 🔍 Check for hardcoded secrets
-        run: |
-          echo "Checking for hardcoded secrets..."
-          ! grep -r "AIzaSy" src/ || (echo "Found exposed Firebase key!" && exit 1)
-          ! grep -r "sk_live" src/ || (echo "Found exposed Stripe key!" && exit 1)
-          ! grep -r "password.*=.*\"" src/ || (echo "Found hardcoded password!" && exit 1)
-          echo "✅ No hardcoded secrets found"
-
-  frontend-tests:
-    name: 🧪 Frontend Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci
-
-      - name: 🧪 Run tests with coverage
-        run: npm run test:coverage
-
-      - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage/coverage-final.json
-          flags: frontend
-          name: frontend-coverage
-
-  frontend-build:
-    name: 🏗️ Frontend Build
-    runs-on: ubuntu-latest
-    needs: [frontend-lint-and-type-check, frontend-security-audit]
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: 📥 Install dependencies
-        run: npm ci
-
-      - name: 🏗️ Build production bundle
-        run: npm run build
-        env:
-          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_ENCRYPTION_KEY: ${{ secrets.VITE_ENCRYPTION_KEY }}
-
-      - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
-          retention-days: 7
-
-  # ============================================
-  # BACKEND CI/CD
-  # ============================================
-  backend-lint-and-type-check:
-    name: 🔍 Backend Lint & Type Check
+  test-backend:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./Backend
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: 📥 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install flake8 mypy black
-
-      - name: 🔍 Run Flake8
-        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-
-      - name: 🎨 Check code formatting (Black)
-        run: black --check .
-
-      - name: 🧪 Type check with mypy
-        run: mypy . --ignore-missing-imports
-        continue-on-error: true
-
-  backend-security-audit:
-    name: 🔒 Backend Security Audit
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Backend
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: 📥 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install safety bandit
-
-      - name: 🔒 Check for vulnerable packages
-        run: safety check --json
-        continue-on-error: true
-
-      - name: 🛡️ Run Bandit security linter
-        run: bandit -r . -f json -o bandit-report.json
-        continue-on-error: true
-
-      - name: 📊 Upload security report
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-security-report
-          path: Backend/bandit-report.json
-        if: always()
-
-  backend-tests:
-    name: 🧪 Backend Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Backend
     services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-monitoring.txt
+
+    - name: Install test dependencies
+      run: |
+        pip install pytest pytest-asyncio pytest-cov pytest-mock pytest-xdist
+        pip install flask-testing coverage
+
+    - name: Run linting
+      run: |
+        pip install flake8 black isort
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Run type checking
+      run: |
+        pip install mypy
+        mypy src --ignore-missing-imports --no-strict-optional
+
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=80 -v
+      env:
+        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        JWT_REFRESH_SECRET_KEY: ${{ secrets.JWT_REFRESH_SECRET_KEY }}
+        FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+        REDIS_URL: redis://localhost:6379/0
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./Backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run type checking
+      run: npm run type-check
+
+    - name: Run unit tests
+      run: npm run test -- --coverage --watchAll=false
+      env:
+        CI: true
+
+    - name: Build application
+      run: npm run build
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    defaults:
+      run:
+        working-directory: ./
+
+    services:
+      redis:
+        image: redis:7-alpine
         ports:
-          - 5432:5432
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
 
-      - name: 📥 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio
+    - name: Install Playwright
+      run: npx playwright install --with-deps
 
-      - name: 🧪 Run tests with coverage
-        run: pytest --cov=. --cov-report=xml --cov-report=html
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-          JWT_SECRET_KEY: test_jwt_secret_key_for_ci_only
-          ENCRYPTION_KEY: test_encryption_key_32_characters
+    - name: Build and start backend
+      working-directory: ./Backend
+      run: |
+        pip install -r requirements.txt
+        python main.py &
+        sleep 10
 
-      - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./Backend/coverage.xml
-          flags: backend
-          name: backend-coverage
+    - name: Build and start frontend
+      run: |
+        npm ci
+        npm run build
+        npx serve -s dist -l 3000 &
+        sleep 5
 
-  # ============================================
-  # DEPLOYMENT
-  # ============================================
-  deploy-frontend:
-    name: 🚀 Deploy Frontend to Vercel
+    - name: Run E2E tests
+      run: npx playwright test
+      env:
+        BASE_URL: http://localhost:3000
+        API_URL: http://localhost:5001
+
+  security-scan:
     runs-on: ubuntu-latest
-    needs: [frontend-build, frontend-tests]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test-backend, test-frontend]
+
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: 📦 Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
 
-      - name: 🚀 Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
 
-  deploy-backend:
-    name: 🚀 Deploy Backend
+  deploy-staging:
     runs-on: ubuntu-latest
-    needs: [backend-tests, backend-security-audit]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test-backend, test-frontend, e2e-tests, security-scan]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: 🐳 Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-north-1
 
-      - name: 🏗️ Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./Backend
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/lugn-trygg-backend:latest
-            ${{ secrets.DOCKER_USERNAME }}/lugn-trygg-backend:${{ github.sha }}
+    - name: Deploy to staging
+      run: |
+        # Backend deployment
+        cd Backend
+        docker build -t lugn-trygg-backend:staging .
+        docker tag lugn-trygg-backend:staging ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/lugn-trygg-backend:staging
+        docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/lugn-trygg-backend:staging
 
-      - name: 🚀 Deploy to production (placeholder)
-        run: |
-          echo "Backend deployment would happen here"
-          echo "Options: Railway, Render, AWS ECS, Google Cloud Run, etc."
+        # Frontend deployment
+        cd ..
+        npm ci
+        npm run build
+        aws s3 sync dist/ s3://${{ secrets.STAGING_BUCKET }}/ --delete
+        aws cloudfront create-invalidation --distribution-id ${{ secrets.STAGING_DISTRIBUTION_ID }} --paths "/*"
 
-  # ============================================
-  # NOTIFICATIONS
-  # ============================================
-  notify-success:
-    name: ✅ Notify Success
+  deploy-production:
     runs-on: ubuntu-latest
-    needs: [deploy-frontend, deploy-backend]
-    if: success()
-    steps:
-      - name: 📢 Send success notification
-        run: |
-          echo "🎉 Deployment successful!"
-          echo "Frontend: Deployed to Vercel"
-          echo "Backend: Deployed to production"
+    needs: [test-backend, test-frontend, e2e-tests, security-scan]
+    if: github.ref == 'refs/heads/main'
+    environment: production
 
-  notify-failure:
-    name: ❌ Notify Failure
-    runs-on: ubuntu-latest
-    needs: [frontend-tests, backend-tests]
-    if: failure()
     steps:
-      - name: 📢 Send failure notification
-        run: |
-          echo "❌ CI/CD Pipeline failed!"
-          echo "Check the logs for more details"
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-north-1
+
+    - name: Deploy to production
+      run: |
+        # Backend deployment
+        cd Backend
+        docker build -t lugn-trygg-backend:latest .
+        docker tag lugn-trygg-backend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/lugn-trygg-backend:latest
+        docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/lugn-trygg-backend:latest
+
+        # Frontend deployment
+        cd ..
+        npm ci
+        npm run build
+        aws s3 sync dist/ s3://${{ secrets.PRODUCTION_BUCKET }}/ --delete
+        aws cloudfront create-invalidation --distribution-id ${{ secrets.PRODUCTION_DISTRIBUTION_ID }} --paths "/*"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

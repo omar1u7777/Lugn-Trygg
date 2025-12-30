@@ -43,21 +43,21 @@ class AdvancedRateLimiter:
                 'google_oauth': '10 per hour'
             },
 
-            # Mood endpoints - moderate limits
+            # Mood endpoints - CRITICAL FIX: Scaled for 10k users
             'mood': {
-                'log': '300 per hour',  # Ökat från 60 till 300 för production
-                'get': '500 per hour',  # Ökat från 120 till 500
-                'analyze': '200 per hour',  # Ökat från 30 till 200
-                'weekly_analysis': '100 per hour'  # Ökat från 12 till 100
+                'log': '1000 per hour',  # Scaled for 10k users (100 requests/user/hour)
+                'get': '2000 per hour',  # Scaled for 10k users (200 requests/user/hour)
+                'analyze': '500 per hour',  # Scaled for 10k users (50 requests/user/hour)
+                'weekly_analysis': '200 per hour'  # Scaled for 10k users (20 requests/user/hour)
             },
 
-            # AI endpoints - resource intensive, stricter limits
+            # AI endpoints - CRITICAL FIX: Scaled for 10k users (resource intensive)
             'ai': {
-                'story': '100 per hour',  # Ökat från 20 till 100
-                'forecast': '150 per hour',  # Ökat från 30 till 150
-                'chat': '500 per hour',  # Ökat från 100 till 500 för chatbot
-                'analyze': '200 per hour',  # Ökat från 50 till 200
-                'history': '500 per hour'  # NY: För chat history
+                'story': '500 per hour',  # Scaled for 10k users (50 requests/user/hour)
+                'forecast': '300 per hour',  # Scaled for 10k users (30 requests/user/hour)
+                'chat': '2000 per hour',  # Scaled for 10k users (200 requests/user/hour for chatbot)
+                'analyze': '1000 per hour',  # Scaled for 10k users (100 requests/user/hour)
+                'history': '2000 per hour'  # Scaled for 10k users (200 requests/user/hour for chat history)
             },
 
             # File upload endpoints - bandwidth limits
@@ -119,7 +119,7 @@ class AdvancedRateLimiter:
 
         try:
             # Check user's subscription status
-            from src.firebase_config import db
+            from ..firebase_config import db
             user_doc = db.collection('users').document(user_id).get()
 
             if user_doc.exists:
@@ -369,4 +369,18 @@ def get_rate_limit_status(endpoint: str, user_id: Optional[str] = None) -> Dict:
     }
 
 # Export the decorator for use in routes
+class RateLimiter:
+    """Simple rate limiter for testing purposes"""
+
+    def __init__(self):
+        self.requests = {}
+
+    def is_allowed(self, client_id, endpoint):
+        """Check if request is allowed (max 100 per client per endpoint)"""
+        key = f"{client_id}:{endpoint}"
+        if key not in self.requests:
+            self.requests[key] = 0
+
+        self.requests[key] += 1
+        return self.requests[key] <= 100
 __all__ = ['rate_limiter', 'rate_limit_by_endpoint', 'get_rate_limit_status']

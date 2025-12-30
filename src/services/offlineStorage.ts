@@ -144,14 +144,28 @@ export function queueRequest(
 
 /**
  * Get all unsynced data
+ * CRITICAL FIX: Enhanced for 10k users with proper error handling
  */
 export function getUnsyncedData() {
-  const offlineData = getOfflineData();
-  return {
-    moods: offlineData.moods.filter((m) => !m.synced),
-    memories: offlineData.memories.filter((m) => !m.synced),
-    requests: offlineData.queuedRequests.filter((r) => r.retries < MAX_RETRIES),
-  };
+  try {
+    const offlineData = getOfflineData();
+    return {
+      moods: offlineData.moods.filter((m) => !m.synced),
+      memories: offlineData.memories.filter((m) => !m.synced),
+      requests: offlineData.queuedRequests.filter((r) => r.retries < MAX_RETRIES),
+      totalCount: offlineData.moods.filter((m) => !m.synced).length + 
+                  offlineData.memories.filter((m) => !m.synced).length +
+                  offlineData.queuedRequests.filter((r) => r.retries < MAX_RETRIES).length
+    };
+  } catch (error) {
+    console.error('Failed to get unsynced data:', error);
+    return {
+      moods: [],
+      memories: [],
+      requests: [],
+      totalCount: 0
+    };
+  }
 }
 
 /**

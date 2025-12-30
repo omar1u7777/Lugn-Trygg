@@ -3,10 +3,11 @@
  * Handles Firebase Cloud Messaging for meditation reminders and mood check-ins
  */
 
-import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
+import type { Messaging } from 'firebase/messaging';
 import { api } from '../api/api';
 import { trackEvent } from './analytics';
 import { getFirebaseVapidKey } from '../config/env';
+import { loadFirebaseMessagingBundle } from './lazyFirebase';
 
 interface NotificationSchedule {
   morningReminder?: string; // HH:MM
@@ -17,6 +18,20 @@ interface NotificationSchedule {
 }
 
 let messaging: Messaging | null = null;
+let messagingModuleRef: typeof import('firebase/messaging') | null = null;
+
+const ensureMessagingBundle = async () => {
+  if (!messaging || !messagingModuleRef) {
+    const bundle = await loadFirebaseMessagingBundle();
+    messaging = bundle.firebaseMessaging;
+    messagingModuleRef = bundle.messagingModule;
+  }
+
+  return {
+    messagingInstance: messaging as Messaging,
+    messagingModule: messagingModuleRef!,
+  };
+};
 
 // Heuristic validation for a base64url-encoded VAPID public key
 function isLikelyVapidKey(key?: string | null): boolean {
@@ -36,7 +51,8 @@ export async function initializeMessaging() {
       return;
     }
 
-    messaging = getMessaging();
+    const { messagingInstance, messagingModule } = await ensureMessagingBundle();
+    messaging = messagingInstance;
     console.log('📱 Firebase Messaging initialized');
 
     // Do not request permission here; UI handles permission flow.
@@ -51,7 +67,7 @@ export async function initializeMessaging() {
       return;
     }
 
-  const fcmToken = await getToken(messaging, { vapidKey: vapidKey as string });
+    const fcmToken = await messagingModule.getToken(messagingInstance, { vapidKey: vapidKey as string });
     if (fcmToken) {
       console.log('📱 FCM Token:', fcmToken);
       // Save token to backend
@@ -77,13 +93,10 @@ async function saveFCMToken(token: string) {
 /**
  * Listen for incoming messages
  */
-export function listenForMessages() {
-  if (!messaging) {
-    console.warn('Messaging not initialized');
-    return;
-  }
+export async function listenForMessages() {
+  const { messagingInstance, messagingModule } = await ensureMessagingBundle();
 
-  onMessage(messaging, (payload) => {
+  messagingModule.onMessage(messagingInstance, (payload) => {
     console.log('📬 Message received:', payload);
 
     const notificationTitle = payload.notification?.title || 'Lugn & Trygg';

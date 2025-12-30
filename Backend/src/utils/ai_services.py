@@ -1,6 +1,7 @@
 ﻿import logging
 import os
 import re
+import time
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 import json
@@ -8,14 +9,25 @@ import numpy as np
 from collections import Counter, defaultdict
 from dotenv import load_dotenv
 
+from .hf_cache import configure_hf_cache
+
+# Import timestamp utilities for consistent parsing
+from .timestamp_utils import parse_iso_timestamp
+
 # Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
+configure_hf_cache()
+
 # Lazy import OpenAI to avoid initialization errors
 RateLimitError = Exception  # Default fallback
 APIError = Exception  # Default fallback
+
+# For testing purposes
+openai = None
 
 def _lazy_import_openai():
     """Lazy import OpenAI to avoid conflicts with pydantic at module load time"""
@@ -38,6 +50,9 @@ class AIServices:
         self._openai_checked = False
         self._openai_available = False
         self.google_nlp_available = self._check_google_nlp()
+        # Cache for trained ML models to avoid retraining on every request
+        self._ml_model_cache = {}
+        self._model_cache_ttl = 3600  # 1 hour cache for ML models
         logger.info(f"🤖 AI Services initialized - Google NLP: {self.google_nlp_available}, OpenAI: lazy loaded")
 
     async def get_openai_client(self):
@@ -74,8 +89,16 @@ class AIServices:
         if api_key:
             try:
                 from openai import OpenAI
-                self.client = OpenAI(api_key=api_key)
-                logger.info("✅ OpenAI client initialized successfully")
+                # CRITICAL FIX: Add timeout to prevent hanging requests (4.1s timeout issue)
+                # Timeout: 10s connect, 30s read for total max 30s response time
+                import httpx
+                timeout = httpx.Timeout(10.0, connect=5.0, read=30.0, write=10.0, pool=5.0)
+                self.client = OpenAI(
+                    api_key=api_key,
+                    timeout=timeout,  # 30s max for API calls to prevent 4.1s hangs
+                    max_retries=2  # Retry up to 2 times on failure
+                )
+                logger.info("✅ OpenAI client initialized successfully with 30s timeout")
                 return True
             except ImportError:
                 logger.warning("OpenAI library not available")
@@ -178,6 +201,7 @@ Returnera JSON i detta format:
 
 Var noga med att returnera endast giltig JSON."""
 
+            # CRITICAL FIX: Add explicit timeout and error handling to prevent 4.1s hangs
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -185,7 +209,8 @@ Var noga med att returnera endast giltig JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=200,
-                temperature=0.3
+                temperature=0.3,
+                timeout=30.0  # 30s timeout to prevent hanging
             )
 
             result_text = response.choices[0].message.content.strip()
@@ -206,9 +231,14 @@ Var noga med att returnera endast giltig JSON."""
             logger.info(f"OpenAI sentiment analysis completed: {result.get('sentiment')} ({result.get('score', 0):.2f})")
             return result
 
-        except Exception as e:
+        except (TimeoutError, Exception) as e:
+            # CRITICAL FIX: Handle timeout errors gracefully to prevent 4.1s hangs
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'timed out' in error_str:
+                logger.warning(f"⚠️ OpenAI sentiment analysis timeout: {str(e)}, using fallback")
+                return self._fallback_sentiment_analysis(text, quota_exceeded=False)
             logger.error(f"OpenAI sentiment analysis failed: {str(e)}")
-            raise
+            return self._fallback_sentiment_analysis(text, quota_exceeded=False)
 
         try:
             from google.cloud import language_v1
@@ -537,6 +567,7 @@ Var noga med att returnera endast giltig JSON."""
 
             Håll råden empatiska, praktiska och på svenska. Var kortfattad men hjälpsam."""
 
+            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -544,7 +575,8 @@ Var noga med att returnera endast giltig JSON."""
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=500,
-                temperature=0.7
+                temperature=0.7,
+                timeout=30.0  # 30s timeout to prevent hanging
             )
 
             recommendations = response.choices[0].message.content.strip()
@@ -562,11 +594,16 @@ Var noga med att returnera endast giltig JSON."""
         except RateLimitError as e:
             logger.warning(f"⚠️ OpenAI rate limit exceeded for recommendations: {str(e)}")
             return self._fallback_recommendations(user_history, current_mood, quota_exceeded=True)
-        except APIError as e:
-            logger.error(f"OpenAI API error for recommendations: {str(e)}")
-            return self._fallback_recommendations(user_history, current_mood)
-        except Exception as e:
-            logger.error(f"OpenAI recommendation generation failed: {str(e)}")
+        except (TimeoutError, Exception) as e:
+            # CRITICAL FIX: Handle timeout errors gracefully to prevent 4.1s hangs
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'timed out' in error_str:
+                logger.warning(f"⚠️ OpenAI recommendations timeout: {str(e)}, using fallback")
+                return self._fallback_recommendations(user_history, current_mood, quota_exceeded=False)
+            elif isinstance(e, APIError):
+                logger.error(f"OpenAI API error for recommendations: {str(e)}")
+            else:
+                logger.error(f"OpenAI recommendation generation failed: {str(e)}")
             return self._fallback_recommendations(user_history, current_mood)
 
     def _summarize_mood_history(self, history: List[Dict]) -> str:
@@ -684,6 +721,7 @@ Långsiktiga välbefinnande-strategier:
 
             prompt = prompts.get(locale, prompts['sv'])
 
+            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -691,7 +729,8 @@ Långsiktiga välbefinnande-strategier:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=400,
-                temperature=0.6
+                temperature=0.6,
+                timeout=30.0  # 30s timeout to prevent hanging
             )
 
             insights = response.choices[0].message.content.strip()
@@ -709,11 +748,16 @@ Långsiktiga välbefinnande-strategier:
         except RateLimitError as e:
             logger.warning(f"⚠️ OpenAI rate limit exceeded for weekly insights: {str(e)}")
             return self._fallback_weekly_insights(weekly_data, locale, quota_exceeded=True)
-        except APIError as e:
-            logger.error(f"OpenAI API error for weekly insights: {str(e)}")
-            return self._fallback_weekly_insights(weekly_data, locale)
-        except Exception as e:
-            logger.error(f"OpenAI weekly insights generation failed: {str(e)}")
+        except (TimeoutError, Exception) as e:
+            # CRITICAL FIX: Handle timeout errors gracefully to prevent 4.1s hangs
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'timed out' in error_str:
+                logger.warning(f"⚠️ OpenAI weekly insights timeout: {str(e)}, using fallback")
+                return self._fallback_weekly_insights(weekly_data, locale, quota_exceeded=False)
+            elif isinstance(e, APIError):
+                logger.error(f"OpenAI API error for weekly insights: {str(e)}")
+            else:
+                logger.error(f"OpenAI weekly insights generation failed: {str(e)}")
             return self._fallback_weekly_insights(weekly_data, locale)
 
     def _fallback_weekly_insights(self, weekly_data: Dict, locale: str = 'sv', quota_exceeded: bool = False) -> Dict[str, Any]:
@@ -835,6 +879,14 @@ Långsiktiga välbefinnande-strategier:
             "quota_exceeded": quota_exceeded
         }
 
+    def detect_crisis(self, text: str) -> bool:
+        """
+        Simple boolean check for crisis indicators
+        Returns True if crisis indicators are detected
+        """
+        crisis_result = self.detect_crisis_indicators(text)
+        return crisis_result.get("requires_immediate_attention", False)
+
     def detect_crisis_indicators(self, text: str) -> Dict[str, Any]:
         """
         Detect potential crisis indicators in user text
@@ -933,8 +985,9 @@ Långsiktiga välbefinnande-strategier:
                     # Get score from ai_analysis if available, otherwise from direct field
                     ai_analysis = entry.get("ai_analysis", {})
                     score = float(ai_analysis.get("score", entry.get("sentiment_score", 0)))
+                    from ..utils.timestamp_utils import parse_iso_timestamp
                     mood_scores.append(score)
-                    timestamps.append(datetime.fromisoformat(entry.get("timestamp", "").replace('Z', '+00:00')))
+                    timestamps.append(parse_iso_timestamp(entry.get("timestamp")))
                 except (ValueError, TypeError):
                     continue
 
@@ -1017,7 +1070,7 @@ Långsiktiga välbefinnande-strategier:
                 try:
                     ai_analysis = entry.get("ai_analysis", {})
                     score = float(ai_analysis.get("score", entry.get("sentiment_score", 0)))
-                    timestamp = datetime.fromisoformat(entry.get("timestamp", "").replace('Z', '+00:00'))
+                    timestamp = parse_iso_timestamp(entry.get("timestamp"))
                     scores.append(score)
                     dates.append(timestamp)
                 except (ValueError, TypeError):
@@ -1315,13 +1368,15 @@ Långsiktiga välbefinnande-strategier:
             messages.append({"role": "user", "content": user_message})
 
             # Use GPT-4o-mini for cost-effective, fast therapeutic responses
+            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
                 max_tokens=400,
                 temperature=0.7,
                 presence_penalty=0.1,
-                frequency_penalty=0.1
+                frequency_penalty=0.1,
+                timeout=30.0  # 30s timeout to prevent hanging
             )
 
             ai_response = response.choices[0].message.content.strip()
@@ -1347,11 +1402,16 @@ Långsiktiga välbefinnande-strategier:
         except RateLimitError as e:
             logger.warning(f"⚠️ OpenAI rate limit exceeded for therapeutic conversation: {str(e)}")
             return self._generate_fallback_therapeutic_response(user_message, quota_exceeded=True)
-        except APIError as e:
-            logger.error(f"OpenAI API error for therapeutic conversation: {str(e)}")
-            return self._generate_fallback_therapeutic_response(user_message)
-        except Exception as e:
-            logger.error(f"Enhanced therapeutic conversation failed: {str(e)}")
+        except (TimeoutError, Exception) as e:
+            # CRITICAL FIX: Handle timeout errors gracefully to prevent 4.1s hangs
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'timed out' in error_str:
+                logger.warning(f"⚠️ OpenAI therapeutic conversation timeout: {str(e)}, using fallback")
+                return self._generate_fallback_therapeutic_response(user_message, quota_exceeded=False)
+            elif isinstance(e, APIError):
+                logger.error(f"OpenAI API error for therapeutic conversation: {str(e)}")
+            else:
+                logger.error(f"Enhanced therapeutic conversation failed: {str(e)}")
             return self._generate_fallback_therapeutic_response(user_message)
 
     def _generate_crisis_response(self, crisis_analysis: Dict) -> str:
@@ -1510,6 +1570,7 @@ Historien skal være på norsk, empatisk og støttende."""
 
             prompt = prompts.get(locale, prompts['sv'])
 
+            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -1518,7 +1579,8 @@ Historien skal være på norsk, empatisk og støttende."""
                 ],
                 max_tokens=600,
                 temperature=0.8,
-                presence_penalty=0.3
+                presence_penalty=0.3,
+                timeout=30.0  # 30s timeout to prevent hanging
             )
 
             story = response.choices[0].message.content.strip()
@@ -1536,11 +1598,35 @@ Historien skal være på norsk, empatisk og støttende."""
             }
 
         except RateLimitError as e:
-            logger.warning(f"⚠️ OpenAI rate limit exceeded for story generation: {str(e)}")
-            return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=True)
-        except Exception as e:
-            logger.error(f"Story generation failed: {str(e)}")
-            return self._fallback_therapeutic_story(user_mood_data, locale)
+            # CRITICAL FIX: Handle rate limit and quota exceeded errors
+            error_str = str(e).lower()
+            if 'quota' in error_str or 'insufficient_quota' in error_str:
+                logger.warning(f"⚠️ OpenAI quota exceeded for story generation: {str(e)}")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=True)
+            else:
+                logger.warning(f"⚠️ OpenAI rate limit exceeded for story generation: {str(e)}")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=False)
+        except APIError as e:
+            # CRITICAL FIX: Handle API errors including quota exceeded
+            error_str = str(e).lower()
+            if 'quota' in error_str or 'insufficient_quota' in error_str:
+                logger.warning(f"⚠️ OpenAI quota exceeded (APIError) for story generation: {str(e)}")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=True)
+            else:
+                logger.error(f"OpenAI API error for story generation: {str(e)}")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=False)
+        except (TimeoutError, Exception) as e:
+            # CRITICAL FIX: Handle timeout errors gracefully to prevent 4.1s hangs
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'timed out' in error_str:
+                logger.warning(f"⚠️ OpenAI story generation timeout: {str(e)}, using fallback")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=False)
+            elif 'quota' in error_str or 'insufficient_quota' in error_str:
+                logger.warning(f"⚠️ OpenAI quota exceeded (Exception) for story generation: {str(e)}")
+                return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=True)
+            else:
+                logger.error(f"Story generation failed: {str(e)}")
+            return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=False)
 
     def _analyze_mood_for_story(self, mood_data: List[Dict]) -> Dict[str, Any]:
         """Analyze mood data to create context for therapeutic story"""
@@ -1634,17 +1720,158 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             "quota_exceeded": quota_exceeded
         }
 
-    def predictive_mood_forecasting_sklearn(self, mood_history: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
+    def _get_cached_ml_model(self, user_id: str, mood_history: List[Dict]) -> Optional[Dict]:
+        """Get cached ML model if still valid"""
+        cache_key = f"ml_forecast_{user_id}"
+        cached = self._ml_model_cache.get(cache_key)
+
+        if cached:
+            cache_time, model_data, data_hash = cached
+            # Check if cache is still valid (1 hour TTL)
+            if time.time() - cache_time < self._model_cache_ttl:
+                # Check if data has changed significantly
+                current_data_hash = hash(str(sorted([entry.get('timestamp', '') + str(entry.get('score', 0)) for entry in mood_history[-20:]])))
+                if current_data_hash == data_hash:
+                    logger.info(f"✅ Using cached ML model for user {user_id}")
+                    return model_data
+
+        return None
+
+    def _cache_ml_model(self, user_id: str, model_data: Dict, mood_history: List[Dict]):
+        """Cache trained ML model"""
+        cache_key = f"ml_forecast_{user_id}"
+        data_hash = hash(str(sorted([entry.get('timestamp', '') + str(entry.get('score', 0)) for entry in mood_history[-20:]])))
+        self._ml_model_cache[cache_key] = (time.time(), model_data, data_hash)
+
+        # Clean up old cache entries (keep last 50 users)
+        if len(self._ml_model_cache) > 50:
+            oldest_key = min(self._ml_model_cache.keys(), key=lambda k: self._ml_model_cache[k][0])
+            del self._ml_model_cache[oldest_key]
+
+    def predictive_mood_forecasting_simple(self, mood_history: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
         """
-        Advanced predictive mood forecasting using scikit-learn ML models trained on historical mood logs
+        Fast, simple mood forecasting using basic statistical methods
+        No ML training required - much faster than sklearn version
 
         Args:
             mood_history: List of mood entries with timestamps and scores
             days_ahead: Number of days to forecast
 
         Returns:
+            Simple statistical forecast
+        """
+        if len(mood_history) < 3:
+            return {
+                "forecast": "Behöver minst 3 humörinlägg för prognos",
+                "confidence": 0.0,
+                "model_info": "insufficient_data",
+                "recommendations": ["Logga fler humör för bättre prognoser"]
+            }
+
+        try:
+            import numpy as np
+
+            # Extract scores from recent history (last 30 days)
+            scores = []
+            for entry in mood_history[-30:]:
+                try:
+                    score = float(entry.get("sentiment_score", entry.get("score", 0)))
+                    scores.append(score)
+                except (ValueError, TypeError):
+                    continue
+
+            if len(scores) < 3:
+                return {
+                    "forecast": "Behöver fler numeriska humörvärden",
+                    "confidence": 0.0,
+                    "model_info": "insufficient_numeric_data"
+                }
+
+            scores_array = np.array(scores)
+
+            # Simple moving average forecast
+            recent_avg = float(np.mean(scores_array[-7:])) if len(scores_array) >= 7 else float(np.mean(scores_array))
+            trend = np.polyfit(range(len(scores_array)), scores_array, 1)[0] if len(scores_array) >= 3 else 0.0
+
+            # Generate forecast using simple exponential smoothing
+            forecast_scores = []
+            last_score = scores_array[-1]
+
+            for i in range(days_ahead):
+                # Dampen trend over time and add some regression to mean
+                damping_factor = 0.9 ** (i + 1)  # Trend dampens over time
+                predicted_score = last_score + (trend * damping_factor * (i + 1))
+                # Add slight regression to mean
+                predicted_score = predicted_score * 0.7 + recent_avg * 0.3
+                # Clip to valid range
+                predicted_score = np.clip(predicted_score, -1.0, 1.0)
+                forecast_scores.append(float(predicted_score))
+
+            avg_forecast = float(np.mean(forecast_scores))
+            trend_direction = "improving" if avg_forecast > recent_avg + 0.1 else "declining" if avg_forecast < recent_avg - 0.1 else "stable"
+
+            # Simple risk assessment
+            volatility = float(np.std(scores_array))
+            risk_factors = []
+            if volatility > 0.4:
+                risk_factors.append("high_volatility")
+            if avg_forecast < -0.2:
+                risk_factors.append("low_mood_forecast")
+            if trend < -0.05:
+                risk_factors.append("negative_trend")
+
+            return {
+                "forecast": {
+                    "daily_predictions": forecast_scores,
+                    "average_forecast": avg_forecast,
+                    "trend": trend_direction,
+                    "confidence_interval": {
+                        "lower": float(np.percentile(forecast_scores, 25)),
+                        "upper": float(np.percentile(forecast_scores, 75))
+                    }
+                },
+                "model_info": {
+                    "algorithm": "simple_exponential_smoothing",
+                    "data_points_used": len(scores_array),
+                    "method": "fast_statistical"
+                },
+                "current_analysis": {
+                    "recent_average": recent_avg,
+                    "historical_volatility": volatility,
+                    "data_points": len(scores_array)
+                },
+                "risk_factors": risk_factors,
+                "recommendations": self._generate_simple_forecast_recommendations(risk_factors, trend_direction, avg_forecast),
+                "confidence": 0.6,  # Lower confidence than ML but much faster
+                "forecast_period_days": days_ahead
+            }
+
+        except Exception as e:
+            logger.error(f"Simple forecasting failed: {str(e)}")
+            return {
+                "forecast": "Enkel prognos misslyckades",
+                "confidence": 0.0,
+                "error": str(e),
+                "fallback": self.predictive_mood_analytics(mood_history, days_ahead)
+            }
+
+    def predictive_mood_forecasting_sklearn(self, mood_history: List[Dict], days_ahead: int = 7, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Advanced predictive mood forecasting using scikit-learn ML models trained on historical mood logs
+
+        Args:
+            mood_history: List of mood entries with timestamps and scores
+            days_ahead: Number of days to forecast
+            user_id: User ID for caching (optional but recommended)
+
+        Returns:
             ML-based mood forecast with confidence intervals
         """
+        # For very small datasets, use simple forecasting first
+        if len(mood_history) < 10:
+            logger.info("Using simple forecasting for small dataset")
+            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
+
         try:
             import sklearn
             from sklearn.linear_model import LinearRegression
@@ -1652,18 +1879,20 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             from sklearn.model_selection import train_test_split
             from sklearn.metrics import mean_squared_error
             import numpy as np
+            import time
 
         except ImportError:
-            logger.warning("scikit-learn not available, using fallback forecasting")
-            return self.predictive_mood_analytics(mood_history, days_ahead)
+            logger.warning("scikit-learn not available, using simple forecasting")
+            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
 
         if len(mood_history) < 14:
-            return {
-                "forecast": "Otillräcklig data för ML-baserad prognos",
-                "confidence": 0.0,
-                "model_info": "fallback_used",
-                "recommendations": ["Logga fler humör för bättre prognoser"]
-            }
+            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
+
+        # Try to get cached model first
+        if user_id:
+            cached_result = self._get_cached_ml_model(user_id, mood_history)
+            if cached_result:
+                return cached_result
 
         try:
             # Prepare data for ML
@@ -1674,7 +1903,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             for entry in mood_history[-60:]:  # Use last 60 entries for training
                 try:
                     score = float(entry.get("sentiment_score", entry.get("score", 0)))
-                    timestamp = datetime.fromisoformat(entry.get("timestamp", "").replace('Z', '+00:00'))
+                    timestamp = parse_iso_timestamp(entry.get("timestamp"))
 
                     scores.append(score)
                     dates.append(timestamp)
@@ -1787,7 +2016,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             if trend == "declining":
                 risk_factors.append("negative_trend")
 
-            return {
+            result = {
                 "forecast": {
                     "daily_predictions": forecast_scores,
                     "average_forecast": float(avg_forecast),
@@ -1813,6 +2042,13 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 "confidence": float(confidence),
                 "forecast_period_days": days_ahead
             }
+
+            # Cache the result if user_id provided
+            if user_id:
+                self._cache_ml_model(user_id, result, mood_history)
+                logger.info(f"✅ Cached ML forecast model for user {user_id}")
+
+            return result
 
         except Exception as e:
             logger.error(f"ML forecasting failed: {str(e)}")
@@ -1862,6 +2098,42 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             ])
 
         return recommendations[:4]  # Return top 4 recommendations
+
+    def _generate_simple_forecast_recommendations(self, risk_factors: List[str], trend: str, avg_forecast: float) -> List[str]:
+        """Generate recommendations based on simple forecast analysis"""
+        recommendations = []
+
+        if "high_volatility" in risk_factors:
+            recommendations.extend([
+                "Öva mindfulness för att hantera humörsvängningar",
+                "Skapa dagliga rutiner för stabilitet"
+            ])
+
+        if "low_mood_forecast" in risk_factors:
+            recommendations.extend([
+                "Öka fysisk aktivitet och solljus",
+                "Sök stöd från vänner eller familj"
+            ])
+
+        if trend == "improving":
+            recommendations.append("Fortsätt med strategier som fungerar bra")
+        elif trend == "declining":
+            recommendations.extend([
+                "Öka självvårdsaktiviteter",
+                "Överväg professionell hjälp om nedstämdheten kvarstår"
+            ])
+
+        if avg_forecast > 0.1:
+            recommendations.append("Dina prognoser ser positiva ut")
+
+        # Add general recommendations if needed
+        if not recommendations:
+            recommendations.extend([
+                "Fortsätt logga ditt humör regelbundet",
+                "Uppmärksamma positiva händelser"
+            ])
+
+        return recommendations[:3]  # Return top 3 recommendations
 
     def _generate_exercise_recommendations(self, sentiment_analysis: Dict, user_message: str) -> List[Dict]:
         """Generate personalized exercise recommendations based on user state"""

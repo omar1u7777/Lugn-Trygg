@@ -6,6 +6,8 @@ from types import SimpleNamespace
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
 import src.firebase_config as firebase_config
+from ..utils.input_sanitization import input_sanitizer
+from ..utils.response_utils import APIResponse, success_response, error_response, created_response
 
 _DB_SENTINEL = object()
 db = _DB_SENTINEL  # legacy override point for tests
@@ -41,22 +43,25 @@ def upload_memory():
         return '', 204
     try:
         if "audio" not in flask_request.files or "user_id" not in flask_request.form:
-            return jsonify({"error": "Ljudfil och användar-ID krävs!"}), 400
+            return APIResponse.bad_request("Ljudfil och användar-ID krävs!")
 
         file = flask_request.files["audio"]
         user_id = flask_request.form["user_id"].strip()
 
+        # Sanitize user_id
+        user_id = input_sanitizer.sanitize(user_id, 'text', 100)
+
         if not user_id:
-            return jsonify({"error": "Ogiltigt användar-ID!"}), 400
+            return APIResponse.bad_request("Ogiltigt användar-ID!")
 
         if not allowed_file(file.filename):
-            return jsonify({"error": "Endast MP3, WAV och M4A-filer är tillåtna!"}), 400
+            return APIResponse.bad_request("Endast MP3, WAV och M4A-filer är tillåtna!")
 
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         file.seek(0)
         if file_length > MAX_FILE_SIZE:
-            return jsonify({"error": "Filen är för stor. Max 10MB tillåtet!"}), 400
+            return APIResponse.bad_request("Filen är för stor. Max 10MB tillåtet!")
 
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         filename = f"memories/{user_id}/{timestamp}.mp3"
@@ -88,21 +93,23 @@ def upload_memory():
         # 🔹 Generera säker temporär länk (1 timmes giltighet)
         signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
 
-        return jsonify({"message": "Minne har laddats upp!", "file_url": signed_url}), 200
+        return APIResponse.success({"file_url": signed_url}, "Minne har laddats upp!")
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid uppladdning av minne: {e}")
         logger.error(f"🔥 Feltyp: {type(e).__name__}")
         logger.error(f"🔥 Felmeddelande: {str(e)}")
-        return jsonify({"error": f"Ett fel uppstod vid uppladdning av minne: {str(e)}"}), 500
+        return APIResponse.error(f"Ett fel uppstod vid uppladdning av minne: {str(e)}", "INTERNAL_ERROR", 500, str(e))
 
 # 🔹 Hämta en lista över användarens minnen
 @memory_bp.route("/list", methods=["GET"])
 @AuthService.jwt_required
 def list_memories():
+    logger.info("📸 MEMORY - LIST memories endpoint called")
     try:
         # Derive user_id from Flask request or Authorization header
         current_user_id = getattr(flask_request, "user_id", None)
+        logger.info(f"👤 MEMORY - Current user ID: {current_user_id}")
         if not current_user_id:
             auth_header = flask_request.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
@@ -113,28 +120,45 @@ def list_memories():
 
         # Get user_id from query parameter
         query_user_id = flask_request.args.get("user_id", "").strip()
+        # Sanitize user_id
+        query_user_id = input_sanitizer.sanitize(query_user_id, 'text', 100)
         if not query_user_id:
-            return jsonify({"memories": []}), 200
+            return APIResponse.success({"memories": []}, "No memories found")
 
         if query_user_id != current_user_id:
             # Check if user is authorized to access this user's memories (admin check could go here)
-            return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
+            return APIResponse.forbidden("Obehörig åtkomst till andra användares minnen!")
 
         target_user_id = query_user_id
 
-        memories_ref = list(
-            _get_db().collection("memories")
-            .where("user_id", "==", target_user_id)
-            .order_by("timestamp", direction="DESCENDING")
-            .stream()
-        )
+        # CRITICAL FIX: Use FieldFilter to avoid positional argument warning and fix index requirement
+        # Handle both production (FieldFilter) and test (positional) environments
+        try:
+            from google.cloud.firestore import FieldFilter
+            memories_ref = list(
+                _get_db().collection("memories")
+                .where(filter=FieldFilter("user_id", "==", target_user_id))
+                .limit(100)  # CRITICAL FIX: Add limit to prevent large queries
+                .stream()
+            )
+        except TypeError:
+            # Fallback for test environments that don't support FieldFilter
+            memories_ref = list(
+                _get_db().collection("memories")
+                .where("user_id", "==", target_user_id)
+                .limit(100)
+                .stream()
+            )
+        # Sort in memory to avoid composite index requirement
         memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
+        memory_list.sort(key=lambda x: x["timestamp"], reverse=True)
+        logger.info(f"✅ MEMORY - Retrieved {len(memory_list)} memories for user {target_user_id}")
 
-        return jsonify({"memories": memory_list}), 200
+        return APIResponse.success({"memories": memory_list}, f"Retrieved {len(memory_list)} memories")
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av minnen: {e}")
-        return jsonify({"error": "Ett fel uppstod vid hämtning av minnen!"}), 500
+        return APIResponse.error("Ett fel uppstod vid hämtning av minnen!", "INTERNAL_ERROR", 500, str(e))
 
 # 🔹 Hämta en signerad URL för uppspelning
 @memory_bp.route("/get", methods=["GET"])
@@ -151,28 +175,44 @@ def get_memory():
                     current_user_id = uid
         file_path = flask_request.args.get("file_path", "").strip()
 
+        # Sanitize file_path
+        file_path = input_sanitizer.sanitize(file_path, 'filename', 255)
+
         if not file_path:
-            return jsonify({"error": "Filväg krävs!"}), 400
+            return APIResponse.bad_request("Filväg krävs!")
 
         # Get user_id from query parameter if provided, otherwise use JWT user_id
         query_user_id = flask_request.args.get("user_id", "").strip()
         if query_user_id and query_user_id != current_user_id:
             # Check if user is authorized to access this user's memories (admin check could go here)
-            return jsonify({"error": "Obehörig åtkomst till andra användares minnen!"}), 403
+            return APIResponse.forbidden("Obehörig åtkomst till andra användares minnen!")
 
         target_user_id = query_user_id or current_user_id
 
         # 🔹 Kontrollera att minnet tillhör användaren
-        memory_ref = list(
-            _get_db().collection("memories")
-            .where("user_id", "==", target_user_id)
-            .where("file_path", "==", file_path)
-            .limit(1)
-            .stream()
-        )
+        # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
+        # Handle both production (FieldFilter) and test (positional) environments
+        try:
+            from google.cloud.firestore import FieldFilter
+            memory_ref = list(
+                _get_db().collection("memories")
+                .where(filter=FieldFilter("user_id", "==", target_user_id))
+                .where(filter=FieldFilter("file_path", "==", file_path))
+                .limit(1)
+                .stream()
+            )
+        except TypeError:
+            # Fallback for test environments that don't support FieldFilter
+            memory_ref = list(
+                _get_db().collection("memories")
+                .where("user_id", "==", target_user_id)
+                .where("file_path", "==", file_path)
+                .limit(1)
+                .stream()
+            )
 
         if not memory_ref:
-            return jsonify({"error": "Obehörig åtkomst till minne!"}), 403
+            return APIResponse.forbidden("Obehörig åtkomst till minne!")
 
         # 🔹 Kontrollera att filen existerar i Firebase Storage
         bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
@@ -180,13 +220,13 @@ def get_memory():
         blob = bucket.blob(file_path)
 
         if not blob.exists():
-            return jsonify({"error": "Filen hittades inte!"}), 404
+            return APIResponse.not_found("Filen hittades inte!")
 
         # 🔹 Skapa en signerad URL som är giltig i 1 timme
         signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
 
-        return jsonify({"url": signed_url}), 200
+        return APIResponse.success({"url": signed_url}, "Memory URL generated")
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av minne: {e}")
-        return jsonify({"error": "Ett fel uppstod vid hämtning av minne!"}), 500
+        return APIResponse.error("Ett fel uppstod vid hämtning av minne!", "INTERNAL_ERROR", 500, str(e))

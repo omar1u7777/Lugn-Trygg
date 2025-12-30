@@ -40,7 +40,10 @@ def test_get_performance_metrics_success(client, mocker):
     
     # Mock performance_monitor.get_metrics()
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
-    mock_monitor.get_metrics.return_value = mock_metrics
+    mock_monitor.get_metrics = Mock(return_value=mock_metrics)
+
+    # Ensure hasattr returns True for get_metrics check
+    mocker.patch('src.routes.admin_routes.hasattr', return_value=True)
     
     response = client.get('/api/admin/performance-metrics')
     

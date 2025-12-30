@@ -98,8 +98,8 @@ class SQLInjectionProtector:
         if not query:
             return {'safe': True, 'risk_level': 'low', 'issues': []}
 
-        # Cache check
-        cache_key = hashlib.md5(f"{query}{str(parameters)}".encode()).hexdigest()
+        # Cache check - MD5 used only for cache key, not security
+        cache_key = hashlib.md5(f"{query}{str(parameters)}".encode(), usedforsecurity=False).hexdigest()
         if cache_key in self.analysis_cache:
             return self.analysis_cache[cache_key]
 

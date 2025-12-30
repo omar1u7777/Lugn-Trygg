@@ -6,6 +6,7 @@ from ..services.oauth_service import oauth_service
 from ..services.health_data_service import health_data_service
 from ..services.health_analytics_service import health_analytics_service
 from ..firebase_config import db
+from ..utils.timestamp_utils import parse_iso_timestamp
 import logging
 import requests
 from datetime import datetime, timedelta
@@ -211,7 +212,7 @@ def oauth_status(provider):
         
         if token_doc.exists:
             token_data = token_doc.to_dict()
-            expires_at = datetime.fromisoformat(token_data.get('expires_at'))
+            expires_at = parse_iso_timestamp(token_data.get('expires_at'), default_to_now=False)
             is_expired = datetime.utcnow() > expires_at
             
             logger.info(f"✅ OAuth token FOUND for {provider.upper()}: expires_at={token_data.get('expires_at')}, is_expired={is_expired}")
@@ -275,7 +276,7 @@ def sync_health_data_oauth(provider):
                 'message': 'Please reconnect to continue'
             }), 401
         
-        expires_at = datetime.fromisoformat(token_data.get('expires_at', datetime.utcnow().isoformat()))
+        expires_at = parse_iso_timestamp(token_data.get('expires_at'), default_to_now=True)
         
         # Refresh token if expired
         if datetime.utcnow() > expires_at and refresh_token:
@@ -494,50 +495,21 @@ def get_wearable_status():
         logger.exception(f"Error getting wearable status: {e}")
         return jsonify({"error": str(e)}), 500
 
+# PRODUCTION: Deprecated MOCK endpoint removed
+# Use real OAuth flow instead: GET /api/integration/oauth/{provider}/authorize
+"""
 @integration_bp.route("/wearable/connect", methods=["POST"])
 @jwt_required()
 def connect_wearable():
-    """Connect a new wearable device - DEPRECATED: Creates MOCK connection"""
-    try:
-        user_id = g.get('user_id') or get_jwt_identity()
-        
-        logger.warning(f"⚠️ DEPRECATED ENDPOINT CALLED: /wearable/connect creates MOCK device!")
-        logger.warning(f"⚠️ USE INSTEAD: GET /api/integration/oauth/*/authorize for real OAuth")
-        
-        data = request.get_json()
-        device_type = data.get('device_type', 'fitbit')
-
-        # Device name mapping
-        device_names = {
-            'fitbit': 'Fitbit Charge 5',
-            'apple_health': 'Apple Health',
-            'google_fit': 'Google Fit',
-            'samsung_health': 'Samsung Health'
+    return jsonify({
+        "error": "Endpoint deprecated - use OAuth flow",
+        "oauth_endpoints": {
+            "fitbit": "/api/integration/oauth/fitbit/authorize",
+            "google_fit": "/api/integration/oauth/google-fit/authorize",
+            "apple_health": "/api/integration/oauth/apple-health/authorize"
         }
-
-        # Create new device
-        new_device = {
-            "id": f"{device_type}-{int(datetime.utcnow().timestamp())}",
-            "name": device_names.get(device_type, f"{device_type.title()} Device"),
-            "type": device_type,
-            "connected": True,
-            "lastSync": datetime.utcnow().isoformat()
-        }
-
-        # Add to user's devices
-        add_user_device(user_id, new_device)
-
-        audit_log('wearable_connected', user_id, {'device_type': device_type})
-
-        return jsonify({
-            "success": True,
-            "message": f"{device_names.get(device_type, device_type)} connected successfully",
-            "device": new_device
-        }), 200
-
-    except Exception as e:
-        logger.exception(f"Error connecting wearable: {e}")
-        return jsonify({"error": str(e)}), 500
+    }), 410
+"""
 
 @integration_bp.route("/wearable/disconnect", methods=["POST"])
 @jwt_required()
@@ -622,8 +594,8 @@ def sync_google_fit():
             "dataSourceId": "derived:com.google.heart_rate.bpm:com.google.android.gms:merge_heart_rate_bpm",
             "point": [
                 {
-                    "startTimeNanos": str(int(datetime.fromisoformat(date_from).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(datetime.fromisoformat(date_to).timestamp() * 1e9)),
+                    "startTimeNanos": str(int(parse_iso_timestamp(date_from, default_to_now=False).timestamp() * 1e9)),
+                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
                     "value": [{"fpVal": 72.5}]
                 }
             ]
@@ -633,8 +605,8 @@ def sync_google_fit():
             "dataSourceId": "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps",
             "point": [
                 {
-                    "startTimeNanos": str(int(datetime.fromisoformat(date_from).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(datetime.fromisoformat(date_to).timestamp() * 1e9)),
+                    "startTimeNanos": str(int(parse_iso_timestamp(date_from, default_to_now=False).timestamp() * 1e9)),
+                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
                     "value": [{"intVal": 8500}]
                 }
             ]
@@ -644,8 +616,8 @@ def sync_google_fit():
             "dataSourceId": "derived:com.google.sleep.segment:com.google.android.gms:merged",
             "point": [
                 {
-                    "startTimeNanos": str(int((datetime.fromisoformat(date_from) + timedelta(hours=23)).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(datetime.fromisoformat(date_to).timestamp() * 1e9)),
+                    "startTimeNanos": str(int((parse_iso_timestamp(date_from, default_to_now=False) + timedelta(hours=23)).timestamp() * 1e9)),
+                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
                     "value": [{"intVal": 7}]  # Sleep duration in hours
                 }
             ]

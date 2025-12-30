@@ -27,7 +27,7 @@ const log = {
   warning: (msg: string) => console.log(`${colors.yellow}⚠️  ${msg}${colors.reset}`),
   info: (msg: string) => console.log(`${colors.blue}ℹ️  ${msg}${colors.reset}`),
   test: (msg: string) => console.log(`${colors.cyan}🧪 ${msg}${colors.reset}`),
-  header: (msg: string) => console.log(`\n${colors.bold}${colors.cyan}${'='.repeat(60)}${colors.reset}`),
+  header: () => console.log(`\n${colors.bold}${colors.cyan}${'='.repeat(60)}${colors.reset}`),
 };
 
 interface TestResult {
@@ -57,9 +57,9 @@ async function runTest(name: string, testFn: () => Promise<void> | void): Promis
 }
 
 async function testAnalyticsInitialization() {
-  log.header('');
+  log.header();
   log.info('Testing Analytics Initialization');
-  log.header('');
+  log.header();
 
   await runTest('Initialize Analytics Service', async () => {
     initializeAnalytics();
@@ -69,9 +69,9 @@ async function testAnalyticsInitialization() {
 }
 
 async function testEventTracking() {
-  log.header('');
+  log.header();
   log.info('Testing Event Tracking');
-  log.header('');
+  log.header();
 
   await runTest('Track Page View Event', () => {
     analytics.page('Test Dashboard', {
@@ -98,9 +98,9 @@ async function testEventTracking() {
 }
 
 async function testUserIdentification() {
-  log.header('');
+  log.header();
   log.info('Testing User Identification');
-  log.header('');
+  log.header();
 
   await runTest('Identify User', () => {
     analytics.identify(TEST_USER_ID, {
@@ -121,9 +121,9 @@ async function testUserIdentification() {
 }
 
 async function testBusinessMetrics() {
-  log.header('');
+  log.header();
   log.info('Testing Business Metrics');
-  log.header('');
+  log.header();
 
   await runTest('Track Mood Logged', () => {
     analytics.business.moodLogged(8, {
@@ -174,9 +174,9 @@ async function testBusinessMetrics() {
 }
 
 async function testErrorTracking() {
-  log.header('');
+  log.header();
   log.info('Testing Error Tracking');
-  log.header('');
+  log.header();
 
   await runTest('Track Error with Context', () => {
     const testError = new Error('Test error for analytics verification');
@@ -198,9 +198,9 @@ async function testErrorTracking() {
 }
 
 async function testPerformanceTracking() {
-  log.header('');
+  log.header();
   log.info('Testing Performance Tracking');
-  log.header('');
+  log.header();
 
   await runTest('Track Load Time', () => {
     analytics.performance({
@@ -236,9 +236,9 @@ async function testPerformanceTracking() {
 }
 
 async function testHealthSafetyTracking() {
-  log.header('');
+  log.header();
   log.info('Testing Health & Safety Tracking');
-  log.header('');
+  log.header();
 
   await runTest('Track Crisis Detection', () => {
     analytics.health.crisisDetected(['low_mood_streak', 'self_harm_keywords'], {
@@ -265,9 +265,9 @@ async function testHealthSafetyTracking() {
 }
 
 async function testPrivacyCompliance() {
-  log.header('');
+  log.header();
   log.info('Testing Privacy & Compliance');
-  log.header('');
+  log.header();
 
   await runTest('Track Privacy Consent', () => {
     analytics.privacy.consentGiven(['analytics', 'performance', 'essential']);
@@ -279,9 +279,9 @@ async function testPrivacyCompliance() {
 }
 
 async function testSubscriptionEvents() {
-  log.header('');
+  log.header();
   log.info('Testing Subscription Events');
-  log.header('');
+  log.header();
 
   await runTest('Track Subscription Started', () => {
     analytics.business.subscriptionEvent('subscription_started', 'premium', {
@@ -307,9 +307,9 @@ async function testSubscriptionEvents() {
 }
 
 async function testEnvironmentVariables() {
-  log.header('');
+  log.header();
   log.info('Testing Environment Configuration');
-  log.header('');
+  log.header();
 
   await runTest('Check Amplitude API Key', () => {
     const apiKey = import.meta.env.VITE_AMPLITUDE_API_KEY;
@@ -334,9 +334,9 @@ async function testEnvironmentVariables() {
 }
 
 async function generateTestReport() {
-  log.header('');
+  log.header();
   log.info('Test Results Summary');
-  log.header('');
+  log.header();
 
   const passed = results.filter(r => r.passed).length;
   const failed = results.filter(r => !r.passed).length;

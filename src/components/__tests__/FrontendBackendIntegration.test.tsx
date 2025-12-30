@@ -1,6 +1,6 @@
 /**
  * 🔥 FRONTEND-BACKEND-DESIGN SYSTEM INTEGRATION TEST
- * Tests real component integration with MUI, API calls, and state management
+ * Tests real component integration with Tailwind, API calls, and state management
  * 
  * This is a REAL integration test suite!
  */
@@ -10,8 +10,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import axios from 'axios';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Button, Card, CardContent, TextField } from '@mui/material';
+import { Button, Card, CardContent, Input } from '../ui/tailwind';
 
 // Mock API
 vi.mock('../../api/api', () => ({
@@ -60,19 +59,8 @@ vi.mock('../../services/analytics', () => ({
   }
 }));
 
-const theme = createTheme({
-  palette: {
-    primary: { main: '#6366f1' },
-    secondary: { main: '#ec4899' },
-  },
-});
-
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(
-    <ThemeProvider theme={theme}>
-      {component}
-    </ThemeProvider>
-  );
+  return render(component);
 };
 
 describe('🔥 Frontend-Backend-Design Integration', () => {
@@ -84,7 +72,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
   describe('MUI Component Integration', () => {
     test('should render Button with MUI styling', () => {
       const { container } = renderWithTheme(
-        <Button variant="contained" color="primary">
+        <Button variant="primary" color="primary">
           Test Button
         </Button>
       );
@@ -191,9 +179,10 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
         mood_id: 'mood-123'
       });
       
-      const result = await logMood('user-123', 'happy', 8);
+      const payload = { mood_text: 'happy', mood_score: 8 };
+      const result = await logMood('user-123', payload);
       
-      expect(logMood).toHaveBeenCalledWith('user-123', 'happy', 8);
+      expect(logMood).toHaveBeenCalledWith('user-123', payload);
       expect(result.success).toBe(true);
     });
 
@@ -232,7 +221,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
       (logMood as any).mockRejectedValue(new Error('Network error'));
       
       try {
-        await logMood('user-123', 'sad', 3);
+        await logMood('user-123', { mood_text: 'sad', mood_score: 3 });
       } catch (error: any) {
         expect(error.message).toBe('Network error');
       }
@@ -248,7 +237,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
           <CardContent>
             <form>
               <TextField label="Mood Note" fullWidth />
-              <Button variant="contained" color="primary">
+              <Button variant="primary" color="primary">
                 Log Mood
               </Button>
             </form>
@@ -282,7 +271,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
   describe('Theme Integration', () => {
     test('should apply primary theme color', () => {
       const { container } = renderWithTheme(
-        <Button color="primary" variant="contained">
+        <Button color="primary" variant="primary">
           Primary Button
         </Button>
       );
@@ -293,7 +282,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
 
     test('should apply secondary theme color', () => {
       const { container } = renderWithTheme(
-        <Button color="secondary" variant="contained">
+        <Button color="secondary" variant="primary">
           Secondary Button
         </Button>
       );
@@ -311,7 +300,7 @@ describe('🔥 Frontend-Backend-Design Integration', () => {
       
       const { container } = render(
         <ThemeProvider theme={customTheme}>
-          <Button color="primary" variant="contained">
+          <Button color="primary" variant="primary">
             Custom Theme
           </Button>
         </ThemeProvider>
@@ -494,7 +483,7 @@ describe('🎯 Real-World Integration Scenarios', () => {
       <Card>
         <CardContent>
           <TextField label="Mood Note" id="mood-note" />
-          <Button variant="contained" color="primary">
+          <Button variant="primary" color="primary">
             Log Mood
           </Button>
         </CardContent>
@@ -531,7 +520,7 @@ describe('🎯 Real-World Integration Scenarios', () => {
           id="chat-message"
           fullWidth
         />
-        <Button variant="contained" color="primary">
+        <Button variant="primary" color="primary">
           Send
         </Button>
       </div>

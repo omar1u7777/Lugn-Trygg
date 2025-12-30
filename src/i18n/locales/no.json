@@ -137,10 +137,17 @@
     "yes": "Ja",
     "no": "Nei",
     "ok": "OK",
+    "status": "Status",
     "offlineTitle": "🚫 Du er offline!",
     "offlineMessage": "Sjekk internettforbindelsen din og prøv igjen.",
     "retry": "🔄 Prøv igjen",
-    "pageNotFound": "🚫 Siden ble ikke funnet!"
+    "pageNotFound": "🚫 Siden ble ikke funnet!",
+    "skipToContent": "Hopp til hovedinnhold",
+    "skipToNavigation": "Hopp til navigasjon",
+    "skipToSearch": "Hopp til søk",
+    "liveRegionLabel": "Sanntidsoppdateringer",
+    "alertsLiveRegion": "Systemvarsler oppdateres fortløpende",
+    "alertsActiveCount": "{count} aktive varsler"
   },
   "settings": {
     "title": "Innstillinger",
@@ -151,6 +158,24 @@
     "theme": "Tema",
     "darkMode": "Mørk modus",
     "lightMode": "Lys modus"
+  },
+  "monitoring": {
+    "title": "Systemovervåking",
+    "description": "Helsesdata i sanntid",
+    "refresh": "Oppdater",
+    "refreshing": "Oppdaterer...",
+    "performanceBreakdown": "Ytelsesscore",
+    "alertsHeading": "Systemvarsler",
+    "alertTimestamp": "Tidsstempel",
+    "alertStatusResolved": "Løst",
+    "alertStatusActive": "Aktiv",
+    "alertResolve": "Marker som løst",
+    "alertClose": "Lukk dialog",
+    "noAlerts": "Ingen aktive varsler",
+    "metricGood": "God status",
+    "metricWarning": "Advarsel",
+    "metricCritical": "Kritisk",
+    "screenReaderWidgetLabel": "Statuskort for {metric}"
   },
   "language": {
     "swedish": "Svenska",

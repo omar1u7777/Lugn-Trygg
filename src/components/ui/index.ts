@@ -1,7 +1,7 @@
-// UI Components Export
-export { Button } from './Button';
-export { Card } from './Card';
-export { Input } from './Input';
+// UI Components Export - Now using Tailwind components
+export * from './tailwind';
+
+// Theme Toggle (kept from old UI)
 export { ThemeToggle } from './ThemeToggle';
 export { TestSuite } from './TestSuite';
 

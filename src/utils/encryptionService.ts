@@ -218,7 +218,37 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
 };
 
 // Get user's privacy settings
-export function getPrivacySettings(): PrivacySettings {
+export async function getPrivacySettings(userId?: string): Promise<PrivacySettings> {
+  console.log('🔒 ENCRYPTION SERVICE - getPrivacySettings called:', { userId });
+  
+  // If userId provided, fetch from backend
+  if (userId) {
+    try {
+      console.log('🌐 ENCRYPTION SERVICE - Fetching from backend...');
+      const { tokenStorage } = await import('./secureStorage');
+      const token = await tokenStorage.getAccessToken();
+      console.log('🔑 ENCRYPTION SERVICE - Token retrieved:', { hasToken: !!token });
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/settings/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Cache to localStorage
+        localStorage.setItem('privacy_settings', JSON.stringify(data.settings));
+        return { ...DEFAULT_PRIVACY_SETTINGS, ...data.settings };
+      }
+    } catch (error) {
+      console.warn('Failed to fetch privacy settings from backend, using local cache:', error);
+    }
+  }
+  
+  // Fallback to localStorage
   const stored = localStorage.getItem('privacy_settings');
   if (stored) {
     try {
@@ -231,40 +261,112 @@ export function getPrivacySettings(): PrivacySettings {
 }
 
 // Save user's privacy settings
-export function savePrivacySettings(settings: PrivacySettings): void {
+export async function savePrivacySettings(settings: PrivacySettings, userId?: string): Promise<void> {
+  console.log('🔒 ENCRYPTION SERVICE - savePrivacySettings called:', { settings, userId });
+  
+  // Save to localStorage immediately
   localStorage.setItem('privacy_settings', JSON.stringify(settings));
+  console.log('💾 ENCRYPTION SERVICE - Saved to localStorage');
+  
+  // If userId provided, sync to backend
+  if (userId) {
+    try {
+      console.log('🌐 ENCRYPTION SERVICE - Syncing to backend...');
+      const { tokenStorage } = await import('./secureStorage');
+      const token = await tokenStorage.getAccessToken();
+      console.log('🔑 ENCRYPTION SERVICE - Token retrieved:', { hasToken: !!token });
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/settings/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ settings })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to save privacy settings to backend:', await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to sync privacy settings to backend:', error);
+    }
+  }
 }
 
 // Export all user data (GDPR compliance)
 export async function exportUserData(userId: string): Promise<Blob> {
-  // In production, fetch all user data from backend
-  const userData = {
-    userId,
-    exportDate: new Date().toISOString(),
-    moods: [],
-    memories: [],
-    settings: getPrivacySettings(),
-    // Add more data fields as needed
-  };
-  
-  const json = JSON.stringify(userData, null, 2);
-  return new Blob([json], { type: 'application/json' });
+  try {
+    // Call backend API to get complete data export
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/export/${userId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`);
+    }
+    
+    // Return the blob from backend
+    return await response.blob();
+  } catch (error) {
+    console.error('Failed to export data from backend:', error);
+    
+    // Fallback: Create local data export (not complete, but better than nothing)
+    const cachedSettings = await getPrivacySettings();
+    const userData = {
+      userId,
+      exportDate: new Date().toISOString(),
+      source: 'local_fallback',
+      moods: [],
+      memories: [],
+      settings: cachedSettings,
+      warning: 'This is a local fallback export. Backend export failed.'
+    };
+    
+    const json = JSON.stringify(userData, null, 2);
+    return new Blob([json], { type: 'application/json' });
+  }
 }
 
 // Delete all user data (GDPR compliance)
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // Clear local storage
-  const keysToKeep = ['theme', 'language'];
-  const allKeys = Object.keys(localStorage);
-  
-  allKeys.forEach((key) => {
-    if (!keysToKeep.includes(key)) {
-      localStorage.removeItem(key);
+  try {
+    // Call backend API to permanently delete ALL data
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/delete/${userId}?confirm=delete my data`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete data');
     }
-  });
-  
-  // In production, also call backend API to delete all server-side data
-  console.log(`All data for user ${userId} has been deleted locally`);
+    
+    const result = await response.json();
+    console.log('✅ Backend deletion completed:', result);
+    
+    // Clear local storage after successful backend deletion
+    const keysToKeep = ['theme', 'language'];
+    const allKeys = Object.keys(localStorage);
+    
+    allKeys.forEach((key) => {
+      if (!keysToKeep.includes(key)) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log(`✅ All data for user ${userId} has been permanently deleted`);
+  } catch (error) {
+    console.error('Failed to delete data:', error);
+    throw error; // Re-throw to show error to user
+  }
 }
 
 export default {

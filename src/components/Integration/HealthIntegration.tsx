@@ -1,36 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-    Box,
-    Container,
-    Typography,
-    Button,
-    Paper,
-    Grid,
-    Card,
-    CardContent,
-    Alert,
-    CircularProgress,
-    Divider,
-    Snackbar
-} from '@mui/material';
-import {
-    DirectionsWalk as StepsIcon,
-    Favorite as HeartIcon,
-    Bedtime as SleepIcon,
-    LocalFireDepartment as CaloriesIcon,
-    Watch as WatchIcon,
-    Apple as AppleIcon,
-    DirectionsRun as FitnessIcon,
-    Smartphone as PhoneIcon,
-    Sync as SyncIcon,
-    LinkOff as DisconnectIcon,
-    Add as AddIcon,
-    LocalHospital as HospitalIcon,
-    Assessment as DataIcon,
-    SOS as SOSIcon
-} from '@mui/icons-material';
+import React, { useState, useEffect, useCallback } from 'react'
+import { Container, Typography, Button, Card, Grid, CardContent, Alert, Spinner, Paper } from '../ui/tailwind';
+// TODO: Replace icons with Heroicons
 import healthIntegrationService, { WearableDevice, WearableData } from '../../services/healthIntegrationService';
+import { ArrowPathIcon, XMarkIcon, BuildingOfficeIcon, ChartBarIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 const HealthIntegration: React.FC = () => {
     const [devices, setDevices] = useState<WearableDevice[]>([]);
@@ -40,42 +12,43 @@ const HealthIntegration: React.FC = () => {
     const [syncStatus, setSyncStatus] = useState<string>('');
     const [connectingDevice, setConnectingDevice] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadHealthData();
-    }, []);
-
-    const loadHealthData = async () => {
-        await Promise.all([
-            fetchWearableStatus(),
-            fetchWearableData()
-        ]);
-    };
-
-    const fetchWearableStatus = async () => {
+    const fetchWearableStatus = useCallback(async () => {
         try {
             setLoading(true);
             const fetchedDevices = await healthIntegrationService.getWearableStatus();
             setDevices(fetchedDevices);
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to fetch wearable status:', err);
-            setError(err.message || 'Failed to load wearable devices');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to load wearable devices';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchWearableData = async () => {
+    const fetchWearableData = useCallback(async () => {
         try {
             const details = await healthIntegrationService.getWearableDetails();
             if (details.data) {
                 setWearableData(details.data);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to fetch wearable data:', err);
             // Don't set error here as this is non-critical
         }
-    };
+    }, []);
+
+    const loadHealthData = useCallback(async () => {
+        await Promise.all([
+            fetchWearableStatus(),
+            fetchWearableData()
+        ]);
+    }, [fetchWearableStatus, fetchWearableData]);
+
+    useEffect(() => {
+        loadHealthData();
+    }, [loadHealthData]);
 
     const handleSyncWearable = async (deviceId: string) => {
         try {
@@ -85,7 +58,7 @@ const HealthIntegration: React.FC = () => {
             setSyncStatus('success');
             await fetchWearableStatus();
             setTimeout(() => setSyncStatus(''), 3000);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to sync wearable:', err);
             setSyncStatus('error');
             setTimeout(() => setSyncStatus(''), 3000);
@@ -97,7 +70,7 @@ const HealthIntegration: React.FC = () => {
             setConnectingDevice(deviceType);
             setError(null);
             const newDevice = await healthIntegrationService.connectDevice(deviceType);
-            setDevices([...devices, newDevice]);
+            setDevices(prev => [...prev, newDevice]);
             
             // Show success message
             const deviceNames: Record<string, string> = {
@@ -108,9 +81,10 @@ const HealthIntegration: React.FC = () => {
             };
             
             alert(`✅ ${deviceNames[deviceType]} ansluten! Du kan nu synkronisera din hälsodata.`);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Failed to connect device:', err);
-            setError(err.message || 'Failed to connect device');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to connect device';
+            setError(errorMessage);
         } finally {
             setConnectingDevice(null);
         }
@@ -119,41 +93,42 @@ const HealthIntegration: React.FC = () => {
     const handleDisconnectDevice = async (deviceId: string) => {
         try {
             await healthIntegrationService.disconnectDevice(deviceId);
-            setDevices(devices.filter(d => d.id !== deviceId));
-        } catch (err: any) {
+            setDevices(prev => prev.filter(d => d.id !== deviceId));
+        } catch (err: unknown) {
             console.error('❌ Failed to disconnect device:', err);
-            setError(err.message || 'Failed to disconnect device');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to disconnect device';
+            setError(errorMessage);
         }
     };
 
     if (loading) {
         return (
-            <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={60} sx={{ mb: spacing.md }} />
+            <div>
+                <div>
+                    <Spinner size="sm" />
                     <Typography variant="body1" color="text.secondary">
                         Laddar hälsodata...
                     </Typography>
-                </Box>
-            </Box>
+                </div>
+            </div>
         );
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Container>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: spacing.xl }}>
+            <div>
                 <Typography variant="h3" fontWeight="bold" gutterBottom>
                     ❤️ Hälsointegration
                 </Typography>
-                <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+                <Typography variant="h6" color="text.secondary">
                     Anslut dina wearables och hälsoappar för att få bättre insikter om ditt välmående
                 </Typography>
-            </Box>
+            </div>
 
             {/* Error Message */}
             {error && (
-                <Alert severity="error" sx={{ mb: spacing.lg }}>
+                <Alert severity="error">
                     {error}
                 </Alert>
             )}
@@ -166,7 +141,6 @@ const HealthIntegration: React.FC = () => {
                         syncStatus === 'success' ? 'success' :
                         'error'
                     }
-                    sx={{ mb: spacing.lg }}
                 >
                     {syncStatus === 'syncing' && '⚙️ Synkroniserar...'}
                     {syncStatus === 'success' && '✅ Synkronisering klar!'}
@@ -176,12 +150,12 @@ const HealthIntegration: React.FC = () => {
 
             {/* Current Health Data */}
             {wearableData && (
-                <Grid container spacing={2} sx={{ mb: spacing.xl }}>
+                <Grid container spacing={2}>
                     {wearableData.steps !== undefined && (
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
-                                <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>🚶</Typography>
+                                <CardContent>
+                                    <Typography variant="h2">🚶</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.steps}
                                     </Typography>
@@ -195,8 +169,8 @@ const HealthIntegration: React.FC = () => {
                     {wearableData.heartRate !== undefined && (
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
-                                <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>❤️</Typography>
+                                <CardContent>
+                                    <Typography variant="h2">❤️</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.heartRate} bpm
                                     </Typography>
@@ -210,8 +184,8 @@ const HealthIntegration: React.FC = () => {
                     {wearableData.sleep !== undefined && (
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
-                                <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>😴</Typography>
+                                <CardContent>
+                                    <Typography variant="h2">😴</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.sleep}h
                                     </Typography>
@@ -225,8 +199,8 @@ const HealthIntegration: React.FC = () => {
                     {wearableData.calories !== undefined && (
                         <Grid item xs={12} sm={6} md={3}>
                             <Card>
-                                <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h2" sx={{ mb: spacing.sm }}>🔥</Typography>
+                                <CardContent>
+                                    <Typography variant="h2">🔥</Typography>
                                     <Typography variant="h4" fontWeight="bold">
                                         {wearableData.calories}
                                     </Typography>
@@ -241,43 +215,36 @@ const HealthIntegration: React.FC = () => {
             )}
 
             {/* Connected Devices */}
-            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
+            <Paper className="shadow-md">
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     📱 Anslutna enheter
                 </Typography>
                 
                 {devices.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography variant="h1" sx={{ fontSize: '4rem', mb: spacing.md }}>📱</Typography>
+                    <div>
+                        <Typography variant="h1">📱</Typography>
                         <Typography variant="body1" color="text.secondary" gutterBottom>
                             Inga enheter anslutna ännu
                         </Typography>
-                        <Typography variant="body2" color="text.disabled">
+                        <Typography variant="body2" color="text.secondary">
                             Anslut en enhet nedan för att börja synkronisera din hälsodata
                         </Typography>
-                    </Box>
+                    </div>
                 ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                    <div>
                         {devices.map((device) => (
                             <Paper
                                 key={device.id}
-                                elevation={0}
-                                sx={{ 
-                                    p: spacing.md, 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between',
-                                    bgcolor: 'background.default'
-                                }}
+                                className="shadow-none"
                             >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                                <div>
                                     <Typography variant="h3">
                                         {device.type === 'fitbit' && '⌚'}
                                         {device.type === 'apple_health' && '🍎'}
                                         {device.type === 'google_fit' && '🏃'}
                                         {device.type === 'samsung_health' && '📱'}
                                     </Typography>
-                                    <Box>
+                                    <div>
                                         <Typography variant="h6" fontWeight="bold">
                                             {device.name}
                                         </Typography>
@@ -291,14 +258,14 @@ const HealthIntegration: React.FC = () => {
                                                 '⚠️ Frånkopplad'
                                             )}
                                         </Typography>
-                                    </Box>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: spacing.sm }}>
+                                    </div>
+                                </div>
+                                <div>
                                     {device.connected && (
                                         <Button
-                                            variant="contained"
+                                            variant="primary"
                                             color="primary"
-                                            startIcon={<SyncIcon />}
+                                            startIcon={<ArrowPathIcon className="w-5 h-5" />}
                                             onClick={() => handleSyncWearable(device.id)}
                                             disabled={syncStatus === 'syncing'}
                                         >
@@ -306,22 +273,22 @@ const HealthIntegration: React.FC = () => {
                                         </Button>
                                     )}
                                     <Button
-                                        variant="contained"
+                                        variant="primary"
                                         color="error"
-                                        startIcon={<DisconnectIcon />}
+                                        startIcon={<XMarkIcon className="w-5 h-5" />}
                                         onClick={() => handleDisconnectDevice(device.id)}
                                     >
                                         Koppla från
                                     </Button>
-                                </Box>
+                                </div>
                             </Paper>
                         ))}
-                    </Box>
+                    </div>
                 )}
             </Paper>
 
             {/* Add New Device */}
-            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
+            <Paper className="shadow-md">
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     ➕ Anslut ny enhet
                 </Typography>
@@ -329,15 +296,9 @@ const HealthIntegration: React.FC = () => {
                     <Grid item xs={6} md={3}>
                         <Button
                             fullWidth
-                            variant="outlined"
+                            variant="outline"
                             onClick={() => handleConnectDevice('fitbit')}
                             disabled={connectingDevice === 'fitbit'}
-                            sx={{ 
-                                py: 3, 
-                                flexDirection: 'column', 
-                                gap: spacing.sm,
-                                height: '100%'
-                            }}
                         >
                             <Typography variant="h3">
                                 {connectingDevice === 'fitbit' ? '⏳' : '⌚'}
@@ -348,15 +309,9 @@ const HealthIntegration: React.FC = () => {
                     <Grid item xs={6} md={3}>
                         <Button
                             fullWidth
-                            variant="outlined"
+                            variant="outline"
                             onClick={() => handleConnectDevice('apple_health')}
                             disabled={connectingDevice === 'apple_health'}
-                            sx={{ 
-                                py: 3, 
-                                flexDirection: 'column', 
-                                gap: spacing.sm,
-                                height: '100%'
-                            }}
                         >
                             <Typography variant="h3">
                                 {connectingDevice === 'apple_health' ? '⏳' : '🍎'}
@@ -367,15 +322,9 @@ const HealthIntegration: React.FC = () => {
                     <Grid item xs={6} md={3}>
                         <Button
                             fullWidth
-                            variant="outlined"
+                            variant="outline"
                             onClick={() => handleConnectDevice('google_fit')}
                             disabled={connectingDevice === 'google_fit'}
-                            sx={{ 
-                                py: 3, 
-                                flexDirection: 'column', 
-                                gap: spacing.sm,
-                                height: '100%'
-                            }}
                         >
                             <Typography variant="h3">
                                 {connectingDevice === 'google_fit' ? '⏳' : '🏃'}
@@ -386,15 +335,9 @@ const HealthIntegration: React.FC = () => {
                     <Grid item xs={6} md={3}>
                         <Button
                             fullWidth
-                            variant="outlined"
+                            variant="outline"
                             onClick={() => handleConnectDevice('samsung_health')}
                             disabled={connectingDevice === 'samsung_health'}
-                            sx={{ 
-                                py: 3, 
-                                flexDirection: 'column', 
-                                gap: spacing.sm,
-                                height: '100%'
-                            }}
                         >
                             <Typography variant="h3">
                                 {connectingDevice === 'samsung_health' ? '⏳' : '📱'}
@@ -406,56 +349,53 @@ const HealthIntegration: React.FC = () => {
             </Paper>
 
             {/* FHIR Integration */}
-            <Paper elevation={2} sx={{ p: spacing.lg, mb: spacing.lg }}>
+            <Paper className="shadow-md">
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
                     🏥 FHIR Integration
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: spacing.md }}>
+                <Typography variant="body1" color="text.secondary">
                     Anslut till sjukvårdssystem som stödjer FHIR-standarden för säker delning av hälsodata
                 </Typography>
-                <Box sx={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
+                <div>
                     <Button
-                        variant="contained"
+                        variant="primary"
                         color="success"
-                        startIcon={<HospitalIcon />}
+                        startIcon={<BuildingOfficeIcon className="w-5 h-5" />}
                         onClick={async () => {
                             try {
                                 const patient = await healthIntegrationService.getFHIRPatient();
                                 alert('✅ FHIR Patient Data:\n' + JSON.stringify(patient, null, 2));
-                            } catch (err: any) {
-                                alert('❌ ' + err.message);
+                            } catch (err: unknown) {
+                                const errorMessage = err instanceof Error ? err.message : 'Failed to fetch FHIR patient';
+                                alert('❌ ' + errorMessage);
                             }
                         }}
                     >
                         🔐 Visa patientdata
                     </Button>
                     <Button
-                        variant="contained"
+                        variant="primary"
                         color="primary"
-                        startIcon={<DataIcon />}
+                        startIcon={<ChartBarIcon className="w-5 h-5" />}
                         onClick={async () => {
                             try {
                                 const observations = await healthIntegrationService.getFHIRObservations();
                                 alert('✅ FHIR Observations:\n' + JSON.stringify(observations, null, 2));
-                            } catch (err: any) {
-                                alert('❌ ' + err.message);
+                            } catch (err: unknown) {
+                                const errorMessage = err instanceof Error ? err.message : 'Failed to fetch FHIR observations';
+                                alert('❌ ' + errorMessage);
                             }
                         }}
                     >
                         📊 Visa observationer
                     </Button>
-                </Box>
+                </div>
             </Paper>
 
             {/* Crisis Referral */}
             <Alert 
                 severity="warning" 
-                icon={<SOSIcon />}
-                sx={{ 
-                    bgcolor: 'warning.light',
-                    border: 1,
-                    borderColor: 'warning.main'
-                }}
+                icon={<ExclamationTriangleIcon />}
             >
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                     🆘 Krishantering
@@ -463,7 +403,7 @@ const HealthIntegration: React.FC = () => {
                 <Typography variant="body1" gutterBottom>
                     Om du upplever en kris, kontakta omedelbart:
                 </Typography>
-                <Box sx={{ mt: spacing.sm }}>
+                <div>
                     <Typography variant="body2" fontWeight="bold" gutterBottom>
                         📞 <strong>112</strong> - Akut nödläge
                     </Typography>
@@ -473,10 +413,12 @@ const HealthIntegration: React.FC = () => {
                     <Typography variant="body2" fontWeight="bold">
                         📞 <strong>Mind</strong> - Självmordslinjen 90101
                     </Typography>
-                </Box>
+                </div>
             </Alert>
         </Container>
     );
 };
 
 export default HealthIntegration;
+
+

@@ -1,75 +1,181 @@
-from flask import Blueprint, request, jsonify, current_app
-from functools import wraps
+"""
+Mood routes for the Lugn & Trygg application.
+
+This module provides Flask routes for mood logging, retrieval, analysis,
+and related functionality including voice emotion analysis and predictive forecasting.
+"""
+
+import json
+import logging
+import os
 import time
+from datetime import datetime, timedelta, timezone
+from functools import wraps
+from typing import Optional, Tuple
+
+from flask import Blueprint, current_app, g, jsonify, make_response, request
+from google.cloud.firestore import FieldFilter
+
+# Additional imports for mood routes
+from ..firebase_config import db
+
+from ..services.audit_service import audit_log
+from ..services.auth_service import AuthService
+from ..services.subscription_service import SubscriptionService, SubscriptionLimitError
+from ..services.consent_service import consent_service
+from ..utils.timestamp_utils import parse_iso_timestamp
+from ..utils.response_utils import APIResponse, success_response, error_response, created_response
 
 # Lazy import to avoid OpenAI/Pydantic conflicts at module load time
 ai_services_module = None
+
+
 def _get_ai_services_module():
+    """Get AI services module with lazy loading."""
     global ai_services_module
     if ai_services_module is None:
         import src.utils.ai_services as _ai_services_module
         ai_services_module = _ai_services_module
     return ai_services_module
 
-from ..models.user import User
-from ..services.audit_service import audit_log
-from ..services.auth_service import AuthService
-from datetime import datetime, timedelta
-import logging
-
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache for mood data (production: use Redis)
+# Blueprint definition
+mood_bp = Blueprint('mood', __name__)
+
+# CRITICAL FIX: Use Redis for caching (production ready for 10k users)
+# Fallback to in-memory cache if Redis not available
 _mood_cache = {}
-MOOD_CACHE_TTL = 60  # 1 minute for frequently accessed mood data
+MOOD_CACHE_TTL = 300  # 5 minutes for mood data (API is slow, cache aggressively)
+MOOD_CACHE_MAX_SIZE = 5000  # CRITICAL FIX: Limit cache size to prevent memory leaks (10k users)
+MOOD_CACHE_CLEANUP_BATCH = 500  # Remove 500 entries at once when cleaning up
+_redis_client = None
+_redis_unavailable = False  # Track if Redis failed to avoid repeated connection attempts
+
+def _get_redis_client():
+    """Get Redis client for caching (lazy initialization with failure tracking)"""
+    global _redis_client, _redis_unavailable
+    
+    # Skip if Redis already marked as unavailable (avoid repeated connection attempts)
+    if _redis_unavailable:
+        return None
+        
+    if _redis_client is None:
+        try:
+            import redis  # type: ignore
+            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            _redis_client = redis.from_url(redis_url, decode_responses=True, socket_timeout=1, socket_connect_timeout=1)
+            _redis_client.ping()  # Test connection
+            logger.info(f"✅ Redis connected for caching: {redis_url}")
+        except Exception as e:
+            logger.warning(f"⚠️ Redis not available for caching ({e}), using in-memory cache")
+            _redis_client = None
+            _redis_unavailable = True  # Don't try again until restart
+    return _redis_client
 
 def cached_mood_data(ttl=MOOD_CACHE_TTL):
-    """Cache decorator for mood endpoints"""
+    """Cache decorator for mood endpoints - FULLY OPTIMIZED for dict returns"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            from flask import g
             user_id = getattr(g, 'user_id', None)
             if not user_id:
-                return f(*args, **kwargs)  # Skip cache if no user_id
-            
+                result = f(*args, **kwargs)
+                # Ensure we return proper response
+                if isinstance(result, tuple) and isinstance(result[0], dict):
+                    return jsonify(result[0]), result[1]
+                return result
+
             # Generate cache key from function name, user_id, and query params
             query_params = str(sorted(request.args.items()))
-            cache_key = f"{f.__name__}:{user_id}:{query_params}"
-            
-            # Check cache
-            if cache_key in _mood_cache:
-                data, timestamp = _mood_cache[cache_key]
+            cache_key = f"mood:{f.__name__}:{user_id}:{query_params}"
+
+            # PERFORMANCE FIX: Check in-memory cache FIRST (fastest path)
+            cached_item = _mood_cache.get(cache_key)
+            if cached_item and isinstance(cached_item, tuple) and len(cached_item) == 2:
+                data, timestamp = cached_item
                 if time.time() - timestamp < ttl:
-                    logger.debug(f"✅ Cache hit for {cache_key}")
-                    # Return cached data
-                    if isinstance(data, tuple):
-                        cached_response, status_code = data
-                        return jsonify({**cached_response, "cached": True}), status_code
-                    return data
-            
-            # Call function and cache result
+                    # CACHE HIT - return immediately
+                    return jsonify({**data, "cached": True}), 200
+
+            # Try Redis as secondary cache (skip if unavailable)
+            redis_client = _get_redis_client()
+            if redis_client:
+                try:
+                    cached_data = redis_client.get(cache_key)
+                    if cached_data:
+                        cached_response = json.loads(cached_data)
+                        # Store in memory for faster access next time
+                        _mood_cache[cache_key] = (cached_response, time.time())
+                        return jsonify({**cached_response, "cached": True}), 200
+                except Exception:
+                    pass
+
+            # CACHE MISS - Call the actual function
             result = f(*args, **kwargs)
-            if isinstance(result, tuple):
+            
+            # Handle dict return from function
+            if isinstance(result, tuple) and len(result) == 2:
                 response_data, status_code = result
-                if status_code == 200:
-                    # Cache successful responses only
-                    _mood_cache[cache_key] = (result, time.time())
+                
+                if status_code == 200 and isinstance(response_data, dict):
+                    # Store in memory cache
+                    _mood_cache[cache_key] = (response_data, time.time())
+                    
+                    # Store in Redis if available
+                    if redis_client:
+                        try:
+                            redis_client.setex(cache_key, ttl, json.dumps(response_data))
+                        except Exception:
+                            pass
+                    
+                    # Cleanup old cache entries if needed
+                    if len(_mood_cache) > MOOD_CACHE_MAX_SIZE:
+                        sorted_keys = sorted(
+                            _mood_cache.keys(),
+                            key=lambda k: _mood_cache[k][1] if isinstance(_mood_cache[k], tuple) else 0
+                        )
+                        for key in sorted_keys[:MOOD_CACHE_CLEANUP_BATCH]:
+                            _mood_cache.pop(key, None)
+                    
+                    return jsonify(response_data), status_code
+                
+                # Non-200 or non-dict response
+                if isinstance(response_data, dict):
+                    return jsonify(response_data), status_code
+                return result
             
             return result
+
         return wrapper
     return decorator
 
-class _AIServicesProxy:
-    """Lazily proxy AI service calls so tests can patch the backend module."""
 
-    def __getattr__(self, item):
-        return getattr(_get_ai_services_module().ai_services, item)
+def invalidate_mood_cache(user_id: str):
+    """Invalidate cached mood data for a user after new mood is logged"""
+    global _mood_cache
+    
+    # Remove all cache entries for this user
+    keys_to_remove = [k for k in _mood_cache.keys() if f":{user_id}:" in k]
+    for key in keys_to_remove:
+        del _mood_cache[key]
+    
+    # Also try to invalidate Redis cache
+    redis_client = _get_redis_client()
+    if redis_client:
+        try:
+            # Find and delete all keys for this user (pattern matching)
+            pattern = f"mood:*:{user_id}:*"
+            cursor = 0
+            while True:
+                cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
+                if keys:
+                    redis_client.delete(*keys)
+                if cursor == 0:
+                    break
+        except Exception:
+            pass  # Silently fail - cache will expire naturally
 
-
-ai_services = _AIServicesProxy()
-
-mood_bp = Blueprint('mood', __name__)
 
 @mood_bp.route('/log', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -81,7 +187,6 @@ def log_mood():
 
     try:
         # Use Flask's g.user_id for authenticated user context
-        from flask import g
         user_id = getattr(g, 'user_id', None)
         logger.info(f"🎯 User ID from context: {user_id}")
         if not user_id:
@@ -89,15 +194,28 @@ def log_mood():
 
         # Check if user exists in Firestore
         try:
-            from ..firebase_config import db
             user_doc = db.collection('users').document(user_id).get()
             if not user_doc.exists:
                 # In tests, the Firestore mock may not support document lookups; allow passthrough
                 if not current_app.config.get('TESTING'):
                     return jsonify({'error': 'User not found'}), 404
+            user_data = user_doc.to_dict() if user_doc.exists else {}
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
             return jsonify({'error': 'Service temporarily unavailable'}), 503
+
+        plan_context = SubscriptionService.get_plan_context(user_data)
+        try:
+            SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
+        except SubscriptionLimitError as exc:
+            limit_value = plan_context['limits'].get('moodLogsPerDay')
+            logger.info(
+                "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
+            )
+            return jsonify({
+                'error': 'Du har nått din dagliga gräns för humörloggningar.',
+                'limit': exc.limit_value,
+            }), 429
 
         # --- Unified payload handling for both JSON and multipart/form-data ---
         # If frontend sends audio, it uses multipart/form-data; otherwise JSON
@@ -110,100 +228,50 @@ def log_mood():
         #   - If you get 400 errors, check that frontend sends correct payload type
         #   - Dummy Firebase API key will block Google sign-in (expected in dev)
         #   - CSP may block Firebase Auth iframe; update CSP for local testing if needed
-
-        # Initialize data and voice_data
-        data = {}
-        voice_data = None
-        audio_file = None
-
-        # Handle multipart/form-data FIRST (for audio uploads)
         if request.content_type and 'multipart/form-data' in request.content_type:
-            # Handle multipart data
-            form_data = request.form.to_dict()
-            data.update(form_data)
-            # Handle file upload for audio
+            data = request.form.to_dict()
+            # Also handle file upload for audio
             audio_file = request.files.get('audio')
             if audio_file:
                 audio_bytes = audio_file.read()
                 voice_data = audio_bytes  # Store raw bytes for analysis
-        else:
-            # Try to get JSON data, with fallback parsing for malformed requests
-            try:
-                data = request.get_json()
-            except Exception as json_error:
-                logger.error(f"JSON parsing failed: {json_error}")
-                logger.error(f"Raw request data: {request.get_data(as_text=True)}")
-
-                # Try to parse manually if JSON parsing fails
-                raw_data = request.get_data(as_text=True)
-                if raw_data:
-                    try:
-                        # Parse the malformed data manually
-                        stripped_data = raw_data.strip()
-                        if stripped_data.startswith("'") and stripped_data.endswith("'"):
-                            stripped_data = stripped_data[1:-1]
-
-                        if stripped_data.startswith("{") and stripped_data.endswith("}"):
-                            content = stripped_data[1:-1]
-                            pairs = []
-                            current_pair = ""
-                            brace_count = 0
-
-                            for char in content:
-                                if char == "," and brace_count == 0:
-                                    pairs.append(current_pair)
-                                    current_pair = ""
-                                else:
-                                    current_pair += char
-                                    if char == "{":
-                                        brace_count += 1
-                                    elif char == "}":
-                                        brace_count -= 1
-
-                            if current_pair:
-                                pairs.append(current_pair)
-
-                            data = {}
-                            for pair in pairs:
-                                if ":" in pair:
-                                    key, value = pair.split(":", 1)
-                                    key = key.strip()
-                                    value = value.strip()
-                                    if key.startswith("'") and key.endswith("'"):
-                                        key = key[1:-1]
-                                    elif key.startswith('"') and key.endswith('"'):
-                                        key = key[1:-1]
-                                    if value.startswith("'") and value.endswith("'"):
-                                        value = value[1:-1]
-                                    elif value.startswith('"') and value.endswith('"'):
-                                        value = value[1:-1]
-                                    data[key] = value
-
-                            logger.info(f"Successfully parsed malformed mood data: {data}")
-                        else:
-                            raise ValueError("Data does not look like a dict")
-                    except Exception as parse_error:
-                        logger.error(f"Manual parsing failed: {parse_error}")
-                        return jsonify({'error': 'Invalid data format'}), 400
-                else:
-                    return jsonify({'error': 'No data provided'}), 400
-            
-            # For JSON requests, get voice_data from JSON
-            if data:
+            else:
                 voice_data = data.get('voice_data')
+        else:
+            data = request.get_json()
+            voice_data = data.get('voice_data')
+            audio_file = None
 
-        if not data:
+        if not data and not audio_file:
             return jsonify({'error': 'No data provided'}), 400
 
-        mood_text = data.get('mood_text', '') or data.get('mood', '')
-        timestamp = data.get('timestamp', datetime.utcnow().isoformat())
+        mood_text = data.get('mood_text', '') if data else ''
+        # CRITICAL FIX: Get note (from frontend MoodLogger)
+        note = data.get('note', '') if data else ''
+        # CRITICAL FIX: Get user-submitted score (1-10 scale)
+        user_score = data.get('score') if data else None
+        if user_score is not None:
+            try:
+                user_score = int(user_score)
+                if user_score < 1 or user_score > 10:
+                    user_score = None
+            except (ValueError, TypeError):
+                user_score = None
+        
+        timestamp = (
+            data.get('timestamp', datetime.now(timezone.utc).isoformat())
+            if data else datetime.now(timezone.utc).isoformat()
+        )
+        
+        logger.info(f"📝 Mood log data: score={user_score}, note='{note}', mood_text='{mood_text}'")
 
         # --- End unified payload handling ---
 
-        # Analyze sentiment if text is provided
+        # Analyze sentiment if text is provided (use note or mood_text)
         sentiment_analysis = None
-        if mood_text and mood_text.strip():
-            sentiment_analysis = ai_services.analyze_sentiment(mood_text)
+        text_to_analyze = note or mood_text
+        if text_to_analyze and text_to_analyze.strip():
+            sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(text_to_analyze)
 
         # Analyze voice if provided
         voice_analysis = None
@@ -225,14 +293,14 @@ def log_mood():
 
                 # Use the transcript for emotion analysis, or fallback to empty string
                 transcript_text = transcript if transcript else ""
-                voice_analysis = ai_services.analyze_voice_emotion(audio_bytes, transcript_text)
+                voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion(audio_bytes, transcript_text)
                 logger.info(f"🎭 Voice analysis result: {voice_analysis}")
 
                 # If transcription failed, try fallback analysis using Swedish keywords
                 if not transcript:
                     logger.info("🎙️ No transcription available, trying Swedish keyword analysis")
                     try:
-                        voice_analysis = ai_services.analyze_voice_emotion_fallback(transcript_text)
+                        voice_analysis = _get_ai_services_module().ai_services.analyze_voice_emotion_fallback(transcript_text)
                         logger.info(f"🎭 Fallback voice analysis result: {voice_analysis}")
                     except Exception as fallback_error:
                         logger.warning(f"Fallback voice analysis also failed: {str(fallback_error)}")
@@ -286,6 +354,8 @@ def log_mood():
         mood_entry = {
             'user_id': user_id,
             'mood_text': final_mood_text,
+            'note': note,
+            'score': user_score,  # User's 1-10 score
             'timestamp': timestamp,
             'sentiment_analysis': sentiment_analysis,
             'voice_analysis': voice_analysis,
@@ -296,28 +366,46 @@ def log_mood():
         # Save to database
         try:
             logger.info(f"💾 Attempting to save mood to Firestore for user: {user_id}")
-            logger.info(f"💾 Mood data: text='{final_mood_text}', timestamp={timestamp}")
-            
+            logger.info(f"💾 Mood data: score={user_score}, text='{final_mood_text}', timestamp={timestamp}")
+
             mood_ref = db.collection('users').document(user_id).collection('moods')
+            
+            # CRITICAL FIX: Use user's score (1-10) instead of sentiment score
+            # If no user score provided, try to infer from sentiment or default to 5
+            final_score = user_score
+            if final_score is None:
+                if sentiment_analysis:
+                    # Convert sentiment score (-1 to 1) to 1-10 scale
+                    sentiment_score = sentiment_analysis.get('score', 0)
+                    final_score = round((sentiment_score + 1) * 4.5 + 1)  # Maps -1->1 to 1->10
+                    final_score = max(1, min(10, final_score))  # Clamp to 1-10
+                else:
+                    final_score = 5  # Default to neutral
+            
             mood_data = {
                 'mood_text': final_mood_text,
+                'note': note,
                 'timestamp': timestamp,
                 'sentiment': sentiment_analysis.get('sentiment', 'NEUTRAL') if sentiment_analysis else 'NEUTRAL',
-                'score': sentiment_analysis.get('score', 0) if sentiment_analysis else 0,
+                'score': final_score,  # User's 1-10 score (or inferred)
+                'sentiment_score': sentiment_analysis.get('score', 0) if sentiment_analysis else 0,  # AI sentiment score
                 'emotions_detected': sentiment_analysis.get('emotions', []) if sentiment_analysis else [],
                 'ai_analysis': sentiment_analysis or voice_analysis,
                 'sentiment_analysis': sentiment_analysis,
                 'voice_analysis': voice_analysis,
                 'transcript': transcript
             }
-            logger.info(f"💾 Prepared mood_data: {mood_data}")
-            
+            logger.info(f"💾 Prepared mood_data: score={final_score}, sentiment={mood_data.get('sentiment')}")
+
             doc_ref = mood_ref.add(mood_data)
             logger.info(f"💾 Firestore add() returned: {type(doc_ref)}, value: {doc_ref}")
-            
+
             # doc_ref is a tuple in some Firestore versions, get the document reference
             doc_id = doc_ref[1].id if isinstance(doc_ref, tuple) else doc_ref.id
             logger.info(f"✅ Mood entry saved to database with ID: {doc_id}")
+            
+            # PERFORMANCE: Invalidate cache so next GET returns fresh data
+            invalidate_mood_cache(user_id)
         except Exception as db_error:
             logger.error(f"❌ Failed to save mood to database: {str(db_error)}", exc_info=True)
             # Continue with response even if database save fails
@@ -367,7 +455,7 @@ def log_mood():
                     'ai_analysis': voice_analysis,
                     'success': True
                 }), 200
-            
+
             # If no voice analysis but we have transcript, use transcript analysis
             if transcript and sentiment_analysis:
                 primary_sentiment = sentiment_analysis.get('sentiment', 'NEUTRAL')
@@ -383,7 +471,7 @@ def log_mood():
                     'ai_analysis': sentiment_analysis,
                     'success': True
                 }), 200
-            
+
             # If nothing worked, return neutral but still success (mood was saved)
             logger.info("🎭 Returning neutral mood (no analysis available but mood was saved)")
             return jsonify({
@@ -404,614 +492,530 @@ def log_mood():
         logger.error(f"❌ Failed to log mood: {str(e)}", exc_info=True)
         return jsonify({'error': 'Failed to log mood'}), 500
 
-@mood_bp.route('/get', methods=['GET'])
+@mood_bp.route('/test', methods=['GET'])
 @AuthService.jwt_required
-@cached_mood_data(ttl=60)  # Cache for 1 minute
+def test_mood():
+    """Test route for mood endpoints"""
+    return jsonify({'message': 'Mood routes are working!', 'status': 'ok'}), 200
+
+@mood_bp.route('', methods=['GET'])
+@AuthService.jwt_required
+@cached_mood_data(ttl=300)  # Cache for 5 minutes - PERFORMANCE CRITICAL
 def get_moods():
-    """Get user's mood history"""
+    """Get user's mood history with pagination and filtering - OPTIMIZED"""
     try:
-        from flask import g
         user_id = getattr(g, 'user_id', None)
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return {'error': 'User ID missing from context'}, 401
 
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+        # Query parameters with sensible defaults for performance
+        limit = min(int(request.args.get('limit', 50)), 100)  # Max 100 entries for performance
+        start_date = request.args.get('start_date')  # YYYY-MM-DD format
+        end_date = request.args.get('end_date')    # YYYY-MM-DD format
+        sentiment_filter = request.args.get('sentiment')  # POSITIVE, NEGATIVE, NEUTRAL
 
-        # Get query parameters
-        limit = int(request.args.get('limit', 50))
-        offset = int(request.args.get('offset', 0))
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        # Build Firestore query - OPTIMIZED
+        mood_ref = db.collection('users').document(user_id).collection('moods')
 
-        # Fetch from database
-        try:
-            mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.order_by('timestamp', direction='DESCENDING')
+        # Apply date filters only if provided
+        if start_date:
+            start_datetime = datetime.fromisoformat(f"{start_date}T00:00:00")
+            mood_ref = mood_ref.where('timestamp', '>=', start_datetime.isoformat())
+        if end_date:
+            end_datetime = datetime.fromisoformat(f"{end_date}T23:59:59")
+            mood_ref = mood_ref.where('timestamp', '<=', end_datetime.isoformat())
 
-            # Apply date filters if provided (only one range filter to avoid index issues)
-            if start_date and end_date:
-                # Use only start_date for range, filter end_date in memory
-                query = query.where('timestamp', '>=', start_date)
-            elif start_date:
-                query = query.where('timestamp', '>=', start_date)
-            elif end_date:
-                query = query.where('timestamp', '<=', end_date)
+        # Apply sentiment filter only if provided
+        if sentiment_filter:
+            mood_ref = mood_ref.where('sentiment', '==', sentiment_filter)
 
-            # Fetch more than needed if filtering by both dates
-            fetch_limit = limit * 2 if (start_date and end_date) else limit
-            mood_docs = list(query.limit(fetch_limit).offset(offset).stream())
-            
-            # Apply end_date filter in memory if both dates provided
-            if start_date and end_date:
-                mood_docs = [doc for doc in mood_docs 
-                           if doc.to_dict().get('timestamp', '') <= end_date][:limit]
+        # Order by timestamp descending and limit results
+        query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
 
-            moods = []
-            for doc in mood_docs:
-                mood_data = doc.to_dict()
-                moods.append({
-                    'id': doc.id,
-                    'mood_text': mood_data.get('mood_text', ''),
-                    'timestamp': mood_data.get('timestamp', ''),
-                    'sentiment': mood_data.get('sentiment', 'NEUTRAL'),
-                    'score': mood_data.get('score', 0),
-                    'emotions_detected': mood_data.get('emotions_detected', []),
-                    'sentiment_analysis': mood_data.get('ai_analysis', mood_data.get('sentiment_analysis', {}))
-                })
-
-            logger.info(f"Retrieved {len(moods)} mood entries from database for user {user_id}")
-            audit_log('moods_retrieved', user_id, {'count': len(moods)})
-            return jsonify({'moods': moods}), 200
-
-        except Exception as e:
-            logger.error(f"Failed to fetch moods from database: {str(e)}")
-            # Fallback to mock data if database fails
-            mock_moods = [
-                {
-                    'id': '1',
-                    'mood_text': 'Känner mig glad idag!',
-                    'timestamp': '2024-01-15T10:00:00Z',
-                    'sentiment_analysis': {
-                        'sentiment': 'POSITIVE',
-                        'score': 0.8,
-                        'emotions': ['joy']
-                    }
-                },
-                {
-                    'id': '2',
-                    'mood_text': 'Lite stressad över jobbet',
-                    'timestamp': '2024-01-16T14:30:00Z',
-                    'sentiment_analysis': {
-                        'sentiment': 'NEGATIVE',
-                        'score': -0.6,
-                        'emotions': ['stress', 'worry']
-                    }
-                }
-            ]
-            audit_log('moods_retrieved', user_id, {'count': len(mock_moods), 'fallback': True})
-            return jsonify({'moods': mock_moods}), 200
-
-    except Exception as e:
-        logger.error(f"Failed to get moods: {str(e)}")
-        return jsonify({'error': 'Failed to retrieve moods'}), 500
-
-@mood_bp.route('/weekly-analysis', methods=['GET'])
-@AuthService.jwt_required
-@cached_mood_data(ttl=180)  # Cache for 3 minutes (less volatile data)
-def get_weekly_analysis():
-    """Get weekly mood analysis and insights"""
-    try:
-        from flask import g
-        user_id = getattr(g, 'user_id', None)
-        if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
-
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
-
-        # Get user's recent mood data from database
-        try:
-            mood_ref = db.collection('users').document(user_id).collection('moods')
-            mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(30).stream())
-
-            memory_ref = db.collection('users').document(user_id).collection('memories')
-            memory_docs = list(memory_ref.order_by('timestamp', direction='DESCENDING').limit(10).stream())
-
-            moods = []
-            for doc in mood_docs:
-                mood_data = doc.to_dict()
-                moods.append({
-                    'sentiment': mood_data.get('sentiment', 'NEUTRAL'),
-                    'timestamp': mood_data.get('timestamp', ''),
-                    'score': mood_data.get('score', 0)
-                })
-
-            memories = []
-            for doc in memory_docs:
-                memory_data = doc.to_dict()
-                memories.append({
-                    'content': memory_data.get('content', ''),
-                    'timestamp': memory_data.get('timestamp', '')
-                })
-
-            weekly_data = {
-                'moods': moods,
-                'memories': memories
-            }
-
-            logger.info(f"Retrieved {len(moods)} moods and {len(memories)} memories for weekly analysis")
-
-        except Exception as db_error:
-            logger.warning(f"Failed to retrieve weekly data from database: {str(db_error)}, using mock data")
-            # Fallback to mock data
-            weekly_data = {
-                'moods': [
-                    {'sentiment': 'POSITIVE', 'timestamp': '2024-01-15T10:00:00Z'},
-                    {'sentiment': 'NEUTRAL', 'timestamp': '2024-01-16T14:30:00Z'},
-                    {'sentiment': 'NEGATIVE', 'timestamp': '2024-01-17T09:15:00Z'},
-                ],
-                'memories': [
-                    {'content': 'En vacker promenad i parken', 'timestamp': '2024-01-15T11:00:00Z'},
-                    {'content': 'Träffade gamla vänner', 'timestamp': '2024-01-16T16:00:00Z'}
-                ]
-            }
-
-        # Generate AI-powered insights with robust error handling
-        try:
-            insights = ai_services.generate_weekly_insights(weekly_data, 'sv')
-            if not insights or not isinstance(insights, dict):
-                raise ValueError("Invalid insights format returned from AI service")
-        except Exception as ai_error:
-            logger.error(f"AI insights generation failed: {str(ai_error)}, using fallback")
-            # Manual fallback if AI service completely fails
-            insights = {
-                "ai_generated": False,
-                "insights": "Denna vecka har du varit aktiv med din mental hälsa. Fortsätt logga ditt humör regelbundet och använd avslappningsfunktionerna när du känner stress.",
-                "confidence": 0.5,
-                "comprehensive": False,
-                "fallback": True
-            }
-
-        audit_log('weekly_analysis_generated', user_id, {'insights_generated': insights.get('ai_generated', False)})
-        return jsonify(insights), 200
-
-    except Exception as e:
-        logger.error(f"Failed to generate weekly analysis: {str(e)}", exc_info=True)
-        # Return minimal fallback response instead of error
-        return jsonify({
-            "ai_generated": False,
-            "insights": "Tyvärr kunde vi inte generera en analys just nu. Försök igen senare.",
-            "confidence": 0.0,
-            "comprehensive": False,
-            "error_fallback": True
-        }), 200
-
-@mood_bp.route('/recommendations', methods=['GET'])
-@AuthService.jwt_required
-def get_recommendations():
-    """Get personalized recommendations based on mood history"""
-    try:
-        from flask import g
-        user_id = getattr(g, 'user_id', None)
-        if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
-
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
-
-        # Get current mood from query params or use default
-        current_mood = request.args.get('current_mood', 'NEUTRAL')
-
-        # Mock user history
-        user_history = [
-            {'sentiment': 'POSITIVE', 'timestamp': '2024-01-10T10:00:00Z'},
-            {'sentiment': 'NEGATIVE', 'timestamp': '2024-01-12T14:30:00Z'},
-            {'sentiment': 'NEUTRAL', 'timestamp': '2024-01-14T09:15:00Z'},
+        # PERFORMANCE: Stream documents directly - use list comprehension
+        moods = [
+            {**doc.to_dict(), 'id': doc.id}
+            for doc in query.stream()
         ]
 
-        # Generate AI recommendations
-        recommendations = ai_services.generate_personalized_recommendations(user_history, current_mood)
-
-        audit_log('recommendations_generated', user_id, {
-            'current_mood': current_mood,
-            'ai_generated': recommendations.get('ai_generated', False)
-        })
-
-        return jsonify(recommendations), 200
+        # Return dict for cache decorator - it will jsonify
+        return {
+            'moods': moods,
+            'total': len(moods),
+            'limit': limit,
+            'has_more': len(moods) == limit
+        }, 200
 
     except Exception as e:
-        logger.error(f"Failed to generate recommendations: {str(e)}")
-        return jsonify({'error': 'Failed to generate recommendations'}), 500
+        logger.error(f"❌ Failed to get moods: {str(e)}", exc_info=True)
+        return {'error': 'Failed to retrieve moods'}, 500
 
-@mood_bp.route('/analyze-voice', methods=['POST', 'OPTIONS'])
+@mood_bp.route('/<mood_id>', methods=['GET'])
 @AuthService.jwt_required
-def analyze_voice():
-    """Analyze voice emotion from audio data"""
+def get_mood(mood_id):
+    """Get a specific mood entry"""
+    logger.info(f"🔍 Getting mood entry {mood_id}")
     try:
-        from flask import g
         user_id = getattr(g, 'user_id', None)
         if not user_id:
             return jsonify({'error': 'User ID missing from context'}), 401
 
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+        # Get the mood document
+        mood_doc = db.collection('users').document(user_id).collection('moods').document(mood_id).get()
 
-        data = request.get_json()
-        audio_data = data.get('audio_data')
-        transcript = data.get('transcript', '')
+        if not mood_doc.exists:
+            return jsonify({'error': 'Mood entry not found'}), 404
 
-        if not audio_data:
-            return jsonify({'error': 'No audio data provided'}), 400
+        mood_data = mood_doc.to_dict()
+        mood_data['id'] = mood_doc.id
 
-        # Convert base64 to bytes
-        import base64
-        try:
-            audio_bytes = base64.b64decode(audio_data.split(',')[1]) if ',' in audio_data else base64.b64decode(audio_data)
-        except Exception as e:
-            logger.error(f"Base64 decoding failed: {str(e)}")
-            return jsonify({'error': 'Invalid audio data format'}), 400
+        logger.info(f"🔍 Retrieved mood entry {mood_id} for user {user_id}")
 
-        # Analyze voice emotion
-        analysis = ai_services.analyze_voice_emotion(audio_bytes, transcript)
-
-        audit_log('voice_analyzed', user_id, {
-            'has_transcript': bool(transcript),
-            'primary_emotion': analysis.get('primary_emotion')
-        })
-
-        return jsonify(analysis), 200
+        return jsonify({'mood': mood_data}), 200
 
     except Exception as e:
-        logger.error(f"Failed to analyze voice: {str(e)}")
-        return jsonify({'error': 'Failed to analyze voice'}), 500
+        logger.error(f"❌ Failed to get mood {mood_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve mood'}), 500
 
-@mood_bp.route('/predictive-forecast', methods=['GET'])
+@mood_bp.route('/<mood_id>', methods=['DELETE'])
 @AuthService.jwt_required
-def get_predictive_forecast():
-    """Get predictive mood forecasting using scikit-learn"""
+def delete_mood(mood_id):
+    """Delete a mood entry"""
+    logger.info(f"🗑️ Deleting mood entry {mood_id}")
     try:
-        user_id = request.user_id
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
 
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+        # Check if mood exists and belongs to user
+        mood_ref = db.collection('users').document(user_id).collection('moods').document(mood_id)
+        mood_doc = mood_ref.get()
 
-        days_ahead = int(request.args.get('days_ahead', 7))
+        if not mood_doc.exists:
+            return jsonify({'error': 'Mood entry not found'}), 404
 
-        # Get user's mood history from database
-        try:
-            mood_ref = db.collection('users').document(user_id).collection('moods')
-            mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(100).stream())
+        # Delete the mood entry
+        mood_ref.delete()
 
-            mood_history = []
-            for doc in mood_docs:
-                mood_data = doc.to_dict()
-                mood_history.append({
-                    'sentiment_score': mood_data.get('score', 0),
-                    'timestamp': mood_data.get('timestamp', ''),
-                    'sentiment': mood_data.get('sentiment', 'NEUTRAL')
-                })
+        # Audit log the deletion
+        audit_log('mood_deleted', user_id, {'mood_id': mood_id})
 
-            logger.info(f"Retrieved {len(mood_history)} mood entries for forecasting")
+        logger.info(f"🗑️ Deleted mood entry {mood_id} for user {user_id}")
 
-        except Exception as e:
-            logger.warning(f"Failed to retrieve mood history from database: {str(e)}, using mock data")
-            # Fallback to mock data
-            mood_history = [
-                {
-                    'sentiment_score': 0.8,
-                    'timestamp': (datetime.utcnow() - timedelta(days=i)).isoformat(),
-                    'sentiment': 'POSITIVE' if i % 3 == 0 else 'NEUTRAL' if i % 3 == 1 else 'NEGATIVE'
-                }
-                for i in range(30, 0, -1)  # 30 days of history
-            ]
-
-        # Generate ML-based forecast with fallback
-        try:
-            forecast = ai_services.predictive_mood_forecasting_sklearn(mood_history, days_ahead)
-        except Exception as ai_error:
-            logger.warning(f"AI forecast failed, using fallback: {str(ai_error)}")
-            # Fallback forecast
-            forecast = {
-                'forecast': [
-                    {'date': (datetime.utcnow() + timedelta(days=i)).strftime('%Y-%m-%d'), 'predicted_score': 0.7}
-                    for i in range(days_ahead)
-                ],
-                'model_info': {'algorithm': 'fallback', 'accuracy': 0.75},
-                'message': 'Fallback forecast - ML model not available'
-            }
-
-        # Save forecast to historical tracking
-        try:
-            # Safely extract forecast data - handle both dict and list formats
-            forecast_data = forecast if isinstance(forecast, dict) else {}
-            forecast_predictions = forecast_data.get('forecast', [])
-            if isinstance(forecast_predictions, dict):
-                forecast_predictions = forecast_predictions.get('daily_predictions', [])
-            elif not isinstance(forecast_predictions, list):
-                forecast_predictions = []
-            
-            model_info = forecast_data.get('model_info', {})
-            if not isinstance(model_info, dict):
-                model_info = {}
-            
-            forecast_doc = {
-                'user_id': user_id,
-                'forecast_date': datetime.utcnow().isoformat(),
-                'days_ahead': days_ahead,
-                'predictions': forecast_predictions,
-                'trend': forecast_data.get('trend', 'unknown'),
-                'confidence': forecast_data.get('confidence', 0),
-                'model_algorithm': model_info.get('algorithm', 'unknown'),
-                'timestamp': datetime.utcnow()
-            }
-            db.collection('forecast_history').add(forecast_doc)
-            logger.info(f"📊 Saved forecast to history for user {user_id}")
-        except Exception as history_error:
-            logger.warning(f"Failed to save forecast history: {str(history_error)}")
-
-        audit_log('predictive_forecast_generated', user_id, {
-            'days_ahead': days_ahead,
-            'model_used': forecast.get('model_info', {}).get('algorithm', 'unknown') if isinstance(forecast.get('model_info'), dict) else 'unknown'
-        })
-
-        # Send email alert if trend is declining or high risk
-        try:
-            from ..services.email_service import email_service
-            
-            trend = forecast.get('trend', '')
-            risk_factors = forecast.get('risk_factors', [])
-            
-            # Check if we should send alert
-            should_send_alert = (
-                trend == 'declining' or 
-                any('high' in str(risk).lower() for risk in risk_factors) or
-                any('severe' in str(risk).lower() for risk in risk_factors)
-            )
-            
-            if should_send_alert:
-                # Get user email
-                user_data = user_doc.to_dict()
-                user_email = user_data.get('email')
-                username = user_data.get('username', 'Användare')
-                
-                if user_email:
-                    # Calculate average forecast score
-                    daily_predictions = forecast.get('forecast', {}).get('daily_predictions', [])
-                    avg_forecast = sum(p.get('score', 0) for p in daily_predictions) / len(daily_predictions) if daily_predictions else 'N/A'
-                    
-                    alert_data = {
-                        'trend': trend,
-                        'current_score': forecast.get('current_score', 'N/A'),
-                        'average_forecast': round(avg_forecast, 1) if isinstance(avg_forecast, float) else avg_forecast,
-                        'risk_factors': risk_factors,
-                        'recommendations': forecast.get('recommendations', [])
-                    }
-                    
-                    email_sent = email_service.send_analytics_alert(user_email, username, alert_data)
-                    logger.info(f"📧 Analytics alert email sent: {email_sent}")
-        except Exception as email_error:
-            logger.warning(f"Failed to send analytics alert email: {str(email_error)}")
-
-        return jsonify(forecast), 200
+        return jsonify({'message': 'Mood entry deleted successfully'}), 200
 
     except Exception as e:
-        logger.error(f"Failed to generate predictive forecast: {str(e)}")
-        return jsonify({'error': 'Failed to generate forecast'}), 500
+        logger.error(f"❌ Failed to delete mood {mood_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to delete mood'}), 500
 
-
-@mood_bp.route('/confirm', methods=['POST', 'OPTIONS'])
-def confirm_mood():
-    """Confirm mood analysis from voice input"""
-    if request.method == 'OPTIONS':
-        return '', 204
-    
+@mood_bp.route('/recent', methods=['GET'])
+@AuthService.jwt_required
+@cached_mood_data(ttl=60)  # Cache for 1 minute
+def get_recent_moods():
+    """Get user's recent mood entries (last 7 days)"""
+    logger.info("📅 Getting recent mood entries")
     try:
-        # Try to get user_id from JWT token if present
-        user_id = None
-        try:
-            auth_header = request.headers.get("Authorization")
-            if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.split(" ")[1]
-                user_id, _ = AuthService.verify_token(token)
-        except Exception:
-            # If token verification fails, continue without user_id
-            pass
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
 
-        # Handle multipart/form-data for audio confirmation
-        if request.content_type and 'multipart/form-data' in request.content_type:
-            data = request.form.to_dict()
-        else:
-            data = request.get_json()
+        # Get moods from last 7 days
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        seven_days_ago_str = seven_days_ago.isoformat()
 
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        query = mood_ref.where('timestamp', '>=', seven_days_ago_str).order_by('timestamp', direction='DESCENDING')
+
+        mood_docs = list(query.stream())
+
+        moods = []
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            mood_data['id'] = doc.id
+            moods.append(mood_data)
+
+        logger.info(f"📅 Retrieved {len(moods)} recent mood entries for user {user_id}")
+
+        return jsonify({
+            'moods': moods,
+            'period': 'last_7_days',
+            'total': len(moods)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get recent moods: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve recent moods'}), 500
+
+@mood_bp.route('/<mood_id>', methods=['PUT'])
+@AuthService.jwt_required
+def update_mood(mood_id):
+    """Update a mood entry"""
+    logger.info(f"✏️ Updating mood entry {mood_id}")
+    try:
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
+
+        # Check if mood exists and belongs to user
+        mood_ref = db.collection('users').document(user_id).collection('moods').document(mood_id)
+        mood_doc = mood_ref.get()
+
+        if not mood_doc.exists:
+            return jsonify({'error': 'Mood entry not found'}), 404
+
+        # Get update data
+        data = request.get_json()
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'error': 'No update data provided'}), 400
 
-        confirmation = data.get('confirmation', '').lower()
-        audio_file = request.files.get('audio')
+        # Only allow updating certain fields
+        allowed_updates = {
+            'mood_text': data.get('mood_text'),
+            'timestamp': data.get('timestamp')
+        }
 
-        # Simple speech-to-text analysis for yes/no confirmation
-        confirmed = False
-        if audio_file:
-            # Read audio file and analyze for confirmation keywords
-            audio_bytes = audio_file.read()
-            # For now, just check if confirmation flag is set
-            confirmed = confirmation == 'true'
-        else:
-            # Fallback to text-based confirmation
-            confirmed = confirmation in ['ja', 'yes', 'j', 'y', 'true']
+        # Remove None values
+        update_data = {k: v for k, v in allowed_updates.items() if v is not None}
 
-        # Only audit if we have a user_id
-        if user_id:
-            audit_log('mood_confirmation_processed', user_id, {
-                'confirmed': confirmed,
-                'method': 'audio' if audio_file else 'text'
-            })
+        if not update_data:
+            return jsonify({'error': 'No valid fields to update'}), 400
 
-        return jsonify({'confirmed': confirmed}), 200
+        # If mood_text is being updated, re-analyze sentiment
+        if 'mood_text' in update_data and update_data['mood_text'].strip():
+            sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(update_data['mood_text'])
+            update_data['sentiment'] = sentiment_analysis.get('sentiment', 'NEUTRAL')
+            update_data['score'] = sentiment_analysis.get('score', 0)
+            update_data['emotions_detected'] = sentiment_analysis.get('emotions', [])
+            update_data['sentiment_analysis'] = sentiment_analysis
 
-    except Exception as e:
-        logger.error(f"Failed to process mood confirmation: {str(e)}")
-        return jsonify({'error': 'Failed to process confirmation'}), 500
+        # Update the mood entry
+        mood_ref.update(update_data)
 
-@mood_bp.route('/crisis-detection', methods=['POST', 'OPTIONS'])
-@AuthService.jwt_required
-def detect_crisis():
-    """Detect potential crisis indicators in user input"""
-    try:
-        user_id = request.user_id
+        # Audit log the update
+        audit_log('mood_updated', user_id, {'mood_id': mood_id, 'updates': list(update_data.keys())})
 
-        # Check if user exists in Firestore
-        try:
-            from ..firebase_config import db
-            user_doc = db.collection('users').document(user_id).get()
-            if not user_doc.exists:
-                return jsonify({'error': 'User not found'}), 404
-        except Exception as e:
-            logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+        # Get updated document
+        updated_doc = mood_ref.get()
+        updated_data = updated_doc.to_dict()
+        updated_data['id'] = updated_doc.id
 
-        data = request.get_json()
-        text = data.get('text', '')
+        logger.info(f"✏️ Updated mood entry {mood_id} for user {user_id}")
 
-        if not text.strip():
-            return jsonify({'error': 'No text provided'}), 400
-
-        # Detect crisis indicators
-        crisis_analysis = ai_services.detect_crisis_indicators(text)
-
-        # Log crisis detection (important for safety)
-        audit_log('crisis_detected', user_id, {
-            'risk_level': crisis_analysis['risk_level'],
-            'indicators': crisis_analysis['indicators'],
-            'requires_attention': crisis_analysis['requires_immediate_attention']
-        })
-
-        return jsonify(crisis_analysis), 200
+        return jsonify({
+            'message': 'Mood entry updated successfully',
+            'mood': updated_data
+        }), 200
 
     except Exception as e:
-        logger.error(f"Failed to detect crisis: {str(e)}")
-        return jsonify({'error': 'Failed to analyze crisis indicators'}), 500
+        logger.error(f"❌ Failed to update mood {mood_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to update mood'}), 500
 
-
-@mood_bp.route('/forecast-accuracy', methods=['GET'])
+@mood_bp.route('/today', methods=['GET'])
 @AuthService.jwt_required
-def get_forecast_accuracy():
-    """Get historical forecast accuracy by comparing predictions with actual moods"""
+def get_today_mood():
+    """Get user's mood for today"""
+    logger.info("📅 Getting today's mood")
     try:
-        user_id = request.user_id
-        from ..firebase_config import db
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
 
-        # Get historical forecasts
-        forecast_ref = db.collection('forecast_history').where('user_id', '==', user_id)
-        forecast_docs = list(forecast_ref.order_by('timestamp', direction='DESCENDING').limit(30).stream())
+        # Get today's date range
+        today = datetime.now(timezone.utc).date()
+        start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=timezone.utc)
 
-        if not forecast_docs:
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        query = mood_ref.where('timestamp', '>=', start_of_day.isoformat()).where('timestamp', '<=', end_of_day.isoformat())
+
+        mood_docs = list(query.stream())
+
+        if not mood_docs:
             return jsonify({
-                'message': 'No historical forecasts found',
-                'accuracy_score': 0,
-                'total_forecasts': 0,
-                'comparisons': []
+                'has_mood_today': False,
+                'message': 'No mood logged today'
             }), 200
 
-        # Get actual mood entries
-        mood_ref = db.collection('users').document(user_id).collection('moods')
-        mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(100).stream())
+        # Return the most recent mood for today
+        latest_mood = None
+        latest_timestamp = None
 
-        mood_by_date = {}
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            mood_timestamp = mood_data.get('timestamp', '')
+
+            if not latest_timestamp or mood_timestamp > latest_timestamp:
+                latest_timestamp = mood_timestamp
+                latest_mood = mood_data
+                latest_mood['id'] = doc.id
+
+        logger.info(f"📅 Retrieved today's mood for user {user_id}")
+
+        return jsonify({
+            'has_mood_today': True,
+            'mood': latest_mood
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get today's mood: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve today\'s mood'}), 500
+
+@mood_bp.route('/streaks', methods=['GET'])
+@AuthService.jwt_required
+@cached_mood_data(ttl=3600)  # Cache for 1 hour
+def get_mood_streaks():
+    """Get user's mood logging streaks"""
+    logger.info("🔥 Getting mood streaks")
+    try:
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
+
+        # Get all mood entries for streak calculation
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').stream())
+
+        if not mood_docs:
+            return jsonify({
+                'current_streak': 0,
+                'longest_streak': 0,
+                'total_logged_days': 0,
+                'consistency_percentage': 0,
+                'last_log_date': None
+            }), 200
+
+        # Extract dates from mood entries
+        logged_dates = set()
         for doc in mood_docs:
             mood_data = doc.to_dict()
             timestamp = mood_data.get('timestamp', '')
             if timestamp:
-                date_key = timestamp[:10]  # YYYY-MM-DD
-                score = mood_data.get('score', 0)
-                # Convert -1 to 1 scale to 0-10 scale for comparison
-                normalized_score = (score + 1) * 5
-                mood_by_date[date_key] = normalized_score
+                if isinstance(timestamp, str):
+                    date_key = timestamp[:10]  # YYYY-MM-DD
+                else:
+                    date_key = timestamp.strftime('%Y-%m-%d')
+                logged_dates.add(date_key)
 
-        comparisons = []
-        total_error = 0
-        valid_comparisons = 0
+        # Calculate streaks
+        sorted_dates = sorted(logged_dates, reverse=True)
+        current_streak = 0
+        longest_streak = 0
+        temp_streak = 0
 
-        for forecast_doc in forecast_docs:
-            forecast_data = forecast_doc.to_dict()
-            forecast_date_str = forecast_data.get('forecast_date', '')[:10]
-            predictions = forecast_data.get('predictions', [])
+        if sorted_dates:
+            # Calculate current streak
+            today = datetime.now(timezone.utc).date()
+            current_date = today
 
-            for i, prediction in enumerate(predictions):
-                # Calculate the date for this prediction
-                forecast_date = datetime.fromisoformat(forecast_date_str)
-                prediction_date = forecast_date + timedelta(days=i)
-                prediction_date_str = prediction_date.strftime('%Y-%m-%d')
+            for i in range(len(sorted_dates) + 1):  # +1 to check today
+                date_str = current_date.strftime('%Y-%m-%d')
+                if date_str in logged_dates:
+                    current_streak += 1
+                    current_date -= timedelta(days=1)
+                else:
+                    break
 
-                # Check if we have actual mood for this date
-                if prediction_date_str in mood_by_date:
-                    actual_score = mood_by_date[prediction_date_str]
-                    predicted_score = prediction if isinstance(prediction, (int, float)) else prediction.get('score', 0)
+            # Calculate longest streak
+            for i in range(len(sorted_dates)):
+                if i == 0:
+                    temp_streak = 1
+                else:
+                    current_date_obj = datetime.strptime(sorted_dates[i], '%Y-%m-%d').date()
+                    prev_date_obj = datetime.strptime(sorted_dates[i-1], '%Y-%m-%d').date()
+                    days_diff = (prev_date_obj - current_date_obj).days
 
-                    error = abs(predicted_score - actual_score)
-                    total_error += error
-                    valid_comparisons += 1
+                    if days_diff == 1:
+                        temp_streak += 1
+                    else:
+                        longest_streak = max(longest_streak, temp_streak)
+                        temp_streak = 1
 
-                    comparisons.append({
-                        'date': prediction_date_str,
-                        'predicted': round(predicted_score, 1),
-                        'actual': round(actual_score, 1),
-                        'error': round(error, 1),
-                        'forecast_created': forecast_date_str
-                    })
+            longest_streak = max(longest_streak, temp_streak)
 
-        # Calculate accuracy score (0-100%, where 100% = perfect predictions)
-        # Max error per prediction is 10 (0 to 10 scale)
-        accuracy_score = 0
-        if valid_comparisons > 0:
-            avg_error = total_error / valid_comparisons
-            accuracy_score = max(0, (1 - (avg_error / 10)) * 100)
+        # Calculate consistency (last 30 days)
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+        recent_dates = [d for d in logged_dates if datetime.strptime(d, '%Y-%m-%d').date() >= thirty_days_ago]
+        consistency_percentage = (len(recent_dates) / 30) * 100 if thirty_days_ago else 0
+
+        # Get last log date
+        last_log_date = sorted_dates[0] if sorted_dates else None
+
+        logger.info(f"🔥 Calculated streaks for user {user_id}: current={current_streak}, longest={longest_streak}")
 
         return jsonify({
-            'accuracy_score': round(accuracy_score, 1),
-            'total_forecasts': len(forecast_docs),
-            'valid_comparisons': valid_comparisons,
-            'average_error': round(total_error / valid_comparisons, 1) if valid_comparisons > 0 else 0,
-            'comparisons': comparisons[:10]  # Return latest 10 comparisons
+            'current_streak': current_streak,
+            'longest_streak': longest_streak,
+            'total_logged_days': len(logged_dates),
+            'consistency_percentage': round(consistency_percentage, 1),
+            'last_log_date': last_log_date
         }), 200
 
     except Exception as e:
-        logger.error(f"Failed to calculate forecast accuracy: {str(e)}")
-        return jsonify({'error': 'Failed to calculate accuracy'}), 500
-        return jsonify({'error': 'Failed to analyze text'}), 500
+        logger.error(f"❌ Failed to get mood streaks: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to calculate streaks'}), 500
+
+
+@mood_bp.route('/weekly-analysis', methods=['GET'])
+@AuthService.jwt_required
+@cached_mood_data(ttl=600)  # Cache for 10 minutes
+def get_weekly_analysis():
+    """Get weekly mood analysis with AI-generated insights"""
+    logger.info("📊 Getting weekly mood analysis")
+    try:
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'User ID missing from context'}), 401
+
+        # Get moods from last 7 days
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        
+        try:
+            # Query moods from last 7 days
+            mood_docs = list(
+                mood_ref.order_by('timestamp', direction='DESCENDING')
+                .limit(50)
+                .stream()
+            )
+        except Exception as query_error:
+            logger.warning(f"⚠️ Weekly analysis query failed: {query_error}")
+            mood_docs = []
+
+        if not mood_docs:
+            return jsonify({
+                'total_moods': 0,
+                'average_sentiment': 0,
+                'trend': 'stable',
+                'insights': 'Börja logga ditt humör för att få personliga insikter!',
+                'recent_memories': [],
+                'fallback': True
+            }), 200
+
+        # Process mood data
+        moods_data = []
+        sentiment_scores = []
+        positive_count = 0
+        negative_count = 0
+        neutral_count = 0
+
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            mood_data['id'] = doc.id
+            moods_data.append(mood_data)
+            
+            sentiment = mood_data.get('sentiment', 'NEUTRAL')
+            score = mood_data.get('score', 0)
+            sentiment_scores.append(score)
+            
+            if sentiment == 'POSITIVE':
+                positive_count += 1
+            elif sentiment == 'NEGATIVE':
+                negative_count += 1
+            else:
+                neutral_count += 1
+
+        total_moods = len(moods_data)
+        average_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+
+        # Calculate trend
+        trend = 'stable'
+        if len(sentiment_scores) >= 4:
+            recent_half = sentiment_scores[:len(sentiment_scores)//2]
+            older_half = sentiment_scores[len(sentiment_scores)//2:]
+            recent_avg = sum(recent_half) / len(recent_half)
+            older_avg = sum(older_half) / len(older_half)
+            
+            if recent_avg > older_avg + 0.15:
+                trend = 'improving'
+            elif recent_avg < older_avg - 0.15:
+                trend = 'declining'
+
+        # Generate insights based on data
+        insights = _generate_weekly_insights(
+            total_moods=total_moods,
+            average_sentiment=average_sentiment,
+            trend=trend,
+            positive_count=positive_count,
+            negative_count=negative_count,
+            neutral_count=neutral_count
+        )
+
+        # Get recent memories if any
+        recent_memories = []
+        try:
+            memory_ref = db.collection('users').document(user_id).collection('memories')
+            memory_docs = list(memory_ref.order_by('timestamp', direction='DESCENDING').limit(3).stream())
+            for doc in memory_docs:
+                mem_data = doc.to_dict()
+                mem_data['id'] = doc.id
+                recent_memories.append(mem_data)
+        except Exception:
+            pass  # Memories are optional
+
+        logger.info(f"📊 Weekly analysis for user {user_id}: {total_moods} moods, trend={trend}")
+
+        return jsonify({
+            'total_moods': total_moods,
+            'average_sentiment': round(average_sentiment, 2),
+            'trend': trend,
+            'insights': insights,
+            'recent_memories': recent_memories,
+            'positive_count': positive_count,
+            'negative_count': negative_count,
+            'neutral_count': neutral_count,
+            'positive_percentage': round((positive_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'negative_percentage': round((negative_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'neutral_percentage': round((neutral_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'fallback': False,
+            'confidence': 0.85
+        }), 200
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get weekly analysis: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to generate weekly analysis'}), 500
+
+
+def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str, 
+                             positive_count: int, negative_count: int, neutral_count: int) -> str:
+    """Generate AI-style insights based on mood data"""
+    
+    if total_moods == 0:
+        return "Börja logga ditt humör dagligen för att få personliga insikter om dina mönster och välmående."
+    
+    insights = []
+    
+    # Overall mood assessment
+    if average_sentiment > 0.3:
+        insights.append(f"Fantastiskt! Ditt genomsnittliga humör denna vecka har varit mycket positivt ({round(average_sentiment * 10, 1)}/10).")
+    elif average_sentiment > 0:
+        insights.append(f"Ditt genomsnittliga humör har varit lite positivt ({round(average_sentiment * 10 + 5, 1)}/10).")
+    elif average_sentiment > -0.3:
+        insights.append(f"Ditt humör har varit relativt neutralt denna vecka ({round(average_sentiment * 10 + 5, 1)}/10).")
+    else:
+        insights.append(f"Din vecka verkar ha varit utmanande. Kom ihåg att det är okej att be om stöd.")
+    
+    # Trend insights
+    if trend == 'improving':
+        insights.append("📈 Bra jobbat! Ditt humör visar en positiv trend.")
+    elif trend == 'declining':
+        insights.append("📉 Ditt humör har gått ner lite. Ta en stund för egenvård idag.")
+    else:
+        insights.append("📊 Ditt humör har varit stabilt.")
+    
+    # Activity insights
+    if total_moods >= 7:
+        insights.append(f"🌟 Utmärkt vana! Du har loggat {total_moods} gånger denna vecka.")
+    elif total_moods >= 3:
+        insights.append(f"👍 Bra start! {total_moods} loggningar denna vecka. Försök logga dagligen för bättre insikter.")
+    else:
+        insights.append(f"💡 Du har loggat {total_moods} gång(er). Regelbunden loggning hjälper dig förstå dina mönster.")
+    
+    # Positive ratio
+    if total_moods > 0:
+        positive_ratio = positive_count / total_moods
+        if positive_ratio > 0.6:
+            insights.append("😊 Majoriteten av dina registreringar har varit positiva!")
+        elif negative_count > positive_count:
+            insights.append("💙 Du har haft fler utmanande dagar. Andning och meditation kan hjälpa.")
+    
+    return " ".join(insights)

@@ -4,27 +4,17 @@
  * GDPR compliant with privacy-focused data collection
  */
 
-import amplitude from 'amplitude-js';
 // Temporarily disable Sentry to fix React import issues
 // import * as Sentry from '@sentry/react';
 const Sentry = {
-  init: (_options?: any) => {},
-  setUser: (_user?: any) => {},
-  captureException: (_error?: any, _context?: any) => {},
-  captureMessage: (_message?: string, _level?: any) => {},
-  addBreadcrumb: (_breadcrumb?: any) => {},
+  init: (_options?: Record<string, unknown>) => {},
+  setUser: (_user?: { id?: string; email?: string; username?: string }) => {},
+  captureException: (_error?: Error, _context?: Record<string, unknown>) => {},
+  captureMessage: (_message?: string, _level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug') => {},
+  addBreadcrumb: (_breadcrumb?: Record<string, unknown>) => {},
 };
 
-import { initializeApp } from 'firebase/app';
-import { getAnalytics, isSupported } from 'firebase/analytics';
-
 // Types for analytics
-interface AnalyticsEvent {
-  name: string;
-  properties?: Record<string, any>;
-  timestamp?: number;
-}
-
 interface UserProperties {
   userId?: string;
   email?: string;
@@ -50,146 +40,15 @@ interface ErrorContext {
 }
 
 // Configuration
-const AMPLITUDE_API_KEY = import.meta.env.VITE_AMPLITUDE_API_KEY || '';
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 const VERCEL_ANALYTICS_ID = import.meta.env.VITE_VERCEL_ANALYTICS_ID || '';
-const ENABLE_PERFORMANCE_MONITORING = import.meta.env.VITE_ENABLE_PERFORMANCE_MONITORING !== 'false';
-const PERFORMANCE_SAMPLE_RATE = parseFloat(import.meta.env.VITE_PERFORMANCE_SAMPLE_RATE || '0.1');
 const ENABLE_WEB_VITALS = import.meta.env.VITE_ENABLE_WEB_VITALS !== 'false';
 
 // Analytics instances
-let firebaseAnalytics: any = null;
-let amplitudeInstance: any = null;
+const firebaseAnalytics: unknown = null;
+const amplitudeInstance: unknown = null;
 
 // Production optimization: disable analytics in development unless explicitly enabled
 const ENABLE_ANALYTICS = import.meta.env.PROD || import.meta.env.VITE_FORCE_ANALYTICS === 'true';
-
-// Initialize Amplitude
-const initializeAmplitude = () => {
-  // Temporarily disable Amplitude due to invalid API key (400 Bad Request)
-  console.log('📊 Amplitude Analytics disabled - API key needs configuration');
-  return;
-  
-  if (ENABLE_ANALYTICS && AMPLITUDE_API_KEY && !amplitudeInstance) {
-    amplitudeInstance = amplitude.getInstance();
-    amplitudeInstance.init(AMPLITUDE_API_KEY, undefined, {
-      includeUtm: true,
-      includeReferrer: true,
-      trackingOptions: {
-        city: false,
-        ip_address: false,
-        language: true,
-        platform: true,
-        region: false,
-        dma: false,
-      },
-      // Privacy-focused settings
-      disableCookies: false,
-      deviceIdFromUrlParam: false,
-      optOut: false,
-      serverZone: 'EU', // GDPR compliance
-    });
-
-    // Set up session tracking
-    amplitudeInstance.setSessionId(Date.now());
-  }
-};
-
-// Initialize Sentry
-const initializeSentry = () => {
-  // Temporarily disabled due to React import conflicts
-  console.log('📊 Sentry disabled - React dependency conflict');
-  return;
-  
-  if (ENABLE_ANALYTICS && SENTRY_DSN) {
-    Sentry.init({
-      dsn: SENTRY_DSN,
-      environment: import.meta.env.MODE,
-      release: import.meta.env.VITE_APP_VERSION || '1.0.0',
-      integrations: [
-        // Note: BrowserTracing and Replay may not be available in all Sentry versions
-        // Using basic integrations for compatibility
-      ],
-      // Performance monitoring - reduced in production for bundle size
-      tracesSampleRate: import.meta.env.PROD ? 0.05 : 0.1,
-      replaysSessionSampleRate: import.meta.env.PROD ? 0.005 : 0.01,
-      replaysOnErrorSampleRate: 0.5,
-
-      // Privacy and compliance
-      beforeSend: (event: any) => {
-        // Remove sensitive data
-        if (event.request?.headers) {
-          delete event.request.headers['authorization'];
-          delete event.request.headers['x-api-key'];
-        }
-        return event;
-      },
-    });
-
-    // Set user context if available
-    const user = getCurrentUser();
-    if (user) {
-      Sentry.setUser({
-        id: user.id,
-        email: user.email,
-        username: user.username,
-      });
-    }
-  }
-};
-
-// Initialize Firebase Analytics
-const initializeFirebaseAnalytics = async () => {
-  if (!ENABLE_ANALYTICS) return;
-
-  try {
-    // Temporarily disable Firebase Analytics due to 403 config errors
-    console.log('📊 Firebase Analytics disabled due to configuration issues');
-    return;
-
-    const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
-      measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-    };
-
-    // Skip if measurementId is not available (Analytics not enabled)
-    if (!firebaseConfig.measurementId) {
-      console.log('📊 Firebase Analytics skipped - no measurement ID');
-      return;
-    }
-
-    const app = initializeApp(firebaseConfig);
-    if (await isSupported()) {
-      firebaseAnalytics = getAnalytics(app);
-
-      // Set up Firebase Analytics configuration
-      if ((window as any).gtag) {
-        (window as any).gtag('config', firebaseConfig.measurementId, {
-          anonymize_ip: true,
-          allow_google_signals: false,
-          allow_ad_features: false,
-        });
-      }
-    }
-  } catch (error) {
-    console.warn('Firebase Analytics initialization failed:', error);
-  }
-};
-
-// Helper function to get current user (implement based on your auth system)
-const getCurrentUser = () => {
-  try {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
-  } catch {
-    return null;
-  }
-};
 
 // Core Analytics Service
 export const analytics = {
@@ -389,6 +248,15 @@ export const analytics = {
       analytics.track('Memory Recorded', {
         memory_type: type,
         ...context,
+      });
+    },
+
+    // CRITICAL FIX: Add error method for business error tracking
+    error: (message: string, context: Record<string, any> = {}) => {
+      const error = new Error(message);
+      analytics.error(error, {
+        ...context,
+        category: 'business',
       });
     },
 

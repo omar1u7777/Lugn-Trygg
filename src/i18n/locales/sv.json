@@ -144,10 +144,17 @@
     "yes": "Ja",
     "no": "Nej",
     "ok": "OK",
+    "status": "Status",
     "offlineTitle": "🚫 Du är offline!",
     "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
     "retry": "🔄 Försök igen",
-    "pageNotFound": "🚫 Sidan hittades inte!"
+    "pageNotFound": "🚫 Sidan hittades inte!",
+    "skipToContent": "Hoppa till huvudinnehåll",
+    "skipToNavigation": "Hoppa till navigation",
+    "skipToSearch": "Hoppa till sök",
+    "liveRegionLabel": "Liveuppdateringar",
+    "alertsLiveRegion": "Systemlarm uppdateras i realtid",
+    "alertsActiveCount": "{count} aktiva larm"
   },
   "settings": {
     "title": "Inställningar",
@@ -158,6 +165,24 @@
     "theme": "Tema",
     "darkMode": "Mörkt läge",
     "lightMode": "Ljust läge"
+  },
+  "monitoring": {
+    "title": "Systemövervakning",
+    "description": "Hälsomätare i realtid",
+    "refresh": "Uppdatera",
+    "refreshing": "Uppdaterar...",
+    "performanceBreakdown": "Prestandapoäng",
+    "alertsHeading": "Systemlarm",
+    "alertTimestamp": "Tidsstämpel",
+    "alertStatusResolved": "Åtgärdat",
+    "alertStatusActive": "Aktiv",
+    "alertResolve": "Markera som löst",
+    "alertClose": "Stäng dialog",
+    "noAlerts": "Inga aktiva larm",
+    "metricGood": "Bra status",
+    "metricWarning": "Varning",
+    "metricCritical": "Kritiskt",
+    "screenReaderWidgetLabel": "Statuskort för {metric}"
   },
   "language": {
     "swedish": "Svenska",

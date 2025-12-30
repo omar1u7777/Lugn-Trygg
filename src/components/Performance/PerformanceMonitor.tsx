@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TEMPORARY DISABLED - Uses recharts causing React hooks error
  */
 import React from 'react';

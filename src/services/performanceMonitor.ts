@@ -7,16 +7,6 @@
 import { analytics } from './analytics';
 
 // Types for performance monitoring
-interface PerformanceEntry {
-  name: string;
-  entryType: string;
-  startTime: number;
-  duration: number;
-  size?: number;
-  transferSize?: number;
-  decodedBodySize?: number;
-}
-
 interface WebVitalsMetric {
   name: string;
   value: number;
@@ -42,7 +32,6 @@ interface PerformanceBudget {
 
 // Configuration
 const ENABLE_PERFORMANCE_MONITORING = import.meta.env.VITE_ENABLE_PERFORMANCE_MONITORING !== 'false';
-const PERFORMANCE_SAMPLE_RATE = parseFloat(import.meta.env.VITE_PERFORMANCE_SAMPLE_RATE || '0.1');
 const ENABLE_CORE_WEB_VITALS = import.meta.env.VITE_ENABLE_CORE_WEB_VITALS !== 'false';
 const ENABLE_USER_TIMING = import.meta.env.VITE_ENABLE_USER_TIMING !== 'false';
 
@@ -58,10 +47,10 @@ const PERFORMANCE_BUDGETS: PerformanceBudget[] = [
 ];
 
 // Performance observer instances
-let performanceObserver: PerformanceObserver | null = null;
+const performanceObserver: PerformanceObserver | null = null;
 let navigationObserver: PerformanceObserver | null = null;
 let resourceObserver: PerformanceObserver | null = null;
-let interactionObserver: PerformanceObserver | null = null;
+const interactionObserver: PerformanceObserver | null = null;
 
 // Core Web Vitals tracking
 const trackCoreWebVitals = () => {

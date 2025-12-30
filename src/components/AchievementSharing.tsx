@@ -1,34 +1,12 @@
 /**
- * Achievement Sharing Component
+ * Achievement Sharing Component - FULLY MIGRATED TO TAILWIND
  * Share milestones and achievements with friends and community
  */
 
 import React, { useState } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  Card,
-  Typography,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Chip,
-  IconButton,
-  Switch,
-  FormControlLabel,
-  Alert,
-  Grid
-} from '@mui/material';
-
+import { Alert, Button, Card } from './ui/tailwind';
+import { ShareIcon, LinkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
-import ShareIcon from '@mui/icons-material/Share';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import LinkIcon from '@mui/icons-material/Link';
-import DownloadIcon from '@mui/icons-material/Download';
 import { trackEvent } from '../services/analytics';
 
 interface Achievement {
@@ -59,7 +37,6 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
   const [linkCopied, setLinkCopied] = useState(false);
 
   const generateShareableImage = () => {
-    // In production, this would generate a beautiful share card
     const canvas = document.createElement('canvas');
     canvas.width = 1200;
     canvas.height = 630;
@@ -100,184 +77,180 @@ export const AchievementSharing: React.FC<AchievementSharingProps> = ({
     window.open(url, '_blank', 'width=600,height=400');
     
     trackEvent('achievement_shared', {
-      userId,
-      achievementId: achievement.id,
-      platform: 'facebook',
+      method: 'facebook',
+      achievement_id: achievement.id,
+      user_id: userId,
       anonymous: shareAnonymously,
     });
   };
 
   const handleShareToTwitter = () => {
-    const text = encodeURIComponent(shareMessage);
-    const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent('https://lugn-trygg.app')}`;
+    const text = shareAnonymously
+      ? shareMessage
+      : `${shareMessage} #LugnTrygg #MentalWellness`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank', 'width=600,height=400');
     
     trackEvent('achievement_shared', {
-      userId,
-      achievementId: achievement.id,
-      platform: 'twitter',
+      method: 'twitter',
+      achievement_id: achievement.id,
       anonymous: shareAnonymously,
     });
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     const link = `https://lugn-trygg.app/achievements/${achievement.id}`;
-    navigator.clipboard.writeText(link);
-    setLinkCopied(true);
     
-    setTimeout(() => setLinkCopied(false), 3000);
-    
-    trackEvent('achievement_link_copied', {
-      userId,
-      achievementId: achievement.id,
-    });
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 3000);
+      
+      trackEvent('achievement_link_copied', {
+        achievement_id: achievement.id,
+      });
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+    }
   };
 
   const handleDownloadImage = () => {
-    const imageUrl = generateShareableImage();
+    const imageDataUrl = generateShareableImage();
     const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `lugn-trygg-achievement-${achievement.id}.png`;
+    link.download = `${achievement.title.replace(/\s+/g, '-')}-achievement.png`;
+    link.href = imageDataUrl;
     link.click();
     
     trackEvent('achievement_image_downloaded', {
-      userId,
-      achievementId: achievement.id,
+      achievement_id: achievement.id,
     });
   };
 
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <ShareIcon color="primary" />
-          {t('share.title', 'Share Achievement')}
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {/* Achievement Preview */}
-        <Card
-          sx={{
-            mb: spacing.lg,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            textAlign: 'center',
-            p: spacing.lg,
-          }}
-        >
-          <Typography variant="h1" sx={{ mb: spacing.md }}>
-            {achievement.icon}
-          </Typography>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
-            {achievement.title}
-          </Typography>
-          <Typography variant="body2">{achievement.description}</Typography>
-          <Chip
-            label={new Date(achievement.date).toLocaleDateString()}
-            size="small"
-            sx={{ mt: spacing.md, bgcolor: 'colors.overlay.medium', color: 'white' }}
-          />
-        </Card>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <ShareIcon className="w-7 h-7 text-primary" />
+              {t('achievements.share.title', 'Share Achievement')}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              aria-label={t('common.close', 'Close')}
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* Share Message */}
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label={t('share.message', 'Share Message')}
-          value={shareMessage}
-          onChange={(e) => setShareMessage(e.target.value)}
-          sx={{ mb: spacing.md }}
-        />
+          {/* Achievement Preview */}
+          <Card className="mb-6 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-700">
+            <div className="p-6 text-center">
+              <div className="text-6xl mb-4">{achievement.icon}</div>
+              <h3 className="text-2xl font-bold mb-2">{achievement.title}</h3>
+              <p className="text-base text-gray-600 dark:text-gray-300">{achievement.description}</p>
+            </div>
+          </Card>
 
-        {/* Privacy Toggle */}
-        <FormControlLabel
-          control={
-            <Switch
+          {/* Share Message */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              {t('achievements.share.message', 'Share Message')}
+            </label>
+            <textarea
+              value={shareMessage}
+              onChange={(e) => setShareMessage(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 min-h-[100px]"
+              placeholder={t('achievements.share.messagePlaceholder', 'Write your share message...')}
+            />
+          </div>
+
+          {/* Privacy Toggle */}
+          <div className="mb-6 flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <input
+              type="checkbox"
+              id="share-anonymously"
               checked={shareAnonymously}
               onChange={(e) => setShareAnonymously(e.target.checked)}
+              className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary"
             />
-          }
-          label={t('share.anonymous', 'Share anonymously (hide your name)')}
-          sx={{ mb: spacing.md }}
-        />
+            <label htmlFor="share-anonymously" className="text-sm font-medium flex-1">
+              {t('achievements.share.anonymous', 'Share anonymously (hide personal info)')}
+            </label>
+          </div>
 
-        {shareAnonymously && (
-          <Alert severity="info" sx={{ mb: spacing.md }}>
-            {t('share.anonymousInfo', 'Your personal information will not be included when sharing.')}
-          </Alert>
-        )}
+          {linkCopied && (
+            <Alert variant="success" className="mb-4">
+              {t('achievements.share.linkCopied', 'Link copied to clipboard!')}
+            </Alert>
+          )}
 
-        {/* Share Buttons */}
-        <Typography variant="subtitle2" gutterBottom>
-          {t('share.platforms', 'Share to:')}
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: spacing.md }}>
-          <Grid xs={6}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<FacebookIcon />}
-              onClick={handleShareToFacebook}
-              sx={{ justifyContent: 'flex-start' }}
-            >
-              Facebook
-            </Button>
-          </Grid>
-          <Grid xs={6}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<TwitterIcon />}
-              onClick={handleShareToTwitter}
-              sx={{ justifyContent: 'flex-start' }}
-            >
-              Twitter
-            </Button>
-          </Grid>
-          <Grid xs={6}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<LinkIcon />}
-              onClick={handleCopyLink}
-              color={linkCopied ? 'success' : 'primary'}
-              sx={{ justifyContent: 'flex-start' }}
-            >
-              {linkCopied ? t('share.copied', 'Copied!') : t('share.copyLink', 'Copy Link')}
-            </Button>
-          </Grid>
-          <Grid xs={6}>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadImage}
-              sx={{ justifyContent: 'flex-start' }}
-            >
-              {t('share.downloadImage', 'Download')}
-            </Button>
-          </Grid>
-        </Grid>
+          {/* Share Options */}
+          <div className="space-y-3 mb-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              {t('achievements.share.methods', 'Share via')}
+            </p>
 
-        <Alert severity="success">
-          {t('share.motivation', 'Sharing your progress can inspire others and strengthen your own commitment! 💪')}
-        </Alert>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{t('common.close', 'Close')}</Button>
-      </DialogActions>
-    </Dialog>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={handleShareToFacebook}
+                variant="outline"
+                className="flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">📘</span>
+                Facebook
+              </Button>
+
+              <Button
+                onClick={handleShareToTwitter}
+                variant="outline"
+                className="flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">🐦</span>
+                Twitter
+              </Button>
+
+              <Button
+                onClick={handleCopyLink}
+                variant="outline"
+                className="flex items-center justify-center gap-2"
+              >
+                <LinkIcon className="w-5 h-5" />
+                {t('achievements.share.copyLink', 'Copy Link')}
+              </Button>
+
+              <Button
+                onClick={handleDownloadImage}
+                variant="outline"
+                className="flex items-center justify-center gap-2"
+              >
+                <ArrowDownTrayIcon className="w-5 h-5" />
+                {t('achievements.share.downloadImage', 'Download Image')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end">
+            <Button onClick={onClose} variant="secondary">
+              {t('common.close', 'Close')}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 };
 
-// Main component to trigger sharing
-interface ShareAchievementButtonProps {
+// Share Button Component
+interface ShareButtonProps {
   achievement: Achievement;
   userId: string;
 }
 
-export const ShareAchievementButton: React.FC<ShareAchievementButtonProps> = ({
+export const AchievementShareButton: React.FC<ShareButtonProps> = ({
   achievement,
   userId,
 }) => {
@@ -285,9 +258,13 @@ export const ShareAchievementButton: React.FC<ShareAchievementButtonProps> = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={() => setOpen(true)} aria-label="Share achievement">
-        <ShareIcon />
-      </IconButton>
+      <button 
+        onClick={() => setOpen(true)} 
+        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+        aria-label="Share achievement"
+      >
+        <ShareIcon className="w-5 h-5" />
+      </button>
       {open && (
         <AchievementSharing
           achievement={achievement}

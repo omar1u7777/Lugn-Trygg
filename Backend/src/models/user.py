@@ -2,6 +2,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
+from ..utils.timestamp_utils import parse_iso_timestamp
+
 @dataclass
 class User:
     uid: str
@@ -30,7 +32,7 @@ class User:
         return User(
             uid=data["uid"],
             email=data["email"],
-            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(timezone.utc),
-            last_login=datetime.fromisoformat(data["last_login"]) if data.get("last_login") else None,
+            created_at=parse_iso_timestamp(data.get("created_at")),
+            last_login=parse_iso_timestamp(data.get("last_login")) if data.get("last_login") else None,
             email_verified=data.get("email_verified", False)
         )

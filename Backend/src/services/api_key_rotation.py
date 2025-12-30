@@ -10,7 +10,7 @@ import hashlib
 import hmac
 import base64
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List, Optional, Any, Callable
 from pathlib import Path
 import logging
@@ -84,7 +84,7 @@ class APIKeyRotationService:
 
     def _check_rotation_schedule(self):
         """Check which keys need rotation"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         for key_type, schedule_time in self.rotation_schedule.items():
             if now >= schedule_time:
@@ -138,8 +138,8 @@ class APIKeyRotationService:
             key_metadata = {
                 'key_type': key_type,
                 'key_value': new_key,
-                'generated_at': datetime.utcnow(),
-                'expires_at': datetime.utcnow() + timedelta(days=self.rotation_interval_days),
+                'generated_at': datetime.now(UTC),
+                'expires_at': datetime.now(UTC) + timedelta(days=self.rotation_interval_days),
                 'status': 'active',
                 'version': len(self.key_history.get(key_type, [])) + 1,
                 'hash': self._hash_key(new_key),
@@ -149,8 +149,8 @@ class APIKeyRotationService:
             if key_type in self.current_keys:
                 old_key = self.current_keys[key_type].copy()
                 old_key['status'] = 'deprecated'
-                old_key['deprecated_at'] = datetime.utcnow()
-                old_key['grace_period_until'] = datetime.utcnow() + timedelta(hours=24)
+                old_key['deprecated_at'] = datetime.now(UTC)
+                old_key['grace_period_until'] = datetime.now(UTC) + timedelta(hours=24)
 
                 # Add to history
                 if key_type not in self.key_history:
@@ -210,7 +210,7 @@ class APIKeyRotationService:
 
             # Check if deprecated key is still in grace period
             if allow_deprecated and key_data.get('grace_period_until'):
-                if datetime.utcnow() < key_data['grace_period_until']:
+                if datetime.now(UTC) < key_data['grace_period_until']:
                     logger.warning(f"Using deprecated key: {key_type}")
                     return key_data['key_value']
 
@@ -237,7 +237,7 @@ class APIKeyRotationService:
             for old_key in self.key_history[key_type]:
                 if (old_key.get('status') == 'deprecated' and
                     old_key.get('grace_period_until') and
-                    datetime.utcnow() < old_key['grace_period_until'] and
+                    datetime.now(UTC) < old_key['grace_period_until'] and
                     hmac.compare_digest(old_key['key_value'], provided_key)):
                     logger.warning(f"Accepted deprecated key: {key_type}")
                     return True
@@ -257,7 +257,7 @@ class APIKeyRotationService:
             data = {
                 'key_type': key_type,
                 'metadata': key_metadata,
-                'created_at': datetime.utcnow().isoformat(),
+                'created_at': datetime.now(UTC).isoformat(),
             }
 
             # Encrypt sensitive data (key value)
@@ -324,7 +324,7 @@ class APIKeyRotationService:
 
     def cleanup_expired_keys(self):
         """Clean up expired deprecated keys"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         cleaned_count = 0
 
         for key_type in list(self.key_history.keys()):
@@ -366,7 +366,7 @@ class APIKeyRotationService:
                 if isinstance(expiry, str):
                     expiry = datetime.fromisoformat(expiry)
                 status['current_keys'][key_type]['days_until_expiry'] = (
-                    expiry - datetime.utcnow()
+                    expiry - datetime.now(UTC)
                 ).days
 
         # Rotation schedule
@@ -374,7 +374,7 @@ class APIKeyRotationService:
             status['rotation_schedule'][key_type] = {
                 'next_rotation': next_rotation,
                 'hours_until_rotation': max(0, int((
-                    next_rotation - datetime.utcnow()
+                    next_rotation - datetime.now(UTC)
                 ).total_seconds() / 3600))
             }
 
@@ -385,7 +385,7 @@ class APIKeyRotationService:
                 'deprecated_keys': len([k for k in history if k.get('status') == 'deprecated']),
                 'active_grace_period': len([k for k in history
                                           if k.get('grace_period_until') and
-                                          datetime.utcnow() < k['grace_period_until']])
+                                          datetime.now(UTC) < k['grace_period_until']])
             }
 
         # Security metrics

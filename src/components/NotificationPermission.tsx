@@ -1,21 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Alert,
-} from '@mui/material';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { BellAlertIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import notificationsService from '../services/notifications';
 import { trackEvent, trackError } from '../services/analytics';
 
@@ -137,156 +121,142 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
     { icon: '🎯', text: 'Goal progress updates' },
   ];
 
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      onClose={() => !isLoading && handleSkip()}
-      maxWidth="sm"
-      fullWidth
-      aria-labelledby="notification-dialog-title"
-      aria-describedby="notification-dialog-description"
-      PaperProps={{
-        sx: {
-          borderRadius: borderRadius.md,
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        },
-      }}
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={() => !isLoading && handleSkip()}
     >
-      <DialogTitle
-        id="notification-dialog-title"
-        sx={{
-          textAlign: 'center',
-          paddingBottom: 0,
-        }}
+      <div 
+        className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 max-w-md w-full shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="notification-dialog-title"
+        aria-describedby="notification-dialog-description"
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }}>
-          <NotificationsActiveIcon 
-            sx={{ fontSize: '28px', color: '#667eea' }}
-            aria-hidden="true"
-          />
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {permissionState === 'granted'
-              ? 'Notifications Enabled! 🎉'
-              : 'Stay Connected with Lugn & Trygg'}
-          </Typography>
-        </Box>
-      </DialogTitle>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <BellAlertIcon className="w-8 h-8 text-primary-600 dark:text-primary-500" aria-hidden="true" />
+            <h2 id="notification-dialog-title" className="text-xl font-semibold text-gray-900 dark:text-white">
+              {permissionState === 'granted'
+                ? 'Notifications Enabled! 🎉'
+                : 'Stay Connected with Lugn & Trygg'}
+            </h2>
+          </div>
+          {!isLoading && (
+            <button
+              onClick={handleSkip}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              aria-label="Close"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          )}
+        </div>
 
-      <DialogContent sx={{ paddingTop: spacing.md }}>
-        <Typography 
-          id="notification-dialog-description"
-          variant="body2"
-          sx={{ mb: spacing.md, textAlign: 'center', color: '#666' }}
-        >
-          Get meditation reminders, mood check-ins, and personalized motivation.
-        </Typography>
-        {permissionState === 'granted' ? (
-          <Box sx={{ textAlign: 'center' }}>
-            <CheckCircleIcon 
-              sx={{ fontSize: '48px', color: 'colors.mood.glad', marginBottom: 1 }}
-              aria-hidden="true"
-            />
-            <Typography sx={{ color: '#666', marginBottom: 1 }}>
-              You'll now receive personalized notifications to support your wellness journey.
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <Typography sx={{ marginBottom: 2, color: '#666' }}>
-              Get timely reminders to help you stay on track with your meditation and wellness goals.
-            </Typography>
-
-            {error && (
-              <Alert severity="error" sx={{ marginBottom: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, marginBottom: 1, color: '#333' }}>
-              You'll receive:
-            </Typography>
-
-            <List sx={{ bgcolor: 'rgba(255,255,255,0.7)', borderRadius: 1, marginBottom: 2 }}>
-              {benefits.map((benefit, index) => (
-                <ListItem key={index} disableGutters sx={{ padding: '8px 12px' }}>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    <Typography 
-                      sx={{ fontSize: '18px' }}
-                      aria-hidden="true"
-                    >
-                      {benefit.icon}
-                    </Typography>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={benefit.text}
-                    primaryTypographyProps={{ sx: { fontSize: '14px', color: '#333' } }}
-                    id={`benefit-${index}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
-
-            {permissionState === 'denied' && (
-              <Alert severity="warning">
-                Notifications are disabled. You can enable them in your browser settings.
-              </Alert>
-            )}
-          </>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{ padding: 2, gap: spacing.sm }}>
-        {permissionState === 'granted' ? (
-          <Button
-            onClick={() => onClose(true)}
-            variant="contained"
-            fullWidth
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              fontWeight: 600,
-            }}
+        {/* Content */}
+        <div className="space-y-4">
+          <p 
+            id="notification-dialog-description"
+            className="text-gray-600 dark:text-gray-400"
           >
-            Get Started
-          </Button>
-        ) : permissionState === 'denied' ? (
-          <>
-            <Button onClick={handleSkip} fullWidth>
-              Back
-            </Button>
-            <Button
-              onClick={handleDeny}
-              fullWidth
-              variant="contained"
-              sx={{
-                background: 'colors.mood.arg',
-                color: 'white',
-              }}
+            Get meditation reminders, mood check-ins, and personalized motivation.
+          </p>
+
+          {permissionState === 'granted' ? (
+            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
+              <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-green-800 dark:text-green-300">
+                You'll now receive personalized notifications to support your wellness journey.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-gray-700 dark:text-gray-300">
+                Get timely reminders to help you stay on track with your meditation and wellness goals.
+              </p>
+
+              {error && (
+                <div className="bg-error-50 dark:bg-error-900/30 border border-error-200 dark:border-error-800 rounded-lg p-4">
+                  <p className="text-error-800 dark:text-error-300">{error}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3">
+                  You'll receive:
+                </h3>
+
+                <ul className="space-y-2">
+                  {benefits.map((benefit, index) => (
+                    <li key={index} className="flex items-center gap-3">
+                      <span className="text-2xl" aria-hidden="true">{benefit.icon}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{benefit.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {permissionState === 'denied' && (
+                <div className="bg-warning-50 dark:bg-warning-900/30 border border-warning-200 dark:border-warning-800 rounded-lg p-4">
+                  <p className="text-warning-800 dark:text-warning-300">
+                    Notifications are disabled. You can enable them in your browser settings.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          {permissionState === 'granted' ? (
+            <button
+              onClick={() => onClose(true)}
+              className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
-              Close
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button onClick={handleSkip} fullWidth disabled={isLoading}>
-              Maybe Later
-            </Button>
-            <Button
-              onClick={handleRequestPermission}
-              fullWidth
-              variant="contained"
-              disabled={isLoading}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                fontWeight: 600,
-              }}
-            >
-              {isLoading ? 'Requesting...' : 'Enable Notifications'}
-            </Button>
-          </>
-        )}
-      </DialogActions>
-    </Dialog>
+              Get Started
+            </button>
+          ) : permissionState === 'denied' ? (
+            <>
+              <button
+                onClick={handleSkip}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleDeny}
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              >
+                Close
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleSkip}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              >
+                Maybe Later
+              </button>
+              <button
+                onClick={handleRequestPermission}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              >
+                {isLoading ? 'Requesting...' : 'Enable Notifications'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default NotificationPermission;
+

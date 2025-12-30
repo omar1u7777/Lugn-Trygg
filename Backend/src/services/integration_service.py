@@ -7,6 +7,9 @@ from src.firebase_config import db
 
 logger = logging.getLogger(__name__)
 
+# Best practice: Define timeout for external API requests
+API_REQUEST_TIMEOUT = 30  # seconds
+
 class IntegrationService:
     """Service for handling external integrations: wearable data, crisis referrals, FHIR"""
 
@@ -42,7 +45,8 @@ class IntegrationService:
             response = requests.post(
                 f"{base_url}/dataset:aggregate",
                 headers=headers,
-                json=payload
+                json=payload,
+                timeout=API_REQUEST_TIMEOUT
             )
 
             if response.status_code != 200:
@@ -146,7 +150,7 @@ class IntegrationService:
                 "referrer": "lugn_trygg_app"
             }
 
-            response = requests.post(bris_api_url, headers=headers, json=payload)
+            response = requests.post(bris_api_url, headers=headers, json=payload, timeout=API_REQUEST_TIMEOUT)
 
             if response.status_code not in [200, 201]:
                 logger.error(f"BRIS API error: {response.status_code} - {response.text}")

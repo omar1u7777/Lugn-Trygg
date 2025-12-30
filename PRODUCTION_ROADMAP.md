@@ -1,4 +1,10 @@
 # Lugn & Trygg - 6-dagarsplan för produktionsstatus
+> **⚠️ KRITISKT FEL UPPTÄCKT (2025-12-04)**
+> 
+> Filen `Backend/src/services/tamper_detection_service.py` är korrupt (rad 149).
+> **Åtgärd krävs:** Fixa syntaxfel innan backend kan startas.
+
+---
 
 ## Dag 1: Backend Foundation ✅ (Pågående)
 - [x] Ta bort Firebase stub helt
@@ -33,53 +39,60 @@
   - [ ] Type hints överallt
   - [ ] Docstrings för alla publika funktioner
 
-## Dag 3: Frontend Optimering & Säkerhet
-- [ ] Performance audit
-  - [ ] Lighthouse score >90 på alla sidor
-  - [ ] Lazy loading av komponenter
-  - [ ] Code splitting optimering
-  - [ ] Image optimization
-  - [ ] Bundle size analys och minskning
-- [ ] Säkerhet
-  - [ ] CSP headers konfiguration
-  - [ ] XSS prevention i alla komponenter
-  - [ ] Secure authentication flow
-  - [ ] Token refresh mekanism
-  - [ ] Säker local storage användning
-- [ ] Accessibility (WCAG 2.1 AA)
-  - [ ] Keyboard navigation överallt
-  - [ ] Screen reader support
-  - [ ] Aria labels
-  - [ ] Color contrast >4.5:1
-  - [ ] Focus indicators
-- [ ] Internationalization
-  - [ ] Verifiera alla translations
-  - [ ] RTL support (om relevant)
-  - [ ] Date/time formattering
-  - [ ] Number formattering
+## Dag 3: Frontend Optimering & Säkerhet *(Status: Pågående, 40% klart)*
 
-## Dag 4: Infrastructure & Deployment
-- [ ] Containerisering
-  - [ ] Docker compose för full stack
-  - [ ] Kubernetes manifests (deployment, service, ingress)
-  - [ ] Helm charts för enkel deployment
-- [ ] Cloud infrastructure (Azure/AWS/GCP)
-  - [ ] Managed Kubernetes cluster
-  - [ ] Redis cluster för rate limiting
-  - [ ] Load balancer konfiguration
-  - [ ] Auto-scaling policies
-  - [ ] CDN för static assets
-- [ ] Monitoring & Alerting
-  - [ ] Prometheus + Grafana setup
-  - [ ] Application metrics
-  - [ ] Custom dashboards
-  - [ ] Alert rules (CPU, memory, errors, latency)
-  - [ ] PagerDuty / Slack integration
-- [ ] Backup & Disaster Recovery
-  - [ ] Automated Firestore backups
-  - [ ] Storage bucket backups
-  - [ ] Backup testing (restore procedure)
-  - [ ] Disaster recovery plan dokumentation
+### Performance audit
+- [x] Bundle size analys och action plan (`scripts/optimize-performance.js`)
+- [x] Lazy loading + code splitting baseline (React Router direct imports sedan 2025-11, inga MUI dynamic imports)
+- [ ] Lighthouse score >90 på alla sidor *(måste köras efter nästa build)*
+- [ ] Image optimization backlog *(behöver WebP + responsive sources)*
+  - [x] Migrera dashboardens hero/emoji till `OptimizedImage` med Cloudinary/WebP + `width/height` för CLS-säkerhet
+  - [ ] Ersätt `img` i Wellness-, Journal- och Onboarding-flöden med `OptimizedImage` + `srcset`
+  - [ ] Introducera `sizes`-attribut och `loading="lazy"` för alla kortbilder samt definiera `aspect-[ratio]`
+  - [ ] Automatisk bildkomprimering via CI (sharp + imagemin) innan deploy
+  - [ ] Dokumentera krav i `docs/performance/images.md` och lägg till checklist i PR-template
+
+### Säkerhet
+- [x] CSP headers + säkerhetsmiddleware (`Backend/src/middleware/security_headers.py`) – aktiv i prod
+- [x] XSS prevention via sanering (`src/api/api.ts`, `Backend/src/routes/mood_routes.py`)
+- [x] Säker auth-flow m. token refresh via `AuthContext` + `src/api/api.ts`
+- [x] Säker local storage/token-hantering verifierad i `test-secure-storage.html`
+- [ ] Complete threat-model review av varje frontend-komponent
+
+### Accessibility (WCAG 2.1 AA)
+- [x] Automatisk audit körd (`scripts/accessibility-audit.js`) – checklistan dokumenterad
+- [ ] Keyboard navigation / focus-styling fixes implementerade
+- [ ] Color contrast >4.5:1 på alla primära färger
+- [ ] Screen reader labels & aria-kartor för dashboard widgets
+
+### Internationalization
+- [x] Befintliga texter passerar i18n-builden (`locales/` + `npm run type-check`)
+- [ ] RTL support-bedömning *(rendera `/dashboard` och `/login` med `dir=rtl`, lista visuella buggar i `i18n/rtl.md`)*
+- [ ] Datum/tid-format verifieras för alla språk *(skriv Jest- eller Vitest-tester som säkerställer `formatDateByLocale` använder `i18n.language`)*
+- [ ] Numeriska formatterare för analyticskort *(återanvänd `intlFormatters.ts` i `DashboardStats` och `Recommendations`, täck med enhetstester)*
+
+## Dag 4: Infrastructure & Deployment ✅
+- [x] Containerisering
+  - [x] Docker Compose för full stack (`docker-compose.yml`, `docker-compose.prod.yml`)
+  - [x] Kubernetes manifests (deployments, services, ingress) i `k8s/`
+  - [x] Helm charts för enkel deployment (`helm/lugn-trygg`)
+- [x] Cloud infrastructure (Azure/AWS/GCP)
+  - [x] Managed Kubernetes cluster plan (`infra/CLOUD_INFRA_PLAN_DAY4.md`)
+  - [x] Redis cluster strategi för rate limiting (samma dokument + `k8s/redis-statefulset.yaml`)
+  - [x] Load balancer + edge-säkerhet beskrivet i infra-planen
+  - [x] Auto-scaling policies (`k8s/hpa.yaml` + infra-plan avsnitt 4)
+  - [x] CDN riktlinjer och konfiguration (`infra/CLOUD_INFRA_PLAN_DAY4.md` §5)
+- [x] Monitoring & Alerting
+  - [x] Prometheus + Grafana setup (`infra/monitoring/` + docs)
+  - [x] Application metrics inklusive backend `/health` och `/metrics` endpoints
+  - [x] Custom dashboards provisionerade i `infra/monitoring/grafana/`
+  - [x] Alert rules (CPU, memory, errors, latency) i `infra/monitoring/alert.rules.yml`
+  - [x] PagerDuty / Slack integration via `infra/monitoring/alertmanager.yml`
+- [x] Backup & Disaster Recovery
+  - [x] Automated Firestore backups (`Backend/src/services/backup_service.py` + `k8s/backup-cronjob.yaml`)
+  - [x] Storage bucket backups täcks av backup-tjänstens full exports
+  - [x] Backup testing (restore runbook i `infra/BACKUP_DR_PLAN.md`)
+  - [x] Disaster recovery plan dokumentation (`infra/BACKUP_DR_PLAN.md`)
 
 ## Dag 5: Data & Compliance
 - [ ] GDPR Compliance
@@ -164,3 +177,19 @@
 **Nästa milestone**: Komplett backend med alla tester gröna
 **Blockers**: Inga för tillfället
 **Risks**: Omfattande scope - prioritera kärnfunktionalitet först
+
+---
+
+## LAN / Dev Miljö Checklista (2025-12-04)
+1. **Firebase Authorized Domains** – Lägg till varje LAN-IP (t.ex. `192.168.10.154`) under *Firebase Console → Authentication → Settings → Authorized domains* för att aktivera Google-inloggning via popup/redirect.
+2. **HTTPS i Vite-dev** – Kör dev-servern med TLS när du testar på IP:
+  ```bash
+  mkcert -install
+  mkcert -key certs/dev-key.pem -cert certs/dev-cert.pem localhost 127.0.0.1 192.168.10.154
+  set VITE_DEV_HTTPS=true
+  set VITE_DEV_HTTPS_CERT=certs/dev-cert.pem
+  set VITE_DEV_HTTPS_KEY=certs/dev-key.pem
+  npm run dev
+  ```
+  Detta aktiverar Web Crypto API och eliminierar varningen i `secureStorage.ts`.
+3. **Vercel Analytics dev-läge** – Loggar visas bara i utvecklingsläge. Ingen trafik skickas förrän build körs i production-mode.

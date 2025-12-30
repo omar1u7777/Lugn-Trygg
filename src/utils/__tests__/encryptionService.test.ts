@@ -17,6 +17,8 @@ const localStorageMock = {
   length: 0,
 };
 
+const fetchMock = vi.fn();
+
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
@@ -24,25 +26,32 @@ Object.defineProperty(window, 'localStorage', {
 describe('Encryption Service - Privacy Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+      text: async () => '',
+      blob: async () => new Blob(['{}'], { type: 'application/json' })
+    } as Response);
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   describe('getPrivacySettings', () => {
-    it('should return default settings when no stored settings exist', () => {
+    it('should return default settings when no stored settings exist', async () => {
       localStorageMock.getItem.mockReturnValue(null);
 
-      const settings = getPrivacySettings();
+      const settings = await getPrivacySettings();
 
       expect(settings).toEqual(DEFAULT_PRIVACY_SETTINGS);
     });
 
-    it('should return merged settings when stored settings exist', () => {
+    it('should return merged settings when stored settings exist', async () => {
       const storedSettings = {
         dataRetentionDays: 180,
         shareAnonymizedData: true,
       };
       localStorageMock.getItem.mockReturnValue(JSON.stringify(storedSettings));
 
-      const settings = getPrivacySettings();
+      const settings = await getPrivacySettings();
 
       expect(settings).toEqual({
         ...DEFAULT_PRIVACY_SETTINGS,
@@ -50,17 +59,17 @@ describe('Encryption Service - Privacy Settings', () => {
       });
     });
 
-    it('should return default settings when stored settings are invalid JSON', () => {
+    it('should return default settings when stored settings are invalid JSON', async () => {
       localStorageMock.getItem.mockReturnValue('invalid json');
 
-      const settings = getPrivacySettings();
+      const settings = await getPrivacySettings();
 
       expect(settings).toEqual(DEFAULT_PRIVACY_SETTINGS);
     });
   });
 
   describe('savePrivacySettings', () => {
-    it('should save settings to localStorage', () => {
+    it('should save settings to localStorage', async () => {
       const settings = {
         dataRetentionDays: 90,
         shareAnonymizedData: false,
@@ -69,7 +78,7 @@ describe('Encryption Service - Privacy Settings', () => {
         autoDeleteOldData: false,
       };
 
-      savePrivacySettings(settings);
+      await savePrivacySettings(settings);
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'privacy_settings',

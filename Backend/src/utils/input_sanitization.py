@@ -56,7 +56,6 @@ class InputSanitizer:
             'tags': ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                     'ul', 'ol', 'li', 'blockquote', 'code', 'pre'],
             'attributes': {},
-            'styles': [],
             'strip': True,
             'strip_comments': True,
         }
@@ -196,7 +195,6 @@ class InputSanitizer:
                 html_content,
                 tags=self.bleach_config['tags'],
                 attributes=self.bleach_config['attributes'],
-                styles=self.bleach_config['styles'],
                 strip=self.bleach_config['strip'],
                 strip_comments=self.bleach_config['strip_comments']
             )
@@ -404,7 +402,23 @@ class InputSanitizer:
 input_sanitizer = InputSanitizer()
 
 # Flask middleware
-def sanitize_request(f):
+def sanitize_request():
+    """Function to automatically sanitize request data - callable from before_request"""
+    try:
+        # Sanitize request data
+        sanitized_data = input_sanitizer.sanitize_request_data()
+
+        # Store sanitized data in request context
+        g.sanitized_data = sanitized_data
+
+        # Log sanitization
+        logger.debug(f"Request data sanitized for {request.endpoint}")
+
+    except Exception as e:
+        logger.error(f"Request sanitization failed: {e}")
+        g.sanitized_data = {}
+
+def sanitize_request_decorator(f):
     """Decorator to automatically sanitize request data"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -522,11 +536,46 @@ __all__ = [
     'InputSanitizer',
     'input_sanitizer',
     'sanitize_request',
+    'sanitize_request_decorator',
     'sanitize_input',
     'validate_and_sanitize',
     'sanitize_text',
     'sanitize_html',
     'sanitize_email',
     'sanitize_url',
-    'sanitize_filename'
+    'sanitize_filename',
+    'validate_mood_input'
 ]
+
+def validate_mood_input(mood_data: Dict[str, Any]) -> bool:
+    """Validate mood input data"""
+    if not isinstance(mood_data, dict):
+        return False
+
+    # Required fields
+    required_fields = ['mood_text', 'sentiment_score']
+    for field in required_fields:
+        if field not in mood_data:
+            return False
+
+    # Validate mood_text
+    mood_text = mood_data.get('mood_text', '')
+    if not isinstance(mood_text, str) or len(mood_text.strip()) == 0:
+        return False
+
+    # Validate sentiment_score (should be between -1 and 1)
+    sentiment_score = mood_data.get('sentiment_score')
+    if not isinstance(sentiment_score, (int, float)) or not (-1 <= sentiment_score <= 1):
+        return False
+
+    # Validate timestamp if provided
+    timestamp = mood_data.get('timestamp')
+    if timestamp is not None:
+        if not isinstance(timestamp, str):
+            return False
+        # Basic ISO format check
+        import re
+        if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', timestamp):
+            return False
+
+    return True

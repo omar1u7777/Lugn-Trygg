@@ -13,14 +13,31 @@ import { BrowserRouter } from 'react-router-dom';
 import LoginForm from '../Auth/LoginForm';
 import RegisterForm from '../Auth/RegisterForm';
 
-// Mock API
-const mockAPI = {
+// Mock API via hoisting so vitest can initialize before mocks
+const mockAPI = vi.hoisted(() => ({
   loginUser: vi.fn(),
   registerUser: vi.fn(),
   api: {
     post: vi.fn(),
-  }
-};
+  },
+}));
+
+const firebaseAuthModuleMocks = vi.hoisted(() => ({
+  GoogleAuthProvider: vi.fn(() => ({
+    setCustomParameters: vi.fn(),
+  })),
+  signInWithPopup: vi.fn(),
+  sendPasswordResetEmail: vi.fn(),
+}));
+
+const lazyFirebaseBundleMock = vi.hoisted(() => ({
+  loadFirebaseAuthBundle: vi.fn(() =>
+    Promise.resolve({
+      firebaseAuth: {},
+      authModule: firebaseAuthModuleMocks,
+    })
+  ),
+}));
 
 // Mock theme tokens
 vi.mock('../../theme/tokens', () => ({
@@ -30,29 +47,12 @@ vi.mock('../../theme/tokens', () => ({
   borderRadius: {},
 }));
 
-vi.mock('../../api/api', () => ({
-  loginUser: mockAPI.loginUser,
-  registerUser: mockAPI.registerUser,
-  api: mockAPI.api,
-}));
-
-// Mock Firebase
-vi.mock('../../firebase-config', () => ({
-  auth: {
-    currentUser: null,
-  }
-}));
-
-vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: vi.fn(() => ({
-    setCustomParameters: vi.fn(),
-  })),
-  signInWithPopup: vi.fn(),
-}));
+vi.mock('../../api/api', () => mockAPI);
+vi.mock('../../services/lazyFirebase', () => lazyFirebaseBundleMock);
 
 // Mock AuthContext
-const mockLogin = vi.fn();
-const mockRegister = vi.fn();
+const mockLogin = vi.hoisted(() => vi.fn());
+const mockRegister = vi.hoisted(() => vi.fn());
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -95,6 +95,8 @@ describe('🔐 Login Form Integration', () => {
       user_id: 'user-123',
       email: 'test@example.com',
     });
+    firebaseAuthModuleMocks.signInWithPopup.mockReset();
+    lazyFirebaseBundleMock.loadFirebaseAuthBundle.mockClear();
   });
 
   describe('Rendering', () => {
@@ -238,9 +240,7 @@ describe('🔐 Login Form Integration', () => {
 
   describe('Google Sign-In', () => {
     test('should handle Google sign-in button click', async () => {
-      const { signInWithPopup } = await import('firebase/auth');
-      
-      (signInWithPopup as any).mockResolvedValue({
+      firebaseAuthModuleMocks.signInWithPopup.mockResolvedValue({
         user: {
           email: 'google@example.com',
           getIdToken: vi.fn().mockResolvedValue('google-id-token'),
@@ -260,14 +260,12 @@ describe('🔐 Login Form Integration', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(signInWithPopup).toHaveBeenCalled();
+        expect(firebaseAuthModuleMocks.signInWithPopup).toHaveBeenCalled();
       }, { timeout: 2000 });
     });
 
     test('should handle Google sign-in error', async () => {
-      const { signInWithPopup } = await import('firebase/auth');
-      
-      (signInWithPopup as any).mockRejectedValue(new Error('Popup closed'));
+      firebaseAuthModuleMocks.signInWithPopup.mockRejectedValue(new Error('Popup closed'));
 
       renderWithRouter(<LoginForm />);
 
@@ -288,6 +286,7 @@ describe('📝 Register Form Integration', () => {
       message: 'Registrering lyckades',
       user_id: 'new-user-123',
     });
+    lazyFirebaseBundleMock.loadFirebaseAuthBundle.mockClear();
   });
 
   describe('Rendering', () => {

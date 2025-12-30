@@ -3,7 +3,6 @@ import type { FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAnalytics } from "firebase/analytics";
 import { getFirebaseConfig as loadFirebaseConfig } from "./config/env";
 
 // Initialisera Firebase-applikationen med den validerade konfigurationen
@@ -51,7 +50,8 @@ if (missingKeys.length > 0 && import.meta.env.DEV) {
 const app = initializeApp(firebaseOptions);
 
 // Initialisera Analytics om measurementId finns - DISABLED to prevent 403 errors
-let analytics: any = null;
+import type { Analytics } from 'firebase/analytics';
+const analytics: Analytics | null = null;
 // Analytics disabled to prevent permission errors in production
 // if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX' && firebaseConfig.measurementId !== undefined) {
 //   try {
@@ -65,4 +65,4 @@ let analytics: any = null;
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export { analytics };
+export { app, analytics };

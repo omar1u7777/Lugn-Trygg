@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/api';
+import { api } from '../../api/api';
 
 interface AnalyticsWidgetProps {
     userId: string;
@@ -30,10 +30,19 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ userId }) => {
 
     const fetchAnalytics = async () => {
         try {
+            setLoading(true);
             const response = await api.get('/api/mood/predictive-forecast?days_ahead=7');
-            setAnalytics(response.data);
-        } catch (err) {
+            // CRITICAL FIX: Better error handling and null safety
+            if (response.data && response.data.forecast && response.data.current_analysis) {
+                setAnalytics(response.data);
+            } else {
+                console.warn('Invalid analytics data received:', response.data);
+                setAnalytics(null);
+            }
+        } catch (err: unknown) {
+            // CRITICAL FIX: Better error handling
             console.error('Failed to fetch analytics:', err);
+            setAnalytics(null);
         } finally {
             setLoading(false);
         }
@@ -73,12 +82,16 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ userId }) => {
     };
 
     const getMoodLabel = (score: number) => {
+        // CRITICAL FIX: Handle NaN and undefined
+        if (typeof score !== 'number' || isNaN(score)) return 'Okänt';
         if (score > 0.2) return 'Positivt';
         if (score < -0.2) return 'Negativt';
         return 'Neutralt';
     };
 
     const getMoodColor = (score: number) => {
+        // CRITICAL FIX: Handle NaN and undefined
+        if (typeof score !== 'number' || isNaN(score)) return 'text-gray-600 dark:text-gray-400';
         if (score > 0.2) return 'text-green-600 dark:text-green-400';
         if (score < -0.2) return 'text-red-600 dark:text-red-400';
         return 'text-yellow-600 dark:text-yellow-400';
@@ -115,7 +128,8 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ userId }) => {
         );
     }
 
-    const trendGradient = getTrendColor(analytics.forecast.trend);
+    // CRITICAL FIX: Handle undefined/null
+    const trendGradient = getTrendColor(analytics.forecast?.trend || 'stable');
 
     return (
         <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-indigo-100 dark:border-indigo-800">
@@ -137,12 +151,15 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ userId }) => {
             <div className="bg-white dark:bg-indigo-900/30 rounded-lg p-4 mb-3">
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-indigo-600 dark:text-indigo-400">Nuvarande humör</span>
-                    <span className={`text-lg font-bold ${getMoodColor(analytics.current_analysis.recent_average)}`}>
-                        {getMoodLabel(analytics.current_analysis.recent_average)}
+                    <span className={`text-lg font-bold ${getMoodColor(analytics.current_analysis?.recent_average || 0)}`}>
+                        {getMoodLabel(analytics.current_analysis?.recent_average || 0)}
                     </span>
                 </div>
                 <div className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">
-                    {analytics.current_analysis.recent_average.toFixed(2)}
+                    {/* CRITICAL FIX: Handle NaN and undefined */}
+                    {typeof analytics.current_analysis?.recent_average === 'number' && !isNaN(analytics.current_analysis.recent_average)
+                        ? analytics.current_analysis.recent_average.toFixed(2)
+                        : '0.00'}
                 </div>
             </div>
 
@@ -150,21 +167,27 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ userId }) => {
             <div className={`bg-gradient-to-r ${trendGradient} rounded-lg p-4 mb-3 text-white`}>
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-sm opacity-90">7-dagars prognos</span>
-                    <span className="text-2xl">{getTrendEmoji(analytics.forecast.trend)}</span>
+                    <span className="text-2xl">{getTrendEmoji(analytics.forecast?.trend || 'stable')}</span>
                 </div>
                 <div className="flex items-end justify-between">
                     <div>
                         <div className="text-2xl font-bold">
-                            {analytics.forecast.average_forecast.toFixed(2)}
+                            {/* CRITICAL FIX: Handle NaN and undefined */}
+                            {typeof analytics.forecast?.average_forecast === 'number' && !isNaN(analytics.forecast.average_forecast)
+                                ? analytics.forecast.average_forecast.toFixed(2)
+                                : '0.00'}
                         </div>
                         <div className="text-sm opacity-90">
-                            Trend: {getTrendLabel(analytics.forecast.trend)}
+                            Trend: {getTrendLabel(analytics.forecast?.trend || 'stable')}
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="text-sm opacity-90">Säkerhet</div>
                         <div className="text-lg font-semibold">
-                            {(analytics.confidence * 100).toFixed(0)}%
+                            {/* CRITICAL FIX: Handle NaN and undefined */}
+                            {typeof analytics?.confidence === 'number' && !isNaN(analytics.confidence)
+                                ? (analytics.confidence * 100).toFixed(0)
+                                : '0'}%
                         </div>
                     </div>
                 </div>

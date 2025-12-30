@@ -1,41 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  LinearProgress,
-  Chip,
-  Alert,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
-  Tabs,
-  Tab,
-} from '@mui/material';
-import {
-  Speed,
-  Memory,
-  NetworkCheck,
-  Timer,
-  Warning,
-  CheckCircle,
-  TrendingUp,
-  TrendingDown,
-  Refresh,
-  Analytics,
-} from '@mui/icons-material';
+import { Card, CardContent, Typography, Grid, Chip, Alert, Button, Divider } from './ui/tailwind';
+// TODO: Replace icons with Heroicons
 import { analytics } from '../services/analytics';
 import { initializePerformanceMonitoring, performanceMonitor } from '../services/performanceMonitor';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface PerformanceMetrics {
   coreWebVitals: {
@@ -232,11 +200,11 @@ const PerformanceDashboard: React.FC = () => {
 
   const getSeverityIcon = (type: string) => {
     switch (type) {
-      case 'budget': return <Warning />;
+      case 'budget': return <ExclamationTriangleIcon className="w-5 h-5" />;
       case 'vital': return <Speed />;
       case 'resource': return <NetworkCheck />;
       case 'memory': return <Memory />;
-      default: return <Analytics />;
+      default: return <ChartBarIcon className="w-5 h-5" />;
     }
   };
 
@@ -248,21 +216,21 @@ const PerformanceDashboard: React.FC = () => {
     icon: React.ReactNode;
     subtitle?: string;
   }> = ({ title, value, unit, status = 'good', icon, subtitle }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card>
       <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box display="flex" alignItems="center" gap={1}>
+        <div className="flex items-center">
+          <div className="flex items-center gap-1"  >
             {icon}
             <Typography variant="h6" color="text.secondary">
               {title}
             </Typography>
-          </Box>
+          </div>
           <Chip
             label={status === 'good' ? 'Good' : status === 'warning' ? 'Warning' : 'Poor'}
             color={status}
             size="small"
           />
-        </Box>
+        </div>
 
         <Typography variant="h4" component="div" gutterBottom>
           {typeof value === 'number' ? value.toFixed(1) : value}{unit}
@@ -285,7 +253,7 @@ const PerformanceDashboard: React.FC = () => {
           value={metrics.coreWebVitals.fcp}
           unit="ms"
           status={metrics.coreWebVitals.fcp < 1800 ? 'good' : metrics.coreWebVitals.fcp < 3000 ? 'warning' : 'error'}
-          icon={<Timer />}
+          icon={<ClockIcon className="w-5 h-5" />}
           subtitle="Time to first content"
         />
       </Grid>
@@ -307,7 +275,7 @@ const PerformanceDashboard: React.FC = () => {
           value={metrics.coreWebVitals.fid}
           unit="ms"
           status={metrics.coreWebVitals.fid < 100 ? 'good' : metrics.coreWebVitals.fid < 300 ? 'warning' : 'error'}
-          icon={<TrendingUp />}
+          icon={<ArrowTrendingUpIcon className="w-5 h-5" />}
           subtitle="Input responsiveness"
         />
       </Grid>
@@ -317,7 +285,7 @@ const PerformanceDashboard: React.FC = () => {
           title="Cumulative Layout Shift"
           value={metrics.coreWebVitals.cls}
           status={metrics.coreWebVitals.cls < 0.1 ? 'good' : metrics.coreWebVitals.cls < 0.25 ? 'warning' : 'error'}
-          icon={<Analytics />}
+          icon={<ChartBarIcon className="w-5 h-5" />}
           subtitle="Visual stability"
         />
       </Grid>
@@ -347,7 +315,7 @@ const PerformanceDashboard: React.FC = () => {
   );
 
   const BudgetsSection = () => (
-    <Box>
+    <div>
       <Typography variant="h6" gutterBottom>
         Performance Budgets
       </Typography>
@@ -356,7 +324,7 @@ const PerformanceDashboard: React.FC = () => {
           <Grid item xs={12} sm={6} md={4} key={budget.resource}>
             <Card>
               <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <div className="flex items-center">
                   <Typography variant="subtitle1">
                     {budget.resource.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   </Typography>
@@ -365,7 +333,7 @@ const PerformanceDashboard: React.FC = () => {
                     color={budget.exceeded ? 'error' : 'success'}
                     size="small"
                   />
-                </Box>
+                </div>
                 <Typography variant="h6" gutterBottom>
                   {budget.current.toFixed(1)}{budget.unit} / {budget.budget}{budget.unit}
                 </Typography>
@@ -373,19 +341,18 @@ const PerformanceDashboard: React.FC = () => {
                   variant="determinate"
                   value={Math.min((budget.current / budget.budget) * 100, 100)}
                   color={budget.exceeded ? 'error' : 'success'}
-                  sx={{ height: 8, borderRadius: borderRadius.xl }}
                 />
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
-    </Box>
+    </div>
   );
 
   const IssuesSection = () => (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <div>
+      <div className="flex items-center">
         <Typography variant="h6">
           Performance Issues
         </Typography>
@@ -394,7 +361,7 @@ const PerformanceDashboard: React.FC = () => {
           color={issues.length > 0 ? 'warning' : 'success'}
           size="small"
         />
-      </Box>
+      </div>
 
       {issues.length === 0 ? (
         <Alert severity="success">
@@ -404,30 +371,30 @@ const PerformanceDashboard: React.FC = () => {
         <List>
           {issues.map((issue, index) => (
             <React.Fragment key={issue.id}>
-              <ListItem sx={{ borderRadius: 1, mb: spacing.sm, bgcolor: 'background.paper' }}>
+              <ListItem>
                 <ListItemIcon>
                   {getSeverityIcon(issue.type)}
                 </ListItemIcon>
-                <ListItemText
+                <ListItemText className="flex items-center gap-1" 
                   primary={
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <div >
                       <Typography variant="subtitle1">{issue.title}</Typography>
                       <Chip
                         label={issue.severity}
                         color={getSeverityColor(issue.severity)}
                         size="small"
                       />
-                    </Box>
+                    </div>
                   }
                   secondary={
-                    <Box>
+                    <div>
                       <Typography variant="body2" color="text.secondary">
                         {issue.description}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Value: {issue.value.toFixed(2)} (Threshold: {issue.threshold})
                       </Typography>
-                    </Box>
+                    </div>
                   }
                 />
               </ListItem>
@@ -436,49 +403,53 @@ const PerformanceDashboard: React.FC = () => {
           ))}
         </List>
       )}
-    </Box>
+    </div>
   );
 
   return (
-    <Box sx={{ p: spacing.lg, maxWidth: 1400, mx: 'auto' }}>
+    <div>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
+      <div className="flex items-center">
+        <div>
           <Typography variant="h4" component="h1" gutterBottom>
             Performance Monitoring
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Real-time Core Web Vitals and performance metrics
           </Typography>
-        </Box>
+        </div>
 
         <Button
-          variant="outlined"
-          startIcon={<Refresh />}
+          variant="outline"
+          startIcon={<ArrowPathIcon className="w-5 h-5" />}
           onClick={handleRefresh}
           disabled={refreshing}
         >
           {refreshing ? 'Refreshing...' : 'Refresh'}
         </Button>
-      </Box>
+      </div>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: spacing.lg }}>
+      <div>
         <Tabs value={selectedTab} onChange={(_, newValue) => setSelectedTab(newValue)}>
           <Tab label="Core Web Vitals" />
           <Tab label="Performance Budgets" />
           <Tab label="Issues & Alerts" />
         </Tabs>
-      </Box>
+      </div>
 
       {/* Tab Content */}
-      <Box sx={{ mt: spacing.lg }}>
+      <div>
         {selectedTab === 0 && <WebVitalsSection />}
         {selectedTab === 1 && <BudgetsSection />}
         {selectedTab === 2 && <IssuesSection />}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
 export default PerformanceDashboard;
+
+
+
+

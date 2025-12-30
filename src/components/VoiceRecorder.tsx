@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { MicrophoneIcon, PlayIcon, StopIcon, ArrowPathIcon, SparklesIcon, ChartBarIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import useAuth from '../hooks/useAuth';
 
 interface VoiceAnalysis {
@@ -69,7 +70,7 @@ const VoiceRecorder: React.FC = () => {
       mediaRecorder.start(100); // Collect data every 100ms
       setIsRecording(true);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to start recording:', err);
       setError('Kunde inte starta inspelning. Kontrollera mikrofonbehörigheter.');
     }
@@ -118,7 +119,7 @@ const VoiceRecorder: React.FC = () => {
 
       reader.readAsDataURL(audioBlob);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to analyze recording:', err);
       setError('Kunde inte analysera inspelningen.');
     } finally {
@@ -149,7 +150,7 @@ const VoiceRecorder: React.FC = () => {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4">
-        <i className="fas fa-microphone mr-2"></i>
+        <MicrophoneIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
         Röstanalys
       </h3>
 
@@ -166,9 +167,10 @@ const VoiceRecorder: React.FC = () => {
             <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${
               isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-200'
             }`}>
-              <i className={`fas fa-microphone text-2xl ${
-                isRecording ? 'text-white' : 'text-gray-500'
-              }`}></i>
+              <MicrophoneIcon
+                className={`w-10 h-10 ${isRecording ? 'text-white' : 'text-gray-500'}`}
+                aria-hidden="true"
+              />
             </div>
           </div>
 
@@ -178,7 +180,7 @@ const VoiceRecorder: React.FC = () => {
                 onClick={startRecording}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
               >
-                <i className="fas fa-play mr-2"></i>
+                <PlayIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
                 Starta inspelning
               </button>
             ) : (
@@ -186,7 +188,7 @@ const VoiceRecorder: React.FC = () => {
                 onClick={stopRecording}
                 className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium"
               >
-                <i className="fas fa-stop mr-2"></i>
+                <StopIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
                 Stoppa inspelning
               </button>
             )}
@@ -236,12 +238,12 @@ const VoiceRecorder: React.FC = () => {
             >
               {isAnalyzing ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                  <ArrowPathIcon className="w-5 h-5 mr-2 inline animate-spin" aria-hidden="true" />
                   Analyserar...
                 </>
               ) : (
                 <>
-                  <i className="fas fa-brain mr-2"></i>
+                  <SparklesIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
                   Analysera känsla
                 </>
               )}
@@ -251,7 +253,7 @@ const VoiceRecorder: React.FC = () => {
               onClick={resetRecording}
               className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700"
             >
-              <i className="fas fa-redo"></i>
+              <ArrowPathIcon className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -259,7 +261,7 @@ const VoiceRecorder: React.FC = () => {
           {analysis && (
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border">
               <h4 className="font-semibold text-gray-900 mb-3">
-                <i className="fas fa-chart-bar mr-2"></i>
+                <ChartBarIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
                 Röstanalys Resultat
               </h4>
 
@@ -303,7 +305,7 @@ const VoiceRecorder: React.FC = () => {
       {/* Info */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
         <h5 className="font-medium text-blue-900 mb-2">
-          <i className="fas fa-info-circle mr-2"></i>
+          <InformationCircleIcon className="w-5 h-5 mr-2 inline" aria-hidden="true" />
           Om röstanalys
         </h5>
         <p className="text-sm text-blue-800">

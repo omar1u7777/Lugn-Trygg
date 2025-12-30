@@ -13,9 +13,13 @@
  */
 
 import { getEncryptionKey } from '../config/env';
+import AES from 'crypto-js/aes';
+import Utf8 from 'crypto-js/enc-utf8';
 
 // Cache for crypto key to avoid regenerating on every operation
 let cachedCryptoKey: CryptoKey | null = null;
+const FALLBACK_SECRET = getEncryptionKey();
+let hasLoggedFallbackWarning = false;
 
 /**
  * Derive a CryptoKey from the encryption key in environment
@@ -27,10 +31,22 @@ async function getCryptoKey(): Promise<CryptoKey> {
 
   const encryptionKey = getEncryptionKey();
   
-  // Convert hex string to ArrayBuffer
-  const keyData = new Uint8Array(
-    encryptionKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
-  );
+  // Convert string to ArrayBuffer (support both hex and plain text)
+  let keyData: Uint8Array;
+  
+  // Check if it's a hex string (even length, only 0-9a-fA-F)
+  if (/^[0-9a-fA-F]+$/.test(encryptionKey) && encryptionKey.length % 2 === 0) {
+    // Parse as hex
+    keyData = new Uint8Array(
+      encryptionKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+    );
+  } else {
+    // Treat as plain text - hash it to get 256 bits
+    const encoder = new TextEncoder();
+    const data = encoder.encode(encryptionKey);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    keyData = new Uint8Array(hashBuffer);
+  }
 
   // Import key for AES-GCM encryption
   cachedCryptoKey = await window.crypto.subtle.importKey(
@@ -99,12 +115,51 @@ async function decrypt(encryptedData: string): Promise<string> {
 /**
  * Secure Storage API with encryption
  */
+function fallbackEncrypt(data: string): string {
+  try {
+    return AES.encrypt(data, FALLBACK_SECRET).toString();
+  } catch (error) {
+    console.error('❌ Fallback encryption failed:', error);
+    throw new Error('Failed to encrypt fallback data');
+  }
+}
+
+function fallbackDecrypt(payload: string): string {
+  try {
+    const bytes = AES.decrypt(payload, FALLBACK_SECRET);
+    const decrypted = bytes.toString(Utf8);
+    if (!decrypted) {
+      throw new Error('Empty fallback payload');
+    }
+    return decrypted;
+  } catch (error) {
+    console.error('❌ Fallback decryption failed:', error);
+    throw new Error('Failed to decrypt fallback data');
+  }
+}
+
+type StoredValue =
+  | string
+  | {
+      __secure_method: 'fallback';
+      value: string;
+    };
+
 export const secureStorage = {
-  /**
-   * Store encrypted data in localStorage
-   */
+/**
+ * Store encrypted data in localStorage
+ */
   async setItem(key: string, value: string): Promise<void> {
     try {
+      if (!this.isAvailable()) {
+        const encryptedFallback = fallbackEncrypt(value);
+        localStorage.setItem(
+          `secure_${key}`,
+          JSON.stringify({ __secure_method: 'fallback', value: encryptedFallback })
+        );
+        return;
+      }
+
       const encrypted = await encrypt(value);
       localStorage.setItem(`secure_${key}`, encrypted);
     } catch (error) {
@@ -117,12 +172,32 @@ export const secureStorage = {
    * Retrieve and decrypt data from localStorage
    */
   async getItem(key: string): Promise<string | null> {
+    const stored = localStorage.getItem(`secure_${key}`);
+    if (!stored) {
+      return null;
+    }
+
     try {
-      const encrypted = localStorage.getItem(`secure_${key}`);
-      if (!encrypted) {
-        return null;
+      const parsed: StoredValue = JSON.parse(stored);
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        parsed.__secure_method === 'fallback' &&
+        typeof parsed.value === 'string'
+      ) {
+        return fallbackDecrypt(parsed.value);
       }
-      return await decrypt(encrypted);
+    } catch {
+      // Not JSON, proceed with legacy handling
+    }
+
+    if (!this.isAvailable()) {
+      // Legacy fallback: data stored as plain text before CryptoJS support
+      return stored;
+    }
+
+    try {
+      return await decrypt(stored);
     } catch (error) {
       console.error(`❌ Failed to retrieve ${key}:`, error);
       // If decryption fails, remove the corrupted data
@@ -175,7 +250,13 @@ export const tokenStorage = {
    * Get access token
    */
   async getAccessToken(): Promise<string | null> {
-    return await secureStorage.getItem('token');
+    const token = await secureStorage.getItem('token');
+    console.log('🔐 SECURE STORAGE - getAccessToken:', { 
+      hasToken: !!token, 
+      tokenLength: token?.length,
+      tokenPreview: token ? token.substring(0, 20) + '...' : 'null'
+    });
+    return token;
   },
 
   /**
@@ -205,7 +286,8 @@ export const tokenStorage = {
  * Fallback to plain localStorage if Web Crypto is not available
  * (e.g., in tests or very old browsers)
  */
-if (typeof window !== 'undefined' && !secureStorage.isAvailable()) {
-  console.warn('⚠️ Web Crypto API not available. Falling back to plain localStorage.');
-  console.warn('⚠️ Tokens will NOT be encrypted. Consider upgrading browser or using httpOnly cookies.');
+if (typeof window !== 'undefined' && !secureStorage.isAvailable() && !hasLoggedFallbackWarning) {
+  hasLoggedFallbackWarning = true;
+  console.warn('⚠️ Web Crypto API unavailable. Using CryptoJS fallback encryption.');
+  console.warn('ℹ️ Tokens remain encrypted, but switch to a secure origin (https://localhost or HTTPS proxy) for hardware-backed crypto.');
 }

@@ -29,6 +29,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
+    - name: Check image compression (dry run)
+      run: npm run images:compress -- --dry-run
+
     - name: Run TypeScript type check
       run: npm run type-check
     

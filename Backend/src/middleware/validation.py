@@ -57,10 +57,38 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # CRITICAL FIX: Return 204 with proper CORS headers for OPTIONS preflight requests
+            # Don't call the decorated function as it may require validated_data argument
+            if request.method == 'OPTIONS':
+                from flask import Response
+                response = Response('', status=204)
+                origin = request.headers.get('Origin', '')
+                # Allow all localhost and common origins for preflight
+                if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:') or origin.startswith('http://192.168.'):
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token'
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    response.headers['Access-Control-Max-Age'] = '86400'
+                return response
+            
             try:
                 # Get data based on source
                 if source == 'json':
-                    data = request.get_json(silent=True) or {}
+                    try:
+                        data = request.get_json()
+                        if data is None:
+                            # Handle empty request body
+                            data = {}
+                    except Exception as json_error:
+                        logger.warning(f"JSON parsing failed: {json_error}")
+                        response = {
+                            'success': False,
+                            'error': 'Invalid JSON',
+                            'error_code': 'JSON_PARSE_ERROR',
+                            'message': 'Request body contains invalid JSON'
+                        }
+                        return jsonify(response), 400
                 elif source == 'form':
                     data = request.form.to_dict()
                 elif source == 'args':
@@ -75,7 +103,7 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
                     data.update(request.form.to_dict())
 
                 # Validate with Pydantic
-                if hasattr(schema_class, '__annotations__') or hasattr(schema_class, 'model_validate'):
+                if hasattr(schema_class, 'model_validate'):
                     # Pydantic v2
                     validated_data = schema_class.model_validate(data)
                 else:

@@ -101,7 +101,7 @@ class BackupService:
         )
 
         # Monthly backups on 1st at 4 AM (keep 12 months)
-        schedule.every().month.at("04:00").do(
+        schedule.every(30).days.at("04:00").do(
             lambda: self.create_backup('monthly', 'full')
         )
 

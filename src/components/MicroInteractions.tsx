@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import { Box, Button, Card, CardContent, Typography } from '@mui/material';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { Favorite, ThumbUp, Star, CheckCircle, Error, Warning } from '@mui/icons-material';
 import { useAccessibility } from '../hooks/useAccessibility';
+import { 
+  CheckCircleIcon, 
+  ExclamationCircleIcon, 
+  ExclamationTriangleIcon, 
+  StarIcon,
+  HeartIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 interface MicroInteractionsProps {
   children: React.ReactNode;
@@ -32,10 +38,13 @@ const HeartAnimation = ({
   };
 
   return (
-    <motion.div
+    <motion.button
       animate={controls}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
+      onClick={handleClick}
+      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-full p-2"
+      aria-label={isActive ? "Unlike" : "Like"}
     >
       <motion.div
         animate={isActive ? {
@@ -44,16 +53,19 @@ const HeartAnimation = ({
         } : {}}
         transition={{ duration: 0.5 }}
       >
-        <Favorite
-          sx={{
-            fontSize: size,
-            color: isActive ? '#ff4081' : '#666',
-            cursor: 'pointer'
-          }}
-          onClick={handleClick}
-        />
+        {isActive ? (
+          <HeartIconSolid 
+            className="text-error-500" 
+            style={{ width: size, height: size }}
+          />
+        ) : (
+          <HeartIcon 
+            className="text-gray-500 dark:text-gray-400"
+            style={{ width: size, height: size }}
+          />
+        )}
       </motion.div>
-    </motion.div>
+    </motion.button>
   );
 };
 
@@ -73,28 +85,20 @@ const SuccessCheckmark = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -20 }}
           transition={{ duration: 0.3 }}
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 1000,
-          }}
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000]"
         >
-          <Card sx={{ minWidth: 200, textAlign: 'center' }}>
-            <CardContent>
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 500 }}
-              >
-                <CheckCircle sx={{ fontSize: 48, color: 'success.main', mb: spacing.sm }} />
-              </motion.div>
-              <Typography variant="h6" color="success.main">
-                {message}
-              </Typography>
-            </CardContent>
-          </Card>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-xl flex flex-col items-center gap-3">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 500 }}
+            >
+              <CheckCircleIcon className="w-16 h-16 text-success-500" />
+            </motion.div>
+            <p className="text-xl font-bold text-success-600 dark:text-success-400">
+              {message}
+            </p>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -107,25 +111,20 @@ const LoadingDots = ({
 }: {
   size?: 'small' | 'medium' | 'large';
 }) => {
-  const sizes = {
-    small: 4,
-    medium: 6,
-    large: 8,
+  const sizeClasses = {
+    small: 'w-1 h-1',
+    medium: 'w-1.5 h-1.5',
+    large: 'w-2 h-2',
   };
 
-  const dotSize = sizes[size];
+  const dotClass = sizeClasses[size];
 
   return (
-    <Box display="flex" alignItems="center" gap={0.5}>
+    <div className="flex items-center gap-1">
       {[0, 1, 2].map((index) => (
         <motion.div
           key={index}
-          style={{
-            width: dotSize,
-            height: dotSize,
-            borderRadius: '50%',
-            backgroundColor: '#666',
-          }}
+          className={`${dotClass} rounded-full bg-gray-600 dark:bg-gray-400`}
           animate={{
             y: [0, -10, 0],
             opacity: [0.4, 1, 0.4],
@@ -137,7 +136,7 @@ const LoadingDots = ({
           }}
         />
       ))}
-    </Box>
+    </div>
   );
 };
 
@@ -250,15 +249,14 @@ const AnimatedProgressBar = ({
   const percentage = Math.min((value / maxValue) * 100, 100);
 
   return (
-    <Box sx={{ width: '100%', position: 'relative' }}>
-      <Box
-        sx={{
-          width: '100%',
-          height,
-          bgcolor: 'grey.300',
-          borderRadius: height / 2,
-          overflow: 'hidden',
-        }}
+    <div>
+      <div 
+        className="w-full bg-gray-200 dark:bg-gray-700 overflow-hidden"
+        style={{ height, borderRadius: height / 2 }}
+        role="progressbar"
+        aria-valuenow={percentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
       >
         <motion.div
           style={{
@@ -270,22 +268,13 @@ const AnimatedProgressBar = ({
           animate={{ width: `${percentage}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
         />
-      </Box>
+      </div>
       {showPercentage && (
-        <Typography
-          variant="caption"
-          sx={{
-            position: 'absolute',
-            top: -20,
-            right: 0,
-            color: color,
-            fontWeight: 'bold',
-          }}
-        >
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
           {Math.round(percentage)}%
-        </Typography>
+        </p>
       )}
-    </Box>
+    </div>
   );
 };
 
@@ -312,47 +301,59 @@ const InteractiveButton = ({
   const handleClick = () => {
     setIsClicked(true);
     onClick();
-
     setTimeout(() => setIsClicked(false), 150);
   };
 
+  const sizeClasses = {
+    small: 'px-3 py-1.5 text-sm',
+    medium: 'px-4 py-2 text-base',
+    large: 'px-6 py-3 text-lg',
+  };
+
+  const variantClasses = {
+    contained: {
+      primary: 'bg-primary-600 hover:bg-primary-700 text-white',
+      secondary: 'bg-secondary-600 hover:bg-secondary-700 text-white',
+      success: 'bg-success-700 hover:bg-success-800 text-white',
+      error: 'bg-error-600 hover:bg-error-700 text-white',
+      warning: 'bg-warning-600 hover:bg-warning-700 text-white',
+    },
+    outlined: {
+      primary: 'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20',
+      secondary: 'border-2 border-secondary-600 text-secondary-600 hover:bg-secondary-50 dark:hover:bg-secondary-900/20',
+      success: 'border-2 border-success-600 text-success-600 hover:bg-success-50 dark:hover:bg-success-900/20',
+      error: 'border-2 border-error-600 text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20',
+      warning: 'border-2 border-warning-600 text-warning-600 hover:bg-warning-50 dark:hover:bg-warning-900/20',
+    },
+    text: {
+      primary: 'text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20',
+      secondary: 'text-secondary-600 hover:bg-secondary-50 dark:hover:bg-secondary-900/20',
+      success: 'text-success-600 hover:bg-success-50 dark:hover:bg-success-900/20',
+      error: 'text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20',
+      warning: 'text-warning-600 hover:bg-warning-50 dark:hover:bg-warning-900/20',
+    },
+  };
+
   return (
-    <motion.div
+    <motion.button
       whileHover={{ scale: disabled ? 1 : 1.02 }}
       whileTap={{ scale: disabled ? 1 : 0.98 }}
       animate={isClicked ? { scale: 0.95 } : { scale: 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      onClick={handleClick}
+      disabled={disabled || loading}
+      className={`
+        ${sizeClasses[size]}
+        ${variantClasses[variant][color]}
+        font-medium rounded-lg transition-colors 
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-${color}-500 
+        disabled:opacity-50 disabled:cursor-not-allowed
+        relative overflow-hidden
+        min-h-[44px]
+      `}
     >
-      <Button
-        variant={variant}
-        color={color}
-        size={size}
-        onClick={handleClick}
-        disabled={disabled || loading}
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: 0,
-            height: 0,
-            borderRadius: '50%',
-            backgroundColor: 'colors.overlay.heavy',
-            transition: 'width 0.6s, height 0.6s',
-            transform: 'translate(-50%, -50%)',
-          },
-          '&:active::before': {
-            width: '300px',
-            height: '300px',
-          },
-        }}
-      >
-        {loading ? <LoadingDots /> : children}
-      </Button>
-    </motion.div>
+      {loading ? <LoadingDots size="small" /> : children}
+    </motion.button>
   );
 };
 
@@ -395,26 +396,32 @@ const ToastNotification = ({
         return () => clearTimeout(timer);
       }
     }
+    return undefined;
   }, [show, message, onClose, autoHideDuration, announceToScreenReader]);
 
   const getIcon = () => {
-    switch (type) {
-      case 'success': return <CheckCircle sx={{ color: 'success.main' }} />;
-      case 'error': return <Error sx={{ color: 'error.main' }} />;
-      case 'warning': return <Warning sx={{ color: 'warning.main' }} />;
-      case 'info': return <Star sx={{ color: 'info.main' }} />;
-      default: return <Star sx={{ color: 'info.main' }} />;
-    }
+    const iconClass = {
+      success: 'text-success-600 dark:text-success-400',
+      error: 'text-error-600 dark:text-error-400',
+      warning: 'text-warning-600 dark:text-warning-400',
+      info: 'text-info-600 dark:text-info-400',
+    };
+
+    const Icon = {
+      success: CheckCircleIcon,
+      error: ExclamationCircleIcon,
+      warning: ExclamationTriangleIcon,
+      info: StarIcon,
+    }[type];
+
+    return <Icon className={`w-6 h-6 ${iconClass[type]}`} />;
   };
 
-  const getColor = () => {
-    switch (type) {
-      case 'success': return 'success.main';
-      case 'error': return 'error.main';
-      case 'warning': return 'warning.main';
-      case 'info': return 'info.main';
-      default: return 'info.main';
-    }
+  const bgClass = {
+    success: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800',
+    error: 'bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800',
+    warning: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800',
+    info: 'bg-info-50 dark:bg-info-900/20 border-info-200 dark:border-info-800',
   };
 
   return (
@@ -425,27 +432,25 @@ const ToastNotification = ({
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 300, scale: 0.5, transition: { duration: 0.2 } }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          style={{
-            position: 'fixed',
-            top: spacing.md0,
-            right: 20,
-            zIndex: 1000,
-            minWidth: 300,
-          }}
+          className="fixed top-4 right-4 z-[1000] min-w-[300px] max-w-md"
+          role="alert"
+          aria-live="assertive"
         >
-          <Card sx={{ borderLeft: 4, borderColor: getColor() }}>
-            <CardContent sx={{ py: spacing.md, px: 3 }}>
-              <Box display="flex" alignItems="center" gap={2}>
-                {getIcon()}
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  {message}
-                </Typography>
-                <Button size="small" onClick={onClose}>
-                  ✕
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
+          <div className={`${bgClass[type]} border rounded-lg shadow-lg p-4`}>
+            <div className="flex items-center gap-3">
+              {getIcon()}
+              <p className="text-sm text-gray-900 dark:text-white flex-1">
+                {message}
+              </p>
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                aria-label="Close notification"
+              >
+                <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -497,3 +502,4 @@ const MicroInteractions = ({ children }: MicroInteractionsProps) => {
 };
 
 export default MicroInteractions;
+

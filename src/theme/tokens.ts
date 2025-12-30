@@ -7,8 +7,6 @@
  * 
  * Usage:
  * import { spacing, colors, typography } from '@/theme/tokens';
- * 
- * sx={{ p: spacing.xl, color: colors.mood.happy }}
  */
 
 // ==========================================

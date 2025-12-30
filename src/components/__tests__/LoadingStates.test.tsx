@@ -77,7 +77,8 @@ describe('LoadingStates Components', () => {
 
     it('renders card skeleton', () => {
       render(<SkeletonLoader type="card" />);
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      const skeletons = screen.getAllByRole('progressbar');
+      expect(skeletons.length).toBeGreaterThan(0);
     });
 
     it('renders list skeleton', () => {
@@ -159,7 +160,8 @@ describe('LoadingStates Components', () => {
         </ProgressiveLoad>
       );
 
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      const skeletons = screen.getAllByRole('progressbar');
+      expect(skeletons.length).toBeGreaterThan(0);
       expect(screen.queryByText('Content')).not.toBeInTheDocument();
     });
 

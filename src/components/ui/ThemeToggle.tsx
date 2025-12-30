@@ -4,8 +4,7 @@
  */
 
 import React from 'react';
-import { IconButton, Tooltip } from '@mui/material';
-import { Brightness4, Brightness7 } from '@mui/icons-material';
+import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export const ThemeToggle: React.FC = () => {
@@ -23,33 +22,19 @@ export const ThemeToggle: React.FC = () => {
   };
 
   return (
-    <Tooltip
+    <button
+      onClick={handleToggle}
+      onKeyDown={handleKeyDown}
+      aria-label={isDarkMode ? 'Växla till ljust läge' : 'Växla till mörkt läge'}
+      aria-pressed={isDarkMode}
       title={isDarkMode ? 'Växla till ljust läge' : 'Växla till mörkt läge'}
-      placement="bottom"
+      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
     >
-      <IconButton
-        onClick={handleToggle}
-        onKeyDown={handleKeyDown}
-        aria-label={isDarkMode ? 'Växla till ljust läge' : 'Växla till mörkt läge'}
-        aria-pressed={isDarkMode}
-        className="theme-toggle focus-ring"
-        size="large"
-        sx={{
-          color: 'text.primary',
-          '&:hover': {
-            backgroundColor: 'action.hover',
-          },
-          '&:focus-visible': {
-            outline: '2px solid',
-            outlineColor: 'primary.main',
-            outlineOffset: '2px',
-          },
-        }}
-      >
-        {isDarkMode ? <Brightness7 /> : <Brightness4 />}
-      </IconButton>
-    </Tooltip>
+      {isDarkMode ? <SunIcon className="w-6 h-6" /> : <MoonIcon className="w-6 h-6" />}
+    </button>
   );
 };
 
 export default ThemeToggle;
+
+

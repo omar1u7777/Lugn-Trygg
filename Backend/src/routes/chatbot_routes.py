@@ -1,13 +1,20 @@
 import logging
-from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
+from flask import Blueprint, request, jsonify, g
+
 from src.firebase_config import db
+from src.services.auth_service import AuthService
+from src.services.subscription_service import (
+    SubscriptionLimitError,
+    SubscriptionService,
+)
 
 chatbot_bp = Blueprint("chatbot", __name__)
 logger = logging.getLogger(__name__)
 
 # 🔹 Therapeutic chatbot conversation
 @chatbot_bp.route("/chat", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
 def chat_with_ai():
     if request.method == 'OPTIONS':
         return '', 204
@@ -78,18 +85,48 @@ def chat_with_ai():
 
         logger.info(f"📨 Received data: {data}")
 
-        if not data or "message" not in data or "user_id" not in data:
-            logger.error("❌ Missing message or user_id in request")
-            return jsonify({"error": "Meddelande och användar-ID krävs!"}), 400
+        if not data or "message" not in data:
+            logger.error("❌ Missing message in request")
+            return jsonify({"error": "Meddelande krävs!"}), 400
 
         user_message = data["message"].strip()
-        user_id = data["user_id"].strip()
+        payload_user_id = data.get("user_id", "").strip()
+        token_user_id = getattr(g, "user_id", None)
+        user_id = token_user_id or payload_user_id
 
         logger.info(f"👤 Processing chat for user: {user_id}, message length: {len(user_message)}")
 
         if not user_message or not user_id:
             logger.error("❌ Empty message or user_id")
-            return jsonify({"error": "Meddelande och användar-ID får inte vara tomma!"}), 400
+            return jsonify({"error": "Meddelande och autentiserad användare krävs!"}), 400
+
+        if payload_user_id and payload_user_id != user_id:
+            logger.warning(
+                "Payload user_id mismatch (payload=%s, token=%s) - using token",
+                payload_user_id,
+                user_id,
+            )
+
+        try:
+            user_doc = db.collection("users").document(user_id).get()
+            user_data = user_doc.to_dict() if user_doc.exists else {}
+        except Exception as exc:
+            logger.warning("Failed to fetch user for chat usage tracking: %s", exc)
+            user_data = {}
+
+        plan_context = SubscriptionService.get_plan_context(user_data)
+        try:
+            SubscriptionService.consume_quota(
+                user_id,
+                "chat_messages",
+                plan_context["limits"],
+            )
+        except SubscriptionLimitError as exc:
+            logger.info("Chat message denied due to quota for user %s", user_id)
+            return jsonify({
+                "error": "Du har nått din dagliga gräns för AI-chattmeddelanden.",
+                "limit": exc.limit_value,
+            }), 429
 
         # Get conversation history (last 10 messages)
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
@@ -162,6 +199,14 @@ def chat_with_ai():
     except Exception as e:
         logger.exception(f"🔥 Fel vid AI-chatt: {e}")
         return jsonify({"error": "Ett internt fel uppstod vid chatt-hantering."}), 500
+
+
+@chatbot_bp.route("/message", methods=["POST", "OPTIONS"])
+def legacy_chat_message():
+    """Legacy alias for /chat used by older integrations and middleware tests."""
+    if request.method == 'OPTIONS':
+        return '', 204
+    return chat_with_ai()
 
 def generate_enhanced_therapeutic_response(user_message: str, conversation_history: list) -> dict:
     """

@@ -6,7 +6,7 @@ Automatic index creation, monitoring, and performance optimization
 import json
 import time
 from typing import Dict, List, Optional, Any, Set
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from firebase_admin import firestore
 from google.cloud import firestore as gcp_firestore
@@ -198,9 +198,9 @@ class FirestoreIndexManager:
         stats['usage_count'] += 1
         stats['total_time'] += execution_time
         stats['avg_time'] = stats['total_time'] / stats['usage_count']
-        stats['last_used'] = datetime.utcnow()
+        stats['last_used'] = datetime.now(timezone.utc)
         stats['performance_trend'].append({
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'execution_time': execution_time,
             'result_count': result_count
         })

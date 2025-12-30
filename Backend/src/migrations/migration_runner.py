@@ -8,7 +8,7 @@ import sys
 import importlib
 import inspect
 from typing import Dict, List, Optional, Any, Callable, Type
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 from firebase_admin import firestore
@@ -170,13 +170,13 @@ class MigrationRunner:
                 'version': migration.version,
                 'description': migration.description,
                 'direction': direction,
-                'applied_at': migration.applied_at or datetime.utcnow(),
+                'applied_at': migration.applied_at or datetime.now(timezone.utc),
                 'checksum': migration.checksum or self._calculate_checksum(migration)
             }
 
             if direction == 'down':
                 # For rollbacks, we might want to keep the record but mark as rolled back
-                data['rolled_back_at'] = datetime.utcnow()
+                data['rolled_back_at'] = datetime.now(timezone.utc)
             else:
                 doc_ref.set(data)
 
@@ -186,12 +186,13 @@ class MigrationRunner:
             logger.error(f"Failed to record migration {migration.version}: {e}")
 
     def _calculate_checksum(self, migration: Migration) -> str:
-        """Calculate checksum for migration validation"""
+        """Calculate checksum for migration validation (not used for security)"""
         import hashlib
         content = f"{migration.version}{migration.description}"
         if hasattr(migration, 'up'):
             content += str(migration.up.__code__.co_code)
-        return hashlib.md5(content.encode()).hexdigest()[:8]
+        # MD5 used only for checksum verification, not security - nosec
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:8]
 
     def apply_migration(self, migration_class: Type[Migration], direction: str = 'up') -> bool:
         """Apply a single migration"""
@@ -210,7 +211,7 @@ class MigrationRunner:
                     return False
 
                 # Record migration
-                migration.applied_at = datetime.utcnow()
+                migration.applied_at = datetime.now(timezone.utc)
                 self.record_migration(migration, direction)
 
                 if direction == 'up':
@@ -341,13 +342,13 @@ class MigrationRunner:
 
     def create_migration_template(self, name: str, migration_type: str = 'data') -> str:
         """Create a migration template file"""
-        version = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        version = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         filename = f"{version}_{name}.py"
 
         if migration_type == 'data':
             template = f'''"""
 Migration: {name}
-Created: {datetime.utcnow().isoformat()}
+Created: {datetime.now(timezone.utc).isoformat()}
 """
 
 from src.migrations.migration_runner import DataMigration
@@ -397,7 +398,7 @@ class Migration{version}(DataMigration):
         else:  # schema migration
             template = f'''"""
 Schema Migration: {name}
-Created: {datetime.utcnow().isoformat()}
+Created: {datetime.now(timezone.utc).isoformat()}
 """
 
 from src.migrations.migration_runner import SchemaMigration

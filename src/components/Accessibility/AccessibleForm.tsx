@@ -1,62 +1,173 @@
-import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
-import {
-  Box,
-  TextField,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Checkbox,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  Select,
-  MenuItem,
-  Button,
-} from '@mui/material';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useAccessibility } from '../../hooks/useAccessibility';
 
+// Constants for better maintainability
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+const REQUIRED_ERROR_SUFFIX = ' är obligatoriskt';
+const INVALID_EMAIL_ERROR = 'Ange en giltig e-postadress';
+const FORM_SUBMITTING_MESSAGE = 'Formulär skickas...';
+const FORM_ERROR_MESSAGE_PREFIX = 'Formuläret har ';
+const FORM_ERROR_MESSAGE_SUFFIX = ' fel som måste åtgärdas innan det kan skickas';
+
+/**
+ * Interface for individual form fields with accessibility support
+ */
 interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'number' | 'tel' | 'select' | 'checkbox' | 'radio';
+  type: 'text' | 'email' | 'password' | 'number' | 'tel';
   required?: boolean;
   helperText?: string;
   error?: string;
-  options?: Array<{ value: string; label: string }>;
-  value?: any;
-  onChange?: (value: any) => void;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
+/**
+ * Props for the AccessibleForm component
+ */
 interface AccessibleFormProps {
   fields: FormField[];
-  onSubmit: (data: Record<string, any>) => void;
+  onSubmit: (data: Record<string, string>) => Promise<void>;
   submitLabel?: string;
   loading?: boolean;
   error?: string;
   success?: string;
+  onSuccess?: () => void; // Optional callback after successful submit
 }
 
-const AccessibleForm: React.FC<AccessibleFormProps> = ({
+/**
+ * AccessibleField component for rendering individual form fields
+ * Extracted for better maintainability and reusability
+ */
+const AccessibleField: React.FC<{
+  field: FormField;
+  value: string;
+  error?: string;
+  onChange: (fieldId: string, value: string) => void;
+}> = memo(({ field, value, error, onChange }) => {
+  const fieldError = error || field.error;
+  const ariaDescribedBy = field.helperText || fieldError ? `${field.id}-helper` : undefined;
+
+  return (
+    <div className="mb-4">
+      <label
+        htmlFor={field.id}
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+      >
+        {field.label}
+        {field.required && <span className="text-red-500 ml-1" aria-label="obligatoriskt">*</span>}
+      </label>
+
+      <input
+        id={field.id}
+        name={field.id}
+        type={field.type}
+        value={value}
+        onChange={(event) => onChange(field.id, event.target.value)}
+        aria-describedby={ariaDescribedBy}
+        aria-label={field.label}
+        aria-invalid={!!fieldError}
+        className={`
+          w-full px-3 py-2 border rounded-md shadow-sm
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+          ${fieldError
+            ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+          }
+        `}
+        required={field.required}
+      />
+
+      {(fieldError || field.helperText) && (
+        <div
+          id={`${field.id}-helper`}
+          className={`mt-1 text-sm ${
+            fieldError
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-gray-500 dark:text-gray-400'
+          }`}
+        >
+          {fieldError || field.helperText}
+        </div>
+      )}
+    </div>
+  );
+});
+
+AccessibleField.displayName = 'AccessibleField';
+
+/**
+ * Validates a single field based on its type and requirements.
+ * @param field - The field to validate
+ * @param value - The trimmed value of the field
+ * @returns Error message if invalid, null otherwise
+ */
+const validateField = (field: FormField, value: string): string | null => {
+  // Required field validation
+  if (field.required && value === '') {
+    return `${field.label}${REQUIRED_ERROR_SUFFIX}`;
+  }
+
+  // Type-specific validation
+  switch (field.type) {
+    case 'email':
+      if (value && !EMAIL_REGEX.test(value)) {
+        return INVALID_EMAIL_ERROR;
+      }
+      break;
+    case 'number':
+      if (value && isNaN(Number(value))) {
+        return 'Ange ett giltigt nummer';
+      }
+      break;
+    case 'tel':
+      // Basic phone validation: allow digits, spaces, hyphens, parentheses
+      if (value && !/^[+\d\s\-\(\)]+$/.test(value)) {
+        return 'Ange ett giltigt telefonnummer';
+      }
+      break;
+    // Add more validations as needed
+  }
+
+  // Custom field error
+  if (field.error) {
+    return field.error;
+  }
+
+  return null;
+};
+
+/**
+ * AccessibleForm component with enhanced accessibility, performance, and maintainability
+ */
+const AccessibleForm: React.FC<AccessibleFormProps> = memo(({
   fields,
   onSubmit,
   submitLabel = 'Skicka',
   loading = false,
   error,
   success,
+  onSuccess,
 }) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const { announceToScreenReader, getAriaLabel } = useAccessibility();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { announceToScreenReader } = useAccessibility();
 
-  // Initialize form data
-  useEffect(() => {
-    const initialData: Record<string, any> = {};
+  // Memoize initial form data to avoid unnecessary recalculations
+  const initialFormData = useMemo(() => {
+    const data: Record<string, string> = {};
     fields.forEach(field => {
-      initialData[field.id] = field.value || '';
+      data[field.id] = field.value || '';
     });
-    setFormData(initialData);
+    return data;
   }, [fields]);
+
+  // Initialize form data with memoized initial data
+  useEffect(() => {
+    setFormData(initialFormData);
+  }, [initialFormData]);
 
   // Announce form errors
   useEffect(() => {
@@ -72,7 +183,8 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
     }
   }, [success, announceToScreenReader]);
 
-  const handleFieldChange = (fieldId: string, value: any) => {
+  // Memoized field change handler to prevent unnecessary re-renders
+  const handleFieldChange = useCallback((fieldId: string, value: string) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
     setFieldErrors(prev => ({ ...prev, [fieldId]: '' }));
 
@@ -81,33 +193,18 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
     if (field?.onChange) {
       field.onChange(value);
     }
-  };
+  }, [fields]);
 
-  const validateForm = (): boolean => {
+  // Validation function using the extracted validateField logic
+  const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
     let isValid = true;
 
     fields.forEach(field => {
-      const value = formData[field.id];
-
-      // Required field validation
-      if (field.required && (!value || value.toString().trim() === '')) {
-        errors[field.id] = `${field.label} är obligatoriskt`;
-        isValid = false;
-      }
-
-      // Email validation
-      if (field.type === 'email' && value) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value)) {
-          errors[field.id] = 'Ange en giltig e-postadress';
-          isValid = false;
-        }
-      }
-
-      // Custom field error
-      if (field.error) {
-        errors[field.id] = field.error;
+      const value = formData[field.id]?.trim() || '';
+      const error = validateField(field, value);
+      if (error) {
+        errors[field.id] = error;
         isValid = false;
       }
     });
@@ -117,182 +214,94 @@ const AccessibleForm: React.FC<AccessibleFormProps> = ({
     if (!isValid) {
       const errorCount = Object.keys(errors).length;
       announceToScreenReader(
-        `Formuläret har ${errorCount} fel som måste åtgärdas innan det kan skickas`,
+        `${FORM_ERROR_MESSAGE_PREFIX}${errorCount}${FORM_ERROR_MESSAGE_SUFFIX}`,
         'assertive'
       );
     }
 
     return isValid;
-  };
+  }, [fields, formData, announceToScreenReader]);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  // Memoized submit handler with async support and error handling
+  const handleSubmit = useCallback(async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (validateForm()) {
-      onSubmit(formData);
-      announceToScreenReader('Formulär skickas...', 'polite');
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    announceToScreenReader(FORM_SUBMITTING_MESSAGE, 'polite');
+
+    try {
+      await onSubmit(formData);
+      // Reset form data on success
+      setFormData(initialFormData);
+      setFieldErrors({});
+      onSuccess?.();
+    } catch (submitError) {
+      // Handle submission errors, e.g., set a general error
+      console.error('Form submission error:', submitError);
+      // Optionally set an error state or announce
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [validateForm, onSubmit, formData, initialFormData, announceToScreenReader, onSuccess]);
 
-  const renderField = (field: FormField) => {
-    const value = formData[field.id] || '';
-    const fieldError = fieldErrors[field.id] || field.error;
-    const ariaDescribedBy = field.helperText || fieldError ? `${field.id}-helper` : undefined;
+  // Memoize rendered fields for performance
+  const renderedFields = useMemo(() =>
+    fields.map(field => (
+      <AccessibleField
+        key={field.id}
+        field={field}
+        value={formData[field.id] || ''}
+        error={fieldErrors[field.id]}
+        onChange={handleFieldChange}
+      />
+    )), [fields, formData, fieldErrors, handleFieldChange]
+  );
 
-    const commonProps = {
-      id: field.id,
-      name: field.id,
-      value,
-      onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-        handleFieldChange(field.id, event.target.value),
-      error: !!fieldError,
-      required: field.required,
-      'aria-describedby': ariaDescribedBy,
-      'aria-label': getAriaLabel(field.label),
-      'aria-invalid': !!fieldError,
-    };
-
-    switch (field.type) {
-      case 'text':
-      case 'email':
-      case 'password':
-      case 'number':
-      case 'tel':
-        return (
-          <TextField
-            {...commonProps}
-            type={field.type}
-            label={field.label}
-            helperText={fieldError || field.helperText}
-            fullWidth
-          />
-        );
-
-      case 'select':
-        return (
-          <FormControl fullWidth error={!!fieldError}>
-            <FormLabel id={`${field.id}-label`}>{field.label}</FormLabel>
-            <Select
-              {...commonProps}
-              labelId={`${field.id}-label`}
-              onChange={(event) => handleFieldChange(field.id, event.target.value)}
-            >
-              {field.options?.map(option => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-            {(fieldError || field.helperText) && (
-              <FormHelperText id={`${field.id}-helper`}>
-                {fieldError || field.helperText}
-              </FormHelperText>
-            )}
-          </FormControl>
-        );
-
-      case 'checkbox':
-        return (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={!!value}
-                onChange={(event) => handleFieldChange(field.id, event.target.checked)}
-                aria-describedby={ariaDescribedBy}
-              />
-            }
-            label={field.label}
-          />
-        );
-
-      case 'radio':
-        return (
-          <FormControl component="fieldset" error={!!fieldError}>
-            <FormLabel component="legend">{field.label}</FormLabel>
-            <RadioGroup
-              value={value}
-              onChange={(event) => handleFieldChange(field.id, event.target.value)}
-              aria-describedby={ariaDescribedBy}
-            >
-              {field.options?.map(option => (
-                <FormControlLabel
-                  key={option.value}
-                  value={option.value}
-                  control={<Radio />}
-                  label={option.label}
-                />
-              ))}
-            </RadioGroup>
-            {(fieldError || field.helperText) && (
-              <FormHelperText id={`${field.id}-helper`}>
-                {fieldError || field.helperText}
-              </FormHelperText>
-            )}
-          </FormControl>
-        );
-
-      default:
-        return null;
-    }
-  };
+  const isDisabled = loading || isSubmitting;
 
   return (
-    <Box
-      component="form"
+    <form
       onSubmit={handleSubmit}
       role="form"
       aria-label="Formulär"
-      sx={{ maxWidth: 600, mx: 'auto' }}
+      className="space-y-4"
     >
-      {fields.map(field => (
-        <Box key={field.id} sx={{ mb: spacing.lg }}>
-          {renderField(field)}
-        </Box>
-      ))}
+      {renderedFields}
 
       {error && (
-        <Box
+        <div
           role="alert"
           aria-live="assertive"
-          sx={{
-            mb: spacing.md,
-            p: spacing.md,
-            bgcolor: 'error.main',
-            color: 'error.contrastText',
-            borderRadius: 1,
-          }}
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"
         >
           {error}
-        </Box>
+        </div>
       )}
 
       {success && (
-        <Box
+        <div
           role="status"
           aria-live="polite"
-          sx={{
-            mb: spacing.md,
-            p: spacing.md,
-            bgcolor: 'success.main',
-            color: 'success.contrastText',
-            borderRadius: 1,
-          }}
+          className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4"
         >
           {success}
-        </Box>
+        </div>
       )}
 
-      <Button
+      <button
         type="submit"
-        variant="contained"
-        fullWidth
-        disabled={loading}
+        disabled={isDisabled}
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-describedby={error ? 'form-error' : success ? 'form-success' : undefined}
       >
-        {loading ? 'Skickar...' : submitLabel}
-      </Button>
-    </Box>
+        {isDisabled ? 'Skickar...' : submitLabel}
+      </button>
+    </form>
   );
-};
+});
+
+AccessibleForm.displayName = 'AccessibleForm';
 
 export default AccessibleForm;

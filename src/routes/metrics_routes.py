@@ -44,8 +44,8 @@ def health_check():
         # Check database connection (simplified)
         # In real implementation, check actual DB connection
 
-        # Check system resources
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # Check system resources (non-blocking)
+        cpu_percent = psutil.cpu_percent(interval=None)  # Non-blocking
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
 

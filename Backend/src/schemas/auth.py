@@ -3,7 +3,7 @@ Authentication and user management schemas
 Pydantic models for login, registration, and user data validation
 """
 
-from pydantic import BaseModel, Field, validator, EmailStr
+from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from .base import (
@@ -18,9 +18,10 @@ class LoginRequest(BaseRequest):
     email: EmailStr = Field(..., description="User email address")
     password: str = Field(..., min_length=1, description="User password")
 
-    @validator('password')
+    @field_validator('password', mode='before')
+    @classmethod
     def validate_password_not_empty(cls, v):
-        if not v or not v.strip():
+        if not v or not str(v).strip():
             raise ValueError('Password cannot be empty')
         return v
 
@@ -28,15 +29,19 @@ class RegisterRequest(BaseRequest):
     """User registration request"""
     email: EmailStr = Field(..., description="User email address")
     password: str = Field(..., min_length=8, description="User password (min 8 chars)")
+    name: SanitizedString = Field(..., min_length=1, max_length=100, description="User display name")
     language: Language = Field(default=Language.SWEDISH, description="Preferred language")
     accept_terms: bool = Field(..., description="Accept terms and conditions")
     accept_privacy: bool = Field(..., description="Accept privacy policy")
+    referral_code: Optional[SanitizedString] = Field(None, max_length=50, description="Referral code")
 
-    @validator('password')
+    @field_validator('password', mode='before')
+    @classmethod
     def validate_password_strength(cls, v):
         return validate_password(v)
 
-    @validator('accept_terms', 'accept_privacy')
+    @field_validator('accept_terms', 'accept_privacy', mode='before')
+    @classmethod
     def validate_acceptance(cls, v):
         if not v:
             raise ValueError('You must accept the terms and privacy policy')
@@ -52,29 +57,41 @@ class ResetPasswordRequest(BaseRequest):
     """Password reset request"""
     email: EmailStr = Field(..., description="User email address")
 
+class ConfirmPasswordResetRequest(BaseRequest):
+    """Confirm password reset with token"""
+    token: str = Field(..., min_length=1, description="Password reset token")
+    new_password: str = Field(..., min_length=8, description="New password")
+
+    @field_validator('new_password', mode='before')
+    @classmethod
+    def validate_new_password(cls, v):
+        return validate_password(v)
+
 class ChangePasswordRequest(BaseRequest):
     """Change password request"""
     current_password: str = Field(..., description="Current password")
     new_password: str = Field(..., min_length=8, description="New password")
 
-    @validator('new_password')
+    @field_validator('new_password', mode='before')
+    @classmethod
     def validate_new_password(cls, v):
         return validate_password(v)
 
 class TwoFactorSetupRequest(BaseRequest):
     """2FA setup request"""
-    method: str = Field(..., regex=r'^(sms|app)$', description="2FA method (sms or app)")
+    method: str = Field(..., pattern=r'^(sms|app)$', description="2FA method (sms or app)")
     phone_number: Optional[str] = None
 
-    @validator('phone_number')
-    def validate_phone_for_sms(cls, v, values):
-        if values.get('method') == 'sms' and not v:
+    @field_validator('phone_number', mode='before')
+    @classmethod
+    def validate_phone_for_sms(cls, v, info):
+        if info.data.get('method') == 'sms' and not v:
             raise ValueError('Phone number required for SMS 2FA')
         return v
 
 class TwoFactorVerifyRequest(BaseRequest):
     """2FA verification request"""
-    code: str = Field(..., min_length=6, max_length=6, regex=r'^\d{6}$', description="6-digit verification code")
+    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$', description="6-digit verification code")
 
 # User profile schemas
 class UserProfile(BaseModel):
@@ -113,10 +130,7 @@ class UserProfile(BaseModel):
     two_factor_enabled: bool = False
     two_factor_method: Optional[str] = None
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 class UpdateProfileRequest(BaseRequest):
     """Update user profile request"""
@@ -131,7 +145,8 @@ class UpdateProfileRequest(BaseRequest):
     health: Optional[HealthMetrics] = None
     preferences: Optional[Preferences] = None
 
-    @validator('first_name', 'last_name', 'display_name')
+    @field_validator('first_name', 'last_name', 'display_name', mode='before')
+    @classmethod
     def validate_names(cls, v):
         if v is not None:
             return validate_safe_string(v, 100)
@@ -199,7 +214,8 @@ class DeleteAccountRequest(BaseRequest):
     reason: Optional[SanitizedString] = Field(None, max_length=500, description="Reason for deletion")
     password: str = Field(..., description="Current password for verification")
 
-    @validator('confirm_delete')
+    @field_validator('confirm_delete', mode='before')
+    @classmethod
     def validate_confirmation(cls, v):
         if not v:
             raise ValueError('You must confirm account deletion')

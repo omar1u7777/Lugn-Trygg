@@ -249,3 +249,107 @@ def get_forecast_history():
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av prognoshistorik: {e}")
         return jsonify({"error": "Ett internt fel uppstod vid hämtning av prognoshistorik."}), 500
+
+
+# 🔹 AI Chat Endpoint - NYTT för load test
+@ai_bp.route("/chat", methods=["POST", "OPTIONS"])
+def ai_chat():
+    """AI chatbot conversation endpoint with wellness goal context"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        data = request.get_json(force=True, silent=False)
+        user_id = data.get("user_id", "").strip()
+        message = data.get("message", "").strip()
+        
+        if not user_id or not message:
+            return jsonify({"error": "user_id och message krävs"}), 400
+        
+        # Get user's wellness goals for personalization
+        user_ref = db.collection("users").document(user_id)
+        user_doc = user_ref.get()
+        wellness_goals = []
+        
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            wellness_goals = user_data.get("wellness_goals", [])
+            logger.info(f"🎯 User wellness goals: {wellness_goals}")
+        
+        # Simple AI response (implementera med OpenAI senare)
+        from src.utils.ai_services import ai_services
+        
+        try:
+            response = ai_services.generate_chat_response(message, user_id, wellness_goals=wellness_goals)
+        except Exception as e:
+            logger.warning(f"AI response generation failed: {e}, using fallback")
+            # Fallback response - personalized based on goals
+            goal_context = ""
+            if wellness_goals:
+                goal_context = f" Jag ser att du arbetar med: {', '.join(wellness_goals)}."
+            
+            response = {
+                "message": f"Tack för ditt meddelande.{goal_context} Hur kan jag stötta dig idag?",
+                "sentiment": "NEUTRAL",
+                "suggestions": ["Berätta mer", "Hur känner du dig nu?", "Vill du prata om något specifikt?"]
+            }
+        
+        # Spara chat i databas
+        timestamp = datetime.now(timezone.utc).isoformat()
+        chat_ref = db.collection("users").document(user_id).collection("chat_history")
+        chat_ref.add({
+            "user_message": message,
+            "ai_response": response.get("message", ""),
+            "timestamp": timestamp,
+            "sentiment": response.get("sentiment", "NEUTRAL")
+        })
+        
+        return jsonify({
+            "response": response.get("message", ""),
+            "sentiment": response.get("sentiment", "NEUTRAL"),
+            "suggestions": response.get("suggestions", []),
+            "timestamp": timestamp
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ AI chat error: {str(e)}")
+        return jsonify({"error": f"Chat failed: {str(e)}"}), 500
+
+
+# 🔹 AI Chat History - NYTT för load test
+@ai_bp.route("/history", methods=["POST", "OPTIONS"])
+def ai_chat_history():
+    """Get user's chat history"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        data = request.get_json(force=True, silent=False)
+        user_id = data.get("user_id", "").strip()
+        
+        if not user_id:
+            return jsonify({"error": "user_id krävs"}), 400
+        
+        limit = data.get("limit", 50)
+        
+        # Hämta chat history
+        chat_ref = db.collection("users").document(user_id).collection("chat_history")
+        chats = chat_ref.order_by("timestamp", direction="DESCENDING").limit(limit).stream()
+        
+        history = []
+        for chat_doc in chats:
+            chat_data = chat_doc.to_dict()
+            history.append({
+                "id": chat_doc.id,
+                "user_message": chat_data.get("user_message", ""),
+                "ai_response": chat_data.get("ai_response", ""),
+                "timestamp": chat_data.get("timestamp", ""),
+                "sentiment": chat_data.get("sentiment", "NEUTRAL")
+            })
+        
+        return jsonify({
+            "history": history,
+            "count": len(history)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Chat history error: {str(e)}")
+        return jsonify({"error": f"Failed to get history: {str(e)}"}), 500

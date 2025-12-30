@@ -1,5 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useAccessibility } from '../../hooks/useAccessibility';
+
+// Constants for better maintainability
+const FOCUSABLE_SELECTORS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 interface FocusTrapProps {
   children: React.ReactNode;
@@ -18,49 +21,69 @@ const FocusTrap: React.FC<FocusTrapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-  const { trapFocus } = useAccessibility();
+  const { trapFocus, setFocus } = useAccessibility();
+
+  // Helper function to get focusable elements
+  const getFocusableElements = useCallback((container: HTMLElement): NodeListOf<Element> => {
+    return container.querySelectorAll(FOCUSABLE_SELECTORS);
+  }, []);
+
+  // Handle Escape key separately
+  const handleEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape' && onEscape) {
+      onEscape();
+    }
+  }, [onEscape]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !containerRef.current) return;
 
-    // Store the currently focused element
+    const container = containerRef.current;
+
+    // Store the currently focused element for restoration
     if (restoreFocus) {
       previouslyFocusedRef.current = document.activeElement as HTMLElement;
     }
 
-    // Focus the first focusable element when trap becomes active
-    if (autoFocus && containerRef.current) {
-      const focusableElements = containerRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
+    // Set up focus trap using the hook's trapFocus
+    const cleanupTrap = trapFocus(container);
+
+    // Handle initial focus if autoFocus is enabled
+    if (autoFocus) {
+      const focusableElements = getFocusableElements(container);
       const firstElement = focusableElements[0] as HTMLElement;
       if (firstElement) {
-        firstElement.focus();
+        try {
+          setFocus(firstElement);
+        } catch (error) {
+          console.warn('FocusTrap: Failed to set initial focus', error);
+        }
       }
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && onEscape) {
-        onEscape();
-        return;
-      }
+    // Add Escape key listener
+    document.addEventListener('keydown', handleEscape);
 
-      if (containerRef.current) {
-        trapFocus(containerRef.current, event);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-
+    // Cleanup function
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      // Remove Escape listener
+      document.removeEventListener('keydown', handleEscape);
 
-      // Restore focus when trap becomes inactive
+      // Clean up focus trap
+      if (cleanupTrap) {
+        cleanupTrap();
+      }
+
+      // Restore focus if requested
       if (restoreFocus && previouslyFocusedRef.current) {
-        previouslyFocusedRef.current.focus();
+        try {
+          setFocus(previouslyFocusedRef.current);
+        } catch (error) {
+          console.warn('FocusTrap: Failed to restore focus', error);
+        }
       }
     };
-  }, [active, autoFocus, onEscape, restoreFocus, trapFocus]);
+  }, [active, autoFocus, restoreFocus, trapFocus, setFocus, getFocusableElements, handleEscape]);
 
   return (
     <div
@@ -70,6 +93,8 @@ const FocusTrap: React.FC<FocusTrapProps> = ({
       }}
       tabIndex={-1}
       aria-hidden={!active}
+      role="dialog" // Add role for better semantics
+      aria-modal={active} // Indicate modal behavior
     >
       {children}
     </div>

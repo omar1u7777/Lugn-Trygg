@@ -70,7 +70,8 @@ export type AuthContextProps = {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   token: string | null;
   setToken: React.Dispatch<React.SetStateAction<string | null>>;
-  isLoggedIn: () => boolean;
-  login: (accessToken: string, email: string, user_id: string) => void;
+  isLoggedIn: boolean;  // ✅ Changed from function to boolean (useMemo value)
+  login: (accessToken: string, emailOrUser: string | User, userId?: string) => Promise<void>;
   logout: () => Promise<void>;
+  isInitialized?: boolean;
 };

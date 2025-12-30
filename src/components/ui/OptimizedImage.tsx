@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getOptimizedImageUrl } from '../../utils/cloudinary';
 
+type ConnectionWithSaveData = Navigator['connection'] & { saveData?: boolean };
+
+const BREAKPOINTS = [320, 480, 640, 768, 1024, 1280, 1536];
+const FORMATS: ReadonlyArray<'avif' | 'webp'> = ['avif', 'webp'];
+
 interface OptimizedImageProps {
   src: string;
   alt: string;
@@ -35,6 +40,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(src);
+  const [effectiveQuality, setEffectiveQuality] = useState(quality);
   const imgRef = useRef<HTMLImageElement>(null);
   const [isInView, setIsInView] = useState(priority);
 
@@ -59,6 +65,20 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     }
   }, [priority]);
 
+  useEffect(() => {
+    const connection = (navigator as any)?.connection as ConnectionWithSaveData | undefined;
+    if (connection?.saveData) {
+      setEffectiveQuality(Math.min(60, quality));
+      return;
+    }
+
+    if (connection?.effectiveType && ['slow-2g', '2g'].includes(connection.effectiveType)) {
+      setEffectiveQuality(Math.min(70, quality));
+    } else {
+      setEffectiveQuality(quality);
+    }
+  }, [quality]);
+
   const handleLoad = () => {
     setIsLoaded(true);
     onLoad?.();
@@ -74,24 +94,39 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (!imgRef.current) {
+      return;
+    }
+
+    // React 18 does not yet know the fetchpriority attribute, so set it manually to avoid warnings.
+    const priorityValue = priority ? 'high' : 'auto';
+    imgRef.current.setAttribute('fetchpriority', priorityValue);
+  }, [priority, isInView]);
+
   // Generate blur placeholder for better UX
   const generateBlurPlaceholder = (src: string) => {
     // For now, return a simple data URL. In production, you might want to generate actual blur placeholders
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PC9zdmc+';
   };
 
-  // Generate responsive image sources
-  const generateSrcSet = (baseSrc: string) => {
-    const breakpoints = [320, 640, 768, 1024, 1280, 1536];
-    return breakpoints
-      .map(bp => `${getOptimizedImageUrl(baseSrc, { width: bp, quality, format: 'webp' })} ${bp}w`)
-      .join(', ');
-  };
+  const isAbsoluteUrl = /^https?:\/\//i.test(currentSrc);
+  const isLocalAsset = currentSrc.startsWith('/') || currentSrc.startsWith('.');
+  const isCloudPublicId = !isAbsoluteUrl && !isLocalAsset;
 
-  // Check if image is from Cloudinary or local
-  const isCloudinaryImage = currentSrc.includes('cloudinary.com') || currentSrc.startsWith('http');
-  const optimizedSrc = isCloudinaryImage
-    ? getOptimizedImageUrl(currentSrc, { width: width!, height: height!, quality })
+  const shouldOptimize = isCloudPublicId;
+
+  const generateSrcSet = (publicId: string, format: 'webp' | 'avif') =>
+    BREAKPOINTS
+      .map(bp => `${getOptimizedImageUrl(publicId, { width: bp, quality: effectiveQuality, format })} ${bp}w`)
+      .join(', ');
+
+  const optimizedSrc = shouldOptimize
+    ? getOptimizedImageUrl(currentSrc, {
+        width,
+        height,
+        quality: effectiveQuality,
+      })
     : currentSrc;
 
   return (
@@ -107,25 +142,35 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       )}
 
       {/* Main Image */}
-      <img
-        ref={imgRef}
-        src={isInView ? optimizedSrc : undefined}
-        srcSet={isInView && isCloudinaryImage ? generateSrcSet(currentSrc) : undefined}
-        sizes={sizes}
-        alt={alt}
-        width={width}
-        height={height}
-        loading={priority ? 'eager' : 'lazy'}
-        decoding="async"
-        className={`transition-opacity duration-300 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
-        } ${hasError ? 'hidden' : ''}`}
-        onLoad={handleLoad}
-        onError={handleError}
-        style={{
-          aspectRatio: width && height ? `${width}/${height}` : undefined,
-        }}
-      />
+      <picture>
+        {isInView && shouldOptimize && FORMATS.map((format) => (
+          <source
+            key={format}
+            type={`image/${format}`}
+            srcSet={generateSrcSet(currentSrc, format)}
+            sizes={sizes}
+          />
+        ))}
+        <img
+          ref={imgRef}
+          src={isInView ? optimizedSrc : undefined}
+          srcSet={isInView && shouldOptimize ? generateSrcSet(currentSrc, 'webp') : undefined}
+          sizes={sizes}
+          alt={alt}
+          width={width}
+          height={height}
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          className={`transition-opacity duration-300 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          } ${hasError ? 'hidden' : ''}`}
+          onLoad={handleLoad}
+          onError={handleError}
+          style={{
+            aspectRatio: width && height ? `${width}/${height}` : undefined,
+          }}
+        />
+      </picture>
 
       {/* Fallback for unsupported browsers */}
       <noscript>

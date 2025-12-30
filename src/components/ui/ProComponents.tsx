@@ -5,6 +5,7 @@
  */
 
 import React, { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import { CheckCircleIcon, ExclamationTriangleIcon, XCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import '../styles/design-system.css';
 
 // ============================================================================
@@ -307,10 +308,10 @@ export const Alert: React.FC<AlertProps> = ({ children, variant = 'info', icon, 
   };
 
   const defaultIcons = {
-    success: <i className="fas fa-check-circle text-xl" />,
-    warning: <i className="fas fa-exclamation-triangle text-xl" />,
-    error: <i className="fas fa-times-circle text-xl" />,
-    info: <i className="fas fa-info-circle text-xl" />,
+    success: <CheckCircleIcon className="w-5 h-5" aria-hidden="true" />,
+    warning: <ExclamationTriangleIcon className="w-5 h-5" aria-hidden="true" />,
+    error: <XCircleIcon className="w-5 h-5" aria-hidden="true" />,
+    info: <InformationCircleIcon className="w-5 h-5" aria-hidden="true" />,
   };
 
   return (
@@ -323,7 +324,7 @@ export const Alert: React.FC<AlertProps> = ({ children, variant = 'info', icon, 
           className="btn-icon btn-ghost-pro ml-auto"
           aria-label="Close alert"
         >
-          <i className="fas fa-times" />
+          <XMarkIcon className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -377,15 +378,6 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
-  if (!isOpen) return null;
-
-  const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-  };
-
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -396,6 +388,15 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 fade-in">
@@ -419,11 +420,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             <h2 id="modal-title" className="heading-3">
               {title}
             </h2>
-            <IconButton
-              icon={<i className="fas fa-times" />}
+            <button
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               onClick={onClose}
               aria-label="Close modal"
-            />
+            >
+              <XMarkIcon className="w-5 h-5" aria-hidden="true" />
+            </button>
           </div>
         )}
 
@@ -470,3 +473,5 @@ export const BodyText: React.FC<{ children: ReactNode; size?: 'large' | 'base' |
 
   return <p className={`${sizeClasses[size]} ${className}`}>{children}</p>;
 };
+
+

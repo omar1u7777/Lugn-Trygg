@@ -6,7 +6,7 @@ Advanced indexing strategies, query optimization, and performance monitoring
 import time
 from typing import Dict, List, Optional, Any, Tuple, Set
 from collections import defaultdict, Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from firebase_admin import firestore
 from google.cloud import firestore as gcp_firestore
@@ -36,7 +36,7 @@ class FirestoreQueryOptimizer:
             'collection': collection,
             'execution_time_ms': execution_time,
             'result_count': result_count,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'query_hash': self._hash_query(query_dict),
             'performance_rating': self._rate_performance(execution_time, result_count),
             'optimizations': []
@@ -74,7 +74,7 @@ class FirestoreQueryOptimizer:
         stats['avg_time'] = stats['total_time'] / stats['count']
         stats['max_time'] = max(stats['max_time'], execution_time)
         stats['min_time'] = min(stats['min_time'], execution_time)
-        stats['last_seen'] = datetime.utcnow()
+        stats['last_seen'] = datetime.now(timezone.utc)
 
         # Track slow queries
         if execution_time > self.performance_thresholds['slow_query_ms']:
@@ -83,13 +83,14 @@ class FirestoreQueryOptimizer:
         return analysis
 
     def _hash_query(self, query_dict: Dict) -> str:
-        """Create a hash for query identification"""
+        """Create a hash for query identification (not used for security)"""
         import hashlib
         import json
 
         # Normalize query for consistent hashing
         normalized = json.dumps(query_dict, sort_keys=True, default=str)
-        return hashlib.md5(normalized.encode()).hexdigest()[:8]
+        # MD5 used only for cache identification, not security
+        return hashlib.md5(normalized.encode(), usedforsecurity=False).hexdigest()[:8]
 
     def _rate_performance(self, execution_time: float, result_count: int) -> str:
         """Rate query performance"""

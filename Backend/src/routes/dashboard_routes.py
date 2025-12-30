@@ -1,195 +1,450 @@
 """
-Dashboard Routes - Optimized Endpoints for Dashboard Data
-Provides batched, cached data for frontend Dashboard component
+Dashboard Routes
+Provides batched dashboard data endpoints for frontend efficiency
 """
 
-from flask import Blueprint, jsonify, request
-from functools import wraps
-from datetime import datetime, timedelta
-import time
-from firebase_admin import firestore
+from flask import Blueprint, request, jsonify, g
+from ..services.auth_service import AuthService
+from ..firebase_config import db
+from datetime import datetime, timezone, timedelta
+import logging
+from typing import Dict, List, Any
 
-dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
-
-# Simple in-memory cache (production: use Redis)
-_cache = {}
-CACHE_TTL = 300  # 5 minutes
+dashboard_bp = Blueprint('dashboard', __name__)
+logger = logging.getLogger(__name__)
 
 
-def cached(ttl=CACHE_TTL):
-    """Cache decorator for dashboard endpoints"""
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            # Generate cache key from function name and args
-            cache_key = f"{f.__name__}:{request.view_args.get('user_id', 'anonymous')}"
-            
-            # Check cache
-            if cache_key in _cache:
-                data, timestamp = _cache[cache_key]
-                if time.time() - timestamp < ttl:
-                    print(f"✅ Cache hit for {cache_key}")
-                    return jsonify({**data, "cached": True}), 200
-            
-            # Call function and cache result
-            result = f(*args, **kwargs)
-            if isinstance(result, tuple):
-                response_data, status_code = result
-                if status_code == 200 and hasattr(response_data, 'get_json'):
-                    _cache[cache_key] = (response_data.get_json(), time.time())
-            
-            return result
-        return wrapper
-    return decorator
+@dashboard_bp.route('/csrf-token', methods=['GET', 'OPTIONS'])
+def get_csrf_token():
+    """
+    Generate a CSRF token for the frontend.
+    Note: For stateless JWT auth, CSRF is less critical but we provide it for compatibility.
+    """
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    import secrets
+    csrf_token = secrets.token_urlsafe(32)
+
+    return jsonify({
+        'csrf_token': csrf_token
+    }), 200
 
 
-@dashboard_bp.route('/<user_id>/summary', methods=['GET'])
-@cached(ttl=300)  # 5 minutes
+def _get_score_from_mood_text(mood_text: str) -> str:
+    """Infer score from mood text (Swedish keywords)"""
+    mood_text = mood_text.lower() if mood_text else ''
+    
+    # Very positive moods (8-10)
+    if any(word in mood_text for word in ['fantastisk', 'underbar', 'lycklig', 'euforisk', 'strålande']):
+        return "9/10"
+    if any(word in mood_text for word in ['glad', 'nöjd', 'bra', 'positiv', 'energisk', 'spännande']):
+        return "8/10"
+    
+    # Moderately positive (6-7)
+    if any(word in mood_text for word in ['okej', 'lugn', 'avslappnad', 'stabil']):
+        return "7/10"
+    
+    # Neutral (5)
+    if any(word in mood_text for word in ['neutral', 'så där', 'varken', 'medel']):
+        return "5/10"
+    
+    # Negative moods (2-4)
+    if any(word in mood_text for word in ['trött', 'uttråkad', 'irriterad', 'stressad']):
+        return "4/10"
+    if any(word in mood_text for word in ['ledsen', 'orolig', 'nervös', 'ängslig']):
+        return "3/10"
+    if any(word in mood_text for word in ['arg', 'frustrerad', 'deprimerad', 'hopplös']):
+        return "2/10"
+    
+    # Default to neutral if no match
+    return "5/10"
+
+# In-memory cache for dashboard data (5 minute TTL)
+_dashboard_cache: Dict[str, Dict[str, Any]] = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _get_cached_data(user_id: str) -> Dict[str, Any] | None:
+    """Get cached dashboard data if still valid"""
+    if user_id in _dashboard_cache:
+        cached = _dashboard_cache[user_id]
+        if datetime.now(timezone.utc).timestamp() - cached.get('_cached_at', 0) < CACHE_TTL_SECONDS:
+            return cached
+    return None
+
+
+def _set_cached_data(user_id: str, data: Dict[str, Any]) -> None:
+    """Cache dashboard data"""
+    data['_cached_at'] = datetime.now(timezone.utc).timestamp()
+    _dashboard_cache[user_id] = data
+
+
+@dashboard_bp.route('/<user_id>/summary', methods=['GET', 'OPTIONS'])
+@AuthService.jwt_required
 def get_dashboard_summary(user_id: str):
     """
-    Batched dashboard summary endpoint - returns all data in one call
-    Reduces frontend API calls from 3+ to 1
+    Get complete dashboard summary in one API call.
+    Replaces multiple getMoods, getWeeklyAnalysis, getChatHistory calls.
+    Backend caches for 5 minutes for optimal performance.
     """
+    if request.method == 'OPTIONS':
+        return '', 204
+
     try:
-        start_time = time.time()
-        db = firestore.client()
-        
-        # Get user data
-        user_ref = db.collection("users").document(user_id)
+        # Verify user owns this data
+        if g.user_id != user_id:
+            logger.warning(f"❌ Dashboard - Unauthorized: {g.user_id} != {user_id}")
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Check for force refresh
+        force_refresh = request.args.get('forceRefresh', 'false').lower() == 'true'
+
+        # Check cache first
+        if not force_refresh:
+            cached_data = _get_cached_data(user_id)
+            if cached_data:
+                logger.info(f"📊 Dashboard - Cache hit for user: {user_id[:8]}...")
+                cached_data['cached'] = True
+                return jsonify(cached_data), 200
+
+        start_time = datetime.now(timezone.utc)
+
+        # Fetch user data
+        user_ref = db.collection('users').document(user_id)
         user_doc = user_ref.get()
         
-        if not user_doc.exists:
-            return jsonify({"error": "User not found"}), 404
+        wellness_goals = []
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            wellness_goals = user_data.get('wellnessGoals', [])
+
+        # Fetch mood data (last 30 days)
+        # CRITICAL FIX: Moods are stored in user subcollection, not root collection
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         
-        user_data = user_doc.to_dict()
+        try:
+            # Correct path: users/{user_id}/moods (subcollection)
+            moods_ref = db.collection('users').document(user_id).collection('moods').order_by('timestamp', direction='DESCENDING').limit(100)
+            mood_docs = list(moods_ref.stream())
+            logger.info(f"📊 Dashboard - Found {len(mood_docs)} moods for user {user_id[:8]}...")
+        except Exception as e:
+            logger.warning(f"⚠️ Mood query failed: {e}")
+            mood_docs = []
+
+        total_moods = len(mood_docs)
         
-        # Get mood data (last 30 days)
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        moods_ref = db.collection("moods").where("userId", "==", user_id)
-        moods_query = moods_ref.where("timestamp", ">=", thirty_days_ago).order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100)
-        moods = [doc.to_dict() for doc in moods_query.stream()]
+        # Calculate average mood and weekly progress
+        average_mood = 0
+        weekly_progress = 0
+        week_start = datetime.now(timezone.utc) - timedelta(days=7)
         
-        # Get chat history (last 10 sessions)
-        chats_ref = db.collection("chat_sessions").where("userId", "==", user_id)
-        chats = [doc.to_dict() for doc in chats_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream()]
+        mood_scores = []
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            # CRITICAL FIX: Get score from user input (1-10 scale), not sentiment score
+            score = mood_data.get('score')
+            sentiment_score = mood_data.get('sentiment_score')
+            
+            # Determine the best score to use
+            final_score = None
+            
+            # Check if we have a valid user score (1-10, not 0)
+            if score is not None:
+                try:
+                    score_val = float(score)
+                    if 1 <= score_val <= 10:
+                        # Valid user score
+                        final_score = score_val
+                    elif score_val == 0:
+                        # Score is 0 means not set - try sentiment
+                        if sentiment_score is not None:
+                            try:
+                                sent_val = float(sentiment_score)
+                                if -1 <= sent_val <= 1:
+                                    final_score = round((sent_val + 1) * 4.5 + 1, 1)
+                            except (ValueError, TypeError):
+                                pass
+                        # Fallback to mood text inference
+                        if final_score is None:
+                            mood_text = mood_data.get('mood_text', '').lower()
+                            inferred = _get_score_from_mood_text(mood_text)
+                            if inferred != "N/A":
+                                final_score = float(inferred.replace('/10', ''))
+                    elif -1 <= score_val <= 1:
+                        # This is actually a sentiment score in wrong field
+                        final_score = round((score_val + 1) * 4.5 + 1, 1)
+                except (ValueError, TypeError):
+                    pass
+            
+            # If still no score, try sentiment_score directly
+            if final_score is None and sentiment_score is not None:
+                try:
+                    sent_val = float(sentiment_score)
+                    if -1 <= sent_val <= 1:
+                        final_score = round((sent_val + 1) * 4.5 + 1, 1)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Add to scores if valid
+            if final_score is not None:
+                final_score = max(1, min(10, final_score))  # Clamp to 1-10
+                mood_scores.append(final_score)
+            
+            # Check if mood is from this week
+            timestamp = mood_data.get('timestamp')
+            if timestamp:
+                try:
+                    if hasattr(timestamp, 'timestamp'):
+                        mood_time = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc)
+                    elif isinstance(timestamp, str):
+                        mood_time = datetime.fromisoformat(str(timestamp).replace('Z', '+00:00'))
+                    else:
+                        mood_time = timestamp if hasattr(timestamp, 'date') else None
+                    
+                    if mood_time and mood_time >= week_start:
+                        weekly_progress += 1
+                except Exception as e:
+                    logger.debug(f"⚠️ Failed to parse timestamp: {e}")
         
-        # Calculate statistics
-        total_moods = len(moods)
-        average_mood = sum(mood.get("score", 0) for mood in moods) / total_moods if total_moods > 0 else 0
-        
-        # Calculate weekly stats
-        one_week_ago = datetime.utcnow() - timedelta(days=7)
-        weekly_moods = [m for m in moods if m.get("timestamp", datetime.min) >= one_week_ago]
-        weekly_progress = len(weekly_moods)
-        weekly_goal = user_data.get("weekly_goal", 7)
-        
-        # Calculate streak
-        streak_days = calculate_streak(moods)
-        
-        # Recent activity (last 5 items)
+        if mood_scores:
+            average_mood = round(sum(mood_scores) / len(mood_scores), 1)
+
+        # Fetch chat history count
+        # CRITICAL FIX: Chats are stored in user subcollection as 'conversations'
+        try:
+            chats_ref = db.collection('users').document(user_id).collection('conversations').limit(100)
+            chat_docs = list(chats_ref.stream())
+            # Count all chat sessions (not just AI prefix - conversations can have different formats)
+            total_chats = len(chat_docs)
+            logger.info(f"📊 Dashboard - Found {total_chats} chat sessions for user {user_id[:8]}...")
+        except Exception as e:
+            logger.warning(f"⚠️ Chat query failed: {e}")
+            total_chats = 0
+
+        # Calculate streak days - count consecutive days with mood logs
+        streak_days = 0
+        if mood_docs:
+            logged_dates = set()
+            for doc in mood_docs:
+                mood_data = doc.to_dict()
+                timestamp = mood_data.get('timestamp')
+                if timestamp:
+                    try:
+                        if hasattr(timestamp, 'date'):
+                            mood_date = timestamp.date()
+                        elif hasattr(timestamp, 'timestamp'):
+                            mood_date = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc).date()
+                        elif isinstance(timestamp, str):
+                            mood_date = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).date()
+                        else:
+                            continue
+                        logged_dates.add(mood_date)
+                    except Exception:
+                        continue
+            
+            # Count consecutive days - start from today or yesterday
+            # (if user logged yesterday but not today yet, still count the streak)
+            today = datetime.now(timezone.utc).date()
+            yesterday = today - timedelta(days=1)
+            
+            # Start from today if logged today, otherwise start from yesterday
+            if today in logged_dates:
+                current_date = today
+            elif yesterday in logged_dates:
+                current_date = yesterday
+            else:
+                current_date = None
+            
+            # Count consecutive days backwards
+            if current_date:
+                while current_date in logged_dates:
+                    streak_days += 1
+                    current_date -= timedelta(days=1)
+            
+            logger.info(f"📊 Dashboard - Streak: {streak_days} days, logged dates: {len(logged_dates)}")
+
+        # Build recent activity
         recent_activity = []
-        for mood in moods[:3]:
+        for doc in mood_docs[:5]:
+            mood_data = doc.to_dict()
+            timestamp = mood_data.get('timestamp')
+            if hasattr(timestamp, 'isoformat'):
+                timestamp_str = timestamp.isoformat()
+            elif hasattr(timestamp, 'timestamp'):
+                timestamp_str = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc).isoformat()
+            else:
+                timestamp_str = str(timestamp)
+            
+            # CRITICAL FIX: Get score properly
+            # 'score' is user's 1-10 input, 'sentiment_score' is AI analysis (-1 to 1)
+            raw_score = mood_data.get('score')
+            sentiment_score = mood_data.get('sentiment_score')
+            
+            # Determine the best score to display
+            score_display = "N/A"
+            
+            # Check if we have a valid user score (1-10 range, not 0)
+            if raw_score is not None:
+                try:
+                    score_val = float(raw_score)
+                    # Valid user score is 1-10 (0 means no score was set)
+                    if 1 <= score_val <= 10:
+                        # Format nicely (no decimals if whole number)
+                        if score_val == int(score_val):
+                            score_display = f"{int(score_val)}/10"
+                        else:
+                            score_display = f"{score_val:.1f}/10"
+                    elif score_val == 0 and sentiment_score is not None:
+                        # Score is 0, but we have sentiment - use sentiment
+                        try:
+                            sent_val = float(sentiment_score)
+                            # Convert from -1 to 1 range to 1-10
+                            converted = round((sent_val + 1) * 4.5 + 1, 1)
+                            converted = max(1, min(10, converted))
+                            if converted == int(converted):
+                                score_display = f"{int(converted)}/10"
+                            else:
+                                score_display = f"{converted:.1f}/10"
+                        except (ValueError, TypeError):
+                            # Try mood_text as fallback
+                            mood_text = mood_data.get('mood_text', '').lower()
+                            score_display = _get_score_from_mood_text(mood_text)
+                    elif -1 <= score_val <= 1:
+                        # This is actually a sentiment score stored in wrong field
+                        converted = round((score_val + 1) * 4.5 + 1, 1)
+                        converted = max(1, min(10, converted))
+                        if converted == int(converted):
+                            score_display = f"{int(converted)}/10"
+                        else:
+                            score_display = f"{converted:.1f}/10"
+                except (ValueError, TypeError):
+                    pass
+            
+            # If still N/A, try sentiment_score
+            if score_display == "N/A" and sentiment_score is not None:
+                try:
+                    sent_val = float(sentiment_score)
+                    if -1 <= sent_val <= 1:
+                        converted = round((sent_val + 1) * 4.5 + 1, 1)
+                        converted = max(1, min(10, converted))
+                        if converted == int(converted):
+                            score_display = f"{int(converted)}/10"
+                        else:
+                            score_display = f"{converted:.1f}/10"
+                except (ValueError, TypeError):
+                    pass
+            
+            # Last resort: try to infer from mood_text
+            if score_display == "N/A":
+                mood_text = mood_data.get('mood_text', '').lower()
+                score_display = _get_score_from_mood_text(mood_text)
+            
             recent_activity.append({
-                "id": f"mood-{mood.get('id', '')}",
-                "type": "mood",
-                "timestamp": mood.get("timestamp").isoformat() if mood.get("timestamp") else None,
-                "description": f"Logged mood: {mood.get('mood', 'Unknown')} ({mood.get('score', 0)}/10)"
+                'id': doc.id,
+                'type': 'mood',
+                'timestamp': timestamp_str,
+                'description': f"Humör loggat: {score_display}"
             })
-        
-        for chat in chats[:2]:
-            recent_activity.append({
-                "id": f"chat-{chat.get('id', '')}",
-                "type": "chat",
-                "timestamp": chat.get("timestamp").isoformat() if chat.get("timestamp") else None,
-                "description": "Chat session with AI therapist"
-            })
-        
-        # Sort by timestamp and take top 5
-        recent_activity.sort(key=lambda x: x["timestamp"] or "", reverse=True)
-        recent_activity = recent_activity[:5]
-        
-        response_time = (time.time() - start_time) * 1000
-        
-        return jsonify({
-            "totalMoods": total_moods,
-            "totalChats": len(chats),
-            "averageMood": round(average_mood, 1),
-            "streakDays": streak_days,
-            "weeklyGoal": weekly_goal,
-            "weeklyProgress": weekly_progress,
-            "recentActivity": recent_activity,
-            "cached": False,
-            "responseTime": round(response_time, 2)
-        }), 200
-        
+
+        response_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+
+        summary = {
+            'totalMoods': total_moods,
+            'totalChats': total_chats,
+            'averageMood': average_mood,
+            'streakDays': streak_days,
+            'weeklyGoal': 7,
+            'weeklyProgress': weekly_progress,
+            'wellnessGoals': wellness_goals,
+            'recentActivity': recent_activity,
+            'cached': False,
+            'responseTime': round(response_time, 2)
+        }
+
+        # Cache the result
+        _set_cached_data(user_id, summary.copy())
+
+        logger.info(f"✅ Dashboard summary for {user_id[:8]}: {total_moods} moods, {total_chats} chats, {response_time:.0f}ms")
+        return jsonify(summary), 200
+
     except Exception as e:
-        print(f"❌ Dashboard summary error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.exception(f"❌ Failed to get dashboard summary: {e}")
+        return jsonify({'error': 'Failed to load dashboard summary'}), 500
 
 
-@dashboard_bp.route('/<user_id>/quick-stats', methods=['GET'])
-@cached(ttl=60)  # 1 minute for real-time stats
+@dashboard_bp.route('/<user_id>/quick-stats', methods=['GET', 'OPTIONS'])
+@AuthService.jwt_required
 def get_quick_stats(user_id: str):
     """
-    Ultra-fast endpoint for real-time dashboard stats
-    Only fetches essential counts
+    Get quick stats for real-time updates (1 minute cache).
+    Ultra-fast endpoint for dashboard refresh.
     """
+    if request.method == 'OPTIONS':
+        return '', 204
+
     try:
-        db = firestore.client()
-        
-        # Get counts efficiently
-        moods_count_query = db.collection("moods").where("userId", "==", user_id).count()
-        chats_count_query = db.collection("chat_sessions").where("userId", "==", user_id).count()
-        
-        moods_count = moods_count_query.get()
-        chats_count = chats_count_query.get()
-        
+        # Verify user owns this data
+        if g.user_id != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Quick count queries - CRITICAL FIX: Use correct subcollection paths
+        try:
+            # Correct path: users/{user_id}/moods (subcollection)
+            moods_ref = db.collection('users').document(user_id).collection('moods').limit(1000)
+            total_moods = len(list(moods_ref.stream()))
+        except Exception as e:
+            logger.warning(f"⚠️ Quick stats mood query failed: {e}")
+            total_moods = 0
+
+        try:
+            # Correct path: users/{user_id}/conversations (subcollection)
+            chats_ref = db.collection('users').document(user_id).collection('conversations').limit(1000)
+            total_chats = len(list(chats_ref.stream()))
+        except Exception as e:
+            logger.warning(f"⚠️ Quick stats chat query failed: {e}")
+            total_chats = 0
+
         return jsonify({
-            "totalMoods": moods_count[0][0].value if moods_count else 0,
-            "totalChats": chats_count[0][0].value if chats_count else 0,
-            "cached": False
+            'totalMoods': total_moods,
+            'totalChats': total_chats,
+            'cached': False
         }), 200
-        
+
     except Exception as e:
-        print(f"❌ Quick stats error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logger.exception(f"❌ Failed to get quick stats: {e}")
+        return jsonify({
+            'totalMoods': 0,
+            'totalChats': 0,
+            'cached': False,
+            'error': str(e)
+        }), 500
 
 
-@dashboard_bp.route('/cache/clear', methods=['POST'])
-def clear_cache():
-    """Clear dashboard cache (admin/development use)"""
-    global _cache
-    _cache = {}
-    return jsonify({"message": "Cache cleared", "timestamp": datetime.utcnow().isoformat()}), 200
+@dashboard_bp.route('', methods=['GET', 'OPTIONS'])
+@AuthService.jwt_required
+def get_dashboard_legacy():
+    """Legacy /api/dashboard endpoint that proxies to the user-specific summary."""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if not getattr(g, 'user_id', None):
+        return jsonify({'error': 'User context saknas'}), 400
+
+    # Reuse the rich summary endpoint with the authenticated user id
+    return get_dashboard_summary(g.user_id)
 
 
-def calculate_streak(moods: list) -> int:
-    """Calculate consecutive days with mood logs"""
-    if not moods:
-        return 0
-    
-    # Sort moods by date - filter out None values
-    dates_set = {
-        mood.get("timestamp").date()
-        for mood in moods
-        if mood.get("timestamp") is not None
-    }
-    dates = sorted(dates_set, reverse=True)
-    
-    if not dates:
-        return 0
-    
-    # Count consecutive days from today
-    streak = 0
-    current_date = datetime.utcnow().date()
-    
-    for date in dates:
-        if date == current_date:
-            streak += 1
-            current_date -= timedelta(days=1)
-        else:
-            break
-    
-    return streak
+@dashboard_bp.route('/stats', methods=['GET', 'OPTIONS'])
+@AuthService.jwt_required
+def get_dashboard_legacy_stats():
+    """Legacy /api/dashboard/stats endpoint forwarding to quick stats."""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if not getattr(g, 'user_id', None):
+        return jsonify({'error': 'User context saknas'}), 400
+
+    return get_quick_stats(g.user_id)
+
+

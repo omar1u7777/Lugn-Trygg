@@ -1,6 +1,9 @@
 // src/setupTests.ts
 // Environment polyfills for Jest (jsdom)
 
+// Import jest-dom matchers for Vitest
+import '@testing-library/jest-dom/vitest';
+
 // Force development React for testing
 process.env.NODE_ENV = 'development';
 

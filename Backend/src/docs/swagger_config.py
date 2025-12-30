@@ -89,99 +89,135 @@ spec.components.security_scheme(
 
 # Common response schemas
 class ErrorResponse(Schema):
-    error = fields.Str(description='Error message')
-    status_code = fields.Int(description='HTTP status code')
-    timestamp = fields.DateTime(description='Error timestamp')
+    error = fields.Str(metadata={'description': 'Error message'})
+    status_code = fields.Int(metadata={'description': 'HTTP status code'})
+    timestamp = fields.DateTime(metadata={'description': 'Error timestamp'})
+
 
 class SuccessResponse(Schema):
-    message = fields.Str(description='Success message')
-    status = fields.Str(description='Status indicator')
-    timestamp = fields.DateTime(description='Response timestamp')
+    message = fields.Str(metadata={'description': 'Success message'})
+    status = fields.Str(metadata={'description': 'Status indicator'})
+    timestamp = fields.DateTime(metadata={'description': 'Response timestamp'})
 
 # Authentication schemas
 class LoginRequest(Schema):
-    email = fields.Email(required=True, description='User email address')
-    password = fields.Str(required=True, description='User password', validate=validate.Length(min=8))
+    email = fields.Email(required=True, metadata={'description': 'User email address'})
+    password = fields.Str(
+        required=True,
+        validate=validate.Length(min=8),
+        metadata={'description': 'User password'}
+    )
+
 
 class RegisterRequest(Schema):
-    email = fields.Email(required=True, description='User email address')
-    password = fields.Str(required=True, description='User password', validate=validate.Length(min=8))
-    language = fields.Str(missing='sv', description='User preferred language')
+    email = fields.Email(required=True, metadata={'description': 'User email address'})
+    password = fields.Str(
+        required=True,
+        validate=validate.Length(min=8),
+        metadata={'description': 'User password'}
+    )
+    language = fields.Str(
+        load_default='sv',
+        metadata={'description': 'User preferred language'}
+    )
+
 
 class AuthResponse(Schema):
-    access_token = fields.Str(description='JWT access token')
-    refresh_token = fields.Str(description='JWT refresh token')
-    user = fields.Dict(description='User information')
-    expires_in = fields.Int(description='Token expiration time in seconds')
+    access_token = fields.Str(metadata={'description': 'JWT access token'})
+    refresh_token = fields.Str(metadata={'description': 'JWT refresh token'})
+    user = fields.Dict(metadata={'description': 'User information'})
+    expires_in = fields.Int(metadata={'description': 'Token expiration time in seconds'})
 
 # Mood schemas
 class MoodLogRequest(Schema):
-    mood_value = fields.Int(required=True, validate=validate.Range(min=1, max=10), description='Mood value (1-10)')
-    note = fields.Str(description='Optional mood note')
-    voice_data = fields.Str(description='Base64 encoded voice data')
-    timestamp = fields.DateTime(description='Mood timestamp')
+    mood_value = fields.Int(
+        required=True,
+        validate=validate.Range(min=1, max=10),
+        metadata={'description': 'Mood value (1-10)'}
+    )
+    note = fields.Str(metadata={'description': 'Optional mood note'})
+    voice_data = fields.Str(metadata={'description': 'Base64 encoded voice data'})
+    timestamp = fields.DateTime(metadata={'description': 'Mood timestamp'})
+
 
 class MoodEntry(Schema):
-    id = fields.Str(description='Mood entry ID')
-    user_id = fields.Str(description='User ID')
-    mood_value = fields.Int(description='Mood value (1-10)')
-    note = fields.Str(description='Mood note')
-    timestamp = fields.DateTime(description='Entry timestamp')
-    ai_insights = fields.Dict(description='AI-generated insights')
+    id = fields.Str(metadata={'description': 'Mood entry ID'})
+    user_id = fields.Str(metadata={'description': 'User ID'})
+    mood_value = fields.Int(metadata={'description': 'Mood value (1-10)'})
+    note = fields.Str(metadata={'description': 'Mood note'})
+    timestamp = fields.DateTime(metadata={'description': 'Entry timestamp'})
+    ai_insights = fields.Dict(metadata={'description': 'AI-generated insights'})
+
 
 class MoodAnalysis(Schema):
-    period = fields.Str(description='Analysis period')
-    average_mood = fields.Float(description='Average mood value')
-    trend = fields.Str(description='Mood trend (improving/declining/stable)')
-    insights = fields.List(fields.Str(), description='AI-generated insights')
-    recommendations = fields.List(fields.Str(), description='Personalized recommendations')
+    period = fields.Str(metadata={'description': 'Analysis period'})
+    average_mood = fields.Float(metadata={'description': 'Average mood value'})
+    trend = fields.Str(metadata={'description': 'Mood trend (improving/declining/stable)'})
+    insights = fields.List(
+        fields.Str(),
+        metadata={'description': 'AI-generated insights'}
+    )
+    recommendations = fields.List(
+        fields.Str(),
+        metadata={'description': 'Personalized recommendations'}
+    )
 
 # AI schemas
 class AIStoryRequest(Schema):
-    mood_context = fields.Str(description='Current mood context')
-    preferences = fields.Dict(description='User preferences for story generation')
+    mood_context = fields.Str(metadata={'description': 'Current mood context'})
+    preferences = fields.Dict(metadata={'description': 'User preferences for story generation'})
+
 
 class AIStory(Schema):
-    id = fields.Str(description='Story ID')
-    title = fields.Str(description='Story title')
-    content = fields.Str(description='Story content')
-    mood_themes = fields.List(fields.Str(), description='Mood themes addressed')
-    created_at = fields.DateTime(description='Creation timestamp')
+    id = fields.Str(metadata={'description': 'Story ID'})
+    title = fields.Str(metadata={'description': 'Story title'})
+    content = fields.Str(metadata={'description': 'Story content'})
+    mood_themes = fields.List(
+        fields.Str(),
+        metadata={'description': 'Mood themes addressed'}
+    )
+    created_at = fields.DateTime(metadata={'description': 'Creation timestamp'})
+
 
 class PredictiveForecast(Schema):
-    forecast_date = fields.Date(description='Forecast date')
-    predicted_mood = fields.Float(description='Predicted mood value')
-    confidence = fields.Float(description='Prediction confidence (0-1)')
-    factors = fields.List(fields.Str(), description='Contributing factors')
+    forecast_date = fields.Date(metadata={'description': 'Forecast date'})
+    predicted_mood = fields.Float(metadata={'description': 'Predicted mood value'})
+    confidence = fields.Float(metadata={'description': 'Prediction confidence (0-1)'})
+    factors = fields.List(
+        fields.Str(),
+        metadata={'description': 'Contributing factors'}
+    )
 
 # Memory schemas
 class MemoryUploadRequest(Schema):
-    file = fields.Raw(description='File to upload')
-    description = fields.Str(description='Memory description')
-    tags = fields.List(fields.Str(), description='Memory tags')
+    file = fields.Raw(metadata={'description': 'File to upload'})
+    description = fields.Str(metadata={'description': 'Memory description'})
+    tags = fields.List(fields.Str(), metadata={'description': 'Memory tags'})
+
 
 class MemoryEntry(Schema):
-    id = fields.Str(description='Memory ID')
-    filename = fields.Str(description='Original filename')
-    url = fields.Str(description='Access URL')
-    description = fields.Str(description='Memory description')
-    tags = fields.List(fields.Str(), description='Memory tags')
-    uploaded_at = fields.DateTime(description='Upload timestamp')
+    id = fields.Str(metadata={'description': 'Memory ID'})
+    filename = fields.Str(metadata={'description': 'Original filename'})
+    url = fields.Str(metadata={'description': 'Access URL'})
+    description = fields.Str(metadata={'description': 'Memory description'})
+    tags = fields.List(fields.Str(), metadata={'description': 'Memory tags'})
+    uploaded_at = fields.DateTime(metadata={'description': 'Upload timestamp'})
 
 # Subscription schemas
 class SubscriptionStatus(Schema):
-    active = fields.Bool(description='Subscription active status')
-    plan = fields.Str(description='Subscription plan')
-    current_period_end = fields.DateTime(description='Current billing period end')
-    cancel_at_period_end = fields.Bool(description='Will cancel at period end')
+    active = fields.Bool(metadata={'description': 'Subscription active status'})
+    plan = fields.Str(metadata={'description': 'Subscription plan'})
+    current_period_end = fields.DateTime(metadata={'description': 'Current billing period end'})
+    cancel_at_period_end = fields.Bool(metadata={'description': 'Will cancel at period end'})
+
 
 # Integration schemas
 class HealthData(Schema):
-    date = fields.Date(description='Data date')
-    steps = fields.Int(description='Step count')
-    heart_rate = fields.Float(description='Average heart rate')
-    sleep_hours = fields.Float(description='Sleep hours')
-    mood_correlation = fields.Float(description='Mood correlation coefficient')
+    date = fields.Date(metadata={'description': 'Data date'})
+    steps = fields.Int(metadata={'description': 'Step count'})
+    heart_rate = fields.Float(metadata={'description': 'Average heart rate'})
+    sleep_hours = fields.Float(metadata={'description': 'Sleep hours'})
+    mood_correlation = fields.Float(metadata={'description': 'Mood correlation coefficient'})
 
 # Register schemas with APISpec
 def register_schemas():

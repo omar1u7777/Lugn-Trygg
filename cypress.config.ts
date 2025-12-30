@@ -12,20 +12,21 @@ export default defineConfig({
     requestTimeout: 15000,
     responseTimeout: 15000,
 
-    setupNodeEvents(on: any, config: any) {
+    setupNodeEvents(on: Cypress.PluginEvents, config: Cypress.PluginConfigOptions) {
       // Accessibility testing setup
       on('task', {
-        log(message: any) {
+        log(message: unknown) {
           console.log(message);
           return null;
         },
-        table(message: any) {
+        table(message: unknown) {
           console.table(message);
           return null;
         }
       });
 
       // Code coverage
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('@cypress/code-coverage/task')(on, config);
 
       return config;

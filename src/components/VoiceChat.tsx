@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, Typography, Button, Box, TextField, Chip, Avatar } from '@mui/material';
-import { Mic, MicOff, Send, Stop, VolumeUp } from '@mui/icons-material';
+import { Card, CardContent, Typography, Button, Input, Chip, Avatar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
+import { chatWithAI, analyzeText, transcribeAudio, analyzeVoiceEmotion } from '../api/api';
+import useAuth from '../hooks/useAuth';
+import { MicrophoneIcon, PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/outline';
 
 interface VoiceChatProps {
   onMessageSent?: (message: string, isVoice: boolean) => void;
@@ -20,6 +22,7 @@ interface Message {
 const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -108,43 +111,83 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
     announceToScreenReader('Bearbetar röstmeddelande...', 'polite');
 
     try {
-      // Simulate voice-to-text processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock voice-to-text result
-      const text = 'Jag känner mig lite stressad idag och behöver hjälp att koppla av.';
+      // REAL: Use Google Cloud Speech-to-Text API via backend
+      const transcriptionResult = await transcribeAudio(audioBlob, 'sv-SE');
+      
+      let transcribedText = '';
+      
+      if (transcriptionResult.success && transcriptionResult.transcript) {
+        transcribedText = transcriptionResult.transcript;
+        console.log('✅ Google Speech transcription successful:', transcribedText.substring(0, 50));
+      } else if (transcriptionResult.fallback === 'web_speech_api') {
+        // Backend suggests using Web Speech API as fallback
+        announceToScreenReader('Använder webbläsarens taligenkänning som reserv...', 'polite');
+        
+        // Try browser's Web Speech API during next recording
+        // For this recording, ask user to type
+        announceToScreenReader('Kunde inte transkribera rösten. Tala tydligare eller skriv ditt meddelande.', 'polite');
+        setIsProcessing(false);
+        return;
+      } else {
+        // Transcription failed completely
+        announceToScreenReader(transcriptionResult.message || 'Rösttranskribering misslyckades. Skriv ditt meddelande istället.', 'polite');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // REAL: Analyze voice emotion
+      const emotionResult = await analyzeVoiceEmotion(audioBlob, transcribedText);
+      if (emotionResult) {
+        console.log('🎭 Voice emotion detected:', emotionResult.primary_emotion);
+        analytics.track('Voice Emotion Detected', {
+          component: 'VoiceChat',
+          emotion: emotionResult.primary_emotion,
+          energy: emotionResult.energy_level,
+          pace: emotionResult.speaking_pace
+        });
+      }
 
       // Add user message
       const userMessage: Message = {
         id: Date.now().toString(),
-        text,
+        text: transcribedText,
         isUser: true,
         timestamp: new Date(),
         isVoice: true,
       };
-
       setMessages(prev => [...prev, userMessage]);
 
-      // Simulate AI response
-      setTimeout(() => {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'Jag hör att du känner dig stressad idag. Det är helt normalt att känna så ibland. Låt mig hjälpa dig med några enkla tekniker för att koppla av. Först, försök ta tre djupa andetag...',
-          isUser: false,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, aiResponse]);
-        announceToScreenReader('AI svar mottaget', 'polite');
-      }, 1000);
+      // Call REAL AI API
+      if (user?.user_id) {
+        try {
+          const aiResult = await chatWithAI(user.user_id, transcribedText);
+          const aiResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig.',
+            isUser: false,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, aiResponse]);
+          announceToScreenReader('AI svar mottaget', 'polite');
+        } catch (aiError) {
+          console.error('AI response error:', aiError);
+          const errorResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            text: 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
+            isUser: false,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorResponse]);
+        }
+      }
 
       analytics.track('Voice Message Processed', {
         component: 'VoiceChat',
-        messageLength: text.length,
+        messageLength: transcribedText.length,
       });
 
       if (onMessageSent) {
-        onMessageSent(text, true);
+        onMessageSent(transcribedText, true);
       }
 
     } catch (error) {
@@ -158,9 +201,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const sendTextMessage = async () => {
     if (!inputText.trim()) return;
 
+    const messageText = inputText;
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text: messageText,
       isUser: true,
       timestamp: new Date(),
       isVoice: false,
@@ -168,26 +212,50 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
+    setIsProcessing(true);
 
     analytics.track('Text Message Sent', {
       component: 'VoiceChat',
-      messageLength: inputText.length,
+      messageLength: messageText.length,
     });
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
+    // Call REAL AI API
+    if (user?.user_id) {
+      try {
+        const aiResult = await chatWithAI(user.user_id, messageText);
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiResponse]);
+        announceToScreenReader('AI svar mottaget', 'polite');
+      } catch (error) {
+        console.error('AI response error:', error);
+        const errorResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorResponse]);
+      }
+    } else {
+      // No user logged in - show message
+      const loginMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'Tack för att du delar det med mig. Det låter viktigt. Kan du berätta mer om vad som får dig att känna så?',
+        text: 'Logga in för att prata med AI-terapeuten.',
         isUser: false,
         timestamp: new Date(),
       };
+      setMessages(prev => [...prev, loginMessage]);
+    }
 
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1500);
+    setIsProcessing(false);
 
     if (onMessageSent) {
-      onMessageSent(inputText, false);
+      onMessageSent(messageText, false);
     }
   };
 
@@ -231,7 +299,6 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                   {/* Avatar */}
                   <Avatar
                     className={message.isUser ? 'bg-primary-500' : 'bg-secondary-500'}
-                    sx={{ width: 40, height: 40 }}
                   >
                     {message.isUser ? '👤' : '🤖'}
                   </Avatar>
@@ -254,8 +321,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                       {message.isVoice && (
                         <Chip
                           label="🎤 Röst"
-                          size="small"
-                          variant="outlined"
+                          size="sm"
+                          variant="outline"
                           className="text-xs"
                         />
                       )}
@@ -269,7 +336,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             {isProcessing && (
               <div className="flex justify-start">
                 <div className="flex gap-3 max-w-[80%]">
-                  <Avatar className="bg-secondary-500" sx={{ width: 40, height: 40 }}>
+                  <Avatar className="bg-secondary-500">
                     🤖
                   </Avatar>
                   <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl px-4 py-3">
@@ -293,7 +360,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
           {/* Quick Actions */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <Typography variant="subtitle2" gutterBottom className="text-gray-700 dark:text-gray-300">
+            <Typography variant="body2" gutterBottom className="text-gray-700 dark:text-gray-300">
               Snabba frågor:
             </Typography>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -317,21 +384,19 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           <div className="flex gap-2">
             {/* Voice Input */}
             <Button
-              variant={isRecording ? "contained" : "outlined"}
+              variant={isRecording ? "error" : "outline"}
               color={isRecording ? "error" : "primary"}
               onClick={isRecording ? stopRecording : startRecording}
               disabled={isProcessing}
               className="min-w-[60px]"
               aria-label={isRecording ? "Stoppa inspelning" : "Starta röstinspelning"}
             >
-              {isRecording ? <Stop /> : <Mic />}
+              {isRecording ? <StopIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
             </Button>
 
             {/* Text Input */}
-            <TextField
+            <Input
               fullWidth
-              multiline
-              maxRows={3}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -342,12 +407,12 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
             {/* Send Button */}
             <Button
-              variant="contained"
+              variant="primary"
               onClick={sendTextMessage}
               disabled={!inputText.trim() || isProcessing}
               aria-label="Skicka meddelande"
             >
-              <Send />
+              <PaperAirplaneIcon className="w-5 h-5" />
             </Button>
           </div>
 

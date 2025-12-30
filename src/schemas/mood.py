@@ -128,7 +128,7 @@ class MoodUpdateRequest(BaseRequest):
 # Analysis schemas
 class MoodAnalysisRequest(BaseRequest):
     """Mood analysis request"""
-    period: str = Field(..., regex=r'^(week|month|quarter|year)$', description="Analysis period")
+    period: str = Field(..., pattern=r'^(week|month|quarter|year)$', description="Analysis period")
     include_insights: bool = True
     include_trends: bool = True
     include_correlations: bool = False
@@ -199,7 +199,7 @@ class MoodAnalysis(BaseModel):
 class VoiceAnalysisRequest(BaseRequest):
     """Voice mood analysis request"""
     audio_data: str = Field(..., description="Base64 encoded audio data")
-    audio_format: str = Field(default="webm", regex=r'^(webm|wav|mp3|ogg)$')
+    audio_format: str = Field(default="webm", pattern=r'^(webm|wav|mp3|ogg)$')
     language: str = Field(default="sv-SE", description="Language code for speech recognition")
 
 class VoiceAnalysisResult(BaseModel):
@@ -265,7 +265,7 @@ class BulkMoodUpdateRequest(BaseRequest):
 # Export schemas
 class MoodExportRequest(BaseRequest):
     """Mood data export request"""
-    format: str = Field(..., regex=r'^(json|csv|pdf)$', description="Export format")
+    format: str = Field(..., pattern=r'^(json|csv|pdf)$', description="Export format")
     date_from: Optional[date] = None
     date_to: Optional[date] = None
     include_analysis: bool = True

@@ -11,10 +11,20 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 
 # Load environment variables
 load_dotenv()
+
+# Add Backend directory to Python path
+backend_dir = os.path.join(os.path.dirname(__file__), 'Backend')
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+from src.utils.hf_cache import configure_hf_cache
+
+# Normalize Hugging Face cache settings early in startup
+configure_hf_cache()
 
 # Configure logging
 logging.basicConfig(
@@ -32,7 +42,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuration
-app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
+# Ensure JWT_SECRET_KEY is set for security
+jwt_secret = os.getenv('JWT_SECRET_KEY')
+if not jwt_secret:
+    logger.error("JWT_SECRET_KEY environment variable is not set. Application cannot start securely.")
+    sys.exit(1)
+app.config['SECRET_KEY'] = jwt_secret
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
 
@@ -57,8 +72,8 @@ try:
     from src.firebase_config import initialize_firebase
     from src.services.rate_limiting import rate_limiter, rate_limit_by_endpoint
     from src.services.api_key_rotation import start_key_rotation
-    from src.services.backup_service import backup_service
-    from src.services.monitoring_service import monitoring_service
+    from src.services.backup_service import _get_backup_service
+    from src.services.monitoring_service import init_monitoring_service
     from src.services.query_monitor import query_monitor
 
     # Middleware
@@ -70,13 +85,14 @@ try:
     # Routes
     from src.routes.auth_routes import auth_bp
     from src.routes.mood_routes import mood_bp
+    from src.routes.mood_stats_routes import mood_stats_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.ai_routes import ai_bp
     from src.routes.integration_routes import integration_bp
     from src.routes.subscription_routes import subscription_bp
     from src.routes.docs_routes import docs_bp
     from src.routes.metrics_routes import metrics_bp
-    from src.routes.predictive_routes import predictive_bp
+    # from src.routes.predictive_routes import predictive_bp  # Temporarily disabled - sklearn import issues
     from src.routes.rate_limit_routes import rate_limit_bp
 
     # Initialize Firebase
@@ -89,20 +105,21 @@ try:
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(mood_bp, url_prefix='/api/mood')
+    app.register_blueprint(mood_stats_bp, url_prefix='/api/mood-stats')
     app.register_blueprint(memory_bp, url_prefix='/api/memory')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     app.register_blueprint(integration_bp, url_prefix='/api/integration')
     app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
     app.register_blueprint(docs_bp, url_prefix='/api/docs')
     app.register_blueprint(metrics_bp, url_prefix='/api/metrics')
-    app.register_blueprint(predictive_bp, url_prefix='/api/predictive')
+    # app.register_blueprint(predictive_bp, url_prefix='/api/predictive')  # Temporarily disabled
     app.register_blueprint(rate_limit_bp, url_prefix='/api/rate-limit')
 
     # Global request middleware
     @app.before_request
     def before_request():
         """Global request preprocessing"""
-        g.request_start_time = datetime.utcnow()
+        g.request_start_time = datetime.now(UTC)
         g.request_id = os.urandom(8).hex()
 
         # Sanitize request data
@@ -119,7 +136,7 @@ try:
         """Global response postprocessing"""
         # Calculate request duration
         if hasattr(g, 'request_start_time'):
-            duration = (datetime.utcnow() - g.request_start_time).total_seconds() * 1000
+            duration = (datetime.now(UTC) - g.request_start_time).total_seconds() * 1000
             response.headers['X-Response-Time'] = f"{duration:.2f}ms"
 
         # Add request ID
@@ -137,7 +154,7 @@ try:
         """Health check endpoint"""
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'version': os.getenv('API_VERSION', '1.0.0'),
             'environment': os.getenv('FLASK_ENV', 'development')
         })
@@ -182,7 +199,9 @@ try:
     if not app.config['TESTING']:
         try:
             start_key_rotation()
-            backup_service.start_scheduler()
+            backup_service = _get_backup_service()
+            backup_service.start_automated_backups()  # Fixed method name
+            monitoring_service = init_monitoring_service(config)
             monitoring_service.start_monitoring()
             logger.info("✅ All background services started")
         except Exception as e:

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './Card';
-import { Button } from './Button';
-import { Input } from './Input';
+import { Card, Button, Input } from './tailwind';
 import { LoadingSpinner } from '../LoadingStates';
 import { ThemeToggle } from './ThemeToggle';
 import { useAccessibility } from '../../hooks/useAccessibility';

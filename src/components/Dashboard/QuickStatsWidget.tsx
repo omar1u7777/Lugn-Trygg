@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import api from '../../api/api';
+import { api } from '../../api/api';
 
 interface QuickStatsProps {
   userId: string;
@@ -18,75 +18,125 @@ const QuickStatsWidget: React.FC<QuickStatsProps> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    if (userId) {
+      loadStats();
+    }
   }, [userId]);
 
   const loadStats = async () => {
+    // CRITICAL FIX: Check userId before making API call
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
       // Fetch moods to calculate stats
-      const response = await api.get(`/api/mood?user_id=${userId}`);
-      const moods = response.data || [];
+      const response = await api.get(`/api/mood/get?user_id=${userId}`);
+      // CRITICAL FIX: Better data extraction
+      const moods = response.data?.moods || response.data || [];
 
-      // Calculate total moods
-      const totalMoods = moods.length;
+      // CRITICAL FIX: Better null safety
+      const totalMoods = Array.isArray(moods) ? moods.length : 0;
 
       // Calculate average mood this week
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       
-      const weekMoods = moods.filter((mood: any) => {
-        const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
-        return moodDate >= oneWeekAgo;
+      const weekMoods = (Array.isArray(moods) ? moods : []).filter((mood: any) => {
+        if (!mood || !mood.timestamp) return false;
+        try {
+          const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+          if (isNaN(moodDate.getTime())) return false;
+          return moodDate >= oneWeekAgo;
+        } catch (error) {
+          return false;
+        }
       });
 
       const avgMood = weekMoods.length > 0
-        ? weekMoods.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / weekMoods.length
+        ? weekMoods.reduce((sum: number, mood: any) => {
+            const score = typeof mood.score === 'number' && !isNaN(mood.score) ? mood.score : 0;
+            return sum + score;
+          }, 0) / weekMoods.length
         : 0;
 
       // Calculate current streak
+      // CRITICAL FIX: Better null safety and error handling
       let streak = 0;
-      const sortedMoods = [...moods].sort((a: any, b: any) => {
-        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-        return dateB.getTime() - dateA.getTime();
-      });
-
-      const currentDate = new Date();
-      for (const mood of sortedMoods) {
-        const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
-        const daysDiff = Math.floor((currentDate.getTime() - moodDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysDiff <= streak + 1) {
-          if (daysDiff === streak) {
-            streak++;
+      if (Array.isArray(moods) && moods.length > 0) {
+        const sortedMoods = [...moods].sort((a: any, b: any) => {
+          try {
+            const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+            const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+            if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+            return dateB.getTime() - dateA.getTime();
+          } catch (error) {
+            return 0;
           }
-        } else {
-          break;
+        });
+
+        const currentDate = new Date();
+        for (const mood of sortedMoods) {
+          try {
+            if (!mood || !mood.timestamp) continue;
+            const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+            if (isNaN(moodDate.getTime())) continue;
+            
+            const daysDiff = Math.floor((currentDate.getTime() - moodDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (daysDiff <= streak + 1) {
+              if (daysDiff === streak) {
+                streak++;
+              }
+            } else {
+              break;
+            }
+          } catch (error) {
+            continue;
+          }
         }
       }
 
       // Determine trend
+      // CRITICAL FIX: Better null safety
       let trend: 'improving' | 'declining' | 'stable' = 'stable';
       if (weekMoods.length >= 3) {
         const firstHalf = weekMoods.slice(0, Math.floor(weekMoods.length / 2));
         const secondHalf = weekMoods.slice(Math.floor(weekMoods.length / 2));
         
-        const avgFirst = firstHalf.reduce((sum: number, m: any) => sum + (m.score || 0), 0) / firstHalf.length;
-        const avgSecond = secondHalf.reduce((sum: number, m: any) => sum + (m.score || 0), 0) / secondHalf.length;
+        const avgFirst = firstHalf.length > 0
+          ? firstHalf.reduce((sum: number, m: any) => {
+              const score = typeof m.score === 'number' && !isNaN(m.score) ? m.score : 0;
+              return sum + score;
+            }, 0) / firstHalf.length
+          : 0;
+        const avgSecond = secondHalf.length > 0
+          ? secondHalf.reduce((sum: number, m: any) => {
+              const score = typeof m.score === 'number' && !isNaN(m.score) ? m.score : 0;
+              return sum + score;
+            }, 0) / secondHalf.length
+          : 0;
         
         if (avgSecond > avgFirst + 0.5) trend = 'improving';
         else if (avgSecond < avgFirst - 0.5) trend = 'declining';
       }
 
+      // CRITICAL FIX: Better number validation
+      const convertedAvgMood = typeof avgMood === 'number' && !isNaN(avgMood)
+        ? Number(((avgMood + 1) * 5).toFixed(1))
+        : 0;
+      
       setStats({
         total_moods: totalMoods,
-        avg_mood_this_week: Number(((avgMood + 1) * 5).toFixed(1)), // Convert -1 to 1 scale to 0-10
+        avg_mood_this_week: convertedAvgMood, // Convert -1 to 1 scale to 0-10
         current_streak: streak,
         mood_trend: trend,
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      // CRITICAL FIX: Better error handling
       console.error('Failed to load quick stats:', error);
       setStats({
         total_moods: 0,

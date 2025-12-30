@@ -1,35 +1,20 @@
-import React, { useState, useEffect } from 'react'
-import { colors, spacing, shadows, borderRadius } from '@/theme/tokens';
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import api from '../api/api';
 import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Box,
-  Chip,
-  CircularProgress,
-  Alert,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material';
-import {
-  AutoStories as StoriesIcon,
-  PlayArrow as PlayIcon,
-  Pause as PauseIcon,
-  VolumeUp as VolumeIcon,
-  VolumeOff as MuteIcon,
-  Refresh as RefreshIcon,
-  Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon,
-} from '@mui/icons-material';
+  BookOpenIcon,
+  PlayIcon,
+  PauseIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  ArrowPathIcon,
+  HeartIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { Button, Alert, Card } from './ui/tailwind';
 
 interface AIStory {
   id: string;
@@ -45,7 +30,7 @@ interface AIStory {
 const AIStories: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { muiTheme } = useTheme();
+  // isDarkMode hanteras av Tailwind dark: classes
   const [stories, setStories] = useState<AIStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,27 +39,41 @@ const AIStories: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    loadStories();
-  }, []);
-
-  const loadStories = async () => {
+  const loadStories = useCallback(async () => {
     if (!user?.user_id) return;
     
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get('/api/ai/stories', {
         params: { user_id: user.user_id }
       });
-      setStories(response.data.stories || []);
+      setStories(response.data?.stories || []);
     } catch (err) {
       setError(t('ai.stories.loadError'));
       console.error('Failed to load AI stories:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.user_id, t]);
+
+  useEffect(() => {
+    if (user?.user_id) {
+      loadStories();
+    } else {
+      setStories([]);
+    }
+  }, [user?.user_id, loadStories]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const generateNewStory = async () => {
     if (!user?.user_id) {
@@ -98,7 +97,6 @@ const AIStories: React.FC = () => {
   };
 
   const toggleFavorite = async (storyId: string) => {
-    // For now, just toggle locally since backend doesn't have this endpoint yet
     setStories(prev => prev.map(story =>
       story.id === storyId
         ? { ...story, isFavorite: !story.isFavorite }
@@ -106,16 +104,32 @@ const AIStories: React.FC = () => {
     ));
   };
 
+  const stopPlayback = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   const playStory = (story: AIStory) => {
+    if (!story) return;
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
     setSelectedStory(story);
     setIsPlaying(true);
+    setCurrentTime(0);
     // In a real implementation, this would integrate with text-to-speech
     // For now, we'll simulate playback with a timer
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setCurrentTime(prev => {
-        if (prev >= story.duration) {
-          setIsPlaying(false);
-          clearInterval(timer);
+        if (prev >= (story.duration || 0)) {
+          stopPlayback();
           return 0;
         }
         return prev + 1;
@@ -125,6 +139,10 @@ const AIStories: React.FC = () => {
 
   const pauseStory = () => {
     setIsPlaying(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
   const toggleMute = () => {
@@ -132,22 +150,32 @@ const AIStories: React.FC = () => {
   };
 
   const getMoodColor = (mood: string) => {
-    const colors = {
-      happy: '#4CAF50',
-      calm: '#2196F3',
-      anxious: '#FF9800',
-      sad: '#9C27B0',
-      stressed: '#F44336',
-      neutral: '#607D8B'
+    const colorMap = {
+      happy: 'bg-green-500',
+      calm: 'bg-blue-500',
+      anxious: 'bg-orange-500',
+      sad: 'bg-purple-500',
+      stressed: 'bg-red-500',
+      neutral: 'bg-gray-500'
     };
-    return colors[mood as keyof typeof colors] || colors.neutral;
+    return colorMap[mood as keyof typeof colorMap] || colorMap.neutral;
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
+          <div className="flex justify-center items-center min-h-[200px]">
+        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user?.user_id) {
+    return (
+      <div className="p-6">
+        <Alert variant="warning">
+          {t('ai.stories.loginRequired', 'Logga in för att se dina AI-berättelser.')}
+        </Alert>
+      </div>
     );
   }
 
@@ -157,33 +185,33 @@ const AIStories: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: spacing.lg }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-            <StoriesIcon color="primary" />
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <BookOpenIcon className="w-8 h-8 text-primary-600" />
             {t('ai.stories.title')}
-          </Typography>
+          </h1>
           <Button
-            variant="contained"
-            startIcon={generating ? <CircularProgress size={20} /> : <RefreshIcon />}
             onClick={generateNewStory}
             disabled={generating}
-            sx={{
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-              boxShadow: '0 3px 5px 2px rgba(33, 203, 243, .3)',
-            }}
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-cyan-500/50 hover:shadow-xl"
           >
+            {generating ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : (
+              <ArrowPathIcon className="w-5 h-5 mr-2" />
+            )}
             {generating ? t('ai.stories.generating') : t('ai.stories.generateNew')}
           </Button>
-        </Box>
+        </div>
 
         {error && (
-          <Alert severity="error" sx={{ mb: spacing.lg }}>
+          <Alert variant="error" className="mb-6">
             {error}
           </Alert>
         )}
 
-        <Box display="grid" gridTemplateColumns="repeat(auto-fill, minmax(300px, 1fr))" gap={3}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {stories.map((story, index) => (
               <motion.div
@@ -194,159 +222,167 @@ const AIStories: React.FC = () => {
                 transition={{ delay: index * 0.1 }}
               >
                 <Card
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: muiTheme.shadows[8],
-                    },
-                  }}
+                  className="h-full flex flex-col cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                   onClick={() => playStory(story)}
                 >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Typography variant="h6" component="h2" sx={{ flexGrow: 1, mr: 1 }}>
+                  <div className="flex-grow p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex-grow mr-2">
                         {story.title}
-                      </Typography>
-                      <IconButton
+                      </h2>
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleFavorite(story.id);
                         }}
-                        size="small"
+                        className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
                         {story.isFavorite ? (
-                          <FavoriteIcon color="error" />
+                          <HeartIconSolid className="w-6 h-6 text-red-500" />
                         ) : (
-                          <FavoriteBorderIcon />
+                          <HeartIcon className="w-6 h-6 text-gray-400" />
                         )}
-                      </IconButton>
-                    </Box>
+                      </button>
+                    </div>
 
-                    <Box display="flex" gap={1} mb={2}>
-                      <Chip
-                        label={story.category}
-                        size="small"
-                        sx={{ backgroundColor: getMoodColor(story.mood) }}
-                      />
-                      <Chip
-                        label={`${story.duration || 0} min`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Box>
+                    <div className="flex gap-2 mb-4">
+                      <span className={`px-2 py-1 text-xs font-medium text-white rounded-full ${getMoodColor(story.mood)}`}>
+                        {story.category}
+                      </span>
+                      <span className="px-2 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-full text-gray-700 dark:text-gray-300">
+                        {story.duration || 0} min
+                      </span>
+                    </div>
 
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: spacing.lg,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4">
                       {story.content ? story.content.substring(0, 150) + '...' : 'Ingen innehåll tillgänglig'}
-                    </Typography>
-                  </CardContent>
+                    </p>
+                  </div>
 
-                  <Box p={2} pt={0}>
+                  <div className="p-6 pt-0">
                     <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<PlayIcon />}
+                      variant="outline"
+                      className="w-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         playStory(story);
                       }}
                     >
+                      <PlayIcon className="w-5 h-5 mr-2" />
                       {t('ai.stories.play')}
                     </Button>
-                  </Box>
+                  </div>
                 </Card>
               </motion.div>
             ))}
           </AnimatePresence>
-        </Box>
+        </div>
 
         {/* Story Player Dialog */}
-        <Dialog
-          open={!!selectedStory}
-          onClose={() => {
-            setSelectedStory(null);
-            setIsPlaying(false);
-            setCurrentTime(0);
-          }}
-          maxWidth="md"
-          fullWidth
-        >
-          {selectedStory && (
-            <>
-              <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                <StoriesIcon />
-                {selectedStory.title}
-                <Chip
-                  label={selectedStory.category}
-                  size="small"
-                  sx={{ ml: 'auto', backgroundColor: getMoodColor(selectedStory.mood) }}
-                />
-              </DialogTitle>
+        {selectedStory && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-3 flex-grow mr-4">
+                  <BookOpenIcon className="w-6 h-6 text-primary-600" />
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {selectedStory.title}
+                  </h2>
+                  <span className={`px-2 py-1 text-xs font-medium text-white rounded-full ${getMoodColor(selectedStory.mood)}`}>
+                    {selectedStory.category}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    stopPlayback();
+                    setSelectedStory(null);
+                  }}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
 
-              <DialogContent>
-                <Typography variant="body1" paragraph>
+              {/* Content */}
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                   {selectedStory.content || 'Ingen innehåll tillgänglig för denna berättelse.'}
-                </Typography>
+                </p>
+              </div>
 
-                {/* Audio Controls */}
-                <Box display="flex" alignItems="center" gap={2} mt={3}>
-                  <IconButton onClick={isPlaying ? pauseStory : () => playStory(selectedStory)}>
-                    {isPlaying ? <PauseIcon /> : <PlayIcon />}
-                  </IconButton>
+              {/* Audio Controls */}
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-4 mb-4">
+                  <button
+                    onClick={isPlaying ? pauseStory : () => playStory(selectedStory)}
+                    className="p-3 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                  >
+                    {isPlaying ? (
+                      <PauseIcon className="w-6 h-6" />
+                    ) : (
+                      <PlayIcon className="w-6 h-6" />
+                    )}
+                  </button>
 
-                  <IconButton onClick={toggleMute}>
-                    {isMuted ? <MuteIcon /> : <VolumeIcon />}
-                  </IconButton>
+                  <button
+                    onClick={toggleMute}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    {isMuted ? (
+                      <SpeakerXMarkIcon className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    ) : (
+                      <SpeakerWaveIcon className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    )}
+                  </button>
 
-                  <Box flexGrow={1} mx={2}>
-                    <Box
-                      sx={{
-                        height: 4,
-                        backgroundColor: 'grey.300',
-                        borderRadius: borderRadius.md,
-                        position: 'relative',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          height: '100%',
-                          backgroundColor: 'primary.main',
-                          borderRadius: borderRadius.md,
-                          width: `${(currentTime / selectedStory.duration) * 100}%`,
-                          transition: 'width 0.3s ease',
+                  <div className="flex-grow mx-4">
+                    <div className="h-1 bg-gray-300 dark:bg-gray-600 rounded-full relative overflow-hidden">
+                      <div
+                        className="h-full bg-primary-600 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(
+                            (currentTime / Math.max(selectedStory.duration || 1, 1)) * 100,
+                            100
+                          )}%`,
                         }}
                       />
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
 
-                  <Typography variant="body2" color="text.secondary">
-                    {Math.floor(currentTime / 60)}:{(currentTime % 60).toString().padStart(2, '0')} / {Math.floor((selectedStory.duration || 0) / 60)}:{(((selectedStory.duration || 0) % 60)).toString().padStart(2, '0')}
-                  </Typography>
-                </Box>
-              </DialogContent>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                    {Math.floor(currentTime / 60)}:
+                    {(currentTime % 60).toString().padStart(2, '0')} /{' '}
+                    {Math.floor(Math.max(selectedStory.duration || 0, 0) / 60)}:
+                    {Math.floor(Math.max((selectedStory.duration || 0) % 60, 0))
+                      .toString()
+                      .padStart(2, '0')}
+                  </span>
+                </div>
+              </div>
 
-              <DialogActions>
-                <Button onClick={() => setSelectedStory(null)}>
+              {/* Footer */}
+              <div className="p-6 pt-0">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    stopPlayback();
+                    setSelectedStory(null);
+                  }}
+                >
                   {t('common.close')}
                 </Button>
-              </DialogActions>
-            </>
-          )}
-        </Dialog>
-      </Box>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 };

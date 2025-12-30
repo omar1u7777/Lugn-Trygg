@@ -4,21 +4,31 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from datetime import datetime, timezone
 from firebase_admin.firestore import FieldFilter
-from src.firebase_config import db
-from src.config import STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_PRICE_PREMIUM, STRIPE_PRICE_ENTERPRISE, STRIPE_PRICE_CBT_MODULE
+from ..firebase_config import db
+from ..config import (
+    STRIPE_SECRET_KEY,
+    STRIPE_PUBLISHABLE_KEY,
+    STRIPE_PRICE_PREMIUM,
+    STRIPE_PRICE_PREMIUM_YEARLY,
+    STRIPE_PRICE_ENTERPRISE,
+    STRIPE_PRICE_CBT_MODULE,
+)
+from ..config.subscription_config import load_subscription_plans
+from ..services.subscription_service import SubscriptionService
 
 # Initialize limiter for this module
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per hour"])
 
 # Configure Stripe if available
 try:
+    import stripe
     if STRIPE_SECRET_KEY:
-        import stripe
         stripe.api_key = STRIPE_SECRET_KEY
         STRIPE_AVAILABLE = True
     else:
         STRIPE_AVAILABLE = False
 except ImportError:
+    stripe = None
     STRIPE_AVAILABLE = False
 
 subscription_bp = Blueprint("subscription", __name__)
@@ -41,6 +51,7 @@ def create_checkout_session():
         user_id = data.get("user_id", "").strip()
         user_email = data.get("email", "").strip()
         plan = data.get("plan", "premium").strip().lower()  # default to premium
+        billing_cycle = data.get("billing_cycle", "monthly").strip().lower() or "monthly"
 
         logger.info(f"👤 Processing checkout for user_id: {user_id}, email: {user_email}, plan: {plan}")
 
@@ -50,7 +61,10 @@ def create_checkout_session():
 
         # Determine price ID based on plan
         if plan == "premium":
-            price_id = STRIPE_PRICE_PREMIUM
+            if billing_cycle == "yearly" and STRIPE_PRICE_PREMIUM_YEARLY:
+                price_id = STRIPE_PRICE_PREMIUM_YEARLY
+            else:
+                price_id = STRIPE_PRICE_PREMIUM
         elif plan == "enterprise":
             price_id = STRIPE_PRICE_ENTERPRISE
         else:
@@ -73,7 +87,8 @@ def create_checkout_session():
             customer_email=user_email,
             metadata={
                 "user_id": user_id,
-                "plan": plan
+                "plan": plan,
+                "billing_cycle": billing_cycle,
             }
         )
         logger.info(f"✅ Stripe checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
@@ -99,12 +114,9 @@ def get_subscription_status(user_id):
             return jsonify({"error": "Användare hittades inte!"}), 404
 
         user_data = user_doc.to_dict()
-        subscription = user_data.get("subscription", {
-            "status": "free",
-            "plan": "free"
-        })
+        payload = SubscriptionService.build_status_payload(user_id, user_data)
 
-        return jsonify(subscription), 200
+        return jsonify(payload), 200
 
     except Exception as e:
         logger.exception(f"❌ Subscription status retrieval failed: {e}")
@@ -266,28 +278,7 @@ def purchase_cbt_module():
 def get_available_plans():
     """Get available subscription plans"""
     try:
-        plans = {
-            "free": {
-                "name": "Gratis",
-                "price": 0,
-                "currency": "SEK",
-                "features": ["Basic CBT exercises", "Mood tracking"]
-            },
-            "premium": {
-                "name": "Premium",
-                "price": 99,
-                "currency": "SEK",
-                "interval": "month",
-                "features": ["All free features", "Advanced analytics", "Priority support", "Extra CBT modules"]
-            },
-            "enterprise": {
-                "name": "Enterprise",
-                "price": 999,  # Assuming annual for clinics
-                "currency": "SEK",
-                "interval": "year",
-                "features": ["All premium features", "Clinic management", "Bulk user access", "Custom integrations"]
-            }
-        }
+        plans = load_subscription_plans()
         return jsonify(plans), 200
     except Exception as e:
         logger.exception(f"❌ Error retrieving plans: {e}")

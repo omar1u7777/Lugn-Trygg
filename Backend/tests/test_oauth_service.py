@@ -4,7 +4,7 @@ Tests OAuth 2.0 flows for health integrations (Google Fit, Fitbit, Samsung Healt
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 import secrets
 from src.services.oauth_service import OAuthService, oauth_service
 
@@ -174,7 +174,7 @@ class TestExchangeCodeForToken:
         service.oauth_states[state] = {
             'user_id': 'user999',
             'provider': unsupported_provider,
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         # Call with the same unsupported provider
         with pytest.raises(ValueError, match="Unsupported provider"):
@@ -204,7 +204,7 @@ class TestExchangeCodeForToken:
         service.oauth_states[state] = {
             'user_id': 'user123',
             'provider': 'google_fit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         # Mock successful response
@@ -240,7 +240,7 @@ class TestExchangeCodeForToken:
         service.oauth_states[state] = {
             'user_id': 'user123',
             'provider': 'fitbit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         with pytest.raises(ValueError, match="Provider mismatch"):
@@ -253,7 +253,7 @@ class TestExchangeCodeForToken:
         service.oauth_states[state] = {
             'user_id': 'user123',
             'provider': 'google_fit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         mock_response = Mock()
@@ -271,7 +271,7 @@ class TestExchangeCodeForToken:
         service.oauth_states[state] = {
             'user_id': 'user456',
             'provider': 'fitbit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         mock_response = Mock()
@@ -566,7 +566,7 @@ class TestEdgeCases:
         service.oauth_states[state] = {
             'user_id': 'user123',
             'provider': 'google_fit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         mock_response = Mock()
@@ -585,7 +585,7 @@ class TestEdgeCases:
         service.oauth_states[state] = {
             'user_id': 'user123',
             'provider': 'google_fit',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         
         mock_response = Mock()

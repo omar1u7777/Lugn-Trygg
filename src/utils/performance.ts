@@ -4,79 +4,65 @@
  */
 
 import React, { lazy } from 'react';
+import type { ComponentType } from 'react';
 
 // Lazy loading with error boundaries
-export const lazyLoad = <T extends React.ComponentType<any>>(
+import { getOptimizedImageUrl } from '../../utils/cloudinary';
+
+export const lazyWithFallback = <T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
-  fallback?: React.ComponentType
+  fallback?: ComponentType
 ) => {
   return lazy(() =>
     importFunc().catch((error) => {
       console.error('Lazy loading failed:', error);
 
-      // Return error component if fallback provided
       if (fallback) {
         return { default: fallback };
       }
 
-      // Return a basic error component
       return {
-        default: () => React.createElement('div', { className: 'p-4 text-center' }, React.createElement('p', null, 'Failed to load component. Please refresh the page.'))
+        default: () =>
+          React.createElement(
+            'div',
+            { className: 'p-4 text-center text-sm text-error-600 dark:text-error-400' },
+            React.createElement('p', null, 'Failed to load component. Please refresh the page.')
+          )
       };
     })
   );
 };
 
-// Bundle splitting configuration
-export const BUNDLE_CHUNKS = {
-  // Core chunks - always loaded
-  core: ['react', 'react-dom', 'react-router-dom'],
-
-  // Feature chunks - loaded on demand
-  dashboard: () => import('../components/Dashboard/Dashboard'),
-  mood: () => import('../components/MoodLogger'),
-  chat: () => import('../components/VoiceChat'),
-  insights: () => import('../components/StoryInsights'),
-  gamification: () => import('../components/Gamification'),
-  recommendations: () => import('../components/Recommendations'),
-  analytics: () => import('../components/MoodAnalytics'),
-  settings: () => import('../components/Auth/ProfileSettings'),
-
-  // Heavy libraries - loaded separately
-  charts: () => import('chart.js'),
-  animations: () => import('framer-motion'),
-  datePicker: () => import('@mui/x-date-pickers'),
-
-  // Vendor chunks
-  firebase: () => import('firebase/app'),
-  materialUI: () => import('@mui/material'),
-  analyticsLib: () => import('amplitude-js'),
+// Preload critical resources
+export type PreloadAsset = {
+  href: string;
+  as: 'font' | 'image' | 'script' | 'style';
+  type?: string;
+  crossOrigin?: 'anonymous' | 'use-credentials';
+  importance?: 'high' | 'low' | 'auto';
 };
 
-// Preload critical resources
-export const preloadCriticalResources = () => {
-  // Preload critical fonts
-  const fontLink = document.createElement('link');
-  fontLink.rel = 'preload';
-  fontLink.href = '/fonts/inter-var.woff2';
-  fontLink.as = 'font';
-  fontLink.type = 'font/woff2';
-  fontLink.crossOrigin = 'anonymous';
-  document.head.appendChild(fontLink);
+export const preloadCriticalResources = (assets: PreloadAsset[] = []) => {
+  if (!assets.length || typeof document === 'undefined') {
+    return;
+  }
 
-  // Preload critical images
-  const heroImage = document.createElement('link');
-  heroImage.rel = 'preload';
-  heroImage.href = '/images/hero-bg.webp';
-  heroImage.as = 'image';
-  document.head.appendChild(heroImage);
-
-  // Preload critical scripts
-  const analyticsScript = document.createElement('link');
-  analyticsScript.rel = 'preload';
-  analyticsScript.href = '/js/analytics.js';
-  analyticsScript.as = 'script';
-  document.head.appendChild(analyticsScript);
+  assets.forEach((asset) => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.href = asset.href;
+    (link as HTMLLinkElement).as = asset.as;
+    if (asset.type) {
+      link.type = asset.type;
+    }
+    if (asset.crossOrigin) {
+      link.crossOrigin = asset.crossOrigin;
+    }
+    if (asset.importance) {
+      (link as any).importance = asset.importance;
+    }
+    document.head.appendChild(link);
+  });
 };
 
 // Dynamic import with caching
@@ -280,19 +266,14 @@ export class PerformanceMonitor {
 
 // Bundle analyzer utility
 export const analyzeBundle = async () => {
-  if ((import.meta as any).env?.DEV) {
-    try {
-      // Dynamically import webpack bundle analyzer in development
-      const { BundleAnalyzerPlugin } = await import('webpack-bundle-analyzer');
-
-      console.log('Bundle analysis available in development mode');
-      console.log('Run: npm run build:analyze');
-
-      return BundleAnalyzerPlugin;
-    } catch (error) {
-      console.warn('Bundle analyzer not available');
-    }
+  if (!(import.meta as any).env?.DEV) {
+    return;
   }
+
+  console.group?.('Bundle analysis');
+  console.info('Bundle visualization runs during build via rollup-plugin-visualizer.');
+  console.info('Run: npm run build:analyze to generate dist/bundle-report.html.');
+  console.groupEnd?.();
 };
 
 // Memory usage monitoring
@@ -328,21 +309,20 @@ export const getNetworkInfo = () => {
 };
 
 // Resource hints for performance
-export const addResourceHints = () => {
-  const hints = [
-    // DNS prefetch
-    { rel: 'dns-prefetch', href: '//fonts.googleapis.com' },
-    { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
-    { rel: 'dns-prefetch', href: '//api.lugntrygg.se' },
+export type ResourceHint = { rel: 'dns-prefetch' | 'preconnect'; href: string; crossOrigin?: 'anonymous' | 'use-credentials' };
 
-    // Preconnect
-    { rel: 'preconnect', href: '//fonts.googleapis.com', crossOrigin: 'anonymous' },
-    { rel: 'preconnect', href: '//fonts.gstatic.com', crossOrigin: 'anonymous' },
+const defaultResourceHints: ResourceHint[] = [
+  { rel: 'dns-prefetch', href: '//fonts.googleapis.com' },
+  { rel: 'dns-prefetch', href: '//fonts.gstatic.com' },
+  // Removed cdnjs.cloudflare.com dns-prefetch - not using any CDN resources from there
+  { rel: 'preconnect', href: '//fonts.googleapis.com', crossOrigin: 'anonymous' },
+  { rel: 'preconnect', href: '//fonts.gstatic.com', crossOrigin: 'anonymous' },
+];
 
-    // Preload critical resources
-    { rel: 'preload', href: '/css/critical.css', as: 'style' },
-    { rel: 'preload', href: '/js/app.js', as: 'script' },
-  ];
+export const addResourceHints = (hints: ResourceHint[] = defaultResourceHints) => {
+  if (typeof document === 'undefined') {
+    return;
+  }
 
   hints.forEach(hint => {
     const link = document.createElement('link');
@@ -350,9 +330,6 @@ export const addResourceHints = () => {
     link.href = hint.href;
     if (hint.crossOrigin) {
       link.crossOrigin = hint.crossOrigin;
-    }
-    if (hint.as) {
-      (link as any).as = hint.as;
     }
     document.head.appendChild(link);
   });
@@ -528,15 +505,24 @@ export class WebWorkerManager {
 }
 
 // Initialize performance monitoring
-export const initPerformanceMonitoring = () => {
+export interface PerformanceMonitoringOptions {
+  preloadAssets?: PreloadAsset[];
+  resourceHints?: ResourceHint[];
+  enableResourceHints?: boolean;
+}
+
+// Initialize performance monitoring
+export const initPerformanceMonitoring = (options: PerformanceMonitoringOptions = {}) => {
   const monitor = PerformanceMonitor.getInstance();
   monitor.init();
 
-  // Add resource hints
-  addResourceHints();
+  if (options.enableResourceHints !== false) {
+    addResourceHints(options.resourceHints);
+  }
 
-  // Preload critical resources
-  preloadCriticalResources();
+  if (options.preloadAssets?.length) {
+    preloadCriticalResources(options.preloadAssets);
+  }
 
   return monitor;
 };

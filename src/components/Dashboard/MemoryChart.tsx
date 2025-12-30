@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TEMPORARY DISABLED - Component uses chart.js which causes React hooks error
  * This component is replaced by placeholder in LazyChartWrapper.tsx
  */

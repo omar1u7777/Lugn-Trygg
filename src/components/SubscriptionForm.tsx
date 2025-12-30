@@ -19,7 +19,9 @@ const SubscriptionForm: React.FC = () => {
     try {
       const response = await api.post('/api/subscription/create-session', {
         user_id: user.user_id,
-        email: user.email
+        email: user.email,
+        plan: 'premium',
+        billing_cycle: 'monthly',
       });
 
       // Redirect to Stripe Checkout
@@ -28,9 +30,12 @@ const SubscriptionForm: React.FC = () => {
       } else {
         setError('Kunde inte skapa betalningssession');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Subscription error:', err);
-      setError(err.response?.data?.error || 'Ett fel uppstod vid prenumeration');
+      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+        ? String(err.response.data.error)
+        : 'Ett fel uppstod vid prenumeration';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
