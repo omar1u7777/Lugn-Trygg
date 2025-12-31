@@ -132,12 +132,15 @@ class AuthService:
         Returns:
             Tuple of (user, error, access_token, refresh_token)
         """
+        logger.info(f"🔐 DEBUG: Starting login attempt for email: {email}")
         try:
             # Check for account lockout
             is_locked, lockout_message = AuthService.check_account_lockout(email)
             if is_locked:
                 logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
+                logger.info(f"🔐 DEBUG: Account lockout detected for {email}")
                 return None, lockout_message, None, None
+            logger.info(f"🔐 DEBUG: No account lockout for {email}")
 
             # Sign in using Firebase REST API (Admin SDK doesn't support password auth)
             firebase_signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"

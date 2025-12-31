@@ -30,7 +30,14 @@ if needs_version:
         # flask-apispec can continue importing without crashing.
         marshmallow.__version__ = "0"
 
-from flask_apispec import FlaskApiSpec
+try:
+    from flask_apispec import FlaskApiSpec
+    FLASK_APISPEC_AVAILABLE = True
+except (ImportError, AttributeError) as e:
+    print(f"Warning: flask-apispec not available: {e}")
+    FLASK_APISPEC_AVAILABLE = False
+    FlaskApiSpec = None
+
 from marshmallow import Schema, fields, validate
 
 import os
@@ -246,6 +253,10 @@ def register_schemas():
 # Initialize Flask-apispec
 def init_swagger(app):
     """Initialize Swagger documentation for Flask app"""
+    if not FLASK_APISPEC_AVAILABLE:
+        print("Warning: Swagger documentation disabled - flask-apispec not available")
+        return None
+
     docs = FlaskApiSpec(app, spec)
 
     # Register schemas

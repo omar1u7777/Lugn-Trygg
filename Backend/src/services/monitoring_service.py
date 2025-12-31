@@ -370,23 +370,53 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"Failed to track error: {e}")
 
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get current health status as dictionary"""
+        try:
+            health_status = self.perform_health_check()
+            return {
+                'status': health_status.status,
+                'checks': health_status.checks,
+                'message': health_status.message,
+                'timestamp': health_status.timestamp.isoformat(),
+                'system_metrics': {
+                    'cpu_usage': self.get_system_metrics().cpu_usage,
+                    'memory_usage': self.get_system_metrics().memory_usage,
+                    'disk_usage': self.get_system_metrics().disk_usage
+                },
+                'application_metrics': {
+                    'active_users': self.get_application_metrics().active_users,
+                    'total_requests': self.get_application_metrics().total_requests,
+                    'error_rate': self.get_application_metrics().error_rate,
+                    'avg_response_time': self.get_application_metrics().avg_response_time
+                }
+            }
+        except Exception as e:
+            logger.error(f"Failed to get health status: {e}")
+            return {
+                'status': 'error',
+                'checks': {},
+                'message': f'Health check failed: {str(e)}',
+                'timestamp': datetime.now(UTC).isoformat()
+            }
+
     def start_monitoring(self) -> None:
         """Start monitoring services and background tasks"""
         try:
             logger.info("Starting monitoring service...")
-            
+
             # Log initial system metrics
             system_metrics = self.get_system_metrics()
             logger.info(f"Initial system metrics: CPU={system_metrics.cpu_usage:.1f}%, "
                        f"Memory={system_metrics.memory_usage:.1f}%, "
                        f"Disk={system_metrics.disk_usage:.1f}%")
-            
+
             # Perform initial health check
             health_status = self.perform_health_check()
             logger.info(f"Initial health check: {health_status.status} - {health_status.message}")
-            
+
             logger.info("Monitoring service started successfully")
-            
+
         except Exception as e:
             logger.error(f"Failed to start monitoring service: {e}")
             raise

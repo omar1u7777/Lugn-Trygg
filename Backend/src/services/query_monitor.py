@@ -453,6 +453,33 @@ class QueryPerformanceMonitor:
         logger.info(f"📊 Performance data exported to {filename}")
         return filename
 
+    # Additional methods for test coverage
+    def track_query(self, query_id: str, collection: str, query_details: Dict[str, Any]):
+        """Alias for monitor_query for test compatibility"""
+        return self.monitor_query(query_id, collection, query_details)
+
+    def get_slow_queries(self, threshold_ms: float = 1000) -> List[Dict]:
+        """Get queries that exceed the performance threshold"""
+        slow_queries = []
+        for record in self.performance_history:
+            if record['execution_time_ms'] > threshold_ms:
+                slow_queries.append(record)
+
+        # Return most recent slow queries (last 50)
+        return sorted(slow_queries, key=lambda x: x['timestamp'], reverse=True)[:50]
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get comprehensive query statistics"""
+        return {
+            'total_queries': len(self.performance_history),
+            'active_queries': len(self.active_queries),
+            'collections_stats': self.query_stats,
+            'system_metrics': dict(self.system_metrics),
+            'alerts_count': len(self.alerts),
+            'anomalies_count': len(self.anomalies),
+            'performance_summary': self.get_performance_report()
+        }
+
 # Global monitor instance (lazy initialization)
 query_monitor = None
 

@@ -374,13 +374,36 @@ class RateLimiter:
 
     def __init__(self):
         self.requests = {}
+        self.limits = {}
 
-    def is_allowed(self, client_id, endpoint):
-        """Check if request is allowed (max 100 per client per endpoint)"""
+    def is_allowed(self, client_id: str, endpoint: str, max_requests: int = 100) -> bool:
+        """Check if request is allowed"""
+        key = f"{client_id}:{endpoint}"
+        current = self.requests.get(key, 0)
+        allowed = current < max_requests
+        if allowed:
+            self.requests[key] = current + 1
+        return allowed
+
+    def increment_request_counter(self, client_id: str, endpoint: str) -> int:
+        """Increment request counter and return new count"""
         key = f"{client_id}:{endpoint}"
         if key not in self.requests:
             self.requests[key] = 0
-
         self.requests[key] += 1
-        return self.requests[key] <= 100
+        return self.requests[key]
+
+    def reset_rate_limits(self, client_id: Optional[str] = None, endpoint: Optional[str] = None) -> None:
+        """Reset rate limits for client/endpoint or all"""
+        if client_id and endpoint:
+            key = f"{client_id}:{endpoint}"
+            self.requests.pop(key, None)
+        elif client_id:
+            # Reset all for client
+            keys_to_remove = [k for k in self.requests.keys() if k.startswith(f"{client_id}:")]
+            for key in keys_to_remove:
+                self.requests.pop(key, None)
+        else:
+            # Reset all
+            self.requests.clear()
 __all__ = ['rate_limiter', 'rate_limit_by_endpoint', 'get_rate_limit_status']
