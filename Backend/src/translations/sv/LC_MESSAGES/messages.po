@@ -1,0 +1,32 @@
+# Swedish translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-10-07 12:50+0200\n"
+"PO-Revision-Date: 2025-10-07 12:50+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: sv\n"
+"Language-Team: sv <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.16.0\n"
+
+#: src/routes/auth.py:49
+msgid "email_password_required"
+msgstr "⚠️ E-post och lösenord krävs!"
+
+#: src/routes/mood_routes.py:270
+msgid "user_id_required"
+msgstr "Användar-ID krävs!"
+
+#: src/routes/mood_routes.py:281
+msgid "user_not_found"
+msgstr "Användare hittades inte!"
+
