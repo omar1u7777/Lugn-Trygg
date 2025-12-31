@@ -1,6 +1,5 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
-import { API_ENDPOINTS } from "./constants";
 
 export interface ChatRoom {
   id: string;

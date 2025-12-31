@@ -29,7 +29,7 @@ export const getChatHistory = async (userId: string) => {
  * @param audioBlob - Audio blob
  * @returns Promise resolving to transcription
  */
-export const transcribeAudio = async (audioBlob: Blob) => {
+export const transcribeAudio = async (_audioBlob: Blob) => {
   // Stub implementation
   console.log("Audio transcription called");
   return { text: "", confidence: 0 };
@@ -40,7 +40,7 @@ export const transcribeAudio = async (audioBlob: Blob) => {
  * @param audioBlob - Audio blob
  * @returns Promise resolving to emotion analysis
  */
-export const analyzeVoiceEmotion = async (audioBlob: Blob) => {
+export const analyzeVoiceEmotion = async (_audioBlob: Blob) => {
   // Stub implementation
   console.log("Voice emotion analysis called");
   return { emotion: "neutral", confidence: 0.5 };

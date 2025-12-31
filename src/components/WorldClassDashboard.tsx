@@ -91,7 +91,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isPremium, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
+  const { isPremium } = useSubscription();
 
   const resolvedUserId = user?.user_id || userId;
 

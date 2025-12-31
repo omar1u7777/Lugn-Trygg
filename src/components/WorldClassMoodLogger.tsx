@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   XMarkIcon,
   MicrophoneIcon,
-  StopIcon,
-  PlayIcon,
-  SparklesIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
-import { logMood, analyzeText } from '../api/api';
+import { logMood } from '../api/api';
 import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -224,7 +221,7 @@ const ElaborateStep: React.FC<{
 const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) => {
   const { user } = useAuth();
   const { announceToScreenReader } = useAccessibility();
-  const { incrementMoodLog, canLogMood } = useSubscription();
+  const { incrementMoodLog } = useSubscription();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedMood, setSelectedMood] = useState<MoodOption | null>(null);
