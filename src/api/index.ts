@@ -10,6 +10,15 @@ export * from './notifications';
 export * from './journaling';
 export * from './meditation';
 export * from './onboarding';
+export * from './ai';
+export * from './leaderboard';
+export * from './challenges';
+export * from './memories';
+export * from './sync';
+export * from './chat';
+export * from './audio';
+export * from './rewards';
+export * from './social';
 
 // Legacy exports for backward compatibility
 export { api as default } from './client';

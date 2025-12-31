@@ -3,10 +3,8 @@ import { Card } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import DailyInsights from './DailyInsights';
 import WeeklyAnalysis from './WeeklyAnalysis';
-// NOTE: MonitoringDashboard removed - moved to /admin/monitoring (ADMIN-ONLY)
-// NOTE: AnalyticsDashboard removed - moved to /admin/analytics-dashboard (ADMIN-ONLY)
 import useAuth from '../hooks/useAuth';
-import { getMoods, analyzeMoodPatterns, getWeeklyAnalysis } from '../api/api';
+import { getMoods, getWeeklyAnalysis } from '../api/mood';
 import {
   ArrowTrendingUpIcon,
   LightBulbIcon,
@@ -48,6 +46,13 @@ interface AIPrediction {
   suggestedActivity: string;
 }
 
+// Helper to get trend narrative
+const getTrendNarrative = (stats: InsightsStats) => {
+  if (stats.predictionAccuracy > 80) return "Vi börjar lära oss dina mönster riktigt bra.";
+  if (stats.totalDataPoints < 10) return "Vi behöver lite mer data för att se tydliga mönster.";
+  return "Varje loggning hjälper oss att förstå dig bättre.";
+};
+
 const InsightsHub: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -85,15 +90,8 @@ const InsightsHub: React.FC = () => {
         const weeklyData = await getWeeklyAnalysis(user.user_id);
         const trendsAnalyzed = weeklyData?.trends?.length || 0;
 
-        // Try to get mood patterns for prediction accuracy
-        let predictionAccuracy = 0;
-        try {
-          const patterns = await analyzeMoodPatterns(user.user_id);
-          predictionAccuracy = patterns?.accuracy || Math.min(75 + moods.length * 0.5, 95);
-        } catch {
-          // Estimate prediction accuracy based on data points
-          predictionAccuracy = Math.min(70 + totalDataPoints * 0.3, 92);
-        }
+        // Estimate prediction accuracy based on data points
+        const predictionAccuracy = Math.min(70 + totalDataPoints * 0.3, 92);
 
         setInsightsStats({
           totalDataPoints,
@@ -181,189 +179,185 @@ const InsightsHub: React.FC = () => {
       } finally {
         setLoading(false);
       }
-      // Helper to get trend narrative
-      const getTrendNarrative = (stats: InsightsStats) => {
-        if (stats.predictionAccuracy > 80) return "Vi börjar lära oss dina mönster riktigt bra.";
-        if (stats.totalDataPoints < 10) return "Vi behöver lite mer data för att se tydliga mönster.";
-        return "Varje loggning hjälper oss att förstå dig bättre.";
-      };
-
-      return (
-        <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
-          {/* Narrative Hero Section */}
-          <section className="mb-8">
-            <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 to-purple-900 text-white shadow-2xl p-8 sm:p-12">
-              {/* Abstract Background Shapes */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium text-indigo-200 mb-4">
-                      <LightBulbIcon className="w-4 h-4" />
-                      <span>Data Storytelling</span>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl font-bold mb-2 tracking-tight">
-                      Din Insiktsresa
-                    </h1>
-                    <p className="text-indigo-200 text-lg max-w-xl">
-                      {getTrendNarrative(insightsStats)}
-                    </p>
-                  </div>
-
-                  {/* Quick Pulse Score */}
-                  <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
-                    <div className="text-right">
-                      <p className="text-sm text-indigo-200">Genomsnittligt Humör</p>
-                      <p className="text-3xl font-bold">{loading ? '-' : insightsStats.averageMoodScore.toFixed(1)}</p>
-                    </div>
-                    <div className="w-16 h-16 rounded-full border-4 border-indigo-400 border-t-white flex items-center justify-center text-xl">
-                      {loading ? '...' : (insightsStats.averageMoodScore >= 7 ? '☀️' : insightsStats.averageMoodScore >= 5 ? '⛅' : '🌧️')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Insight Chips */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Datapunkter', value: insightsStats.totalDataPoints, text: 'stunder loggade' },
-                    { label: 'Trender', value: insightsStats.trendsAnalyzed, text: 'mönster funna' },
-                    { label: 'Träffsäkerhet', value: `${insightsStats.predictionAccuracy}%`, text: 'i våra prognoser' }
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors">
-                      <p className="text-2xl font-bold mb-1">{loading ? '-' : stat.value}</p>
-                      <p className="text-sm text-indigo-200">{stat.label}</p>
-                      <p className="text-xs text-indigo-400 mt-1">{stat.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* AI Intelligence Layer */}
-          <section className="mb-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
-                <SparklesIcon className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI-Analys & Framtid</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Prediktiva insikter baserat på dina mönster</p>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="h-48 bg-gray-100 dark:bg-gray-800 rounded-3xl animate-pulse" />
-                <div className="h-48 bg-gray-100 dark:bg-gray-800 rounded-3xl animate-pulse" />
-              </div>
-            ) : !aiPrediction ? (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-3xl p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
-                <p className="text-gray-500">Logga mer data för att låsa upp AI-prediktioner!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Trend Card */}
-                <div className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-3xl p-8 border border-gray-100 dark:border-slate-700 shadow-lg transition-all hover:shadow-2xl">
-                  <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl opacity-20 -mr-16 -mt-16 ${aiPrediction.trendDirection === 'up' ? 'bg-green-500' : aiPrediction.trendDirection === 'down' ? 'bg-red-500' : 'bg-blue-500'
-                    }`} />
-
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Aktuell Trend</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className={`text-4xl font-bold ${aiPrediction.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' : aiPrediction.trendDirection === 'down' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'
-                        }`}>
-                        {aiPrediction.trendDirection === 'up' ? '↗' : aiPrediction.trendDirection === 'down' ? '↘' : '→'} {aiPrediction.trendPercentage}%
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-300 font-medium">
-                        {aiPrediction.trendDirection === 'up' ? 'uppgång' : aiPrediction.trendDirection === 'down' ? 'nedgång' : 'stabilt'}
-                      </span>
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
-                      {aiPrediction.recommendation}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Recommendation Card */}
-                <div className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-3xl p-8 border border-gray-100 dark:border-slate-700 shadow-lg transition-all hover:shadow-2xl">
-                  <div className="absolute top-0 right-0 p-32 bg-amber-500 rounded-full blur-3xl opacity-10 -mr-16 -mt-16 group-hover:opacity-20 transition-opacity" />
-
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Smart Rekommendation</h3>
-                    <div className="mb-4">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                        Bästa tid: {aiPrediction.bestTimeOfDay}
-                      </p>
-                    </div>
-                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/30">
-                      <p className="text-amber-800 dark:text-amber-200 font-medium flex items-start gap-2">
-                        <span className="text-xl">💡</span>
-                        <span>Prova {aiPrediction.suggestedActivity} under denna tid för att maximera ditt välmående.</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Main Analysis Tabs */}
-          <section>
-            <div className="bg-white dark:bg-gray-800 rounded-t-3xl border-b border-gray-200 dark:border-gray-700 p-2 overflow-x-auto">
-              <nav className="flex gap-2 min-w-max px-2">
-                {[
-                  { icon: CalendarIcon, label: 'Daglig Puls', index: 0 },
-                  { icon: ArrowTrendingUpIcon, label: 'Veckospårning', index: 1 },
-                  // NOTE: More tabs can be added here
-                ].map((tab) => (
-                  <button
-                    key={tab.index}
-                    onClick={() => setActiveTab(tab.index)}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === tab.index
-                      ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg transform scale-105'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                  >
-                    <tab.icon className="w-5 h-5" />
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-b-3xl shadow-xl min-h-[400px] p-6 sm:p-8 border border-t-0 border-gray-200 dark:border-gray-700">
-              <TabPanel value={activeTab} index={0}>
-                {user?.user_id ? (
-                  <div className="animate-fade-in">
-                    <DailyInsights userId={user.user_id} moodData={[]} />
-                  </div>
-                ) : (
-                  <div className="text-center py-20">
-                    <p className="text-xl text-gray-500">Logga in för att se din dagliga puls.</p>
-                  </div>
-                )}
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={1}>
-                {user?.user_id ? (
-                  <div className="animate-fade-in">
-                    <WeeklyAnalysis />
-                  </div>
-                ) : (
-                  <div className="text-center py-20">
-                    <p className="text-xl text-gray-500">Logga in för att se veckoanalyser.</p>
-                  </div>
-                )}
-              </TabPanel>
-            </div>
-          </section>
-        </div>
-      );
     };
 
-    export default InsightsHub;
+    fetchInsightsData();
+  }, [user?.user_id]);
 
+  return (
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      {/* Narrative Hero Section */}
+      <section className="mb-8">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 to-purple-900 text-white shadow-2xl p-8 sm:p-12">
+          {/* Abstract Background Shapes */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium text-indigo-200 mb-4">
+                  <LightBulbIcon className="w-4 h-4" />
+                  <span>Data Storytelling</span>
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-bold mb-2 tracking-tight">
+                  Din Insiktsresa
+                </h1>
+                <p className="text-indigo-200 text-lg max-w-xl">
+                  {getTrendNarrative(insightsStats)}
+                </p>
+              </div>
+
+              {/* Quick Pulse Score */}
+              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+                <div className="text-right">
+                  <p className="text-sm text-indigo-200">Genomsnittligt Humör</p>
+                  <p className="text-3xl font-bold">{loading ? '-' : insightsStats.averageMoodScore.toFixed(1)}</p>
+                </div>
+                <div className="w-16 h-16 rounded-full border-4 border-indigo-400 border-t-white flex items-center justify-center text-xl">
+                  {loading ? '...' : (insightsStats.averageMoodScore >= 7 ? '☀️' : insightsStats.averageMoodScore >= 5 ? '⛅' : '🌧️')}
+                </div>
+              </div>
+            </div>
+
+            {/* Insight Chips */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Datapunkter', value: insightsStats.totalDataPoints, text: 'stunder loggade' },
+                { label: 'Trender', value: insightsStats.trendsAnalyzed, text: 'mönster funna' },
+                { label: 'Träffsäkerhet', value: `${insightsStats.predictionAccuracy}%`, text: 'i våra prognoser' }
+              ].map((stat, i) => (
+                <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors">
+                  <p className="text-2xl font-bold mb-1">{loading ? '-' : stat.value}</p>
+                  <p className="text-sm text-indigo-200">{stat.label}</p>
+                  <p className="text-xs text-indigo-400 mt-1">{stat.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* AI Intelligence Layer */}
+      <section className="mb-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
+            <SparklesIcon className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI-Analys & Framtid</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Prediktiva insikter baserat på dina mönster</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="h-48 bg-gray-100 dark:bg-gray-800 rounded-3xl animate-pulse" />
+            <div className="h-48 bg-gray-100 dark:bg-gray-800 rounded-3xl animate-pulse" />
+          </div>
+        ) : !aiPrediction ? (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-3xl p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+            <p className="text-gray-500">Logga mer data för att låsa upp AI-prediktioner!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Trend Card */}
+            <div className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-3xl p-8 border border-gray-100 dark:border-slate-700 shadow-lg transition-all hover:shadow-2xl">
+              <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl opacity-20 -mr-16 -mt-16 ${aiPrediction.trendDirection === 'up' ? 'bg-green-500' : aiPrediction.trendDirection === 'down' ? 'bg-red-500' : 'bg-blue-500'
+                }`} />
+
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Aktuell Trend</h3>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className={`text-4xl font-bold ${aiPrediction.trendDirection === 'up' ? 'text-green-600 dark:text-green-400' : aiPrediction.trendDirection === 'down' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'
+                    }`}>
+                    {aiPrediction.trendDirection === 'up' ? '↗' : aiPrediction.trendDirection === 'down' ? '↘' : '→'} {aiPrediction.trendPercentage}%
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">
+                    {aiPrediction.trendDirection === 'up' ? 'uppgång' : aiPrediction.trendDirection === 'down' ? 'nedgång' : 'stabilt'}
+                  </span>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
+                  {aiPrediction.recommendation}
+                </p>
+              </div>
+            </div>
+
+            {/* Recommendation Card */}
+            <div className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-3xl p-8 border border-gray-100 dark:border-slate-700 shadow-lg transition-all hover:shadow-2xl">
+              <div className="absolute top-0 right-0 p-32 bg-amber-500 rounded-full blur-3xl opacity-10 -mr-16 -mt-16 group-hover:opacity-20 transition-opacity" />
+
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider text-xs">Smart Rekommendation</h3>
+                <div className="mb-4">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                    Bästa tid: {aiPrediction.bestTimeOfDay}
+                  </p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/30">
+                  <p className="text-amber-800 dark:text-amber-200 font-medium flex items-start gap-2">
+                    <span className="text-xl">💡</span>
+                    <span>Prova {aiPrediction.suggestedActivity} under denna tid för att maximera ditt välmående.</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Main Analysis Tabs */}
+      <section>
+        <div className="bg-white dark:bg-gray-800 rounded-t-3xl border-b border-gray-200 dark:border-gray-700 p-2 overflow-x-auto">
+          <nav className="flex gap-2 min-w-max px-2">
+            {[
+              { icon: CalendarIcon, label: 'Daglig Puls', index: 0 },
+              { icon: ArrowTrendingUpIcon, label: 'Veckospårning', index: 1 },
+              // NOTE: More tabs can be added here
+            ].map((tab) => (
+              <button
+                key={tab.index}
+                onClick={() => setActiveTab(tab.index)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === tab.index
+                  ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg transform scale-105'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+              >
+                <tab.icon className="w-5 h-5" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-b-3xl shadow-xl min-h-[400px] p-6 sm:p-8 border border-t-0 border-gray-200 dark:border-gray-700">
+          <TabPanel value={activeTab} index={0}>
+            {user?.user_id ? (
+              <div className="animate-fade-in">
+                <DailyInsights userId={user.user_id} moodData={[]} />
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <p className="text-xl text-gray-500">Logga in för att se din dagliga puls.</p>
+              </div>
+            )}
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={1}>
+            {user?.user_id ? (
+              <div className="animate-fade-in">
+                <WeeklyAnalysis />
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <p className="text-xl text-gray-500">Logga in för att se veckoanalyser.</p>
+              </div>
+            )}
+          </TabPanel>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default InsightsHub;

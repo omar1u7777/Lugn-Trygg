@@ -1,4 +1,3 @@
-```typescript
 import React, { useState, useEffect, useRef } from 'react';
 import {
   XMarkIcon,
@@ -7,9 +6,9 @@ import {
   PlayIcon,
   SparklesIcon,
   ArrowRightIcon,
-  ArrowLeftIcon, // Added ArrowLeftIcon
-  CheckCircleIcon // Added appropriate icon
-} from '@heroicons/react/24/outline'; // Correct import source
+  ArrowLeftIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { logMood, analyzeText } from '../api/api';
@@ -76,25 +75,22 @@ const MoodSelectionStep: React.FC<{
             <button
               key={mood.id}
               onClick={() => onSelect(mood)}
-              className={`group relative p - 6 rounded - [2rem] transition - all duration - 300 border - 2
-                ${
-  isSelected
-    ? 'border-primary-500 bg-white dark:bg-slate-800 shadow-xl scale-105'
-    : 'border-transparent bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:scale-105'
-}
-`}
-              style={{ animationDelay: `${ index * 50 } ms` }}
+              className={`group relative p-6 rounded-[2rem] transition-all duration-300 border-2 ${
+                isSelected
+                  ? 'border-primary-500 bg-white dark:bg-slate-800 shadow-xl scale-105'
+                  : 'border-transparent bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:scale-105'
+              }`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div 
-                className={`text - 6xl mb - 4 transition - transform duration - 500 
-                  ${ isSelected ? 'scale-125 rotate-6' : 'group-hover:scale-110 group-hover:rotate-6' }
-                  filter drop - shadow - md
-  `}
+              <div
+                className={`text-6xl mb-4 transition-transform duration-500 ${
+                  isSelected ? 'scale-125 rotate-6' : 'group-hover:scale-110 group-hover:rotate-6'
+                } filter drop-shadow-md`}
               >
                 {mood.emoji}
               </div>
               <div className="font-bold text-gray-900 dark:text-gray-100">{mood.label}</div>
-              
+
               {/* Active Indicator */}
               {isSelected && (
                 <div className="absolute top-4 right-4 text-primary-500">
@@ -133,14 +129,12 @@ const FactorsStep: React.FC<{
             <button
               key={factor.id}
               onClick={() => toggleFactor(factor.id)}
-              className={`flex items - center gap - 2 px - 6 py - 3 rounded - full text - base font - medium transition - all duration - 200
-                ${
-  isSelected
-    ? 'bg-primary-600 text-white shadow-md transform scale-105'
-    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-gray-700'
-}
-`}
-              style={{ animationDelay: `${ index * 50 } ms` }}
+              className={`flex items-center gap-2 px-6 py-3 rounded-full text-base font-medium transition-all duration-200 ${
+                isSelected
+                  ? 'bg-primary-600 text-white shadow-md transform scale-105'
+                  : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-gray-700'
+              }`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               <span>{factor.icon}</span>
               <span>{factor.label}</span>
@@ -150,7 +144,7 @@ const FactorsStep: React.FC<{
       </div>
 
       <div className="flex justify-between pt-8">
-        <button 
+        <button
           onClick={onBack}
           className="flex items-center gap-2 px-6 py-3 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
@@ -194,7 +188,7 @@ const ElaborateStep: React.FC<{
           placeholder="Skriv dina tankar här..."
           className="w-full h-40 bg-transparent border-none focus:ring-0 text-lg placeholder-gray-400 dark:placeholder-gray-600 resize-none"
         />
-        
+
         <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
            <button className="p-3 text-primary-600 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/20 rounded-full transition-colors" title="Röstinspelning (Kommer snart)">
              <MicrophoneIcon className="w-6 h-6" />
@@ -203,7 +197,7 @@ const ElaborateStep: React.FC<{
       </div>
 
       <div className="flex justify-between pt-4">
-        <button 
+        <button
           onClick={onBack}
           className="flex items-center gap-2 px-6 py-3 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
@@ -238,8 +232,6 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
   const [note, setNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Sound effects refs (omitted for brevity, assume implementation)
-
   const handleMoodSelect = (mood: MoodOption) => {
     setSelectedMood(mood);
     // Subtle delay for visual feedback before auto-advance
@@ -247,145 +239,98 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
   };
 
   const toggleFactor = (id: string) => {
-    setSelectedFactors(prev => 
+    setSelectedFactors(prev =>
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
-                  </h4>
-                  <p className="text-sm">
-                    {analysis.emotion || 'Din text visar på följande känslor:'}
-                    {analysis.sentiment && (
-                      <span
-                        className={`ml - 2 inline - flex items - center px - 2.5 py - 0.5 rounded - full text - xs font - medium ${
-  analysis.sentiment === 'POSITIVE'
-    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-} `}
-                      >
-                        {analysis.sentiment}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </Alert>
-            </div>
-          )}
+  };
 
-          {/* Voice Analysis */}
-          {voiceAnalysis && (
-            <div className="mb-12">
-              <Alert variant="info">
-                <div>
-                  <h4 className="text-lg font-semibold mb-2">
-                    🎤 AI-analys av röst
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <strong>Känsla från röst:</strong> {voiceAnalysis.emotion || 'Analyseras...'}
-                      {voiceAnalysis.sentiment && (
-                        <span
-                          className={`ml - 2 inline - flex items - center px - 2.5 py - 0.5 rounded - full text - xs font - medium ${
-  voiceAnalysis.sentiment === 'POSITIVE'
-    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-    : voiceAnalysis.sentiment === 'NEGATIVE'
-      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-} `}
-                        >
-                          {voiceAnalysis.sentiment}
-                        </span>
-                      )}
-                    </p>
-                    {voiceAnalysis.confidence && (
-                      <p>
-                        <strong>Konfidens:</strong> {Math.round(voiceAnalysis.confidence * 100)}%
-                      </p>
-                    )}
-                    {voiceAnalysis.intensity && (
-                      <p>
-                        <strong>Intensitet:</strong> {Math.round(voiceAnalysis.intensity * 100)}%
-                      </p>
-                    )}
-                    {voiceAnalysis.suggested_mood_score && (
-                      <p>
-                        <strong>Föreslagen humör-poäng:</strong> {voiceAnalysis.suggested_mood_score}/10
-                        <span className="text-xs text-gray-500 ml-2">
-                          (baserat på röstanalys)
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Alert>
-            </div>
-          )}
+  const handleSave = async () => {
+    if (!selectedMood || !user?.user_id) return;
 
-          {/* Recommendations */}
-          {selectedMood && (
-            <div className="mb-12">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-                💡 Rekommendationer
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {getRecommendations().map((rec, index) => (
-                  <Card
-                    key={index}
-                    className="p-4 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div style={{ color: colors.primary.main }}>
-                        {rec.icon}
-                      </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {rec.text}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+    setIsSaving(true);
+    try {
+      await logMood(user.user_id, {
+        score: selectedMood.score,
+        note: note || undefined,
+        activities: selectedFactors,
+        timestamp: new Date(),
+      });
 
-          {/* HONEST transparency - ONLY show in development/debug mode */}
-          {process.env.NODE_ENV === 'development' && (
-            <Alert variant="info" className="mb-6">
-              <div className="text-sm">
-                <p className="font-semibold mb-2">🔍 DEV MODE: Vad händer när du sparar:</p>
-                <div className="space-y-1 text-xs">
-                  <p>• Humör-poäng ({useCustomScore ? customMoodScore : selectedMood?.score || 'X'}/10) sparas exakt</p>
-                  <p>• Text sparas ordagrant - INGA ändringar</p>
-                  {recordedAudio && <p>• Röst: AI-analys med fallback till neutral</p>}
-                  <p>• Timestamp: {new Date().toLocaleString('sv-SE')}</p>
-                  <p>• Lagringsplats: Firebase Firestore</p>
-                  <p>• AI: OpenAI med fallback</p>
-                  <p>• Cache: Rensas för omedelbar synkronisering</p>
-                </div>
-              </div>
-            </Alert>
-          )}
+      // Clear dashboard cache for immediate sync
+      clearDashboardCache();
 
-          {/* Save Button */}
-          <div className="text-center">
-            <Button
-              onClick={handleSave}
-              disabled={(!selectedMood && !useCustomScore) || (useCustomScore && !customMoodScore) || loading}
-              variant="primary"
-              size="lg"
-              className="world-class-btn-primary px-12 py-3 text-lg rounded-2xl"
-            >
-              <CheckIcon className="w-5 h-5 mr-2" />
-              {loading ? 'Sparar...' : 'Spara humör'}
-            </Button>
+      // Increment mood log count for subscription tracking
+      incrementMoodLog();
 
-            {loading && (
-              <div className="mt-4">
-                <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: colors.background.default }}>
-                  <div className="h-full animate-pulse" style={{ width: '100%', backgroundColor: colors.primary.main }} />
-                </div>
-              </div>
-            )}
-          </div>
+      // Analytics
+      analytics.track('mood_logged', {
+        mood_score: selectedMood.score,
+        has_note: !!note,
+        factors_count: selectedFactors.length,
+      });
+
+      // Screen reader announcement
+      announceToScreenReader(`Humör sparat: ${selectedMood.label}`);
+
+      // Close modal
+      onClose();
+    } catch (error) {
+      console.error('Failed to save mood:', error);
+      announceToScreenReader('Kunde inte spara humör. Försök igen.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <MoodSelectionStep
+            selectedMood={selectedMood}
+            onSelect={handleMoodSelect}
+          />
+        );
+      case 2:
+        return (
+          <FactorsStep
+            selectedFactors={selectedFactors}
+            toggleFactor={toggleFactor}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
+        );
+      case 3:
+        return (
+          <ElaborateStep
+            note={note}
+            setNote={setNote}
+            onSave={handleSave}
+            isSaving={isSaving}
+            onBack={() => setStep(2)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 z-10 p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-slate-800"
+        >
+          <XMarkIcon className="w-6 h-6" />
+        </button>
+
+        {/* Content */}
+        <div className="p-8 sm:p-12">
+          {renderStep()}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
