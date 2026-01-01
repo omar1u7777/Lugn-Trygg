@@ -36,8 +36,6 @@ const SocialHub = lazy(() => import('@/components/SocialHub'));
 const JournalHub = lazy(() => import('@/components/JournalHub'));
 const InsightsHub = lazy(() => import('@/components/InsightsHub'));
 const WellnessHub = lazy(() => import('@/components/WellnessHub'));
-const TestPage = lazy(() => import('@/components/TestPage'));
-const TestingStrategy = lazy(() => import('@/components/TestingStrategy'));
 const UpgradePage = lazy(() => import('@/pages/UpgradePage'));
 const HealthMonitoring = lazy(() => import('@/components/HealthMonitoring'));
 
@@ -87,6 +85,4 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/crisis', component: CrisisAlertWrapper, protected: true },
   { path: '/onboarding', component: OnboardingFlowWrapper, protected: true },
   { path: '/privacy', component: PrivacySettingsWrapper, protected: true },
-  { path: '/test', component: TestPage },
-  { path: '/testing-strategy', component: TestingStrategy },
 ];
