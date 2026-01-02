@@ -139,3 +139,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# API Keys - NEVER commit
+api_keys/
+*.key
