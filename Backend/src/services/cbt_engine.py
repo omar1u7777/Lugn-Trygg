@@ -4,11 +4,9 @@ Dynamic Cognitive Behavioral Therapy modules with Swedish content
 """
 
 import logging
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-import random
-import json
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

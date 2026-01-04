@@ -193,7 +193,7 @@ class PushNotificationService:
                     tokens=batch_tokens
                 )
                 
-                batch_response = messaging.send_multicast(message)
+                batch_response = messaging.send_each_for_multicast(message)  # type: ignore[attr-defined]
                 total_success += batch_response.success_count
                 total_failure += batch_response.failure_count
                 

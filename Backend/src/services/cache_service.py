@@ -5,7 +5,7 @@ Provides caching functionality with Redis as primary store and
 in-memory fallback for development/testing.
 """
 
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List, cast
 import logging
 import json
 import time
@@ -33,7 +33,8 @@ class CacheService:
             try:
                 value = self._redis_client.get(key)
                 if value:
-                    return json.loads(value)
+                    # Cast to bytes for type safety (Redis returns bytes)
+                    return json.loads(cast(bytes, value))
             except Exception as e:
                 logger.warning(f"Redis get failed: {e}")
 
@@ -129,14 +130,16 @@ class CacheService:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
-        stats = {
+        stats: Dict[str, Any] = {
             'memory_entries': len(self._memory_cache),
             'redis_available': self._redis_client is not None
         }
 
         if self._redis_client:
             try:
-                stats['redis_keys'] = len(self._redis_client.keys('*'))
+                # Cast to list for type safety (Redis keys() returns list)
+                keys = cast(List[bytes], self._redis_client.keys('*'))
+                stats['redis_keys'] = len(keys)
             except Exception:
                 stats['redis_keys'] = 'unknown'
 

@@ -33,29 +33,32 @@ def backup_collection(collection_name: str, output_dir: Path) -> dict:
     print(f"📦 Backing up collection: {collection_name}")
     
     try:
+        from src.firebase_config import db
+        if db is None:
+            raise RuntimeError("Firestore client (db) is not initialized.")
         # Get all documents from collection
         docs = db.collection(collection_name).stream()
-        
+
         backup_data = []
         doc_count = 0
-        
+
         for doc in docs:
             doc_dict = doc.to_dict()
             doc_dict['_id'] = doc.id  # Add document ID
             backup_data.append(doc_dict)
             doc_count += 1
-            
+
             if doc_count % 100 == 0:
                 print(f"  ✓ Backed up {doc_count} documents...")
-        
+
         # Create filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = output_dir / f"{collection_name}_{timestamp}.json"
-        
+
         # Write to file
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(backup_data, f, indent=2, default=str, ensure_ascii=False)
-        
+
         file_size_mb = filename.stat().st_size / (1024 * 1024)
         
         print(f"✅ Backup complete: {doc_count} documents ({file_size_mb:.2f} MB)")
@@ -156,28 +159,31 @@ def restore_collection(collection_name: str, backup_file: Path) -> dict:
     print(f"   From file: {backup_file}")
     
     try:
+        from src.firebase_config import db
+        if db is None:
+            raise RuntimeError("Firestore client (db) is not initialized.")
         # Load backup data
         with open(backup_file, 'r', encoding='utf-8') as f:
             backup_data = json.load(f)
-        
+
         doc_count = 0
         batch = db.batch()
-        
+
         for doc_data in backup_data:
             doc_id = doc_data.pop('_id', None)
             if not doc_id:
                 continue
-            
+
             doc_ref = db.collection(collection_name).document(doc_id)
             batch.set(doc_ref, doc_data)
             doc_count += 1
-            
+
             # Commit batch every 500 documents
             if doc_count % 500 == 0:
                 batch.commit()
                 batch = db.batch()
                 print(f"  ✓ Restored {doc_count} documents...")
-        
+
         # Commit remaining
         batch.commit()
         
@@ -212,35 +218,39 @@ def main():
     print("🔥 Initializing Firebase...")
     try:
         initialize_firebase()
+        from src.firebase_config import db
+        if db is None:
+            print("❌ Firebase Firestore client (db) is not initialized. Check your credentials and .env configuration.")
+            return 1
         print("✅ Firebase connected")
     except Exception as e:
         print(f"❌ Failed to initialize Firebase: {e}")
         return 1
-    
+
     # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Handle restore
     if args.restore:
         if not args.restore_collection:
             print("❌ Error: --restore-collection required with --restore")
             return 1
-        
+
         backup_file = Path(args.restore)
         if not backup_file.exists():
             print(f"❌ Error: Backup file not found: {backup_file}")
             return 1
-        
+
         restore_collection(args.restore_collection, backup_file)
         return 0
-    
+
     # Handle backup
     if args.collection:
         backup_collection(args.collection, output_dir)
     else:
         backup_all_collections(output_dir)
-    
+
     return 0
 
 if __name__ == '__main__':

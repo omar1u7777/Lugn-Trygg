@@ -3,16 +3,33 @@ Referral Program Routes
 Handles user referrals, tracking, and rewards
 """
 import logging
-from flask import Blueprint, request, jsonify
+import re
+from flask import Blueprint, request, jsonify, g
 from datetime import datetime, timezone
+from typing import Optional
 from ..firebase_config import db
+from ..services.auth_service import AuthService
 from ..services.email_service import email_service
 from ..services.push_notification_service import push_notification_service
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.audit_service import audit_log
+from ..utils.response_utils import APIResponse
+from ..utils.input_sanitization import sanitize_text
 import random
 import string
 
+# FieldFilter import with fallback
+try:
+    from google.cloud.firestore import FieldFilter
+except ImportError:
+    FieldFilter = None  # type: ignore
+
+# Validation pattern for user IDs
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+
 referral_bp = Blueprint("referral", __name__)
 logger = logging.getLogger(__name__)
+
 
 def generate_referral_code(user_id: str) -> str:
     """Generate a unique referral code for user"""
@@ -20,25 +37,37 @@ def generate_referral_code(user_id: str) -> str:
     code = user_id[:4].upper() + ''.join(random.choices(string.ascii_uppercase, k=4))
     return code
 
-@referral_bp.route("/generate", methods=["POST", "OPTIONS"])
+
+# CORS OPTIONS handler for all endpoints
+@referral_bp.route("/generate", methods=["OPTIONS"])
+@referral_bp.route("/stats", methods=["OPTIONS"])
+@referral_bp.route("/invite", methods=["OPTIONS"])
+@referral_bp.route("/complete", methods=["OPTIONS"])
+@referral_bp.route("/leaderboard", methods=["OPTIONS"])
+@referral_bp.route("/history", methods=["OPTIONS"])
+@referral_bp.route("/rewards/catalog", methods=["OPTIONS"])
+@referral_bp.route("/rewards/redeem", methods=["OPTIONS"])
+def handle_options():
+    """Handle CORS preflight requests"""
+    return APIResponse.success()
+
+
+@referral_bp.route("/generate", methods=["POST"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def generate_referral():
     """Generate referral code and data for user"""
     logger.info("🎁 REFERRAL - GENERATE endpoint called")
-    if request.method == "OPTIONS":
-        logger.info("✅ REFERRAL - OPTIONS preflight")
-        # Handle CORS preflight
-        return "", 204
     
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        logger.info(f"👤 REFERRAL - Generating for user: {user_id}")
-        
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({"error": "user_id required"}), 400
+            return APIResponse.unauthorized("Authentication required")
+        
+        logger.info(f"👤 REFERRAL - Generating for user: {user_id}")
 
         # Get or create referral document
-        referral_ref = db.collection("referrals").document(user_id)
+        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
         referral_doc = referral_ref.get()
 
         if not referral_doc.exists:
@@ -55,34 +84,56 @@ def generate_referral():
             }
             referral_ref.set(referral_data)
             logger.info(f"✅ REFERRAL - Created new referral code {referral_code} for user {user_id}")
-            return jsonify(referral_data), 200
+            
+            audit_log('REFERRAL_CODE_GENERATED', user_id, {'referral_code': referral_code})
+            
+            return APIResponse.success({
+                "userId": user_id,
+                "referralCode": referral_code,
+                "totalReferrals": 0,
+                "successfulReferrals": 0,
+                "pendingReferrals": 0,
+                "rewardsEarned": 0,
+                "createdAt": referral_data["created_at"]
+            }, "Referral code generated")
 
         # Return existing referral data
-        referral_data = referral_doc.to_dict()
+        referral_data = referral_doc.to_dict() or {}
         logger.info(f"✅ REFERRAL - Returning existing referral data for user {user_id}")
-        return jsonify(referral_data), 200
+        
+        return APIResponse.success({
+            "userId": referral_data.get("user_id"),
+            "referralCode": referral_data.get("referral_code"),
+            "totalReferrals": referral_data.get("total_referrals", 0),
+            "successfulReferrals": referral_data.get("successful_referrals", 0),
+            "pendingReferrals": referral_data.get("pending_referrals", 0),
+            "rewardsEarned": referral_data.get("rewards_earned", 0),
+            "createdAt": referral_data.get("created_at")
+        }, "Referral data retrieved")
 
     except Exception as e:
         logger.exception(f"Error generating referral: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to generate referral", "REFERRAL_ERROR", 500, str(e))
 
-@referral_bp.route("/stats", methods=["GET", "OPTIONS"])
+
+@referral_bp.route("/stats", methods=["GET"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_referral_stats():
     """Get user's referral statistics"""
     logger.info("📊 REFERRAL - STATS endpoint called")
-    if request.method == "OPTIONS":
-        logger.info("✅ REFERRAL - OPTIONS preflight")
-        # Handle CORS preflight
-        return "", 204
     
     try:
-        user_id = request.args.get("user_id", "").strip()
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized("Authentication required")
+        
+        # Get user_id from query param or auth context
+        user_id = request.args.get("user_id", "").strip() or current_user_id
         logger.info(f"👤 REFERRAL - Getting stats for user: {user_id}")
-        if not user_id:
-            return jsonify({"error": "user_id required"}), 400
 
         # Get referral document
-        referral_ref = db.collection("referrals").document(user_id)
+        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
         referral_doc = referral_ref.get()
 
         if not referral_doc.exists:
@@ -98,43 +149,68 @@ def get_referral_stats():
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             referral_ref.set(referral_data)
-            return jsonify(referral_data), 200
+            
+            return APIResponse.success({
+                "userId": user_id,
+                "referralCode": referral_code,
+                "totalReferrals": 0,
+                "successfulReferrals": 0,
+                "pendingReferrals": 0,
+                "rewardsEarned": 0,
+                "createdAt": referral_data["created_at"]
+            }, "Referral stats retrieved")
 
-        referral_data = referral_doc.to_dict()
-        return jsonify(referral_data), 200
+        referral_data = referral_doc.to_dict() or {}
+        
+        return APIResponse.success({
+            "userId": referral_data.get("user_id"),
+            "referralCode": referral_data.get("referral_code"),
+            "totalReferrals": referral_data.get("total_referrals", 0),
+            "successfulReferrals": referral_data.get("successful_referrals", 0),
+            "pendingReferrals": referral_data.get("pending_referrals", 0),
+            "rewardsEarned": referral_data.get("rewards_earned", 0),
+            "createdAt": referral_data.get("created_at"),
+            "lastReferralAt": referral_data.get("last_referral_at")
+        }, "Referral stats retrieved")
 
     except Exception as e:
         logger.exception(f"Error fetching referral stats: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to fetch referral stats", "STATS_ERROR", 500, str(e))
 
-@referral_bp.route("/invite", methods=["POST", "OPTIONS"])
+@referral_bp.route("/invite", methods=["POST"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def send_invitation():
     """Send referral invitation via email"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
     try:
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized("Authentication required")
+        
         data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        email = data.get("email", "").strip()
-        referrer_name = data.get("referrer_name", "Din vän").strip()
+        email = sanitize_text(data.get("email", ""), max_length=254)
+        referrer_name = sanitize_text(data.get("referrer_name", "Din vän"), max_length=100)
 
-        if not user_id or not email:
-            return jsonify({"error": "user_id and email required"}), 400
+        if not email:
+            return APIResponse.bad_request("email required")
 
         # Get referral data
-        referral_ref = db.collection("referrals").document(user_id)
+        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
         referral_doc = referral_ref.get()
         
         if not referral_doc.exists:
-            return jsonify({"error": "Referral code not found. Generate one first."}), 404
+            return APIResponse.not_found("Referral code not found. Generate one first.")
         
-        referral_data = referral_doc.to_dict()
+        referral_data = referral_doc.to_dict() or {}
         referral_code = referral_data.get("referral_code")
+        
+        if not referral_code:
+            return APIResponse.not_found("Referral code not found. Generate one first.")
+        
         referral_link = f"https://lugn-trygg.vercel.app/register?ref={referral_code}"
 
         # Store invitation in pending referrals
-        invitation_ref = db.collection("referral_invitations").document()
+        invitation_ref = db.collection("referral_invitations").document()  # type: ignore
         invitation_ref.set({
             "referrer_id": user_id,
             "referrer_name": referrer_name,
@@ -159,41 +235,40 @@ def send_invitation():
             referral_link=referral_link
         )
 
+        audit_log('REFERRAL_INVITATION_SENT', user_id, {'invitee_email': email})
         logger.info(f"Referral invitation sent from {user_id} to {email}")
 
-        return jsonify({
-            "success": True,
+        return APIResponse.success({
             "message": "Invitation sent successfully",
-            "email_sent": email_result.get("success", False),
-            "email_status": email_result.get("message", "Email service unavailable")
-        }), 200
+            "emailSent": email_result.get("success", False),
+            "emailStatus": email_result.get("message", "Email service unavailable")
+        }, "Invitation sent")
 
     except Exception as e:
         logger.exception(f"Error sending invitation: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to send invitation", "INVITATION_ERROR", 500, str(e))
 
-@referral_bp.route("/complete", methods=["POST", "OPTIONS"])
+
+@referral_bp.route("/complete", methods=["POST"])
+@rate_limit_by_endpoint
 def complete_referral():
-    """Mark a referral as completed when invitee signs up"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
+    """Mark a referral as completed when invitee signs up (called internally during registration)"""
     try:
         data = request.get_json(force=True, silent=True) or {}
-        referrer_id = data.get("referrer_id", "").strip()
-        invitee_id = data.get("invitee_id", "").strip()
-        invitee_name = data.get("invitee_name", "New User").strip()
-        invitee_email = data.get("invitee_email", "").strip()
+        referrer_id = sanitize_text(data.get("referrer_id", ""), max_length=128)
+        invitee_id = sanitize_text(data.get("invitee_id", ""), max_length=128)
+        invitee_name = sanitize_text(data.get("invitee_name", "New User"), max_length=100)
+        invitee_email = sanitize_text(data.get("invitee_email", ""), max_length=254)
 
         if not referrer_id or not invitee_id:
-            return jsonify({"error": "referrer_id and invitee_id required"}), 400
+            return APIResponse.bad_request("referrer_id and invitee_id required")
 
         # Update referral stats
-        referral_ref = db.collection("referrals").document(referrer_id)
+        referral_ref = db.collection("referrals").document(referrer_id)  # type: ignore
         referral_doc = referral_ref.get()
 
         if referral_doc.exists:
-            referral_data = referral_doc.to_dict()
+            referral_data = referral_doc.to_dict() or {}
             successful_referrals = referral_data.get("successful_referrals", 0) + 1
             pending_referrals = max(0, referral_data.get("pending_referrals", 0) - 1)
 
@@ -226,7 +301,7 @@ def complete_referral():
             })
 
             # Store referral history
-            history_ref = db.collection("referral_history").document()
+            history_ref = db.collection("referral_history").document()  # type: ignore
             history_ref.set({
                 "referrer_id": referrer_id,
                 "invitee_id": invitee_id,
@@ -236,11 +311,17 @@ def complete_referral():
                 "rewards_granted": 1  # 1 week per referral
             })
 
+            audit_log('REFERRAL_COMPLETED', referrer_id, {
+                'invitee_id': invitee_id,
+                'successful_referrals': successful_referrals,
+                'rewards_earned': rewards_earned
+            })
+
             # Get referrer info for email & push notifications
             try:
-                referrer_doc = db.collection("users").document(referrer_id).get()
+                referrer_doc = db.collection("users").document(referrer_id).get()  # type: ignore
                 if referrer_doc.exists:
-                    referrer_info = referrer_doc.to_dict()
+                    referrer_info = referrer_doc.to_dict() or {}
                     referrer_email = referrer_info.get("email")
                     referrer_name = referrer_info.get("name", "User")
                     fcm_token = referrer_info.get("fcm_token")
@@ -294,32 +375,29 @@ def complete_referral():
 
             logger.info(f"Referral completed: {referrer_id} -> {invitee_id}")
 
-            return jsonify({
-                "success": True,
-                "successful_referrals": successful_referrals,
-                "rewards_earned": rewards_earned,
-                "notification_sent": True
-            }), 200
+            return APIResponse.success({
+                "successfulReferrals": successful_referrals,
+                "rewardsEarned": rewards_earned,
+                "notificationSent": True
+            }, "Referral completed successfully")
 
-        return jsonify({"error": "Referrer not found"}), 404
+        return APIResponse.not_found("Referrer not found")
 
     except Exception as e:
         logger.exception(f"Error completing referral: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to complete referral", "COMPLETE_ERROR", 500, str(e))
 
 
-@referral_bp.route("/leaderboard", methods=["GET", "OPTIONS"])
+@referral_bp.route("/leaderboard", methods=["GET"])
+@rate_limit_by_endpoint
 def get_leaderboard():
     """Get top referrers leaderboard"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
     try:
         limit = int(request.args.get("limit", 10))
         limit = min(limit, 100)  # Max 100 results
 
         # Query top referrers by successful_referrals
-        referrals_ref = db.collection("referrals").order_by(
+        referrals_ref = db.collection("referrals").order_by(  # type: ignore
             "successful_referrals", direction="DESCENDING"
         ).limit(limit)
         
@@ -327,14 +405,14 @@ def get_leaderboard():
         
         leaderboard = []
         for idx, doc in enumerate(referrals_docs, start=1):
-            data = doc.to_dict()
+            data = doc.to_dict() or {}
             user_id = data.get("user_id")
             
             # Get user info
-            user_doc = db.collection("users").document(user_id).get()
+            user_doc = db.collection("users").document(user_id).get()  # type: ignore
             user_name = "Anonymous"
             if user_doc.exists:
-                user_info = user_doc.to_dict()
+                user_info = user_doc.to_dict() or {}
                 user_name = user_info.get("name", "Anonymous")
             
             # Calculate tier
@@ -354,105 +432,103 @@ def get_leaderboard():
             
             leaderboard.append({
                 "rank": idx,
-                "user_id": user_id,
+                "userId": user_id,
                 "name": user_name,
-                "successful_referrals": referrals,
-                "rewards_earned": data.get("rewards_earned", 0),
+                "successfulReferrals": referrals,
+                "rewardsEarned": data.get("rewards_earned", 0),
                 "tier": tier,
-                "tier_emoji": tier_emoji
+                "tierEmoji": tier_emoji
             })
         
-        return jsonify({
-            "success": True,
+        return APIResponse.success({
             "leaderboard": leaderboard,
-            "total_count": len(leaderboard)
-        }), 200
+            "totalCount": len(leaderboard)
+        }, "Leaderboard retrieved")
 
     except Exception as e:
         logger.exception(f"Error fetching leaderboard: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to fetch leaderboard", "LEADERBOARD_ERROR", 500, str(e))
 
 
-@referral_bp.route("/history", methods=["GET", "OPTIONS"])
+@referral_bp.route("/history", methods=["GET"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_referral_history():
     """Get user's referral history"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
     try:
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized("Authentication required")
+        
         # Support both query parameter and authenticated user context
-        user_id = request.args.get("user_id", "").strip()
-        
-        # Try to get from Flask g context if not in query params
-        if not user_id:
-            from flask import g
-            user_id = getattr(g, 'user_id', None)
+        user_id = request.args.get("user_id", "").strip() or current_user_id
         
         if not user_id:
-            return jsonify({"error": "user_id required"}), 400
+            return APIResponse.bad_request("user_id required")
 
         # Get referral history (no order_by to avoid composite index requirement)
-        from google.cloud.firestore import FieldFilter
-        history_ref = db.collection("referral_history").where(
-            filter=FieldFilter("referrer_id", "==", user_id)
-        )
+        if FieldFilter:
+            history_ref = db.collection("referral_history").where(  # type: ignore
+                filter=FieldFilter("referrer_id", "==", user_id)
+            )
+        else:
+            history_ref = db.collection("referral_history").where(  # type: ignore
+                "referrer_id", "==", user_id
+            )
         
         history_docs = history_ref.get()
         
         history = []
         for doc in history_docs:
-            data = doc.to_dict()
+            data = doc.to_dict() or {}
             history.append({
-                "invitee_name": data.get("invitee_name", "Unknown"),
-                "invitee_email": data.get("invitee_email", ""),
-                "completed_at": data.get("completed_at"),
-                "rewards_granted": data.get("rewards_granted", 1)
+                "inviteeName": data.get("invitee_name", "Unknown"),
+                "inviteeEmail": data.get("invitee_email", ""),
+                "completedAt": data.get("completed_at"),
+                "rewardsGranted": data.get("rewards_granted", 1)
             })
         
         # Sort in memory by completed_at (most recent first)
         history.sort(
-            key=lambda x: x.get("completed_at", ""),
+            key=lambda x: x.get("completedAt", ""),
             reverse=True
         )
         
-        return jsonify({
-            "success": True,
+        return APIResponse.success({
             "history": history,
-            "total_count": len(history)
-        }), 200
+            "totalCount": len(history)
+        }, "Referral history retrieved")
 
     except Exception as e:
         logger.exception(f"Error fetching referral history: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Failed to fetch referral history", "HISTORY_ERROR", 500, str(e))
 
 
-@referral_bp.route("/rewards/catalog", methods=["GET", "OPTIONS"])
+@referral_bp.route("/rewards/catalog", methods=["GET"])
+@rate_limit_by_endpoint
 def get_rewards_catalog():
     """Get available rewards catalog"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
     rewards_catalog = [
         {
             "id": "premium_1week",
-            "name": "1 Vecka Premium",
-            "description": "Tillgång till alla premium-funktioner i 1 vecka",
+            "name": "1 Week Premium",
+            "description": "Access to all premium features for 1 week",
             "cost": 1,
             "emoji": "⭐",
             "type": "premium"
         },
         {
             "id": "premium_1month",
-            "name": "1 Månad Premium",
-            "description": "Tillgång till alla premium-funktioner i 1 månad",
+            "name": "1 Month Premium",
+            "description": "Access to all premium features for 1 month",
             "cost": 4,
             "emoji": "🌟",
             "type": "premium"
         },
         {
             "id": "premium_3months",
-            "name": "3 Månader Premium",
-            "description": "Tillgång till alla premium-funktioner i 3 månader",
+            "name": "3 Months Premium",
+            "description": "Access to all premium features for 3 months",
             "cost": 12,
             "emoji": "✨",
             "type": "premium"
@@ -460,15 +536,15 @@ def get_rewards_catalog():
         {
             "id": "vip_support",
             "name": "VIP Support",
-            "description": "Prioriterad support i 1 månad",
+            "description": "Priority support for 1 month",
             "cost": 5,
             "emoji": "👑",
             "type": "support"
         },
         {
             "id": "custom_theme",
-            "name": "Anpassat Tema",
-            "description": "Låsa upp exklusiva färgteman",
+            "name": "Custom Theme",
+            "description": "Unlock exclusive color themes",
             "cost": 3,
             "emoji": "🎨",
             "type": "customization"
@@ -476,7 +552,7 @@ def get_rewards_catalog():
         {
             "id": "ai_insights_pro",
             "name": "AI Insights Pro",
-            "description": "Avancerade AI-analyser och prediktioner",
+            "description": "Advanced AI analytics and predictions",
             "cost": 8,
             "emoji": "🤖",
             "type": "feature"
@@ -484,7 +560,7 @@ def get_rewards_catalog():
         {
             "id": "export_data",
             "name": "Data Export",
-            "description": "Exportera all din data till PDF/CSV",
+            "description": "Export all your data to PDF/CSV",
             "cost": 2,
             "emoji": "📊",
             "type": "feature"
@@ -492,41 +568,42 @@ def get_rewards_catalog():
         {
             "id": "merch_tshirt",
             "name": "Lugn & Trygg T-shirt",
-            "description": "Exklusiv t-shirt (gratis frakt)",
+            "description": "Exclusive t-shirt (free shipping)",
             "cost": 20,
             "emoji": "👕",
             "type": "merchandise"
         }
     ]
     
-    return jsonify({
-        "success": True,
+    return APIResponse.success({
         "rewards": rewards_catalog
-    }), 200
+    }, "Rewards catalog retrieved")
 
 
-@referral_bp.route("/rewards/redeem", methods=["POST", "OPTIONS"])
+@referral_bp.route("/rewards/redeem", methods=["POST"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def redeem_reward():
     """Redeem a reward using earned weeks"""
-    if request.method == "OPTIONS":
-        return "", 204
-    
     try:
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized("Authentication required")
+        
         data = request.get_json(force=True, silent=True) or {}
-        user_id = data.get("user_id", "").strip()
-        reward_id = data.get("reward_id", "").strip()
+        reward_id = sanitize_text(data.get("reward_id", ""), max_length=50)
 
-        if not user_id or not reward_id:
-            return jsonify({"error": "user_id and reward_id required"}), 400
+        if not reward_id:
+            return APIResponse.bad_request("reward_id required")
 
         # Get user's referral data
-        referral_ref = db.collection("referrals").document(user_id)
+        referral_ref = db.collection("referrals").document(user_id)  # type: ignore
         referral_doc = referral_ref.get()
 
         if not referral_doc.exists:
-            return jsonify({"error": "No referral data found"}), 404
+            return APIResponse.not_found("No referral data found")
 
-        referral_data = referral_doc.to_dict()
+        referral_data = referral_doc.to_dict() or {}
         available_weeks = referral_data.get("rewards_earned", 0)
 
         # Get reward details (simplified - should match catalog)
@@ -543,14 +620,15 @@ def redeem_reward():
 
         cost = reward_costs.get(reward_id)
         if cost is None:
-            return jsonify({"error": "Invalid reward_id"}), 400
+            return APIResponse.bad_request("Invalid reward_id")
 
         if available_weeks < cost:
-            return jsonify({
-                "error": "Insufficient rewards",
-                "available": available_weeks,
-                "required": cost
-            }), 400
+            return APIResponse.error(
+                "Insufficient rewards",
+                "INSUFFICIENT_BALANCE",
+                400,
+                {"available": available_weeks, "required": cost}
+            )
 
         # Deduct cost and record redemption
         new_balance = available_weeks - cost
@@ -559,7 +637,7 @@ def redeem_reward():
         })
 
         # Record redemption history
-        redemption_ref = db.collection("reward_redemptions").document()
+        redemption_ref = db.collection("reward_redemptions").document()  # type: ignore
         redemption_ref.set({
             "user_id": user_id,
             "reward_id": reward_id,
@@ -568,15 +646,21 @@ def redeem_reward():
             "status": "pending"
         })
 
+        # Audit log for reward redemption
+        audit_log("REWARD_REDEEMED", user_id, {
+            "reward_id": reward_id,
+            "cost": cost,
+            "new_balance": new_balance
+        })
+
         logger.info(f"Reward redeemed: {user_id} -> {reward_id} (cost: {cost} weeks)")
 
-        return jsonify({
-            "success": True,
+        return APIResponse.success({
             "message": "Reward redeemed successfully",
-            "new_balance": new_balance,
-            "reward_id": reward_id
-        }), 200
+            "newBalance": new_balance,
+            "rewardId": reward_id
+        })
 
     except Exception as e:
         logger.exception(f"Error redeeming reward: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        return APIResponse.error("Internal server error", "INTERNAL_ERROR", 500)

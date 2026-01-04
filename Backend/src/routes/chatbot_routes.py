@@ -1,9 +1,13 @@
 import logging
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, g
 
 from src.firebase_config import db
 from src.services.auth_service import AuthService
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.input_sanitization import input_sanitizer
+from src.services.audit_service import audit_log
+from src.utils.response_utils import APIResponse
 from src.services.subscription_service import (
     SubscriptionLimitError,
     SubscriptionService,
@@ -12,9 +16,51 @@ from src.services.subscription_service import (
 chatbot_bp = Blueprint("chatbot", __name__)
 logger = logging.getLogger(__name__)
 
+# Maximum message length to prevent abuse
+MAX_MESSAGE_LENGTH = 2000
+
+
+def _to_camel_case_ai_suggestions(suggestions: dict) -> dict:
+    """Convert AI feature suggestions to camelCase."""
+    return {
+        "suggestStory": suggestions.get("suggest_story", False),
+        "suggestForecast": suggestions.get("suggest_forecast", False),
+        "storyReason": suggestions.get("story_reason", ""),
+        "forecastReason": suggestions.get("forecast_reason", "")
+    }
+
+
+def _to_camel_case_exercise(exercise: dict) -> dict:
+    """Convert exercise content to camelCase."""
+    return {
+        "title": exercise.get("title", ""),
+        "description": exercise.get("description", ""),
+        "durationMinutes": exercise.get("duration_minutes", 5),
+        "steps": exercise.get("steps", []),
+        "tips": exercise.get("tips", ""),
+        "benefits": exercise.get("benefits", ""),
+        "instructions": exercise.get("instructions", "")
+    }
+
+
+def _to_camel_case_message(msg: dict) -> dict:
+    """Convert chat message to camelCase."""
+    return {
+        "role": msg.get("role", ""),
+        "content": msg.get("content", ""),
+        "timestamp": msg.get("timestamp", ""),
+        "emotionsDetected": msg.get("emotions_detected", []),
+        "suggestedActions": msg.get("suggested_actions", []),
+        "crisisDetected": msg.get("crisis_detected", False),
+        "crisisAnalysis": msg.get("crisis_analysis", {}),
+        "aiGenerated": msg.get("ai_generated", True),
+        "modelUsed": msg.get("model_used", "unknown")
+    }
+
 # 🔹 Therapeutic chatbot conversation
 @chatbot_bp.route("/chat", methods=["POST", "OPTIONS"])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def chat_with_ai():
     if request.method == 'OPTIONS':
         return '', 204
@@ -22,12 +68,16 @@ def chat_with_ai():
     try:
         logger.info("🔄 Chat endpoint called")
 
+        # DB availability guard
+        if db is None:
+            logger.error("Database unavailable for chatbot")
+            return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
+
         # Try to get JSON data, with fallback parsing for malformed requests
         try:
             data = request.get_json(force=True, silent=False)
         except Exception as json_error:
             logger.error(f"JSON parsing failed: {json_error}")
-            logger.error(f"Raw request data: {request.get_data(as_text=True)}")
 
             # Try to parse manually if JSON parsing fails
             raw_data = request.get_data(as_text=True)
@@ -74,22 +124,25 @@ def chat_with_ai():
                                     value = value[1:-1]
                                 data[key] = value
 
-                        logger.info(f"Successfully parsed malformed chat data: {data}")
+                        logger.info("Successfully parsed malformed chat data")
                     else:
                         raise ValueError("Data does not look like a dict")
                 except Exception as parse_error:
                     logger.error(f"Manual parsing failed: {parse_error}")
-                    return jsonify({"error": "Invalid data format"}), 400
+                    return APIResponse.bad_request("Invalid data format")
             else:
-                return jsonify({"error": "No data provided"}), 400
-
-        logger.info(f"📨 Received data: {data}")
+                return APIResponse.bad_request("No data provided")
 
         if not data or "message" not in data:
             logger.error("❌ Missing message in request")
-            return jsonify({"error": "Meddelande krävs!"}), 400
+            return APIResponse.bad_request("Message required")
 
         user_message = data["message"].strip()
+        # Sanitize and cap message length
+        user_message = input_sanitizer.sanitize(user_message, content_type='text', max_length=MAX_MESSAGE_LENGTH)
+        if not user_message:
+            return APIResponse.bad_request("Message required")
+
         payload_user_id = data.get("user_id", "").strip()
         token_user_id = getattr(g, "user_id", None)
         user_id = token_user_id or payload_user_id
@@ -98,7 +151,7 @@ def chat_with_ai():
 
         if not user_message or not user_id:
             logger.error("❌ Empty message or user_id")
-            return jsonify({"error": "Meddelande och autentiserad användare krävs!"}), 400
+            return APIResponse.bad_request("Message and authenticated user required")
 
         if payload_user_id and payload_user_id != user_id:
             logger.warning(
@@ -123,10 +176,12 @@ def chat_with_ai():
             )
         except SubscriptionLimitError as exc:
             logger.info("Chat message denied due to quota for user %s", user_id)
-            return jsonify({
-                "error": "Du har nått din dagliga gräns för AI-chattmeddelanden.",
-                "limit": exc.limit_value,
-            }), 429
+            return APIResponse.error(
+                "You have reached your daily AI chat message limit",
+                "RATE_LIMITED",
+                429,
+                {"limit": exc.limit_value}
+            )
 
         # Get conversation history (last 10 messages)
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
@@ -142,8 +197,7 @@ def chat_with_ai():
             })
 
         # Generate AI response with enhanced features
-        logger.info(f"🤖 Generating AI response for message: '{user_message[:50]}...'")
-        from src.utils.ai_services import ai_services
+        logger.info(f"🤖 Generating AI response, message length: {len(user_message)}")
 
         try:
             ai_response = generate_enhanced_therapeutic_response(user_message, conversation_history)
@@ -181,27 +235,36 @@ def chat_with_ai():
             "ai_feature_suggestions": ai_feature_suggestions
         })
 
+        # Audit log for crisis detection (security-relevant event)
+        if ai_response.get("crisis_detected", False):
+            audit_log('crisis_detected', user_id, {
+                'crisis_analysis': ai_response.get("crisis_analysis", {}),
+                'timestamp': timestamp
+            })
+
         logger.info(f"✅ Chatt-konversation sparad för användare {user_id}")
 
-        return jsonify({
+        return APIResponse.success({
             "response": ai_response["response"],
-            "emotions_detected": ai_response.get("emotions_detected", []),
-            "suggested_actions": ai_response.get("suggested_actions", []),
-            "exercise_recommendations": ai_response.get("exercise_recommendations", []),
-            "crisis_detected": ai_response.get("crisis_detected", False),
-            "crisis_analysis": ai_response.get("crisis_analysis", {}),
-            "ai_generated": ai_response.get("ai_generated", True),
-            "model_used": ai_response.get("model_used", "unknown"),
-            "sentiment_analysis": ai_response.get("sentiment_analysis", {}),
-            "ai_feature_suggestions": ai_feature_suggestions
-        }), 200
+            "emotionsDetected": ai_response.get("emotions_detected", []),
+            "suggestedActions": ai_response.get("suggested_actions", []),
+            "exerciseRecommendations": ai_response.get("exercise_recommendations", []),
+            "crisisDetected": ai_response.get("crisis_detected", False),
+            "crisisAnalysis": ai_response.get("crisis_analysis", {}),
+            "aiGenerated": ai_response.get("ai_generated", True),
+            "modelUsed": ai_response.get("model_used", "unknown"),
+            "sentimentAnalysis": ai_response.get("sentiment_analysis", {}),
+            "aiFeatureSuggestions": _to_camel_case_ai_suggestions(ai_feature_suggestions)
+        })
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid AI-chatt: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid chatt-hantering."}), 500
+        return APIResponse.error("An internal error occurred during chat handling")
 
 
 @chatbot_bp.route("/message", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def legacy_chat_message():
     """Legacy alias for /chat used by older integrations and middleware tests."""
     if request.method == 'OPTIONS':
@@ -212,7 +275,7 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
     """
     Generate enhanced therapeutic AI response with crisis detection and advanced features
     """
-    from src.utils.ai_services import ai_services
+    from src.services.ai_service import ai_services
 
     # Use the enhanced AI services method
     ai_response = ai_services.generate_therapeutic_conversation(
@@ -313,7 +376,7 @@ def generate_suggested_actions(sentiment_analysis: dict) -> list:
 
 def generate_fallback_response(user_message: str) -> dict:
     """Enhanced professional therapeutic fallback response when AI is not available"""
-    from src.utils.ai_services import ai_services
+    from src.services.ai_service import ai_services
 
     # First, try to analyze sentiment even in fallback mode
     try:
@@ -449,12 +512,19 @@ Vad ligger dig varmast på hjärtat just nu? Att utforska dina känslor och tank
     }
 
 # 🔹 Get conversation history
-@chatbot_bp.route("/history", methods=["GET"])
+@chatbot_bp.route("/history", methods=["GET", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_chat_history():
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
-        user_id = request.args.get("user_id", "").strip()
+        user_id = g.user_id
         if not user_id:
-            return jsonify({"error": "Användar-ID krävs!"}), 400
+            return APIResponse.bad_request("User ID required")
+
+        if db is None:
+            return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
 
         # Get conversation history
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
@@ -463,39 +533,26 @@ def get_chat_history():
         conversation = []
         for msg_doc in messages:
             msg_data = msg_doc.to_dict()
-            conversation.append({
-                "role": msg_data.get("role"),
-                "content": msg_data.get("content"),
-                "timestamp": msg_data.get("timestamp"),
-                "emotions_detected": msg_data.get("emotions_detected", []),
-                "suggested_actions": msg_data.get("suggested_actions", []),
-                "crisis_detected": msg_data.get("crisis_detected", False),
-                "crisis_analysis": msg_data.get("crisis_analysis", {}),
-                "ai_generated": msg_data.get("ai_generated", True),
-                "model_used": msg_data.get("model_used", "unknown")
-            })
+            conversation.append(_to_camel_case_message(msg_data))
 
-        return jsonify({"conversation": conversation}), 200
+        return APIResponse.success({"conversation": conversation})
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av chatt-historik: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid hämtning av chatt-historik."}), 500
+        return APIResponse.error("An internal error occurred while fetching chat history")
 
 # 🔹 Mood Pattern Analysis
 @chatbot_bp.route("/analyze-patterns", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def analyze_mood_patterns():
     """Analyze user's mood patterns and provide insights"""
     if request.method == 'OPTIONS':
         return '', 204
     try:
-        data = request.get_json(force=True, silent=False)
-        if not data or "user_id" not in data:
-            return jsonify({"error": "Användar-ID krävs!"}), 400
-
-        user_id = data["user_id"].strip()
-
+        user_id = g.user_id
         if not user_id:
-            return jsonify({"error": "Användar-ID får inte vara tomt!"}), 400
+            return APIResponse.bad_request("User ID required")
 
         # Get mood history from database
         from src.firebase_config import db
@@ -513,7 +570,7 @@ def analyze_mood_patterns():
             })
 
         # Use AI services for pattern analysis with fallback
-        from src.utils.ai_services import ai_services
+        from src.services.ai_service import ai_services
 
         try:
             logger.info(f"📊 Analyzing mood patterns for user {user_id}, {len(mood_history)} data points")
@@ -527,33 +584,53 @@ def analyze_mood_patterns():
                 "confidence": 0.0
             }
 
-        return jsonify({
-            "pattern_analysis": pattern_analysis,
-            "data_points_analyzed": len(mood_history),
-            "analysis_timestamp": datetime.now(timezone.utc).isoformat()
-        }), 200
+        return APIResponse.success({
+            "patternAnalysis": pattern_analysis,
+            "dataPointsAnalyzed": len(mood_history),
+            "analysisTimestamp": datetime.now(timezone.utc).isoformat()
+        })
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid mönsteranalys: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid mönsteranalys."}), 500
+        return APIResponse.error("An internal error occurred during pattern analysis")
+
+# Allowed exercise types
+ALLOWED_EXERCISE_TYPES = {'breathing', 'mindfulness', 'cbt_thought_record', 'gratitude', 'progressive_relaxation'}
 
 # 🔹 CBT/Mindfulness Exercises
 @chatbot_bp.route("/exercise", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def start_exercise():
     """Start a CBT or mindfulness exercise session"""
     if request.method == 'OPTIONS':
         return '', 204
     try:
+        user_id = g.user_id
         data = request.get_json(force=True, silent=False)
-        if not data or "user_id" not in data or "exercise_type" not in data:
-            return jsonify({"error": "Användar-ID och övningstyp krävs!"}), 400
+        if not data or "exercise_type" not in data:
+            return APIResponse.bad_request("Exercise type required")
 
-        user_id = data["user_id"].strip()
-        exercise_type = data["exercise_type"].strip()
+        # Accept both camelCase and snake_case
+        exercise_type = (data.get("exerciseType") or data.get("exercise_type", "")).strip().lower()
         duration = data.get("duration", 5)  # Default 5 minutes
 
-        if not user_id or not exercise_type:
-            return jsonify({"error": "Användar-ID och övningstyp får inte vara tomma!"}), 400
+        # Validate exercise type
+        if exercise_type not in ALLOWED_EXERCISE_TYPES:
+            return APIResponse.bad_request(f"Invalid exercise type. Allowed: {', '.join(ALLOWED_EXERCISE_TYPES)}")
+
+        # Validate and clamp duration (1-60 min)
+        try:
+            duration = int(duration)
+        except (TypeError, ValueError):
+            duration = 5
+        duration = max(1, min(60, duration))
+
+        if db is None:
+            return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
+
+        if not user_id:
+            return APIResponse.bad_request("User ID required")
 
         # Generate exercise content based on type
         exercise_content = generate_exercise_content(exercise_type, duration)
@@ -572,23 +649,34 @@ def start_exercise():
 
         logger.info(f"✅ Exercise started for user {user_id}: {exercise_type}")
 
-        return jsonify({
-            "exercise": exercise_content,
-            "exercise_type": exercise_type,
+        return APIResponse.success({
+            "exercise": _to_camel_case_exercise(exercise_content),
+            "exerciseType": exercise_type,
             "duration": duration,
-            "started_at": timestamp
-        }), 200
+            "startedAt": timestamp
+        })
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid övningsstart: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid övningsstart."}), 500
+        return APIResponse.error("An internal error occurred while starting exercise")
 
-@chatbot_bp.route("/exercise/<user_id>/<exercise_id>/complete", methods=["POST"])
+@chatbot_bp.route("/exercise/<user_id>/<exercise_id>/complete", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def complete_exercise(user_id, exercise_id):
     """Mark an exercise as completed"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
+        # Verify user owns this exercise
+        if g.user_id != user_id:
+            return APIResponse.forbidden("Unauthorized")
+        
         if not user_id or not exercise_id:
-            return jsonify({"error": "Användar-ID och övnings-ID krävs!"}), 400
+            return APIResponse.bad_request("User ID and exercise ID required")
+
+        if db is None:
+            return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
 
         # Update exercise completion status
         exercise_ref = db.collection("users").document(user_id).collection("exercises").document(exercise_id)
@@ -600,11 +688,11 @@ def complete_exercise(user_id, exercise_id):
 
         logger.info(f"✅ Exercise completed for user {user_id}: {exercise_id}")
 
-        return jsonify({"message": "Övning markerad som slutförd!"}), 200
+        return APIResponse.success({"message": "Exercise marked as completed"})
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid övningsslutförande: {e}")
-        return jsonify({"error": "Ett internt fel uppstod vid övningsslutförande."}), 500
+        return APIResponse.error("An internal error occurred while completing exercise")
 
 def generate_exercise_content(exercise_type: str, duration: int) -> dict:
     """Generate content for different types of exercises"""

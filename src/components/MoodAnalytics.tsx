@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api, { getMoodStatistics } from '../api/api';
+import { API_ENDPOINTS } from '../api/constants';
 import { LoadingSpinner } from './LoadingStates';
 import ErrorBoundary from './ErrorBoundary';
 import { Card, Button } from './ui/tailwind';
@@ -169,7 +170,7 @@ const MoodAnalytics: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/api/mood/predictive-forecast?days_ahead=${daysAhead}`);
+      const response = await api.get(`${API_ENDPOINTS.MOOD.PREDICTIVE_FORECAST}?days_ahead=${daysAhead}`);
       console.log('✅ MOOD ANALYTICS - Forecast loaded', response.data);
       setForecast(response.data);
     } catch (err: unknown) {

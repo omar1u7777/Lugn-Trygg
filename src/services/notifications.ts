@@ -157,10 +157,8 @@ export async function setNotificationSchedule(userId: string, schedule: Notifica
 export async function sendMeditationReminder(userId: string, meditationTitle: string) {
   try {
     await api.post(`/api/notifications/send-reminder`, {
-      userId,
       type: 'meditation_reminder',
-      title: 'Zeit zu meditieren',
-      body: `Starten Sie: ${meditationTitle}`,
+      message: `Dags att meditera: ${meditationTitle}`,
     });
     console.log('🧘 Meditation reminder sent');
   } catch (error) {
@@ -174,10 +172,8 @@ export async function sendMeditationReminder(userId: string, meditationTitle: st
 export async function sendMoodCheckInReminder(userId: string) {
   try {
     await api.post(`/api/notifications/send-reminder`, {
-      userId,
       type: 'mood_check_in',
-      title: 'Wie geht es dir heute?',
-      body: 'Nimm dir einen Moment Zeit für einen schnellen Stimmungs-Check-In',
+      message: 'Hur mår du idag? Ta en stund för en snabb humör-check.',
     });
     console.log('😊 Mood check-in reminder sent');
   } catch (error) {
@@ -190,19 +186,18 @@ export async function sendMoodCheckInReminder(userId: string) {
  */
 export async function scheduleDailyNotifications(
   userId: string,
-  meditationTime: string,
-  moodCheckInTime: string
+  reminderTime: string = '09:00',
+  enabled: boolean = true
 ) {
   try {
     await api.post(`/api/notifications/schedule-daily`, {
-      userId,
-      meditationTime,
-      moodCheckInTime,
+      enabled,
+      time: reminderTime,
     });
     console.log('📅 Daily notifications scheduled');
     trackEvent('daily_notifications_scheduled', {
-      meditationTime,
-      moodCheckInTime,
+      reminderTime,
+      enabled,
     });
   } catch (error) {
     console.error('Failed to schedule daily notifications:', error);
@@ -214,8 +209,17 @@ export async function scheduleDailyNotifications(
  */
 export async function getNotificationSettings(userId: string): Promise<NotificationSchedule | null> {
   try {
-    const response = await api.get(`/api/users/${userId}/notification-settings`);
-    return response.data;
+    const response = await api.get(`/api/notifications/settings`);
+    const data = response.data?.data?.settings || response.data?.settings;
+    if (!data) return null;
+    
+    return {
+      enableMoodReminders: data.dailyRemindersEnabled || false,
+      enableMeditationReminders: data.dailyRemindersEnabled || false,
+      morningReminder: data.reminderTime || '09:00',
+      eveningReminder: undefined,
+      moodCheckInTime: data.reminderTime || '09:00',
+    };
   } catch (error) {
     console.error('Failed to fetch notification settings:', error);
     return null;
@@ -230,7 +234,10 @@ export async function updateNotificationPreferences(
   preferences: Partial<NotificationSchedule>
 ) {
   try {
-    await api.put(`/api/users/${userId}/notification-preferences`, preferences);
+    await api.post(`/api/notifications/settings`, {
+      dailyRemindersEnabled: preferences.enableMoodReminders || preferences.enableMeditationReminders,
+      reminderTime: preferences.morningReminder || preferences.moodCheckInTime,
+    });
     console.log('📲 Notification preferences updated');
     trackEvent('notification_preferences_updated', preferences);
   } catch (error) {
@@ -243,7 +250,7 @@ export async function updateNotificationPreferences(
  */
 export async function disableAllNotifications(userId: string) {
   try {
-    await api.post(`/api/notifications/disable-all`, { userId });
+    await api.post(`/api/notifications/disable-all`, {});
     console.log('🔕 All notifications disabled');
     trackEvent('all_notifications_disabled');
   } catch (error) {

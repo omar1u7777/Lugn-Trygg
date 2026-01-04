@@ -372,14 +372,14 @@ class InputSanitizer:
             'sanitized_value': input_data
         }
 
-    def sanitize_request_data(self, content_type_overrides: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    def sanitize_request_data(self, content_type_overrides: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
         """
         Sanitize all request data (JSON, form, args)
 
         Args:
-            content_type_overrides: Override content types for specific fields
+            content_type_overrides: Override content types for specific fields {'field': {'type': 'text', 'max_length': 100}}
         """
-        sanitized = {}
+        sanitized: Dict[str, Any] = {}
 
         # Sanitize JSON data
         if request.is_json and request.get_json():

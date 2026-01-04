@@ -4,9 +4,16 @@ Provides curated audio tracks for relaxation and meditation
 Uses external royalty-free audio sources
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.input_sanitization import input_sanitizer
+from src.utils.response_utils import APIResponse
 
-audio_bp = Blueprint("audio", __name__, url_prefix="/api/audio")
+audio_bp = Blueprint("audio", __name__)
+
+MAX_SEARCH_RESULTS = 50
+MIN_SEARCH_LENGTH = 2
+MAX_SEARCH_LENGTH = 100
 
 # Curated audio library using free/royalty-free sources
 # These are URLs to royalty-free audio that can be played directly
@@ -210,117 +217,167 @@ AUDIO_LIBRARY = {
 }
 
 
-@audio_bp.route('/categories', methods=['GET'])
+@audio_bp.route('/categories', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def get_categories():
     """Get all audio categories with basic info (without tracks)"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         categories = []
         for cat_id, cat_data in AUDIO_LIBRARY.items():
             categories.append({
                 'id': cat_data['id'],
                 'name': cat_data['name'],
-                'name_en': cat_data.get('name_en', cat_data['name']),
+                'nameEn': cat_data.get('name_en', cat_data['name']),
                 'icon': cat_data['icon'],
                 'description': cat_data['description'],
-                'track_count': len(cat_data['tracks'])
+                'trackCount': len(cat_data['tracks'])
             })
         
-        return jsonify({
-            'success': True,
-            'categories': categories
-        })
+        return APIResponse.success(
+            {'categories': categories},
+            f"Retrieved {len(categories)} audio categories"
+        )
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error("Failed to retrieve audio categories", "AUDIO_CATEGORIES_ERROR", 500, str(e))
 
 
-@audio_bp.route('/category/<category_id>', methods=['GET'])
+@audio_bp.route('/category/<category_id>', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def get_category_tracks(category_id: str):
     """Get all tracks for a specific category"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
-        if category_id not in AUDIO_LIBRARY:
-            return jsonify({
-                'success': False,
-                'error': 'Category not found'
-            }), 404
+        # Sanitize category_id
+        category_id = input_sanitizer.sanitize(category_id, content_type='text', max_length=50)
+        if not category_id or category_id not in AUDIO_LIBRARY:
+            return APIResponse.not_found("Category not found", "CATEGORY_NOT_FOUND")
         
         category = AUDIO_LIBRARY[category_id]
         
-        return jsonify({
-            'success': True,
+        # Convert tracks to camelCase
+        tracks_camel = []
+        for track in category['tracks']:
+            tracks_camel.append({
+                'id': track['id'],
+                'title': track['title'],
+                'titleEn': track.get('title_en', track['title']),
+                'artist': track['artist'],
+                'duration': track['duration'],
+                'url': track['url'],
+                'description': track.get('description', ''),
+                'license': track.get('license', '')
+            })
+        
+        return APIResponse.success({
             'category': {
                 'id': category['id'],
                 'name': category['name'],
-                'name_en': category.get('name_en', category['name']),
+                'nameEn': category.get('name_en', category['name']),
                 'icon': category['icon'],
                 'description': category['description']
             },
-            'tracks': category['tracks']
-        })
+            'tracks': tracks_camel
+        }, f"Retrieved {len(tracks_camel)} tracks for category {category_id}")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error("Failed to retrieve category tracks", "CATEGORY_TRACKS_ERROR", 500, str(e))
 
 
-@audio_bp.route('/all', methods=['GET'])
+@audio_bp.route('/all', methods=['GET', 'OPTIONS'])
+@audio_bp.route('/library', methods=['GET', 'OPTIONS'])  # Alias for frontend compatibility
+@rate_limit_by_endpoint
 def get_all_audio():
     """Get complete audio library (all categories with all tracks)"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
-        return jsonify({
-            'success': True,
-            'library': AUDIO_LIBRARY
-        })
+        # Convert entire library to camelCase
+        library_camel = {}
+        for cat_id, cat_data in AUDIO_LIBRARY.items():
+            tracks_camel = []
+            for track in cat_data['tracks']:
+                tracks_camel.append({
+                    'id': track['id'],
+                    'title': track['title'],
+                    'titleEn': track.get('title_en', track['title']),
+                    'artist': track['artist'],
+                    'duration': track['duration'],
+                    'url': track['url'],
+                    'description': track.get('description', ''),
+                    'license': track.get('license', '')
+                })
+            
+            library_camel[cat_id] = {
+                'id': cat_data['id'],
+                'name': cat_data['name'],
+                'nameEn': cat_data.get('name_en', cat_data['name']),
+                'icon': cat_data['icon'],
+                'description': cat_data['description'],
+                'tracks': tracks_camel
+            }
+        
+        return APIResponse.success(
+            {'library': library_camel},
+            f"Retrieved complete audio library with {len(library_camel)} categories"
+        )
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error("Failed to retrieve audio library", "AUDIO_LIBRARY_ERROR", 500, str(e))
 
 
-@audio_bp.route('/track/<track_id>', methods=['GET'])
+@audio_bp.route('/track/<track_id>', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def get_track(track_id: str):
     """Get a specific track by ID"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
+        # Sanitize track_id
+        track_id = input_sanitizer.sanitize(track_id, content_type='text', max_length=50)
+        if not track_id:
+            return APIResponse.bad_request("Invalid track ID")
+            
         for category in AUDIO_LIBRARY.values():
             for track in category['tracks']:
                 if track['id'] == track_id:
-                    return jsonify({
-                        'success': True,
-                        'track': track,
+                    return APIResponse.success({
+                        'track': {
+                            'id': track['id'],
+                            'title': track['title'],
+                            'titleEn': track.get('title_en', track['title']),
+                            'artist': track['artist'],
+                            'duration': track['duration'],
+                            'url': track['url'],
+                            'description': track.get('description', ''),
+                            'license': track.get('license', '')
+                        },
                         'category': {
                             'id': category['id'],
                             'name': category['name'],
                             'icon': category['icon']
                         }
-                    })
+                    }, f"Retrieved track {track_id}")
         
-        return jsonify({
-            'success': False,
-            'error': 'Track not found'
-        }), 404
+        return APIResponse.not_found("Track not found", "TRACK_NOT_FOUND")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error("Failed to retrieve track", "TRACK_ERROR", 500, str(e))
 
 
-@audio_bp.route('/search', methods=['GET'])
+@audio_bp.route('/search', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def search_tracks():
     """Search tracks by title or description"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
-        from flask import request
-        query = request.args.get('q', '').lower()
+        raw_query = request.args.get('q', '')
+        # Sanitize search query
+        query = input_sanitizer.sanitize(raw_query, content_type='text', max_length=MAX_SEARCH_LENGTH)
+        query = query.lower() if query else ''
         
-        if not query or len(query) < 2:
-            return jsonify({
-                'success': False,
-                'error': 'Search query must be at least 2 characters'
-            }), 400
+        if not query or len(query) < MIN_SEARCH_LENGTH:
+            return APIResponse.bad_request(f"Search query must be at least {MIN_SEARCH_LENGTH} characters")
         
         results = []
         for category in AUDIO_LIBRARY.values():
@@ -329,20 +386,25 @@ def search_tracks():
                 searchable = f"{track['title']} {track.get('title_en', '')} {track['description']} {track['artist']}".lower()
                 if query in searchable:
                     results.append({
-                        **track,
-                        'category_id': category['id'],
-                        'category_name': category['name'],
-                        'category_icon': category['icon']
+                        'id': track['id'],
+                        'title': track['title'],
+                        'titleEn': track.get('title_en', track['title']),
+                        'artist': track['artist'],
+                        'duration': track['duration'],
+                        'url': track['url'],
+                        'description': track.get('description', ''),
+                        'license': track.get('license', ''),
+                        'categoryId': category['id'],
+                        'categoryName': category['name'],
+                        'categoryIcon': category['icon']
                     })
         
-        return jsonify({
-            'success': True,
+        limited = results[:MAX_SEARCH_RESULTS]
+
+        return APIResponse.success({
             'query': query,
-            'results': results,
-            'count': len(results)
-        })
+            'results': limited,
+            'count': len(limited)
+        }, f"Found {len(limited)} matching tracks")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error("Failed to search audio tracks", "AUDIO_SEARCH_ERROR", 500, str(e))

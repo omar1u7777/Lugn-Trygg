@@ -136,7 +136,8 @@ def validate_safe_string(v: str, max_length: int = 1000) -> str:
         if re.search(pattern, v, re.IGNORECASE):
             raise ValueError('Invalid characters or patterns detected')
 
-    return SanitizedString(v)
+    # Return sanitized string using the _sanitize_string function
+    return _sanitize_string(v)
 
 # Common models
 class UserBase(BaseModel):
@@ -201,7 +202,7 @@ def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
     elif isinstance(data, list):
         return [sanitize_input(item) for item in data]
     elif isinstance(data, str):
-        return SanitizedString(data)
+        return _sanitize_string(data)
     else:
         return data
 

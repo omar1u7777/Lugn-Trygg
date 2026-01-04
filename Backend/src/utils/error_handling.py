@@ -6,7 +6,7 @@ All services should use these utilities for uniform error handling and logging.
 """
 
 import logging
-from typing import Any, Callable, Optional, Tuple, TypeVar
+from typing import Any, Callable, Optional, Tuple, TypeVar, Coroutine, cast
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class NotFoundError(ServiceError):
         super().__init__(message, "NOT_FOUND", details)
 
 
-def handle_service_errors(func: Callable[..., T]) -> Callable[..., Tuple[T, Optional[str]]]:
+def handle_service_errors(func: Callable[..., Any]) -> Callable[..., Tuple[Any, Optional[str]]]:
     """
     Decorator for service methods to provide standardized error handling.
 
@@ -62,7 +62,7 @@ def handle_service_errors(func: Callable[..., T]) -> Callable[..., Tuple[T, Opti
         Wrapped function that returns (result, error_message)
     """
     @wraps(func)
-    def wrapper(*args, **kwargs) -> Tuple[T, Optional[str]]:
+    def wrapper(*args: Any, **kwargs: Any) -> Tuple[Any, Optional[str]]:
         try:
             result = func(*args, **kwargs)
             return result, None
@@ -76,7 +76,7 @@ def handle_service_errors(func: Callable[..., T]) -> Callable[..., Tuple[T, Opti
     return wrapper
 
 
-def handle_async_service_errors(func: Callable[..., T]) -> Callable[..., T]:
+def handle_async_service_errors(func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., Coroutine[Any, Any, T]]:
     """
     Decorator for async service methods to provide standardized error handling.
 
@@ -89,7 +89,7 @@ def handle_async_service_errors(func: Callable[..., T]) -> Callable[..., T]:
         Wrapped async function
     """
     @wraps(func)
-    async def wrapper(*args, **kwargs) -> T:
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
         try:
             return await func(*args, **kwargs)
         except ServiceError:
@@ -98,7 +98,7 @@ def handle_async_service_errors(func: Callable[..., T]) -> Callable[..., T]:
             logger.exception(f"Unexpected error in async {func.__name__}: {str(e)}")
             raise ServiceError("Ett internt fel uppstod. Försök igen senare.", "INTERNAL_ERROR", str(e))
 
-    return wrapper
+    return cast(Callable[..., Coroutine[Any, Any, T]], wrapper)
 
 
 def validate_required_fields(data: dict, required_fields: list) -> None:

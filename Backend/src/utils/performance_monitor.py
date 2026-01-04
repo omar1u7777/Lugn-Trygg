@@ -84,8 +84,8 @@ class Timer:
 
     def __init__(self, name: str):
         self.name = name
-        self.start_time = None
-        self.duration = None
+        self.start_time: float = 0.0
+        self.duration: float = 0.0
 
     def __enter__(self):
         self.start_time = time.time()

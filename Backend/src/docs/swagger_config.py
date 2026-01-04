@@ -24,11 +24,11 @@ except AttributeError:
 
 if needs_version:
     try:
-        marshmallow.__version__ = importlib_metadata.version("marshmallow")
+        setattr(marshmallow, "__version__", importlib_metadata.version("marshmallow"))
     except importlib_metadata.PackageNotFoundError:
         # As an absolute fallback, provide a placeholder version string so
         # flask-apispec can continue importing without crashing.
-        marshmallow.__version__ = "0"
+        setattr(marshmallow, "__version__", "0")
 
 try:
     from flask_apispec import FlaskApiSpec
@@ -253,11 +253,11 @@ def register_schemas():
 # Initialize Flask-apispec
 def init_swagger(app):
     """Initialize Swagger documentation for Flask app"""
-    if not FLASK_APISPEC_AVAILABLE:
+    if not FLASK_APISPEC_AVAILABLE or FlaskApiSpec is None:
         print("Warning: Swagger documentation disabled - flask-apispec not available")
         return None
 
-    docs = FlaskApiSpec(app, spec)
+    docs = FlaskApiSpec(app)
 
     # Register schemas
     register_schemas()

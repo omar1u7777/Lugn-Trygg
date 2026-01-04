@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getSyncHistory, retrySyncOperation, SyncHistoryEntry } from '../../api/api';
+import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';
 
 interface SyncHistoryProps {
   userId: string;
@@ -42,8 +42,8 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
     try {
       setRetryingId(syncId);
       const result = await retrySyncOperation(syncId);
-      if (result.success) {
-        console.log('🔄 Retry job created:', result.retry_id);
+      if (result.retryId) {
+        console.log('🔄 Retry job created:', result.retryId);
         // Refresh history after retry
         await loadSyncHistory();
       }

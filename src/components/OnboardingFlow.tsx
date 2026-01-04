@@ -24,7 +24,17 @@ interface OnboardingFlowProps {
   userId: string;
 }
 
-const WELLNESS_GOALS = ['Hantera stress', 'Bättre sömn', 'Ökad fokusering', 'Mental klarhet'];
+// Must match Backend ALLOWED_GOALS in onboarding_routes.py
+const WELLNESS_GOALS = [
+  'Hantera stress',
+  'Bättre sömn',
+  'Ökad fokusering',
+  'Mental klarhet',
+  'Ångesthantering',
+  'Självkänsla',
+  'Relationsstöd',
+  'Arbetsbalans'
+];
 
 // Helper function to create goal selection step content dynamically
 const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: string) => void) => (

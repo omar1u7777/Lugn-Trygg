@@ -34,7 +34,7 @@ class DataRetentionService:
         # HIPAA: 7 years minimum for medical records
         self.hipaa_retention_days = 2555
 
-    def apply_retention_policy(self, user_id: str = None) -> Dict[str, Any]:
+    def apply_retention_policy(self, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Apply data retention policies to delete expired data
 
@@ -57,15 +57,15 @@ class DataRetentionService:
                 collections_processed = result['collections']
             else:
                 # Process all users
-                users = db.collection('users').stream()
+                users = db.collection('users').stream()  # type: ignore
                 for user_doc in users:
-                    user_id = user_doc.id
+                    current_user_id: str = user_doc.id  # type: ignore
                     try:
-                        result = self._process_user_retention(user_id)
+                        result = self._process_user_retention(current_user_id)
                         total_deleted += result['total_deleted']
                         collections_processed.extend(result['collections'])
                     except Exception as e:
-                        logger.error(f"Failed to process retention for user {user_id}: {str(e)}")
+                        logger.error(f"Failed to process retention for user {current_user_id}: {str(e)}")
                         continue
 
             # Audit the retention operation
@@ -134,13 +134,13 @@ class DataRetentionService:
                                  'journal_entries', 'wellness_activities', 'notifications',
                                  'achievements']:
                 # Subcollections under users/{user_id}/collection_name
-                collection_ref = db.collection('users').document(user_id).collection(collection_name)
+                collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
 
                 # Query for old documents
                 old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
 
                 # Delete in batches
-                batch = db.batch()
+                batch = db.batch()  # type: ignore
                 batch_count = 0
 
                 for doc in old_docs:
@@ -151,7 +151,7 @@ class DataRetentionService:
                     # Commit batch every 500 operations
                     if batch_count >= 500:
                         batch.commit()
-                        batch = db.batch()
+                        batch = db.batch()  # type: ignore
                         batch_count = 0
 
                 # Commit remaining
@@ -160,10 +160,10 @@ class DataRetentionService:
 
             elif collection_name == 'voice_data':
                 # Voice data is stored in mood entries, check mood timestamps
-                moods_ref = db.collection('users').document(user_id).collection('moods')
+                moods_ref = db.collection('users').document(user_id).collection('moods')  # type: ignore
                 old_moods = moods_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
 
-                batch = db.batch()
+                batch = db.batch()  # type: ignore
                 batch_count = 0
 
                 for doc in old_moods:
@@ -177,7 +177,7 @@ class DataRetentionService:
 
                         if batch_count >= 500:
                             batch.commit()
-                            batch = db.batch()
+                            batch = db.batch()  # type: ignore
                             batch_count = 0
 
                 if batch_count > 0:
@@ -186,11 +186,11 @@ class DataRetentionService:
             elif collection_name in ['feedback', 'referrals']:
                 # Root level collections with user_id field
                 field_name = 'user_id' if collection_name == 'feedback' else 'referrer_id'
-                collection_ref = db.collection(collection_name)
+                collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter(field_name, '==', user_id)) \
                                        .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
 
-                batch = db.batch()
+                batch = db.batch()  # type: ignore
                 batch_count = 0
 
                 for doc in old_docs:
@@ -200,7 +200,7 @@ class DataRetentionService:
 
                     if batch_count >= 500:
                         batch.commit()
-                        batch = db.batch()
+                        batch = db.batch()  # type: ignore
                         batch_count = 0
 
                 if batch_count > 0:
@@ -243,13 +243,13 @@ class DataRetentionService:
             if collection_name in ['moods', 'memories', 'chat_sessions', 'ai_conversations',
                                  'journal_entries', 'wellness_activities', 'notifications',
                                  'achievements']:
-                collection_ref = db.collection('users').document(user_id).collection(collection_name)
+                collection_ref = db.collection('users').document(user_id).collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
                 return len(list(old_docs))
 
             elif collection_name in ['feedback', 'referrals']:
                 field_name = 'user_id' if collection_name == 'feedback' else 'referrer_id'
-                collection_ref = db.collection(collection_name)
+                collection_ref = db.collection(collection_name)  # type: ignore
                 old_docs = collection_ref.where(filter=FieldFilter(field_name, '==', user_id)) \
                                        .where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
                 return len(list(old_docs))

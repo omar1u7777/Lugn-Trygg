@@ -17,10 +17,10 @@ interface Referral {
 }
 
 interface LoginResponse {
-  access_token: string;
-  refresh_token?: string;
+  accessToken: string;
+  refreshToken?: string;
   user: User;
-  user_id: string;
+  userId: string;
 }
 
 interface RegisterResponse {
@@ -61,7 +61,7 @@ class CsrfTokenManager {
 
     try {
       const response = await api.get(API_ENDPOINTS.AUTH.CSRF_TOKEN);
-      const token = response.data.csrf_token as string;
+      const token = response.data.csrfToken as string;
       if (!token) {
         throw new AuthError("Invalid CSRF token response");
       }
@@ -126,13 +126,13 @@ const validateLoginResponse = (data: any): LoginResponse => {
   if (!data || typeof data !== 'object') {
     throw new AuthError("Invalid login response format");
   }
-  if (!data.access_token || typeof data.access_token !== 'string') {
+  if (!data.accessToken || typeof data.accessToken !== 'string') {
     throw new AuthError("Login failed: Missing or invalid access token");
   }
   if (!data.user || typeof data.user !== 'object') {
     throw new AuthError("Login failed: Missing user data");
   }
-  if (!data.user_id || typeof data.user_id !== 'string') {
+  if (!data.userId || typeof data.userId !== 'string') {
     throw new AuthError("Login failed: Missing user ID");
   }
   return data as LoginResponse;
@@ -149,13 +149,13 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
 
-    // Backend returns: { success: true, message: "...", data: { access_token, refresh_token, user, user_id } }
+    // Backend returns: { success: true, message: "...", data: { accessToken, refreshToken, user, userId } }
     const responseData = response.data?.data || response.data;
     const validatedData = validateLoginResponse(responseData);
 
-    await tokenStorage.setAccessToken(validatedData.access_token);
-    if (validatedData.refresh_token) {
-      await tokenStorage.setRefreshToken(validatedData.refresh_token);
+    await tokenStorage.setAccessToken(validatedData.accessToken);
+    if (validatedData.refreshToken) {
+      await tokenStorage.setRefreshToken(validatedData.refreshToken);
     }
 
     // Fetch CSRF token after successful login
@@ -277,12 +277,12 @@ export const refreshAccessToken = async (): Promise<string | null> => {
 
     const responseData = response.data?.data || response.data;
 
-    if (responseData?.access_token && typeof responseData.access_token === 'string') {
-      await tokenStorage.setAccessToken(responseData.access_token);
-      if (responseData.refresh_token && typeof responseData.refresh_token === 'string') {
-        await tokenStorage.setRefreshToken(responseData.refresh_token);
+    if (responseData?.accessToken && typeof responseData.accessToken === 'string') {
+      await tokenStorage.setAccessToken(responseData.accessToken);
+      if (responseData.refreshToken && typeof responseData.refreshToken === 'string') {
+        await tokenStorage.setRefreshToken(responseData.refreshToken);
       }
-      return responseData.access_token;
+      return responseData.accessToken;
     } else {
       console.warn("Invalid refresh token response, logging out");
       await logoutUser();
@@ -321,7 +321,7 @@ export const resetPassword = async (email: string): Promise<any> => {
 export const changeEmail = async (newEmail: string, password: string): Promise<any> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.CHANGE_EMAIL, {
-      new_email: newEmail,
+      newEmail: newEmail,
       password
     });
     return response.data;

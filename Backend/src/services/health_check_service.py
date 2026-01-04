@@ -129,6 +129,11 @@ class HealthCheckService:
                 if isinstance(result, Exception):
                     logger.error(f"Health check error: {result}")
                     continue
+                
+                # Type check: result should be tuple, not Exception
+                if not isinstance(result, tuple) or len(result) != 2:
+                    logger.error(f"Invalid health check result format: {result}")
+                    continue
 
                 name, check_result = result
                 results[name] = check_result

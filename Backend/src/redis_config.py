@@ -32,14 +32,8 @@ def create_redis_pool() -> ConnectionPool:
         "socket_timeout": 5,  # 5 second timeout
         "socket_connect_timeout": 5,
         "socket_keepalive": True,
-        "socket_keepalive_options": {
-            redis.constants.KEEPALIVE_INTERVAL: 30,
-            redis.constants.KEEPALIVE_IDLE: 60,
-            redis.constants.KEEPALIVE_COUNT: 3
-        },
         "health_check_interval": 30,  # Health check every 30 seconds
         "retry_on_timeout": True,
-        "max_retries": 3,
     }
 
     # Add password if configured

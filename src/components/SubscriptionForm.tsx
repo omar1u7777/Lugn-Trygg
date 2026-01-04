@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../api/api';
+import { createCheckoutSession } from '../api/subscription';
 
 const SubscriptionForm: React.FC = () => {
   const { user } = useAuth();
@@ -17,16 +17,11 @@ const SubscriptionForm: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/api/subscription/create-session', {
-        user_id: user.user_id,
-        email: user.email,
-        plan: 'premium',
-        billing_cycle: 'monthly',
-      });
+      const session = await createCheckoutSession(user.email, 'premium', 'monthly');
 
       // Redirect to Stripe Checkout
-      if (response.data.url) {
-        window.location.href = response.data.url;
+      if (session.url) {
+        window.location.href = session.url;
       } else {
         setError('Kunde inte skapa betalningssession');
       }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../../api';
+import { getPerformanceMetrics, type PerformanceMetrics, type EndpointStats } from '../../api/admin';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowPathIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 
@@ -12,22 +12,7 @@ const PERFORMANCE_THRESHOLDS = {
 // Maximum duration for progress bar normalization (in seconds)
 const MAX_BAR_DURATION = 5;
 
-// Interface for endpoint statistics
-interface EndpointStats {
-  count: number;
-  avg_duration: number;
-  min_duration: number;
-  max_duration: number;
-  p95_duration: number;
-}
-
-// Interface for performance metrics
-interface PerformanceMetrics {
-  endpoints: Record<string, EndpointStats>;
-  total_requests: number;
-  error_counts: Record<string, number>;
-  slow_requests_count: number;
-}
+// Performance metrics are now imported from admin.ts API client
 
 // Sub-component for summary cards
 const SummaryCard: React.FC<{ title: string; value: string | number; color: string }> = ({ title, value, color }) => (
@@ -55,26 +40,26 @@ const EndpointCard: React.FC<{ endpoint: string; stats: EndpointStats }> = ({ en
     return 'bg-red-500';
   };
 
-  const barWidth = Math.min((stats.avg_duration / MAX_BAR_DURATION) * 100, 100);
+  const barWidth = Math.min((stats.avgDuration / MAX_BAR_DURATION) * 100, 100);
 
   return (
     <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className={`font-medium ${getPerformanceClasses(stats.avg_duration)}`}>
+        <div className={`font-medium ${getPerformanceClasses(stats.avgDuration)}`}>
           {endpoint}
         </div>
-        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPerformanceClasses(stats.avg_duration)} bg-opacity-10`}>
-          {stats.avg_duration.toFixed(2)}s
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPerformanceClasses(stats.avgDuration)} bg-opacity-10`}>
+          {stats.avgDuration.toFixed(2)}s
         </div>
       </div>
       <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-        Avg: {stats.avg_duration.toFixed(3)}s |
-        P95: {stats.p95_duration.toFixed(3)}s |
+        Avg: {stats.avgDuration.toFixed(3)}s |
+        P95: {stats.p95Duration.toFixed(3)}s |
         Count: {stats.count.toLocaleString()}
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={Math.min(stats.avg_duration, MAX_BAR_DURATION)} aria-valuemin={0} aria-valuemax={MAX_BAR_DURATION}>
+      <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={Math.min(stats.avgDuration, MAX_BAR_DURATION)} aria-valuemin={0} aria-valuemax={MAX_BAR_DURATION}>
         <div
-          className={`h-2 rounded-full transition-all ${getBarClasses(stats.avg_duration)}`}
+          className={`h-2 rounded-full transition-all ${getBarClasses(stats.avgDuration)}`}
           style={{ width: `${barWidth}%` }}
         />
       </div>
@@ -98,9 +83,7 @@ const PerformanceMonitor: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get('/api/admin/performance-metrics', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const data = await getPerformanceMetrics();
       setMetrics(data);
     } catch (err) {
       console.error('Failed to fetch performance metrics:', err);
@@ -167,17 +150,17 @@ const PerformanceMonitor: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <SummaryCard
               title="Total Requests"
-              value={metrics.total_requests}
+              value={metrics.totalRequests}
               color="text-blue-600 dark:text-blue-400"
             />
             <SummaryCard
               title={`Slow Requests ({'>'} ${PERFORMANCE_THRESHOLDS.WARNING}s)`}
-              value={metrics.slow_requests_count}
+              value={metrics.slowRequestsCount}
               color="text-yellow-600 dark:text-yellow-400"
             />
             <SummaryCard
               title="Error Types"
-              value={Object.keys(metrics.error_counts).length}
+              value={Object.keys(metrics.errorCounts).length}
               color="text-red-600 dark:text-red-400"
             />
           </div>
@@ -199,13 +182,13 @@ const PerformanceMonitor: React.FC = () => {
           </div>
 
           {/* Errors */}
-          {Object.keys(metrics.error_counts).length > 0 && (
+          {Object.keys(metrics.errorCounts).length > 0 && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
               <h4 className="font-semibold text-red-800 dark:text-red-400 mb-3">
                 Error Summary
               </h4>
               <div className="space-y-1">
-                {Object.entries(metrics.error_counts).map(([errorType, count]) => (
+                {Object.entries(metrics.errorCounts).map(([errorType, count]) => (
                   <div key={errorType} className="text-sm text-red-700 dark:text-red-300">
                     • {errorType}: {count} occurrences
                   </div>

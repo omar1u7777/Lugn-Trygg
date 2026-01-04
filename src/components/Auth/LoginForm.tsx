@@ -2,6 +2,7 @@ import { useState, useCallback } from "react"
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { loginUser, api } from "../../api/index";
+import { API_ENDPOINTS } from "../../api/constants";
 import { useAuth } from "../../contexts/AuthContext";
 import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
 import ForgotPassword from "./ForgotPassword";
@@ -142,7 +143,7 @@ const LoginForm = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const idToken = await user.getIdToken();
-      const response = await api.post('/api/auth/google-login', { id_token: idToken });
+      const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
 
       const data = response.data;
       login(data.access_token, user.email!, data.user_id);

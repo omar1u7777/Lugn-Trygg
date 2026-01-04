@@ -283,16 +283,16 @@ class TestInputSanitizationCoverage:
 
 
 class TestAIServicesCoverage:
-    """Tests for src/utils/ai_services.py (currently 35% coverage)"""
+    """Tests for src/services/ai_service.py (currently 35% coverage)"""
     
     def test_ai_services_initialization(self):
         """Test AI services can be imported"""
-        from src.utils.ai_services import ai_services
+        from src.services.ai_service import ai_services
         assert ai_services is not None
     
     def test_analyze_sentiment(self):
         """Test sentiment analysis"""
-        from src.utils.ai_services import ai_services
+        from src.services.ai_service import ai_services
         
         result = ai_services.analyze_sentiment("I feel happy today!")
         assert result is not None
@@ -300,7 +300,7 @@ class TestAIServicesCoverage:
     
     def test_detect_crisis(self):
         """Test crisis keyword detection"""
-        from src.utils.ai_services import ai_services
+        from src.services.ai_service import ai_services
         
         # Test crisis keywords  
         is_crisis = ai_services.detect_crisis('I want to hurt myself')
@@ -312,7 +312,7 @@ class TestAIServicesCoverage:
     
     def test_fallback_sentiment_analysis(self):
         """Test fallback sentiment analysis"""
-        from src.utils.ai_services import ai_services
+        from src.services.ai_service import ai_services
         
         # Should use fallback when no API available
         result = ai_services._fallback_sentiment_analysis('I am feeling okay')

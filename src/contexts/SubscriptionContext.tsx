@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { api } from '../api/api';
+import { getSubscriptionStatus } from '../api/subscription';
 import planConfigJson from '../../shared/subscription_plans.json';
 
 /**
@@ -105,31 +105,9 @@ const DEFAULT_USAGE: DailyUsage = {
   lastResetDate: new Date().toISOString().split('T')[0] || '',
 };
 
-const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
-
 // Local storage keys
 const USAGE_STORAGE_KEY = 'lugn_trygg_daily_usage';
 const SUBSCRIPTION_CACHE_KEY = 'lugn_trygg_subscription_cache';
-
-interface SubscriptionStatusResponse {
-  plan?: string;
-  status?: string;
-  is_premium?: boolean;
-  is_trial?: boolean;
-  expires_at?: string;
-  trial_ends_at?: string;
-  limits?: SubscriptionLimits;
-  features?: SubscriptionFeatures;
-  usage?: {
-    date?: string;
-    mood_logs?: number;
-    chat_messages?: number;
-  };
-  name?: string;
-  price?: number;
-  currency?: string;
-  interval?: string;
-}
 
 /**
  * SubscriptionProvider
@@ -200,8 +178,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       }
 
       // Fetch from backend
-      const response = await api.get(`/api/subscription/status/${user.user_id}`);
-      const data = response.data as SubscriptionStatusResponse;
+      const data = await getSubscriptionStatus(user.user_id);
 
       const normalizeTier = (tier?: string): SubscriptionTier => {
         if (tier === 'premium' || tier === 'trial' || tier === 'enterprise' || tier === 'free') {
@@ -234,15 +211,15 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         price: typeof data.price === 'number' ? data.price : basePlan.price,
         currency: data.currency || basePlan.currency,
         interval: data.interval || basePlan.interval,
-        expiresAt: data.expires_at ? new Date(data.expires_at) : basePlan.expiresAt,
-        trialEndsAt: data.trial_ends_at ? new Date(data.trial_ends_at) : basePlan.trialEndsAt,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : basePlan.expiresAt,
+        trialEndsAt: data.trialEndsAt ? new Date(data.trialEndsAt) : basePlan.trialEndsAt,
       };
 
       setPlan(newPlan);
 
       let latestUsage: DailyUsage = {
-        moodLogs: data.usage?.mood_logs ?? DEFAULT_USAGE.moodLogs,
-        chatMessages: data.usage?.chat_messages ?? DEFAULT_USAGE.chatMessages,
+        moodLogs: data.usage?.moodLogs ?? DEFAULT_USAGE.moodLogs,
+        chatMessages: data.usage?.chatMessages ?? DEFAULT_USAGE.chatMessages,
         lastResetDate: data.usage?.date || new Date().toISOString().split('T')[0] || DEFAULT_USAGE.lastResetDate,
       };
       setUsage(latestUsage);

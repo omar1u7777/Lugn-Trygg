@@ -1,9 +1,15 @@
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 from cryptography.fernet import Fernet
 import os
 from ..firebase_config import db
+
+if TYPE_CHECKING:
+    from google.cloud.firestore import Client
+    _db: Client = db  # type: ignore
+else:
+    _db = db
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +54,7 @@ class AuditService:
             }
 
             # Add to audit_logs collection
-            doc_ref = db.collection("audit_logs").document()
+            doc_ref = _db.collection("audit_logs").document()
             doc_ref.set(audit_entry)
 
             logger.info(f"Audit log created: {event_type} for user {user_id}")
@@ -66,7 +72,7 @@ class AuditService:
             retention_iso = retention_date.isoformat()
 
             # Query and delete old logs using standard Firestore syntax
-            old_logs = db.collection("audit_logs").where("timestamp", "<", retention_iso).stream()
+            old_logs = _db.collection("audit_logs").where("timestamp", "<", retention_iso).stream()
             for doc in old_logs:
                 doc.reference.delete()
                 logger.info(f"Deleted old audit log: {doc.id}")
@@ -78,7 +84,7 @@ class AuditService:
         """Retrieve audit trail for a user (decrypted)"""
         try:
             # Use standard Firestore where() syntax
-            logs = db.collection("audit_logs").where("user_id", "==", user_id)\
+            logs = _db.collection("audit_logs").where("user_id", "==", user_id)\
                     .order_by("timestamp", direction="DESCENDING").limit(limit).stream()
 
             audit_trail = []

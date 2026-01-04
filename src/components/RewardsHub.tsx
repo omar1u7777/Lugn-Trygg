@@ -10,8 +10,8 @@ import {
   getRewardCatalog,
   claimReward,
   checkAchievements,
-  type Reward,
-  type UserRewards
+  type RewardItem,
+  type UserReward
 } from '../api/api';
 import {
   SparklesIcon,
@@ -47,8 +47,8 @@ const RewardsHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [userRewards, setUserRewards] = useState<UserRewards | null>(null);
+  const [rewards, setRewards] = useState<RewardItem[]>([]);
+  const [userRewards, setUserRewards] = useState<UserReward | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -75,7 +75,7 @@ const RewardsHub: React.FC = () => {
       // Fetch all data in parallel
       const [moods, userRewardsData, catalogData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
-        getUserRewards(user.user_id).catch(() => null),
+        getUserRewards().catch(() => null),
         getRewardCatalog().catch(() => [])
       ]);
 
@@ -97,19 +97,19 @@ const RewardsHub: React.FC = () => {
       }
 
       // Check for new achievements based on activity
-      const achievementCheck = await checkAchievements(user.user_id, {
+      const achievementCheck = await checkAchievements({
         mood_count: moods.length,
         streak: streak,
         journal_count: 0, // TODO: Get from journal API
         referral_count: 0,
         meditation_count: 0
-      }).catch(() => ({ new_achievements: [] }));
+      }).catch(() => ({ newAchievements: [] }));
 
       // Show notification if new achievements earned
-      if (achievementCheck.new_achievements?.length > 0) {
-        setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.new_achievements.map((a: any) => a.title).join(', ')}`);
+      if (achievementCheck.newAchievements?.length > 0) {
+        setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.newAchievements.map((a: any) => a.title).join(', ')}`);
         // Refresh user rewards after earning achievements
-        const updatedRewards = await getUserRewards(user.user_id).catch(() => null);
+        const updatedRewards = await getUserRewards().catch(() => null);
         setUserRewards(updatedRewards);
       }
 
@@ -120,7 +120,7 @@ const RewardsHub: React.FC = () => {
         badges: userRewardsData?.badges?.length || 0,
         achievements: userRewardsData?.achievements?.length || 0,
         level: userRewardsData?.level || 1,
-        progressPercent: userRewardsData?.progress_percent || 0,
+        progressPercent: userRewardsData?.progressPercent || 0,
       });
 
     } catch (err) {
@@ -148,7 +148,7 @@ const RewardsHub: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      const result = await claimReward(user.user_id, rewardId);
+      const result = await claimReward(rewardId);
 
       if (result.success) {
         setSuccessMessage(`🎉 ${result.message}`);
@@ -167,7 +167,7 @@ const RewardsHub: React.FC = () => {
   };
 
   const hasClaimedReward = (rewardId: string) => {
-    return userRewards?.claimed_rewards?.includes(rewardId) || false;
+    return userRewards?.claimedRewards?.includes(rewardId) || false;
   };
 
   // Loading skeleton

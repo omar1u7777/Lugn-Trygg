@@ -54,8 +54,10 @@ class MonitoringService:
 
         # Initialize Redis if available
         try:
-            if hasattr(config, 'REDIS_URL'):
-                self.redis_client = redis.from_url(config.REDIS_URL)
+            # Build Redis URL from config
+            redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}" if config.REDIS_PASSWORD else f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
+            self.redis_client = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
+            logger.info(f"✅ Redis connected for monitoring: {config.REDIS_HOST}:{config.REDIS_PORT}")
         except Exception as e:
             logger.warning(f"Redis connection failed: {e}")
 
@@ -166,7 +168,7 @@ class MonitoringService:
                 timestamp=datetime.now(UTC)
             )
 
-    def log_performance_metric(self, name: str, value: float, tags: Dict[str, str] = None):
+    def log_performance_metric(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
         """Log performance metric"""
         try:
             metric_data = {
@@ -186,7 +188,7 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"Failed to log performance metric: {e}")
 
-    def log_business_event(self, event_type: str, properties: Dict[str, Any] = None):
+    def log_business_event(self, event_type: str, properties: Optional[Dict[str, Any]] = None):
         """Log business event for analytics"""
         try:
             event_data = {
@@ -215,13 +217,14 @@ class MonitoringService:
 
             # Get metrics from Redis
             pattern = f"metrics:{metric_name}:*"
-            keys = self.redis_client.keys(pattern)
+            keys = self.redis_client.keys(pattern)  # type: ignore
 
             metrics = []
-            for key in keys[-100:]:  # Last 100 entries
+            # Keys is a list[str] when decode_responses=True
+            for key in (keys[-100:] if isinstance(keys, list) else []):  # Last 100 entries
                 data = self.redis_client.get(key)
                 if data:
-                    metrics.append(json.loads(data))
+                    metrics.append(json.loads(str(data)))
 
             return sorted(metrics, key=lambda x: x['timestamp'], reverse=True)
 
@@ -237,8 +240,9 @@ class MonitoringService:
             if self.redis_client:
                 # Count unique users in recent sessions
                 pattern = "session:*"
-                keys = self.redis_client.keys(pattern)
-                return len(keys)
+                keys = self.redis_client.keys(pattern)  # type: ignore
+                # With decode_responses=True, keys() returns list[str]
+                return len(keys) if isinstance(keys, list) else 0
             return 0
         except:
             return 0
@@ -247,7 +251,8 @@ class MonitoringService:
         """Get total request count"""
         try:
             if self.redis_client:
-                return int(self.redis_client.get('metrics:http_requests_total') or 0)
+                value = self.redis_client.get('metrics:http_requests_total')
+                return int(str(value)) if value else 0
             return 0
         except:
             return 0
@@ -256,8 +261,10 @@ class MonitoringService:
         """Calculate error rate percentage"""
         try:
             if self.redis_client:
-                total = int(self.redis_client.get('metrics:http_requests_total') or 1)
-                errors = int(self.redis_client.get('metrics:http_errors_total') or 0)
+                total_val = self.redis_client.get('metrics:http_requests_total')
+                errors_val = self.redis_client.get('metrics:http_errors_total')
+                total = int(str(total_val)) if total_val else 1
+                errors = int(str(errors_val)) if errors_val else 0
                 return (errors / total) * 100
             return 0.0
         except:
@@ -267,7 +274,8 @@ class MonitoringService:
         """Get average response time in milliseconds"""
         try:
             if self.redis_client:
-                return float(self.redis_client.get('metrics:avg_response_time') or 0)
+                value = self.redis_client.get('metrics:avg_response_time')
+                return float(str(value)) if value else 0.0
             return 0.0
         except:
             return 0.0
@@ -284,8 +292,10 @@ class MonitoringService:
         """Get Redis cache hit rate"""
         try:
             if self.redis_client:
-                hits = int(self.redis_client.get('cache:hits') or 0)
-                misses = int(self.redis_client.get('cache:misses') or 0)
+                hits_val = self.redis_client.get('cache:hits')
+                misses_val = self.redis_client.get('cache:misses')
+                hits = int(str(hits_val)) if hits_val else 0
+                misses = int(str(misses_val)) if misses_val else 0
                 total = hits + misses
                 return (hits / total * 100) if total > 0 else 0.0
             return 0.0
@@ -341,9 +351,10 @@ class MonitoringService:
                 
                 # Update average response time
                 key = 'metrics:avg_response_time'
-                current_avg = float(self.redis_client.get(key) or 0)
+                current_val = self.redis_client.get(key)
+                current_avg = float(str(current_val)) if current_val else 0.0
                 new_avg = (current_avg + duration) / 2  # Simple moving average
-                self.redis_client.set(key, new_avg)
+                self.redis_client.set(key, str(new_avg))
                 
                 # Log request details
                 logger.info(f"Request tracked: {method} {endpoint} - {status_code} ({duration:.2f}ms)")

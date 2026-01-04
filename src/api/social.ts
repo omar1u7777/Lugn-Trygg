@@ -39,8 +39,10 @@ export const getLeaderboard = async (type: string = 'xp'): Promise<LeaderboardEn
  */
 export const getReferralStats = async (userId: string): Promise<ReferralStats> => {
   try {
-    const response = await api.get(`/api/referrals/stats/${userId}`);
-    return response.data.stats || {
+    const response = await api.get(`/api/referral/stats?user_id=${userId}`);
+    // Handle APIResponse wrapper: { success: true, data: {...} }
+    const data = response.data?.data || response.data;
+    return data || {
       totalReferrals: 0,
       successfulReferrals: 0,
       referralCode: '',

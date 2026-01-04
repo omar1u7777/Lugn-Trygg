@@ -59,10 +59,10 @@ const usePredictiveData = () => {
 
       // Fetch multiple endpoints in parallel for better performance
       const [predictionsRes, insightsRes, trendsRes, crisisRes] = await Promise.allSettled([
-        api.get<ApiResponse<PredictiveData['predictions']>>('/predictive/predict?days=7'),
-        api.get<ApiResponse<PredictiveData['insights']>>('/predictive/insights'),
-        api.get<ApiResponse<PredictiveData['trends']>>('/predictive/trends?period=30d'),
-        api.get<ApiResponse<PredictiveData['crisis_risk']>>('/predictive/crisis-check'),
+        api.get<ApiResponse<PredictiveData['predictions']>>('/api/predictive/predict?days=7'),
+        api.get<ApiResponse<PredictiveData['insights']>>('/api/predictive/insights'),
+        api.get<ApiResponse<PredictiveData['trends']>>('/api/predictive/trends?period=30d'),
+        api.get<ApiResponse<PredictiveData['crisis_risk']>>('/api/predictive/crisis-check'),
       ]);
 
       const newData: PredictiveData = {};

@@ -2,30 +2,65 @@ import { api } from "./client";
 import { ApiError } from "./errors";
 
 export interface UserReward {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  claimedAt: Date;
+  userId: string;
+  xp: number;
+  level: number;
+  nextLevelXp: number;
+  progressXp: number;
+  neededXp: number;
+  progressPercent: number;
+  badges: string[];
+  achievements: string[];
+  claimedRewards: string[];
+  premiumUntil: string | null;
 }
 
 export interface RewardItem {
   id: string;
   title: string;
   description: string;
-  pointsRequired: number;
-  category: string;
+  cost: number;
+  type: string;
+  value: number | string;
+  icon: string;
+  available: boolean;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  xp_reward: number;
+  badge: string;
+  condition: {
+    type: string;
+    value: number;
+  };
+}
+
+export interface ClaimRewardResult {
+  message: string;
+  reward: RewardItem;
+  newXp: number;
+  premiumUntil?: string;
+}
+
+export interface CheckAchievementsResult {
+  newAchievements: Achievement[];
+  totalXpEarned: number;
+  allAchievements: string[];
+  badges: string[];
 }
 
 /**
- * Get user's rewards
- * @param userId - User ID
- * @returns Promise resolving to user rewards
+ * Get user's rewards profile
+ * @returns Promise resolving to user rewards profile
  */
-export const getUserRewards = async (userId: string): Promise<UserReward[]> => {
+export const getUserRewards = async (): Promise<UserReward> => {
   try {
-    const response = await api.get(`/api/rewards/user/${userId}`);
-    return response.data.rewards || [];
+    const response = await api.get('/api/rewards/profile');
+    // Backend returns { success: true, data: { rewards: {...} }, message: "..." }
+    return response.data.data?.rewards || response.data.rewards || {};
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -41,7 +76,25 @@ export const getUserRewards = async (userId: string): Promise<UserReward[]> => {
 export const getRewardCatalog = async (): Promise<RewardItem[]> => {
   try {
     const response = await api.get('/api/rewards/catalog');
-    return response.data.catalog || [];
+    // Backend returns { success: true, data: { rewards: [...] }, message: "..." }
+    return response.data.data?.rewards || response.data.rewards || [];
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
+/**
+ * Get all achievements
+ * @returns Promise resolving to achievements list
+ */
+export const getAchievements = async (): Promise<Achievement[]> => {
+  try {
+    const response = await api.get('/api/rewards/achievements');
+    // Backend returns { success: true, data: { achievements: [...] }, message: "..." }
+    return response.data.data?.achievements || response.data.achievements || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -55,10 +108,12 @@ export const getRewardCatalog = async (): Promise<RewardItem[]> => {
  * @param rewardId - Reward ID to claim
  * @returns Promise resolving to claim result
  */
-export const claimReward = async (rewardId: string) => {
+export const claimReward = async (rewardId: string): Promise<ClaimRewardResult> => {
   try {
-    const response = await api.post(`/api/rewards/claim/${rewardId}`);
-    return response.data;
+    const response = await api.post('/api/rewards/claim', {
+      reward_id: rewardId
+    });
+    return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -68,14 +123,59 @@ export const claimReward = async (rewardId: string) => {
 };
 
 /**
- * Check user achievements
- * @param userId - User ID
- * @returns Promise resolving to achievements
+ * Add XP to user
+ * @param amount - XP amount to add
+ * @param reason - Reason for XP addition
+ * @returns Promise resolving to XP result
  */
-export const checkAchievements = async (userId: string) => {
+export const addXp = async (amount: number, reason: string = 'general') => {
   try {
-    const response = await api.get(`/api/achievements/check/${userId}`);
-    return response.data;
+    const response = await api.post('/api/rewards/add-xp', {
+      amount,
+      reason
+    });
+    return response.data.data || response.data;
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
+/**
+ * Check and award user achievements
+ * @param stats - User stats to check against
+ * @returns Promise resolving to achievements result
+ */
+export const checkAchievements = async (
+  stats: {
+    mood_count?: number;
+    streak?: number;
+    journal_count?: number;
+    referral_count?: number;
+    meditation_count?: number;
+  } = {}
+): Promise<CheckAchievementsResult> => {
+  try {
+    const response = await api.post('/api/rewards/check-achievements', stats);
+    return response.data.data || response.data;
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
+/**
+ * Get user badges
+ * @returns Promise resolving to badges list
+ */
+export const getUserBadges = async () => {
+  try {
+    const response = await api.get('/api/rewards/badges');
+    return response.data.data?.badges || response.data.badges || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;

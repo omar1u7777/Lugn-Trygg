@@ -2,6 +2,33 @@ import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 
 /**
+ * Notification settings response interface
+ */
+export interface NotificationSettingsResponse {
+  dailyRemindersEnabled: boolean;
+  reminderTime: string;
+  hasFcmToken: boolean;
+  lastReminderSent: string | null;
+}
+
+/**
+ * Send reminder response interface
+ */
+export interface SendReminderResponse {
+  sent: boolean;
+  notificationId?: string;
+  reason?: string;
+}
+
+/**
+ * Schedule daily response interface
+ */
+export interface ScheduleDailyResponse {
+  enabled: boolean;
+  time: string;
+}
+
+/**
  * Save FCM token for push notifications
  * @param fcmToken - Firebase Cloud Messaging token
  * @returns Promise resolving to response data
@@ -13,8 +40,9 @@ export const saveFCMToken = async (fcmToken: string) => {
     const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.FCM_TOKEN, {
       fcmToken
     });
+    const data = response.data?.data || response.data;
     console.log('✅ FCM token saved successfully');
-    return response.data;
+    return data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Save FCM token error:", apiError);
@@ -24,22 +52,21 @@ export const saveFCMToken = async (fcmToken: string) => {
 
 /**
  * Send a reminder notification
- * @param userId - User ID
  * @param message - Reminder message
  * @param type - Reminder type (default: 'daily')
  * @returns Promise resolving to response data
  * @throws Error if reminder send fails
  */
-export const sendReminder = async (userId: string, message: string, type: string = 'daily') => {
-  console.log('🔔 API - sendReminder called', { userId, type });
+export const sendReminder = async (message: string, type: string = 'daily'): Promise<SendReminderResponse> => {
+  console.log('🔔 API - sendReminder called', { type });
   try {
     const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.SEND_REMINDER, {
-      userId,
       message,
       type
     });
+    const data = response.data?.data || response.data;
     console.log('✅ Reminder sent successfully');
-    return response.data;
+    return data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Send reminder error:", apiError);
@@ -49,22 +76,21 @@ export const sendReminder = async (userId: string, message: string, type: string
 
 /**
  * Schedule daily notifications
- * @param userId - User ID
  * @param enabled - Whether to enable daily notifications
  * @param time - Time for notifications (default: '09:00')
  * @returns Promise resolving to response data
  * @throws Error if scheduling fails
  */
-export const scheduleDailyNotifications = async (userId: string, enabled: boolean, time: string = '09:00') => {
-  console.log('🔔 API - scheduleDailyNotifications called', { userId, enabled, time });
+export const scheduleDailyNotifications = async (enabled: boolean, time: string = '09:00'): Promise<ScheduleDailyResponse> => {
+  console.log('🔔 API - scheduleDailyNotifications called', { enabled, time });
   try {
     const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.SCHEDULE_DAILY, {
-      userId,
       enabled,
       time
     });
+    const data = response.data?.data || response.data;
     console.log('✅ Daily notifications scheduled successfully');
-    return response.data;
+    return data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Schedule daily notifications error:", apiError);
@@ -74,18 +100,16 @@ export const scheduleDailyNotifications = async (userId: string, enabled: boolea
 
 /**
  * Disable all notifications
- * @param userId - User ID
  * @returns Promise resolving to response data
  * @throws Error if disabling fails
  */
-export const disableAllNotifications = async (userId: string) => {
-  console.log('🔔 API - disableAllNotifications called', { userId });
+export const disableAllNotifications = async (): Promise<{ allDisabled: boolean }> => {
+  console.log('🔔 API - disableAllNotifications called');
   try {
-    const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.DISABLE_ALL, {
-      userId
-    });
+    const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.DISABLE_ALL, {});
+    const data = response.data?.data || response.data;
     console.log('✅ All notifications disabled successfully');
-    return response.data;
+    return data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Disable notifications error:", apiError);
@@ -95,16 +119,16 @@ export const disableAllNotifications = async (userId: string) => {
 
 /**
  * Get notification settings
- * @param userId - User ID
  * @returns Promise resolving to notification settings
  * @throws Error if settings retrieval fails
  */
-export const getNotificationSettings = async (userId: string) => {
-  console.log('🔔 API - getNotificationSettings called', { userId });
+export const getNotificationSettings = async (): Promise<NotificationSettingsResponse> => {
+  console.log('🔔 API - getNotificationSettings called');
   try {
-    const response = await api.get(`${API_ENDPOINTS.NOTIFICATIONS.NOTIFICATION_SETTINGS}?userId=${userId}`);
-    console.log('✅ Notification settings retrieved:', response.data);
-    return response.data;
+    const response = await api.get(API_ENDPOINTS.NOTIFICATIONS.NOTIFICATION_SETTINGS);
+    const data = response.data?.data || response.data;
+    console.log('✅ Notification settings retrieved:', data);
+    return data.settings || data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Get notification settings error:", apiError);
@@ -112,6 +136,7 @@ export const getNotificationSettings = async (userId: string) => {
     return {
       dailyRemindersEnabled: false,
       reminderTime: '09:00',
+      hasFcmToken: false,
       lastReminderSent: null
     };
   }
@@ -119,23 +144,20 @@ export const getNotificationSettings = async (userId: string) => {
 
 /**
  * Update notification settings
- * @param userId - User ID
  * @param settings - Notification settings to update
  * @returns Promise resolving to response data
  * @throws Error if settings update fails
  */
-export const updateNotificationSettings = async (userId: string, settings: {
+export const updateNotificationSettings = async (settings: {
   dailyRemindersEnabled: boolean;
   reminderTime: string;
-}) => {
-  console.log('🔔 API - updateNotificationSettings called', { userId, settings });
+}): Promise<{ updated: boolean }> => {
+  console.log('🔔 API - updateNotificationSettings called', { settings });
   try {
-    const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.NOTIFICATION_SETTINGS, {
-      userId,
-      ...settings
-    });
+    const response = await api.post(API_ENDPOINTS.NOTIFICATIONS.NOTIFICATION_SETTINGS, settings);
+    const data = response.data?.data || response.data;
     console.log('✅ Notification settings updated successfully');
-    return response.data;
+    return data;
   } catch (error: unknown) {
     const apiError = error as any;
     console.error("❌ Update notification settings error:", apiError);

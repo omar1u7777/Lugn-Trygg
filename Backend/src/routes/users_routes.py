@@ -1,27 +1,87 @@
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, g
 import logging
 from firebase_admin import firestore
 from ..services.auth_service import AuthService
-from ..firebase_config import db, auth
-from ..utils.response_utils import APIResponse, success_response, error_response, created_response
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.audit_service import audit_log
+from ..firebase_config import db
+from ..utils.response_utils import APIResponse
+from ..utils.input_sanitization import sanitize_text
 
 users_bp = Blueprint('users', __name__)
 logger = logging.getLogger(__name__)
 
+# Get SERVER_TIMESTAMP from firestore
+SERVER_TIMESTAMP = firestore.SERVER_TIMESTAMP  # type: ignore
 
-@users_bp.route('/profile', methods=['GET', 'OPTIONS'])
+
+# ============================================================================
+# OPTIONS Handlers (CORS Preflight)
+# ============================================================================
+
+@users_bp.route('/profile', methods=['OPTIONS'])
+def profile_options():
+    """Handle CORS preflight for profile endpoint"""
+    return APIResponse.success()
+
+
+@users_bp.route('/preferences', methods=['OPTIONS'])
+def preferences_options():
+    """Handle CORS preflight for preferences endpoint"""
+    return APIResponse.success()
+
+
+@users_bp.route('/notification-settings', methods=['OPTIONS'])
+def notification_settings_options():
+    """Handle CORS preflight for notification settings"""
+    return APIResponse.success()
+
+
+@users_bp.route('/notification-preferences', methods=['OPTIONS'])
+def notification_preferences_options():
+    """Handle CORS preflight for notification preferences"""
+    return APIResponse.success()
+
+
+@users_bp.route('/notification-schedule', methods=['OPTIONS'])
+def notification_schedule_options():
+    """Handle CORS preflight for notification schedule"""
+    return APIResponse.success()
+
+
+@users_bp.route('/wellness-goals', methods=['OPTIONS'])
+def wellness_goals_options():
+    """Handle CORS preflight for wellness goals"""
+    return APIResponse.success()
+
+
+@users_bp.route('/journal', methods=['OPTIONS'])
+def journal_options():
+    """Handle CORS preflight for journal entries"""
+    return APIResponse.success()
+
+
+@users_bp.route('/meditation-sessions', methods=['OPTIONS'])
+def meditation_sessions_options():
+    """Handle CORS preflight for meditation sessions"""
+    return APIResponse.success()
+
+
+# ============================================================================
+# User Profile & Preferences
+# ============================================================================
+
+@users_bp.route('/profile', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_user_profile():
     """Return a lightweight user profile for dashboard integrations."""
-    if request.method == 'OPTIONS':
-        return '', 204
-
-    user_id = getattr(g, 'user_id', None)
+    user_id = g.get('user_id')
     if not user_id:
-        return APIResponse.bad_request("User context saknas")
+        return APIResponse.unauthorized("Authentication required")
 
     try:
-        user_ref = db.collection('users').document(user_id)
+        user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
         user_data = user_doc.to_dict() if getattr(user_doc, 'exists', False) else {}
 
@@ -36,43 +96,65 @@ def get_user_profile():
             "updatedAt": user_data.get('updatedAt')
         }
 
+        audit_log(
+            event_type="USER_PROFILE_VIEWED",
+            user_id=user_id,
+            details={"profile_requested": True}
+        )
+
         return APIResponse.success({"profile": profile}, "User profile retrieved")
     except Exception as exc:
         logger.exception(f"Failed to load profile: {exc}")
         return APIResponse.error("Failed to load profile", "INTERNAL_ERROR", 500, str(exc))
 
 
-@users_bp.route('/preferences', methods=['PUT', 'OPTIONS'])
+@users_bp.route('/preferences', methods=['PUT'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def update_user_preferences():
     """Upsert user preference settings expected by integration tests."""
-    if request.method == 'OPTIONS':
-        return '', 204
-
     payload = request.get_json(silent=True) or {}
     if not payload:
-        return APIResponse.bad_request("Preferences payload krävs")
+        return APIResponse.bad_request("Preferences payload required")
 
-    user_id = getattr(g, 'user_id', None)
+    user_id = g.get('user_id')
     if not user_id:
-        return APIResponse.bad_request("User context saknas")
+        return APIResponse.unauthorized("Authentication required")
 
     try:
-        doc_ref = db.collection('users').document(user_id)
+        doc_ref = db.collection('users').document(user_id)  # type: ignore
         doc_ref.set({
             'preferences': payload,
-            'updatedAt': firestore.SERVER_TIMESTAMP
+            'updatedAt': SERVER_TIMESTAMP
         }, merge=True)
 
-        return APIResponse.success({"preferences": payload}, "Preferences uppdaterade")
+        audit_log(
+            event_type="USER_PREFERENCES_UPDATED",
+            user_id=user_id,
+            details={"preferences_keys": list(payload.keys())}
+        )
+
+        return APIResponse.success({"preferences": payload}, "Preferences updated")
     except Exception as exc:
         logger.exception(f"Failed to update preferences: {exc}")
         return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500, str(exc))
 
 
-@users_bp.route('/<user_id>/notification-settings', methods=['GET'])
-def get_notification_settings(user_id):
+# ============================================================================
+# Notification Settings
+# ============================================================================
+
+@users_bp.route('/notification-settings', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_notification_settings():
+    """Get notification settings for user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🔔 USERS - GET notification settings for user: {user_id}")
+    
     # Return a basic default schedule
     return APIResponse.success({
         "morningReminder": "08:00",
@@ -83,9 +165,17 @@ def get_notification_settings(user_id):
     }, "Notification settings retrieved")
 
 
-@users_bp.route('/<user_id>/notification-preferences', methods=['PUT'])
-def update_notification_preferences(user_id):
+@users_bp.route('/notification-preferences', methods=['PUT'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def update_notification_preferences():
+    """Update notification preferences for user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🔔 USERS - UPDATE notification preferences for user: {user_id}")
+    
     try:
         data = request.get_json(silent=True) or {}
         logger.info(f"✅ USERS - Updating notification preferences: {data}")
@@ -95,9 +185,17 @@ def update_notification_preferences(user_id):
         return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/notification-schedule', methods=['POST'])
-def set_notification_schedule(user_id):
+@users_bp.route('/notification-schedule', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def set_notification_schedule():
+    """Set notification schedule for user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🔔 USERS - SET notification schedule for user: {user_id}")
+    
     try:
         data = request.get_json(silent=True) or {}
         logger.info(f"✅ USERS - Saving notification schedule: {data}")
@@ -107,12 +205,23 @@ def set_notification_schedule(user_id):
         return APIResponse.error("Failed to save schedule", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/wellness-goals', methods=['GET'])
-def get_wellness_goals(user_id):
+# ============================================================================
+# Wellness Goals
+# ============================================================================
+
+@users_bp.route('/wellness-goals', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_wellness_goals():
     """🎯 Get user's wellness goals"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🎯 USERS - GET wellness goals for user: {user_id}")
+    
     try:
-        user_ref = db.collection('users').document(user_id)
+        user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
         
         if not user_doc.exists:
@@ -122,6 +231,12 @@ def get_wellness_goals(user_id):
         user_data = user_doc.to_dict()
         wellness_goals = user_data.get('wellnessGoals', [])
 
+        audit_log(
+            event_type="WELLNESS_GOALS_RETRIEVED",
+            user_id=user_id,
+            details={"goals_count": len(wellness_goals)}
+        )
+
         logger.info(f"✅ USERS - Wellness goals retrieved: {wellness_goals}")
         return APIResponse.success({"wellnessGoals": wellness_goals}, "Wellness goals retrieved")
     except Exception as e:
@@ -129,25 +244,32 @@ def get_wellness_goals(user_id):
         return APIResponse.error("Failed to get wellness goals", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/wellness-goals', methods=['POST'])
-def set_wellness_goals(user_id):
+@users_bp.route('/wellness-goals', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def set_wellness_goals():
     """🎯 Set user's wellness goals"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🎯 USERS - SET wellness goals for user: {user_id}")
+    
     try:
         data = request.get_json(silent=True)
         if not data or 'wellnessGoals' not in data:
             logger.warning(f"Missing wellnessGoals in request body or empty body")
-            return jsonify({"error": "Request body must contain wellnessGoals as a non-empty list"}), 400
+            return APIResponse.bad_request("Request body must contain wellnessGoals as a non-empty list")
         
         goals = data.get('wellnessGoals')
         if not isinstance(goals, list) or len(goals) == 0:
             logger.warning(f"Invalid wellnessGoals value: {goals}")
-            return jsonify({"error": "wellnessGoals must be a non-empty list"}), 400
+            return APIResponse.bad_request("wellnessGoals must be a non-empty list")
         
         logger.info(f"📝 Received wellness goals data: {goals}")
         
         # Check if user exists first
-        user_ref = db.collection('users').document(user_id)
+        user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
         
         if not user_doc.exists:
@@ -156,16 +278,22 @@ def set_wellness_goals(user_id):
             user_ref.set({
                 'user_id': user_id,
                 'wellnessGoals': goals,
-                'createdAt': firestore.SERVER_TIMESTAMP,
-                'updatedAt': firestore.SERVER_TIMESTAMP
+                'createdAt': SERVER_TIMESTAMP,
+                'updatedAt': SERVER_TIMESTAMP
             })
         else:
             # Update existing user document
             user_ref.update({
                 'wellnessGoals': goals,
-                'updatedAt': firestore.SERVER_TIMESTAMP
+                'updatedAt': SERVER_TIMESTAMP
             })
         
+        audit_log(
+            event_type="WELLNESS_GOALS_SET",
+            user_id=user_id,
+            details={"goals": goals, "goals_count": len(goals)}
+        )
+
         logger.info(f"✅ USERS - Wellness goals saved: {goals}")
         return APIResponse.success({"wellnessGoals": goals}, "Wellness goals saved")
     except Exception as e:
@@ -175,46 +303,52 @@ def set_wellness_goals(user_id):
         return APIResponse.error("Failed to save wellness goals", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/journal', methods=['POST'])
-def save_journal_entry(user_id):
+# ============================================================================
+# Journal Entries
+# ============================================================================
+
+@users_bp.route('/journal', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def save_journal_entry():
     """📝 Save a journal entry for the user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"📝 USERS - SAVE journal entry for user: {user_id}")
+    
     try:
-        # Parse and sanitize JSON data directly
+        # Parse JSON data
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "Invalid JSON in request body"}), 400
+            return APIResponse.bad_request("Invalid JSON in request body")
 
-        # Sanitize the data
-        from ..utils.input_sanitization import input_sanitizer
-        sanitized_data = input_sanitizer.sanitize_dict(data, {
-            'content': {'type': 'text', 'max_length': 10000},
-            'tags': {'type': 'json'},
-            'mood': {'type': 'json'}
-        })
-
-        if not sanitized_data or 'content' not in sanitized_data:
-            return jsonify({"error": "Request body must contain content"}), 400
-
-        data = sanitized_data  # Use sanitized data
-
+        # Sanitize content
         content = data.get('content', '').strip()
-        if not content:
-            return jsonify({"error": "Journal content cannot be empty"}), 400
+        sanitized_content = sanitize_text(content, max_length=10000)
+        if not sanitized_content:
+            return APIResponse.bad_request("Journal content cannot be empty")
 
         # Create journal entry
         journal_entry = {
             'user_id': user_id,
-            'content': content,
+            'content': sanitized_content,
             'mood': data.get('mood'),
             'tags': data.get('tags', []),
-            'createdAt': firestore.SERVER_TIMESTAMP,
-            'updatedAt': firestore.SERVER_TIMESTAMP
+            'createdAt': SERVER_TIMESTAMP,
+            'updatedAt': SERVER_TIMESTAMP
         }
 
         # Save to Firestore
-        journal_ref = db.collection('users').document(user_id).collection('journal').document()
+        journal_ref = db.collection('users').document(user_id).collection('journal').document()  # type: ignore
         journal_ref.set(journal_entry)
+
+        audit_log(
+            event_type="JOURNAL_ENTRY_SAVED",
+            user_id=user_id,
+            details={"entry_id": journal_ref.id, "content_length": len(sanitized_content)}
+        )
 
         logger.info(f"✅ USERS - Journal entry saved for user: {user_id}")
         return APIResponse.created({
@@ -226,18 +360,25 @@ def save_journal_entry(user_id):
         return APIResponse.error("Failed to save journal entry", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/journal', methods=['GET'])
-def get_journal_entries(user_id):
+@users_bp.route('/journal', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_journal_entries():
     """📝 Get journal entries for the user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"📝 USERS - GET journal entries for user: {user_id}")
+    
     try:
         # Get query parameters
         limit = int(request.args.get('limit', 50))
         start_after = request.args.get('startAfter')
 
         # Build query
-        journal_ref = db.collection('users').document(user_id).collection('journal')
-        query = journal_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)
+        journal_ref = db.collection('users').document(user_id).collection('journal')  # type: ignore
+        query = journal_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)  # type: ignore
 
         if start_after:
             # For pagination, we'd need to get the document first
@@ -256,6 +397,12 @@ def get_journal_entries(user_id):
                 entry_data['updatedAt'] = entry_data['updatedAt'].isoformat()
             entries.append(entry_data)
 
+        audit_log(
+            event_type="JOURNAL_ENTRIES_RETRIEVED",
+            user_id=user_id,
+            details={"entries_count": len(entries)}
+        )
+
         logger.info(f"✅ USERS - Retrieved {len(entries)} journal entries for user: {user_id}")
         return APIResponse.success({"entries": entries}, f"Retrieved {len(entries)} journal entries")
 
@@ -264,39 +411,57 @@ def get_journal_entries(user_id):
         return APIResponse.error("Failed to get journal entries", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/meditation-sessions', methods=['POST'])
-def save_meditation_session(user_id):
+# ============================================================================
+# Meditation Sessions
+# ============================================================================
+
+@users_bp.route('/meditation-sessions', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def save_meditation_session():
     """🧘 Save a meditation session for the user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🧘 USERS - SAVE meditation session for user: {user_id}")
+    
     try:
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "Request body required"}), 400
+            return APIResponse.bad_request("Request body required")
 
-        # Sanitize input data
-        from ..utils.input_sanitization import input_sanitizer
-        data = input_sanitizer.sanitize_dict(data, {
-            'type': {'type': 'text', 'max_length': 50},
-            'technique': {'type': 'text', 'max_length': 100},
-            'notes': {'type': 'text', 'max_length': 1000}
-        })
+        # Sanitize text fields
+        meditation_type = sanitize_text(data.get('type', 'breathing'), max_length=50)
+        technique = sanitize_text(data.get('technique', ''), max_length=100) if data.get('technique') else None
+        notes = sanitize_text(data.get('notes', ''), max_length=1000) if data.get('notes') else None
 
         # Create meditation session
         session_data = {
             'user_id': user_id,
-            'type': data.get('type', 'breathing'),
+            'type': meditation_type,
             'duration': data.get('duration', 0),  # in minutes
-            'technique': data.get('technique'),  # e.g., '4-7-8', 'body-scan', etc.
+            'technique': technique,  # e.g., '4-7-8', 'body-scan', etc.
             'completedCycles': data.get('completedCycles', 0),
             'moodBefore': data.get('moodBefore'),
             'moodAfter': data.get('moodAfter'),
-            'notes': data.get('notes'),
-            'createdAt': firestore.SERVER_TIMESTAMP
+            'notes': notes,
+            'createdAt': SERVER_TIMESTAMP
         }
 
         # Save to Firestore
-        session_ref = db.collection('users').document(user_id).collection('meditation_sessions').document()
+        session_ref = db.collection('users').document(user_id).collection('meditation_sessions').document()  # type: ignore
         session_ref.set(session_data)
+
+        audit_log(
+            event_type="MEDITATION_SESSION_SAVED",
+            user_id=user_id,
+            details={
+                "session_id": session_ref.id,
+                "type": meditation_type,
+                "duration": data.get('duration', 0)
+            }
+        )
 
         logger.info(f"✅ USERS - Meditation session saved for user: {user_id}")
         return APIResponse.created({
@@ -308,10 +473,17 @@ def save_meditation_session(user_id):
         return APIResponse.error("Failed to save meditation session", "INTERNAL_ERROR", 500, str(e))
 
 
-@users_bp.route('/<user_id>/meditation-sessions', methods=['GET'])
-def get_meditation_sessions(user_id):
+@users_bp.route('/meditation-sessions', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_meditation_sessions():
     """🧘 Get meditation sessions for the user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     logger.info(f"🧘 USERS - GET meditation sessions for user: {user_id}")
+    
     try:
         # Get query parameters
         limit = int(request.args.get('limit', 50))
@@ -319,8 +491,8 @@ def get_meditation_sessions(user_id):
         end_date = request.args.get('endDate')
 
         # Build query
-        sessions_ref = db.collection('users').document(user_id).collection('meditation_sessions')
-        query = sessions_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)
+        sessions_ref = db.collection('users').document(user_id).collection('meditation_sessions')  # type: ignore
+        query = sessions_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)  # type: ignore
 
         docs = query.stream()
 
@@ -338,6 +510,12 @@ def get_meditation_sessions(user_id):
         total_minutes = sum(int(session.get('duration', 0)) for session in sessions)
         avg_session_length = total_minutes / total_sessions if total_sessions > 0 else 0
 
+        audit_log(
+            event_type="MEDITATION_SESSIONS_RETRIEVED",
+            user_id=user_id,
+            details={"sessions_count": total_sessions, "total_minutes": total_minutes}
+        )
+
         logger.info(f"✅ USERS - Retrieved {total_sessions} meditation sessions for user: {user_id}")
         return APIResponse.success({
             "sessions": sessions,
@@ -351,3 +529,4 @@ def get_meditation_sessions(user_id):
     except Exception as e:
         logger.exception(f"Failed to get meditation sessions: {e}")
         return APIResponse.error("Failed to get meditation sessions", "INTERNAL_ERROR", 500, str(e))
+

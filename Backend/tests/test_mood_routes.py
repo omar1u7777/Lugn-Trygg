@@ -122,7 +122,7 @@ def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_headers, moc
         "ai_generated": True,
         "confidence": 0.8
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_headers)
     assert response.status_code == 200
@@ -141,7 +141,7 @@ def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_headers, mo
         "ai_generated": True,
         "confidence": 0.8
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_headers)
     assert response.status_code == 200
@@ -159,7 +159,7 @@ def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_heade
         {"insights": "English insights", "ai_generated": True, "confidence": 0.8},
         {"insights": "Norwegian insights", "ai_generated": True, "confidence": 0.8}
     ]
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     for locale in ['sv', 'en', 'no']:
         response = client.get(f"/api/mood/weekly-analysis?user_id=test-user-id&locale={locale}", headers=auth_headers)
@@ -178,7 +178,7 @@ def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, moc
         "confidence": 0.8,
         "personalized": True
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     response = client.get("/api/mood/recommendations?user_id=test-user-id", headers=auth_headers)
     assert response.status_code == 200
@@ -198,7 +198,7 @@ def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock
         "confidence": 0.9,
         "voice_characteristics": {"energy_level": "high"}
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     # Mock base64 decoding to avoid "Incorrect padding" error
     mocker.patch('base64.b64decode', return_value=b"mock_audio_bytes")
@@ -236,7 +236,7 @@ def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_h
         "magnitude": 0.9,
         "emotions": ["joy", "happiness"]
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
     
     response = client.post("/api/mood/log", json={
         "mood_text": "Idag var en fantastisk dag!",
@@ -259,7 +259,7 @@ def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_hea
         "confidence": 0.75,
         "sentiment": "NEGATIVE"
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
     mocker.patch('src.utils.speech_utils.transcribe_audio_google', return_value="Jag är ledsen")
     
     # Create fake audio data
@@ -290,7 +290,7 @@ def test_weekly_analysis_different_locales(client, mock_firestore, mocker, auth_
         "insights": "Weekly summary in Swedish",
         "ai_generated": True
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
     
     # Test Swedish locale
     response = client.get("/api/mood/weekly-analysis?locale=sv", headers=auth_headers)
@@ -308,7 +308,7 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_h
         "primary_emotion": "joy",
         "confidence": 0.88
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
     mocker.patch('src.utils.speech_utils.transcribe_audio_google', return_value="Glad idag")
     
     # Create fake audio file
@@ -339,7 +339,7 @@ def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_hea
         "ai_generated": True,
         "personalized": True
     }
-    mocker.patch('src.utils.ai_services.ai_services', mock_ai)
+    mocker.patch('src.services.ai_service.ai_services', mock_ai)
     
     response = client.get("/api/mood/recommendations", headers=auth_headers)
     assert response.status_code == 200

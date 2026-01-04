@@ -24,6 +24,7 @@ const ReferralProgram = lazy(() => import('@/components/Referral/ReferralProgram
 const FeedbackForm = lazy(() => import('@/components/Feedback/FeedbackForm'));
 const ProfileHub = lazy(() => import('@/components/ProfileHub'));
 const VoiceChat = lazy(() => import('@/components/VoiceChat'));
+const VoicePage = lazy(() => import('@/pages/VoicePage'));
 const StoryInsights = lazy(() => import('@/components/StoryInsights'));
 const PerformanceDashboard = lazy(() => import('@/components/PerformanceDashboard'));
 const MonitoringDashboard = lazy(() => import('@/components/MonitoringDashboard'));
@@ -38,6 +39,7 @@ const InsightsHub = lazy(() => import('@/components/InsightsHub'));
 const WellnessHub = lazy(() => import('@/components/WellnessHub'));
 const UpgradePage = lazy(() => import('@/pages/UpgradePage'));
 const HealthMonitoring = lazy(() => import('@/components/HealthMonitoring'));
+const SecurityMonitor = lazy(() => import('@/components/Admin/SecurityMonitor'));
 
 export interface RouteDefinition {
   path: string;
@@ -59,6 +61,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/analytics', component: MoodAnalytics, protected: true, feature: 'analytics', featureTitle: 'Analyser är en Premium-funktion' },
   { path: '/health-monitoring', component: HealthMonitoring, protected: true, requireAdmin: true },
   { path: '/admin/analytics-dashboard', component: AnalyticsDashboard, protected: true, requireAdmin: true },
+  { path: '/admin/security', component: SecurityMonitor, protected: true, requireAdmin: true },
   { path: '/integrations', component: OAuthHealthIntegrations, protected: true },
   { path: '/referral', component: ReferralProgram, protected: true },
   { path: '/feedback', component: FeedbackForm, protected: true },
@@ -71,6 +74,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/profile', component: ProfileHub, protected: true },
   { path: '/ai-chat', component: WorldClassAIChatWrapper, protected: true },
   { path: '/voice-chat', component: VoiceChat, protected: true, feature: 'voiceChat', featureTitle: 'Röstchatt är en Premium-funktion' },
+  { path: '/voice', component: VoicePage, protected: true },
   { path: '/mood-logger', component: WorldClassMoodLoggerWrapper, protected: true },
   { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
   { path: '/mood-list', component: MoodListWrapper, protected: true },

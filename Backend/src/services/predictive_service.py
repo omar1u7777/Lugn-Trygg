@@ -65,10 +65,10 @@ class PredictiveAnalyticsService:
         df = df.sort_values('timestamp')
 
         # Extract time-based features
-        df['hour'] = df['timestamp'].dt.hour
-        df['day_of_week'] = df['timestamp'].dt.dayofweek
-        df['month'] = df['timestamp'].dt.month
-        df['day_of_year'] = df['timestamp'].dt.dayofyear
+        df['hour'] = df['timestamp'].dt.hour  # type: ignore[attr-defined]
+        df['day_of_week'] = df['timestamp'].dt.dayofweek  # type: ignore[attr-defined]
+        df['month'] = df['timestamp'].dt.month  # type: ignore[attr-defined]
+        df['day_of_year'] = df['timestamp'].dt.dayofyear  # type: ignore[attr-defined]
 
         # Calculate mood score (simplified sentiment mapping)
         mood_score_map = {
@@ -77,9 +77,9 @@ class PredictiveAnalyticsService:
             'bad': 2, 'very_bad': 1, 'terrible': 1
         }
 
-        df['mood_score'] = df.get('mood_text', '').apply(
+        df['mood_score'] = df['mood_text'].apply(
             lambda x: self._extract_mood_score(x) if pd.notna(x) else 3
-        )
+        ) if 'mood_text' in df.columns else 3
 
         # Calculate rolling averages and trends
         df['prev_mood'] = df['mood_score'].shift(1)
@@ -330,8 +330,8 @@ class PredictiveAnalyticsService:
             return 0.5
 
         historical_scores = historical_df['mood_score'].values
-        mean_score = np.mean(historical_scores)
-        std_score = np.std(historical_scores)
+        mean_score = float(np.mean(historical_scores.astype(float)))  # type: ignore[arg-type]
+        std_score = float(np.std(historical_scores.astype(float)))  # type: ignore[arg-type]
 
         if std_score == 0:
             return 0.8  # High confidence if no variance
@@ -397,7 +397,7 @@ class PredictiveAnalyticsService:
 
             # 4. No improvement over time
             if len(recent_scores) >= 5:
-                trend_direction = np.polyfit(range(len(recent_scores)), recent_scores, 1)[0]
+                trend_direction = np.polyfit(range(len(recent_scores)), recent_scores.astype(float), 1)[0]  # type: ignore[arg-type]
                 if trend_direction < -0.1:  # Declining trend
                     indicators.append('Försämrande trend')
                     risk_score += 0.2

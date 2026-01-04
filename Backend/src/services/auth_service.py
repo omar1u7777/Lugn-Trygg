@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timezone
 import logging
 import jwt
@@ -19,12 +19,24 @@ from webauthn.helpers import (
     bytes_to_base64url,
     options_to_json_dict
 )
+from webauthn.helpers.structs import UserVerificationRequirement
+from google.cloud.firestore_v1.base_query import FieldFilter
 from flask import request, jsonify
 from ..utils import convert_email_to_punycode  # Flyttad till utils.py
 from ..firebase_config import (
     auth as firebase_auth,
     db,
 )
+from .tamper_detection_service import tamper_detection_service
+
+# Type checking imports for Pylance
+if TYPE_CHECKING:
+    from firebase_admin import auth as _firebase_auth_type
+    from google.cloud.firestore import Client as _FirestoreClient
+
+# Runtime type hints with None fallback for lazy initialization
+_db: "_FirestoreClient" = db  # type: ignore[assignment]
+_auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 from ..models.user import User
 from ..services.audit_service import AuditService
 from ..config import (
@@ -84,7 +96,7 @@ class AuthService:
             raise ValidationError("Email and password are required")
 
         # Create user in Firebase Authentication
-        firebase_user = firebase_auth.create_user(email=email, password=password)
+        firebase_user = _auth.create_user(email=email, password=password)
 
         # Convert email to Punycode
         punycode_email = convert_email_to_punycode(email)
@@ -97,7 +109,7 @@ class AuthService:
             "last_login": None
         }
 
-        db.collection("users").document(firebase_user.uid).set(user_data)
+        _db.collection("users").document(firebase_user.uid).set(user_data)
 
         user = User(uid=str(firebase_user.uid), email=str(email))
         logger.info(f"✅ User registered with UID: {firebase_user.uid}")
@@ -112,13 +124,13 @@ class AuthService:
         """Verify user identity for account changes"""
         try:
             # Get user record from Firebase Auth
-            user_record = firebase_auth.get_user(user_id)
+            user_record = _auth.get_user(user_id)
             user = User(uid=str(user_record.uid), email=str(user_record.email))
             return user, None
 
         except Exception as e:
             logger.error(f"User verification failed for user {user_id}: {str(e)}")
-            return None, "Användare kunde inte verifieras!"
+            return None, "User could not be verified"
 
     @staticmethod
     def login_user(email: str, password: str) -> Tuple[Optional[User], Optional[str], Optional[str], Optional[str]]:
@@ -139,6 +151,19 @@ class AuthService:
             if is_locked:
                 logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
                 logger.info(f"🔐 DEBUG: Account lockout detected for {email}")
+                
+                # Record security event for locked account access attempt
+                tamper_detection_service.record_event(
+                    event_type='LOCKED_ACCOUNT_ACCESS',
+                    message=f'Login attempt on locked account: {email}',
+                    severity='high',
+                    metadata={
+                        'email': email,
+                        'ip': request.remote_addr if request else 'unknown',
+                        'lockout_message': lockout_message
+                    }
+                )
+                
                 return None, lockout_message, None, None
             logger.info(f"🔐 DEBUG: No account lockout for {email}")
 
@@ -171,7 +196,7 @@ class AuthService:
             refresh_token = AuthService.generate_refresh_token(user_uid)
 
             # Store refresh token
-            db.collection("refresh_tokens").document(user_uid).set({
+            _db.collection("refresh_tokens").document(user_uid).set({
                 "jwt_refresh_token": refresh_token,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }, merge=True)
@@ -187,6 +212,18 @@ class AuthService:
         except Exception as e:
             # Record failed attempt
             AuthService.record_failed_attempt(email)
+
+            # Record security event for failed login
+            tamper_detection_service.record_event(
+                event_type='FAILED_LOGIN',
+                message=f'Failed login attempt for: {email}',
+                severity='low',
+                metadata={
+                    'email': email,
+                    'ip': request.remote_addr if request else 'unknown',
+                    'error': str(e)[:100]
+                }
+            )
 
             logger.exception(f"🔥 Login failed for {email}: {str(e)}")
             return None, "Invalid email or password", None, None
@@ -213,34 +250,47 @@ class AuthService:
                 is_locked, lockout_message = AuthService.check_account_lockout(email)
                 if is_locked:
                     logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
+                    
+                    # Record security event for locked account access attempt
+                    tamper_detection_service.record_event(
+                        event_type='LOCKED_ACCOUNT_ACCESS',
+                        message=f'ID token login attempt on locked account: {email}',
+                        severity='high',
+                        metadata={
+                            'email': email,
+                            'ip': request.remote_addr if request else 'unknown',
+                            'lockout_message': lockout_message
+                        }
+                    )
+                    
                     return None, f"Account is locked out due to too many failed attempts. {lockout_message}", None, None
 
-            # Verifiera ID-token med Firebase Admin SDK
-            decoded_token = firebase_auth.verify_id_token(id_token)
+            # Verify ID token with Firebase Admin SDK
+            decoded_token = _auth.verify_id_token(id_token)
             user_id = decoded_token['uid']
             email = decoded_token.get('email')
 
-            # Hämta användardata från Firebase Authentication
-            user_record = firebase_auth.get_user(user_id)
+            # Get user data from Firebase Authentication
+            user_record = _auth.get_user(user_id)
 
             # Reset failed attempts on successful login
             if email:
                 AuthService.reset_failed_attempts(email)
 
-            # Generera JWT access-token
+            # Generate JWT access token
             access_token = AuthService.generate_access_token(user_id)
 
-            # Generera JWT refresh-token
+            # Generate JWT refresh token
             refresh_token = AuthService.generate_refresh_token(user_id)
 
-            # Spara refresh-token i Firestore
-            db.collection("refresh_tokens").document(user_id).set({
+            # Save refresh token in Firestore
+            _db.collection("refresh_tokens").document(user_id).set({
                 "jwt_refresh_token": refresh_token,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }, merge=True)
 
             user = User(uid=str(user_record.uid), email=str(user_record.email))
-            logger.info(f"✅ Inloggning lyckades för användare med UID: {user_record.uid}")
+            logger.info(f"✅ Login successful for user with UID: {user_record.uid}")
 
             # Audit log
             AuthService._audit_log("USER_LOGIN", str(user_record.uid), {"email": str(user_record.email)})
@@ -264,56 +314,60 @@ class AuthService:
                 # If we can't extract email, just log without recording failed attempt
                 pass
 
-            logger.exception(f"🔥 Fel vid ID-token-verifiering: {str(e)}")
-            return None, "Ogiltigt ID-token!", None, None
+            logger.exception(f"🔥 ID token verification failed: {str(e)}")
+            return None, "Invalid ID token", None, None
 
 
     @staticmethod
     def refresh_token(user_id: str) -> Tuple[Optional[str], Optional[str]]:
-        """Förnyar access-token med hjälp av vår egen JWT refresh-token"""
+        """Renew access token using our own JWT refresh token"""
         try:
-            # Hämta vår JWT refresh-token från Firestore
-            refresh_doc = db.collection("refresh_tokens").document(user_id).get()
+            # Get our JWT refresh token from Firestore
+            refresh_doc = _db.collection("refresh_tokens").document(user_id).get()
             if not refresh_doc.exists:
-                logger.warning(f"⛔ Ingen refresh-token hittades för UID: {user_id}")
-                return None, "Ogiltigt refresh-token!"
+                logger.warning(f"⛔ No refresh token found for UID: {user_id}")
+                return None, "Invalid refresh token"
 
             refresh_data = refresh_doc.to_dict()
+            if not refresh_data:
+                logger.warning(f"⛔ Empty refresh token data for UID: {user_id}")
+                return None, "Invalid refresh token"
+                
             jwt_refresh_token = refresh_data.get("jwt_refresh_token")
 
             if not jwt_refresh_token:
-                logger.warning(f"⛔ Ingen JWT refresh-token hittades för UID: {user_id}")
-                return None, "Ogiltigt refresh-token!"
+                logger.warning(f"⛔ No JWT refresh token found for UID: {user_id}")
+                return None, "Invalid refresh token"
 
-            # Verifiera vår JWT refresh-token
+            # Verify our JWT refresh token
             try:
                 payload = jwt.decode(jwt_refresh_token, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
                 token_user_id = payload.get("sub")
 
                 if token_user_id != user_id:
-                    logger.warning(f"⛔ Refresh-token user_id mismatch: expected {user_id}, got {token_user_id}")
-                    return None, "Ogiltigt refresh-token!"
+                    logger.warning(f"⛔ Refresh token user_id mismatch: expected {user_id}, got {token_user_id}")
+                    return None, "Invalid refresh token"
 
             except jwt.ExpiredSignatureError:
-                logger.warning("⛔ Refresh-token har gått ut")
-                return None, "Refresh-token har gått ut!"
+                logger.warning("⛔ Refresh token has expired")
+                return None, "Refresh token has expired"
             except jwt.InvalidTokenError as e:
-                logger.warning(f"⛔ Ogiltigt refresh-token: {str(e)}")
-                return None, "Ogiltigt refresh-token!"
+                logger.warning(f"⛔ Invalid refresh token: {str(e)}")
+                return None, "Invalid refresh token"
 
-            # Generera ett nytt JWT access-token
+            # Generate a new JWT access token
             new_access_token = AuthService.generate_access_token(user_id)
 
-            logger.info(f"✅ Access-token förnyad för användare: {user_id}")
+            logger.info(f"✅ Access token renewed for user: {user_id}")
             return new_access_token, None
 
         except Exception as e:
-            logger.exception(f"🔥 Fel vid förnyelse av token: {str(e)}")
-            return None, "Ett internt fel uppstod vid token-förnyelse."
+            logger.exception(f"🔥 Token renewal failed: {str(e)}")
+            return None, "Internal error during token renewal"
 
     @staticmethod
     def generate_access_token(user_id: str) -> str:
-        """Genererar JWT access-token"""
+        """Generate JWT access token"""
         return jwt.encode({
             "sub": user_id,
             "exp": datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRES
@@ -321,7 +375,7 @@ class AuthService:
 
     @staticmethod
     def generate_refresh_token(user_id: str) -> str:
-        """Genererar JWT refresh-token"""
+        """Generate JWT refresh token"""
         return jwt.encode({
             "sub": user_id,
             "exp": datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRES
@@ -329,33 +383,33 @@ class AuthService:
 
     @staticmethod
     def logout(user_id: str) -> Tuple[Optional[str], Optional[str]]:
-        """Tar bort refresh-token vid utloggning"""
+        """Remove refresh token on logout"""
         try:
-            db.collection("refresh_tokens").document(user_id).delete()
-            logger.info(f"✅ Användare med UID: {user_id} har loggats ut framgångsrikt.")
+            _db.collection("refresh_tokens").document(user_id).delete()
+            logger.info(f"✅ User with UID: {user_id} has been logged out successfully.")
 
             # Audit log
             AuthService._audit_log("USER_LOGOUT", user_id, {})
 
-            return "Utloggning lyckades!", None
+            return "Logout successful", None
         except Exception as e:
-            logger.exception(f"🔥 Fel vid utloggning: {str(e)}")
-            return None, f"Ett internt fel uppstod vid utloggning: {str(e)}"
+            logger.exception(f"🔥 Error during logout: {str(e)}")
+            return None, f"Internal error during logout: {str(e)}"
 
     @staticmethod
     def verify_token(token: str) -> Tuple[Optional[str], Optional[str]]:
-        """Verifierar JWT-token och returnerar user_id om giltig"""
+        """Verify JWT token and return user_id if valid"""
         # CRITICAL FIX: Enhanced token validation with security checks
         try:
             # CRITICAL FIX: Validate token format before decoding
             if not token or len(token) < 20:
                 logger.warning("⚠️ Invalid token format (too short)")
-                return None, "Ogiltigt token-format!"
+                return None, "Invalid token format"
             
             # CRITICAL FIX: Validate token structure (JWT has 3 parts separated by dots)
             if token.count('.') != 2:
                 logger.warning("⚠️ Invalid token structure")
-                return None, "Ogiltigt token-format!"
+                return None, "Invalid token format"
             
             # Decode and verify token
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
@@ -363,28 +417,28 @@ class AuthService:
             
             if not user_id:
                 logger.warning("⚠️ Token missing user_id (sub claim)")
-                return None, "Ogiltigt token-innehåll!"
+                return None, "Invalid token content"
             
             # CRITICAL FIX: Validate user_id format (should be alphanumeric)
             if not isinstance(user_id, str) or len(user_id) < 10:
                 logger.warning(f"⚠️ Invalid user_id format: {user_id}")
-                return None, "Ogiltigt användar-ID i token!"
+                return None, "Invalid user ID in token"
             
             return user_id, None
             
         except jwt.ExpiredSignatureError:
             logger.warning("⚠️ Token expired")
-            return None, "Token har gått ut!"
+            return None, "Token has expired"
         except jwt.InvalidTokenError as e:
             logger.warning(f"⚠️ Invalid token: {str(e)}")
-            return None, "Ogiltigt token!"
+            return None, "Invalid token"
         except Exception as e:
-            logger.exception(f"🔥 Fel vid token-verifiering: {str(e)}")
-            return None, "Ett internt fel uppstod vid token-verifiering."
+            logger.exception(f"🔥 Token verification failed: {str(e)}")
+            return None, "Internal error during token verification"
 
     @staticmethod
     def jwt_required(f):
-        """Dekorator för att kräva giltig JWT-token - OPTIMIZED for performance"""
+        """Decorator requiring valid JWT token - OPTIMIZED for performance"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
             from flask import request, g
@@ -396,16 +450,15 @@ class AuthService:
             # Get and validate authorization header
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
-                return jsonify({"error": "Authorization header saknas eller är ogiltig!"}), 401
+                return jsonify({"error": "Missing or invalid Authorization header"}), 401
 
             token = auth_header.split(" ")[1]
             user_id, error = AuthService.verify_token(token)
             if error:
                 return jsonify({"error": error}), 401
 
-            # Set user_id in both g and request for compatibility
+            # Set user_id in Flask g context
             g.user_id = user_id
-            request.user_id = user_id
             
             return f(*args, **kwargs)
         return decorated_function
@@ -426,7 +479,7 @@ class AuthService:
 
             # Store challenge temporarily
             challenge_b64 = bytes_to_base64url(registration_options.challenge)
-            db.collection("webauthn_challenges").document(user_id).set({
+            _db.collection("webauthn_challenges").document(user_id).set({
                 "challenge": challenge_b64,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "type": "registration"
@@ -445,12 +498,16 @@ class AuthService:
         """Register WebAuthn credential with full cryptographic verification"""
         try:
             # Get stored challenge
-            challenge_doc = db.collection("webauthn_challenges").document(user_id).get()
+            challenge_doc = _db.collection("webauthn_challenges").document(user_id).get()
             if not challenge_doc.exists:
                 logger.warning(f"No challenge found for user {user_id}")
                 return False
 
             challenge_data = challenge_doc.to_dict()
+            if not challenge_data:
+                logger.warning(f"Empty challenge data for user {user_id}")
+                return False
+                
             stored_challenge_b64 = challenge_data.get("challenge")
             if not stored_challenge_b64:
                 logger.warning(f"No challenge stored for user {user_id}")
@@ -472,7 +529,7 @@ class AuthService:
             credential_id_b64 = bytes_to_base64url(verification.credential_id)
             public_key_b64 = bytes_to_base64url(verification.credential_public_key)
 
-            db.collection("webauthn_credentials").document(credential_id_b64).set({
+            _db.collection("webauthn_credentials").document(credential_id_b64).set({
                 "user_id": user_id,
                 "credential_id": credential_id_b64,
                 "public_key": public_key_b64,
@@ -481,7 +538,7 @@ class AuthService:
             })
 
             # Clean up challenge
-            db.collection("webauthn_challenges").document(user_id).delete()
+            _db.collection("webauthn_challenges").document(user_id).delete()
 
             # Audit log
             audit_service = AuditService()
@@ -499,8 +556,7 @@ class AuthService:
         """Generate WebAuthn authentication options"""
         try:
             # Get stored credentials for this user
-            from firebase_admin.firestore import FieldFilter
-            credentials_query = db.collection("webauthn_credentials").where(filter=FieldFilter("user_id", "==", user_id)).stream()
+            credentials_query = _db.collection("webauthn_credentials").where(filter=FieldFilter("user_id", "==", user_id)).stream()
             credential_ids = []
             for doc in credentials_query:
                 cred_data = doc.to_dict()
@@ -515,12 +571,12 @@ class AuthService:
                 rp_id=WEBAUTHN_RP_ID,
                 challenge=secrets.token_bytes(32),
                 allow_credentials=credential_ids,
-                user_verification="preferred"
+                user_verification=UserVerificationRequirement.PREFERRED
             )
 
             # Store challenge temporarily
             challenge_b64 = bytes_to_base64url(auth_options.challenge)
-            db.collection("webauthn_challenges").document(user_id).set({
+            _db.collection("webauthn_challenges").document(user_id).set({
                 "challenge": challenge_b64,
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "type": "authentication"
@@ -539,12 +595,16 @@ class AuthService:
         """Verify WebAuthn assertion with full cryptographic verification"""
         try:
             # Get stored challenge
-            challenge_doc = db.collection("webauthn_challenges").document(user_id).get()
+            challenge_doc = _db.collection("webauthn_challenges").document(user_id).get()
             if not challenge_doc.exists:
                 logger.warning(f"No challenge found for user {user_id}")
                 return False
 
             challenge_data = challenge_doc.to_dict()
+            if not challenge_data:
+                logger.warning(f"Empty challenge data for user {user_id}")
+                return False
+                
             stored_challenge_b64 = challenge_data.get("challenge")
             if not stored_challenge_b64:
                 logger.warning(f"No challenge stored for user {user_id}")
@@ -557,12 +617,16 @@ class AuthService:
                 return False
 
             # Get stored credential
-            credential_doc = db.collection("webauthn_credentials").document(credential_id_b64).get()
+            credential_doc = _db.collection("webauthn_credentials").document(credential_id_b64).get()
             if not credential_doc.exists:
                 logger.warning(f"Credential {credential_id_b64} not found")
                 return False
 
             cred_data = credential_doc.to_dict()
+            if not cred_data:
+                logger.warning(f"Empty credential data for {credential_id_b64}")
+                return False
+                
             if cred_data.get("user_id") != user_id:
                 logger.warning(f"Credential does not belong to user {user_id}")
                 return False
@@ -584,13 +648,13 @@ class AuthService:
             )
 
             # Update sign count
-            db.collection("webauthn_credentials").document(credential_id_b64).update({
+            _db.collection("webauthn_credentials").document(credential_id_b64).update({
                 "sign_count": verification.new_sign_count,
                 "last_used": datetime.now(timezone.utc).isoformat()
             })
 
             # Clean up challenge
-            db.collection("webauthn_challenges").document(user_id).delete()
+            _db.collection("webauthn_challenges").document(user_id).delete()
 
             # Audit log
             audit_service = AuditService()
@@ -609,13 +673,16 @@ class AuthService:
         """Check if account is currently locked out"""
         try:
             # Get failed attempts document
-            doc_ref = db.collection("failed_login_attempts").document(email)
+            doc_ref = _db.collection("failed_login_attempts").document(email)
             doc = doc_ref.get()
 
             if not doc.exists:
                 return False, None
 
             data = doc.to_dict()
+            if not data:
+                return False, None
+                
             lockout_until = data.get("lockout_until")
 
             if lockout_until:
@@ -642,7 +709,7 @@ class AuthService:
     def record_failed_attempt(email: str):
         """Record a failed login attempt"""
         try:
-            doc_ref = db.collection("failed_login_attempts").document(email)
+            doc_ref = _db.collection("failed_login_attempts").document(email)
             doc = doc_ref.get()
 
             current_time = datetime.now(timezone.utc).isoformat()
@@ -650,7 +717,10 @@ class AuthService:
             attempt_count = 1
             if doc.exists:
                 data = doc.to_dict()
-                attempt_count = data.get("attempt_count", 0) + 1
+                if data:
+                    attempt_count = data.get("attempt_count", 0) + 1
+                else:
+                    attempt_count = 1
                 last_attempt = current_time
 
                 # Calculate lockout duration based on attempt count
@@ -689,7 +759,7 @@ class AuthService:
     def reset_failed_attempts(email: str):
         """Reset failed attempts after successful login"""
         try:
-            doc_ref = db.collection("failed_login_attempts").document(email)
+            doc_ref = _db.collection("failed_login_attempts").document(email)
             doc_ref.delete()
             logger.info(f"Failed attempts reset for {email}")
         except Exception as e:
@@ -713,7 +783,7 @@ class AuthService:
         expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
 
         try:
-            db.collection('password_reset_tokens').document(token_hash).set({
+            _db.collection('password_reset_tokens').document(token_hash).set({
                 'user_id': user_id,
                 'created_at': datetime.now(timezone.utc).isoformat(),
                 'expires_at': expiry,
@@ -736,13 +806,16 @@ class AuthService:
 
         try:
             # Get token from database
-            token_doc = db.collection('password_reset_tokens').document(token_hash).get()
+            token_doc = _db.collection('password_reset_tokens').document(token_hash).get()
 
             if not token_doc.exists:
                 logger.warning("Password reset token not found")
                 return None, "Invalid or expired reset token"
 
             token_data = token_doc.to_dict()
+            if not token_data:
+                logger.warning("Empty password reset token data")
+                return None, "Invalid reset token"
 
             # Check if token is used
             if token_data.get('used', False):
@@ -766,7 +839,7 @@ class AuthService:
                 return None, "Invalid reset token"
 
             # Mark token as used
-            db.collection('password_reset_tokens').document(token_hash).update({
+            _db.collection('password_reset_tokens').document(token_hash).update({
                 'used': True,
                 'used_at': datetime.now(timezone.utc).isoformat()
             })

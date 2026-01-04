@@ -16,6 +16,9 @@ from datetime import datetime, UTC
 
 from src.utils.hf_cache import configure_hf_cache
 
+# Initialize Sentry for production error tracking (must be before Flask app creation)
+from src.monitoring.sentry_config import init_sentry
+
 # Add Backend directory to sys.path to enable imports from src
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 if backend_dir not in sys.path:
@@ -25,7 +28,7 @@ if backend_dir not in sys.path:
 load_dotenv()
 configure_hf_cache()
 
-# Configure logging
+# Configure logging BEFORE Sentry init so logger is available
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -36,6 +39,13 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry early (before app creation for best error capture)
+sentry_initialized = init_sentry()
+if sentry_initialized:
+    logger.info("✅ Sentry error tracking enabled")
+else:
+    logger.warning("⚠️ Sentry not configured - set SENTRY_DSN for production monitoring")
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -172,7 +182,6 @@ try:
     from src.services.api_key_rotation import start_key_rotation
     from src.services.backup_service import backup_service
     from src.services.monitoring_service import monitoring_service
-    from src.services.query_monitor import query_monitor
 
     # Middleware
     from src.middleware.security_headers import init_security_headers
@@ -187,13 +196,10 @@ try:
     from src.routes.mood_stats_routes import mood_stats_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.ai_routes import ai_bp
-    from src.routes.ai_helpers_routes import ai_helpers_bp
-    from src.routes.ai_stories_routes import ai_stories_bp
     from src.routes.chatbot_routes import chatbot_bp
     from src.routes.feedback_routes import feedback_bp
     from src.routes.notifications_routes import notifications_bp
     from src.routes.referral_routes import referral_bp
-    from src.routes.sync_routes import sync_bp
     from src.routes.users_routes import users_bp
     from src.routes.integration_routes import integration_bp
     from src.routes.subscription_routes import subscription_bp
@@ -207,17 +213,28 @@ try:
     from src.routes.privacy_routes import privacy_bp
     from src.routes.health_routes import health_bp
     from src.routes.journal_routes import journal_bp
-    from src.routes.challenges_routes import challenges_bp
+    from src.routes.challenges_routes import challenges_bp, init_challenges_defaults
     from src.routes.rewards_routes import rewards_bp
     from src.routes.audio_routes import audio_bp
     from src.routes.peer_chat_routes import peer_chat_bp
     from src.routes.leaderboard_routes import leaderboard_bp
     from src.routes.voice_routes import voice_bp
     from src.routes.sync_history_routes import sync_history_bp
-    from src.routes.chat_alias_routes import chat_alias_bp
+    from src.routes.cbt_routes import cbt_bp
+    from src.routes.consent_routes import consent_bp
+    from src.routes.crisis_routes import crisis_bp
 
     # Initialize Firebase
     initialize_firebase()
+    
+    # Initialize monitoring service
+    try:
+        from src.services.monitoring_service import init_monitoring_service
+        from src.config import config
+        monitoring_service_instance = init_monitoring_service(config)
+        logger.info("✅ Monitoring service initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Monitoring service initialization failed (non-critical): {e}")
 
     # Initialize middleware (MUST be before CORS handlers so CORS runs LAST)
     init_security_headers(app)
@@ -282,28 +299,10 @@ try:
         logger.error(f"❌ Failed to register ai_bp: {e}")
 
     try:
-        app.register_blueprint(ai_stories_bp, url_prefix='/api/ai')
-        logger.info("✅ Registered ai_stories_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register ai_stories_bp: {e}")
-
-    try:
-        app.register_blueprint(ai_helpers_bp, url_prefix='/api/ai-helpers')
-        logger.info("✅ Registered ai_helpers_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register ai_helpers_bp: {e}")
-
-    try:
         app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
         logger.info("✅ Registered chatbot_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register chatbot_bp: {e}")
-
-    try:
-        app.register_blueprint(chat_alias_bp, url_prefix='/api/chat')
-        logger.info("✅ Registered chat_alias_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register chat_alias_bp: {e}")
 
     try:
         app.register_blueprint(feedback_bp, url_prefix='/api/feedback')
@@ -322,12 +321,6 @@ try:
         logger.info("✅ Registered referral_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register referral_bp: {e}")
-
-    try:
-        app.register_blueprint(sync_bp, url_prefix='/api/sync')
-        logger.info("✅ Registered sync_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register sync_bp: {e}")
 
     try:
         app.register_blueprint(users_bp, url_prefix='/api/users')
@@ -397,6 +390,7 @@ try:
 
     try:
         app.register_blueprint(challenges_bp, url_prefix='/api/challenges')
+        init_challenges_defaults()
         logger.info("✅ Registered challenges_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register challenges_bp: {e}")
@@ -436,6 +430,24 @@ try:
         logger.info("✅ Registered sync_history_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register sync_history_bp: {e}")
+
+    try:
+        app.register_blueprint(cbt_bp, url_prefix='/api/cbt')
+        logger.info("✅ Registered cbt_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register cbt_bp: {e}")
+
+    try:
+        app.register_blueprint(consent_bp, url_prefix='/api/consent')
+        logger.info("✅ Registered consent_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register consent_bp: {e}")
+
+    try:
+        app.register_blueprint(crisis_bp, url_prefix='/api/crisis')
+        logger.info("✅ Registered crisis_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register crisis_bp: {e}")
 
     # Debug: Print URL map
     logger.info("🔍 DEBUG: URL Map after blueprint registration:")

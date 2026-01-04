@@ -5,6 +5,7 @@ import base64
 
 def test_transcribe_audio_succeeds(client, auth_headers, mock_auth_service, mocker):
     mocker.patch('src.routes.voice_routes.transcribe_audio_google', return_value='Hej världen')
+    mocker.patch('src.routes.voice_routes.audit_log')  # Mock audit_log
     audio_payload = base64.b64encode(b'test-bytes').decode('utf-8')
 
     response = client.post(
@@ -16,7 +17,9 @@ def test_transcribe_audio_succeeds(client, auth_headers, mock_auth_service, mock
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
-    assert data['transcript'] == 'Hej världen'
+    assert data['data']['transcript'] == 'Hej världen'
+    assert data['data']['confidence'] == 0.85
+    assert data['data']['language'] == 'sv-SE'
 
 
 def test_transcribe_audio_handles_invalid_base64(client, auth_headers, mock_auth_service):
@@ -27,7 +30,9 @@ def test_transcribe_audio_handles_invalid_base64(client, auth_headers, mock_auth
     )
 
     assert response.status_code == 400
-    assert response.get_json()['error'] == 'Invalid base64 audio data'
+    data = response.get_json()
+    assert data['success'] is False
+    assert 'Invalid base64 audio data' in data['message']
 
 
 def test_analyze_voice_emotion_combines_audio_and_text(client, auth_headers, mock_auth_service, mocker):
@@ -44,6 +49,7 @@ def test_analyze_voice_emotion_combines_audio_and_text(client, auth_headers, moc
         'all': {'happy': 0.9, 'neutral': 0.1},
         'primary': 'happy'
     })
+    mocker.patch('src.routes.voice_routes.audit_log')  # Mock audit_log
 
     payload = {
         'audio_data': base64.b64encode(b'audio').decode('utf-8'),
@@ -54,8 +60,11 @@ def test_analyze_voice_emotion_combines_audio_and_text(client, auth_headers, moc
 
     assert response.status_code == 200
     body = response.get_json()
-    assert body['primary_emotion'] == 'happy'
-    assert 'emotions' in body
+    assert body['success'] is True
+    assert body['data']['primaryEmotion'] == 'happy'
+    assert 'emotions' in body['data']
+    assert 'energyLevel' in body['data']
+    assert 'speakingPace' in body['data']
 
 
 def test_voice_service_status_reports_google_flag(client, mocker):
@@ -64,4 +73,8 @@ def test_voice_service_status_reports_google_flag(client, mocker):
     response = client.get('/api/voice/status')
 
     assert response.status_code == 200
-    assert response.get_json()['google_speech'] is True
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['data']['googleSpeech'] is True
+    assert data['data']['emotionAnalysis'] is True
+    assert 'supportedLanguages' in data['data']

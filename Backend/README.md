@@ -20,6 +20,10 @@ Production-grade Flask API powering the Lugn & Trygg platform.
    - Any third-party keys (Stripe, OpenAI, Resend, etc.)
 4. Configure `CORS_ALLOWED_ORIGINS` to the production front-end domains.
 5. Add `REDIS_URL` when using the advanced rate limiter (e.g. `redis://redis:6379/0`).
+6. Challenges service (prod defaults):
+   - `ALLOW_IN_MEMORY_CHALLENGES=false` (avoid in-memory fallback in prod)
+   - `PUBLIC_CHALLENGES_GET=false` (set to `true` only if challenge listings must be public)
+   - Ensure Firestore credentials are present (via `FIREBASE_CREDENTIALS` or file path) so 503 fallback never triggers.
 
 > **Never** commit `.env`, credentials, or secrets. Use your cloud secret manager in production.
 
@@ -63,6 +67,11 @@ The application starts several background workers when `TESTING` is false:
 - API key rotation scheduler
 - Automated backups
 - Monitoring service
+
+### Scheduled maintenance (challenges cleanup)
+- Schedule a daily POST to `/api/challenges/maintenance/cleanup` with `Authorization: Bearer <JWT>`.
+- Cloud Scheduler example: HTTP target → URL to your backend → method POST → add header `Authorization: Bearer <JWT_TOKEN>`.
+- Use a short-lived JWT from a secure generator (Cloud Function/Run) or a service account flow.
 
 Confirm these services are permitted to run in your hosting environment and have required permissions (Firestore/Storage access).
 

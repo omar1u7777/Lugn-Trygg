@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from src.utils.ai_services import AIServices
+from src.services.ai_service import AIServices
 
 
 class TestAIServices:
@@ -55,7 +55,7 @@ class TestAIServices:
         assert result["risk_level"] in ["MEDIUM", "HIGH", "CRITICAL"]
         assert result["requires_immediate_attention"] is True
 
-    @patch('src.utils.ai_services.os.getenv')
+    @patch('src.services.ai_service.os.getenv')
     def test_openai_available_when_configured(self, mock_getenv, ai_service, mock_openai_client):
         """Test OpenAI availability when properly configured"""
         mock_getenv.return_value = "test-key"
@@ -64,7 +64,7 @@ class TestAIServices:
             ai_service._check_openai()  # Reset check
             assert ai_service.openai_available is True
 
-    @patch('src.utils.ai_services.os.getenv')
+    @patch('src.services.ai_service.os.getenv')
     def test_openai_not_available_without_key(self, mock_getenv, ai_service):
         """Test OpenAI not available without API key"""
         mock_getenv.return_value = None

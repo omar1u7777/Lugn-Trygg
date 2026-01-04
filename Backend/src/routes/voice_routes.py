@@ -2,18 +2,52 @@
 Voice Routes - Real speech-to-text and voice analysis endpoints
 Uses Google Cloud Speech-to-Text API for transcription
 """
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, g
 import logging
 import base64
 from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.audit_service import audit_log
+from ..utils.response_utils import APIResponse
+from ..utils.input_sanitization import sanitize_text
 from ..utils.speech_utils import transcribe_audio_google
 
 voice_bp = Blueprint('voice', __name__)
 logger = logging.getLogger(__name__)
 
 
-@voice_bp.route('/transcribe', methods=['POST', 'OPTIONS'])
+# ============================================================================
+# OPTIONS Handlers (CORS Preflight)
+# ============================================================================
+
+@voice_bp.route('/transcribe', methods=['OPTIONS'])
+def transcribe_options():
+    """Handle CORS preflight for transcribe endpoint"""
+    return APIResponse.success()
+
+
+@voice_bp.route('/analyze-emotion', methods=['OPTIONS'])
+def analyze_emotion_options():
+    """Handle CORS preflight for analyze-emotion endpoint"""
+    return APIResponse.success()
+
+
+@voice_bp.route('/status', methods=['OPTIONS'])
+def status_options():
+    """Handle CORS preflight for status endpoint"""
+    return APIResponse.success()
+
+
+# ============================================================================
+# Voice Transcription
+# ============================================================================
+# ============================================================================
+# Voice Transcription
+# ============================================================================
+
+@voice_bp.route('/transcribe', methods=['POST'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def transcribe_audio():
     """
     Transcribe audio to text using Google Cloud Speech-to-Text
@@ -26,62 +60,75 @@ def transcribe_audio():
         transcript: The transcribed text
         confidence: Confidence score (0-1)
     """
-    if request.method == 'OPTIONS':
-        return '', 204
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return APIResponse.bad_request("No data provided")
         
+    audio_base64 = data.get('audio_data')
+    language = sanitize_text(data.get('language', 'sv-SE'), max_length=10)
+    
+    if not audio_base64:
+        return APIResponse.bad_request("audio_data is required")
+    
+    # Decode base64 audio
     try:
-        user_id = g.user_id
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-            
-        audio_base64 = data.get('audio_data')
-        language = data.get('language', 'sv-SE')
-        
-        if not audio_base64:
-            return jsonify({'error': 'audio_data is required'}), 400
-        
-        # Decode base64 audio
-        try:
-            audio_bytes = base64.b64decode(audio_base64)
-            logger.info(f"📦 Received audio: {len(audio_bytes)} bytes from user {user_id}")
-        except Exception as decode_error:
-            logger.error(f"❌ Failed to decode base64 audio: {decode_error}")
-            return jsonify({'error': 'Invalid base64 audio data'}), 400
-        
+        audio_bytes = base64.b64decode(audio_base64)
+        logger.info(f"📦 Received audio: {len(audio_bytes)} bytes from user {user_id}")
+    except Exception as decode_error:
+        logger.error(f"❌ Failed to decode base64 audio: {decode_error}")
+        return APIResponse.bad_request("Invalid base64 audio data")
+    
+    try:
         # Transcribe using Google Cloud Speech-to-Text
         transcript = transcribe_audio_google(audio_bytes, language)
         
         if transcript:
-            logger.info(f"✅ Transcription successful for user {user_id}: {len(transcript)} chars")
-            return jsonify({
-                'success': True,
-                'transcript': transcript,
-                'confidence': 0.85,  # Google doesn't always return confidence
-                'language': language
-            }), 200
-        else:
-            # If Google Speech fails, try Web Speech API fallback (client-side)
-            logger.warning(f"⚠️ Transcription failed for user {user_id}, suggesting client fallback")
-            return jsonify({
-                'success': False,
-                'error': 'transcription_failed',
-                'message': 'Google Speech-to-Text could not transcribe. Try speaking more clearly.',
-                'fallback': 'web_speech_api'
-            }), 200
+            audit_log(
+                event_type="VOICE_TRANSCRIPTION_SUCCESS",
+                user_id=user_id,
+                details={
+                    "transcript_length": len(transcript),
+                    "language": language,
+                    "audio_size_bytes": len(audio_bytes)
+                }
+            )
             
+            logger.info(f"✅ Transcription successful for user {user_id}: {len(transcript)} chars")
+            return APIResponse.success({
+                "transcript": transcript,
+                "confidence": 0.85,
+                "language": language
+            }, "Transcription successful")
+        else:
+            # If Google Speech fails, suggest client fallback
+            logger.warning(f"⚠️ Transcription failed for user {user_id}, suggesting client fallback")
+            return APIResponse.success({
+                "transcript": None,
+                "fallback": "web_speech_api",
+                "message": "Google Speech-to-Text could not transcribe. Try speaking more clearly."
+            }, "Transcription failed, use client fallback")
+    
     except Exception as e:
         logger.exception(f"❌ Voice transcription error: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'server_error',
-            'message': str(e)
-        }), 500
+        audit_log(
+            event_type="VOICE_TRANSCRIPTION_ERROR",
+            user_id=user_id,
+            details={"error": str(e), "language": language}
+        )
+        return APIResponse.error("Voice transcription failed", "TRANSCRIPTION_ERROR", 500, str(e))
 
 
-@voice_bp.route('/analyze-emotion', methods=['POST', 'OPTIONS'])
+# ============================================================================
+# Voice Emotion Analysis
+# ============================================================================
+
+@voice_bp.route('/analyze-emotion', methods=['POST'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def analyze_voice_emotion():
     """
     Analyze emotion from voice recording using audio features
@@ -98,30 +145,28 @@ def analyze_voice_emotion():
         energy_level: Overall energy/intensity level
         speaking_pace: Fast/normal/slow speaking pace
     """
-    if request.method == 'OPTIONS':
-        return '', 204
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+    data = request.get_json(silent=True)
+    
+    if not data:
+        return APIResponse.bad_request("No data provided")
         
+    audio_base64 = data.get('audio_data')
+    transcript = sanitize_text(data.get('transcript', ''), max_length=10000) if data.get('transcript') else ''
+    
+    if not audio_base64:
+        return APIResponse.bad_request("audio_data is required")
+    
+    # Decode audio
     try:
-        user_id = g.user_id
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-            
-        audio_base64 = data.get('audio_data')
-        transcript = data.get('transcript', '')
-        
-        if not audio_base64:
-            return jsonify({'error': 'audio_data is required'}), 400
-        
-        # Decode audio
-        try:
-            audio_bytes = base64.b64decode(audio_base64)
-        except Exception:
-            return jsonify({'error': 'Invalid base64 audio data'}), 400
-        
+        audio_bytes = base64.b64decode(audio_base64)
+    except Exception:
+        return APIResponse.bad_request("Invalid base64 audio data")
+    
+    try:
         # Analyze audio characteristics
-        # In production, this would use librosa or similar for proper analysis
         audio_analysis = analyze_audio_features(audio_bytes)
         
         # If we have a transcript, add text sentiment
@@ -132,25 +177,34 @@ def analyze_voice_emotion():
         # Combine audio and text analysis
         emotions = combine_emotion_analysis(audio_analysis, text_sentiment)
         
+        audit_log(
+            event_type="VOICE_EMOTION_ANALYZED",
+            user_id=user_id,
+            details={
+                "primary_emotion": emotions['primary'],
+                "has_transcript": bool(transcript),
+                "audio_size_bytes": len(audio_bytes)
+            }
+        )
+        
         logger.info(f"✅ Voice emotion analysis for user {user_id}: primary={emotions['primary']}")
         
-        return jsonify({
-            'success': True,
-            'emotions': emotions['all'],
-            'primary_emotion': emotions['primary'],
-            'energy_level': audio_analysis['energy_level'],
-            'speaking_pace': audio_analysis['pace'],
-            'volume_variation': audio_analysis['volume_variation']
-        }), 200
+        return APIResponse.success({
+            "emotions": emotions['all'],
+            "primaryEmotion": emotions['primary'],
+            "energyLevel": audio_analysis['energy_level'],
+            "speakingPace": audio_analysis['pace'],
+            "volumeVariation": audio_analysis['volume_variation']
+        }, "Emotion analysis successful")
         
     except Exception as e:
         logger.exception(f"❌ Voice emotion analysis error: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'analysis_failed',
-            'message': str(e)
-        }), 500
+        return APIResponse.error("Voice emotion analysis failed", "ANALYSIS_ERROR", 500, str(e))
 
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 def analyze_audio_features(audio_bytes: bytes) -> dict:
     """
@@ -254,7 +308,7 @@ def analyze_text_sentiment(text: str) -> dict:
     # Normalize scores
     total = sum(emotion_scores.values())
     normalized = {e: s/total for e, s in emotion_scores.items()}
-    primary = max(emotion_scores, key=emotion_scores.get)
+    primary = max(emotion_scores.keys(), key=lambda k: emotion_scores[k])  # type: ignore
     
     return {
         'primary': primary,
@@ -262,7 +316,7 @@ def analyze_text_sentiment(text: str) -> dict:
     }
 
 
-def combine_emotion_analysis(audio: dict, text: dict) -> dict:
+def combine_emotion_analysis(audio: dict, text: dict | None) -> dict:
     """
     Combine audio and text analysis for final emotion prediction
     """
@@ -297,7 +351,7 @@ def combine_emotion_analysis(audio: dict, text: dict) -> dict:
         emotions['calm'] += 0.1
     
     # Incorporate text sentiment if available
-    if text:
+    if text and isinstance(text, dict):
         text_scores = text.get('scores', {})
         for emotion, score in text_scores.items():
             if emotion in emotions:
@@ -311,7 +365,7 @@ def combine_emotion_analysis(audio: dict, text: dict) -> dict:
         emotions = {e: round(s/total, 2) for e, s in emotions.items()}
     
     # Find primary emotion
-    primary = max(emotions, key=emotions.get)
+    primary = max(emotions.keys(), key=lambda k: emotions[k])  # type: ignore
     
     return {
         'all': emotions,
@@ -319,24 +373,29 @@ def combine_emotion_analysis(audio: dict, text: dict) -> dict:
     }
 
 
+# ============================================================================
+# Service Status
+# ============================================================================
+
 @voice_bp.route('/status', methods=['GET'])
+@rate_limit_by_endpoint
 def voice_service_status():
     """Check if voice services are available"""
     try:
         from ..utils.speech_utils import initialize_google_speech
         google_available = initialize_google_speech()
         
-        return jsonify({
-            'google_speech': google_available,
-            'web_speech_fallback': True,
-            'emotion_analysis': True,
-            'supported_languages': ['sv-SE', 'en-US', 'en-GB', 'de-DE', 'fr-FR']
-        }), 200
+        return APIResponse.success({
+            "googleSpeech": google_available,
+            "webSpeechFallback": True,
+            "emotionAnalysis": True,
+            "supportedLanguages": ['sv-SE', 'en-US', 'en-GB', 'de-DE', 'fr-FR']
+        }, "Voice service status retrieved")
     except Exception as e:
         logger.error(f"Voice status check failed: {e}")
-        return jsonify({
-            'google_speech': False,
-            'web_speech_fallback': True,
-            'emotion_analysis': True,
-            'error': str(e)
-        }), 200
+        return APIResponse.success({
+            "googleSpeech": False,
+            "webSpeechFallback": True,
+            "emotionAnalysis": True,
+            "error": str(e)
+        }, "Voice service status retrieved with errors")

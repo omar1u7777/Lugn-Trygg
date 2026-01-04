@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api } from '../../api';
+import { grantBulkConsents, mapFrontendConsentsToBackend } from '../../api/consent';
 
 // Define consent types for type safety and maintainability
 const CONSENT_TYPES = {
@@ -8,6 +8,8 @@ const CONSENT_TYPES = {
   aiAnalysis: 'aiAnalysis',
   storage: 'storage',
   marketing: 'marketing',
+  termsOfService: 'termsOfService',
+  privacyPolicy: 'privacyPolicy',
 } as const;
 
 type ConsentType = typeof CONSENT_TYPES[keyof typeof CONSENT_TYPES];
@@ -17,6 +19,8 @@ interface Consents {
   [CONSENT_TYPES.aiAnalysis]: boolean;
   [CONSENT_TYPES.storage]: boolean;
   [CONSENT_TYPES.marketing]: boolean;
+  [CONSENT_TYPES.termsOfService]: boolean;
+  [CONSENT_TYPES.privacyPolicy]: boolean;
 }
 
 interface ConsentModalProps {
@@ -36,11 +40,25 @@ interface ConsentItem {
 // Define consent items configuration for better maintainability
 const CONSENT_ITEMS: ConsentItem[] = [
   {
+    key: CONSENT_TYPES.termsOfService,
+    labelKey: 'consent.termsOfService',
+    descKey: 'consent.termsOfServiceDesc',
+    required: true,
+    defaultChecked: false,
+  },
+  {
+    key: CONSENT_TYPES.privacyPolicy,
+    labelKey: 'consent.privacyPolicy',
+    descKey: 'consent.privacyPolicyDesc',
+    required: true,
+    defaultChecked: false,
+  },
+  {
     key: CONSENT_TYPES.dataProcessing,
     labelKey: 'consent.dataProcessing',
     descKey: 'consent.dataProcessingDesc',
     required: true,
-    defaultChecked: true,
+    defaultChecked: false,
   },
   {
     key: CONSENT_TYPES.aiAnalysis,
@@ -54,7 +72,7 @@ const CONSENT_ITEMS: ConsentItem[] = [
     labelKey: 'consent.storage',
     descKey: 'consent.storageDesc',
     required: true,
-    defaultChecked: true,
+    defaultChecked: false,
   },
   {
     key: CONSENT_TYPES.marketing,
@@ -114,11 +132,8 @@ const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose }) => {
     setError(null);
 
     try {
-      await api.post('/api/auth/consent', {
-        analytics_consent: consents.aiAnalysis,
-        marketing_consent: consents.marketing,
-        data_processing_consent: consents.dataProcessing,
-      });
+      const backendConsents = mapFrontendConsentsToBackend(consents);
+      await grantBulkConsents(backendConsents);
 
       // Store consent status in localStorage
       localStorage.setItem('consent_given', 'true');

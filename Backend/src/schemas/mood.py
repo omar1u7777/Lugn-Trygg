@@ -3,7 +3,7 @@ Mood tracking and analysis schemas
 Pydantic models for mood logging, analysis, and therapeutic content
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from enum import Enum
@@ -55,17 +55,22 @@ class MoodLogRequest(BaseRequest):
     activities: Optional[List[SanitizedString]] = Field(default_factory=list, max_length=10)
     timestamp: Optional[datetime] = None
 
-    @validator('note')
+    @field_validator('note', mode='before')
+    @classmethod
     def validate_note(cls, v):
         if v is not None:
             return validate_safe_string(v, 1000)
         return v
 
-    @validator('activities', each_item=True)
+    @field_validator('activities', mode='before')
+    @classmethod
     def validate_activities(cls, v):
-        return validate_safe_string(v, 100)
+        if isinstance(v, list):
+            return [validate_safe_string(item, 100) for item in v]
+        return v
 
-    @validator('location')
+    @field_validator('location', mode='before')
+    @classmethod
     def validate_location(cls, v):
         if v is not None:
             if not isinstance(v, dict) or 'lat' not in v or 'lng' not in v:
@@ -101,10 +106,9 @@ class MoodEntry(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )
 
 class MoodUpdateRequest(BaseRequest):
     """Update mood entry request"""
@@ -115,15 +119,19 @@ class MoodUpdateRequest(BaseRequest):
     triggers: Optional[List[TriggerType]] = None
     activities: Optional[List[SanitizedString]] = None
 
-    @validator('note')
+    @field_validator('note', mode='before')
+    @classmethod
     def validate_note(cls, v):
         if v is not None:
             return validate_safe_string(v, 1000)
         return v
 
-    @validator('activities', each_item=True)
+    @field_validator('activities', mode='before')
+    @classmethod
     def validate_activities(cls, v):
-        return validate_safe_string(v, 100)
+        if isinstance(v, list):
+            return [validate_safe_string(item, 100) for item in v]
+        return v
 
 # Analysis schemas
 class MoodAnalysisRequest(BaseRequest):
@@ -190,10 +198,9 @@ class MoodAnalysis(BaseModel):
     # Generated at
     generated_at: datetime
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )
 
 # Voice analysis schemas
 class VoiceAnalysisRequest(BaseRequest):

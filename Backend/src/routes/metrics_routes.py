@@ -1,219 +1,406 @@
 """
 Metrics and monitoring routes for Lugn & Trygg API
 Provides Prometheus-compatible metrics and health checks
+
+Critical for:
+- Load balancer health checks (Render, AWS, etc.)
+- Prometheus/Grafana monitoring
+- System resource monitoring
 """
 
-from flask import Blueprint, Response, jsonify
-import psutil
+import os
+import logging
 import time
-from datetime import datetime, timedelta, timezone
-import prometheus_client as prom
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional
+from flask import Blueprint, Response, request as flask_request, g
+import psutil
+
+# Optional Prometheus support
+try:
+    import prometheus_client as prom
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    prom = None
+
+# Absolute imports (project standard)
+from src.firebase_config import db
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.response_utils import APIResponse
+
+logger = logging.getLogger(__name__)
 
 # Create blueprint
 metrics_bp = Blueprint('metrics', __name__)
 
-# Prometheus metrics
-REQUEST_COUNT = prom.Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
-REQUEST_LATENCY = prom.Histogram('http_request_duration_seconds', 'HTTP request latency', ['method', 'endpoint'])
-ACTIVE_USERS = prom.Gauge('lugn_trygg_active_users', 'Number of active users')
-MOOD_LOGS_TOTAL = prom.Counter('lugn_trygg_mood_logs_total', 'Total mood logs created')
-CHATBOT_INTERACTIONS = prom.Counter('lugn_trygg_chatbot_interactions_total', 'Total chatbot interactions')
-CRISIS_ALERTS_ACTIVE = prom.Gauge('lugn_trygg_crisis_alerts_active', 'Number of active crisis alerts')
-AVERAGE_MOOD_SCORE = prom.Gauge('lugn_trygg_average_mood_score', 'Average mood score across all users')
+# ============================================================================
+# Prometheus metrics (only if available)
+# ============================================================================
 
-# System metrics
-CPU_USAGE = prom.Gauge('system_cpu_usage_percent', 'Current CPU usage percentage')
-MEMORY_USAGE = prom.Gauge('system_memory_usage_percent', 'Current memory usage percentage')
-DISK_USAGE = prom.Gauge('system_disk_usage_percent', 'Current disk usage percentage')
+# Initialize metrics as None - will be set if prometheus is available
+REQUEST_COUNT = None
+REQUEST_LATENCY = None
+CPU_USAGE = None
+MEMORY_USAGE = None
+DISK_USAGE = None
+ACTIVE_USERS = None
+TOTAL_MOODS = None
+TOTAL_MEMORIES = None
+HEALTH_CHECK_DURATION = None
 
-# Business metrics
-USER_REGISTRATIONS = prom.Counter('lugn_trygg_user_registrations_total', 'Total user registrations')
-FEATURE_USAGE = prom.Counter('lugn_trygg_feature_usage_total', 'Feature usage by type', ['feature_type'])
-SUBSCRIPTION_EVENTS = prom.Counter('lugn_trygg_subscription_events_total', 'Subscription events', ['event_type'])
+if PROMETHEUS_AVAILABLE and prom is not None:
+    # HTTP metrics
+    REQUEST_COUNT = prom.Counter(
+        'http_requests_total', 
+        'Total HTTP requests', 
+        ['method', 'endpoint', 'status']
+    )
+    REQUEST_LATENCY = prom.Histogram(
+        'http_request_duration_seconds', 
+        'HTTP request latency', 
+        ['method', 'endpoint']
+    )
+    
+    # System metrics
+    CPU_USAGE = prom.Gauge('system_cpu_usage_percent', 'Current CPU usage')
+    MEMORY_USAGE = prom.Gauge('system_memory_usage_percent', 'Current memory usage')
+    DISK_USAGE = prom.Gauge('system_disk_usage_percent', 'Current disk usage')
+    
+    # Business metrics (updated from database)
+    ACTIVE_USERS = prom.Gauge('lugn_trygg_active_users', 'Number of active users')
+    TOTAL_MOODS = prom.Gauge('lugn_trygg_moods_total', 'Total mood logs in database')
+    TOTAL_MEMORIES = prom.Gauge('lugn_trygg_memories_total', 'Total memories in database')
+    
+    # Health check duration
+    HEALTH_CHECK_DURATION = prom.Histogram('health_check_duration_seconds', 'Health check duration')
 
-# Health check metrics
-HEALTH_CHECK_DURATION = prom.Histogram('health_check_duration_seconds', 'Health check duration')
 
-@metrics_bp.route('/health')
+# ============================================================================
+# OPTIONS Handlers (CORS preflight)
+# ============================================================================
+
+@metrics_bp.route('/health', methods=['OPTIONS'])
+@metrics_bp.route('/metrics', methods=['OPTIONS'])
+@metrics_bp.route('/metrics/business', methods=['OPTIONS'])
+@metrics_bp.route('/ready', methods=['OPTIONS'])
+@metrics_bp.route('/live', methods=['OPTIONS'])
+def metrics_options():
+    """Handle CORS preflight for metrics endpoints"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
+# ============================================================================
+# Health Check Endpoints (CRITICAL for deployment)
+# ============================================================================
+
+@metrics_bp.route('/health', methods=['GET'])
+@rate_limit_by_endpoint
 def health_check():
-    """Basic health check endpoint"""
+    """
+    Basic health check endpoint for load balancers.
+    Returns 200 if service is healthy, 503 if unhealthy.
+    """
     start_time = time.time()
 
     try:
-        # Check database connection (simplified)
-        # In real implementation, check actual DB connection
-
         # Check system resources (non-blocking)
-        cpu_percent = psutil.cpu_percent(interval=None)  # Non-blocking
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        
+        # Try to get disk usage (may fail in some containers)
+        try:
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent
+        except Exception:
+            disk_percent = 0.0
 
-        # Update system metrics
-        CPU_USAGE.set(cpu_percent)
-        MEMORY_USAGE.set(memory.percent)
-        DISK_USAGE.set(disk.percent)
+        # Update Prometheus metrics if available
+        if PROMETHEUS_AVAILABLE and CPU_USAGE is not None:
+            CPU_USAGE.set(cpu_percent)
+        if PROMETHEUS_AVAILABLE and MEMORY_USAGE is not None:
+            MEMORY_USAGE.set(memory.percent)
+        if PROMETHEUS_AVAILABLE and DISK_USAGE is not None:
+            DISK_USAGE.set(disk_percent)
+
+        # Check database connectivity
+        db_status = "healthy"
+        try:
+            # Simple Firestore ping - just check if we can access a collection
+            db.collection("_health_check").limit(1).get()
+        except Exception as db_error:
+            logger.warning(f"Database health check failed: {db_error}")
+            db_status = "degraded"
 
         health_data = {
-            'status': 'healthy',
+            'status': 'healthy' if db_status == 'healthy' else 'degraded',
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'version': '1.0.0',
+            'version': os.getenv('APP_VERSION', '1.0.0'),
             'system': {
-                'cpu_usage': f"{cpu_percent:.1f}%",
-                'memory_usage': f"{memory.percent:.1f}%",
-                'disk_usage': f"{disk.percent:.1f}%"
+                'cpuUsage': f"{cpu_percent:.1f}%",
+                'memoryUsage': f"{memory.percent:.1f}%",
+                'diskUsage': f"{disk_percent:.1f}%"
             },
             'services': {
-                'database': 'healthy',
-                'cache': 'healthy',
-                'external_apis': 'healthy'
+                'database': db_status,
+                'api': 'healthy'
             }
         }
 
         duration = time.time() - start_time
-        HEALTH_CHECK_DURATION.observe(duration)
+        if PROMETHEUS_AVAILABLE and HEALTH_CHECK_DURATION is not None:
+            HEALTH_CHECK_DURATION.observe(duration)
 
-        return jsonify(health_data), 200
+        if db_status == 'healthy':
+            return APIResponse.success(data=health_data, message='Service healthy')
+        else:
+            return APIResponse.error('Service degraded', status_code=503)
 
     except Exception as e:
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }), 503
+        logger.exception(f"Health check failed: {e}")
+        return APIResponse.error('Health check failed', status_code=503)
 
-@metrics_bp.route('/metrics')
-def prometheus_metrics():
-    """Prometheus metrics endpoint"""
+
+@metrics_bp.route('/ready', methods=['GET'])
+@rate_limit_by_endpoint
+def readiness_check():
+    """
+    Kubernetes-style readiness probe.
+    Returns 200 if service is ready to accept traffic.
+    """
     try:
-        # Update dynamic metrics
-        _update_business_metrics()
+        # Check if database is accessible
+        db.collection("_health_check").limit(1).get()
+        return APIResponse.success(
+            data={'status': 'ready', 'timestamp': datetime.now(timezone.utc).isoformat()},
+            message='Service ready'
+        )
+    except Exception as e:
+        logger.warning(f"Readiness check failed: {e}")
+        return APIResponse.error('Service not ready', status_code=503)
+
+
+@metrics_bp.route('/live', methods=['GET'])
+@rate_limit_by_endpoint
+def liveness_check():
+    """
+    Kubernetes-style liveness probe.
+    Returns 200 if service is alive (minimal check).
+    """
+    return APIResponse.success(
+        data={'status': 'alive', 'timestamp': datetime.now(timezone.utc).isoformat()},
+        message='Service alive'
+    )
+
+
+# ============================================================================
+# Prometheus Metrics Endpoint
+# ============================================================================
+
+@metrics_bp.route('/metrics', methods=['GET'])
+@rate_limit_by_endpoint
+def prometheus_metrics():
+    """
+    Prometheus metrics endpoint.
+    Requires prometheus-client to be installed.
+    
+    Security: Consider adding authentication for production.
+    """
+    if not PROMETHEUS_AVAILABLE:
+        return Response(
+            "# Prometheus client not installed\n# pip install prometheus-client\n",
+            mimetype='text/plain',
+            status=501
+        )
+
+    try:
+        # Import here to ensure it's available
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST as PROM_CONTENT_TYPE
+        
+        # Update business metrics from database
+        _update_business_metrics_from_db()
 
         # Generate latest metrics
         metrics_output = generate_latest()
-
-        return Response(metrics_output, mimetype=CONTENT_TYPE_LATEST)
+        return Response(metrics_output, mimetype=PROM_CONTENT_TYPE)
 
     except Exception as e:
-        return Response(f"# Error generating metrics: {str(e)}", status=500)
+        logger.exception(f"Error generating metrics: {e}")
+        return Response(f"# Error generating metrics: {str(e)}\n", status=500)
 
-@metrics_bp.route('/metrics/business')
+
+@metrics_bp.route('/metrics/business', methods=['GET'])
+@rate_limit_by_endpoint
 def business_metrics():
-    """Business-specific metrics in Prometheus format"""
+    """
+    Business-specific metrics in Prometheus format.
+    Returns key business KPIs from database.
+    """
+    if not PROMETHEUS_AVAILABLE:
+        return Response("# Prometheus not available\n", mimetype='text/plain', status=501)
+
     try:
-        _update_business_metrics()
+        from prometheus_client import CONTENT_TYPE_LATEST as PROM_CONTENT_TYPE
+        
+        # Get fresh data from database
+        stats = _get_business_stats_from_db()
 
         # Create custom metrics output
         metrics_lines = [
-            "# HELP lugn_trygg_business_kpis Business KPIs",
+            "# HELP lugn_trygg_business_kpis Business KPIs from database",
             "# TYPE lugn_trygg_business_kpis gauge",
-            f'lugn_trygg_business_kpis{{kpi="active_users"}} {ACTIVE_USERS._value}',
-            f'lugn_trygg_business_kpis{{kpi="mood_logs_today"}} {MOOD_LOGS_TOTAL._value}',
-            f'lugn_trygg_business_kpis{{kpi="chatbot_interactions"}} {CHATBOT_INTERACTIONS._value}',
-            f'lugn_trygg_business_kpis{{kpi="crisis_alerts"}} {CRISIS_ALERTS_ACTIVE._value}',
-            f'lugn_trygg_business_kpis{{kpi="average_mood"}} {AVERAGE_MOOD_SCORE._value}',
+            f'lugn_trygg_business_kpis{{kpi="total_users"}} {stats.get("total_users", 0)}',
+            f'lugn_trygg_business_kpis{{kpi="total_moods"}} {stats.get("total_moods", 0)}',
+            f'lugn_trygg_business_kpis{{kpi="total_memories"}} {stats.get("total_memories", 0)}',
+            f'lugn_trygg_business_kpis{{kpi="total_achievements"}} {stats.get("total_achievements", 0)}',
             ""
         ]
 
-        return Response('\n'.join(metrics_lines), mimetype=CONTENT_TYPE_LATEST)
+        return Response('\n'.join(metrics_lines), mimetype=PROM_CONTENT_TYPE)
 
     except Exception as e:
-        return Response(f"# Error generating business metrics: {str(e)}", status=500)
+        logger.exception(f"Error generating business metrics: {e}")
+        return Response(f"# Error: {str(e)}\n", status=500)
 
-def _update_business_metrics():
-    """Update business metrics from database/cache"""
+
+# ============================================================================
+# Database Stats Functions (replaces mock data)
+# ============================================================================
+
+def _get_business_stats_from_db() -> Dict[str, int]:
+    """
+    Get real business statistics from Firestore.
+    Uses collection counts for accurate metrics.
+    """
+    stats = {
+        "total_users": 0,
+        "total_moods": 0,
+        "total_memories": 0,
+        "total_achievements": 0
+    }
+    
     try:
-        # In a real implementation, these would query the actual database
-        # For demo purposes, we'll use mock data that changes over time
-
-        import random
-
-        # Simulate active users (between 1000-2000)
-        active_count = 1500 + random.randint(-200, 200)
-        ACTIVE_USERS.set(active_count)
-
-        # Simulate mood logs (incrementing counter)
-        MOOD_LOGS_TOTAL.inc(random.randint(1, 10))
-
-        # Simulate chatbot interactions
-        CHATBOT_INTERACTIONS.inc(random.randint(5, 20))
-
-        # Simulate crisis alerts (usually low, occasional spikes)
-        crisis_count = random.choices([0, 1, 2, 3], weights=[0.7, 0.2, 0.08, 0.02])[0]
-        CRISIS_ALERTS_ACTIVE.set(crisis_count)
-
-        # Simulate average mood score (6.0-8.0 range)
-        mood_score = 7.0 + random.uniform(-1.0, 1.0)
-        AVERAGE_MOOD_SCORE.set(round(mood_score, 1))
-
+        # Count users (limit query to avoid timeout)
+        users_count = len(list(db.collection("users").limit(10000).stream()))
+        stats["total_users"] = users_count
+        
+        # Count moods
+        moods_count = len(list(db.collection("moods").limit(50000).stream()))
+        stats["total_moods"] = moods_count
+        
+        # Count memories
+        memories_count = len(list(db.collection("memories").limit(10000).stream()))
+        stats["total_memories"] = memories_count
+        
+        # Count achievements
+        achievements_count = len(list(db.collection("achievements").limit(10000).stream()))
+        stats["total_achievements"] = achievements_count
+        
     except Exception as e:
-        print(f"Error updating business metrics: {e}")
+        logger.warning(f"Error fetching business stats: {e}")
+    
+    return stats
 
-# Middleware to track requests
+
+def _update_business_metrics_from_db():
+    """Update Prometheus gauges with real data from database"""
+    if not PROMETHEUS_AVAILABLE:
+        return
+    
+    try:
+        stats = _get_business_stats_from_db()
+        if ACTIVE_USERS is not None:
+            ACTIVE_USERS.set(stats.get("total_users", 0))
+        if TOTAL_MOODS is not None:
+            TOTAL_MOODS.set(stats.get("total_moods", 0))
+        if TOTAL_MEMORIES is not None:
+            TOTAL_MEMORIES.set(stats.get("total_memories", 0))
+    except Exception as e:
+        logger.warning(f"Error updating Prometheus metrics: {e}")
+
+
+# ============================================================================
+# Request Tracking Middleware
+# ============================================================================
+
 def init_metrics_tracking(app):
-    """Initialize metrics tracking middleware"""
+    """
+    Initialize metrics tracking middleware.
+    Call this in main.py after creating the Flask app.
+    
+    Usage:
+        from src.routes.metrics_routes import init_metrics_tracking
+        init_metrics_tracking(app)
+    """
+    if not PROMETHEUS_AVAILABLE:
+        logger.info("Prometheus not available, skipping metrics tracking")
+        return
 
+    from flask import g
+    
     @app.before_request
     def track_request_start():
-        from flask import request
-        request._start_time = time.time()
+        g._start_time = time.time()
 
     @app.after_request
     def track_request_end(response):
-        from flask import request
-
-        if hasattr(request, '_start_time'):
-            duration = time.time() - request._start_time
+        start_time = getattr(g, '_start_time', None)
+        if start_time is not None:
+            duration = time.time() - start_time
 
             # Track request metrics
-            REQUEST_COUNT.labels(
-                method=request.method,
-                endpoint=request.endpoint or 'unknown',
-                status=response.status_code
-            ).inc()
+            if REQUEST_COUNT is not None:
+                REQUEST_COUNT.labels(
+                    method=flask_request.method,
+                    endpoint=flask_request.endpoint or 'unknown',
+                    status=response.status_code
+                ).inc()
 
-            REQUEST_LATENCY.labels(
-                method=request.method,
-                endpoint=request.endpoint or 'unknown'
-            ).observe(duration)
+            if REQUEST_LATENCY is not None:
+                REQUEST_LATENCY.labels(
+                    method=flask_request.method,
+                    endpoint=flask_request.endpoint or 'unknown'
+                ).observe(duration)
 
         return response
+    
+    logger.info("✅ Prometheus metrics tracking initialized")
 
-# Analytics event tracking (called from application code)
-def track_business_event(event_type: str, properties: dict = None):
-    """Track business events for analytics"""
+
+# ============================================================================
+# Event Tracking (for use in other modules)
+# ============================================================================
+
+def track_business_event(event_type: str, properties: Optional[Dict[str, Any]] = None):
+    """
+    Track business events for analytics.
+    Call this from other modules when important events occur.
+    
+    Usage:
+        from src.routes.metrics_routes import track_business_event
+        track_business_event('user_registration', {'source': 'google'})
+    """
+    if not PROMETHEUS_AVAILABLE:
+        return
+    
     try:
-        if event_type == 'user_registration':
-            USER_REGISTRATIONS.inc()
-        elif event_type == 'mood_logged':
-            MOOD_LOGS_TOTAL.inc()
-            if properties and 'mood_score' in properties:
-                # Update rolling average (simplified)
-                current_avg = AVERAGE_MOOD_SCORE._value
-                new_avg = (current_avg + properties['mood_score']) / 2
-                AVERAGE_MOOD_SCORE.set(round(new_avg, 1))
-        elif event_type == 'chatbot_interaction':
-            CHATBOT_INTERACTIONS.inc()
-        elif event_type == 'feature_used':
-            FEATURE_USAGE.labels(feature_type=properties.get('feature', 'unknown')).inc()
-        elif event_type == 'subscription':
-            SUBSCRIPTION_EVENTS.labels(event_type=properties.get('event', 'unknown')).inc()
-        elif event_type == 'crisis_detected':
-            CRISIS_ALERTS_ACTIVE.inc()
-
+        # Log event for debugging
+        logger.debug(f"Business event: {event_type} - {properties}")
+        
+        # Note: For real-time counters, you'd increment specific metrics here
+        # The current implementation refreshes from database on each /metrics call
+        
     except Exception as e:
-        print(f"Error tracking business event: {e}")
+        logger.warning(f"Error tracking business event: {e}")
 
-# Export metrics for use in other modules
+
+# ============================================================================
+# Exports
+# ============================================================================
+
 __all__ = [
     'metrics_bp',
     'init_metrics_tracking',
     'track_business_event',
-    'REQUEST_COUNT',
-    'REQUEST_LATENCY',
-    'ACTIVE_USERS',
-    'MOOD_LOGS_TOTAL',
-    'CHATBOT_INTERACTIONS',
-    'CRISIS_ALERTS_ACTIVE',
-    'AVERAGE_MOOD_SCORE'
 ]

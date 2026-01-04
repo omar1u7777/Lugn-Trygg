@@ -176,8 +176,8 @@ const WellnessHub: React.FC = () => {
       // Parallel Fetch
       const [moodsResult, sessionsResult, goalsResult] = await Promise.allSettled([
         getMoods(user.user_id),
-        getMeditationSessions(user.user_id, 100),
-        getWellnessGoals(user.user_id)
+        getMeditationSessions(100),
+        getWellnessGoals()
       ]);
 
       const moods = moodsResult.status === 'fulfilled' ? moodsResult.value : [];
@@ -247,7 +247,7 @@ const WellnessHub: React.FC = () => {
 
     // Save to backend
     try {
-      await saveMeditationSession(user.user_id, {
+      await saveMeditationSession({
         type: selectedMeditation.type,
         duration: duration || 1, // Minimum 1 min
         technique: selectedMeditation.title,

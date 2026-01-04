@@ -11,7 +11,7 @@ import hmac
 import base64
 import json
 from datetime import datetime, timedelta, UTC
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from pathlib import Path
 import logging
 from functools import wraps
@@ -19,7 +19,26 @@ from flask import request, g, current_app
 import threading
 import time
 
+# AES encryption using Fernet (AES-128-CBC with HMAC)
+ENCRYPTION_AVAILABLE: bool = False
+
+if TYPE_CHECKING:
+    from cryptography.fernet import Fernet as FernetType, InvalidToken as InvalidTokenType
+    _Fernet: type[FernetType] = FernetType
+    _InvalidToken: type[InvalidTokenType] = InvalidTokenType
+    ENCRYPTION_AVAILABLE = True
+else:
+    try:
+        from cryptography.fernet import Fernet as _Fernet, InvalidToken as _InvalidToken
+        ENCRYPTION_AVAILABLE = True
+    except ImportError:
+        _Fernet = None
+        _InvalidToken = Exception
+        ENCRYPTION_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
+if not ENCRYPTION_AVAILABLE:
+    logger.warning("cryptography not installed - falling back to base64 encoding")
 
 class APIKeyRotationService:
     """Comprehensive API key rotation and management service"""
@@ -27,6 +46,10 @@ class APIKeyRotationService:
     def __init__(self, keys_dir: str = "api_keys", rotation_interval_days: int = 30):
         self.keys_dir = Path(keys_dir)
         self.keys_dir.mkdir(exist_ok=True)
+
+        # Initialize encryption
+        self._encryption_key = self._get_or_create_encryption_key()
+        self._fernet = self._init_fernet()
 
         self.rotation_interval_days = rotation_interval_days
         self.current_keys: Dict[str, Dict] = {}
@@ -248,8 +271,88 @@ class APIKeyRotationService:
         """Create a hash of the key for logging (never store actual key)"""
         return hashlib.sha256(key.encode()).hexdigest()[:16]
 
+    def _get_or_create_encryption_key(self) -> bytes:
+        """Get or create the master encryption key for API key storage"""
+        key_file = self.keys_dir / ".master.key"
+        
+        # Try to get from environment first (recommended for production)
+        env_key = os.environ.get('API_KEY_ENCRYPTION_KEY')
+        if env_key:
+            try:
+                return base64.urlsafe_b64decode(env_key)
+            except Exception:
+                logger.warning("Invalid API_KEY_ENCRYPTION_KEY format, generating new key")
+        
+        # Try to load from file
+        if key_file.exists():
+            try:
+                with open(key_file, 'rb') as f:
+                    return f.read()
+            except Exception as e:
+                logger.error(f"Failed to load master key: {e}")
+        
+        # Generate new key
+        if ENCRYPTION_AVAILABLE and _Fernet:
+            key = _Fernet.generate_key()
+        else:
+            key = base64.urlsafe_b64encode(secrets.token_bytes(32))
+        
+        # Save key securely
+        try:
+            with open(key_file, 'wb') as f:
+                f.write(key)
+            # Set restrictive permissions (owner read/write only)
+            os.chmod(key_file, 0o600)
+            logger.info("🔐 Generated new master encryption key")
+        except Exception as e:
+            logger.error(f"Failed to save master key: {e}")
+        
+        return key
+
+    def _init_fernet(self) -> Optional[Any]:
+        """Initialize Fernet cipher for AES encryption"""
+        if not ENCRYPTION_AVAILABLE or not _Fernet:
+            return None
+        try:
+            return _Fernet(self._encryption_key)
+        except Exception as e:
+            logger.error(f"Failed to initialize Fernet: {e}")
+            return None
+
+    def _encrypt_value(self, value: str) -> str:
+        """Encrypt a value using AES-128-CBC (Fernet)"""
+        if self._fernet:
+            try:
+                encrypted = self._fernet.encrypt(value.encode())
+                return encrypted.decode()
+            except Exception as e:
+                logger.error(f"Encryption failed: {e}")
+        # Fallback to base64 (not secure, but backwards compatible)
+        return base64.urlsafe_b64encode(value.encode()).decode()
+
+    def _decrypt_value(self, encrypted_value: str) -> Optional[str]:
+        """Decrypt a value using AES-128-CBC (Fernet)"""
+        if self._fernet:
+            try:
+                decrypted = self._fernet.decrypt(encrypted_value.encode())
+                return decrypted.decode()
+            except _InvalidToken:
+                logger.warning("Invalid token - attempting base64 fallback")
+            except Exception as e:
+                logger.error(f"Decryption failed: {e}")
+        
+        # Fallback: try base64 decode (for legacy/unencrypted keys)
+        try:
+            return base64.urlsafe_b64decode(encrypted_value.encode()).decode()
+        except Exception:
+            try:
+                # Try standard base64 as last resort
+                return base64.b64decode(encrypted_value).decode()
+            except Exception:
+                return None
+
     def _save_key(self, key_type: str, key_metadata: Dict):
-        """Save key metadata to encrypted file"""
+        """Save key metadata to AES-encrypted file"""
         try:
             key_file = self.keys_dir / f"{key_type}.key"
 
@@ -258,15 +361,12 @@ class APIKeyRotationService:
                 'key_type': key_type,
                 'metadata': key_metadata,
                 'created_at': datetime.now(UTC).isoformat(),
+                'encryption': 'fernet-aes128' if self._fernet else 'base64',
             }
 
-            # Encrypt sensitive data (key value)
+            # Encrypt sensitive data (key value) using AES
             if 'key_value' in key_metadata:
-                # In production, use proper encryption
-                # For now, we'll just base64 encode (not secure!)
-                data['encrypted_key'] = base64.b64encode(
-                    key_metadata['key_value'].encode()
-                ).decode()
+                data['encrypted_key'] = self._encrypt_value(key_metadata['key_value'])
 
                 # Remove plain key from metadata
                 key_metadata = key_metadata.copy()
@@ -277,14 +377,21 @@ class APIKeyRotationService:
             # Save as JSON
             with open(key_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
+            
+            # Set restrictive file permissions
+            os.chmod(key_file, 0o600)
 
         except Exception as e:
             logger.error(f"Failed to save key {key_type}: {e}")
 
     def _load_keys(self):
-        """Load keys from persistent storage"""
+        """Load keys from persistent storage with AES decryption"""
         try:
             for key_file in self.keys_dir.glob("*.key"):
+                # Skip hidden files (master key is stored as .master.key)
+                if key_file.name.startswith('.'):
+                    continue
+                    
                 try:
                     with open(key_file, 'r') as f:
                         data = json.load(f)
@@ -292,13 +399,12 @@ class APIKeyRotationService:
                     key_type = data['key_type']
                     metadata = data['metadata']
 
-                    # Decrypt key value
+                    # Decrypt key value using AES
                     if 'encrypted_key' in data:
-                        try:
-                            metadata['key_value'] = base64.b64decode(
-                                data['encrypted_key']
-                            ).decode()
-                        except:
+                        decrypted = self._decrypt_value(data['encrypted_key'])
+                        if decrypted:
+                            metadata['key_value'] = decrypted
+                        else:
                             logger.error(f"Failed to decrypt key: {key_type}")
                             continue
 

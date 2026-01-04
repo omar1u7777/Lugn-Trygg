@@ -66,7 +66,7 @@ class ConsentService:
             Dict with consent status
         """
         try:
-            user_doc = db.collection('users').document(user_id).get()
+            user_doc = db.collection('users').document(user_id).get()  # type: ignore
             if not user_doc.exists:
                 return {
                     'has_consent': False,
@@ -104,7 +104,7 @@ class ConsentService:
                 'error': str(e)
             }
 
-    def grant_consent(self, user_id: str, consent_type: str, version: str = None) -> bool:
+    def grant_consent(self, user_id: str, consent_type: str, version: Optional[str] = None) -> bool:
         """
         Grant consent for a specific type
 
@@ -131,7 +131,7 @@ class ConsentService:
             }
 
             # Update user document
-            db.collection('users').document(user_id).update({
+            db.collection('users').document(user_id).update({  # type: ignore
                 f'consents.{consent_type}': consent_data,
                 'updated_at': datetime.now(timezone.utc)
             })
@@ -166,7 +166,7 @@ class ConsentService:
         """
         try:
             # Update consent record
-            db.collection('users').document(user_id).update({
+            db.collection('users').document(user_id).update({  # type: ignore
                 f'consents.{consent_type}.withdrawn': True,
                 f'consents.{consent_type}.withdrawn_at': datetime.now(timezone.utc).isoformat(),
                 'updated_at': datetime.now(timezone.utc)
@@ -191,7 +191,7 @@ class ConsentService:
     def get_user_consents(self, user_id: str) -> Dict[str, Any]:
         """Get all consent records for a user"""
         try:
-            user_doc = db.collection('users').document(user_id).get()
+            user_doc = db.collection('users').document(user_id).get()  # type: ignore
             if not user_doc.exists:
                 return {'error': 'User not found'}
 

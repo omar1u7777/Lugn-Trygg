@@ -75,7 +75,7 @@ class AuthService(IAuthService):
         punycode_email = convert_email_to_punycode(email)
 
         # Check if user already exists
-        existing_user = self.db.get_document("users", punycode_email)
+        existing_user, _ = self.db.get_document("users", punycode_email)
         if existing_user:
             raise ValidationError("User already exists")
 
@@ -121,9 +121,9 @@ class AuthService(IAuthService):
 
             # Get user data
             punycode_email = convert_email_to_punycode(email)
-            user_data = self.db.get_document("users", punycode_email)
+            user_data, db_error = self.db.get_document("users", punycode_email)
 
-            if not user_data:
+            if not user_data or db_error:
                 self._record_failed_attempt(email)
                 return None, "Invalid email or password", None, None
 
@@ -221,13 +221,13 @@ class AuthService(IAuthService):
                 logger.warning(f"❌ JWT verification failed: {error}")
                 return jsonify({"error": error}), 401
 
-            # Set user_id in request context
+            # Set user_id in request context (use g only, not request)
             try:
                 from flask import g
                 g.user_id = user_id
             except Exception:
                 pass
-            request.user_id = user_id
+            # Note: request.user_id removed as Flask Request doesn't have this attribute
             return f(*args, **kwargs)
         return decorated_function
 
@@ -249,11 +249,13 @@ class AuthService(IAuthService):
         """Check if account is currently locked out"""
         try:
             lockout_key = f"lockout:{email}"
-            lockout_data = self.cache.get(lockout_key)
+            lockout_data, cache_error = self.cache.get(lockout_key)
 
-            if lockout_data and lockout_data.get("locked_until", 0) > time.time():
-                remaining_minutes = int((lockout_data["locked_until"] - time.time()) / 60)
-                return True, f"Account is locked out. Try again in {remaining_minutes} minutes."
+            if lockout_data and not cache_error:
+                locked_until = lockout_data.get("locked_until", 0) if isinstance(lockout_data, dict) else 0
+                if locked_until > time.time():
+                    remaining_minutes = int((locked_until - time.time()) / 60)
+                    return True, f"Account is locked out. Try again in {remaining_minutes} minutes."
 
             return False, None
 
@@ -265,9 +267,10 @@ class AuthService(IAuthService):
         """Record a failed login attempt"""
         try:
             attempts_key = f"attempts:{email}"
-            attempts = self.cache.get(attempts_key) or {"count": 0, "last_attempt": 0}
+            cached_attempts, _ = self.cache.get(attempts_key)
+            attempts: Dict[str, Any] = cached_attempts if isinstance(cached_attempts, dict) else {"count": 0, "last_attempt": 0}
 
-            attempts["count"] += 1
+            attempts["count"] = attempts.get("count", 0) + 1
             attempts["last_attempt"] = int(time.time())
 
             # Calculate lockout if needed

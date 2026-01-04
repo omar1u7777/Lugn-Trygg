@@ -8,7 +8,7 @@ and automatic recovery mechanisms for production environments.
 import logging
 import time
 import threading
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, Type
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 import traceback
@@ -19,7 +19,7 @@ class CircuitBreaker:
     """Circuit breaker for external service calls"""
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60,
-                 expected_exception: Exception = Exception):
+                 expected_exception: Type[Exception] = Exception):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.expected_exception = expected_exception

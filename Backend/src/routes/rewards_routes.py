@@ -3,18 +3,28 @@ Rewards Routes - User Rewards and Achievements API
 Real implementation for gamification rewards system
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, g
 from datetime import datetime, timedelta, timezone
 import uuid
+import re
+from typing import Optional
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.auth_service import AuthService
+from ..services.audit_service import audit_log
+from ..utils.input_sanitization import sanitize_text
+from ..utils.response_utils import APIResponse
 
-rewards_bp = Blueprint("rewards", __name__, url_prefix="/api/rewards")
+# Validation pattern for user IDs
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+
+rewards_bp = Blueprint("rewards", __name__)
 
 # Reward definitions
 REWARD_CATALOG = {
     'premium_week': {
         'id': 'premium_week',
-        'title': '1 Vecka Premium',
-        'description': 'Lås upp alla premium-funktioner i 7 dagar',
+        'title': '1 Week Premium',
+        'description': 'Unlock all premium features for 7 days',
         'cost': 500,
         'type': 'premium_time',
         'value': 7,  # days
@@ -23,8 +33,8 @@ REWARD_CATALOG = {
     },
     'premium_month': {
         'id': 'premium_month',
-        'title': '1 Månad Premium',
-        'description': 'Lås upp alla premium-funktioner i 30 dagar',
+        'title': '1 Month Premium',
+        'description': 'Unlock all premium features for 30 days',
         'cost': 1500,
         'type': 'premium_time',
         'value': 30,
@@ -33,8 +43,8 @@ REWARD_CATALOG = {
     },
     'custom_theme': {
         'id': 'custom_theme',
-        'title': 'Anpassat Tema',
-        'description': 'Lås upp exklusiva färgteman för appen',
+        'title': 'Custom Theme',
+        'description': 'Unlock exclusive color themes for the app',
         'cost': 300,
         'type': 'cosmetic',
         'value': 'theme_unlock',
@@ -43,8 +53,8 @@ REWARD_CATALOG = {
     },
     'badge_collector': {
         'id': 'badge_collector',
-        'title': 'Badge Samlare',
-        'description': 'Exklusiv badge för dedikerade användare',
+        'title': 'Badge Collector',
+        'description': 'Exclusive badge for dedicated users',
         'cost': 200,
         'type': 'badge',
         'value': 'badge_collector',
@@ -54,7 +64,7 @@ REWARD_CATALOG = {
     'early_adopter': {
         'id': 'early_adopter',
         'title': 'Early Adopter',
-        'description': 'Specialbadge för tidiga användare',
+        'description': 'Special badge for early users',
         'cost': 0,
         'type': 'badge',
         'value': 'early_adopter',
@@ -63,8 +73,8 @@ REWARD_CATALOG = {
     },
     'mood_master': {
         'id': 'mood_master',
-        'title': 'Humör Mästare',
-        'description': 'Logga humör 30 dagar i rad',
+        'title': 'Mood Master',
+        'description': 'Log mood 30 days in a row',
         'cost': 0,
         'type': 'badge',
         'value': 'mood_master',
@@ -74,7 +84,7 @@ REWARD_CATALOG = {
     'meditation_guru': {
         'id': 'meditation_guru',
         'title': 'Meditation Guru',
-        'description': 'Genomför 50 meditationer',
+        'description': 'Complete 50 meditations',
         'cost': 0,
         'type': 'badge',
         'value': 'meditation_guru',
@@ -87,48 +97,48 @@ REWARD_CATALOG = {
 ACHIEVEMENTS = {
     'first_mood': {
         'id': 'first_mood',
-        'title': 'Första Steget',
-        'description': 'Logga ditt första humör',
+        'title': 'First Step',
+        'description': 'Log your first mood',
         'xp_reward': 50,
         'badge': 'first_step',
         'condition': {'type': 'mood_count', 'value': 1}
     },
     'week_streak': {
         'id': 'week_streak',
-        'title': 'Vecka av Välmående',
-        'description': 'Logga humör 7 dagar i rad',
+        'title': 'Week of Wellness',
+        'description': 'Log mood 7 days in a row',
         'xp_reward': 200,
         'badge': 'week_warrior',
         'condition': {'type': 'streak', 'value': 7}
     },
     'month_streak': {
         'id': 'month_streak',
-        'title': 'Månad av Mindfulness',
-        'description': 'Logga humör 30 dagar i rad',
+        'title': 'Month of Mindfulness',
+        'description': 'Log mood 30 days in a row',
         'xp_reward': 1000,
         'badge': 'mood_master',
         'condition': {'type': 'streak', 'value': 30}
     },
     'mood_warrior': {
         'id': 'mood_warrior',
-        'title': 'Humör Krigare',
-        'description': 'Logga 100 humör-poster',
+        'title': 'Mood Warrior',
+        'description': 'Log 100 mood entries',
         'xp_reward': 500,
         'badge': 'mood_warrior',
         'condition': {'type': 'mood_count', 'value': 100}
     },
     'journal_starter': {
         'id': 'journal_starter',
-        'title': 'Dagboks Startare',
-        'description': 'Skriv din första dagboks-post',
+        'title': 'Journal Starter',
+        'description': 'Write your first journal entry',
         'xp_reward': 50,
         'badge': 'journal_starter',
         'condition': {'type': 'journal_count', 'value': 1}
     },
     'referral_hero': {
         'id': 'referral_hero',
-        'title': 'Referral Hjälte',
-        'description': 'Bjud in 5 vänner',
+        'title': 'Referral Hero',
+        'description': 'Invite 5 friends',
         'xp_reward': 500,
         'badge': 'referral_hero',
         'condition': {'type': 'referral_count', 'value': 5}
@@ -184,42 +194,55 @@ def _xp_for_next_level(current_level: int) -> int:
     return (current_level ** 2) * 100
 
 
+# CORS OPTIONS handler for all endpoints
+@rewards_bp.route('/catalog', methods=['OPTIONS'])
+@rewards_bp.route('/achievements', methods=['OPTIONS'])
+@rewards_bp.route('/profile', methods=['OPTIONS'])
+@rewards_bp.route('/add-xp', methods=['OPTIONS'])
+@rewards_bp.route('/claim', methods=['OPTIONS'])
+@rewards_bp.route('/check-achievements', methods=['OPTIONS'])
+@rewards_bp.route('/badges', methods=['OPTIONS'])
+def handle_options():
+    """Handle CORS preflight requests"""
+    return APIResponse.success()
+
+
 @rewards_bp.route('/catalog', methods=['GET'])
+@rate_limit_by_endpoint
 def get_reward_catalog():
     """Get all available rewards"""
     try:
         # Filter to only purchasable rewards
         purchasable = {k: v for k, v in REWARD_CATALOG.items() if v.get('available', True) and v.get('cost', 0) > 0}
         
-        return jsonify({
-            'success': True,
-            'rewards': list(purchasable.values())
-        })
+        return APIResponse.success({
+            "rewards": list(purchasable.values())
+        }, "Reward catalog retrieved")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "CATALOG_ERROR", 500)
 
 
 @rewards_bp.route('/achievements', methods=['GET'])
+@rate_limit_by_endpoint
 def get_achievements():
     """Get all achievements"""
     try:
-        return jsonify({
-            'success': True,
-            'achievements': list(ACHIEVEMENTS.values())
-        })
+        return APIResponse.success({
+            "achievements": list(ACHIEVEMENTS.values())
+        }, "Achievements retrieved")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "ACHIEVEMENTS_ERROR", 500)
 
 
-@rewards_bp.route('/user/<user_id>', methods=['GET'])
-def get_user_rewards(user_id: str):
+@rewards_bp.route('/profile', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_user_rewards():
     """Get user's rewards profile"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+    
     try:
         rewards_data = _get_user_rewards(user_id)
         
@@ -231,42 +254,41 @@ def get_user_rewards(user_id: str):
         progress_xp = xp - current_level_xp
         needed_xp = next_level_xp - current_level_xp
         
-        return jsonify({
-            'success': True,
-            'rewards': {
-                'user_id': user_id,
-                'xp': xp,
-                'level': level,
-                'next_level_xp': next_level_xp,
-                'progress_xp': progress_xp,
-                'needed_xp': needed_xp,
-                'progress_percent': (progress_xp / needed_xp * 100) if needed_xp > 0 else 100,
-                'badges': rewards_data.get('badges', []),
-                'achievements': rewards_data.get('achievements', []),
-                'claimed_rewards': rewards_data.get('claimed_rewards', []),
-                'premium_until': rewards_data.get('premium_until')
+        return APIResponse.success({
+            "rewards": {
+                "userId": user_id,
+                "xp": xp,
+                "level": level,
+                "nextLevelXp": next_level_xp,
+                "progressXp": progress_xp,
+                "neededXp": needed_xp,
+                "progressPercent": (progress_xp / needed_xp * 100) if needed_xp > 0 else 100,
+                "badges": rewards_data.get('badges', []),
+                "achievements": rewards_data.get('achievements', []),
+                "claimedRewards": rewards_data.get('claimed_rewards', []),
+                "premiumUntil": rewards_data.get('premium_until')
             }
-        })
+        }, "User rewards retrieved")
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "REWARDS_ERROR", 500)
 
 
-@rewards_bp.route('/user/<user_id>/add-xp', methods=['POST'])
-def add_user_xp(user_id: str):
+@rewards_bp.route('/add-xp', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def add_user_xp():
     """Add XP to user (called by other actions like logging mood)"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     try:
         data = request.get_json() or {}
         xp_amount = data.get('amount', 0)
-        reason = data.get('reason', 'general')
+        reason = sanitize_text(data.get('reason', 'general'), max_length=100)
         
         if xp_amount <= 0:
-            return jsonify({
-                'success': False,
-                'error': 'XP amount must be positive'
-            }), 400
+            return APIResponse.bad_request("XP amount must be positive")
         
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
@@ -280,55 +302,50 @@ def add_user_xp(user_id: str):
         level_up = new_level > old_level
         
         if db:
-            db.collection('user_rewards').document(user_id).update({
+            db.collection('user_rewards').document(user_id).update({  # type: ignore
                 'xp': new_xp,
                 'level': new_level,
                 'last_xp_earned': datetime.now(timezone.utc).isoformat(),
                 'last_xp_reason': reason
             })
         
-        return jsonify({
-            'success': True,
-            'xp_added': xp_amount,
-            'new_xp': new_xp,
-            'new_level': new_level,
-            'level_up': level_up,
-            'reason': reason
-        })
+        audit_log("XP_ADDED", user_id, {"amount": xp_amount, "reason": reason, "levelUp": level_up})
+        
+        return APIResponse.success({
+            "xpAdded": xp_amount,
+            "newXp": new_xp,
+            "newLevel": new_level,
+            "levelUp": level_up,
+            "reason": reason
+        }, "XP added successfully")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "XP_ERROR", 500)
 
 
-@rewards_bp.route('/user/<user_id>/claim', methods=['POST'])
-def claim_reward(user_id: str):
+@rewards_bp.route('/claim', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def claim_reward():
     """Claim a reward from the catalog"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     try:
         data = request.get_json() or {}
-        reward_id = data.get('reward_id')
+        reward_id = sanitize_text(data.get('reward_id', ''), max_length=50)
         
         if not reward_id:
-            return jsonify({
-                'success': False,
-                'error': 'reward_id is required'
-            }), 400
+            return APIResponse.bad_request("reward_id is required")
         
         if reward_id not in REWARD_CATALOG:
-            return jsonify({
-                'success': False,
-                'error': 'Reward not found'
-            }), 404
+            return APIResponse.not_found("Reward not found")
         
         reward = REWARD_CATALOG[reward_id]
         
         if not reward.get('available', True):
-            return jsonify({
-                'success': False,
-                'error': 'This reward cannot be purchased'
-            }), 400
+            return APIResponse.bad_request("This reward cannot be purchased")
         
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
@@ -338,18 +355,17 @@ def claim_reward(user_id: str):
         cost = reward.get('cost', 0)
         
         if user_xp < cost:
-            return jsonify({
-                'success': False,
-                'error': f'Not enough XP. Need {cost}, have {user_xp}'
-            }), 400
+            return APIResponse.error(
+                f"Not enough XP. Need {cost}, have {user_xp}",
+                "INSUFFICIENT_XP",
+                400,
+                {"needed": cost, "have": user_xp}
+            )
         
         # Check if already claimed (for one-time rewards)
         claimed = rewards_data.get('claimed_rewards', [])
         if reward_id in claimed and reward.get('type') != 'premium_time':
-            return jsonify({
-                'success': False,
-                'error': 'Already claimed this reward'
-            }), 400
+            return APIResponse.bad_request("Already claimed this reward")
         
         # Deduct XP and add reward
         new_xp = user_xp - cost
@@ -385,26 +401,30 @@ def claim_reward(user_id: str):
                 update_data['badges'] = badges
         
         if db:
-            db.collection('user_rewards').document(user_id).update(update_data)
+            db.collection('user_rewards').document(user_id).update(update_data)  # type: ignore
         
-        return jsonify({
-            'success': True,
-            'message': f'Successfully claimed {reward["title"]}',
-            'reward': reward,
-            'new_xp': new_xp,
-            'premium_until': update_data.get('premium_until')
-        })
+        audit_log("REWARD_CLAIMED", user_id, {"rewardId": reward_id, "cost": cost})
+        
+        return APIResponse.success({
+            "message": f"Successfully claimed {reward['title']}",
+            "reward": reward,
+            "newXp": new_xp,
+            "premiumUntil": update_data.get('premium_until')
+        }, "Reward claimed successfully")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "CLAIM_ERROR", 500)
 
 
-@rewards_bp.route('/user/<user_id>/check-achievements', methods=['POST'])
-def check_achievements(user_id: str):
+@rewards_bp.route('/check-achievements', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def check_achievements():
     """Check and award any earned achievements"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     try:
         data = request.get_json() or {}
         
@@ -452,31 +472,38 @@ def check_achievements(user_id: str):
                     badges.append(badge)
         
         if new_achievements and db:
-            db.collection('user_rewards').document(user_id).update({
+            db.collection('user_rewards').document(user_id).update({  # type: ignore
                 'achievements': earned_achievements,
                 'badges': badges,
                 'xp': xp + total_xp_earned,
                 'last_achievement': datetime.now(timezone.utc).isoformat()
             })
+            
+            audit_log("ACHIEVEMENTS_EARNED", user_id, {
+                "achievements": new_achievements,
+                "xpEarned": total_xp_earned
+            })
         
-        return jsonify({
-            'success': True,
-            'new_achievements': [ACHIEVEMENTS[a] for a in new_achievements],
-            'total_xp_earned': total_xp_earned,
-            'all_achievements': earned_achievements,
-            'badges': badges
-        })
+        return APIResponse.success({
+            "newAchievements": [ACHIEVEMENTS[a] for a in new_achievements],
+            "totalXpEarned": total_xp_earned,
+            "allAchievements": earned_achievements,
+            "badges": badges
+        }, "Achievements checked")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "ACHIEVEMENTS_ERROR", 500)
 
 
-@rewards_bp.route('/user/<user_id>/badges', methods=['GET'])
-def get_user_badges(user_id: str):
+@rewards_bp.route('/badges', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_user_badges():
     """Get all badges for a user"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
     try:
         rewards_data = _get_user_rewards(user_id)
         user_badges = rewards_data.get('badges', [])
@@ -488,30 +515,26 @@ def get_user_badges(user_id: str):
             for reward_id, reward in REWARD_CATALOG.items():
                 if reward.get('value') == badge_id:
                     badge_details.append({
-                        'id': badge_id,
-                        'title': reward.get('title'),
-                        'icon': reward.get('icon'),
-                        'description': reward.get('description')
+                        "id": badge_id,
+                        "title": reward.get('title'),
+                        "icon": reward.get('icon'),
+                        "description": reward.get('description')
                     })
                     break
             else:
                 for ach_id, ach in ACHIEVEMENTS.items():
                     if ach.get('badge') == badge_id:
                         badge_details.append({
-                            'id': badge_id,
-                            'title': ach.get('title'),
-                            'icon': '🏆',
-                            'description': ach.get('description')
+                            "id": badge_id,
+                            "title": ach.get('title'),
+                            "icon": "🏆",
+                            "description": ach.get('description')
                         })
                         break
         
-        return jsonify({
-            'success': True,
-            'badges': badge_details
-        })
+        return APIResponse.success({
+            "badges": badge_details
+        }, "User badges retrieved")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error(str(e), "BADGES_ERROR", 500)

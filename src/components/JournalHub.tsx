@@ -105,7 +105,7 @@ const JournalHub: React.FC = () => {
       const [moodsResult, memoriesResult, journalsResult] = await Promise.allSettled([
         getMoods(user.user_id),
         getMemories(user.user_id),
-        getJournalEntries(user.user_id),
+        getJournalEntries(),
       ]);
 
       const moods = moodsResult.status === 'fulfilled' ? moodsResult.value : [];
@@ -178,7 +178,7 @@ const JournalHub: React.FC = () => {
     setIsSubmittingJournal(true);
 
     try {
-      await saveJournalEntry(user.user_id, journalText, undefined, selectedJournalTags);
+      await saveJournalEntry(journalText, undefined, selectedJournalTags);
       setLastJournalEntry({ text: journalText, prompt: journalPrompt, tags: selectedJournalTags });
       setStats(prev => ({ ...prev, journalCount: prev.journalCount + 1 }));
       setJournalText('');

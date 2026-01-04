@@ -3,12 +3,11 @@ import { API_ENDPOINTS } from "./constants";
 
 /**
  * Save a meditation session
- * @param userId - User ID
  * @param sessionData - Meditation session data
  * @returns Promise resolving to meditation session data
  * @throws Error if meditation session save fails
  */
-export const saveMeditationSession = async (userId: string, sessionData: {
+export const saveMeditationSession = async (sessionData: {
   type: string;
   duration: number;
   technique?: string;
@@ -17,9 +16,9 @@ export const saveMeditationSession = async (userId: string, sessionData: {
   moodAfter?: number;
   notes?: string;
 }) => {
-  console.log('🧘 API - saveMeditationSession called', { userId, sessionData });
+  console.log('🧘 API - saveMeditationSession called', { sessionData });
   try {
-    const response = await api.post(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/${userId}/meditation-sessions`, sessionData);
+    const response = await api.post(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions`, sessionData);
     console.log('✅ Meditation session saved successfully');
     // Handle APIResponse wrapper: { success: true, data: {...}, message: "..." }
     return response.data?.data || response.data;
@@ -32,15 +31,14 @@ export const saveMeditationSession = async (userId: string, sessionData: {
 
 /**
  * Get meditation sessions for a user
- * @param userId - User ID
  * @param limit - Maximum number of sessions to retrieve (default: 50)
  * @returns Promise resolving to meditation sessions data
  * @throws Error if meditation sessions retrieval fails
  */
-export const getMeditationSessions = async (userId: string, limit: number = 50) => {
-  console.log('🧘 API - getMeditationSessions called', { userId, limit });
+export const getMeditationSessions = async (limit: number = 50) => {
+  console.log('🧘 API - getMeditationSessions called', { limit });
   try {
-    const response = await api.get(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/${userId}/meditation-sessions?limit=${limit}`);
+    const response = await api.get(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions?limit=${limit}`);
     // Handle APIResponse wrapper: { success: true, data: { sessions: [...], stats: {...} }, message: "..." }
     const responseData = response.data?.data || response.data;
     console.log('✅ Meditation sessions retrieved:', responseData.sessions?.length || 0);

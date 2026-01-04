@@ -9,8 +9,10 @@ export * from './constants';
 export * from './notifications';
 export * from './journaling';
 export * from './meditation';
+export * from './users';
 export * from './onboarding';
 export * from './ai';
+export * from './admin';
 export * from './leaderboard';
 export * from './challenges';
 export * from './memories';
@@ -19,6 +21,12 @@ export * from './chat';
 export * from './audio';
 export * from './rewards';
 export * from './social';
+export * from './feedback';
+export * from './health';
+export * from './integrations';
+export * from './security';
+export * from './subscription';
+export * from './voice';
 
 // Legacy exports for backward compatibility
 export { api as default } from './client';

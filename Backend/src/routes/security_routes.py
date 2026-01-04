@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 
 from ..services.api_key_rotation import get_key_rotation_status
 from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
 from ..services.security_monitoring import get_security_metrics
 from ..services.tamper_detection_service import tamper_detection_service
+from ..utils.response_utils import APIResponse
 from .admin_routes import require_admin
 
-security_bp = Blueprint('security', __name__, url_prefix='/api/security')
-
-
-def _options_passthrough():
-    if request.method == 'OPTIONS':
-        return '', 204
-    return None
+security_bp = Blueprint('security', __name__)
 
 
 def _serialize_datetimes(payload):
@@ -31,46 +27,46 @@ def _serialize_datetimes(payload):
     return payload
 
 
-@security_bp.route('/key-rotation/status', methods=['GET', 'OPTIONS'])
+# CORS OPTIONS handler for all endpoints
+@security_bp.route('/key-rotation/status', methods=['OPTIONS'])
+@security_bp.route('/tamper/events', methods=['OPTIONS'])
+@security_bp.route('/monitoring/metrics', methods=['OPTIONS'])
+def handle_options():
+    """Handle CORS preflight requests"""
+    return APIResponse.success()
+
+
+@security_bp.route('/key-rotation/status', methods=['GET'])
 @AuthService.jwt_required
 @require_admin
+@rate_limit_by_endpoint
 def key_rotation_status():
     """Return current API key rotation status."""
-    options_response = _options_passthrough()
-    if options_response:
-        return options_response
-
     status = get_key_rotation_status()
     status['service'] = 'api_key_rotation'
-    return jsonify(_serialize_datetimes(status))
+    return APIResponse.success(_serialize_datetimes(status), "Key rotation status retrieved")
 
 
-@security_bp.route('/tamper/events', methods=['GET', 'OPTIONS'])
+@security_bp.route('/tamper/events', methods=['GET'])
 @AuthService.jwt_required
 @require_admin
+@rate_limit_by_endpoint
 def tamper_events():
     """Return recent tamper detection alerts and summary."""
-    options_response = _options_passthrough()
-    if options_response:
-        return options_response
-
     limit = min(int(request.args.get('limit', 50)), 200)
     events = tamper_detection_service.get_recent_events(limit=limit)
-    return jsonify({
-        'events': events,
-        'summary': tamper_detection_service.get_summary(),
-        'active_alerts': tamper_detection_service.get_active_alerts(),
-    })
+    return APIResponse.success({
+        "events": events,
+        "summary": tamper_detection_service.get_summary(),
+        "activeAlerts": tamper_detection_service.get_active_alerts(),
+    }, "Tamper events retrieved")
 
 
-@security_bp.route('/monitoring/metrics', methods=['GET', 'OPTIONS'])
+@security_bp.route('/monitoring/metrics', methods=['GET'])
 @AuthService.jwt_required
 @require_admin
+@rate_limit_by_endpoint
 def monitoring_metrics():
     """Aggregated security monitoring metrics."""
-    options_response = _options_passthrough()
-    if options_response:
-        return options_response
-
     metrics = get_security_metrics()
-    return jsonify(metrics)
+    return APIResponse.success(metrics, "Security metrics retrieved")

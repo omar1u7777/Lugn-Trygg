@@ -94,9 +94,9 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
                 elif source == 'args':
                     data = request.args.to_dict()
                 elif source == 'files':
-                    data = request.files.to_dict()
+                    data: Dict[str, Any] = dict(request.files.to_dict())
                 else:
-                    data = {}
+                    data: Dict[str, Any] = {}
 
                 # Handle file uploads with form data
                 if source == 'files' and request.form:
@@ -196,11 +196,12 @@ def validate_query_params(schema_class: Type) -> Callable:
         def decorated_function(*args, **kwargs):
             try:
                 # Get query parameters
-                query_data = request.args.to_dict()
+                query_data: Dict[str, Any] = dict(request.args.to_dict())
 
                 # Convert string values to appropriate types
-                for key, value in query_data.items():
-                    # Try to convert to int/float/bool
+                for key, value in list(query_data.items()):                    # Only process string values
+                    if not isinstance(value, str):
+                        continue                    # Try to convert to int/float/bool
                     if value.isdigit():
                         query_data[key] = int(value)
                     elif value.replace('.', '').isdigit() and '.' in value:

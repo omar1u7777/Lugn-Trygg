@@ -6,6 +6,7 @@ import os
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from typing import Literal
 import logging
 
 def init_sentry(app=None):
@@ -65,7 +66,6 @@ def init_sentry(app=None):
             integrations=[
                 FlaskIntegration(
                     transaction_style='endpoint',  # Track by endpoint
-                    traces_sample_rate=traces_sample_rate,
                 ),
                 logging_integration,
             ],
@@ -204,7 +204,10 @@ def capture_exception(exception, context=None):
         
         sentry_sdk.capture_exception(exception)
 
-def capture_message(message, level='info', context=None):
+# Type alias for Sentry log levels
+LogLevel = Literal['debug', 'info', 'warning', 'error', 'fatal']
+
+def capture_message(message: str, level: LogLevel = 'info', context=None):
     """
     Capture a message with optional context.
     

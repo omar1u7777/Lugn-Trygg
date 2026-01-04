@@ -18,6 +18,9 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Module logger
+logger = logging.getLogger(__name__)
+
 # Logging levels
 LOG_LEVELS = {
     'DEBUG': logging.DEBUG,

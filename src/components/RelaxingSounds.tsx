@@ -3,13 +3,10 @@ import { useTranslation } from "react-i18next";
 import {
   getAudioLibrary,
   type AudioTrack,
-  type AudioCategory
+  type AudioCategory,
+  type AudioLibrary
 } from "../api/api";
 import { logger } from '../utils/logger';
-
-interface AudioLibrary {
-  [key: string]: AudioCategory & { tracks: AudioTrack[] };
-}
 
 interface RelaxingSoundsProps {
   onClose: () => void;
@@ -67,10 +64,10 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   const categories = Object.values(audioLibrary);
 
   // Get localized text based on current language
-  const getLocalizedText = (item: { title?: string; title_en?: string; name?: string; name_en?: string }) => {
+  const getLocalizedText = (item: { title?: string; titleEn?: string; name?: string; nameEn?: string }) => {
     const isSwedish = i18n.language === 'sv';
     const svText = item.title || item.name || '';
-    const enText = item.title_en || item.name_en || svText;
+    const enText = item.titleEn || item.nameEn || svText;
     return isSwedish ? svText : enText;
   };
 

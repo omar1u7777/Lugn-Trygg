@@ -47,7 +47,7 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
       setError(null);
       console.log('📝 Loading journal entries for user:', user.user_id);
 
-      const response = await getJournalEntries(user.user_id, 100);
+      const response = await getJournalEntries(100);
       console.log('✅ Journal entries loaded:', response.length);
 
       setEntries(response);

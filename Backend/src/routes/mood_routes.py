@@ -8,33 +8,38 @@ and related functionality including voice emotion analysis and predictive foreca
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from flask import Blueprint, current_app, g, jsonify, make_response, request
 from google.cloud.firestore import FieldFilter
 
-# Additional imports for mood routes
-from ..firebase_config import db
-
-from ..services.audit_service import audit_log
-from ..services.auth_service import AuthService
-from ..services.subscription_service import SubscriptionService, SubscriptionLimitError
-from ..services.consent_service import consent_service
-from ..utils.timestamp_utils import parse_iso_timestamp
-from ..utils.response_utils import APIResponse, success_response, error_response, created_response
+# Absolute imports (project standard)
+from src.firebase_config import db
+from src.services.audit_service import audit_log
+from src.services.auth_service import AuthService
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.subscription_service import SubscriptionService, SubscriptionLimitError
+from src.services.consent_service import consent_service
+from src.utils.timestamp_utils import parse_iso_timestamp
+from src.utils.response_utils import APIResponse, success_response, error_response, created_response
+from src.utils.input_sanitization import input_sanitizer
 
 # Lazy import to avoid OpenAI/Pydantic conflicts at module load time
-ai_services_module = None
+ai_services_module: Any = None
+
+# Validation patterns for URL parameters
+MOOD_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{10,64}$')
 
 
-def _get_ai_services_module():
+def _get_ai_services_module() -> Any:
     """Get AI services module with lazy loading."""
     global ai_services_module
     if ai_services_module is None:
-        import src.utils.ai_services as _ai_services_module
+        import src.services.ai_service as _ai_services_module
         ai_services_module = _ai_services_module
     return ai_services_module
 
@@ -78,7 +83,7 @@ def cached_mood_data(ttl=MOOD_CACHE_TTL):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            user_id = getattr(g, 'user_id', None)
+            user_id = g.get('user_id')
             if not user_id:
                 result = f(*args, **kwargs)
                 # Ensure we return proper response
@@ -103,8 +108,8 @@ def cached_mood_data(ttl=MOOD_CACHE_TTL):
             if redis_client:
                 try:
                     cached_data = redis_client.get(cache_key)
-                    if cached_data:
-                        cached_response = json.loads(cached_data)
+                    if cached_data and isinstance(cached_data, (str, bytes)):
+                        cached_response = json.loads(str(cached_data))
                         # Store in memory for faster access next time
                         _mood_cache[cache_key] = (cached_response, time.time())
                         return jsonify({**cached_response, "cached": True}), 200
@@ -166,31 +171,80 @@ def invalidate_mood_cache(user_id: str):
         try:
             # Find and delete all keys for this user (pattern matching)
             pattern = f"mood:*:{user_id}:*"
-            cursor = 0
+            cursor: int = 0
             while True:
-                cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
-                if keys:
-                    redis_client.delete(*keys)
-                if cursor == 0:
+                scan_result = redis_client.scan(cursor, match=pattern, count=100)
+                if isinstance(scan_result, tuple) and len(scan_result) == 2:
+                    cursor, keys = int(scan_result[0]), scan_result[1]
+                    if keys:
+                        redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
+                else:
                     break
         except Exception:
             pass  # Silently fail - cache will expire naturally
 
 
+# Max text length for analysis
+MAX_ANALYZE_TEXT_LENGTH = 4000
+
+
+@mood_bp.route('/analyze-text', methods=['POST', 'OPTIONS'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def analyze_text():
+    """
+    Analyze text for sentiment and mood indicators.
+    Frontend calls /api/mood/analyze-text - this endpoint matches that expectation.
+    """
+    if request.method == 'OPTIONS':
+        return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+    
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        text = data.get('text', '').strip()
+        
+        if not text:
+            return APIResponse.bad_request('Text field is empty')
+        if not isinstance(text, str):
+            return APIResponse.bad_request('Text must be a string')
+        if len(text) > MAX_ANALYZE_TEXT_LENGTH:
+            return APIResponse.bad_request(f'Text must be max {MAX_ANALYZE_TEXT_LENGTH} characters')
+        
+        # Use AI services for sentiment analysis
+        analysis = _get_ai_services_module().ai_services.analyze_sentiment(text) or {}
+        
+        response = {
+            'sentiment': analysis.get('sentiment'),
+            'score': analysis.get('score'),
+            'emotions': analysis.get('emotions') or analysis.get('emotions_detected') or [],
+            'intensity': analysis.get('intensity'),
+            'method': analysis.get('method')
+        }
+        
+        return APIResponse.success(data=response, message='Text analyzed')
+        
+    except Exception as e:
+        logger.exception(f"Error analyzing text: {e}")
+        return APIResponse.error('Internal server error during text analysis')
+
+
 @mood_bp.route('/log', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def log_mood():
     """Log a new mood entry"""
     logger.info("🎯 Mood log endpoint called")
     if request.method == 'OPTIONS':
-        return '', 204
+        return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
     try:
         # Use Flask's g.user_id for authenticated user context
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         logger.info(f"🎯 User ID from context: {user_id}")
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Check if user exists in Firestore
         try:
@@ -198,11 +252,11 @@ def log_mood():
             if not user_doc.exists:
                 # In tests, the Firestore mock may not support document lookups; allow passthrough
                 if not current_app.config.get('TESTING'):
-                    return jsonify({'error': 'User not found'}), 404
+                    return APIResponse.not_found('User not found')
             user_data = user_doc.to_dict() if user_doc.exists else {}
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+            return APIResponse.error('Service temporarily unavailable', status_code=503)
 
         plan_context = SubscriptionService.get_plan_context(user_data)
         try:
@@ -212,10 +266,7 @@ def log_mood():
             logger.info(
                 "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
             )
-            return jsonify({
-                'error': 'Du har nått din dagliga gräns för humörloggningar.',
-                'limit': exc.limit_value,
-            }), 429
+            return APIResponse.error('Daily mood log limit reached', status_code=429)
 
         # --- Unified payload handling for both JSON and multipart/form-data ---
         # If frontend sends audio, it uses multipart/form-data; otherwise JSON
@@ -243,7 +294,7 @@ def log_mood():
             audio_file = None
 
         if not data and not audio_file:
-            return jsonify({'error': 'No data provided'}), 400
+            return APIResponse.bad_request('No data provided')
 
         mood_text = data.get('mood_text', '') if data else ''
         # CRITICAL FIX: Get note (from frontend MoodLogger)
@@ -450,11 +501,10 @@ def log_mood():
                 }
                 swedish_emotion = emotion_translations.get(primary_emotion.lower(), primary_emotion.lower())
                 logger.info(f"🎭 Returning mood analysis: {swedish_emotion} (from {primary_emotion})")
-                return jsonify({
+                return APIResponse.success({
                     'mood': swedish_emotion,
-                    'ai_analysis': voice_analysis,
-                    'success': True
-                }), 200
+                    'aiAnalysis': voice_analysis
+                }, 'Mood logged with voice analysis')
 
             # If no voice analysis but we have transcript, use transcript analysis
             if transcript and sentiment_analysis:
@@ -466,45 +516,43 @@ def log_mood():
                 }
                 swedish_emotion = emotion_translations.get(primary_sentiment, 'neutral')
                 logger.info(f"🎭 Returning transcript analysis: {swedish_emotion} (from {primary_sentiment})")
-                return jsonify({
+                return APIResponse.success({
                     'mood': swedish_emotion,
-                    'ai_analysis': sentiment_analysis,
-                    'success': True
-                }), 200
+                    'aiAnalysis': sentiment_analysis
+                }, 'Mood logged with transcript analysis')
 
             # If nothing worked, return neutral but still success (mood was saved)
             logger.info("🎭 Returning neutral mood (no analysis available but mood was saved)")
-            return jsonify({
+            return APIResponse.success({
                 'mood': 'neutral',
-                'ai_analysis': voice_analysis or {'sentiment': 'NEUTRAL', 'method': 'default'},
-                'success': True,
-                'message': 'Humör sparat, men ingen analys kunde göras'
-            }), 200
+                'aiAnalysis': voice_analysis or {'sentiment': 'NEUTRAL', 'method': 'default'}
+            }, 'Mood saved, but no analysis could be performed')
         else:
             # For regular JSON requests
-            return jsonify({
-                'success': True,
-                'mood_entry': mood_entry,
+            return APIResponse.created({
+                'moodEntry': mood_entry,
                 'analysis': sentiment_analysis or voice_analysis
-            }), 201
+            }, 'Mood logged successfully')
 
     except Exception as e:
         logger.error(f"❌ Failed to log mood: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to log mood'}), 500
+        return APIResponse.error('Failed to log mood')
 
 @mood_bp.route('/test', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def test_mood():
     """Test route for mood endpoints"""
-    return jsonify({'message': 'Mood routes are working!', 'status': 'ok'}), 200
+    return APIResponse.success({'status': 'ok'}, 'Mood routes are working!')
 
 @mood_bp.route('', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @cached_mood_data(ttl=300)  # Cache for 5 minutes - PERFORMANCE CRITICAL
 def get_moods():
     """Get user's mood history with pagination and filtering - OPTIMIZED"""
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
             return {'error': 'User ID missing from context'}, 401
 
@@ -552,47 +600,59 @@ def get_moods():
 
 @mood_bp.route('/<mood_id>', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_mood(mood_id):
     """Get a specific mood entry"""
+    # Validate mood_id
+    mood_id = input_sanitizer.sanitize(mood_id)
+    if not MOOD_ID_PATTERN.match(mood_id):
+        return APIResponse.bad_request('Invalid mood ID format')
+
     logger.info(f"🔍 Getting mood entry {mood_id}")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Get the mood document
         mood_doc = db.collection('users').document(user_id).collection('moods').document(mood_id).get()
 
         if not mood_doc.exists:
-            return jsonify({'error': 'Mood entry not found'}), 404
+            return APIResponse.not_found('Mood entry not found')
 
         mood_data = mood_doc.to_dict()
         mood_data['id'] = mood_doc.id
 
         logger.info(f"🔍 Retrieved mood entry {mood_id} for user {user_id}")
 
-        return jsonify({'mood': mood_data}), 200
+        return APIResponse.success({'mood': mood_data}, 'Mood entry retrieved')
 
     except Exception as e:
         logger.error(f"❌ Failed to get mood {mood_id}: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to retrieve mood'}), 500
+        return APIResponse.error('Failed to retrieve mood')
 
 @mood_bp.route('/<mood_id>', methods=['DELETE'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def delete_mood(mood_id):
     """Delete a mood entry"""
+    # Validate mood_id
+    mood_id = input_sanitizer.sanitize(mood_id)
+    if not MOOD_ID_PATTERN.match(mood_id):
+        return APIResponse.bad_request('Invalid mood ID format')
+
     logger.info(f"🗑️ Deleting mood entry {mood_id}")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Check if mood exists and belongs to user
         mood_ref = db.collection('users').document(user_id).collection('moods').document(mood_id)
         mood_doc = mood_ref.get()
 
         if not mood_doc.exists:
-            return jsonify({'error': 'Mood entry not found'}), 404
+            return APIResponse.not_found('Mood entry not found')
 
         # Delete the mood entry
         mood_ref.delete()
@@ -602,22 +662,23 @@ def delete_mood(mood_id):
 
         logger.info(f"🗑️ Deleted mood entry {mood_id} for user {user_id}")
 
-        return jsonify({'message': 'Mood entry deleted successfully'}), 200
+        return APIResponse.success({'deleted': mood_id}, 'Mood entry deleted successfully')
 
     except Exception as e:
         logger.error(f"❌ Failed to delete mood {mood_id}: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to delete mood'}), 500
+        return APIResponse.error('Failed to delete mood')
 
 @mood_bp.route('/recent', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @cached_mood_data(ttl=60)  # Cache for 1 minute
 def get_recent_moods():
     """Get user's recent mood entries (last 7 days)"""
     logger.info("📅 Getting recent mood entries")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Get moods from last 7 days
         seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
@@ -636,37 +697,43 @@ def get_recent_moods():
 
         logger.info(f"📅 Retrieved {len(moods)} recent mood entries for user {user_id}")
 
-        return jsonify({
+        return APIResponse.success({
             'moods': moods,
-            'period': 'last_7_days',
+            'period': 'last7Days',
             'total': len(moods)
-        }), 200
+        }, 'Recent moods retrieved')
 
     except Exception as e:
         logger.error(f"❌ Failed to get recent moods: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to retrieve recent moods'}), 500
+        return APIResponse.error('Failed to retrieve recent moods')
 
 @mood_bp.route('/<mood_id>', methods=['PUT'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def update_mood(mood_id):
     """Update a mood entry"""
+    # Validate mood_id
+    mood_id = input_sanitizer.sanitize(mood_id)
+    if not MOOD_ID_PATTERN.match(mood_id):
+        return APIResponse.bad_request('Invalid mood ID format')
+
     logger.info(f"✏️ Updating mood entry {mood_id}")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Check if mood exists and belongs to user
         mood_ref = db.collection('users').document(user_id).collection('moods').document(mood_id)
         mood_doc = mood_ref.get()
 
         if not mood_doc.exists:
-            return jsonify({'error': 'Mood entry not found'}), 404
+            return APIResponse.not_found('Mood entry not found')
 
         # Get update data
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'No update data provided'}), 400
+            return APIResponse.bad_request('No update data provided')
 
         # Only allow updating certain fields
         allowed_updates = {
@@ -678,7 +745,7 @@ def update_mood(mood_id):
         update_data = {k: v for k, v in allowed_updates.items() if v is not None}
 
         if not update_data:
-            return jsonify({'error': 'No valid fields to update'}), 400
+            return APIResponse.bad_request('No valid fields to update')
 
         # If mood_text is being updated, re-analyze sentiment
         if 'mood_text' in update_data and update_data['mood_text'].strip():
@@ -701,24 +768,22 @@ def update_mood(mood_id):
 
         logger.info(f"✏️ Updated mood entry {mood_id} for user {user_id}")
 
-        return jsonify({
-            'message': 'Mood entry updated successfully',
-            'mood': updated_data
-        }), 200
+        return APIResponse.success({'mood': updated_data}, 'Mood entry updated successfully')
 
     except Exception as e:
         logger.error(f"❌ Failed to update mood {mood_id}: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to update mood'}), 500
+        return APIResponse.error('Failed to update mood')
 
 @mood_bp.route('/today', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_today_mood():
     """Get user's mood for today"""
     logger.info("📅 Getting today's mood")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Get today's date range
         today = datetime.now(timezone.utc).date()
@@ -731,10 +796,10 @@ def get_today_mood():
         mood_docs = list(query.stream())
 
         if not mood_docs:
-            return jsonify({
-                'has_mood_today': False,
+            return APIResponse.success({
+                'hasMoodToday': False,
                 'message': 'No mood logged today'
-            }), 200
+            })
 
         # Return the most recent mood for today
         latest_mood = None
@@ -751,38 +816,39 @@ def get_today_mood():
 
         logger.info(f"📅 Retrieved today's mood for user {user_id}")
 
-        return jsonify({
-            'has_mood_today': True,
+        return APIResponse.success({
+            'hasMoodToday': True,
             'mood': latest_mood
-        }), 200
+        })
 
     except Exception as e:
         logger.error(f"❌ Failed to get today's mood: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to retrieve today\'s mood'}), 500
+        return APIResponse.error('Failed to retrieve today\'s mood')
 
 @mood_bp.route('/streaks', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @cached_mood_data(ttl=3600)  # Cache for 1 hour
 def get_mood_streaks():
     """Get user's mood logging streaks"""
     logger.info("🔥 Getting mood streaks")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Get all mood entries for streak calculation
         mood_ref = db.collection('users').document(user_id).collection('moods')
         mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').stream())
 
         if not mood_docs:
-            return jsonify({
-                'current_streak': 0,
-                'longest_streak': 0,
-                'total_logged_days': 0,
-                'consistency_percentage': 0,
-                'last_log_date': None
-            }), 200
+            return APIResponse.success({
+                'currentStreak': 0,
+                'longestStreak': 0,
+                'totalLoggedDays': 0,
+                'consistencyPercentage': 0,
+                'lastLogDate': None
+            })
 
         # Extract dates from mood entries
         logged_dates = set()
@@ -842,29 +908,30 @@ def get_mood_streaks():
 
         logger.info(f"🔥 Calculated streaks for user {user_id}: current={current_streak}, longest={longest_streak}")
 
-        return jsonify({
-            'current_streak': current_streak,
-            'longest_streak': longest_streak,
-            'total_logged_days': len(logged_dates),
-            'consistency_percentage': round(consistency_percentage, 1),
-            'last_log_date': last_log_date
-        }), 200
+        return APIResponse.success({
+            'currentStreak': current_streak,
+            'longestStreak': longest_streak,
+            'totalLoggedDays': len(logged_dates),
+            'consistencyPercentage': round(consistency_percentage, 1),
+            'lastLogDate': last_log_date
+        })
 
     except Exception as e:
         logger.error(f"❌ Failed to get mood streaks: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to calculate streaks'}), 500
+        return APIResponse.error('Failed to calculate streaks')
 
 
 @mood_bp.route('/weekly-analysis', methods=['GET'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @cached_mood_data(ttl=600)  # Cache for 10 minutes
 def get_weekly_analysis():
     """Get weekly mood analysis with AI-generated insights"""
     logger.info("📊 Getting weekly mood analysis")
     try:
-        user_id = getattr(g, 'user_id', None)
+        user_id = g.get('user_id')
         if not user_id:
-            return jsonify({'error': 'User ID missing from context'}), 401
+            return APIResponse.unauthorized('User ID missing from context')
 
         # Get moods from last 7 days
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
@@ -882,14 +949,14 @@ def get_weekly_analysis():
             mood_docs = []
 
         if not mood_docs:
-            return jsonify({
-                'total_moods': 0,
-                'average_sentiment': 0,
+            return APIResponse.success({
+                'totalMoods': 0,
+                'averageSentiment': 0,
                 'trend': 'stable',
-                'insights': 'Börja logga ditt humör för att få personliga insikter!',
-                'recent_memories': [],
+                'insights': 'Start logging your mood to get personal insights!',
+                'recentMemories': [],
                 'fallback': True
-            }), 200
+            })
 
         # Process mood data
         moods_data = []
@@ -954,25 +1021,128 @@ def get_weekly_analysis():
 
         logger.info(f"📊 Weekly analysis for user {user_id}: {total_moods} moods, trend={trend}")
 
-        return jsonify({
-            'total_moods': total_moods,
-            'average_sentiment': round(average_sentiment, 2),
+        return APIResponse.success({
+            'totalMoods': total_moods,
+            'averageSentiment': round(average_sentiment, 2),
             'trend': trend,
             'insights': insights,
-            'recent_memories': recent_memories,
-            'positive_count': positive_count,
-            'negative_count': negative_count,
-            'neutral_count': neutral_count,
-            'positive_percentage': round((positive_count / total_moods * 100) if total_moods > 0 else 0, 1),
-            'negative_percentage': round((negative_count / total_moods * 100) if total_moods > 0 else 0, 1),
-            'neutral_percentage': round((neutral_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'recentMemories': recent_memories,
+            'positiveCount': positive_count,
+            'negativeCount': negative_count,
+            'neutralCount': neutral_count,
+            'positivePercentage': round((positive_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'negativePercentage': round((negative_count / total_moods * 100) if total_moods > 0 else 0, 1),
+            'neutralPercentage': round((neutral_count / total_moods * 100) if total_moods > 0 else 0, 1),
             'fallback': False,
             'confidence': 0.85
-        }), 200
+        })
 
     except Exception as e:
         logger.error(f"❌ Failed to get weekly analysis: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to generate weekly analysis'}), 500
+        return APIResponse.error('Failed to generate weekly analysis')
+
+
+# 🔹 Predictive Mood Forecast - Frontend integration endpoint
+@mood_bp.route('/predictive-forecast', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
+@AuthService.jwt_required
+def predictive_mood_forecast():
+    """
+    Get predictive mood forecast for the user.
+    This endpoint provides ML-based mood predictions used by MoodAnalytics.tsx.
+    
+    Query Parameters:
+        days_ahead: Number of days to forecast (1-30, default 7)
+    
+    Returns:
+        JSON with forecast data including predictions, risk factors, and recommendations
+    """
+    if request.method == 'OPTIONS':
+        return APIResponse.success()
+    
+    try:
+        user_id = g.get('user_id')
+        if not user_id:
+            logger.error("❌ Missing user_id in predictive-forecast request")
+            return APIResponse.bad_request('User ID is required')
+
+        # Validate and clamp days_ahead
+        days_ahead = request.args.get('days_ahead', 7, type=int)
+        days_ahead = max(1, min(days_ahead, 30))  # Clamp 1-30
+
+        logger.info(f"🔮 Predictive forecast requested for user {user_id}, days_ahead={days_ahead}")
+
+        # Get user's mood history from database
+        mood_ref = db.collection("users").document(user_id).collection("moods")
+        mood_docs = list(mood_ref.order_by("timestamp", direction="DESCENDING").limit(100).stream())
+
+        mood_history = []
+        for doc in mood_docs:
+            mood_data = doc.to_dict()
+            mood_history.append({
+                "sentiment": mood_data.get("sentiment", "NEUTRAL"),
+                "sentiment_score": mood_data.get("score", 0),
+                "timestamp": mood_data.get("timestamp", ""),
+                "note": mood_data.get("note", ""),
+                "emotions_detected": mood_data.get("emotions_detected", [])
+            })
+
+        logger.info(f"📊 Retrieved {len(mood_history)} mood entries for forecasting")
+
+        # Get AI services module (lazy loaded)
+        ai_services_mod = _get_ai_services_module()
+        ai_services = ai_services_mod.ai_services
+
+        try:
+            # Try sklearn-based forecasting first
+            forecast_result = ai_services.predictive_mood_forecasting_sklearn(
+                mood_history=mood_history,
+                days_ahead=days_ahead
+            )
+            logger.info(f"✅ ML-based forecast generated successfully for user {user_id}")
+        except Exception as forecast_error:
+            logger.warning(f"⚠️ Sklearn forecast failed, using basic analytics: {str(forecast_error)}")
+            try:
+                forecast_result = ai_services.predictive_mood_analytics(mood_history, days_ahead)
+            except Exception as fallback_error:
+                logger.warning(f"⚠️ Fallback analytics also failed: {str(fallback_error)}")
+                # Return a static fallback response
+                forecast_result = {
+                    "forecast": {
+                        "daily_predictions": [0.5] * days_ahead,
+                        "average_forecast": 0.5,
+                        "trend": "stable",
+                        "confidence_interval": {"lower": 0.3, "upper": 0.7}
+                    },
+                    "model_info": {
+                        "algorithm": "fallback",
+                        "training_rmse": 0.0,
+                        "data_points_used": len(mood_history)
+                    },
+                    "current_analysis": {
+                        "recent_average": 0.5,
+                        "volatility": 0.3
+                    },
+                    "risk_factors": [],
+                    "recommendations": ["Continue logging your mood regularly for better forecasts."],
+                    "confidence": 0.0
+                }
+
+        # Format response to match frontend ForecastData interface
+        return APIResponse.success({
+            'forecast': forecast_result.get('forecast', {}),
+            'modelInfo': forecast_result.get('model_info', {}),
+            'currentAnalysis': forecast_result.get('current_analysis', {}),
+            'riskFactors': forecast_result.get('risk_factors', []),
+            'recommendations': forecast_result.get('recommendations', []),
+            'confidence': forecast_result.get('confidence', 0.0),
+            'dataPointsUsed': len(mood_history),
+            'forecastPeriodDays': days_ahead
+        })
+
+    except Exception as e:
+        logger.exception(f"🔥 Error in predictive mood forecast: {e}")
+        return APIResponse.error('An internal error occurred during forecast generation')
 
 
 def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str, 
@@ -980,42 +1150,42 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
     """Generate AI-style insights based on mood data"""
     
     if total_moods == 0:
-        return "Börja logga ditt humör dagligen för att få personliga insikter om dina mönster och välmående."
+        return "Start logging your mood daily to get personal insights about your patterns and wellbeing."
     
     insights = []
     
     # Overall mood assessment
     if average_sentiment > 0.3:
-        insights.append(f"Fantastiskt! Ditt genomsnittliga humör denna vecka har varit mycket positivt ({round(average_sentiment * 10, 1)}/10).")
+        insights.append(f"Fantastic! Your average mood this week has been very positive ({round(average_sentiment * 10, 1)}/10).")
     elif average_sentiment > 0:
-        insights.append(f"Ditt genomsnittliga humör har varit lite positivt ({round(average_sentiment * 10 + 5, 1)}/10).")
+        insights.append(f"Your average mood has been slightly positive ({round(average_sentiment * 10 + 5, 1)}/10).")
     elif average_sentiment > -0.3:
-        insights.append(f"Ditt humör har varit relativt neutralt denna vecka ({round(average_sentiment * 10 + 5, 1)}/10).")
+        insights.append(f"Your mood has been relatively neutral this week ({round(average_sentiment * 10 + 5, 1)}/10).")
     else:
-        insights.append(f"Din vecka verkar ha varit utmanande. Kom ihåg att det är okej att be om stöd.")
+        insights.append("Your week seems to have been challenging. Remember that it's okay to ask for support.")
     
     # Trend insights
     if trend == 'improving':
-        insights.append("📈 Bra jobbat! Ditt humör visar en positiv trend.")
+        insights.append("📈 Great job! Your mood is showing a positive trend.")
     elif trend == 'declining':
-        insights.append("📉 Ditt humör har gått ner lite. Ta en stund för egenvård idag.")
+        insights.append("📉 Your mood has dipped a bit. Take a moment for self-care today.")
     else:
-        insights.append("📊 Ditt humör har varit stabilt.")
+        insights.append("📊 Your mood has been stable.")
     
     # Activity insights
     if total_moods >= 7:
-        insights.append(f"🌟 Utmärkt vana! Du har loggat {total_moods} gånger denna vecka.")
+        insights.append(f"🌟 Excellent habit! You've logged {total_moods} times this week.")
     elif total_moods >= 3:
-        insights.append(f"👍 Bra start! {total_moods} loggningar denna vecka. Försök logga dagligen för bättre insikter.")
+        insights.append(f"👍 Great start! {total_moods} logs this week. Try logging daily for better insights.")
     else:
-        insights.append(f"💡 Du har loggat {total_moods} gång(er). Regelbunden loggning hjälper dig förstå dina mönster.")
+        insights.append(f"💡 You've logged {total_moods} time(s). Regular logging helps you understand your patterns.")
     
     # Positive ratio
     if total_moods > 0:
         positive_ratio = positive_count / total_moods
         if positive_ratio > 0.6:
-            insights.append("😊 Majoriteten av dina registreringar har varit positiva!")
+            insights.append("😊 The majority of your entries have been positive!")
         elif negative_count > positive_count:
-            insights.append("💙 Du har haft fler utmanande dagar. Andning och meditation kan hjälpa.")
+            insights.append("💙 You've had more challenging days. Breathing and meditation can help.")
     
     return " ".join(insights)

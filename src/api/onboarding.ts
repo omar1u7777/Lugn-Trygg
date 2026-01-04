@@ -17,16 +17,20 @@ export interface OnboardingGoalsRequest {
 }
 
 export interface OnboardingGoalsResponse {
-  message: string;
   goals: string[];
-  onboarding_completed: boolean;
+  onboardingCompleted: boolean;
 }
 
 export interface OnboardingStatusResponse {
-  onboarding_completed: boolean;
-  onboarding_completed_at?: string;
-  wellness_goals: string[];
-  goals_count: number;
+  onboardingCompleted: boolean;
+  onboardingCompletedAt?: string;
+  wellnessGoals: string[];
+  goalsCount: number;
+}
+
+export interface SkipOnboardingResponse {
+  onboardingCompleted: boolean;
+  skipped: boolean;
 }
 
 /**
@@ -43,10 +47,11 @@ export async function saveOnboardingGoals(
   console.log('💾 Saving onboarding goals:', { userId, goals });
 
   const response = await api.post(`${API_ENDPOINTS.ONBOARDING.GOALS}/${userId}`, { goals });
+  const data = response.data?.data || response.data;
 
-  console.log('✅ Goals saved successfully:', response.data);
+  console.log('✅ Goals saved successfully:', data);
 
-  return response.data;
+  return data;
 }
 
 /**
@@ -56,10 +61,11 @@ export async function getOnboardingGoals(userId: string): Promise<string[]> {
   console.log('📥 Fetching onboarding goals for user:', userId);
 
   const response = await api.get(`${API_ENDPOINTS.ONBOARDING.GOALS}/${userId}`);
+  const data = response.data?.data || response.data;
 
-  console.log('✅ Goals fetched:', response.data);
+  console.log('✅ Goals fetched:', data);
 
-  return response.data.goals;
+  return data?.goals || [];
 }
 
 /**
@@ -72,10 +78,11 @@ export async function updateOnboardingGoals(
   console.log('🔄 Updating onboarding goals:', { userId, goals });
 
   const response = await api.put(`${API_ENDPOINTS.ONBOARDING.GOALS}/${userId}`, { goals });
+  const data = response.data?.data || response.data;
 
-  console.log('✅ Goals updated:', response.data);
+  console.log('✅ Goals updated:', data);
 
-  return response.data;
+  return data;
 }
 
 /**
@@ -85,21 +92,25 @@ export async function getOnboardingStatus(userId: string): Promise<OnboardingSta
   console.log('📊 Fetching onboarding status for user:', userId);
 
   const response = await api.get(`${API_ENDPOINTS.ONBOARDING.STATUS}/${userId}`);
+  const data = response.data?.data || response.data;
 
-  console.log('✅ Status fetched:', response.data);
+  console.log('✅ Status fetched:', data);
 
-  return response.data;
+  return data;
 }
 
 /**
  * Skip onboarding (mark as completed without goals)
  */
-export async function skipOnboarding(userId: string): Promise<void> {
+export async function skipOnboarding(userId: string): Promise<SkipOnboardingResponse> {
   console.log('⏭️ Skipping onboarding for user:', userId);
 
-  await api.post(`${API_ENDPOINTS.ONBOARDING.SKIP}/${userId}`);
+  const response = await api.post(`${API_ENDPOINTS.ONBOARDING.SKIP}/${userId}`);
+  const data = response.data?.data || response.data;
 
   console.log('✅ Onboarding skipped successfully');
+
+  return data;
 }
 
 export default {

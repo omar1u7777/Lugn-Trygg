@@ -5,16 +5,25 @@ Provides batched dashboard data endpoints for frontend efficiency
 
 from flask import Blueprint, request, jsonify, g
 from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.audit_service import audit_log
 from ..firebase_config import db
+from ..utils.input_sanitization import input_sanitizer
+from ..utils.response_utils import APIResponse
 from datetime import datetime, timezone, timedelta
 import logging
+import re
 from typing import Dict, List, Any
+
+# Validate user_id format: Firebase UID is alphanumeric 28 chars
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 dashboard_bp = Blueprint('dashboard', __name__)
 logger = logging.getLogger(__name__)
 
 
 @dashboard_bp.route('/csrf-token', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def get_csrf_token():
     """
     Generate a CSRF token for the frontend.
@@ -24,11 +33,12 @@ def get_csrf_token():
         return '', 204
 
     import secrets
-    csrf_token = secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(32)
 
-    return jsonify({
-        'csrf_token': csrf_token
-    }), 200
+    return APIResponse.success(
+        data={'csrfToken': token},
+        message='CSRF token generated'
+    )
 
 
 def _get_score_from_mood_text(mood_text: str) -> str:
@@ -63,14 +73,52 @@ def _get_score_from_mood_text(mood_text: str) -> str:
 # In-memory cache for dashboard data (5 minute TTL)
 _dashboard_cache: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
+CACHE_MAX_SIZE = 1000  # Max entries before cleanup
+_last_cleanup = 0.0
+
+
+def _cleanup_expired_cache() -> None:
+    """Remove expired cache entries to prevent memory leak"""
+    global _last_cleanup
+    now = datetime.now(timezone.utc).timestamp()
+    
+    # Only cleanup every 60 seconds to avoid overhead
+    if now - _last_cleanup < 60:
+        return
+    
+    _last_cleanup = now
+    expired_keys = [
+        key for key, data in _dashboard_cache.items()
+        if now - data.get('_cached_at', 0) >= CACHE_TTL_SECONDS
+    ]
+    
+    for key in expired_keys:
+        del _dashboard_cache[key]
+    
+    # If still too large, remove oldest entries
+    if len(_dashboard_cache) > CACHE_MAX_SIZE:
+        sorted_keys = sorted(
+            _dashboard_cache.keys(),
+            key=lambda k: _dashboard_cache[k].get('_cached_at', 0)
+        )
+        for key in sorted_keys[:len(_dashboard_cache) - CACHE_MAX_SIZE]:
+            del _dashboard_cache[key]
+    
+    if expired_keys:
+        logger.debug(f"🧹 Cache cleanup: removed {len(expired_keys)} expired entries")
 
 
 def _get_cached_data(user_id: str) -> Dict[str, Any] | None:
     """Get cached dashboard data if still valid"""
+    _cleanup_expired_cache()  # Cleanup on read
+    
     if user_id in _dashboard_cache:
         cached = _dashboard_cache[user_id]
         if datetime.now(timezone.utc).timestamp() - cached.get('_cached_at', 0) < CACHE_TTL_SECONDS:
             return cached
+        else:
+            # Remove expired entry
+            del _dashboard_cache[user_id]
     return None
 
 
@@ -82,6 +130,7 @@ def _set_cached_data(user_id: str, data: Dict[str, Any]) -> None:
 
 @dashboard_bp.route('/<user_id>/summary', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_dashboard_summary(user_id: str):
     """
     Get complete dashboard summary in one API call.
@@ -92,10 +141,19 @@ def get_dashboard_summary(user_id: str):
         return '', 204
 
     try:
+        # Validate user_id format
+        user_id = input_sanitizer.sanitize(user_id, content_type='text', max_length=128)
+        if not user_id or not USER_ID_PATTERN.match(user_id):
+            return APIResponse.bad_request('Invalid user ID format')
+
         # Verify user owns this data
         if g.user_id != user_id:
-            logger.warning(f"❌ Dashboard - Unauthorized: {g.user_id} != {user_id}")
-            return jsonify({'error': 'Unauthorized'}), 403
+            logger.warning(f"❌ Dashboard - Unauthorized access attempt")
+            audit_log('unauthorized_dashboard_access', g.user_id, {
+                'attempted_user_id': user_id,
+                'endpoint': 'summary'
+            })
+            return APIResponse.forbidden('Unauthorized access')
 
         # Check for force refresh
         force_refresh = request.args.get('forceRefresh', 'false').lower() == 'true'
@@ -106,9 +164,14 @@ def get_dashboard_summary(user_id: str):
             if cached_data:
                 logger.info(f"📊 Dashboard - Cache hit for user: {user_id[:8]}...")
                 cached_data['cached'] = True
-                return jsonify(cached_data), 200
+                return APIResponse.success(data=cached_data, message='Dashboard summary retrieved (cached)')
 
         start_time = datetime.now(timezone.utc)
+
+        # Check database availability
+        if db is None:
+            logger.error("❌ Dashboard - Database unavailable")
+            return APIResponse.error('Database unavailable', error_code='SERVICE_UNAVAILABLE', status_code=503)
 
         # Fetch user data
         user_ref = db.collection('users').document(user_id)
@@ -366,15 +429,16 @@ def get_dashboard_summary(user_id: str):
         _set_cached_data(user_id, summary.copy())
 
         logger.info(f"✅ Dashboard summary for {user_id[:8]}: {total_moods} moods, {total_chats} chats, {response_time:.0f}ms")
-        return jsonify(summary), 200
+        return APIResponse.success(data=summary, message='Dashboard summary retrieved')
 
     except Exception as e:
         logger.exception(f"❌ Failed to get dashboard summary: {e}")
-        return jsonify({'error': 'Failed to load dashboard summary'}), 500
+        return APIResponse.error('Failed to load dashboard summary')
 
 
 @dashboard_bp.route('/<user_id>/quick-stats', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_quick_stats(user_id: str):
     """
     Get quick stats for real-time updates (1 minute cache).
@@ -384,9 +448,23 @@ def get_quick_stats(user_id: str):
         return '', 204
 
     try:
+        # Validate user_id format
+        user_id = input_sanitizer.sanitize(user_id, content_type='text', max_length=128)
+        if not user_id or not USER_ID_PATTERN.match(user_id):
+            return APIResponse.bad_request('Invalid user ID format')
+
         # Verify user owns this data
         if g.user_id != user_id:
-            return jsonify({'error': 'Unauthorized'}), 403
+            audit_log('unauthorized_dashboard_access', g.user_id, {
+                'attempted_user_id': user_id,
+                'endpoint': 'quick-stats'
+            })
+            return APIResponse.forbidden('Unauthorized access')
+
+        # Check database availability
+        if db is None:
+            logger.error("❌ Quick stats - Database unavailable")
+            return APIResponse.error('Database unavailable', error_code='SERVICE_UNAVAILABLE', status_code=503)
 
         # Quick count queries - CRITICAL FIX: Use correct subcollection paths
         try:
@@ -405,31 +483,30 @@ def get_quick_stats(user_id: str):
             logger.warning(f"⚠️ Quick stats chat query failed: {e}")
             total_chats = 0
 
-        return jsonify({
-            'totalMoods': total_moods,
-            'totalChats': total_chats,
-            'cached': False
-        }), 200
+        return APIResponse.success(
+            data={
+                'totalMoods': total_moods,
+                'totalChats': total_chats,
+                'cached': False
+            },
+            message='Quick stats retrieved'
+        )
 
     except Exception as e:
         logger.exception(f"❌ Failed to get quick stats: {e}")
-        return jsonify({
-            'totalMoods': 0,
-            'totalChats': 0,
-            'cached': False,
-            'error': str(e)
-        }), 500
+        return APIResponse.error('Failed to load quick stats')
 
 
 @dashboard_bp.route('', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_dashboard_legacy():
     """Legacy /api/dashboard endpoint that proxies to the user-specific summary."""
     if request.method == 'OPTIONS':
         return '', 204
 
     if not getattr(g, 'user_id', None):
-        return jsonify({'error': 'User context saknas'}), 400
+        return APIResponse.bad_request('User context missing')
 
     # Reuse the rich summary endpoint with the authenticated user id
     return get_dashboard_summary(g.user_id)
@@ -437,13 +514,14 @@ def get_dashboard_legacy():
 
 @dashboard_bp.route('/stats', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_dashboard_legacy_stats():
     """Legacy /api/dashboard/stats endpoint forwarding to quick stats."""
     if request.method == 'OPTIONS':
         return '', 204
 
     if not getattr(g, 'user_id', None):
-        return jsonify({'error': 'User context saknas'}), 400
+        return APIResponse.bad_request('User context missing')
 
     return get_quick_stats(g.user_id)
 

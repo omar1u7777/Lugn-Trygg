@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/api';
+import { API_ENDPOINTS } from '../api/constants';
 import {
   BookOpenIcon,
   PlayIcon,
@@ -47,9 +48,7 @@ const AIStories: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/api/ai/stories', {
-        params: { user_id: user.user_id }
-      });
+      const response = await api.get(API_ENDPOINTS.AI.GET_STORIES);
       setStories(response.data?.stories || []);
     } catch (err) {
       setError(t('ai.stories.loadError'));
@@ -83,8 +82,7 @@ const AIStories: React.FC = () => {
     
     try {
       setGenerating(true);
-      const response = await api.post('/api/ai/story', {
-        user_id: user.user_id,
+      const response = await api.post(API_ENDPOINTS.AI.GENERATE_STORY, {
         locale: 'sv'
       });
       setStories(prev => [response.data, ...prev]);

@@ -1,81 +1,153 @@
+"""
+Memory Routes - Audio memory management system
+Allows users to upload, list, retrieve, and delete audio memories
+Uses Firebase Storage for file storage and Firestore for metadata
+"""
+
 import os
 import logging
+import re
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, request as flask_request, jsonify
-from types import SimpleNamespace
+from typing import Optional
+from flask import Blueprint, request as flask_request, g
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
-import src.firebase_config as firebase_config
-from ..utils.input_sanitization import input_sanitizer
-from ..utils.response_utils import APIResponse, success_response, error_response, created_response
 
-_DB_SENTINEL = object()
-db = _DB_SENTINEL  # legacy override point for tests
-
-
-def _get_db():
-    """Return Firestore client, allowing tests to inject a mock via module attribute."""
-    override = globals().get("db", _DB_SENTINEL)
-    return override if override is not _DB_SENTINEL else firebase_config.db
+# Absolute imports (project standard)
+from src.firebase_config import db
 from src.services.auth_service import AuthService
-
-memory_bp = Blueprint("memory", __name__)
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.audit_service import audit_log
+from src.utils.input_sanitization import input_sanitizer
+from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
 
-# Expose a patchable symbol for tests as a plain object (does not require request context)
-request = SimpleNamespace()
+# Validation patterns
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+MEMORY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{10,100}$')
+FILE_PATH_PATTERN = re.compile(r'^memories/[a-zA-Z0-9]{20,128}/\d{14}\.(mp3|wav|m4a)$')
+
+memory_bp = Blueprint("memory", __name__)
 
 
-@memory_bp.route('', methods=['GET', 'OPTIONS'])
-def memory_root_placeholder():
-    """Return 404 for the legacy /api/memory endpoint used in integration smoke tests."""
-    if flask_request.method == 'OPTIONS':
-        return '', 204
-    return APIResponse.not_found("Endpoint inte tillgänglig på denna sökväg")
+def _validate_user_id(user_id: str) -> bool:
+    """Validate user_id format"""
+    return bool(USER_ID_PATTERN.match(user_id)) if user_id else False
 
 
-# 🔹 Tillåtna filformat
+def _validate_memory_id(memory_id: str) -> bool:
+    """Validate memory_id format"""
+    return bool(MEMORY_ID_PATTERN.match(memory_id)) if memory_id else False
+
+
+def _validate_file_path(file_path: str) -> bool:
+    """Validate file_path format to prevent path traversal"""
+    if not file_path:
+        return False
+    # Normalize path and check for traversal attempts
+    normalized = file_path.replace('\\', '/')
+    if '..' in normalized or normalized.startswith('/'):
+        return False
+    return bool(FILE_PATH_PATTERN.match(normalized))
+
+
+# ============================================================================
+# File validation
+# ============================================================================
+
 ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
- 
 
-def allowed_file(filename):
-    """🔹 Kontrollera om filen har ett tillåtet format"""
+
+def allowed_file(filename: str) -> bool:
+    """Check if file has an allowed extension"""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# 🔹 Ladda upp ljudminne till Firebase Storage
-@memory_bp.route("/upload", methods=["POST", "OPTIONS"])
+
+# ============================================================================
+# OPTIONS Handlers (CORS preflight)
+# ============================================================================
+
+@memory_bp.route('', methods=['OPTIONS'])
+@memory_bp.route('/upload', methods=['OPTIONS'])
+def memory_base_options():
+    """Handle CORS preflight for base memory endpoints"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
+@memory_bp.route('/list/<user_id>', methods=['OPTIONS'])
+def memory_list_options(user_id):
+    """Handle CORS preflight for list memories endpoint"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
+@memory_bp.route('/get/<memory_id>', methods=['OPTIONS'])
+def memory_get_options(memory_id):
+    """Handle CORS preflight for get memory endpoint"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
+@memory_bp.route('', methods=['GET'])
+@rate_limit_by_endpoint
+def memory_root_placeholder():
+    """Return 404 for the legacy /api/memory endpoint used in integration smoke tests."""
+    return APIResponse.not_found("Endpoint not available at this path")
+
+
+# ============================================================================
+# Upload Memory (requires auth)
+# ============================================================================
+
+@memory_bp.route("/upload", methods=["POST"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def upload_memory():
-    if flask_request.method == 'OPTIONS':
-        return '', 204
+    """Upload audio memory to Firebase Storage"""
     try:
-        if "audio" not in flask_request.files or "user_id" not in flask_request.form:
-            return APIResponse.bad_request("Ljudfil och användar-ID krävs!")
+        current_user_id: Optional[str] = g.get('user_id')
+        
+        if "audio" not in flask_request.files:
+            return APIResponse.bad_request("Audio file required")
 
         file = flask_request.files["audio"]
-        user_id = flask_request.form["user_id"].strip()
+        
+        # Get user_id from form or use authenticated user
+        form_user_id = flask_request.form.get("user_id", "").strip()
+        if form_user_id:
+            form_user_id = input_sanitizer.sanitize(form_user_id, 'text', 100)
+            # User can only upload to their own account
+            if form_user_id != current_user_id:
+                audit_log(
+                    event_type="UNAUTHORIZED_MEMORY_UPLOAD",
+                    user_id=current_user_id or "unknown",
+                    details={"attempted_user_id": form_user_id}
+                )
+                return APIResponse.forbidden("You can only upload to your own account")
+            user_id = form_user_id
+        else:
+            user_id = current_user_id
+        
+        if not user_id or not _validate_user_id(user_id):
+            return APIResponse.bad_request("Invalid user ID")
 
-        # Sanitize user_id
-        user_id = input_sanitizer.sanitize(user_id, 'text', 100)
-
-        if not user_id:
-            return APIResponse.bad_request("Ogiltigt användar-ID!")
-
-        if not allowed_file(file.filename):
-            return APIResponse.bad_request("Endast MP3, WAV och M4A-filer är tillåtna!")
+        # Validate filename (handle None case)
+        original_filename = file.filename or ""
+        if not original_filename or not allowed_file(original_filename):
+            return APIResponse.bad_request("Only MP3, WAV and M4A files are allowed")
 
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         file.seek(0)
         if file_length > MAX_FILE_SIZE:
-            return APIResponse.bad_request("Filen är för stor. Max 10MB tillåtet!")
+            return APIResponse.bad_request("File too large. Max 10MB allowed")
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        filename = f"memories/{user_id}/{timestamp}.mp3"
+        extension = original_filename.rsplit(".", 1)[1].lower() if "." in original_filename else "mp3"
+        filename = f"memories/{user_id}/{timestamp}.{extension}"
         secure_name = secure_filename(filename)
 
-        # 🔹 Ladda upp till Firebase Storage
+        # Upload to Firebase Storage
         bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
         bucket = storage.bucket(bucket_name)
 
@@ -90,160 +162,241 @@ def upload_memory():
         blob = bucket.blob(secure_name)
         blob.upload_from_file(file, content_type="audio/mpeg")
 
-        # 🔹 Spara metadata i Firestore
-        memory_ref = _get_db().collection("memories").document(f"{user_id}_{timestamp}")
+        # Save metadata to Firestore (using direct db import)
+        memory_id = f"{user_id}_{timestamp}"
+        memory_ref = db.collection("memories").document(memory_id)
         memory_ref.set({
             "user_id": user_id,
             "file_path": secure_name,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "created_at": datetime.now(timezone.utc).isoformat()
         })
 
-        # 🔹 Generera säker temporär länk (1 timmes giltighet)
+        # Generate secure temporary URL (1 hour validity)
         signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
 
-        return APIResponse.success({"file_url": signed_url}, "Minne har laddats upp!")
+        audit_log(
+            event_type="MEMORY_UPLOADED",
+            user_id=user_id,
+            details={"memory_id": memory_id, "file_path": secure_name}
+        )
+
+        return APIResponse.success({
+            "fileUrl": signed_url,
+            "memoryId": memory_id
+        }, "Memory uploaded successfully")
 
     except Exception as e:
-        logger.exception(f"🔥 Fel vid uppladdning av minne: {e}")
-        logger.error(f"🔥 Feltyp: {type(e).__name__}")
-        logger.error(f"🔥 Felmeddelande: {str(e)}")
-        return APIResponse.error(f"Ett fel uppstod vid uppladdning av minne: {str(e)}", "INTERNAL_ERROR", 500, str(e))
+        logger.exception(f"🔥 Error uploading memory: {e}")
+        return APIResponse.error("Failed to upload memory")
 
-# 🔹 Hämta en lista över användarens minnen
-@memory_bp.route("/list", methods=["GET"])
+# ============================================================================
+# List Memories (requires auth)
+# Frontend: GET /api/memory/list/{userId}
+# ============================================================================
+
+@memory_bp.route("/list/<user_id>", methods=["GET"])
 @AuthService.jwt_required
-def list_memories():
-    logger.info("📸 MEMORY - LIST memories endpoint called")
+@rate_limit_by_endpoint
+def list_memories(user_id: str):
+    """List all memories for a user"""
+    logger.info(f"📸 MEMORY - LIST memories for user: {user_id}")
     try:
-        # Derive user_id from Flask request or Authorization header
-        current_user_id = getattr(flask_request, "user_id", None)
-        logger.info(f"👤 MEMORY - Current user ID: {current_user_id}")
-        if not current_user_id:
-            auth_header = flask_request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header.split(" ", 1)[1]
-                uid, err = AuthService.verify_token(token)
-                if not err:
-                    current_user_id = uid
+        current_user_id: Optional[str] = g.get('user_id')
+        
+        # Sanitize and validate user_id
+        user_id = input_sanitizer.sanitize(user_id, 'text', 100)
+        if not user_id or not _validate_user_id(user_id):
+            return APIResponse.bad_request("Invalid user ID")
 
-        # Get user_id from query parameter
-        query_user_id = flask_request.args.get("user_id", "").strip()
-        # Sanitize user_id
-        query_user_id = input_sanitizer.sanitize(query_user_id, 'text', 100)
-        if not query_user_id:
-            return APIResponse.success({"memories": []}, "No memories found")
+        # Authorization check: user can only access their own memories
+        if user_id != current_user_id:
+            audit_log(
+                event_type="UNAUTHORIZED_MEMORY_ACCESS",
+                user_id=current_user_id or "unknown",
+                details={"attempted_user_id": user_id}
+            )
+            return APIResponse.forbidden("You can only view your own memories")
 
-        if query_user_id != current_user_id:
-            # Check if user is authorized to access this user's memories (admin check could go here)
-            return APIResponse.forbidden("Obehörig åtkomst till andra användares minnen!")
-
-        target_user_id = query_user_id
-
-        # CRITICAL FIX: Use FieldFilter to avoid positional argument warning and fix index requirement
-        # Handle both production (FieldFilter) and test (positional) environments
+        # Query Firestore with FieldFilter (production) or fallback (test)
         try:
             from google.cloud.firestore import FieldFilter
             memories_ref = list(
-                _get_db().collection("memories")
-                .where(filter=FieldFilter("user_id", "==", target_user_id))
-                .limit(100)  # CRITICAL FIX: Add limit to prevent large queries
-                .stream()
-            )
-        except TypeError:
-            # Fallback for test environments that don't support FieldFilter
-            memories_ref = list(
-                _get_db().collection("memories")
-                .where("user_id", "==", target_user_id)
+                db.collection("memories")
+                .where(filter=FieldFilter("user_id", "==", user_id))
                 .limit(100)
                 .stream()
             )
-        # Sort in memory to avoid composite index requirement
-        memory_list = [{"id": mem.id, "file_path": mem.to_dict().get("file_path"), "timestamp": mem.to_dict().get("timestamp")} for mem in memories_ref]
-        memory_list.sort(key=lambda x: x["timestamp"], reverse=True)
-        logger.info(f"✅ MEMORY - Retrieved {len(memory_list)} memories for user {target_user_id}")
+        except (TypeError, ImportError):
+            # Fallback for test environments
+            memories_ref = list(
+                db.collection("memories")
+                .where("user_id", "==", user_id)
+                .limit(100)
+                .stream()
+            )
 
+        # Build memory list and sort by timestamp descending
+        memory_list = []
+        for mem in memories_ref:
+            data = mem.to_dict()
+            memory_list.append({
+                "id": mem.id,
+                "filePath": data.get("file_path"),
+                "timestamp": data.get("timestamp"),
+                "createdAt": data.get("created_at")
+            })
+        memory_list.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        logger.info(f"✅ MEMORY - Retrieved {len(memory_list)} memories for user {user_id}")
         return APIResponse.success({"memories": memory_list}, f"Retrieved {len(memory_list)} memories")
 
     except Exception as e:
-        logger.exception(f"🔥 Fel vid hämtning av minnen: {e}")
-        return APIResponse.error("Ett fel uppstod vid hämtning av minnen!", "INTERNAL_ERROR", 500, str(e))
+        logger.exception(f"🔥 Error fetching memories: {e}")
+        return APIResponse.error("Failed to fetch memories")
 
-# 🔹 Hämta en signerad URL för uppspelning
-@memory_bp.route("/get", methods=["GET"])
+
+# ============================================================================
+# Get Memory URL (requires auth)
+# Frontend: GET /api/memory/get/{memoryId}
+# ============================================================================
+
+@memory_bp.route("/get/<memory_id>", methods=["GET"])
 @AuthService.jwt_required
-def get_memory():
+@rate_limit_by_endpoint
+def get_memory(memory_id: str):
+    """Get signed URL for a specific memory"""
     try:
-        current_user_id = getattr(flask_request, "user_id", None)
-        if not current_user_id:
-            auth_header = flask_request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header.split(" ", 1)[1]
-                uid, err = AuthService.verify_token(token)
-                if not err:
-                    current_user_id = uid
-        file_path = flask_request.args.get("file_path", "").strip()
+        current_user_id: Optional[str] = g.get('user_id')
+        
+        # Sanitize and validate memory_id
+        memory_id = input_sanitizer.sanitize(memory_id, 'text', 100)
+        if not memory_id or not _validate_memory_id(memory_id):
+            return APIResponse.bad_request("Invalid memory ID")
 
-        # Sanitize file_path
-        file_path = input_sanitizer.sanitize(file_path, 'filename', 255)
+        # Fetch memory from Firestore
+        memory_doc = db.collection("memories").document(memory_id).get()
+        if not memory_doc.exists:
+            return APIResponse.not_found("Memory not found")
+
+        memory_data = memory_doc.to_dict()
+        memory_user_id = memory_data.get("user_id")
+        file_path = memory_data.get("file_path")
+
+        # Authorization check: user can only access their own memories
+        if memory_user_id != current_user_id:
+            audit_log(
+                event_type="UNAUTHORIZED_MEMORY_ACCESS",
+                user_id=current_user_id or "unknown",
+                details={"memory_id": memory_id, "memory_owner": memory_user_id}
+            )
+            return APIResponse.forbidden("You can only view your own memories")
 
         if not file_path:
-            return APIResponse.bad_request("Filväg krävs!")
+            return APIResponse.not_found("File path missing")
 
-        # Get user_id from query parameter if provided, otherwise use JWT user_id
-        query_user_id = flask_request.args.get("user_id", "").strip()
-        if query_user_id and query_user_id != current_user_id:
-            # Check if user is authorized to access this user's memories (admin check could go here)
-            return APIResponse.forbidden("Obehörig åtkomst till andra användares minnen!")
+        # Validate file_path format
+        if not _validate_file_path(file_path):
+            return APIResponse.bad_request("Invalid file path")
 
-        target_user_id = query_user_id or current_user_id
-
-        # 🔹 Kontrollera att minnet tillhör användaren
-        # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
-        # Handle both production (FieldFilter) and test (positional) environments
-        try:
-            from google.cloud.firestore import FieldFilter
-            memory_ref = list(
-                _get_db().collection("memories")
-                .where(filter=FieldFilter("user_id", "==", target_user_id))
-                .where(filter=FieldFilter("file_path", "==", file_path))
-                .limit(1)
-                .stream()
-            )
-        except TypeError:
-            # Fallback for test environments that don't support FieldFilter
-            memory_ref = list(
-                _get_db().collection("memories")
-                .where("user_id", "==", target_user_id)
-                .where("file_path", "==", file_path)
-                .limit(1)
-                .stream()
-            )
-
-        if not memory_ref:
-            return APIResponse.forbidden("Obehörig åtkomst till minne!")
-
-        # 🔹 Kontrollera att filen existerar i Firebase Storage
+        # Get file from Firebase Storage
         bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
         bucket = storage.bucket(bucket_name)
         blob = bucket.blob(file_path)
 
         if not blob.exists():
-            return APIResponse.not_found("Filen hittades inte!")
+            return APIResponse.not_found("File not found in storage")
 
-        # 🔹 Skapa en signerad URL som är giltig i 1 timme
+        # Generate signed URL (1 hour validity)
         signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
 
-        return APIResponse.success({"url": signed_url}, "Memory URL generated")
+        return APIResponse.success({
+            "url": signed_url,
+            "memoryId": memory_id,
+            "filePath": file_path
+        }, "Signed URL generated")
 
     except Exception as e:
-        logger.exception(f"🔥 Fel vid hämtning av minne: {e}")
-        return APIResponse.error("Ett fel uppstod vid hämtning av minne!", "INTERNAL_ERROR", 500, str(e))
+        logger.exception(f"🔥 Error fetching memory: {e}")
+        return APIResponse.error("Failed to fetch memory")
 
 
-@memory_bp.route('/<path:unsafe_path>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
-def block_memory_path_traversal(unsafe_path):
-    """Return 404 for any unexpected deep paths (prevents traversal test from hitting 405)."""
+# ============================================================================
+# Delete Memory (requires auth)
+# Frontend: DELETE /api/memory/list/{memoryId}
+# ============================================================================
+
+@memory_bp.route("/list/<memory_id>", methods=["DELETE"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def delete_memory(memory_id: str):
+    """Delete a specific memory"""
+    try:
+        current_user_id: Optional[str] = g.get('user_id')
+        
+        # Sanitize and validate memory_id
+        memory_id = input_sanitizer.sanitize(memory_id, 'text', 100)
+        if not memory_id or not _validate_memory_id(memory_id):
+            return APIResponse.bad_request("Invalid memory ID")
+
+        # Fetch memory from Firestore
+        memory_doc = db.collection("memories").document(memory_id).get()
+        if not memory_doc.exists:
+            return APIResponse.not_found("Memory not found")
+
+        memory_data = memory_doc.to_dict()
+        memory_user_id = memory_data.get("user_id")
+        file_path = memory_data.get("file_path")
+
+        # Authorization check: user can only delete their own memories
+        if memory_user_id != current_user_id:
+            audit_log(
+                event_type="UNAUTHORIZED_MEMORY_DELETE",
+                user_id=current_user_id or "unknown",
+                details={"memory_id": memory_id, "memory_owner": memory_user_id}
+            )
+            return APIResponse.forbidden("You can only delete your own memories")
+
+        # Delete from Firebase Storage if file exists
+        if file_path:
+            try:
+                bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "lugn-trygg-53d75.appspot.com")
+                bucket = storage.bucket(bucket_name)
+                blob = bucket.blob(file_path)
+                if blob.exists():
+                    blob.delete()
+                    logger.info(f"✅ Deleted file from storage: {file_path}")
+            except Exception as storage_error:
+                logger.warning(f"⚠️ Could not delete file from storage: {storage_error}")
+
+        # Delete from Firestore
+        db.collection("memories").document(memory_id).delete()
+
+        audit_log(
+            event_type="MEMORY_DELETED",
+            user_id=current_user_id or "unknown",
+            details={"memory_id": memory_id, "file_path": file_path}
+        )
+
+        logger.info(f"✅ MEMORY - Deleted memory {memory_id} for user {current_user_id}")
+        return APIResponse.success({"deleted": memory_id}, "Memory deleted successfully")
+
+    except Exception as e:
+        logger.exception(f"🔥 Error deleting memory: {e}")
+        return APIResponse.error("Failed to delete memory")
+
+
+# ============================================================================
+# Path Traversal Protection
+# ============================================================================
+
+@memory_bp.route('/<path:unsafe_path>', methods=['GET', 'POST', 'PUT', 'PATCH'])
+@rate_limit_by_endpoint
+def block_memory_path_traversal(unsafe_path: str):
+    """Return 404 for any unexpected deep paths (prevents path traversal attacks).
+    Note: DELETE is excluded as it's handled by delete_memory for valid paths."""
     normalized = unsafe_path.replace('\\', '/').split('/')
     if '..' in normalized:
-        return APIResponse.not_found("Otillåten sökväg")
-    return APIResponse.not_found("Sökvägen hittades inte")
+        logger.warning(f"⚠️ Path traversal attempt blocked: {unsafe_path}")
+        return APIResponse.not_found("Unauthorized path")
+    return APIResponse.not_found("Path not found")

@@ -1,29 +1,42 @@
 from flask import Blueprint, request, jsonify, make_response, g
+import requests
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
 from ..middleware.validation import validate_request
 from ..schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, ResetPasswordRequest, ConfirmPasswordResetRequest, ChangePasswordRequest, TwoFactorSetupRequest, TwoFactorVerifyRequest, UpdateProfileRequest, ConsentUpdateRequest, DeleteAccountRequest
 from ..utils.timestamp_utils import parse_iso_timestamp
 from ..utils.response_utils import APIResponse, success_response, error_response, created_response
+from ..utils.input_sanitization import input_sanitizer
 import logging
 import re
 from datetime import datetime, timezone
-from ..config import JWT_REFRESH_SECRET_KEY
+from ..config import JWT_REFRESH_SECRET_KEY, FIREBASE_WEB_API_KEY
 
 logger = logging.getLogger(__name__)
 
+# Firebase user IDs: alphanumeric, 28 chars typical
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+
 auth_bp = Blueprint('auth', __name__)
 
-# Rate limiter will be initialized in main.py
-limiter = None
 
-def rate_limit_reset_password(f):
-    """Apply rate limiting to reset password if limiter is available"""
-    if limiter:
-        return limiter.limit("2 per hour")(f)
-    return f
+def _verify_current_password(email: str, password: str) -> bool:
+    """Verify current password against Firebase via REST to prevent stale tokens from bypassing reauth."""
+    try:
+        firebase_signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
+        resp = requests.post(
+            firebase_signin_url,
+            json={"email": email, "password": password, "returnSecureToken": True},
+            timeout=10,
+        )
+        return resp.status_code == 200
+    except Exception as e:
+        logger.error(f"Current password verification failed: {str(e)}")
+        return False
 
 @auth_bp.route('/register', methods=['POST', 'OPTIONS'])
+@rate_limit_by_endpoint
 @validate_request(RegisterRequest)
 def register_user(validated_data):
     """Register a new user"""
@@ -31,9 +44,7 @@ def register_user(validated_data):
         return '', 204
 
     try:
-        logger.info(f"Registration request received: {request.get_data(as_text=True)}")
-        logger.info(f"Content-Type: {request.content_type}")
-        logger.info(f"Method: {request.method}")
+        logger.info("Registration request received")
 
         # Extract validated data
         email = validated_data.email.strip().lower()
@@ -136,10 +147,13 @@ def register_user(validated_data):
         logger.error(f"Registration failed: {str(e)}")
         return APIResponse.error("Registration failed", "INTERNAL_ERROR", 500, str(e))
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST', 'OPTIONS'])
+@rate_limit_by_endpoint
 @validate_request(LoginRequest)
 def login_user(validated_data):
     """Authenticate user with email/password and return JWT token"""
+    if request.method == 'OPTIONS':
+        return '', 204
     logger.info("🔑 AUTH - LOGIN endpoint called")
 
     try:
@@ -174,15 +188,15 @@ def login_user(validated_data):
             return APIResponse.error("Login failed - database error", "INTERNAL_ERROR", 500, str(db_error))
 
         response_data = {
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'user_id': user.uid,
+            'accessToken': access_token,
+            'refreshToken': refresh_token,
+            'userId': user.uid,
             'user': {
                 'id': user.uid,
                 'email': user.email,
                 'name': user_data.get('name', 'Unknown'),
-                'two_factor_enabled': user_data.get('two_factor_enabled', False),
-                'biometric_enabled': user_data.get('biometric_enabled', False)
+                'twoFactorEnabled': user_data.get('two_factor_enabled', False),
+                'biometricEnabled': user_data.get('biometric_enabled', False)
             }
         }
 
@@ -195,14 +209,15 @@ def login_user(validated_data):
         # Since APIResponse.success returns a tuple, we need to handle the cookie setting
         response_data_json, status_code = response
         response = make_response(response_data_json, status_code)
-        response.set_cookie(
-            'access_token',
-            access_token,
-            httponly=True,
-            secure=True,
-            samesite='Strict',
-            max_age=24*60*60
-        )
+        if access_token:
+            response.set_cookie(
+                'access_token',
+                access_token,
+                httponly=True,
+                secure=True,
+                samesite='Strict',
+                max_age=24*60*60
+            )
 
         return response
 
@@ -212,6 +227,7 @@ def login_user(validated_data):
 
 @auth_bp.route('/verify-2fa', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def verify_2fa():
     """Verify two-factor authentication"""
     if request.method == 'OPTIONS':
@@ -219,10 +235,12 @@ def verify_2fa():
     
     try:
         user_id = g.user_id
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        if not data:
+            return APIResponse.bad_request('Request body required')
 
         # Sanitize input data
-        from ..utils.input_sanitization import input_sanitizer
         data = input_sanitizer.sanitize_dict(data, {
             'method': {'type': 'text', 'max_length': 20},
             'code': {'type': 'text', 'max_length': 10}
@@ -240,23 +258,24 @@ def verify_2fa():
         elif method == 'sms':
             code = data.get('code')
             # Verify SMS code
-            verified = len(code) == 6 and code.isdigit()  # Simulated
+            verified = code is not None and len(code) == 6 and code.isdigit()  # Simulated
         else:
-            return jsonify({'error': 'Invalid 2FA method'}), 400
+            return APIResponse.bad_request('Invalid 2FA method')
 
         if not verified:
             audit_log('2fa_verification_failed', user_id, {'method': method})
-            return jsonify({'error': '2FA verification failed'}), 401
+            return APIResponse.unauthorized('2FA verification failed')
 
         # Generate a new token (note: AuthService does not support additional claims)
         access_token_verified = AuthService.generate_access_token(user_id)
 
         audit_log('2fa_verification_successful', user_id, {'method': method})
 
-        response = make_response(jsonify({
-            'message': '2FA verification successful',
-            'access_token': access_token_verified
-        }), 200)
+        response_data = {
+            'accessToken': access_token_verified
+        }
+        response_tuple = APIResponse.success(response_data, '2FA verification successful')
+        response = make_response(response_tuple[0], response_tuple[1])
 
         response.set_cookie(
             'access_token',
@@ -271,10 +290,11 @@ def verify_2fa():
 
     except Exception as e:
         logger.error(f"2FA verification failed: {str(e)}")
-        return jsonify({'error': '2FA verification failed'}), 500
+        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
 
 @auth_bp.route('/setup-2fa-biometric', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def setup_2fa_biometric():
     """Setup two-factor authentication for user (biometric/sms)"""
     if request.method == 'OPTIONS':
@@ -282,7 +302,10 @@ def setup_2fa_biometric():
     
     try:
         user_id = g.user_id
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        if not data:
+            return APIResponse.bad_request('Request body required')
 
         method = data.get('method')  # 'biometric' or 'sms'
         setup_data = data.get('setup_data', {})
@@ -290,12 +313,12 @@ def setup_2fa_biometric():
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             user_ref = db.collection('users').document(user_id)
             user_data = user_ref.get().to_dict()
 
             if not user_data:
-                return jsonify({'error': 'User not found'}), 404
+                return APIResponse.not_found('User not found', 'USER_NOT_FOUND')
 
             if method == 'biometric':
                 # Store WebAuthn credential
@@ -320,26 +343,29 @@ def setup_2fa_biometric():
                 })
 
             else:
-                return jsonify({'error': 'Invalid 2FA method'}), 400
+                return APIResponse.bad_request('Invalid 2FA method')
 
             audit_log('2fa_setup_completed', user_id, {'method': method})
 
-            return jsonify({
-                'message': f'2FA setup completed successfully using {method}',
-                'method': method
-            }), 200
+            return APIResponse.success(
+                {'method': method},
+                f'2FA setup completed successfully using {method}'
+            )
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return jsonify({'error': 'Failed to save 2FA settings'}), 500
+            return APIResponse.error('Failed to save 2FA settings', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"2FA setup failed: {str(e)}")
-        return jsonify({'error': '2FA setup failed'}), 500
+        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
 
 def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
     """Find or create Google OAuth user (simplified without transaction)"""
     from ..firebase_config import db
+    
+    if db is None:
+        raise RuntimeError("Database unavailable")
     
     # Get user by firebase_uid
     user_ref = db.collection('users').document(firebase_uid)
@@ -423,17 +449,23 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
     logger.info(f"Created new Google OAuth user: {email}")
     return user_data, user_id, True  # True = new user
 
-@auth_bp.route('/google-login', methods=['POST'])
+@auth_bp.route('/google-login', methods=['POST', 'OPTIONS'])
+@rate_limit_by_endpoint
 @validate_request(GoogleAuthRequest)
 def google_login(validated_data=None):
     """Handle Google OAuth login"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
+        if validated_data is None:
+            return APIResponse.bad_request('Invalid request data')
+        
         id_token = validated_data.id_token
 
         # Verify Firebase ID token (which contains Google OAuth info)
         try:
             from ..firebase_config import firebase_admin_auth
-            logger.info(f"Attempting Firebase token verification for token: {id_token[:50]}...")
+            logger.info("Attempting Firebase token verification for Google login")
 
             if firebase_admin_auth is not None:
                 # Normal path: use initialized admin auth
@@ -446,7 +478,7 @@ def google_login(validated_data=None):
                     logger.info("Used fallback firebase_admin.auth.verify_id_token (likely patched in tests)")
                 except Exception:
                     logger.error("Firebase Admin Auth is not initialized and no fallback available")
-                    return jsonify({'error': 'Authentication service unavailable'}), 503
+                    return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
 
             # Extract user information from Firebase token
             email = decoded_token.get('email')
@@ -456,20 +488,19 @@ def google_login(validated_data=None):
 
             if not email or not name:
                 logger.error("Token missing required user information")
-                return jsonify({'error': 'Invalid token - missing user information'}), 401
+                return APIResponse.unauthorized('Invalid token - missing user information')
 
             logger.info(f"Firebase token verified successfully for user: {email}")
 
         except Exception as e:
             logger.error(f"Firebase token verification failed: {str(e)}")
-            logger.error(f"Token that failed: {id_token[:100]}...")
-            return jsonify({'error': 'Invalid Firebase token'}), 401
+            return APIResponse.unauthorized('Invalid Firebase token')
 
         # Atomic user lookup/creation
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
             # Create or update user (simplified without transaction)
             user_data, user_id, is_new = create_or_update_google_user_simple(
@@ -484,24 +515,25 @@ def google_login(validated_data=None):
 
         except Exception as e:
             logger.error(f"Firebase transaction failed: {str(e)}")
-            return jsonify({'error': 'Authentication service error'}), 503
+            return APIResponse.error('Authentication service error', 'AUTH_SERVICE_ERROR', 503, str(e))
 
         # Create JWT token (use AuthService to generate a token compatible with AuthService.verify_token)
         access_token = AuthService.generate_access_token(user_id)
 
         audit_log('google_login_successful', user_id, {'email': email})
 
-        response = make_response(jsonify({
-            'message': 'Google-inloggning lyckades!',
-            'access_token': access_token,
-            'user_id': user_id,
+        response_data = {
+            'accessToken': access_token,
+            'userId': user_id,
             'user': {
                 'id': user_id,
                 'email': email,
                 'name': name,
-                'login_method': 'google'
+                'loginMethod': 'google'
             }
-        }), 200)
+        }
+        response_tuple = APIResponse.success(response_data, 'Google-inloggning lyckades!')
+        response = make_response(response_tuple[0], response_tuple[1])
 
         response.set_cookie(
             'access_token',
@@ -516,10 +548,11 @@ def google_login(validated_data=None):
 
     except Exception as e:
         logger.error(f"Google login failed: {str(e)}")
-        return jsonify({'error': 'Google login failed'}), 500
+        return APIResponse.error('Google login failed', 'GOOGLE_LOGIN_ERROR', 500, str(e))
 
 @auth_bp.route('/logout', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def logout():
     """Logout user by clearing the cookie"""
     if request.method == 'OPTIONS':
@@ -536,16 +569,17 @@ def logout():
 
         audit_log('user_logged_out', user_id, {})
 
-        response = make_response(jsonify({'message': 'Logged out successfully'}), 200)
+        response_tuple = APIResponse.success(None, 'Logged out successfully')
+        response = make_response(response_tuple[0], response_tuple[1])
         response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
         return response
 
     except Exception as e:
         logger.error(f"Logout failed: {str(e)}")
-        return jsonify({'error': 'Logout failed'}), 500
+        return APIResponse.error('Logout failed', 'LOGOUT_ERROR', 500, str(e))
 
 @auth_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
-@rate_limit_reset_password
+@rate_limit_by_endpoint
 @validate_request(ResetPasswordRequest)
 def reset_password(validated_data):
     """Initiate password reset"""
@@ -559,7 +593,7 @@ def reset_password(validated_data):
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             from google.cloud.firestore import FieldFilter
             users_ref = db.collection('users')
             # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
@@ -570,7 +604,7 @@ def reset_password(validated_data):
 
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+            return APIResponse.error('Service temporarily unavailable', 'SERVICE_UNAVAILABLE', 503, str(e))
 
         # If user exists, generate reset token and send email
         if user_exists:
@@ -606,9 +640,10 @@ def reset_password(validated_data):
 
     except Exception as e:
         logger.error(f"Password reset failed: {str(e)}")
-        return jsonify({'error': 'Password reset failed'}), 500
+        return APIResponse.error('Password reset failed', 'PASSWORD_RESET_ERROR', 500, str(e))
 
 @auth_bp.route('/confirm-password-reset', methods=['POST', 'OPTIONS'])
+@rate_limit_by_endpoint
 @validate_request(ConfirmPasswordResetRequest)
 def confirm_password_reset(validated_data):
     """Confirm password reset with token"""
@@ -623,33 +658,35 @@ def confirm_password_reset(validated_data):
         user_id, error = AuthService.verify_password_reset_token(token)
         if error or not user_id:
             audit_log('password_reset_failed', 'unknown', {'reason': error or 'invalid_token'})
-            return jsonify({'error': 'Invalid or expired reset token'}), 400
+            return APIResponse.bad_request('Invalid or expired reset token')
 
         # Update password in Firebase Auth
         try:
             from ..firebase_config import auth
             if auth is None:
-                return jsonify({'error': 'Authentication service unavailable'}), 503
+                return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
 
             auth.update_user(user_id, password=new_password)
 
             audit_log('password_reset_successful', user_id, {})
 
-            return jsonify({
-                'message': 'Password has been successfully reset. You can now log in with your new password.'
-            }), 200
+            return APIResponse.success(
+                None,
+                'Password has been successfully reset. You can now log in with your new password.'
+            )
 
         except Exception as e:
             logger.error(f"Password update failed: {str(e)}")
             audit_log('password_reset_failed', user_id, {'reason': 'password_update_failed'})
-            return jsonify({'error': 'Failed to update password'}), 500
+            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Password reset confirmation failed: {str(e)}")
-        return jsonify({'error': 'Password reset confirmation failed'}), 500
+        return APIResponse.error('Password reset confirmation failed', 'PASSWORD_RESET_CONFIRMATION_ERROR', 500, str(e))
 
 @auth_bp.route('/consent', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @validate_request(ConsentUpdateRequest)
 def update_consent(validated_data):
     """Update user consent preferences"""
@@ -668,46 +705,62 @@ def update_consent(validated_data):
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             db.collection('users').document(user_id).update({
                 'consent': consent_data
             })
 
             audit_log('consent_updated', user_id, consent_data)
 
-            return jsonify({
-                'message': 'Consent preferences updated successfully',
-                'consent': consent_data
-            }), 200
+            # Convert to camelCase for response
+            response_consent = {
+                'analyticsConsent': consent_data['analytics_consent'],
+                'marketingConsent': consent_data['marketing_consent'],
+                'dataProcessingConsent': consent_data['data_processing_consent'],
+                'consentUpdatedAt': consent_data['consent_updated_at']
+            }
+
+            return APIResponse.success(
+                {'consent': response_consent},
+                'Consent preferences updated successfully'
+            )
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return jsonify({'error': 'Failed to update consent'}), 500
+            return APIResponse.error('Failed to update consent', 'CONSENT_UPDATE_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Consent update failed: {str(e)}")
-        return jsonify({'error': 'Consent update failed'}), 500
+        return APIResponse.error('Consent update failed', 'CONSENT_UPDATE_ERROR', 500, str(e))
 
-@auth_bp.route('/consent/<user_id>', methods=['GET'])
+@auth_bp.route('/consent/<user_id>', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_consent(user_id):
     """Get user consent preferences"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
+        # Validate and sanitize user_id
+        user_id = input_sanitizer.sanitize(user_id)
+        if not USER_ID_PATTERN.match(user_id):
+            return APIResponse.bad_request('Invalid user ID format')
+
         current_user_id = g.user_id
 
         # Users can only view their own consent
         if current_user_id != user_id:
-            return jsonify({'error': 'Unauthorized'}), 403
+            return APIResponse.forbidden('Unauthorized')
 
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             user_doc = db.collection('users').document(user_id).get()
             user_data = user_doc.to_dict()
 
             if not user_data:
-                return jsonify({'error': 'User not found'}), 404
+                return APIResponse.not_found('User not found', 'USER_NOT_FOUND')
 
             consent = user_data.get('consent', {
                 'analytics_consent': False,
@@ -716,28 +769,37 @@ def get_consent(user_id):
                 'consent_updated_at': user_data.get('created_at')
             })
 
-            return jsonify({'consent': consent}), 200
+            # Convert to camelCase
+            response_consent = {
+                'analyticsConsent': consent.get('analytics_consent', False),
+                'marketingConsent': consent.get('marketing_consent', False),
+                'dataProcessingConsent': consent.get('data_processing_consent', True),
+                'consentUpdatedAt': consent.get('consent_updated_at')
+            }
+
+            return APIResponse.success({'consent': response_consent}, 'Consent retrieved successfully')
 
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
-            return jsonify({'error': 'Failed to retrieve consent'}), 500
+            return APIResponse.error('Failed to retrieve consent', 'CONSENT_RETRIEVAL_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Consent retrieval failed: {str(e)}")
-        return jsonify({'error': 'Consent retrieval failed'}), 500
+        return APIResponse.error('Consent retrieval failed', 'CONSENT_RETRIEVAL_ERROR', 500, str(e))
 
 @auth_bp.route('/refresh', methods=['POST', 'OPTIONS'])
+@rate_limit_by_endpoint
 def refresh_token():
     """Refresh access token using refresh token"""
     if request.method == 'OPTIONS':
         return '', 204
     
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         refresh_token_value = data.get('refresh_token') if data else None
 
         if not refresh_token_value:
-            return jsonify({'error': 'Refresh token required'}), 400
+            return APIResponse.bad_request('Refresh token required')
 
         # Verify the refresh token and get user identity
         import jwt
@@ -746,27 +808,26 @@ def refresh_token():
             user_id = decoded.get('sub')
 
             if not user_id:
-                return jsonify({'error': 'Invalid refresh token'}), 401
+                return APIResponse.unauthorized('Invalid refresh token')
 
         except jwt.ExpiredSignatureError:
             logger.warning("Refresh token has expired")
-            return jsonify({'error': 'Refresh token has expired'}), 401
+            return APIResponse.unauthorized('Refresh token has expired')
         except jwt.InvalidTokenError:
             logger.warning("Invalid refresh token")
-            return jsonify({'error': 'Invalid refresh token'}), 401
+            return APIResponse.unauthorized('Invalid refresh token')
         except Exception as e:
             logger.error(f"Refresh token validation failed: {str(e)}")
-            return jsonify({'error': 'Invalid refresh token'}), 401
+            return APIResponse.unauthorized('Invalid refresh token')
 
         # Create new access token using AuthService so the token can be verified by our verify_token
         access_token = AuthService.generate_access_token(user_id)
 
         audit_log('token_refreshed', user_id, {})
 
-        response = make_response(jsonify({
-            'message': 'Token refreshed successfully',
-            'access_token': access_token
-        }), 200)
+        response_data = {'accessToken': access_token}
+        response_tuple = APIResponse.success(response_data, 'Token refreshed successfully')
+        response = make_response(response_tuple[0], response_tuple[1])
 
         response.set_cookie(
             'access_token',
@@ -781,10 +842,11 @@ def refresh_token():
 
     except Exception as e:
         logger.error(f"Token refresh failed: {str(e)}")
-        return jsonify({'error': 'Token refresh failed'}), 500
+        return APIResponse.error('Token refresh failed', 'TOKEN_REFRESH_ERROR', 500, str(e))
 
 @auth_bp.route('/change-email', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def change_email():
     """Change user email address"""
     if request.method == 'OPTIONS':
@@ -792,46 +854,53 @@ def change_email():
 
     try:
         user_id = g.user_id
-        data = request.get_json()
+        data = request.get_json() or {}
 
-        new_email = data.get('new_email', '').strip().lower()
+        if not data:
+            return APIResponse.bad_request('Request body required')
+
+        new_email = data.get('newEmail', data.get('new_email', '')).strip().lower()
         password = data.get('password', '')
 
         # Validation
         if not new_email or not password:
-            return jsonify({'error': 'New email and current password are required'}), 400
+            return APIResponse.bad_request('New email and current password are required')
 
         if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', new_email):
-            return jsonify({'error': 'Invalid email format'}), 400
+            return APIResponse.bad_request('Invalid email format')
 
-        # Verify user identity (user is already authenticated via JWT, no need to verify password)
+        # Verify user identity and current password (reauth to prevent token-only hijack)
         user, error = AuthService.verify_user_identity(user_id)
         if error or not user:
             audit_log('email_change_failed', user_id, {'reason': 'user_verification_failed'})
-            return jsonify({'error': 'User verification failed'}), 401
+            return APIResponse.unauthorized('User verification failed')
+
+        if not _verify_current_password(user.email, password):
+            audit_log('email_change_failed', user_id, {'reason': 'invalid_current_password'})
+            return APIResponse.unauthorized('Current password is incorrect')
 
         # Check if new email is already taken
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             from google.cloud.firestore import FieldFilter
             users_ref = db.collection('users')
             existing_user_query = users_ref.where(filter=FieldFilter('email', '==', new_email)).limit(1)
             existing_users = list(existing_user_query.get())
 
             if existing_users:
-                return jsonify({'error': 'Email address is already in use'}), 409
+                return APIResponse.error('Email address is already in use', 'EMAIL_IN_USE', 409)
 
         except Exception as e:
             logger.error(f"Email uniqueness check failed: {str(e)}")
-            return jsonify({'error': 'Service temporarily unavailable'}), 503
+            return APIResponse.error('Service temporarily unavailable', 'SERVICE_UNAVAILABLE', 503, str(e))
 
         # Update email in Firebase Auth and Firestore
         try:
             from ..firebase_config import auth
             if auth is None:
-                return jsonify({'error': 'Authentication service unavailable'}), 503
+                return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
             # Update email in Firebase Auth
             auth.update_user(user_id, email=new_email)
 
@@ -843,21 +912,22 @@ def change_email():
 
             audit_log('email_changed', user_id, {'old_email': user.email, 'new_email': new_email})
 
-            return jsonify({
-                'message': 'Email address updated successfully. Please verify your new email.',
-                'new_email': new_email
-            }), 200
+            return APIResponse.success(
+                {'newEmail': new_email},
+                'Email address updated successfully. Please verify your new email.'
+            )
 
         except Exception as e:
             logger.error(f"Email update failed: {str(e)}")
-            return jsonify({'error': 'Failed to update email address'}), 500
+            return APIResponse.error('Failed to update email address', 'EMAIL_UPDATE_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Email change failed: {str(e)}")
-        return jsonify({'error': 'Email change failed'}), 500
+        return APIResponse.error('Email change failed', 'EMAIL_CHANGE_ERROR', 500, str(e))
 
 @auth_bp.route('/change-password', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 @validate_request(ChangePasswordRequest)
 def change_password(validated_data):
     """Change user password"""
@@ -870,35 +940,38 @@ def change_password(validated_data):
         current_password = validated_data.current_password
         new_password = validated_data.new_password
 
-        # Verify user identity (user is already authenticated via JWT, no need to verify password)
+        # Verify user identity and current password (reauth to prevent token-only hijack)
         user, error = AuthService.verify_user_identity(user_id)
         if error or not user:
             audit_log('password_change_failed', user_id, {'reason': 'user_verification_failed'})
-            return jsonify({'error': 'User verification failed'}), 401
+            return APIResponse.unauthorized('User verification failed')
+
+        if not _verify_current_password(user.email, current_password):
+            audit_log('password_change_failed', user_id, {'reason': 'invalid_current_password'})
+            return APIResponse.unauthorized('Current password is incorrect')
 
         # Update password in Firebase Auth
         try:
             from ..firebase_config import auth
             if auth is None:
-                return jsonify({'error': 'Authentication service unavailable'}), 503
+                return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
             auth.update_user(user_id, password=new_password)
 
             audit_log('password_changed', user_id, {})
 
-            return jsonify({
-                'message': 'Password updated successfully'
-            }), 200
+            return APIResponse.success(None, 'Password updated successfully')
 
         except Exception as e:
             logger.error(f"Password update failed: {str(e)}")
-            return jsonify({'error': 'Failed to update password'}), 500
+            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Password change failed: {str(e)}")
-        return jsonify({'error': 'Password change failed'}), 500
+        return APIResponse.error('Password change failed', 'PASSWORD_CHANGE_ERROR', 500, str(e))
 
 @auth_bp.route('/setup-2fa', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def setup_2fa():
     """Setup two-factor authentication with TOTP"""
     if request.method == 'OPTIONS':
@@ -906,12 +979,15 @@ def setup_2fa():
 
     try:
         user_id = g.user_id
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        if not data:
+            return APIResponse.bad_request('Request body required')
 
         method = data.get('method', 'totp')
 
         if method != 'totp':
-            return jsonify({'error': 'Only TOTP method is supported'}), 400
+            return APIResponse.bad_request('Only TOTP method is supported')
 
         try:
             import pyotp
@@ -925,12 +1001,12 @@ def setup_2fa():
             # Get user email for TOTP URI
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             user_doc = db.collection('users').document(user_id).get()
             user_data = user_doc.to_dict()
 
             if not user_data:
-                return jsonify({'error': 'User not found'}), 404
+                return APIResponse.not_found('User not found', 'USER_NOT_FOUND')
 
             email = user_data.get('email', f'user_{user_id}@example.com')
 
@@ -959,27 +1035,27 @@ def setup_2fa():
 
             audit_log('2fa_setup_initiated', user_id, {'method': 'totp'})
 
-            return jsonify({
-                'message': '2FA setup initiated',
+            return APIResponse.success({
                 'method': 'totp',
                 'secret': secret,
-                'qr_code': f'data:image/png;base64,{qr_code_base64}',
-                'provisioning_uri': provisioning_uri
-            }), 200
+                'qrCode': f'data:image/png;base64,{qr_code_base64}',
+                'provisioningUri': provisioning_uri
+            }, '2FA setup initiated')
 
         except ImportError as e:
             logger.error(f"Missing required packages for 2FA: {str(e)}")
-            return jsonify({'error': '2FA setup not available'}), 503
+            return APIResponse.error('2FA setup not available', 'SERVICE_UNAVAILABLE', 503, str(e))
         except Exception as e:
             logger.error(f"2FA setup failed: {str(e)}")
-            return jsonify({'error': 'Failed to setup 2FA'}), 500
+            return APIResponse.error('Failed to setup 2FA', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"2FA setup failed: {str(e)}")
-        return jsonify({'error': '2FA setup failed'}), 500
+        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
 
 @auth_bp.route('/verify-2fa-setup', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def verify_2fa_setup():
     """Verify and complete 2FA setup"""
     if request.method == 'OPTIONS':
@@ -987,17 +1063,20 @@ def verify_2fa_setup():
 
     try:
         user_id = g.user_id
-        data = request.get_json()
+        data = request.get_json() or {}
+
+        if not data:
+            return APIResponse.bad_request('Request body required')
 
         code = data.get('code', '').strip()
 
         if not code or len(code) != 6 or not code.isdigit():
-            return jsonify({'error': 'Valid 6-digit code is required'}), 400
+            return APIResponse.bad_request('Valid 6-digit code is required')
 
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
             import pyotp
 
             # Get temporary 2FA data
@@ -1005,14 +1084,14 @@ def verify_2fa_setup():
             user_data = user_doc.to_dict()
 
             if not user_data:
-                return jsonify({'error': 'User not found'}), 404
+                return APIResponse.not_found('User not found', 'USER_NOT_FOUND')
 
             temp_secret = user_data.get('temp_2fa_secret')
             temp_method = user_data.get('temp_2fa_method')
             temp_created_at = user_data.get('temp_2fa_created_at')
 
             if not temp_secret or temp_method != 'totp':
-                return jsonify({'error': '2FA setup not initiated'}), 400
+                return APIResponse.bad_request('2FA setup not initiated')
 
             # Check if temp setup is not expired (5 minutes)
             if temp_created_at:
@@ -1024,13 +1103,13 @@ def verify_2fa_setup():
                         'temp_2fa_method': None,
                         'temp_2fa_created_at': None
                     })
-                    return jsonify({'error': '2FA setup expired. Please start over.'}), 400
+                return APIResponse.bad_request('2FA setup expired. Please start over.')
 
             # Verify the code
             totp = pyotp.TOTP(temp_secret)
             if not totp.verify(code):
                 audit_log('2fa_verification_failed', user_id, {'reason': 'invalid_code'})
-                return jsonify({'error': 'Invalid verification code'}), 401
+                return APIResponse.unauthorized('Invalid verification code')
 
             # Complete 2FA setup
             db.collection('users').document(user_id).update({
@@ -1046,23 +1125,24 @@ def verify_2fa_setup():
 
             audit_log('2fa_enabled', user_id, {'method': 'totp'})
 
-            return jsonify({
-                'message': '2FA has been successfully enabled',
-                'method': 'totp'
-            }), 200
+            return APIResponse.success(
+                {'method': 'totp', 'twoFactorEnabled': True},
+                '2FA has been successfully enabled'
+            )
 
         except ImportError:
-            return jsonify({'error': '2FA verification not available'}), 503
+            return APIResponse.error('2FA verification not available', 'SERVICE_UNAVAILABLE', 503)
         except Exception as e:
             logger.error(f"2FA verification failed: {str(e)}")
-            return jsonify({'error': 'Failed to verify 2FA setup'}), 500
+            return APIResponse.error('Failed to verify 2FA setup', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"2FA verification failed: {str(e)}")
-        return jsonify({'error': '2FA verification failed'}), 500
+        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
 
 @auth_bp.route('/export-data', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def export_user_data():
     """Export user data in JSON format"""
     if request.method == 'OPTIONS':
@@ -1074,7 +1154,7 @@ def export_user_data():
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
             # Collect all user data
             export_data = {
@@ -1149,27 +1229,35 @@ def export_user_data():
 
         except Exception as e:
             logger.error(f"Data export failed: {str(e)}")
-            return jsonify({'error': 'Failed to export data'}), 500
+            return APIResponse.error('Failed to export data', 'DATA_EXPORT_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Data export failed: {str(e)}")
-        return jsonify({'error': 'Data export failed'}), 500
+        return APIResponse.error('Data export failed', 'DATA_EXPORT_ERROR', 500, str(e))
 
-@auth_bp.route('/delete-account/<user_id>', methods=['DELETE'])
+@auth_bp.route('/delete-account/<user_id>', methods=['DELETE', 'OPTIONS'])
 @AuthService.jwt_required
+@rate_limit_by_endpoint
 def delete_account(user_id):
     """Delete user account and all associated data"""
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
+        # Validate and sanitize user_id
+        user_id = input_sanitizer.sanitize(user_id)
+        if not USER_ID_PATTERN.match(user_id):
+            return APIResponse.bad_request('Invalid user ID format')
+
         current_user_id = g.user_id
 
         # Users can only delete their own account
         if current_user_id != user_id:
-            return jsonify({'error': 'Unauthorized'}), 403
+            return APIResponse.forbidden('Unauthorized')
 
         try:
             from ..firebase_config import db
             if db is None:
-                return jsonify({'error': 'Database unavailable'}), 503
+                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
             # Mark user as inactive (soft delete)
             db.collection('users').document(user_id).update({
@@ -1186,9 +1274,11 @@ def delete_account(user_id):
 
             audit_log('account_deleted', user_id, {'method': 'soft_delete'})
 
-            response = make_response(jsonify({
-                'message': 'Account deletion initiated. Your data will be permanently removed within 30 days.'
-            }), 200)
+            response_tuple = APIResponse.success(
+                None,
+                'Account deletion initiated. Your data will be permanently removed within 30 days.'
+            )
+            response = make_response(response_tuple[0], response_tuple[1])
 
             # Clear the access token cookie
             response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
@@ -1197,8 +1287,8 @@ def delete_account(user_id):
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return jsonify({'error': 'Failed to delete account'}), 500
+            return APIResponse.error('Failed to delete account', 'ACCOUNT_DELETION_ERROR', 500, str(e))
 
     except Exception as e:
         logger.error(f"Account deletion failed: {str(e)}")
-        return jsonify({'error': 'Account deletion failed'}), 500
+        return APIResponse.error('Account deletion failed', 'ACCOUNT_DELETION_ERROR', 500, str(e))

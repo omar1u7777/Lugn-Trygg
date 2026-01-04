@@ -24,15 +24,6 @@ from firebase_admin import (
 )
 from firebase_admin import auth as firebase_admin_auth_module
 
-# Import for advanced connection pooling
-try:
-    from google.auth import transport
-    from google.cloud.firestore_v1.client import Client
-    GOOGLE_AUTH_AVAILABLE = True
-except ImportError:
-    GOOGLE_AUTH_AVAILABLE = False
-    logger.warning("Google Auth libraries not available - using basic connection pooling")
-
 # 🔹 Ladda miljövariabler från .env
 load_dotenv()
 
@@ -42,6 +33,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Import for advanced connection pooling
+try:
+    from google.auth.transport import requests as auth_requests
+    from google.cloud.firestore_v1 import Client as FirestoreClient
+    GOOGLE_AUTH_AVAILABLE = True
+except ImportError:
+    GOOGLE_AUTH_AVAILABLE = False
+    auth_requests = None  # type: ignore
+    FirestoreClient = None  # type: ignore
+    logger.warning("Google Auth libraries not available - using basic connection pooling")
 
 
 
@@ -140,7 +142,7 @@ def get_env_variable(
     return value
 
 
-db: Optional[firestore.Client] = None
+db: Optional[Any] = None  # Firestore client
 auth: Optional[Any] = None
 firebase_admin_auth: Optional[Any] = None
 firebase_storage: Optional[Any] = None
@@ -229,9 +231,9 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
     options["databaseAuthVariableOverride"] = None  # Disable auth variable override for performance
 
     # Advanced connection pooling configuration for high performance
-    if GOOGLE_AUTH_AVAILABLE:
+    if GOOGLE_AUTH_AVAILABLE and auth_requests is not None:
         # Configure HTTP connection pooling
-        options["transport"] = transport.requests.AuthorizedSession
+        options["transport"] = auth_requests.AuthorizedSession
         options["client_info"] = {
             "user_agent": "LugnTrygg/1.0 (PerformanceOptimized)",
         }
@@ -308,6 +310,10 @@ def warmup_firestore():
     Warm up Firestore connection to reduce cold start latency.
     Executes a simple query to establish connection pool.
     """
+    if db is None:
+        logger.warning("🔥 Firestore warmup skipped - db not initialized")
+        return
+    
     try:
         start = time.time()
         # Simple lightweight query to warm up connection

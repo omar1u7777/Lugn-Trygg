@@ -249,6 +249,9 @@ class OAuthService:
                 response = requests.post(revoke_url, params={'token': token}, timeout=OAUTH_REQUEST_TIMEOUT)
             elif provider == 'fitbit':
                 config = self._get_provider_config(provider)
+                if not config:
+                    logger.error(f"Invalid provider config for {provider}")
+                    return False
                 revoke_url = 'https://api.fitbit.com/oauth2/revoke'
                 response = requests.post(
                     revoke_url,

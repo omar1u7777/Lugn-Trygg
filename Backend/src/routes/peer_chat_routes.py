@@ -3,21 +3,35 @@ Peer Support Chat Routes - Anonymous community chat system
 Real implementation with Firebase Firestore for message storage
 """
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, g
 from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 import uuid
 import re
+import random
+import logging
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.audit_service import audit_log
+from src.firebase_config import db
+from src.utils.response_utils import APIResponse
+from src.utils.input_sanitization import sanitize_text
 
 peer_chat_bp = Blueprint("peer_chat", __name__, url_prefix="/api/peer-chat")
+logger = logging.getLogger(__name__)
 
 
-def _get_db():
-    """Get Firestore database reference"""
-    try:
-        from ..firebase_config import db
-        return db
-    except Exception:
-        return None
+@peer_chat_bp.route('/rooms', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/join', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/leave', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/messages', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/send', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/typing', methods=['OPTIONS'])
+@peer_chat_bp.route('/room/<room_id>/presence', methods=['OPTIONS'])
+@peer_chat_bp.route('/message/<message_id>/like', methods=['OPTIONS'])
+@peer_chat_bp.route('/message/<message_id>/report', methods=['OPTIONS'])
+def handle_options(room_id: Optional[str] = None, message_id: Optional[str] = None):
+    """Handle CORS preflight requests."""
+    return APIResponse.success()
 
 
 # Chat room definitions
@@ -91,8 +105,7 @@ BANNED_WORDS = [
 
 
 def _generate_anonymous_name():
-    """Generate a random anonymous username"""
-    import random
+    """Generate a random anonymous username."""
     adjectives = [
         'Lugn', 'Trygg', 'Modig', 'Stark', 'Varm', 'Snäll', 'Glad', 
         'Hoppfull', 'Tålmodig', 'Kreativ', 'Positiv', 'Fridfull'
@@ -106,16 +119,15 @@ def _generate_anonymous_name():
 
 
 def _generate_avatar():
-    """Generate a random avatar emoji"""
-    import random
+    """Generate a random avatar emoji."""
     avatars = ['🌟', '💙', '💜', '💚', '🌸', '🌺', '🦋', '🌈', '✨', '🌻', '🍀', '🌙']
     return random.choice(avatars)
 
 
 def _moderate_message(message: str) -> tuple[bool, str]:
     """
-    Basic content moderation
-    Returns (is_safe, reason)
+    Basic content moderation.
+    Returns (is_safe, reason).
     """
     # Check for banned words
     lower_message = message.lower()
@@ -128,10 +140,10 @@ def _moderate_message(message: str) -> tuple[bool, str]:
     phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b|\b\d{10}\b'
     
     if re.search(email_pattern, message):
-        return False, "Please don't share email addresses for privacy"
+        return False, "Please do not share email addresses for privacy"
     
     if re.search(phone_pattern, message):
-        return False, "Please don't share phone numbers for privacy"
+        return False, "Please do not share phone numbers for privacy"
     
     # Check message length
     if len(message) > 1000:
@@ -144,61 +156,53 @@ def _moderate_message(message: str) -> tuple[bool, str]:
 
 
 @peer_chat_bp.route('/rooms', methods=['GET'])
+@rate_limit_by_endpoint
 def get_rooms():
-    """Get all available chat rooms with member counts"""
+    """Get all available chat rooms with member counts."""
     try:
-        db = _get_db()
         rooms_with_counts = []
         
         for room_id, room in CHAT_ROOMS.items():
-            room_data = dict(room)
+            room_data: dict[str, Any] = dict(room)
             
             # Get active member count (users active in last 5 minutes)
-            if db:
+            if db is not None:
                 five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
                 active_docs = db.collection('peer_chat_presence').where(
                     'room_id', '==', room_id
                 ).where(
                     'last_seen', '>=', five_min_ago.isoformat()
                 ).stream()
-                room_data['member_count'] = len(list(active_docs))
+                room_data['memberCount'] = len(list(active_docs))
             else:
-                room_data['member_count'] = 0
+                room_data['memberCount'] = 0
             
             rooms_with_counts.append(room_data)
         
-        return jsonify({
-            'success': True,
+        return APIResponse.success({
             'rooms': rooms_with_counts
-        })
+        }, "Chat rooms retrieved")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error getting rooms: {e}")
+        return APIResponse.error("Failed to fetch chat rooms", "FETCH_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/join', methods=['POST'])
+@rate_limit_by_endpoint
 def join_room(room_id: str):
-    """Join a chat room and get initial messages"""
+    """Join a chat room and get initial messages."""
     try:
         if room_id not in CHAT_ROOMS:
-            return jsonify({
-                'success': False,
-                'error': 'Room not found'
-            }), 404
+            return APIResponse.not_found("Room not found")
         
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         user_id = data.get('user_id')
         
         if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'user_id is required'
-            }), 400
+            return APIResponse.bad_request("user_id is required", "USER_ID_REQUIRED")
         
-        db = _get_db()
+        user_id = sanitize_text(user_id, max_length=128)
         
         # Generate anonymous identity for this session
         anonymous_name = _generate_anonymous_name()
@@ -206,7 +210,7 @@ def join_room(room_id: str):
         session_id = str(uuid.uuid4())
         
         # Record presence
-        if db:
+        if db is not None:
             db.collection('peer_chat_presence').document(session_id).set({
                 'user_id': user_id,
                 'session_id': session_id,
@@ -219,88 +223,83 @@ def join_room(room_id: str):
         
         # Get recent messages (last 50)
         messages = []
-        if db:
+        if db is not None:
             docs = db.collection('peer_chat_messages').where(
                 'room_id', '==', room_id
             ).order_by('timestamp', direction='DESCENDING').limit(50).stream()
             
             for doc in docs:
-                msg_data = doc.to_dict()
+                msg_data = doc.to_dict() or {}
                 msg_data['id'] = doc.id
                 messages.append(msg_data)
             
             # Reverse to get chronological order
             messages.reverse()
         
-        return jsonify({
-            'success': True,
-            'session_id': session_id,
-            'anonymous_name': anonymous_name,
+        logger.info(f"💬 User joined room {room_id} as {anonymous_name}")
+        
+        return APIResponse.success({
+            'sessionId': session_id,
+            'anonymousName': anonymous_name,
             'avatar': avatar,
             'room': CHAT_ROOMS[room_id],
             'messages': messages
-        })
+        }, "Connected to room")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error joining room: {e}")
+        return APIResponse.error("Failed to connect to room", "JOIN_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/leave', methods=['POST'])
+@rate_limit_by_endpoint
 def leave_room(room_id: str):
-    """Leave a chat room"""
+    """Leave a chat room."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
         
         if not session_id:
-            return jsonify({
-                'success': False,
-                'error': 'session_id is required'
-            }), 400
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
         
-        db = _get_db()
-        if db:
+        if db is not None:
             db.collection('peer_chat_presence').document(session_id).delete()
         
-        return jsonify({
-            'success': True,
-            'message': 'Left room successfully'
-        })
+        logger.info(f"🚪 Session {session_id[:8]} left room {room_id}")
+        
+        return APIResponse.success({
+            'left': True
+        }, "Left the room")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error leaving room: {e}")
+        return APIResponse.error("Failed to leave room", "LEAVE_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/messages', methods=['GET'])
+@rate_limit_by_endpoint
 def get_messages(room_id: str):
-    """Get messages for a room (polling endpoint)"""
+    """Get messages for a room (polling endpoint)."""
     try:
         if room_id not in CHAT_ROOMS:
-            return jsonify({
-                'success': False,
-                'error': 'Room not found'
-            }), 404
+            return APIResponse.not_found("Room not found")
         
         # Get last_message_id for incremental updates
         last_message_id = request.args.get('after')
-        limit = int(request.args.get('limit', 20))
+        limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
         session_id = request.args.get('session_id')
         
-        db = _get_db()
         messages = []
         
-        if db:
+        if db is not None:
             # Update presence
             if session_id:
-                db.collection('peer_chat_presence').document(session_id).update({
-                    'last_seen': datetime.now(timezone.utc).isoformat()
-                })
+                try:
+                    db.collection('peer_chat_presence').document(session_id).update({
+                        'last_seen': datetime.now(timezone.utc).isoformat()
+                    })
+                except Exception:
+                    pass  # Ignore if session doesn't exist
             
             # Query messages
             query = db.collection('peer_chat_messages').where(
@@ -310,7 +309,7 @@ def get_messages(room_id: str):
             docs = query.stream()
             
             for doc in docs:
-                msg_data = doc.to_dict()
+                msg_data = doc.to_dict() or {}
                 msg_data['id'] = doc.id
                 
                 # Skip messages before last_message_id if provided
@@ -321,70 +320,52 @@ def get_messages(room_id: str):
             
             messages.reverse()
         
-        return jsonify({
-            'success': True,
+        return APIResponse.success({
             'messages': messages,
             'timestamp': datetime.now(timezone.utc).isoformat()
-        })
+        }, "Messages retrieved")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error getting messages: {e}")
+        return APIResponse.error("Failed to fetch messages", "FETCH_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/send', methods=['POST'])
+@rate_limit_by_endpoint
 def send_message(room_id: str):
-    """Send a message to a room"""
+    """Send a message to a room."""
     try:
         if room_id not in CHAT_ROOMS:
-            return jsonify({
-                'success': False,
-                'error': 'Room not found'
-            }), 404
+            return APIResponse.not_found("Room not found")
         
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
-        message_text = data.get('message', '').strip()
+        message_text = sanitize_text(data.get('message', '').strip(), max_length=1000)
         anonymous_name = data.get('anonymous_name')
         avatar = data.get('avatar')
         
         if not session_id:
-            return jsonify({
-                'success': False,
-                'error': 'session_id is required'
-            }), 400
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
         
         if not message_text:
-            return jsonify({
-                'success': False,
-                'error': 'Message cannot be empty'
-            }), 400
+            return APIResponse.bad_request("Message cannot be empty", "EMPTY_MESSAGE")
         
         # Moderate message
         is_safe, reason = _moderate_message(message_text)
         if not is_safe:
-            return jsonify({
-                'success': False,
-                'error': reason,
-                'moderation_failed': True
-            }), 400
+            return APIResponse.bad_request(reason, "MODERATION_FAILED")
         
-        db = _get_db()
+        if db is None:
+            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
         
         # Verify session exists
-        if db:
-            presence_doc = db.collection('peer_chat_presence').document(session_id).get()
-            if not presence_doc.exists:
-                return jsonify({
-                    'success': False,
-                    'error': 'Invalid session. Please rejoin the room.'
-                }), 401
-            
-            presence_data = presence_doc.to_dict()
-            anonymous_name = presence_data.get('anonymous_name', anonymous_name)
-            avatar = presence_data.get('avatar', avatar)
+        presence_doc = db.collection('peer_chat_presence').document(session_id).get()
+        if not presence_doc.exists:
+            return APIResponse.forbidden("Invalid session. Please rejoin the room.")
+        
+        presence_data = presence_doc.to_dict() or {}
+        anonymous_name = presence_data.get('anonymous_name', anonymous_name)
+        avatar = presence_data.get('avatar', avatar)
         
         # Create message
         message_id = str(uuid.uuid4())
@@ -392,7 +373,7 @@ def send_message(room_id: str):
             'id': message_id,
             'room_id': room_id,
             'session_id': session_id,
-            'anonymous_name': anonymous_name or 'Anonymous',
+            'anonymous_name': anonymous_name or 'Anonym',
             'avatar': avatar or '🌟',
             'message': message_text,
             'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -401,194 +382,163 @@ def send_message(room_id: str):
             'reported': False
         }
         
-        if db:
-            db.collection('peer_chat_messages').document(message_id).set(message_data)
-            
-            # Update presence
-            db.collection('peer_chat_presence').document(session_id).update({
-                'last_seen': datetime.now(timezone.utc).isoformat()
-            })
+        db.collection('peer_chat_messages').document(message_id).set(message_data)
         
-        return jsonify({
-            'success': True,
-            'message': message_data
+        # Update presence
+        db.collection('peer_chat_presence').document(session_id).update({
+            'last_seen': datetime.now(timezone.utc).isoformat()
         })
         
+        logger.info(f"💬 Message sent in {room_id} by {anonymous_name}")
+        
+        return APIResponse.success({
+            'message': message_data
+        }, "Message sent")
+        
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error sending message: {e}")
+        return APIResponse.error("Failed to send message", "SEND_ERROR", 500)
 
 
 @peer_chat_bp.route('/message/<message_id>/like', methods=['POST'])
+@rate_limit_by_endpoint
 def like_message(message_id: str):
-    """Like a message"""
+    """Like a message."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
         
         if not session_id:
-            return jsonify({
-                'success': False,
-                'error': 'session_id is required'
-            }), 400
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
         
-        db = _get_db()
+        if db is None:
+            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
         
-        if db:
-            msg_ref = db.collection('peer_chat_messages').document(message_id)
-            msg_doc = msg_ref.get()
-            
-            if not msg_doc.exists:
-                return jsonify({
-                    'success': False,
-                    'error': 'Message not found'
-                }), 404
-            
-            msg_data = msg_doc.to_dict()
-            liked_by = msg_data.get('liked_by', [])
-            
-            if session_id in liked_by:
-                # Unlike
-                liked_by.remove(session_id)
-                action = 'unliked'
-            else:
-                # Like
-                liked_by.append(session_id)
-                action = 'liked'
-            
-            msg_ref.update({
-                'likes': len(liked_by),
-                'liked_by': liked_by
-            })
-            
-            return jsonify({
-                'success': True,
-                'action': action,
-                'likes': len(liked_by)
-            })
+        msg_ref = db.collection('peer_chat_messages').document(message_id)
+        msg_doc = msg_ref.get()
         
-        return jsonify({
-            'success': False,
-            'error': 'Database not available'
-        }), 500
+        if not msg_doc.exists:
+            return APIResponse.not_found("Message not found")
+        
+        msg_data = msg_doc.to_dict() or {}
+        liked_by = msg_data.get('liked_by', [])
+        
+        if session_id in liked_by:
+            # Unlike
+            liked_by.remove(session_id)
+            action = 'unliked'
+        else:
+            # Like
+            liked_by.append(session_id)
+            action = 'liked'
+        
+        msg_ref.update({
+            'likes': len(liked_by),
+            'liked_by': liked_by
+        })
+        
+        return APIResponse.success({
+            'action': action,
+            'likes': len(liked_by)
+        }, "Liked" if action == 'liked' else "Unliked")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error liking message: {e}")
+        return APIResponse.error("Failed to like message", "LIKE_ERROR", 500)
 
 
 @peer_chat_bp.route('/message/<message_id>/report', methods=['POST'])
+@rate_limit_by_endpoint
 def report_message(message_id: str):
-    """Report a message for moderation"""
+    """Report a message for moderation."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
-        reason = data.get('reason', 'Inappropriate content')
+        reason = sanitize_text(data.get('reason', 'Inappropriate content'), max_length=500)
         
         if not session_id:
-            return jsonify({
-                'success': False,
-                'error': 'session_id is required'
-            }), 400
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
         
-        db = _get_db()
+        if db is None:
+            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
         
-        if db:
-            msg_ref = db.collection('peer_chat_messages').document(message_id)
-            msg_doc = msg_ref.get()
-            
-            if not msg_doc.exists:
-                return jsonify({
-                    'success': False,
-                    'error': 'Message not found'
-                }), 404
-            
-            # Mark as reported
-            msg_ref.update({
-                'reported': True,
-                'report_reason': reason,
-                'reported_by': session_id,
-                'reported_at': datetime.now(timezone.utc).isoformat()
-            })
-            
-            # Create moderation log
-            db.collection('peer_chat_reports').add({
-                'message_id': message_id,
-                'reported_by': session_id,
-                'reason': reason,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'status': 'pending'
-            })
-            
-            return jsonify({
-                'success': True,
-                'message': 'Message reported for review'
-            })
+        msg_ref = db.collection('peer_chat_messages').document(message_id)
+        msg_doc = msg_ref.get()
         
-        return jsonify({
-            'success': False,
-            'error': 'Database not available'
-        }), 500
+        if not msg_doc.exists:
+            return APIResponse.not_found("Message not found")
+        
+        # Mark as reported
+        msg_ref.update({
+            'reported': True,
+            'report_reason': reason,
+            'reported_by': session_id,
+            'reported_at': datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Create moderation log
+        db.collection('peer_chat_reports').add({
+            'message_id': message_id,
+            'reported_by': session_id,
+            'reason': reason,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'status': 'pending'
+        })
+        
+        logger.warning(f"⚠️ Message {message_id} reported: {reason}")
+        audit_log('peer_chat_report', session_id, {'message_id': message_id, 'reason': reason})
+        
+        return APIResponse.success({
+            'reported': True
+        }, "Message reported for review")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error reporting message: {e}")
+        return APIResponse.error("Failed to report message", "REPORT_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/typing', methods=['POST'])
+@rate_limit_by_endpoint
 def update_typing(room_id: str):
-    """Update typing indicator"""
+    """Update typing indicator."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         session_id = data.get('session_id')
-        is_typing = data.get('is_typing', False)
+        is_typing = bool(data.get('is_typing', False))
         
         if not session_id:
-            return jsonify({
-                'success': False,
-                'error': 'session_id is required'
-            }), 400
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
         
-        db = _get_db()
+        if db is not None:
+            try:
+                db.collection('peer_chat_presence').document(session_id).update({
+                    'is_typing': is_typing,
+                    'last_seen': datetime.now(timezone.utc).isoformat()
+                })
+            except Exception:
+                pass  # Ignore if session doesn't exist
         
-        if db:
-            db.collection('peer_chat_presence').document(session_id).update({
-                'is_typing': is_typing,
-                'last_seen': datetime.now(timezone.utc).isoformat()
-            })
-        
-        return jsonify({
-            'success': True
+        return APIResponse.success({
+            'typing': is_typing
         })
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error updating typing: {e}")
+        return APIResponse.error("Failed to update typing status", "TYPING_ERROR", 500)
 
 
 @peer_chat_bp.route('/room/<room_id>/presence', methods=['GET'])
+@rate_limit_by_endpoint
 def get_room_presence(room_id: str):
-    """Get active users in a room"""
+    """Get active users in a room."""
     try:
         if room_id not in CHAT_ROOMS:
-            return jsonify({
-                'success': False,
-                'error': 'Room not found'
-            }), 404
+            return APIResponse.not_found("Room not found")
         
-        db = _get_db()
         active_users = []
         typing_users = []
         
-        if db:
+        if db is not None:
             five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
             docs = db.collection('peer_chat_presence').where(
                 'room_id', '==', room_id
@@ -597,24 +547,21 @@ def get_room_presence(room_id: str):
             ).stream()
             
             for doc in docs:
-                user_data = doc.to_dict()
+                user_data = doc.to_dict() or {}
                 active_users.append({
-                    'anonymous_name': user_data.get('anonymous_name'),
+                    'anonymousName': user_data.get('anonymous_name'),
                     'avatar': user_data.get('avatar')
                 })
                 
                 if user_data.get('is_typing'):
                     typing_users.append(user_data.get('anonymous_name'))
         
-        return jsonify({
-            'success': True,
-            'active_count': len(active_users),
-            'active_users': active_users[:20],  # Limit to 20 for display
-            'typing_users': typing_users
-        })
+        return APIResponse.success({
+            'activeCount': len(active_users),
+            'activeUsers': active_users[:20],  # Limit to 20 for display
+            'typingUsers': typing_users
+        }, "Presence status retrieved")
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.exception(f"Error getting room presence: {e}")
+        return APIResponse.error("Failed to fetch presence status", "PRESENCE_ERROR", 500)

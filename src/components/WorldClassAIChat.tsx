@@ -150,7 +150,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const loadChatHistory = async () => {
     if (!user?.user_id) { setLoading(false); return; }
     try {
-      const history = await getChatHistory(user.user_id);
+      const historyResponse = await getChatHistory(user.user_id);
+      const history = historyResponse?.conversation || [];
       const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => ({
         id: `history-${i}`,
         role: msg?.role === 'user' ? 'user' : 'assistant',
@@ -189,10 +190,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content: response.response || response.message,
+        content: response.response || (response as any).message || '',
         timestamp: new Date(),
-        sentiment: response.sentiment,
-        emotions: response.emotions,
+        sentiment: response.sentiment || response.sentiment_analysis?.sentiment,
+        emotions: response.emotions || response.emotions_detected,
       };
 
       setMessages(prev => [...prev, aiMsg]);

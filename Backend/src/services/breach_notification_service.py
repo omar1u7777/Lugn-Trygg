@@ -5,9 +5,16 @@ Handles detection and notification of data breaches
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from ..firebase_config import db
 from .audit_service import audit_service
+
+# Type checking for Pylance
+if TYPE_CHECKING:
+    from google.cloud.firestore import Client as _FirestoreClient
+
+# Runtime type alias for db with None fallback
+_db: "_FirestoreClient" = db  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +138,7 @@ class BreachNotificationService:
             }
 
             # Store breach record
-            doc_ref = db.collection('breach_notifications').document(breach_record['breach_id'])
+            doc_ref = _db.collection('breach_notifications').document(breach_record['breach_id'])
             doc_ref.set(breach_record)
 
             # Log breach response initiation
@@ -187,7 +194,7 @@ class BreachNotificationService:
             })
 
         # Update breach record with notifications
-        db.collection('breach_notifications').document(breach_id).update({
+        _db.collection('breach_notifications').document(breach_id).update({
             'scheduled_notifications': notifications,
             'updated_at': datetime.now(timezone.utc).isoformat()
         })
@@ -195,7 +202,7 @@ class BreachNotificationService:
     def get_breach_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get breach notification history"""
         try:
-            breaches = db.collection('breach_notifications') \
+            breaches = _db.collection('breach_notifications') \
                         .order_by('created_at', direction='DESCENDING') \
                         .limit(limit).stream()
 

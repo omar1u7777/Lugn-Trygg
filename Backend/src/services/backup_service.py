@@ -139,6 +139,7 @@ class BackupService:
         Returns:
             Backup filename if successful
         """
+        backup_id: Optional[str] = None
         try:
             timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             backup_id = f"{schedule_type}_{timestamp}"
@@ -211,7 +212,7 @@ class BackupService:
             logger.error(f"❌ Backup failed: {e}")
 
             # Update status on failure
-            if 'backup_id' in locals():
+            if backup_id:
                 self.backup_status[backup_id] = {
                     'status': 'failed',
                     'timestamp': datetime.now(timezone.utc),
@@ -295,6 +296,10 @@ class BackupService:
 
     def _encrypt_data(self, data: bytes) -> bytes:
         """Encrypt backup data"""
+        if not self.encryption_key:
+            logger.warning("No encryption key provided, skipping encryption")
+            return data
+            
         try:
             from cryptography.fernet import Fernet
 
@@ -312,6 +317,10 @@ class BackupService:
 
     def _decrypt_data(self, data: bytes) -> bytes:
         """Decrypt backup data"""
+        if not self.encryption_key:
+            logger.warning("No encryption key provided, using unencrypted data")
+            return data
+            
         try:
             from cryptography.fernet import Fernet
 
@@ -452,6 +461,7 @@ class BackupService:
         restored_count = 0
 
         for doc in docs:
+            doc_id = None
             try:
                 doc_id = doc.pop('_id')
                 # Remove backup metadata
@@ -463,7 +473,7 @@ class BackupService:
                 restored_count += 1
 
             except Exception as e:
-                logger.error(f"Failed to restore document {doc_id}: {e}")
+                logger.error(f"Failed to restore document {doc_id or 'unknown'}: {e}")
 
         return restored_count
 

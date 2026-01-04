@@ -3,19 +3,42 @@ Leaderboard Routes - Real leaderboard and ranking system
 Uses Firebase Firestore for user rankings based on XP, streaks, and achievements
 """
 
-from flask import Blueprint, request, jsonify, g
-from datetime import datetime, timedelta, timezone
+from flask import Blueprint, request, g
+from datetime import datetime, timezone
+from typing import Optional
+import logging
+import re
 
-leaderboard_bp = Blueprint("leaderboard", __name__, url_prefix="/api/leaderboard")
+# Absolute imports (project standard)
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.auth_service import AuthService
+from src.utils.input_sanitization import input_sanitizer
+from src.utils.response_utils import APIResponse
+from src.firebase_config import db
+
+logger = logging.getLogger(__name__)
+
+# Validation patterns
+USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+
+# Remove url_prefix here - it's set in main.py register_blueprint
+leaderboard_bp = Blueprint("leaderboard", __name__)
 
 
-def _get_db():
-    """Get Firestore database reference"""
+def _validate_user_id(user_id: str) -> bool:
+    """Validate user_id format"""
+    return bool(USER_ID_PATTERN.match(user_id)) if user_id else False
+
+
+def _validate_limit(limit_param: str, default: int = 20, max_val: int = 100) -> int:
+    """Validate and sanitize limit parameter"""
     try:
-        from ..firebase_config import db
-        return db
-    except Exception:
-        return None
+        limit = int(limit_param)
+        if limit < 1:
+            return default
+        return min(limit, max_val)
+    except (ValueError, TypeError):
+        return default
 
 
 def _anonymize_username(email_or_name: str) -> str:
@@ -35,19 +58,36 @@ def _anonymize_username(email_or_name: str) -> str:
     return f"{name[0]}***"
 
 
+# ============================================================================
+# OPTIONS Handlers (CORS preflight)
+# ============================================================================
+
+@leaderboard_bp.route('/xp', methods=['OPTIONS'])
+@leaderboard_bp.route('/streaks', methods=['OPTIONS'])
+@leaderboard_bp.route('/moods', methods=['OPTIONS'])
+@leaderboard_bp.route('/weekly-winners', methods=['OPTIONS'])
+def leaderboard_options():
+    """Handle CORS preflight for leaderboard endpoints"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
+@leaderboard_bp.route('/user/<user_id>/rank', methods=['OPTIONS'])
+def user_rank_options(user_id):
+    """Handle CORS preflight for user rank endpoint"""
+    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
+
+
 @leaderboard_bp.route('/xp', methods=['GET'])
+@rate_limit_by_endpoint
 def get_xp_leaderboard():
     """Get top users by XP"""
     try:
-        limit = int(request.args.get('limit', 20))
+        limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
         timeframe = request.args.get('timeframe', 'all')  # all, weekly, monthly
         
-        db = _get_db()
-        if not db:
-            return jsonify({
-                'success': False,
-                'error': 'Database not available'
-            }), 500
+        # Validate timeframe
+        if timeframe not in ['all', 'weekly', 'monthly']:
+            timeframe = 'all'
         
         # Query users collection sorted by XP
         query = db.collection('users').order_by('total_xp', direction='DESCENDING').limit(limit)
@@ -66,41 +106,35 @@ def get_xp_leaderboard():
             
             leaderboard.append({
                 'rank': rank,
-                'user_id': doc.id,
-                'display_name': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'userId': doc.id,
+                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
                 'xp': xp,
                 'level': user_data.get('level', 1),
-                'badge_count': len(user_data.get('badges', [])),
+                'badgeCount': len(user_data.get('badges', [])),
                 'avatar': user_data.get('avatar_emoji', '🌟')
             })
             rank += 1
         
-        return jsonify({
-            'success': True,
-            'leaderboard': leaderboard,
-            'timeframe': timeframe,
-            'updated_at': datetime.now(timezone.utc).isoformat()
-        })
+        return APIResponse.success(
+            data={
+                'leaderboard': leaderboard,
+                'timeframe': timeframe,
+                'updatedAt': datetime.now(timezone.utc).isoformat()
+            },
+            message=f'Retrieved {len(leaderboard)} users'
+        )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to get XP leaderboard: {str(e)}")
+        return APIResponse.error('Failed to load leaderboard')
 
 
 @leaderboard_bp.route('/streaks', methods=['GET'])
+@rate_limit_by_endpoint
 def get_streak_leaderboard():
     """Get top users by current streak"""
     try:
-        limit = int(request.args.get('limit', 20))
-        
-        db = _get_db()
-        if not db:
-            return jsonify({
-                'success': False,
-                'error': 'Database not available'
-            }), 500
+        limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
         
         # Query users sorted by current streak
         query = db.collection('users').order_by('current_streak', direction='DESCENDING').limit(limit)
@@ -118,39 +152,33 @@ def get_streak_leaderboard():
             
             leaderboard.append({
                 'rank': rank,
-                'user_id': doc.id,
-                'display_name': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
-                'current_streak': streak,
-                'longest_streak': user_data.get('longest_streak', streak),
+                'userId': doc.id,
+                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'currentStreak': streak,
+                'longestStreak': user_data.get('longest_streak', streak),
                 'avatar': user_data.get('avatar_emoji', '🔥')
             })
             rank += 1
         
-        return jsonify({
-            'success': True,
-            'leaderboard': leaderboard,
-            'updated_at': datetime.now(timezone.utc).isoformat()
-        })
+        return APIResponse.success(
+            data={
+                'leaderboard': leaderboard,
+                'updatedAt': datetime.now(timezone.utc).isoformat()
+            },
+            message=f'Retrieved {len(leaderboard)} users'
+        )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to get streak leaderboard: {str(e)}")
+        return APIResponse.error('Failed to load leaderboard')
 
 
 @leaderboard_bp.route('/moods', methods=['GET'])
+@rate_limit_by_endpoint
 def get_mood_leaderboard():
     """Get top users by mood log count"""
     try:
-        limit = int(request.args.get('limit', 20))
-        
-        db = _get_db()
-        if not db:
-            return jsonify({
-                'success': False,
-                'error': 'Database not available'
-            }), 500
+        limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
         
         # Query users sorted by mood count
         query = db.collection('users').order_by('mood_count', direction='DESCENDING').limit(limit)
@@ -168,46 +196,46 @@ def get_mood_leaderboard():
             
             leaderboard.append({
                 'rank': rank,
-                'user_id': doc.id,
-                'display_name': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
-                'mood_count': mood_count,
-                'average_mood': round(user_data.get('average_mood', 5), 1),
+                'userId': doc.id,
+                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'moodCount': mood_count,
+                'averageMood': round(user_data.get('average_mood', 5), 1),
                 'avatar': user_data.get('avatar_emoji', '📊')
             })
             rank += 1
         
-        return jsonify({
-            'success': True,
-            'leaderboard': leaderboard,
-            'updated_at': datetime.now(timezone.utc).isoformat()
-        })
+        return APIResponse.success(
+            data={
+                'leaderboard': leaderboard,
+                'updatedAt': datetime.now(timezone.utc).isoformat()
+            },
+            message=f'Retrieved {len(leaderboard)} users'
+        )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to get mood leaderboard: {str(e)}")
+        return APIResponse.error('Failed to load leaderboard')
 
 
+# Support both /user/<user_id>/rank AND /user/<user_id> for frontend compatibility
 @leaderboard_bp.route('/user/<user_id>/rank', methods=['GET'])
+@leaderboard_bp.route('/user/<user_id>', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
 def get_user_rank(user_id: str):
     """Get a specific user's rank in various categories"""
+    # Validate user_id
+    user_id_clean = input_sanitizer.sanitize(user_id) if user_id else ''
+    if not _validate_user_id(user_id_clean):
+        logger.warning(f"Invalid user_id format attempted: {user_id[:50] if user_id else 'None'}")
+        return APIResponse.bad_request('Invalid user ID format')
+
     try:
-        db = _get_db()
-        if not db:
-            return jsonify({
-                'success': False,
-                'error': 'Database not available'
-            }), 500
-        
         # Get user data
-        user_doc = db.collection('users').document(user_id).get()
+        user_doc = db.collection('users').document(user_id_clean).get()
         
         if not user_doc.exists:
-            return jsonify({
-                'success': False,
-                'error': 'User not found'
-            }), 404
+            return APIResponse.not_found('User not found')
         
         user_data = user_doc.to_dict()
         user_xp = user_data.get('total_xp', 0)
@@ -229,46 +257,42 @@ def get_user_rank(user_id: str):
         # Get total user count for percentile
         total_users = len(list(db.collection('users').stream()))
         
-        return jsonify({
-            'success': True,
-            'user_id': user_id,
-            'rankings': {
-                'xp': {
-                    'rank': xp_rank,
-                    'value': user_xp,
-                    'percentile': round((1 - xp_rank / max(total_users, 1)) * 100, 1)
+        return APIResponse.success(
+            data={
+                'userId': user_id_clean,
+                'rankings': {
+                    'xp': {
+                        'rank': xp_rank,
+                        'value': user_xp,
+                        'percentile': round((1 - xp_rank / max(total_users, 1)) * 100, 1)
+                    },
+                    'streak': {
+                        'rank': streak_rank,
+                        'value': user_streak,
+                        'percentile': round((1 - streak_rank / max(total_users, 1)) * 100, 1)
+                    },
+                    'moods': {
+                        'rank': mood_rank,
+                        'value': user_moods,
+                        'percentile': round((1 - mood_rank / max(total_users, 1)) * 100, 1)
+                    }
                 },
-                'streak': {
-                    'rank': streak_rank,
-                    'value': user_streak,
-                    'percentile': round((1 - streak_rank / max(total_users, 1)) * 100, 1)
-                },
-                'moods': {
-                    'rank': mood_rank,
-                    'value': user_moods,
-                    'percentile': round((1 - mood_rank / max(total_users, 1)) * 100, 1)
-                }
+                'totalUsers': total_users
             },
-            'total_users': total_users
-        })
+            message='User rankings retrieved'
+        )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to get user rank: {str(e)}")
+        return APIResponse.error('Failed to load user rankings')
 
 
 @leaderboard_bp.route('/weekly-winners', methods=['GET'])
+@rate_limit_by_endpoint
 def get_weekly_winners():
     """Get last week's top performers"""
     try:
-        db = _get_db()
-        if not db:
-            return jsonify({
-                'success': False,
-                'error': 'Database not available'
-            }), 500
+        from datetime import timedelta
         
         # Calculate last week's date range
         today = datetime.now(timezone.utc)
@@ -284,22 +308,22 @@ def get_weekly_winners():
             user_data = doc.to_dict()
             if user_data.get('total_xp', 0) > 0:
                 xp_winners.append({
-                    'display_name': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                    'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
                     'xp': user_data.get('total_xp', 0),
                     'avatar': user_data.get('avatar_emoji', '🏆')
                 })
         
-        return jsonify({
-            'success': True,
-            'week_start': last_week_start.isoformat(),
-            'week_end': last_week_end.isoformat(),
-            'winners': {
-                'xp': xp_winners[:3] if xp_winners else []
-            }
-        })
+        return APIResponse.success(
+            data={
+                'weekStart': last_week_start.isoformat(),
+                'weekEnd': last_week_end.isoformat(),
+                'winners': {
+                    'xp': xp_winners[:3] if xp_winners else []
+                }
+            },
+            message='Weekly winners retrieved'
+        )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to get weekly winners: {str(e)}")
+        return APIResponse.error('Failed to load weekly winners')

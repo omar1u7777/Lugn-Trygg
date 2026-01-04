@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/api/api';
+import { createCheckoutSession } from '@/api/subscription';
 import { useSubscription, type SubscriptionTier } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -112,16 +112,14 @@ const UpgradePage: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const response = await api.post('/api/subscription/create-session', {
-        user_id: user.user_id,
-        email: user.email,
-        plan: planKey,
-        billing_cycle: planKey === 'premium' ? selectedPlan : 'monthly',
-      });
+      const session = await createCheckoutSession(
+        user.email,
+        planKey,
+        planKey === 'premium' ? selectedPlan : 'monthly'
+      );
 
-      const checkoutUrl = response.data?.url;
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+      if (session.url) {
+        window.location.href = session.url;
       } else {
         setErrorMessage('Kunde inte skapa betalningssession. Försök igen.');
       }

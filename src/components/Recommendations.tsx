@@ -425,7 +425,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       try {
         if (user?.user_id) {
           console.log('🎯 Fetching wellness goals for user:', user.user_id);
-          const goals = await getWellnessGoals(user.user_id);
+          const goals = await getWellnessGoals();
           console.log('✅ Wellness goals response:', goals);
 
           // Ensure goals is an array
@@ -619,7 +619,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!user?.user_id) return;
 
     try {
-      await saveMeditationSession(user.user_id, sessionData);
+      await saveMeditationSession(sessionData);
       console.log('✅ Meditation session saved to backend');
 
       // Refresh meditation history
@@ -634,7 +634,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     setIsLoadingMeditation(true);
     try {
-      const data = await getMeditationSessions(user.user_id, 20);
+      const data = await getMeditationSessions(20);
       setMeditationSessions(data.sessions || []);
     } catch (error) {
       console.error('Failed to load meditation sessions:', error);
@@ -765,7 +765,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!user?.user_id) return;
 
     try {
-      const settings = await getNotificationSettings(user.user_id);
+      const settings = await getNotificationSettings();
       setNotificationSettings({
         dailyRemindersEnabled: settings.dailyRemindersEnabled || false,
         reminderTime: settings.reminderTime || '09:00',
@@ -836,7 +836,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       }
 
       // Enable daily reminders
-      await updateNotificationSettings(user.user_id, {
+      await updateNotificationSettings({
         dailyRemindersEnabled: true,
         reminderTime: notificationSettings.reminderTime
       });
@@ -860,7 +860,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!user?.user_id) return;
 
     try {
-      await updateNotificationSettings(user.user_id, {
+      await updateNotificationSettings({
         dailyRemindersEnabled: false,
         reminderTime: notificationSettings.reminderTime
       });
@@ -879,7 +879,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!user?.user_id) return;
 
     try {
-      await updateNotificationSettings(user.user_id, {
+      await updateNotificationSettings({
         dailyRemindersEnabled: notificationSettings.dailyRemindersEnabled,
         reminderTime: newTime
       });
@@ -1061,7 +1061,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (selectedRecommendation && user?.user_id) {
       updateProgress('meditation', selectedRecommendation.duration || 10);
       try {
-        await saveMeditationSession(user.user_id, {
+        await saveMeditationSession({
           type: 'meditation',
           duration: selectedRecommendation.duration || 10,
           technique: selectedRecommendation.title,
@@ -2765,7 +2765,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                               onChange={(e) => {
                                 const currentEntries = gratitudeEntries[gratitudeDay] || ['', '', ''];
                                 currentEntries[index] = e.target.value;
-                                setEntries({
+                                setGratitudeEntries({
                                   ...gratitudeEntries,
                                   [gratitudeDay]: currentEntries
                                 });

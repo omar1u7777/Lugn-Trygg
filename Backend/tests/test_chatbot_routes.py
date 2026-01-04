@@ -415,7 +415,7 @@ class TestChatHistory:
 class TestPatternAnalysis:
     """Tests for /analyze-patterns endpoint"""
     
-    @patch('src.utils.ai_services.ai_services.analyze_mood_patterns')
+    @patch('src.services.ai_service.ai_services.analyze_mood_patterns')
     @patch('src.firebase_config.db')
     def test_analyze_patterns_success(self, mock_db, mock_analyze, client):
         """Test successful pattern analysis"""
@@ -484,7 +484,7 @@ class TestPatternAnalysis:
         assert "error" in data
     
     @patch('src.routes.chatbot_routes.db')
-    @patch('src.utils.ai_services.ai_services.analyze_mood_patterns')
+    @patch('src.services.ai_service.ai_services.analyze_mood_patterns')
     def test_analyze_patterns_ai_failure_uses_fallback(self, mock_analyze, mock_db, client):
         """Test fallback when AI analysis fails"""
         mock_collection = Mock()

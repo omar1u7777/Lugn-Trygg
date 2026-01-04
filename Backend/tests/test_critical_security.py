@@ -150,7 +150,7 @@ class TestBusinessLogic:
 
     def test_ai_service_fallback(self):
         """Test AI service fallback when OpenAI is unavailable"""
-        from Backend.src.utils.ai_services import AIServices
+        from Backend.src.services.ai_service import AIServices
 
         # Test that AIServices can be instantiated (lazy loading means no direct patching)
         ai_services = AIServices()
@@ -171,7 +171,7 @@ class TestBusinessLogic:
 
     def test_crisis_detection(self):
         """Test crisis indicator detection"""
-        from Backend.src.utils.ai_services import AIServices
+        from Backend.src.services.ai_service import AIServices
 
         ai_service = AIServices()
 
@@ -188,18 +188,25 @@ class TestBusinessLogic:
             assert result["risk_level"] in ["HIGH", "CRITICAL"]
 
     def test_data_encryption(self):
-        """Test data encryption/decryption"""
-        from Backend.src.utils.encryption import encrypt_data, decrypt_data
+        """Test data encryption/decryption using AuditService"""
+        import os
+        from cryptography.fernet import Fernet
+        
+        # Set up test encryption key
+        test_key = Fernet.generate_key().decode()
+        os.environ['HIPAA_ENCRYPTION_KEY'] = test_key
+        
+        from Backend.src.services.audit_service import AuditService
+        audit_svc = AuditService()
 
         test_data = "Sensitive user information"
-        key = "test-encryption-key-32-chars-long"
 
         # Encrypt
-        encrypted = encrypt_data(test_data, key)
+        encrypted = audit_svc.encrypt_data(test_data)
         assert encrypted != test_data
 
         # Decrypt
-        decrypted = decrypt_data(encrypted, key)
+        decrypted = audit_svc.decrypt_data(encrypted)
         assert decrypted == test_data
 
 

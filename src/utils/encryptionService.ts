@@ -238,10 +238,13 @@ export async function getPrivacySettings(userId?: string): Promise<PrivacySettin
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        // Handle APIResponse wrapper: { success: true, data: { settings: {...} } }
+        const data = result.data || result;
+        const settings = data.settings || data;
         // Cache to localStorage
-        localStorage.setItem('privacy_settings', JSON.stringify(data.settings));
-        return { ...DEFAULT_PRIVACY_SETTINGS, ...data.settings };
+        localStorage.setItem('privacy_settings', JSON.stringify(settings));
+        return { ...DEFAULT_PRIVACY_SETTINGS, ...settings };
       }
     } catch (error) {
       console.warn('Failed to fetch privacy settings from backend, using local cache:', error);

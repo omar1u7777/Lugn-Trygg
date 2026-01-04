@@ -19,8 +19,11 @@ from ..config import (
     JWT_SECRET_KEY,
     JWT_REFRESH_SECRET_KEY,
     ENCRYPTION_KEY,
-    HIPAA_ENCRYPTION_KEY
 )
+import os
+# HIPAA_ENCRYPTION_KEY is optional and defined in security_config
+HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')
+
 from ..utils.error_handling import handle_service_errors, ServiceError, ValidationError
 from . import IAuditService
 

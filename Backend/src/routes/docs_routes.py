@@ -3,9 +3,16 @@ API Documentation Routes - OpenAPI/Swagger UI
 Provides interactive API documentation and testing interface
 """
 
+import os
+import logging
 from flask import Blueprint, jsonify, render_template_string, request
 from src.docs.swagger_config import get_openapi_spec, get_openapi_json, get_openapi_yaml
-import os
+from src.services.rate_limiting import rate_limit_by_endpoint
+
+logger = logging.getLogger(__name__)
+
+# Environment detection for security controls
+IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 docs_bp = Blueprint('docs', __name__)
 
@@ -95,7 +102,8 @@ REDOC_UI_HTML = """
 </html>
 """
 
-@docs_bp.route('/')
+@docs_bp.route('/', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def api_docs():
     """
     Main API documentation page with Swagger UI
@@ -112,9 +120,13 @@ def api_docs():
             schema:
               type: string
     """
+    if request.method == 'OPTIONS':
+        return '', 204
+    logger.info("Swagger UI documentation accessed")
     return render_template_string(SWAGGER_UI_HTML)
 
-@docs_bp.route('/redoc')
+@docs_bp.route('/redoc', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def api_docs_redoc():
     """
     Alternative API documentation with ReDoc
@@ -131,9 +143,13 @@ def api_docs_redoc():
             schema:
               type: string
     """
+    if request.method == 'OPTIONS':
+        return '', 204
+    logger.info("ReDoc documentation accessed")
     return render_template_string(REDOC_UI_HTML)
 
-@docs_bp.route('/openapi.json')
+@docs_bp.route('/openapi.json', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def openapi_json():
     """
     OpenAPI specification in JSON format
@@ -150,9 +166,12 @@ def openapi_json():
             schema:
               type: object
     """
+    if request.method == 'OPTIONS':
+        return '', 204
     return jsonify(get_openapi_spec())
 
-@docs_bp.route('/openapi.yaml')
+@docs_bp.route('/openapi.yaml', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def openapi_yaml():
     """
     OpenAPI specification in YAML format
@@ -169,10 +188,13 @@ def openapi_yaml():
             schema:
               type: string
     """
+    if request.method == 'OPTIONS':
+        return '', 204
     response = get_openapi_yaml()
     return response, 200, {'Content-Type': 'application/yaml'}
 
-@docs_bp.route('/health')
+@docs_bp.route('/health', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def docs_health():
     """
     Documentation service health check
@@ -199,10 +221,13 @@ def docs_health():
                   type: string
                   example: "1.0.0"
     """
+    if request.method == 'OPTIONS':
+        return '', 204
     return jsonify({
         'status': 'healthy',
         'service': 'api-docs',
         'version': '1.0.0',
+        'environment': 'production' if IS_PRODUCTION else 'development',
         'endpoints': {
             'swagger_ui': '/api/docs/',
             'redoc_ui': '/api/docs/redoc',
@@ -211,15 +236,17 @@ def docs_health():
         }
     })
 
-@docs_bp.route('/test-auth')
+@docs_bp.route('/test-auth', methods=['GET', 'OPTIONS'])
+@rate_limit_by_endpoint
 def test_auth_page():
     """
-    Test page for API authentication
+    Test page for API authentication (Development only)
     ---
     tags:
       - Documentation
     summary: Authentication Test Page
-    description: Simple page to test API authentication and token storage
+    description: Simple page to test API authentication and token storage.
+                 Only available in development environment for security reasons.
     responses:
       200:
         description: Authentication test interface
@@ -227,7 +254,21 @@ def test_auth_page():
           text/html:
             schema:
               type: string
+      403:
+        description: Forbidden - Only available in development
     """
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    # SECURITY: Only allow in development environment
+    if IS_PRODUCTION:
+        logger.warning("Attempted access to /test-auth in production environment")
+        return jsonify({
+            'error': 'This endpoint is only available in development mode',
+            'status_code': 403
+        }), 403
+    
+    logger.info("Test auth page accessed (development mode)")
     test_html = """
     <!DOCTYPE html>
     <html>

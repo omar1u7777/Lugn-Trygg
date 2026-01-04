@@ -202,16 +202,18 @@ class SecurityMiddleware:
             return False
 
         session_id = getattr(g, 'session_id', 'anonymous')
-        return self.security_service.validate_csrf_token(token, session_id)
+        result, error = self.security_service.validate_csrf_token(token, session_id)
+        return result if result is not None else False
 
     def _check_rate_limit(self, identifier: str) -> bool:
         """Check if request should be rate limited"""
-        return self.security_service.rate_limit_check(
+        result, error = self.security_service.rate_limit_check(
             identifier,
             f"{request.method}:{request.path}",
             max_requests=100,  # 100 requests per hour
             window_seconds=3600
         )
+        return result if result is not None else False
 
     def _rate_limit_response(self):
         """Return rate limit exceeded response"""
@@ -256,22 +258,59 @@ class SecurityMiddleware:
 
     def _handle_forbidden(self, e):
         """Handle 403 Forbidden errors"""
+        from ..services.tamper_detection_service import tamper_detection_service
+        
+        user_id = getattr(g, 'user_id', 'anonymous')
+        client_ip = self._get_client_ip()
+        
         self.security_service.log_security_event(
             'FORBIDDEN_ACCESS',
-            getattr(g, 'user_id', 'anonymous'),
+            user_id,
             {'path': request.path},
-            self._get_client_ip()
+            client_ip
         )
+        
+        # Record in tamper detection - forbidden access is suspicious
+        tamper_detection_service.record_event(
+            event_type='FORBIDDEN_ACCESS',
+            message=f'Forbidden access attempt to {request.path}',
+            severity='high',
+            metadata={
+                'user_id': user_id,
+                'path': request.path,
+                'ip': client_ip,
+                'method': request.method
+            }
+        )
+        
         return jsonify({"error": "Forbidden"}), 403
 
     def _handle_rate_limit(self, e):
         """Handle 429 Rate Limit errors"""
+        from ..services.tamper_detection_service import tamper_detection_service
+        
+        user_id = getattr(g, 'user_id', 'anonymous')
+        client_ip = self._get_client_ip()
+        
         self.security_service.log_security_event(
             'RATE_LIMIT_EXCEEDED',
-            getattr(g, 'user_id', 'anonymous'),
+            user_id,
             {'path': request.path},
-            self._get_client_ip()
+            client_ip
         )
+        
+        # Record in tamper detection for dashboard visibility
+        tamper_detection_service.record_event(
+            event_type='RATE_LIMIT_EXCEEDED',
+            message=f'Rate limit exceeded via middleware for {request.path}',
+            severity='medium',
+            metadata={
+                'user_id': user_id,
+                'path': request.path,
+                'ip': client_ip
+            }
+        )
+        
         return jsonify({"error": "Rate limit exceeded", "retry_after": 3600}), 429
 
 # Decorator for requiring authentication

@@ -14,6 +14,8 @@ from redis import Redis
 import os
 import logging
 
+from .tamper_detection_service import tamper_detection_service
+
 logger = logging.getLogger(__name__)
 
 class AdvancedRateLimiter:
@@ -120,6 +122,8 @@ class AdvancedRateLimiter:
         try:
             # Check user's subscription status
             from ..firebase_config import db
+            if db is None:
+                return 'free'
             user_doc = db.collection('users').document(user_id).get()
 
             if user_doc.exists:
@@ -201,7 +205,8 @@ class AdvancedRateLimiter:
             # Check system load (simplified - in production use actual metrics)
             if self.redis_client:
                 # Count recent requests in the last hour
-                recent_requests = self.redis_client.zcount('api_requests', current_hour * 3600, (current_hour + 1) * 3600)
+                recent_requests_raw = self.redis_client.zcount('api_requests', current_hour * 3600, (current_hour + 1) * 3600)
+                recent_requests = int(recent_requests_raw) if recent_requests_raw else 0  # type: ignore[arg-type]
 
                 # If low traffic (< 1000 requests/hour), increase limits by 50%
                 if recent_requests < 1000:
@@ -229,8 +234,8 @@ class AdvancedRateLimiter:
             key = f"ratelimit:{endpoint}:{client_id}"
 
             # Get current usage
-            current_usage = self.redis_client.get(key) or 0
-            current_usage = int(current_usage)
+            current_usage_raw = self.redis_client.get(key)
+            current_usage = int(current_usage_raw) if current_usage_raw else 0  # type: ignore[arg-type]
 
             # Get limit for this endpoint
             limit_str = self.get_rate_limit(endpoint, user_id)
@@ -321,6 +326,19 @@ def rate_limit_by_endpoint(f):
             allowed, limit_info = rate_limiter.check_rate_limit(endpoint, user_id)
 
             if not allowed:
+                # Record tamper event for rate limit exceeded
+                tamper_detection_service.record_event(
+                    event_type='RATE_LIMIT_EXCEEDED',
+                    message=f'Rate limit exceeded for endpoint {endpoint}',
+                    severity='medium',
+                    metadata={
+                        'user_id': user_id,
+                        'endpoint': endpoint,
+                        'ip': request.remote_addr,
+                        'limit': limit_info.get('limit', 100)
+                    }
+                )
+
                 # Return rate limit exceeded response
                 response = jsonify({
                     'error': 'Rate limit exceeded',
