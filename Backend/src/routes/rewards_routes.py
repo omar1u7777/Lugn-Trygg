@@ -208,6 +208,7 @@ def handle_options():
 
 
 @rewards_bp.route('/catalog', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_reward_catalog():
     """Get all available rewards"""
@@ -223,6 +224,7 @@ def get_reward_catalog():
 
 
 @rewards_bp.route('/achievements', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_achievements():
     """Get all achievements"""
@@ -392,6 +394,19 @@ def claim_reward():
                 new_premium = datetime.now(timezone.utc) + timedelta(days=reward.get('value', 7))
             
             update_data['premium_until'] = new_premium.isoformat()
+            
+            # SYNC: Also update the user's subscription in the users collection
+            # so subscription_service.get_plan_context() recognises the premium status
+            if db:
+                db.collection('users').document(user_id).set({  # type: ignore
+                    'subscription': {
+                        'plan': 'premium',
+                        'status': 'active',
+                        'source': 'xp_reward',
+                        'end_date': new_premium.isoformat(),
+                        'updated_at': datetime.now(timezone.utc).isoformat(),
+                    }
+                }, merge=True)
         
         # Handle badge rewards
         if reward.get('type') == 'badge':

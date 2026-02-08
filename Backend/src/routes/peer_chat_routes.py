@@ -8,15 +8,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 import uuid
 import re
-import random
+import secrets
 import logging
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.audit_service import audit_log
+from src.services.auth_service import AuthService
 from src.firebase_config import db
 from src.utils.response_utils import APIResponse
 from src.utils.input_sanitization import sanitize_text
 
-peer_chat_bp = Blueprint("peer_chat", __name__, url_prefix="/api/peer-chat")
+peer_chat_bp = Blueprint("peer_chat", __name__, url_prefix="/api/v1/peer-chat")
 logger = logging.getLogger(__name__)
 
 
@@ -114,14 +115,14 @@ def _generate_anonymous_name():
         'Själ', 'Hjärta', 'Ande', 'Vän', 'Resenär', 'Drömmare',
         'Lyssnare', 'Berättare', 'Sökare', 'Vandare'
     ]
-    number = random.randint(100, 999)
-    return f"{random.choice(adjectives)}{random.choice(nouns)}{number}"
+    number = secrets.randbelow(900) + 100
+    return f"{secrets.choice(adjectives)}{secrets.choice(nouns)}{number}"
 
 
 def _generate_avatar():
     """Generate a random avatar emoji."""
     avatars = ['🌟', '💙', '💜', '💚', '🌸', '🌺', '🦋', '🌈', '✨', '🌻', '🍀', '🌙']
-    return random.choice(avatars)
+    return secrets.choice(avatars)
 
 
 def _moderate_message(message: str) -> tuple[bool, str]:
@@ -156,6 +157,7 @@ def _moderate_message(message: str) -> tuple[bool, str]:
 
 
 @peer_chat_bp.route('/rooms', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_rooms():
     """Get all available chat rooms with member counts."""
@@ -166,17 +168,21 @@ def get_rooms():
             room_data: dict[str, Any] = dict(room)
             
             # Get active member count (users active in last 5 minutes)
+            member_count = 0
             if db is not None:
-                five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-                active_docs = db.collection('peer_chat_presence').where(
-                    'room_id', '==', room_id
-                ).where(
-                    'last_seen', '>=', five_min_ago.isoformat()
-                ).stream()
-                room_data['memberCount'] = len(list(active_docs))
-            else:
-                room_data['memberCount'] = 0
+                try:
+                    five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+                    active_docs = db.collection('peer_chat_presence').where(
+                        'room_id', '==', room_id
+                    ).where(
+                        'last_seen', '>=', five_min_ago.isoformat()
+                    ).stream()
+                    member_count = len(list(active_docs))
+                except Exception:
+                    # Compound query may fail if composite index doesn't exist
+                    member_count = 0
             
+            room_data['memberCount'] = member_count
             rooms_with_counts.append(room_data)
         
         return APIResponse.success({
@@ -189,6 +195,7 @@ def get_rooms():
 
 
 @peer_chat_bp.route('/room/<room_id>/join', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def join_room(room_id: str):
     """Join a chat room and get initial messages."""
@@ -196,13 +203,7 @@ def join_room(room_id: str):
         if room_id not in CHAT_ROOMS:
             return APIResponse.not_found("Room not found")
         
-        data = request.get_json(silent=True) or {}
-        user_id = data.get('user_id')
-        
-        if not user_id:
-            return APIResponse.bad_request("user_id is required", "USER_ID_REQUIRED")
-        
-        user_id = sanitize_text(user_id, max_length=128)
+        user_id = g.user_id
         
         # Generate anonymous identity for this session
         anonymous_name = _generate_anonymous_name()
@@ -252,6 +253,7 @@ def join_room(room_id: str):
 
 
 @peer_chat_bp.route('/room/<room_id>/leave', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def leave_room(room_id: str):
     """Leave a chat room."""
@@ -277,6 +279,7 @@ def leave_room(room_id: str):
 
 
 @peer_chat_bp.route('/room/<room_id>/messages', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_messages(room_id: str):
     """Get messages for a room (polling endpoint)."""
@@ -331,6 +334,7 @@ def get_messages(room_id: str):
 
 
 @peer_chat_bp.route('/room/<room_id>/send', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def send_message(room_id: str):
     """Send a message to a room."""
@@ -401,6 +405,7 @@ def send_message(room_id: str):
 
 
 @peer_chat_bp.route('/message/<message_id>/like', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def like_message(message_id: str):
     """Like a message."""
@@ -448,6 +453,7 @@ def like_message(message_id: str):
 
 
 @peer_chat_bp.route('/message/<message_id>/report', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def report_message(message_id: str):
     """Report a message for moderation."""
@@ -498,6 +504,7 @@ def report_message(message_id: str):
 
 
 @peer_chat_bp.route('/room/<room_id>/typing', methods=['POST'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def update_typing(room_id: str):
     """Update typing indicator."""
@@ -528,6 +535,7 @@ def update_typing(room_id: str):
 
 
 @peer_chat_bp.route('/room/<room_id>/presence', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_room_presence(room_id: str):
     """Get active users in a room."""
