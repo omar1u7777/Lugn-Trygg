@@ -128,8 +128,8 @@ def get_referral_stats():
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
         
-        # Get user_id from query param or auth context
-        user_id = request.args.get("user_id", "").strip() or current_user_id
+        # Security: Only allow users to view their own stats
+        user_id = current_user_id
         logger.info(f"👤 REFERRAL - Getting stats for user: {user_id}")
 
         # Get referral document
@@ -250,6 +250,7 @@ def send_invitation():
 
 
 @referral_bp.route("/complete", methods=["POST"])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def complete_referral():
     """Mark a referral as completed when invitee signs up (called internally during registration)"""

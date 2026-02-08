@@ -18,6 +18,11 @@ from ..config import (
     STRIPE_PRICE_CBT_MODULE,
 )
 from ..config.subscription_config import load_subscription_plans
+import os
+
+# Frontend URL for Stripe redirect - use env var, never hardcode localhost in production
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 from ..services.subscription_service import SubscriptionService
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
@@ -105,8 +110,8 @@ def create_checkout_session():
                 },
             ],
             mode="subscription",
-            success_url=f"http://localhost:3000/dashboard?success=true&session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url="http://localhost:3000/dashboard?canceled=true",
+            success_url=f"{FRONTEND_URL}/dashboard?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/dashboard?canceled=true",
             customer_email=user_email,
             metadata={
                 "user_id": user_id,
@@ -175,14 +180,30 @@ def stripe_webhook():
         sig_header = request.headers.get("stripe-signature")
 
         logger.debug(f"📥 Webhook payload length: {len(payload)} bytes")
-        logger.debug(f"🔐 Signature header: {sig_header}")
+        logger.debug(f"🔐 Signature header present: {bool(sig_header)}")
 
-        # Verify webhook signature (in production, use webhook secret)
-        # event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-
-        # For development, we'll trust the payload
-        import json
-        event = json.loads(payload)
+        # Verify webhook signature when secret is configured (production)
+        if STRIPE_WEBHOOK_SECRET and sig_header:
+            try:
+                event = stripe.Webhook.construct_event(
+                    payload, sig_header, STRIPE_WEBHOOK_SECRET
+                )
+                logger.info("✅ Stripe webhook signature verified")
+            except stripe.error.SignatureVerificationError as e:
+                logger.error(f"❌ Webhook signature verification failed: {e}")
+                return APIResponse.error("Invalid webhook signature", "SIGNATURE_ERROR", 400)
+            except ValueError as e:
+                logger.error(f"❌ Invalid webhook payload: {e}")
+                return APIResponse.error("Invalid payload", "PAYLOAD_ERROR", 400)
+        elif not STRIPE_WEBHOOK_SECRET:
+            # Development fallback - log warning but allow
+            import json
+            event = json.loads(payload)
+            logger.warning("⚠️ STRIPE_WEBHOOK_SECRET not set - webhook signature not verified (dev mode)")
+        else:
+            # Production: signature header missing
+            logger.error("❌ Webhook request missing stripe-signature header")
+            return APIResponse.error("Missing webhook signature", "SIGNATURE_MISSING", 400)
 
         event_type = event.get("type")
         logger.info(f"📡 Processing Stripe webhook event: {event_type}")
@@ -234,9 +255,32 @@ def stripe_webhook():
             logger.info(f"Payment succeeded for subscription: {subscription_id}")
 
         elif event_type == "invoice.payment_failed":
-            # Handle failed payment
-            subscription_id = event.get("data", {}).get("object", {}).get("subscription")
+            # Handle failed payment - mark subscription as past_due
+            invoice = event.get("data", {}).get("object", {})
+            subscription_id = invoice.get("subscription")
+            customer_id = invoice.get("customer")
             logger.warning(f"Payment failed for subscription: {subscription_id}")
+
+            if customer_id:
+                # Find user by customer_id and mark as past_due
+                if FieldFilter:
+                    users = db.collection("users").where(  # type: ignore
+                        filter=FieldFilter("subscription.stripe_customer_id", "==", customer_id)
+                    ).stream()
+                else:
+                    users = db.collection("users").where(  # type: ignore
+                        "subscription.stripe_customer_id", "==", customer_id
+                    ).stream()
+
+                for user_doc in users:
+                    user_id = user_doc.id
+                    db.collection("users").document(user_id).update({  # type: ignore
+                        "subscription.status": "past_due",
+                        "subscription.updated_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    audit_log("PAYMENT_FAILED", user_id, {"subscriptionId": subscription_id})
+                    logger.warning(f"⚠️ Subscription marked past_due for user: {user_id}")
+                    break
 
         elif event_type == "customer.subscription.deleted":
             # Handle subscription cancellation
@@ -308,8 +352,8 @@ def purchase_cbt_module():
                 },
             ],
             mode="payment",
-            success_url=f"http://localhost:3000/dashboard?success=true&session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url="http://localhost:3000/dashboard?canceled=true",
+            success_url=f"{FRONTEND_URL}/dashboard?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/dashboard?canceled=true",
             customer_email=user_email,
             metadata={
                 "user_id": user_id,

@@ -28,6 +28,7 @@ except ImportError:
 # Absolute imports (project standard)
 from src.firebase_config import db
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.auth_service import AuthService
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -199,6 +200,7 @@ def liveness_check():
 # ============================================================================
 
 @metrics_bp.route('/metrics', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def prometheus_metrics():
     """
@@ -231,6 +233,7 @@ def prometheus_metrics():
 
 
 @metrics_bp.route('/metrics/business', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def business_metrics():
     """
