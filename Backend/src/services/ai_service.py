@@ -55,8 +55,8 @@ class AIServices:
         self._model_cache_ttl = 3600  # 1 hour cache for ML models
         logger.info(f"🤖 AI Services initialized - Google NLP: {self.google_nlp_available}, OpenAI: lazy loaded")
 
-    async def get_openai_client(self):
-        """Lazy load OpenAI client asynchronously"""
+    def get_openai_client(self):
+        """Lazy load OpenAI client"""
         if self.client is None:
             if not self._openai_checked:
                 self._openai_available = self._check_openai()
@@ -245,45 +245,21 @@ Var noga med att returnera endast giltig JSON."""
             logger.error(f"OpenAI sentiment analysis failed: {str(e)}")
             return self._fallback_sentiment_analysis(text, quota_exceeded=False)
 
-        try:
-            from google.cloud import language_v1
-
-            client = language_v1.LanguageServiceClient()
-            document = language_v1.Document(
-                content=text,
-                type_=language_v1.Document.Type.PLAIN_TEXT,
-                language="en"  # English (Swedish not supported for sentiment)
-            )
-
-            # Analyze sentiment
-            sentiment_response = client.analyze_sentiment(document=document)
-            sentiment = sentiment_response.document_sentiment
-
-            # Analyze entities for emotion detection
-            entities_response = client.analyze_entities(document=document)
-
-            # Extract emotions from text and entities
-            emotions = self._extract_emotions_from_text(text, entities_response.entities)
-
-            result = {
-                "sentiment": self._sentiment_score_to_label(sentiment.score),
-                "score": sentiment.score,
-                "magnitude": sentiment.magnitude,
-                "confidence": 0.8,  # Google NLP doesn't provide confidence for document sentiment
-                "emotions": emotions,
-                "intensity": min(abs(sentiment.score) * sentiment.magnitude, 1.0)
-            }
-
-            logger.info(f"Sentiment analysis completed: {result['sentiment']} ({result['score']:.2f})")
-            return result
-
-        except Exception as e:
-            logger.error(f"Google NLP sentiment analysis failed: {str(e)}")
-            return self._fallback_sentiment_analysis(text)
-
     def _fallback_sentiment_analysis(self, text: str, quota_exceeded: bool = False) -> Dict[str, Any]:
-        """Fallback sentiment analysis using keyword matching"""
-        positive_words = ["glad", "lycklig", "bra", "positiv", "tacksam", "nöjd", "bra", "härligt", "fantastiskt", "avslappnad", "harmonisk", "energisk"]
+        """Fallback sentiment analysis – uses ML model first, keyword matching as last resort."""
+        try:
+            from .ml_sentiment_service import ml_sentiment
+            if ml_sentiment.available:
+                result = ml_sentiment.analyze(text)
+                if quota_exceeded:
+                    result["quota_exceeded"] = True
+                logger.info(f"ML sentiment analysis: {result.get('sentiment')} (conf={result.get('confidence')})")
+                return result
+        except Exception as e:
+            logger.warning(f"ML sentiment model unavailable, using keyword fallback: {e}")
+
+        # Last-resort keyword matching
+        positive_words = ["glad", "lycklig", "bra", "positiv", "tacksam", "nöjd", "härligt", "fantastiskt", "avslappnad", "harmonisk", "energisk"]
         negative_words = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "irriterad", "orolig", "dålig", "trött", "utmattad", "ängslig", "sorgsen"]
 
         text_lower = text.lower()
@@ -384,39 +360,79 @@ Var noga med att returnera endast giltig JSON."""
             return self._basic_voice_analysis(audio_data, transcript)
 
     def _analyze_audio_features(self, audio_data: bytes) -> Dict[str, Any]:
-        """Analyze audio features for emotion detection"""
+        """Analyze audio features for emotion detection using librosa."""
         try:
             import librosa
             import numpy as np
             from io import BytesIO
 
-            # Convert bytes to audio array (simplified - would need proper audio format handling)
-            # This is a placeholder for actual audio analysis
-            audio_array = np.frombuffer(audio_data, dtype=np.float32)
+            # Load audio from bytes using librosa (handles wav, mp3, ogg, etc.)
+            audio_array, sr = librosa.load(BytesIO(audio_data), sr=None, mono=True)
 
-            # Basic audio features (in real implementation, these would be calculated from actual audio)
-            energy_level = "medium"  # Would calculate RMS energy
-            speech_rate = "normal"   # Would calculate speech tempo
-            pitch_variation = 0.5    # Would calculate fundamental frequency variation
+            # RMS energy
+            rms = float(np.sqrt(np.mean(audio_array ** 2)))
+            if rms > 0.05:
+                energy_level = "high"
+            elif rms > 0.015:
+                energy_level = "medium"
+            else:
+                energy_level = "low"
 
-            # Estimate emotion from audio features
+            # Speech tempo via onset detection
+            onset_frames = librosa.onset.onset_detect(y=audio_array, sr=sr, units='frames')
+            duration_sec = len(audio_array) / sr
+            onsets_per_sec = len(onset_frames) / max(duration_sec, 0.1)
+            if onsets_per_sec > 4.0:
+                speech_rate = "fast"
+            elif onsets_per_sec > 1.5:
+                speech_rate = "normal"
+            else:
+                speech_rate = "slow"
+
+            # Pitch variation via fundamental frequency (F0)
+            f0, voiced_flag, _ = librosa.pyin(
+                audio_array, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), sr=sr
+            )
+            voiced_f0 = f0[voiced_flag] if voiced_flag is not None else f0[~np.isnan(f0)]
+            if len(voiced_f0) > 1:
+                pitch_variation = float(np.std(voiced_f0) / (np.mean(voiced_f0) + 1e-6))
+                pitch_variation = min(pitch_variation, 1.0)
+            else:
+                pitch_variation = 0.0
+
+            # Composite emotion score from features
             emotion_score = 0.0
             if energy_level == "high":
-                emotion_score += 0.3
+                emotion_score += 0.35
+            elif energy_level == "medium":
+                emotion_score += 0.15
             if speech_rate == "fast":
-                emotion_score += 0.2
-            if pitch_variation > 0.7:
-                emotion_score += 0.4
+                emotion_score += 0.25
+            elif speech_rate == "slow":
+                emotion_score += 0.1
+            emotion_score += pitch_variation * 0.4
 
             return {
                 "energy_level": energy_level,
                 "speech_rate": speech_rate,
-                "pitch_variation": pitch_variation,
-                "emotion_score": min(emotion_score, 1.0),
-                "confidence": 0.7,  # Audio analysis confidence
-                "analysis_method": "basic_features"
+                "pitch_variation": round(pitch_variation, 3),
+                "emotion_score": round(min(emotion_score, 1.0), 3),
+                "confidence": 0.75,
+                "analysis_method": "librosa_features",
+                "duration_seconds": round(duration_sec, 1),
+                "sample_rate": sr,
             }
 
+        except ImportError:
+            logger.warning("librosa not installed — falling back to basic audio analysis")
+            return {
+                "energy_level": "unknown",
+                "speech_rate": "unknown",
+                "pitch_variation": 0.0,
+                "emotion_score": 0.0,
+                "confidence": 0.0,
+                "analysis_method": "unavailable"
+            }
         except Exception as e:
             logger.error(f"Audio feature analysis failed: {str(e)}")
             return {
@@ -574,7 +590,7 @@ Var noga med att returnera endast giltig JSON."""
 
             # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "Du är en erfaren psykolog som ger empatiska råd på svenska för mental hälsa."},
                     {"role": "user", "content": prompt}
@@ -589,14 +605,14 @@ Var noga med att returnera endast giltig JSON."""
                 return self._fallback_recommendations(user_history, current_mood)
             recommendations = content.strip()
 
-            logger.info(f"✅ Personalized recommendations generated using GPT-4o-mini")
+            logger.info(f"✅ Personalized recommendations generated using gpt-4o-mini")
 
             return {
                 "ai_generated": True,
                 "recommendations": recommendations,
                 "confidence": 0.85,
                 "personalized": True,
-                "model_used": "gpt-4o"
+                "model_used": "gpt-4o-mini"
             }
 
         except RateLimitError as e:
@@ -731,7 +747,7 @@ Långsiktiga välbefinnande-strategier:
 
             # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "Du är en erfaren psykolog som analyserar mental hälsa-data empatiskt och ger stödjande insikter." if locale == 'sv' else "You are an experienced psychologist who analyzes mental health data empathetically and provides supportive insights." if locale == 'en' else "Du er en erfaren psykolog som analyserer mentalhelsedata empatisk og gir støttende innsikter."},
                     {"role": "user", "content": prompt}
@@ -746,14 +762,14 @@ Långsiktiga välbefinnande-strategier:
                 return self._fallback_weekly_insights(weekly_data, locale)
             insights = content.strip()
 
-            logger.info(f"✅ Weekly insights generated using GPT-4o-mini")
+            logger.info(f"✅ Weekly insights generated using gpt-4o-mini")
 
             return {
                 "ai_generated": True,
                 "insights": insights,
                 "confidence": 0.8,
                 "comprehensive": True,
-                "model_used": "gpt-4o"
+                "model_used": "gpt-4o-mini"
             }
 
         except RateLimitError as e:
@@ -1382,7 +1398,7 @@ Långsiktiga välbefinnande-strategier:
             # Use GPT-4o-mini for cost-effective, fast therapeutic responses
             # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=messages,  # type: ignore[arg-type]
                 max_tokens=400,
                 temperature=0.7,
@@ -1399,7 +1415,7 @@ Långsiktiga välbefinnande-strategier:
             # Enhanced sentiment analysis for emotion detection
             sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
 
-            logger.info(f"✅ Therapeutic response generated successfully using GPT-4o-mini")
+            logger.info(f"✅ Therapeutic response generated successfully using gpt-4o-mini")
 
             # Add exercise recommendations based on sentiment and conversation
             exercise_recommendations = self._generate_exercise_recommendations(sentiment_analysis, user_message)
@@ -1411,7 +1427,7 @@ Långsiktiga välbefinnande-strategier:
                 "conversation_context": len(conversation_history),
                 "exercise_recommendations": exercise_recommendations,
                 "ai_generated": True,
-                "model_used": "gpt-4o"
+                "model_used": "gpt-4o-mini"
             }
 
         except RateLimitError as e:
@@ -1519,7 +1535,7 @@ Vill du prata mer om vad som känns svårt just nu?"""
 
     def generate_personalized_therapeutic_story(self, user_mood_data: List[Dict], user_profile: Optional[Dict[str, Any]] = None, locale: str = 'sv') -> Dict[str, Any]:
         """
-        Generate personalized therapeutic stories using OpenAI GPT-4o with user mood data
+        Generate personalized therapeutic stories using OpenAI GPT-4o-mini with user mood data
 
         Args:
             user_mood_data: List of user's mood logs with timestamps and sentiment scores
@@ -1587,7 +1603,7 @@ Historien skal være på norsk, empatisk og støttende."""
 
             # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "Du är en erfaren terapeut som använder berättelser för läkande och personlig utveckling." if locale == 'sv' else "You are an experienced therapist who uses stories for healing and personal development." if locale == 'en' else "Du er en erfaren terapeut som bruker fortellinger for helbredelse og personlig utvikling."},
                     {"role": "user", "content": prompt}
@@ -1603,12 +1619,12 @@ Historien skal være på norsk, empatisk og støttende."""
                 return self._fallback_therapeutic_story(user_mood_data, locale)
             story = content.strip()
 
-            logger.info(f"✅ Personalized therapeutic story generated using GPT-4o")
+            logger.info(f"✅ Personalized therapeutic story generated using gpt-4o-mini")
 
             return {
                 "story": story,
                 "ai_generated": True,
-                "model_used": "gpt-4o",
+                "model_used": "gpt-4o-mini",
                 "locale": locale,
                 "mood_summary": mood_summary,
                 "word_count": len(story.split()),

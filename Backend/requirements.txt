@@ -1,12 +1,12 @@
 # Core Flask Dependencies
 Flask==3.0.3
-Flask-CORS==3.0.10
 Flask-Limiter>=3.0.0
 Flask-Babel>=3.0.0
 Werkzeug==3.0.1
 
 # JWT Authentication
 PyJWT>=2.0.0
+flask-jwt-extended>=4.6.0
 
 # Firebase
 firebase-admin>=6.0.1
@@ -82,6 +82,11 @@ flasgger>=0.9.5
 # Monitoring & Logging
 prometheus-client>=0.14.0
 sentry-sdk[flask]>=1.9.0
+structlog>=23.2.0
+python-json-logger>=2.0.7
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-instrumentation-flask>=0.42b0
 
 # Background Tasks
 celery>=5.2.0
@@ -93,13 +98,17 @@ pytest-cov>=3.0.0
 pytest-mock>=3.10.0
 pytest-asyncio>=0.18.0
 unittest2>=1.1.0
-selenium>=4.0.0
 coverage>=6.0.0
 
 # Code Quality
 flake8>=4.0.0
-black>=22.0.0
+black>=23.12.0
 pylint>=2.12.0
+mypy>=1.7.0
+ruff>=0.1.6
+pre-commit>=3.5.0
+bandit>=1.7.5
+safety>=2.3.5
 
 # Health Data Integration
 oauthlib>=3.2.0
@@ -115,9 +124,19 @@ pyotp>=2.6.0
 qrcode[pil]>=7.3.1
 webauthn>=1.0.0
 
+# System Monitoring
+psutil>=5.9.0
+
+# Task Scheduling
+schedule>=1.0.0
+
 # Production Server
 gunicorn>=20.1.0
 gevent>=21.12.0
+waitress>=2.1.0
+
+# API Documentation (extended)
+flask-apispec>=0.11.0
 
 # Development Tools
 ipython>=8.0.0

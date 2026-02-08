@@ -5,6 +5,8 @@ This module provides Flask routes for mood logging, retrieval, analysis,
 and related functionality including voice emotion analysis and predictive forecasting.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -12,9 +14,9 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Dict, Callable
 
-from flask import Blueprint, current_app, g, jsonify, make_response, request
+from flask import Blueprint, current_app, g, jsonify, make_response, request, Response
 from google.cloud.firestore import FieldFilter
 
 # Absolute imports (project standard)
@@ -57,7 +59,7 @@ MOOD_CACHE_CLEANUP_BATCH = 500  # Remove 500 entries at once when cleaning up
 _redis_client = None
 _redis_unavailable = False  # Track if Redis failed to avoid repeated connection attempts
 
-def _get_redis_client():
+def _get_redis_client() -> Any:
     """Get Redis client for caching (lazy initialization with failure tracking)"""
     global _redis_client, _redis_unavailable
     
@@ -78,11 +80,11 @@ def _get_redis_client():
             _redis_unavailable = True  # Don't try again until restart
     return _redis_client
 
-def cached_mood_data(ttl=MOOD_CACHE_TTL):
+def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable]:
     """Cache decorator for mood endpoints - FULLY OPTIMIZED for dict returns"""
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Response | Tuple[Response, int]:
             user_id = g.get('user_id')
             if not user_id:
                 result = f(*args, **kwargs)
@@ -156,7 +158,7 @@ def cached_mood_data(ttl=MOOD_CACHE_TTL):
     return decorator
 
 
-def invalidate_mood_cache(user_id: str):
+def invalidate_mood_cache(user_id: str) -> None:
     """Invalidate cached mood data for a user after new mood is logged"""
     global _mood_cache
     
@@ -193,7 +195,7 @@ MAX_ANALYZE_TEXT_LENGTH = 4000
 @mood_bp.route('/analyze-text', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def analyze_text():
+def analyze_text() -> Response | Tuple[Response, int]:
     """
     Analyze text for sentiment and mood indicators.
     Frontend calls /api/mood/analyze-text - this endpoint matches that expectation.
@@ -233,7 +235,7 @@ def analyze_text():
 @mood_bp.route('/log', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def log_mood():
+def log_mood() -> Response | Tuple[Response, int]:
     """Log a new mood entry"""
     logger.info("🎯 Mood log endpoint called")
     if request.method == 'OPTIONS':
@@ -455,6 +457,14 @@ def log_mood():
             doc_id = doc_ref[1].id if isinstance(doc_ref, tuple) else doc_ref.id
             logger.info(f"✅ Mood entry saved to database with ID: {doc_id}")
             
+            # AUTO-AWARD XP for logging a mood
+            try:
+                from ..services.rewards_helper import award_xp
+                xp_result = award_xp(user_id, 'mood_logged')
+                logger.info(f"⭐ XP awarded for mood log: +{xp_result.get('xp_gained', 0)}")
+            except Exception as xp_err:
+                logger.warning(f"XP award failed (non-blocking): {xp_err}")
+            
             # PERFORMANCE: Invalidate cache so next GET returns fresh data
             invalidate_mood_cache(user_id)
         except Exception as db_error:
@@ -541,7 +551,7 @@ def log_mood():
 @mood_bp.route('/test', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def test_mood():
+def test_mood() -> Response | Tuple[Response, int]:
     """Test route for mood endpoints"""
     return APIResponse.success({'status': 'ok'}, 'Mood routes are working!')
 
@@ -549,7 +559,7 @@ def test_mood():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=300)  # Cache for 5 minutes - PERFORMANCE CRITICAL
-def get_moods():
+def get_moods() -> Dict[str, Any] | Tuple[Dict[str, Any], int]:
     """Get user's mood history with pagination and filtering - OPTIMIZED"""
     try:
         user_id = g.get('user_id')
@@ -601,7 +611,7 @@ def get_moods():
 @mood_bp.route('/<mood_id>', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_mood(mood_id):
+def get_mood(mood_id: str) -> Response | Tuple[Response, int]:
     """Get a specific mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -634,7 +644,7 @@ def get_mood(mood_id):
 @mood_bp.route('/<mood_id>', methods=['DELETE'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def delete_mood(mood_id):
+def delete_mood(mood_id: str) -> Response | Tuple[Response, int]:
     """Delete a mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -672,7 +682,7 @@ def delete_mood(mood_id):
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=60)  # Cache for 1 minute
-def get_recent_moods():
+def get_recent_moods() -> Response | Tuple[Response, int]:
     """Get user's recent mood entries (last 7 days)"""
     logger.info("📅 Getting recent mood entries")
     try:
@@ -710,7 +720,7 @@ def get_recent_moods():
 @mood_bp.route('/<mood_id>', methods=['PUT'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def update_mood(mood_id):
+def update_mood(mood_id: str) -> Response | Tuple[Response, int]:
     """Update a mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -777,7 +787,7 @@ def update_mood(mood_id):
 @mood_bp.route('/today', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_today_mood():
+def get_today_mood() -> Response | Tuple[Response, int]:
     """Get user's mood for today"""
     logger.info("📅 Getting today's mood")
     try:
@@ -829,7 +839,7 @@ def get_today_mood():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=3600)  # Cache for 1 hour
-def get_mood_streaks():
+def get_mood_streaks() -> Response | Tuple[Response, int]:
     """Get user's mood logging streaks"""
     logger.info("🔥 Getting mood streaks")
     try:
@@ -925,7 +935,7 @@ def get_mood_streaks():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=600)  # Cache for 10 minutes
-def get_weekly_analysis():
+def get_weekly_analysis() -> Response | Tuple[Response, int]:
     """Get weekly mood analysis with AI-generated insights"""
     logger.info("📊 Getting weekly mood analysis")
     try:
@@ -1046,7 +1056,7 @@ def get_weekly_analysis():
 @mood_bp.route('/predictive-forecast', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
-def predictive_mood_forecast():
+def predictive_mood_forecast() -> Response | Tuple[Response, int]:
     """
     Get predictive mood forecast for the user.
     This endpoint provides ML-based mood predictions used by MoodAnalytics.tsx.

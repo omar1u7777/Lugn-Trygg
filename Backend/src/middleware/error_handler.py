@@ -109,7 +109,8 @@ class ErrorHandler:
         logger.info(f"Registered recovery action for: {error_type}")
 
     def handle_error(self, error: Exception, context: Optional[Dict[str, Any]] = None,
-                    should_retry: bool = False, max_retries: int = 3) -> Dict[str, Any]:
+                    should_retry: bool = False, max_retries: int = 3,
+                    retry_callable: Optional[Callable] = None) -> Dict[str, Any]:
         """
         Handle an error with comprehensive logging and recovery
 
@@ -118,6 +119,7 @@ class ErrorHandler:
             context: Additional context information
             should_retry: Whether to attempt retry
             max_retries: Maximum number of retry attempts
+            retry_callable: The operation to retry (required if should_retry=True)
 
         Returns:
             Error handling result
@@ -159,8 +161,8 @@ class ErrorHandler:
             error_record['recovery_action'] = recovery_result['action']
         else:
             # Check if retry is appropriate
-            if should_retry and max_retries > 0:
-                retry_result = self._attempt_retry(error, context, max_retries)
+            if should_retry and max_retries > 0 and retry_callable is not None:
+                retry_result = self._attempt_retry(retry_callable, context, max_retries)
                 if retry_result['success']:
                     error_record['retried'] = True
                     error_record['retry_attempt'] = retry_result['attempt']
@@ -250,20 +252,36 @@ class ErrorHandler:
             if breaker.state == 'OPEN':
                 return {'recovered': False, 'reason': 'Circuit breaker open'}
 
-        # Attempt simple reconnection (placeholder)
-        # In real implementation, this would attempt to reconnect to the service
+        # Attempt reconnection by testing the service
         logger.info(f"Attempting reconnection to {service_name}")
-
-        return {'recovered': True, 'action': 'reconnection_attempt'}
+        
+        try:
+            if service_name in ('firebase', 'firestore', 'database'):
+                from ..firebase_config import db
+                db.collection('_health_check').limit(1).get()
+                logger.info(f"Reconnection to {service_name} succeeded")
+                return {'recovered': True, 'action': 'reconnection_success'}
+            elif service_name == 'redis':
+                from ..redis_config import get_redis_client
+                client = get_redis_client()
+                if client and client.ping():
+                    logger.info(f"Reconnection to {service_name} succeeded")
+                    return {'recovered': True, 'action': 'reconnection_success'}
+        except Exception as reconnect_err:
+            logger.warning(f"Reconnection to {service_name} failed: {reconnect_err}")
+        
+        return {'recovered': False, 'action': 'reconnection_failed'}
 
     def _attempt_timeout_recovery(self, error_record: Dict[str, Any]) -> Dict[str, Any]:
-        """Attempt to recover from timeout errors"""
-        # Implement exponential backoff or increased timeout
-        logger.info("Implementing timeout recovery with backoff")
+        """Attempt to recover from timeout errors by increasing tolerance."""
+        context = error_record.get('context', {})
+        current_timeout = context.get('timeout', 5.0)
+        # Suggest a longer timeout for next attempt
+        new_timeout = min(current_timeout * 1.5, 30.0)  # Cap at 30s
+        logger.info(f"Timeout recovery: suggesting increased timeout {current_timeout}s -> {new_timeout}s")
+        return {'recovered': True, 'action': 'timeout_backoff', 'suggested_timeout': new_timeout}
 
-        return {'recovered': True, 'action': 'timeout_backoff'}
-
-    def _attempt_retry(self, error: Exception, context: Optional[Dict[str, Any]],
+    def _attempt_retry(self, operation: Callable, context: Optional[Dict[str, Any]],
                       max_retries: int) -> Dict[str, Any]:
         """Attempt to retry operation with exponential backoff"""
         for attempt in range(max_retries):
@@ -272,18 +290,16 @@ class ErrorHandler:
                 delay = (2 ** attempt) * 0.1  # Exponential backoff starting at 0.1s
                 time.sleep(delay)
 
-                # In a real implementation, you would retry the original operation
-                # For now, just simulate success on second attempt
-                if attempt >= 1:
-                    logger.info(f"Retry succeeded on attempt {attempt + 1}")
-                    return {
-                        'success': True,
-                        'attempt': attempt + 1,
-                        'result': None  # Would be the actual result
-                    }
+                result = operation()
+                logger.info(f"Retry succeeded on attempt {attempt + 1}")
+                return {
+                    'success': True,
+                    'attempt': attempt + 1,
+                    'result': result
+                }
 
             except Exception as retry_error:
-                logger.warning(f"Retry attempt {attempt + 1} failed: {retry_error}")
+                logger.warning(f"Retry attempt {attempt + 1}/{max_retries} failed: {retry_error}")
                 continue
 
         return {'success': False, 'attempt': max_retries}
@@ -385,17 +401,23 @@ class ErrorHandler:
 error_handler = ErrorHandler()
 
 def handle_errors(f: Callable) -> Callable:
-    """Decorator for automatic error handling"""
+    """Decorator for automatic error handling with real retry support"""
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
             return f(*args, **kwargs)
         except Exception as e:
-            result = error_handler.handle_error(e, {
-                'function': f.__name__,
-                'args': str(args) if args else None,
-                'kwargs': str(kwargs) if kwargs else None
-            })
+            result = error_handler.handle_error(
+                e,
+                context={
+                    'function': f.__name__,
+                    'args': str(args) if args else None,
+                    'kwargs': str(kwargs) if kwargs else None
+                },
+                should_retry=True,
+                max_retries=3,
+                retry_callable=lambda: f(*args, **kwargs)
+            )
 
             if result.get('recovered') and 'result' in result:
                 return result['result']

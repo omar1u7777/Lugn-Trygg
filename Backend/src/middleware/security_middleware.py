@@ -127,7 +127,7 @@ class SecurityMiddleware:
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.example.com; "
+            "connect-src 'self' https://lugn-trygg-backend.onrender.com https://*.firebaseio.com https://*.googleapis.com; "
             "frame-ancestors 'none';"
         )
         response.headers['Content-Security-Policy'] = csp
@@ -186,12 +186,12 @@ class SecurityMiddleware:
 
         # Skip CSRF for authentication endpoints (register, login, reset password, etc.)
         auth_endpoints = [
-            '/api/auth/register',
-            '/api/auth/login',
-            '/api/auth/google-login',
-            '/api/auth/reset-password',
-            '/api/auth/confirm-password-reset',
-            '/api/auth/refresh'
+            '/api/v1/auth/register',
+            '/api/v1/auth/login',
+            '/api/v1/auth/google-login',
+            '/api/v1/auth/reset-password',
+            '/api/v1/auth/confirm-password-reset',
+            '/api/v1/auth/refresh'
         ]
         if request.path in auth_endpoints:
             return True

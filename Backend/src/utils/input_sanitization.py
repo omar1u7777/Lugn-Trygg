@@ -165,17 +165,21 @@ class InputSanitizer:
         return bool(re.match(phone_pattern, clean_phone))
 
     def _sanitize_text(self, text: str) -> str:
-        """Sanitize plain text input"""
+        """Sanitize plain text input.
+        
+        NOTE: We intentionally do NOT call html.escape() here because the
+        escaped entities (&amp; &lt; &quot; etc.) would be permanently stored
+        in Firestore and corrupt user content.  XSS protection is achieved by
+        stripping dangerous patterns (script tags, event handlers, etc.) and
+        removing control characters.
+        """
         if not text:
             return text
 
         # Remove null bytes
         text = text.replace('\x00', '')
 
-        # HTML escape
-        text = html.escape(text, quote=True)
-
-        # Remove XSS patterns
+        # Remove XSS patterns (script tags, event handlers, etc.)
         for pattern in self.xss_patterns:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.DOTALL)
 

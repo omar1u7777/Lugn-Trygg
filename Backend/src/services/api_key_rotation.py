@@ -413,7 +413,7 @@ class APIKeyRotationService:
                         if date_field in metadata and isinstance(metadata[date_field], str):
                             try:
                                 metadata[date_field] = datetime.fromisoformat(metadata[date_field])
-                            except:
+                            except Exception:
                                 pass
 
                     self.current_keys[key_type] = metadata

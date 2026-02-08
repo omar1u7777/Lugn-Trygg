@@ -1,17 +1,41 @@
-from flask import Blueprint, request, jsonify, make_response, g
+from __future__ import annotations
+
+from typing import Any, Dict, Optional, Tuple
+from datetime import datetime, timezone, timedelta
+import logging
+import re
 import requests
+from flask import Blueprint, request, jsonify, make_response, g, Response
+
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..middleware.validation import validate_request
-from ..schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest, ResetPasswordRequest, ConfirmPasswordResetRequest, ChangePasswordRequest, TwoFactorSetupRequest, TwoFactorVerifyRequest, UpdateProfileRequest, ConsentUpdateRequest, DeleteAccountRequest
+from ..schemas.auth import (
+    RegisterRequest,
+    LoginRequest,
+    GoogleAuthRequest,
+    ResetPasswordRequest,
+    ConfirmPasswordResetRequest,
+    ChangePasswordRequest,
+    TwoFactorSetupRequest,
+    TwoFactorVerifyRequest,
+    UpdateProfileRequest,
+    ConsentUpdateRequest,
+    DeleteAccountRequest,
+)
 from ..utils.timestamp_utils import parse_iso_timestamp
 from ..utils.response_utils import APIResponse, success_response, error_response, created_response
 from ..utils.input_sanitization import input_sanitizer
-import logging
-import re
-from datetime import datetime, timezone
-from ..config import JWT_REFRESH_SECRET_KEY, FIREBASE_WEB_API_KEY
+
+# 2026-Compliant: Try new config, fallback to old
+try:
+    from ..config.settings import get_settings
+    settings = get_settings()
+    JWT_REFRESH_SECRET_KEY = settings.jwt_refresh_secret_key
+    FIREBASE_WEB_API_KEY = settings.firebase_web_api_key
+except ImportError:
+    from ..config import JWT_REFRESH_SECRET_KEY, FIREBASE_WEB_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +62,12 @@ def _verify_current_password(email: str, password: str) -> bool:
 @auth_bp.route('/register', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 @validate_request(RegisterRequest)
-def register_user(validated_data):
-    """Register a new user"""
+def register_user(validated_data: RegisterRequest) -> Tuple[Response, int] | Response:
+    """
+    Register a new user
+    
+    2026-Compliant: Type hints with RegisterRequest schema
+    """
     if request.method == 'OPTIONS':
         return '', 204
 
@@ -246,21 +274,32 @@ def verify_2fa():
             'code': {'type': 'text', 'max_length': 10}
         })
 
-        method = data.get('method')  # 'biometric' or 'sms'
+        method = data.get('method')  # 'totp', 'biometric', or 'sms'
 
-        # In a real implementation, verify the 2FA credential
-        # For now, we'll simulate verification
-
-        if method == 'biometric':
-            # Verify WebAuthn credential
-            # This would involve cryptographic verification of the authenticator response
-            verified = True  # Simulated
-        elif method == 'sms':
+        if method == 'totp':
             code = data.get('code')
-            # Verify SMS code
-            verified = code is not None and len(code) == 6 and code.isdigit()  # Simulated
+            if not code:
+                return APIResponse.bad_request('Verification code is required')
+            # Verify TOTP code against user's stored secret
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists:
+                return APIResponse.not_found('User not found')
+            user_data = user_doc.to_dict() or {}
+            totp_secret = user_data.get('totp_secret')
+            if not totp_secret:
+                return APIResponse.bad_request('TOTP not configured for this account')
+            import pyotp
+            totp = pyotp.TOTP(totp_secret)
+            verified = totp.verify(code, valid_window=1)
+        elif method in ('biometric', 'sms'):
+            # Biometric (WebAuthn) and SMS 2FA are not yet supported.
+            # Only TOTP is available. Return a clear error so the frontend
+            # can direct the user to TOTP setup.
+            return APIResponse.bad_request(
+                f'{method.upper()} verification is not yet supported. Please use TOTP (authenticator app).'
+            )
         else:
-            return APIResponse.bad_request('Invalid 2FA method')
+            return APIResponse.bad_request('Invalid 2FA method. Supported: totp')
 
         if not verified:
             audit_log('2fa_verification_failed', user_id, {'method': method})
@@ -1259,20 +1298,49 @@ def delete_account(user_id):
             if db is None:
                 return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
-            # Mark user as inactive (soft delete)
+            # Mark user as inactive (soft delete) and schedule hard deletion
             db.collection('users').document(user_id).update({
                 'is_active': False,
                 'deleted_at': datetime.now(timezone.utc).isoformat(),
-                'deletion_reason': 'user_requested'
+                'deletion_reason': 'user_requested',
+                'hard_delete_after': (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
             })
 
-            # In a real implementation, you might also:
-            # - Anonymize personal data
-            # - Queue data deletion after retention period
-            # - Cancel subscriptions
-            # - Remove from mailing lists
+            # Disable the Firebase Auth account immediately
+            try:
+                from firebase_admin import auth as firebase_auth
+                firebase_auth.update_user(user_id, disabled=True)
+                logger.info(f"Firebase Auth account disabled for user {user_id[:8]}...")
+            except Exception as auth_err:
+                logger.error(f"Failed to disable Firebase Auth for {user_id[:8]}...: {auth_err}")
 
-            audit_log('account_deleted', user_id, {'method': 'soft_delete'})
+            # Cancel active subscriptions
+            try:
+                user_doc = db.collection('users').document(user_id).get()
+                user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}
+                stripe_customer_id = user_data.get('stripe_customer_id')
+                if stripe_customer_id:
+                    import stripe
+                    subscriptions = stripe.Subscription.list(customer=stripe_customer_id, status='active')
+                    for sub in subscriptions.auto_paging_iter():
+                        stripe.Subscription.cancel(sub.id)
+                        logger.info(f"Cancelled Stripe subscription {sub.id}")
+            except Exception as stripe_err:
+                logger.warning(f"Stripe subscription cancellation issue: {stripe_err}")
+
+            # Anonymize personal data immediately (keep anonymized records for analytics)
+            try:
+                db.collection('users').document(user_id).update({
+                    'email': f'deleted_{user_id[:8]}@anonymized.local',
+                    'display_name': 'Borttagen användare',
+                    'phone_number': None,
+                    'profile_image': None,
+                    'emergency_contacts': [],
+                })
+            except Exception as anon_err:
+                logger.error(f"Anonymization failed for {user_id[:8]}...: {anon_err}")
+
+            audit_log('account_deleted', user_id, {'method': 'soft_delete_with_anonymization'})
 
             response_tuple = APIResponse.success(
                 None,

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, g
 import logging
+from datetime import datetime, UTC
 from firebase_admin import firestore
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
@@ -155,14 +156,27 @@ def get_notification_settings():
 
     logger.info(f"🔔 USERS - GET notification settings for user: {user_id}")
     
-    # Return a basic default schedule
-    return APIResponse.success({
-        "morningReminder": "08:00",
-        "eveningReminder": "20:00",
-        "moodCheckInTime": "12:00",
-        "enableMoodReminders": True,
-        "enableMeditationReminders": False
-    }, "Notification settings retrieved")
+    try:
+        user_ref = db.collection('users').document(user_id)  # type: ignore
+        user_doc = user_ref.get()
+        
+        defaults = {
+            "morningReminder": "08:00",
+            "eveningReminder": "20:00",
+            "moodCheckInTime": "12:00",
+            "enableMoodReminders": True,
+            "enableMeditationReminders": False
+        }
+        
+        if user_doc.exists:
+            user_data = user_doc.to_dict() or {}
+            settings = user_data.get('notification_settings', defaults)
+            return APIResponse.success(settings, "Notification settings retrieved")
+        
+        return APIResponse.success(defaults, "Notification settings retrieved")
+    except Exception as e:
+        logger.exception(f"Failed to get notification settings: {e}")
+        return APIResponse.error("Failed to get settings", "INTERNAL_ERROR", 500, str(e))
 
 
 @users_bp.route('/notification-preferences', methods=['PUT'])
@@ -178,8 +192,10 @@ def update_notification_preferences():
     
     try:
         data = request.get_json(silent=True) or {}
-        logger.info(f"✅ USERS - Updating notification preferences: {data}")
-        return APIResponse.success(None, "Preferences updated")
+        user_ref = db.collection('users').document(user_id)  # type: ignore
+        user_ref.set({'notification_preferences': data, 'updated_at': datetime.now(UTC).isoformat()}, merge=True)
+        logger.info(f"✅ USERS - Notification preferences saved to Firestore: {data}")
+        return APIResponse.success(data, "Preferences updated")
     except Exception as e:
         logger.exception(f"Failed to update notification preferences: {e}")
         return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500, str(e))
@@ -198,8 +214,10 @@ def set_notification_schedule():
     
     try:
         data = request.get_json(silent=True) or {}
-        logger.info(f"✅ USERS - Saving notification schedule: {data}")
-        return APIResponse.success(None, "Schedule saved")
+        user_ref = db.collection('users').document(user_id)  # type: ignore
+        user_ref.set({'notification_settings': data, 'updated_at': datetime.now(UTC).isoformat()}, merge=True)
+        logger.info(f"✅ USERS - Notification schedule saved to Firestore: {data}")
+        return APIResponse.success(data, "Schedule saved")
     except Exception as e:
         logger.exception(f"Failed to save notification schedule: {e}")
         return APIResponse.error("Failed to save schedule", "INTERNAL_ERROR", 500, str(e))
@@ -351,6 +369,14 @@ def save_journal_entry():
         )
 
         logger.info(f"✅ USERS - Journal entry saved for user: {user_id}")
+
+        # AUTO-AWARD XP for journal entry
+        try:
+            from ..services.rewards_helper import award_xp
+            award_xp(user_id, 'journal_entry')
+        except Exception as xp_err:
+            logger.warning(f"XP award failed (non-blocking): {xp_err}")
+
         return APIResponse.created({
             "entryId": journal_ref.id
         }, "Journal entry saved")

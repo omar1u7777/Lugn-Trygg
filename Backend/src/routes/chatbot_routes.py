@@ -73,65 +73,12 @@ def chat_with_ai():
             logger.error("Database unavailable for chatbot")
             return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
 
-        # Try to get JSON data, with fallback parsing for malformed requests
+        # Try to get JSON data
         try:
             data = request.get_json(force=True, silent=False)
         except Exception as json_error:
             logger.error(f"JSON parsing failed: {json_error}")
-
-            # Try to parse manually if JSON parsing fails
-            raw_data = request.get_data(as_text=True)
-            if raw_data:
-                try:
-                    # Parse the malformed data manually
-                    stripped_data = raw_data.strip()
-                    if stripped_data.startswith("'") and stripped_data.endswith("'"):
-                        stripped_data = stripped_data[1:-1]
-
-                    if stripped_data.startswith("{") and stripped_data.endswith("}"):
-                        content = stripped_data[1:-1]
-                        pairs = []
-                        current_pair = ""
-                        brace_count = 0
-
-                        for char in content:
-                            if char == "," and brace_count == 0:
-                                pairs.append(current_pair)
-                                current_pair = ""
-                            else:
-                                current_pair += char
-                                if char == "{":
-                                    brace_count += 1
-                                elif char == "}":
-                                    brace_count -= 1
-
-                        if current_pair:
-                            pairs.append(current_pair)
-
-                        data = {}
-                        for pair in pairs:
-                            if ":" in pair:
-                                key, value = pair.split(":", 1)
-                                key = key.strip()
-                                value = value.strip()
-                                if key.startswith("'") and key.endswith("'"):
-                                    key = key[1:-1]
-                                elif key.startswith('"') and key.endswith('"'):
-                                    key = key[1:-1]
-                                if value.startswith("'") and value.endswith("'"):
-                                    value = value[1:-1]
-                                elif value.startswith('"') and value.endswith('"'):
-                                    value = value[1:-1]
-                                data[key] = value
-
-                        logger.info("Successfully parsed malformed chat data")
-                    else:
-                        raise ValueError("Data does not look like a dict")
-                except Exception as parse_error:
-                    logger.error(f"Manual parsing failed: {parse_error}")
-                    return APIResponse.bad_request("Invalid data format")
-            else:
-                return APIResponse.bad_request("No data provided")
+            return APIResponse.bad_request("Invalid JSON format. Please send a valid JSON body.")
 
         if not data or "message" not in data:
             logger.error("❌ Missing message in request")
@@ -243,6 +190,13 @@ def chat_with_ai():
             })
 
         logger.info(f"✅ Chatt-konversation sparad för användare {user_id}")
+
+        # AUTO-AWARD XP for chatbot conversation
+        try:
+            from ..services.rewards_helper import award_xp
+            award_xp(user_id, 'chatbot_conversation')
+        except Exception as xp_err:
+            logger.warning(f"XP award failed (non-blocking): {xp_err}")
 
         return APIResponse.success({
             "response": ai_response["response"],

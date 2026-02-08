@@ -4,12 +4,14 @@ Allows users to upload, list, retrieve, and delete audio memories
 Uses Firebase Storage for file storage and Firestore for metadata
 """
 
+from __future__ import annotations
+
 import os
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from flask import Blueprint, request as flask_request, g
+from typing import Optional, Tuple
+from flask import Blueprint, request as flask_request, g, Response
 from werkzeug.utils import secure_filename
 from firebase_admin import storage
 
@@ -71,26 +73,26 @@ def allowed_file(filename: str) -> bool:
 
 @memory_bp.route('', methods=['OPTIONS'])
 @memory_bp.route('/upload', methods=['OPTIONS'])
-def memory_base_options():
+def memory_base_options() -> Response | Tuple[Response, int]:
     """Handle CORS preflight for base memory endpoints"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('/list/<user_id>', methods=['OPTIONS'])
-def memory_list_options(user_id):
+def memory_list_options(user_id: str) -> Response | Tuple[Response, int]:
     """Handle CORS preflight for list memories endpoint"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('/get/<memory_id>', methods=['OPTIONS'])
-def memory_get_options(memory_id):
+def memory_get_options(memory_id: str) -> Response | Tuple[Response, int]:
     """Handle CORS preflight for get memory endpoint"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('', methods=['GET'])
 @rate_limit_by_endpoint
-def memory_root_placeholder():
+def memory_root_placeholder() -> Response | Tuple[Response, int]:
     """Return 404 for the legacy /api/memory endpoint used in integration smoke tests."""
     return APIResponse.not_found("Endpoint not available at this path")
 
@@ -102,7 +104,7 @@ def memory_root_placeholder():
 @memory_bp.route("/upload", methods=["POST"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def upload_memory():
+def upload_memory() -> Response | Tuple[Response, int]:
     """Upload audio memory to Firebase Storage"""
     try:
         current_user_id: Optional[str] = g.get('user_id')
@@ -198,7 +200,7 @@ def upload_memory():
 @memory_bp.route("/list/<user_id>", methods=["GET"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def list_memories(user_id: str):
+def list_memories(user_id: str) -> Response | Tuple[Response, int]:
     """List all memories for a user"""
     logger.info(f"📸 MEMORY - LIST memories for user: {user_id}")
     try:
@@ -264,7 +266,7 @@ def list_memories(user_id: str):
 @memory_bp.route("/get/<memory_id>", methods=["GET"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_memory(memory_id: str):
+def get_memory(memory_id: str) -> Response | Tuple[Response, int]:
     """Get signed URL for a specific memory"""
     try:
         current_user_id: Optional[str] = g.get('user_id')
@@ -329,7 +331,7 @@ def get_memory(memory_id: str):
 @memory_bp.route("/list/<memory_id>", methods=["DELETE"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def delete_memory(memory_id: str):
+def delete_memory(memory_id: str) -> Response | Tuple[Response, int]:
     """Delete a specific memory"""
     try:
         current_user_id: Optional[str] = g.get('user_id')
@@ -392,7 +394,7 @@ def delete_memory(memory_id: str):
 
 @memory_bp.route('/<path:unsafe_path>', methods=['GET', 'POST', 'PUT', 'PATCH'])
 @rate_limit_by_endpoint
-def block_memory_path_traversal(unsafe_path: str):
+def block_memory_path_traversal(unsafe_path: str) -> Response | Tuple[Response, int]:
     """Return 404 for any unexpected deep paths (prevents path traversal attacks).
     Note: DELETE is excluded as it's handled by delete_memory for valid paths."""
     normalized = unsafe_path.replace('\\', '/').split('/')

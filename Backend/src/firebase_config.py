@@ -137,7 +137,7 @@ def get_env_variable(
 
     # Logga inte känsliga värden
     log_value = "***" if hide_value else value
-    logger.info(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
+    logger.debug(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
 
     return value
 
@@ -308,21 +308,38 @@ logger.info("✅ Firebase-tjänster laddades framgångsrikt (live)")
 def warmup_firestore():
     """
     Warm up Firestore connection to reduce cold start latency.
-    Executes a simple query to establish connection pool.
+    Executes a simple query to establish connection pool with a timeout.
     """
     if db is None:
         logger.warning("🔥 Firestore warmup skipped - db not initialized")
         return
     
+    import threading
+    
+    result = {"success": False, "elapsed": 0}
+    
+    def _do_warmup():
+        try:
+            start = time.time()
+            list(db.collection('_warmup').limit(1).stream())
+            result["elapsed"] = (time.time() - start) * 1000
+            result["success"] = True
+        except Exception:
+            result["elapsed"] = 0
+    
     try:
-        start = time.time()
-        # Simple lightweight query to warm up connection
-        list(db.collection('_warmup').limit(1).stream())
-        elapsed = (time.time() - start) * 1000
-        logger.info(f"🔥 Firestore warmup completed in {elapsed:.0f}ms")
-    except Exception as e:
-        # Warmup collection might not exist - that's fine
-        logger.info(f"🔥 Firestore warmup initialized (first connection established)")
+        thread = threading.Thread(target=_do_warmup, daemon=True)
+        thread.start()
+        thread.join(timeout=10)  # Max 10 seconds for warmup
+        
+        if result["success"]:
+            logger.info(f"🔥 Firestore warmup completed in {result['elapsed']:.0f}ms")
+        elif thread.is_alive():
+            logger.warning("🔥 Firestore warmup timed out after 10s - continuing without warmup")
+        else:
+            logger.info("🔥 Firestore warmup initialized (first connection established)")
+    except (Exception, KeyboardInterrupt) as e:
+        logger.warning(f"🔥 Firestore warmup skipped: {e}")
 
 
 # CRITICAL: Warmup Firestore on module load to reduce first-request latency
