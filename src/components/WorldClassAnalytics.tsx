@@ -23,6 +23,8 @@ import useAuth from '../hooks/useAuth';
 import '../styles/world-class-design.css';
 import { Button, Alert, Card } from './ui/tailwind';
 import { colors } from '../theme/tokens';
+import { logger } from '../utils/logger';
+
 
 interface MoodData {
   score?: number;
@@ -76,7 +78,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
   const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  console.log('📊 ANALYTICS - Component mounted', { userId: user?.user_id });
+  logger.debug('📊 ANALYTICS - Component mounted', { userId: user?.user_id });
   analytics.page('World Class Analytics', {
     component: 'WorldClassAnalytics',
   });
@@ -85,9 +87,9 @@ useEffect(() => {
 }, [user?.user_id]);
 
   const loadAnalyticsData = async () => {
-  console.log('📊 ANALYTICS - Loading data...');
+  logger.debug('📊 ANALYTICS - Loading data...');
   if (!user?.user_id) {
-    console.warn('⚠️ ANALYTICS - No user ID');
+    logger.warn('⚠️ ANALYTICS - No user ID');
     setLoading(false);
     return;
   }
@@ -109,7 +111,7 @@ useEffect(() => {
           const moodDate = new Date(mood.timestamp);
           return moodDate >= cutoffDate;
         });
-        console.log(`📊 ANALYTICS - Filtered moods: ${originalCount} → ${moodsData.length} (${historyDays} days limit)`);
+        logger.debug(`📊 ANALYTICS - Filtered moods: ${originalCount} → ${moodsData.length} (${historyDays} days limit)`);
       }
 
       // Process mood data
@@ -141,23 +143,46 @@ useEffect(() => {
       // Weekly data (last 7 days)
       const weeklyData = generateWeeklyData(moodsData);
 
+      // Calculate weekly progress: unique days with mood entries in last 7 days
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      const uniqueDaysThisWeek = new Set(
+        moodsData
+          .filter((m: MoodData) => new Date(m.timestamp) >= sevenDaysAgo)
+          .map((m: MoodData) => new Date(m.timestamp).toDateString())
+      ).size;
+
+      // Calculate streak: consecutive days with mood entries (counting back from today)
+      let calculatedStreak = 0;
+      const daySet = new Set(moodsData.map((m: MoodData) => new Date(m.timestamp).toDateString()));
+      for (let i = 0; i < 365; i++) {
+        const checkDate = new Date(now);
+        checkDate.setDate(now.getDate() - i);
+        if (daySet.has(checkDate.toDateString())) {
+          calculatedStreak++;
+        } else if (i > 0) {
+          break; // Allow today to be missing (haven't logged yet)
+        }
+      }
+
       setData({
         totalMoods,
         averageMood: Math.round(averageMood * 10) / 10,
         moodTrend,
-        weeklyProgress: weeklyAnalysisData.weekly_progress || 0,
-        weeklyGoal: Math.max(weeklyAnalysisData.weekly_goal || 7, 1),
-        streakDays: weeklyAnalysisData.streak_days || 0,
+        weeklyProgress: uniqueDaysThisWeek,
+        weeklyGoal: 7,
+        streakDays: calculatedStreak,
         insights,
         moodDistribution,
         weeklyData,
       });
-      console.log('✅ ANALYTICS - Data loaded', { totalMoods, averageMood, moodTrend, insights: insights.length });
+      logger.debug('✅ ANALYTICS - Data loaded', { totalMoods, averageMood, moodTrend, insights: insights.length });
 
       announceToScreenReader('Analytics data loaded successfully', 'polite');
 
     } catch (error) {
-      console.error('Failed to load analytics data:', error);
+      logger.error('Failed to load analytics data:', error);
       announceToScreenReader('Failed to load analytics data', 'assertive');
     } finally {
       setLoading(false);

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Card, Alert } from '../ui/tailwind';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
+import { logger } from '../../utils/logger';
+
 
 interface FeedbackItem {
     id: string;
@@ -25,10 +28,10 @@ const FeedbackHistory: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.get(`/api/feedback/my-feedback?user_id=${user.user_id}`);
+            const response = await api.get(`${API_ENDPOINTS.FEEDBACK.MY_FEEDBACK}?user_id=${user.user_id}`);
             setFeedback(response.data.feedback || []);
         } catch (err: unknown) {
-            console.error('Failed to fetch feedback history:', err);
+            logger.error('Failed to fetch feedback history:', err);
             setError('Kunde inte hämta din feedback-historik');
         } finally {
             setLoading(false);

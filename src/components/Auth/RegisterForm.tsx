@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Alert, Input, Card, Button } from "../ui/tailwind";
 import { EyeIcon, EyeSlashIcon, ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
-import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
+import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";import { logger } from '../../utils/logger';
+
 
 const RegisterForm: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -47,7 +48,7 @@ const RegisterForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔐 REGISTER - Form submitted', { email, name, hasReferralCode: !!referralCode });
+    logger.debug('🔐 REGISTER - Form submitted', { email, name, hasReferralCode: !!referralCode });
     setError("");
     setSuccess("");
 
@@ -80,7 +81,7 @@ const RegisterForm: React.FC = () => {
       setConfirmPassword("");
       setReferralCode("");
     } catch (err: unknown) {
-      console.error("Registration error:", err);
+      logger.error("Registration error:", err);
       const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
         ? String(err.response.data.error)
         : err instanceof Error ? err.message : 'Registration failed';

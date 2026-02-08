@@ -117,8 +117,8 @@ export const useLoginForm = () => {
 
     try {
       const data = await loginUser(state.email, state.password);
-      login(data.access_token, state.email, data.user_id);
-      setLoggedInUserId(data.user_id);
+      login(data.accessToken, state.email, data.userId);
+      setLoggedInUserId(data.userId);
       announceToScreenReader(AUTH_MESSAGES.LOGIN_SUCCESS, 'polite');
 
       try {
@@ -161,9 +161,10 @@ export const useLoginForm = () => {
       const idToken = await user.getIdToken();
       const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
 
-      const data = response.data;
-      login(data.access_token, user.email!, data.user_id);
-      setLoggedInUserId(data.user_id);
+      // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
+      const data = response.data?.data || response.data;
+      login(data.accessToken, user.email!, data.userId);
+      setLoggedInUserId(data.userId);
       announceToScreenReader(AUTH_MESSAGES.GOOGLE_LOGIN_SUCCESS, 'polite');
 
       try {

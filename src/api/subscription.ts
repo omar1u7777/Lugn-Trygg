@@ -179,8 +179,21 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
  */
 export async function getAvailablePlans(): Promise<SubscriptionPlan[]> {
   const response = await api.get(API_ENDPOINTS.SUBSCRIPTION.PLANS);
-  
-  return response.data.data.plans || [];
+  const data = response.data?.data || response.data;
+  // Backend returns plans as an object { free: {...}, premium: {...}, ... }
+  if (Array.isArray(data.plans)) {
+    return data.plans;
+  }
+  // Convert plans object to array
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return Object.entries(data)
+      .filter(([key]) => key !== 'message' && key !== 'success')
+      .map(([key, value]: [string, any]) => ({
+        id: key,
+        ...value,
+      }));
+  }
+  return [];
 }
 
 /**

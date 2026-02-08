@@ -25,6 +25,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import '../styles/world-class-design.css';
 import { Card } from './ui/tailwind'; // Keep for structure, but override styles
 import { UsageLimitBanner } from './UsageLimitBanner';
+import { logger } from '../utils/logger';
 
 // ----------------------------------------------------------------------
 // Types & Constants
@@ -161,7 +162,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         emotions: msg?.emotions,
       }));
       setMessages(formatted);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) { logger.error(e); } finally { setLoading(false); }
   };
 
   const handleSendMessage = async () => {
@@ -192,8 +193,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         role: 'assistant',
         content: response.response || (response as any).message || '',
         timestamp: new Date(),
-        sentiment: response.sentiment || response.sentiment_analysis?.sentiment,
-        emotions: response.emotions || response.emotions_detected,
+        sentiment: response.crisisDetected ? 'crisis' : undefined,
+        emotions: response.emotionsDetected,
       };
 
       setMessages(prev => [...prev, aiMsg]);

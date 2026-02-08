@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';
+import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';import { logger } from '../../utils/logger';
+
 
 interface SyncHistoryProps {
   userId: string;
@@ -30,9 +31,9 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
       const historyData = await getSyncHistory(selectedProvider, days, 50);
       
       setHistory(historyData);
-      console.log('📊 Loaded sync history:', historyData.length, 'entries');
+      logger.debug('📊 Loaded sync history:', historyData.length, 'entries');
     } catch (error) {
-      console.error('Failed to load sync history:', error);
+      logger.error('Failed to load sync history:', error);
     } finally {
       setLoading(false);
     }
@@ -43,12 +44,12 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
       setRetryingId(syncId);
       const result = await retrySyncOperation(syncId);
       if (result.retryId) {
-        console.log('🔄 Retry job created:', result.retryId);
+        logger.debug('🔄 Retry job created:', result.retryId);
         // Refresh history after retry
         await loadSyncHistory();
       }
     } catch (error) {
-      console.error('Failed to retry sync:', error);
+      logger.error('Failed to retry sync:', error);
     } finally {
       setRetryingId(null);
     }

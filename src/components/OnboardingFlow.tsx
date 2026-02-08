@@ -9,7 +9,8 @@ import { trackEvent } from '../services/analytics';
 import { CheckIcon } from '@heroicons/react/24/outline';
 import { saveOnboardingGoals, skipOnboarding } from '../api/onboarding';
 import OptimizedImage from './ui/OptimizedImage';
-import { getOnboardingHeroImageId } from '../config/env';
+import { getOnboardingHeroImageId } from '../config/env';import { logger } from '../utils/logger';
+
 
 interface OnboardingStep {
   id: number;
@@ -127,7 +128,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
   const toggleGoal = (goal: string) => {
     setSelectedGoals((prev) => {
       const newGoals = prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal];
-      console.log('🎯 Goals updated:', newGoals);
+      logger.debug('🎯 Goals updated:', newGoals);
       return newGoals;
     });
     trackEvent('goal_selected', { goal, userId });
@@ -137,7 +138,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
     // Step 2 (goal selection) requires at least one goal selected
     if (activeStep === 1) {
       const canProceed = selectedGoals.length > 0;
-      console.log('🎯 Can proceed from step 2?', canProceed, 'Selected goals:', selectedGoals.length);
+      logger.debug('🎯 Can proceed from step 2?', canProceed, 'Selected goals:', selectedGoals.length);
       return canProceed;
     }
     return true;
@@ -175,7 +176,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
       
       onComplete();
     } catch (error) {
-      console.error('❌ Failed to skip onboarding:', error);
+      logger.error('❌ Failed to skip onboarding:', error);
       // Continue anyway - don't block user
       trackEvent('onboarding_skipped', { userId });
       localStorage.setItem(`onboarding_${userId}_complete`, 'true');
@@ -186,7 +187,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
   };
 
   const handleComplete = async () => {
-    console.log('🎯 ONBOARDING - Complete clicked', {
+    logger.debug('🎯 ONBOARDING - Complete clicked', {
       currentStep,
       selectedGoals,
       userId
@@ -196,10 +197,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
     setSaveError(null);
     
     try {
-      console.log('💾 ONBOARDING - Saving goals to backend...');
+      logger.debug('💾 ONBOARDING - Saving goals to backend...');
       // Save goals to backend
       const result = await saveOnboardingGoals(userId, selectedGoals);
-      console.log('✅ ONBOARDING - Goals saved successfully:', result);
+      logger.debug('✅ ONBOARDING - Goals saved successfully:', result);
       
       trackEvent('onboarding_completed', { 
         userId,
@@ -212,7 +213,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
       
       onComplete();
     } catch (error) {
-      console.error('❌ Failed to save goals:', error);
+      logger.error('❌ Failed to save goals:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save goals');
       setIsSaving(false);
       

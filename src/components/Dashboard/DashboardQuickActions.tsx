@@ -11,7 +11,7 @@ interface DashboardQuickActionsProps {
 }
 
 /**
- * Quick Action Button Component (2026 Design)
+ * Quick Action Button Component 
  * Tactile, "Squircle" shape, interactive.
  */
 const QuickActionButton: React.FC<{

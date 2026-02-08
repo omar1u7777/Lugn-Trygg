@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { trackEvent } from '../services/analytics';
+import { trackEvent } from '../services/analytics';import { logger } from '../utils/logger';
+
 
 interface UseOnboardingReturn {
   currentStep: number;
@@ -59,7 +60,7 @@ export const useOnboarding = (userId?: string): UseOnboardingReturn => {
     if (userId) {
       localStorage.setItem(`${STORAGE_KEY}_complete`, JSON.stringify(onboardingComplete));
       // Log for debugging
-      console.log(`🎯 Onboarding status for ${userId}: ${onboardingComplete ? 'COMPLETE' : 'INCOMPLETE'}`);
+      logger.debug(`🎯 Onboarding status for ${userId}: ${onboardingComplete ? 'COMPLETE' : 'INCOMPLETE'}`);
     }
   }, [onboardingComplete, userId, STORAGE_KEY]);
 

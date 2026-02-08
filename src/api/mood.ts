@@ -1,7 +1,18 @@
 import { api } from "./client";
-import type { MoodData } from "./client";
 import { ApiError } from "./errors";
 import { API_ENDPOINTS } from "./constants";
+import { logger } from "../utils/logger";
+
+/**
+ * Mood entry data for logging
+ */
+export interface MoodData {
+  score?: number;
+  note?: string;
+  emotions?: string[];
+  activities?: string[];
+  [key: string]: unknown;
+}
 
 /**
  * Weekly analysis response interface
@@ -124,7 +135,7 @@ export const getMoods = async (_userId: string) => {
     return data.moods || [];
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ API Mood Fetch error:", apiError);
+    logger.error("API Mood Fetch error:", apiError);
     // Return empty array for graceful degradation
     return [];
   }
@@ -159,7 +170,7 @@ export const getWeeklyAnalysis = async (_userId: string) => {
     };
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ API Weekly Analysis error:", apiError);
+    logger.error("API Weekly Analysis error:", apiError);
     // Return fallback data instead of throwing error
     return {
       totalMoods: 0,

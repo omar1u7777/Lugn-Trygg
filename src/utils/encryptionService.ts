@@ -4,6 +4,8 @@
  * Uses Web Crypto API for strong encryption
  */
 
+import { logger } from './logger';
+
 // Type definitions for encrypted data structures
 interface EncryptedData {
   encrypted: string;
@@ -191,7 +193,7 @@ export async function decryptMoodEntry(encryptedData: EncryptedMoodData, userKey
         // Remove IV from decrypted data
         delete decryptedData[`${field}_iv`];
       } catch (error) {
-        console.error(`Failed to decrypt ${String(field)}:`, error);
+        logger.error(`Failed to decrypt ${String(field)}:`, error);
         decryptedData[field] = '[Encrypted]';
       }
     }
@@ -219,35 +221,19 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
 
 // Get user's privacy settings
 export async function getPrivacySettings(userId?: string): Promise<PrivacySettings> {
-  console.log('🔒 ENCRYPTION SERVICE - getPrivacySettings called:', { userId });
-  
-  // If userId provided, fetch from backend
+  // If userId provided, fetch from backend using centralized API client
   if (userId) {
     try {
-      console.log('🌐 ENCRYPTION SERVICE - Fetching from backend...');
-      const { tokenStorage } = await import('./secureStorage');
-      const token = await tokenStorage.getAccessToken();
-      console.log('🔑 ENCRYPTION SERVICE - Token retrieved:', { hasToken: !!token });
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/settings/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        // Handle APIResponse wrapper: { success: true, data: { settings: {...} } }
-        const data = result.data || result;
-        const settings = data.settings || data;
-        // Cache to localStorage
-        localStorage.setItem('privacy_settings', JSON.stringify(settings));
-        return { ...DEFAULT_PRIVACY_SETTINGS, ...settings };
-      }
+      const { default: api } = await import('../api/client');
+      const response = await api.get(`/api/v1/privacy/settings/${userId}`);
+      const result = response.data;
+      const data = result.data || result;
+      const settings = data.settings || data;
+      // Cache to localStorage
+      localStorage.setItem('privacy_settings', JSON.stringify(settings));
+      return { ...DEFAULT_PRIVACY_SETTINGS, ...settings };
     } catch (error) {
-      console.warn('Failed to fetch privacy settings from backend, using local cache:', error);
+      logger.warn('Failed to fetch privacy settings from backend, using local cache:', error);
     }
   }
   
@@ -265,34 +251,16 @@ export async function getPrivacySettings(userId?: string): Promise<PrivacySettin
 
 // Save user's privacy settings
 export async function savePrivacySettings(settings: PrivacySettings, userId?: string): Promise<void> {
-  console.log('🔒 ENCRYPTION SERVICE - savePrivacySettings called:', { settings, userId });
-  
   // Save to localStorage immediately
   localStorage.setItem('privacy_settings', JSON.stringify(settings));
-  console.log('💾 ENCRYPTION SERVICE - Saved to localStorage');
   
-  // If userId provided, sync to backend
+  // If userId provided, sync to backend using centralized API client
   if (userId) {
     try {
-      console.log('🌐 ENCRYPTION SERVICE - Syncing to backend...');
-      const { tokenStorage } = await import('./secureStorage');
-      const token = await tokenStorage.getAccessToken();
-      console.log('🔑 ENCRYPTION SERVICE - Token retrieved:', { hasToken: !!token });
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/settings/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ settings })
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to save privacy settings to backend:', await response.text());
-      }
+      const { default: api } = await import('../api/client');
+      await api.put(`/api/v1/privacy/settings/${userId}`, { settings });
     } catch (error) {
-      console.error('Failed to sync privacy settings to backend:', error);
+      logger.error('Failed to sync privacy settings to backend:', error);
     }
   }
 }
@@ -300,23 +268,13 @@ export async function savePrivacySettings(settings: PrivacySettings, userId?: st
 // Export all user data (GDPR compliance)
 export async function exportUserData(userId: string): Promise<Blob> {
   try {
-    // Call backend API to get complete data export
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/export/${userId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-      }
+    const { default: api } = await import('../api/client');
+    const response = await api.post(`/api/v1/privacy/export/${userId}`, {}, {
+      responseType: 'blob',
     });
-    
-    if (!response.ok) {
-      throw new Error(`Export failed: ${response.statusText}`);
-    }
-    
-    // Return the blob from backend
-    return await response.blob();
+    return response.data;
   } catch (error) {
-    console.error('Failed to export data from backend:', error);
+    logger.error('Failed to export data from backend:', error);
     
     // Fallback: Create local data export (not complete, but better than nothing)
     const cachedSettings = await getPrivacySettings();
@@ -338,22 +296,12 @@ export async function exportUserData(userId: string): Promise<Blob> {
 // Delete all user data (GDPR compliance)
 export async function deleteAllUserData(userId: string): Promise<void> {
   try {
-    // Call backend API to permanently delete ALL data
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/privacy/delete/${userId}?confirm=delete my data`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-      }
+    const { default: api } = await import('../api/client');
+    const response = await api.delete(`/api/v1/privacy/delete/${userId}`, {
+      params: { confirm: 'delete my data' },
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to delete data');
-    }
-    
-    const result = await response.json();
-    console.log('✅ Backend deletion completed:', result);
+    const result = response.data;
+    logger.debug('✅ Backend deletion completed:', result);
     
     // Clear local storage after successful backend deletion
     const keysToKeep = ['theme', 'language'];
@@ -365,9 +313,9 @@ export async function deleteAllUserData(userId: string): Promise<void> {
       }
     });
     
-    console.log(`✅ All data for user ${userId} has been permanently deleted`);
+    logger.debug(`✅ All data for user ${userId} has been permanently deleted`);
   } catch (error) {
-    console.error('Failed to delete data:', error);
+    logger.error('Failed to delete data:', error);
     throw error; // Re-throw to show error to user
   }
 }

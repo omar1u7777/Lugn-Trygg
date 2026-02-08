@@ -14,7 +14,8 @@
 
 import { getEncryptionKey } from '../config/env';
 import AES from 'crypto-js/aes';
-import Utf8 from 'crypto-js/enc-utf8';
+import Utf8 from 'crypto-js/enc-utf8';import { logger } from './logger';
+
 
 // Cache for crypto key to avoid regenerating on every operation
 let cachedCryptoKey: CryptoKey | null = null;
@@ -82,7 +83,7 @@ async function encrypt(data: string): Promise<string> {
 
     return btoa(String.fromCharCode(...combined));
   } catch (error) {
-    console.error('❌ Encryption failed:', error);
+    logger.error('❌ Encryption failed:', error);
     throw new Error('Failed to encrypt data');
   }
 }
@@ -107,7 +108,7 @@ async function decrypt(encryptedData: string): Promise<string> {
 
     return new TextDecoder().decode(decryptedData);
   } catch (error) {
-    console.error('❌ Decryption failed:', error);
+    logger.error('❌ Decryption failed:', error);
     throw new Error('Failed to decrypt data');
   }
 }
@@ -119,7 +120,7 @@ function fallbackEncrypt(data: string): string {
   try {
     return AES.encrypt(data, FALLBACK_SECRET).toString();
   } catch (error) {
-    console.error('❌ Fallback encryption failed:', error);
+    logger.error('❌ Fallback encryption failed:', error);
     throw new Error('Failed to encrypt fallback data');
   }
 }
@@ -133,7 +134,7 @@ function fallbackDecrypt(payload: string): string {
     }
     return decrypted;
   } catch (error) {
-    console.error('❌ Fallback decryption failed:', error);
+    logger.error('❌ Fallback decryption failed:', error);
     throw new Error('Failed to decrypt fallback data');
   }
 }
@@ -163,7 +164,7 @@ export const secureStorage = {
       const encrypted = await encrypt(value);
       localStorage.setItem(`secure_${key}`, encrypted);
     } catch (error) {
-      console.error(`❌ Failed to store ${key}:`, error);
+      logger.error(`❌ Failed to store ${key}:`, error);
       throw error;
     }
   },
@@ -199,7 +200,7 @@ export const secureStorage = {
     try {
       return await decrypt(stored);
     } catch (error) {
-      console.error(`❌ Failed to retrieve ${key}:`, error);
+      logger.error(`❌ Failed to retrieve ${key}:`, error);
       // If decryption fails, remove the corrupted data
       localStorage.removeItem(`secure_${key}`);
       return null;
@@ -251,7 +252,7 @@ export const tokenStorage = {
    */
   async getAccessToken(): Promise<string | null> {
     const token = await secureStorage.getItem('token');
-    console.log('🔐 SECURE STORAGE - getAccessToken:', { 
+    logger.debug('🔐 SECURE STORAGE - getAccessToken:', { 
       hasToken: !!token, 
       tokenLength: token?.length,
       tokenPreview: token ? token.substring(0, 20) + '...' : 'null'
@@ -288,6 +289,6 @@ export const tokenStorage = {
  */
 if (typeof window !== 'undefined' && !secureStorage.isAvailable() && !hasLoggedFallbackWarning) {
   hasLoggedFallbackWarning = true;
-  console.warn('⚠️ Web Crypto API unavailable. Using CryptoJS fallback encryption.');
-  console.warn('ℹ️ Tokens remain encrypted, but switch to a secure origin (https://localhost or HTTPS proxy) for hardware-backed crypto.');
+  logger.warn('⚠️ Web Crypto API unavailable. Using CryptoJS fallback encryption.');
+  logger.warn('ℹ️ Tokens remain encrypted, but switch to a secure origin (https://localhost or HTTPS proxy) for hardware-backed crypto.');
 }

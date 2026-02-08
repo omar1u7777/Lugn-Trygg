@@ -1,5 +1,4 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { Card } from './ui/tailwind';
 import OptimizedImage from './ui/OptimizedImage';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
@@ -20,8 +19,6 @@ const MemoryRecorder = lazy(() => import('./MemoryRecorder'));
 const MemoryList = lazy(() => import('./MemoryList'));
 
 const JOURNAL_HERO_IMAGE_ID = getJournalHeroImageId();
-const JOURNAL_HERO_FALLBACK_SRC = 'https://res.cloudinary.com/dxmijbysc/image/upload/c_scale,w_auto,dpr_auto,q_auto,f_auto/hero-bild_pfcdsx.jpg';
-const JOURNAL_HERO_SIZES = '(min-width: 1280px) 520px, (min-width: 1024px) 420px, (min-width: 768px) 65vw, 100vw';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -41,12 +38,6 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
-const PanelFallback = ({ label }: { label: string }) => (
-  <div className="min-h-[200px] flex items-center justify-center text-sm text-gray-600 dark:text-gray-400">
-    <span className="animate-pulse">{label}</span>
-  </div>
-);
-
 const JournalHub: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -58,8 +49,6 @@ const JournalHub: React.FC = () => {
     weekStreak: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
-  const [lastJournalEntry, setLastJournalEntry] = useState<{ text: string; prompt: string; tags: string[] } | null>(null);
-
   // Inline journal form state
   const [journalText, setJournalText] = useState('');
   const [journalPrompt, setJournalPrompt] = useState('');
@@ -105,7 +94,7 @@ const JournalHub: React.FC = () => {
       const [moodsResult, memoriesResult, journalsResult] = await Promise.allSettled([
         getMoods(user.user_id),
         getMemories(user.user_id),
-        getJournalEntries(),
+        getJournalEntries(user.user_id),
       ]);
 
       const moods = moodsResult.status === 'fulfilled' ? moodsResult.value : [];
@@ -119,7 +108,7 @@ const JournalHub: React.FC = () => {
         weekStreak: calculateStreak(moods),
       });
     } catch (error) {
-      console.error('❌ Failed to load journal stats:', error);
+      logger.error('Failed to load journal stats', { error });
       setStats({ moodCount: 0, memoryCount: 0, journalCount: 0, weekStreak: 0 });
     } finally {
       setStatsLoading(false);
@@ -141,14 +130,6 @@ const JournalHub: React.FC = () => {
       else break;
     }
     return streak;
-  };
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
-
-  const handleJournalSubmit = async (entry: { text: string; prompt: string; tags: string[] }) => {
-    // ... (keep existing implementation)
   };
 
   const handleInlineJournalSubmit = async (e: React.FormEvent) => {
@@ -178,8 +159,7 @@ const JournalHub: React.FC = () => {
     setIsSubmittingJournal(true);
 
     try {
-      await saveJournalEntry(journalText, undefined, selectedJournalTags);
-      setLastJournalEntry({ text: journalText, prompt: journalPrompt, tags: selectedJournalTags });
+      await saveJournalEntry(user.user_id, journalText, undefined, selectedJournalTags);
       setStats(prev => ({ ...prev, journalCount: prev.journalCount + 1 }));
       setJournalText('');
       setJournalPrompt('');

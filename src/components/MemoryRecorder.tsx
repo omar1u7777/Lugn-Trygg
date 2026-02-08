@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { API_BASE_URL } from "../api/api";
+import { api } from "../api/api";
+import { API_ENDPOINTS } from '../api/constants';
+import { logger } from '../utils/logger';
+
 
 const MemoryRecorder = ({ userId, onClose, inline = false }: { userId: string; onClose?: () => void; inline?: boolean }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -34,12 +36,12 @@ const MemoryRecorder = ({ userId, onClose, inline = false }: { userId: string; o
       // Maximum recording time of 5 minutes to prevent extremely long recordings
       setTimeout(() => {
         if (isRecording && recorder.state === 'recording') {
-          console.log('Auto-stopping recording after 5 minutes maximum');
+          logger.debug('Auto-stopping recording after 5 minutes maximum');
           stopRecording();
         }
       }, 300000); // 5 minutes maximum
     } catch (error) {
-      console.error("⚠️ Fel vid inspelning:", error);
+      logger.error("⚠️ Fel vid inspelning:", error);
       setError("Ett fel uppstod vid inspelning. Försök igen.");
       setIsRecording(false);
     }
@@ -69,11 +71,11 @@ const MemoryRecorder = ({ userId, onClose, inline = false }: { userId: string; o
     formData.append("user_id", userId);
 
     try {
-      await axios.post(`${API_BASE_URL}/api/memory/upload`, formData, {
+      await api.post(API_ENDPOINTS.MEMORY.UPLOAD_MEMORY, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
     } catch (error: any) {
-      console.error("⚠️ Fel vid uppladdning av minne:", error.response?.data?.error || error.message);
+      logger.error("⚠️ Fel vid uppladdning av minne:", error.response?.data?.error || error.message);
       setError("Kunde inte spara minnet. Försök igen senare.");
     }
   };

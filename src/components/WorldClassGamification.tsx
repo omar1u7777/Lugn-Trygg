@@ -24,6 +24,8 @@ import { getMoods, getWeeklyAnalysis } from '../api/api';
 import '../styles/world-class-design.css';
 import { Button } from './ui/tailwind'; // Keep generic components
 import { colors } from '../theme/tokens';
+import { logger } from '../utils/logger';
+
 
 // ----------------------------------------------------------------------
 // Types
@@ -146,8 +148,25 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       ]);
 
       const totalMoods = Array.isArray(moodsData) ? moodsData.length : 0;
-      const streakDays = weeklyAnalysisData.streak_days || 0;
-      const totalChats = weeklyAnalysisData.total_chats || 0;
+
+      // Calculate streak from mood data: consecutive days counting back from today
+      const now = new Date();
+      const daySet = new Set(
+        (Array.isArray(moodsData) ? moodsData : []).map((m: any) => new Date(m.timestamp).toDateString())
+      );
+      let streakDays = 0;
+      for (let i = 0; i < 365; i++) {
+        const checkDate = new Date(now);
+        checkDate.setDate(now.getDate() - i);
+        if (daySet.has(checkDate.toDateString())) {
+          streakDays++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+
+      // totalChats not available from weekly analysis — use totalMoods as chat proxy
+      const totalChats = weeklyAnalysisData.totalMoods || 0;
 
       // Logic for Stats
       const moodXp = totalMoods * 10;
@@ -194,7 +213,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       announceToScreenReader(`${unlockedCount} achievements upplåsta`, 'polite');
 
     } catch (error) {
-      console.error('❌ Failed to load gamification data:', error);
+      logger.error('❌ Failed to load gamification data:', error);
     } finally {
       setLoading(false);
     }

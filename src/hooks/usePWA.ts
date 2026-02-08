@@ -5,7 +5,8 @@
 
 import { useState, useEffect } from 'react';
 import { pwaService } from '../services/pwaService';
-import { analytics } from '../services/analytics';
+import { analytics } from '../services/analytics';import { logger } from '../utils/logger';
+
 
 interface PWAState {
   isOnline: boolean;
@@ -153,7 +154,7 @@ export const useOfflineStorage = (key: string) => {
       const storedData = await pwaService.getOfflineData(key);
       setData(storedData);
     } catch (error) {
-      console.error('Failed to load offline data:', error);
+      logger.error('Failed to load offline data:', error);
     } finally {
       setLoading(false);
     }
@@ -168,7 +169,7 @@ export const useOfflineStorage = (key: string) => {
         dataType: typeof newData,
       });
     } catch (error) {
-      console.error('Failed to store offline data:', error);
+      logger.error('Failed to store offline data:', error);
     }
   };
 
@@ -178,7 +179,7 @@ export const useOfflineStorage = (key: string) => {
       setData([]);
       analytics.track('Offline Data Cleared', { key });
     } catch (error) {
-      console.error('Failed to clear offline data:', error);
+      logger.error('Failed to clear offline data:', error);
     }
   };
 

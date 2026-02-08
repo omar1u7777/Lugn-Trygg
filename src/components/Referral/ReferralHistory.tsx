@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
 import { Paper, Spinner, Alert, Chip, Divider, Button } from '../ui/tailwind';
+import { logger } from '../../utils/logger';
+
 
 interface ReferralHistoryEntry {
-    invitee_name: string;
-    invitee_email: string;
-    completed_at: string;
-    rewards_granted: number;
+    inviteeName: string;
+    inviteeEmail: string;
+    completedAt: string;
+    rewardsGranted: number;
 }
 
 const ReferralHistory: React.FC = () => {
@@ -27,11 +30,12 @@ const ReferralHistory: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.get(`/api/referral/history?user_id=${user.user_id}`);
-            setHistory(response.data.history || []);
+            const response = await api.get(`${API_ENDPOINTS.REFERRAL.HISTORY}?user_id=${user.user_id}`);
+            const data = response.data?.data || response.data;
+            setHistory(data.history || []);
             setError(null);
         } catch (err: unknown) {
-            console.error('Failed to fetch referral history:', err);
+            logger.error('Failed to fetch referral history:', err);
             setError('Kunde inte ladda historik');
         } finally {
             setLoading(false);
@@ -104,21 +108,21 @@ const ReferralHistory: React.FC = () => {
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-lg">👤</span>
                                     <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                                        {entry.invitee_name}
+                                        {entry.inviteeName}
                                     </p>
                                 </div>
-                                {entry.invitee_email && (
+                                {entry.inviteeEmail && (
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                        📧 {entry.invitee_email}
+                                        📧 {entry.inviteeEmail}
                                     </p>
                                 )}
                                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                                    🕐 {formatDate(entry.completed_at)}
+                                    🕐 {formatDate(entry.completedAt)}
                                 </p>
                             </div>
 
                             <Chip
-                                label={`+${entry.rewards_granted} vecka`}
+                                label={`+${entry.rewardsGranted} vecka`}
                                 color="success"
                                 size="small"
                             />

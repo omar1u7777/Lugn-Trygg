@@ -6,6 +6,7 @@
 
 import { api } from './client';
 import { ApiError } from './errors';
+import { API_ENDPOINTS } from './constants';
 
 // ============================================================================
 // TYPES
@@ -103,7 +104,7 @@ export interface SystemHealth {
  */
 export const getPerformanceMetrics = async (): Promise<PerformanceMetrics> => {
   try {
-    const response = await api.get('/api/admin/performance-metrics');
+    const response = await api.get(API_ENDPOINTS.ADMIN.PERFORMANCE_METRICS);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -118,7 +119,7 @@ export const getPerformanceMetrics = async (): Promise<PerformanceMetrics> => {
  */
 export const getAdminStats = async (): Promise<AdminStats> => {
   try {
-    const response = await api.get('/api/admin/stats');
+    const response = await api.get(API_ENDPOINTS.ADMIN.STATS);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -146,7 +147,7 @@ export const getAdminUsers = async (
     if (search) params.search = search;
     if (status) params.status = status;
 
-    const response = await api.get('/api/admin/users', { params });
+    const response = await api.get(API_ENDPOINTS.ADMIN.USERS, { params });
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -166,7 +167,7 @@ export const updateUserStatus = async (
   status: 'active' | 'suspended' | 'banned'
 ): Promise<{ userId: string; newStatus: string }> => {
   try {
-    const response = await api.put(`/api/admin/users/${userId}/status`, { status });
+    const response = await api.put(`${API_ENDPOINTS.ADMIN.USERS}/${userId}/status`, { status });
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -184,7 +185,7 @@ export const getContentReports = async (
   status: 'pending' | 'resolved' | 'dismissed' = 'pending'
 ): Promise<ReportsListResponse> => {
   try {
-    const response = await api.get('/api/admin/reports', { params: { status } });
+    const response = await api.get(API_ENDPOINTS.ADMIN.REPORTS, { params: { status } });
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -210,7 +211,7 @@ export const resolveReport = async (
   contentId?: string
 ): Promise<{ reportId: string; action: string }> => {
   try {
-    const response = await api.post(`/api/admin/reports/${reportId}/resolve`, {
+    const response = await api.post(`${API_ENDPOINTS.ADMIN.REPORTS}/${reportId}/resolve`, {
       action,
       notes,
       content_type: contentType,
@@ -230,7 +231,7 @@ export const resolveReport = async (
  */
 export const getSystemHealth = async (): Promise<SystemHealth> => {
   try {
-    const response = await api.get('/api/admin/system/health');
+    const response = await api.get(API_ENDPOINTS.ADMIN.SYSTEM_HEALTH);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {

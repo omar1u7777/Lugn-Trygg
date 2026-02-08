@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { getMemories, getMemoryUrl } from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
+import { logger } from '../utils/logger';
+
 
 const parseTimestamp = (timestamp: string): Date | null => {
   if (!timestamp || timestamp.length !== 14) return null;
@@ -101,12 +103,12 @@ const MemoryList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onCl
                       <button
                         onClick={async () => {
                           try {
-                            const url = await getMemoryUrl(user!.user_id, memory.filePath!);
+                            const url = await getMemoryUrl(memory.id);
                             setMemories(prev => prev.map(m =>
                               m.id === memory.id ? { ...m, audioUrl: url } : m
                             ));
                           } catch (err) {
-                            console.error("Failed to load audio URL:", err);
+                            logger.error("Failed to load audio URL:", err);
                           }
                         }}
                         className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1 rounded text-sm transition-colors"

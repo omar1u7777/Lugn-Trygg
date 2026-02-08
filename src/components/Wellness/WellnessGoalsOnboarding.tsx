@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
 import { setWellnessGoals, getDashboardSummary, getWellnessGoals } from '../../api/api';
 import { analytics } from '../../services/analytics';
+import { logger } from '../../utils/logger';
 
 interface WellnessGoalsOnboardingProps {
   userId?: string;
@@ -76,7 +77,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
         onComplete(selectedGoals);
       }
     } catch (err: any) {
-      console.error('Failed to save goals:', err);
+      logger.error('Failed to save goals:', err);
       setError('Kunde inte spara målen. Försök igen.');
     } finally {
       setLoading(false);

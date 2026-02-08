@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { chat as apiChat } from '../../../api/api';
+import { chatWithAI } from '../../../api/ai';
 import useAuth from '../../../hooks/useAuth';
 import { ChatMessage, ChatSession, AIResponse } from '../types';
 
@@ -62,20 +62,14 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
       }
 
       // Send to API
-      const response = await apiChat({
-        message: content,
-        history: messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        })),
-      });
+      const response = await chatWithAI(user.user_id, content);
 
       // Parse response
       const aiResponse: AIResponse = {
-        message: typeof response === 'string' ? response : response.message || response.response,
-        emotion: response.emotion,
-        suggestions: response.suggestions,
-        followUp: response.follow_up,
+        message: response.response || '',
+        emotion: response.emotionsDetected?.[0],
+        suggestions: response.suggestedActions,
+        followUp: undefined,
       };
 
       // Create assistant message

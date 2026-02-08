@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { createCheckoutSession } from '../api/subscription';
+import { createCheckoutSession } from '../api/subscription';import { logger } from '../utils/logger';
+
 
 const SubscriptionForm: React.FC = () => {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ const SubscriptionForm: React.FC = () => {
         setError('Kunde inte skapa betalningssession');
       }
     } catch (err: unknown) {
-      console.error('Subscription error:', err);
+      logger.error('Subscription error:', err);
       const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
         ? String(err.response.data.error)
         : 'Ett fel uppstod vid prenumeration';

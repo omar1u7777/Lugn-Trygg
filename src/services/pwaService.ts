@@ -3,7 +3,8 @@
  * Handles service worker registration, offline functionality, and app installation
  */
 
-import { analytics } from './analytics';
+import { analytics } from './analytics';import { logger } from '../utils/logger';
+
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -31,7 +32,7 @@ class PWAService {
         navigator.serviceWorker
           .register('/sw.js')
           .then((registration) => {
-            console.log('SW registered: ', registration);
+            logger.debug('SW registered: ', registration);
 
             // Handle updates
             registration.addEventListener('updatefound', () => {
@@ -50,7 +51,7 @@ class PWAService {
             });
           })
           .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError);
+            logger.debug('SW registration failed: ', registrationError);
             analytics.track('PWA Service Worker Registration Failed', {
               error: registrationError.message,
             });
@@ -147,7 +148,7 @@ class PWAService {
         await registration.sync.register('chat-sync');
       }
     } catch (error) {
-      console.error('Background sync registration failed:', error);
+      logger.error('Background sync registration failed:', error);
     }
   }
 
@@ -169,7 +170,7 @@ class PWAService {
       this.deferredPrompt = null;
       return outcome === 'accepted';
     } catch (error) {
-      console.error('Install prompt failed:', error);
+      logger.error('Install prompt failed:', error);
       analytics.track('PWA Install Prompt Error', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -210,7 +211,7 @@ class PWAService {
         return true;
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          console.error('Share failed:', error);
+          logger.error('Share failed:', error);
           analytics.track('PWA Share Failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
           });
@@ -267,7 +268,7 @@ class PWAService {
 
       localStorage.setItem(`lugn-trygg-offline-${key}`, JSON.stringify(offlineData));
     } catch (error) {
-      console.error('Failed to store offline data:', error);
+      logger.error('Failed to store offline data:', error);
     }
   }
 
@@ -276,7 +277,7 @@ class PWAService {
       const data = localStorage.getItem(`lugn-trygg-offline-${key}`);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Failed to get offline data:', error);
+      logger.error('Failed to get offline data:', error);
       return [];
     }
   }
@@ -285,7 +286,7 @@ class PWAService {
     try {
       localStorage.removeItem(`lugn-trygg-offline-${key}`);
     } catch (error) {
-      console.error('Failed to clear offline data:', error);
+      logger.error('Failed to clear offline data:', error);
     }
   }
 
@@ -297,14 +298,14 @@ class PWAService {
       try {
         this.wakeLock = await navigator.wakeLock.request('screen');
         this.wakeLock.addEventListener('release', () => {
-          console.log('Wake lock released');
+          logger.debug('Wake lock released');
           this.wakeLock = null;
         });
 
         analytics.track('PWA Wake Lock Acquired');
         return true;
       } catch (error) {
-        console.error('Wake lock request failed:', error);
+        logger.error('Wake lock request failed:', error);
         analytics.track('PWA Wake Lock Failed', {
           error: error instanceof Error ? error.message : 'Unknown error',
         });

@@ -7,7 +7,8 @@ import React, { lazy } from 'react';
 import type { ComponentType } from 'react';
 
 // Lazy loading with error boundaries
-import { getOptimizedImageUrl } from '../../utils/cloudinary';
+import { getOptimizedImageUrl } from '../../utils/cloudinary';import { logger } from './logger';
+
 
 export const lazyWithFallback = <T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
@@ -15,7 +16,7 @@ export const lazyWithFallback = <T extends ComponentType<any>>(
 ) => {
   return lazy(() =>
     importFunc().catch((error) => {
-      console.error('Lazy loading failed:', error);
+      logger.error('Lazy loading failed:', error);
 
       if (fallback) {
         return { default: fallback };
@@ -118,14 +119,14 @@ export class PerformanceMonitor {
             timestamp: Date.now(),
           });
 
-          console.log('LCP:', lastEntry.startTime);
+          logger.debug('LCP:', lastEntry.startTime);
         }
       });
 
       observer.observe({ entryTypes: ['largest-contentful-paint'] });
       this.observers.push(observer);
     } catch (error) {
-      console.warn('LCP observation not supported');
+      logger.warn('LCP observation not supported');
     }
   }
 
@@ -140,14 +141,14 @@ export class PerformanceMonitor {
             timestamp: Date.now(),
           });
 
-          console.log('FID:', entry.processingStart - entry.startTime);
+          logger.debug('FID:', entry.processingStart - entry.startTime);
         });
       });
 
       observer.observe({ entryTypes: ['first-input'] });
       this.observers.push(observer);
     } catch (error) {
-      console.warn('FID observation not supported');
+      logger.warn('FID observation not supported');
     }
   }
 
@@ -168,13 +169,13 @@ export class PerformanceMonitor {
           timestamp: Date.now(),
         });
 
-        console.log('CLS:', clsValue);
+        logger.debug('CLS:', clsValue);
       });
 
       observer.observe({ entryTypes: ['layout-shift'] });
       this.observers.push(observer);
     } catch (error) {
-      console.warn('CLS observation not supported');
+      logger.warn('CLS observation not supported');
     }
   }
 
@@ -190,14 +191,14 @@ export class PerformanceMonitor {
             timestamp: Date.now(),
           });
 
-          console.log('FCP:', lastEntry.startTime);
+          logger.debug('FCP:', lastEntry.startTime);
         }
       });
 
       observer.observe({ entryTypes: ['paint'] });
       this.observers.push(observer);
     } catch (error) {
-      console.warn('FCP observation not supported');
+      logger.warn('FCP observation not supported');
     }
   }
 
@@ -212,14 +213,14 @@ export class PerformanceMonitor {
             timestamp: Date.now(),
           });
 
-          console.log('TTFB:', entry.responseStart - entry.requestStart);
+          logger.debug('TTFB:', entry.responseStart - entry.requestStart);
         });
       });
 
       observer.observe({ entryTypes: ['navigation'] });
       this.observers.push(observer);
     } catch (error) {
-      console.warn('TTFB observation not supported');
+      logger.warn('TTFB observation not supported');
     }
   }
 
@@ -236,7 +237,7 @@ export class PerformanceMonitor {
             timestamp: Date.now(),
           });
 
-          console.log(`Bundle ${entry.name}:`, entry.duration, 'ms');
+          logger.debug(`Bundle ${entry.name}:`, entry.duration, 'ms');
         }
       });
     });
@@ -271,8 +272,8 @@ export const analyzeBundle = async () => {
   }
 
   console.group?.('Bundle analysis');
-  console.info('Bundle visualization runs during build via rollup-plugin-visualizer.');
-  console.info('Run: npm run build:analyze to generate dist/bundle-report.html.');
+  logger.info('Bundle visualization runs during build via rollup-plugin-visualizer.');
+  logger.info('Run: npm run build:analyze to generate dist/bundle-report.html.');
   console.groupEnd?.();
 };
 

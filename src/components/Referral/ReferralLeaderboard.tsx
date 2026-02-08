@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
 import { Paper, Spinner, Alert, Chip, Divider, Button, Grid } from '../ui/tailwind';
+import { logger } from '../../utils/logger';
+
 
 interface LeaderboardEntry {
     rank: number;
-    user_id: string;
+    userId: string;
     name: string;
-    successful_referrals: number;
-    rewards_earned: number;
+    successfulReferrals: number;
+    rewardsEarned: number;
     tier: string;
-    tier_emoji: string;
+    tierEmoji: string;
 }
 
 const ReferralLeaderboard: React.FC = () => {
@@ -24,11 +27,12 @@ const ReferralLeaderboard: React.FC = () => {
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/api/referral/leaderboard?limit=20');
-            setLeaderboard(response.data.leaderboard || []);
+            const response = await api.get(`${API_ENDPOINTS.REFERRAL.LEADERBOARD}?limit=20`);
+            const data = response.data?.data || response.data;
+            setLeaderboard(data.leaderboard || []);
             setError(null);
         } catch (err: unknown) {
-            console.error('Failed to fetch leaderboard:', err);
+            logger.error('Failed to fetch leaderboard:', err);
             setError('Kunde inte ladda leaderboard');
         } finally {
             setLoading(false);
@@ -98,7 +102,7 @@ const ReferralLeaderboard: React.FC = () => {
                 <div className="space-y-4">
                     {leaderboard.map((entry) => (
                         <div
-                            key={entry.user_id}
+                            key={entry.userId}
                             className={`p-4 rounded-lg ${
                                 isTopThree(entry.rank)
                                     ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 shadow-md'
@@ -117,14 +121,14 @@ const ReferralLeaderboard: React.FC = () => {
                                         <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
                                             {entry.name}
                                         </p>
-                                        <span className="text-xl">{entry.tier_emoji}</span>
+                                        <span className="text-xl">{entry.tierEmoji}</span>
                                         <Chip
                                             label={entry.tier}
                                             size="small"
                                         />
                                     </div>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {entry.successful_referrals} referenser • {entry.rewards_earned} veckor premium
+                                        {entry.successfulReferrals} referenser • {entry.rewardsEarned} veckor premium
                                     </p>
                                 </div>
                             </div>

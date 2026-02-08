@@ -5,9 +5,11 @@ import { useSubscription } from "../contexts/SubscriptionContext";
 import { useTranslation } from "react-i18next";
 import { analytics } from "../services/analytics";
 import { useAccessibility } from "../hooks/useAccessibility";
+import { logger } from '../utils/logger';
+
 
 const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClose, inline = false }) => {
-  console.log('🗂️ MoodList component rendered with onClose:', typeof onClose);
+  logger.debug('🗂️ MoodList component rendered with onClose:', typeof onClose);
   const { user } = useAuth();
   const { isPremium, plan } = useSubscription();
   const { t } = useTranslation();
@@ -63,7 +65,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
             const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
             return moodDate >= cutoffDate;
           });
-          console.log(`📋 MoodList - Filtered moods: ${originalCount} → ${moodData.length} (${historyDays} days limit)`);
+          logger.debug(`📋 MoodList - Filtered moods: ${originalCount} → ${moodData.length} (${historyDays} days limit)`);
         }
 
         // Sort by timestamp, newest first
@@ -81,7 +83,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
           userId: user.user_id,
         });
       } catch (err: unknown) {
-        console.error("❌ Fel vid hämtning av humör:", err);
+        logger.error("❌ Fel vid hämtning av humör:", err);
         const errorMessage = err instanceof Error ? err.message : "Ett fel uppstod vid hämtning av humörloggar.";
         setError(errorMessage);
 
@@ -163,15 +165,16 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
     setDeleting(true);
     try {
-      console.log('🗑️ Deleting mood:', moodId);
+      logger.debug('🗑️ Deleting mood:', moodId);
 
       // Import API function dynamically to avoid circular dependency
       const { api } = await import('../api/api');
+      const { API_ENDPOINTS } = await import('../api/constants');
 
       // Make API call to delete the mood using axios (correct baseURL)
-      const response = await api.delete(`/api/mood/delete/${moodId}`);
+      const response = await api.delete(`${API_ENDPOINTS.MOOD.DELETE}/${moodId}`);
 
-      console.log('✅ Mood deleted successfully:', response.data);
+      logger.debug('✅ Mood deleted successfully:', response.data);
 
       // Remove the mood from local state
       setMoods(prevMoods => prevMoods.filter(mood => mood.id !== moodId));
@@ -184,7 +187,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
       announceToScreenReader('Humör raderat framgångsrikt', 'polite');
     } catch (error: any) {
-      console.error('Failed to delete mood:', error);
+      logger.error('Failed to delete mood:', error);
       analytics.track('Mood Delete Failed', {
         moodId,
         error: error?.response?.data?.error || error?.message || 'Unknown error',
@@ -248,7 +251,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
       announceToScreenReader(`Humördata exporterad som ${format.toUpperCase()}`, 'polite');
     } catch (error) {
-      console.error('Failed to export moods:', error);
+      logger.error('Failed to export moods:', error);
       announceToScreenReader('Misslyckades att exportera humördata', 'assertive');
     } finally {
       setExporting(false);
@@ -275,7 +278,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         <div
           className="absolute inset-0"
           onClick={() => {
-            console.log('🗂️ MoodList backdrop clicked - closing modal');
+            logger.debug('🗂️ MoodList backdrop clicked - closing modal');
             onClose?.();
           }}
         />
@@ -313,14 +316,14 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
               className="w-12 h-12 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 text-xl font-bold"
               onClick={(e) => {
                 e.stopPropagation(); // Prevent backdrop click
-                console.log('🗂️ MoodList close button clicked directly');
-                console.log('🗂️ Calling onClose function...');
+                logger.debug('🗂️ MoodList close button clicked directly');
+                logger.debug('🗂️ Calling onClose function...');
                 onClose?.();
-                console.log('🗂️ onClose function called successfully');
+                logger.debug('🗂️ onClose function called successfully');
               }}
               onTouchStart={(e) => {
                 e.stopPropagation();
-                console.log('🗂️ MoodList close button touch start');
+                logger.debug('🗂️ MoodList close button touch start');
               }}
               aria-label="Stäng"
             >

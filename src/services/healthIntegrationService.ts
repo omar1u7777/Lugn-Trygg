@@ -1,4 +1,5 @@
-import api from '../api/api';
+import api from '../api/api';import { logger } from '../utils/logger';
+
 
 export interface WearableDevice {
     id: string;
@@ -63,10 +64,10 @@ class HealthIntegrationService {
      */
     async getWearableStatus(): Promise<WearableDevice[]> {
         try {
-            const response = await api.get('/api/integration/wearable/status');
+            const response = await api.get('/api/v1/integration/wearable/status');
             return response.data.devices || [];
         } catch (error: any) {
-            console.error('Failed to fetch wearable status:', error);
+            logger.error('Failed to fetch wearable status:', error);
             throw new Error(error.response?.data?.message || 'Failed to load wearable devices');
         }
     }
@@ -76,10 +77,10 @@ class HealthIntegrationService {
      */
     async getWearableDetails(): Promise<WearableDetailsResponse> {
         try {
-            const response = await api.get('/api/integration/wearable/details');
+            const response = await api.get('/api/v1/integration/wearable/details');
             return response.data;
         } catch (error: any) {
-            console.error('Failed to fetch wearable details:', error);
+            logger.error('Failed to fetch wearable details:', error);
             throw new Error(error.response?.data?.message || 'Failed to load wearable data');
         }
     }
@@ -89,12 +90,12 @@ class HealthIntegrationService {
      */
     async connectDevice(deviceType: string): Promise<WearableDevice> {
         try {
-            const response = await api.post('/api/integration/wearable/connect', {
+            const response = await api.post('/api/v1/integration/wearable/connect', {
                 device_type: deviceType
             });
             return response.data.device;
         } catch (error: any) {
-            console.error('Failed to connect device:', error);
+            logger.error('Failed to connect device:', error);
             throw new Error(error.response?.data?.message || 'Failed to connect device');
         }
     }
@@ -104,11 +105,11 @@ class HealthIntegrationService {
      */
     async disconnectDevice(deviceId: string): Promise<void> {
         try {
-            await api.post('/api/integration/wearable/disconnect', {
+            await api.post('/api/v1/integration/wearable/disconnect', {
                 device_id: deviceId
             });
         } catch (error: any) {
-            console.error('Failed to disconnect device:', error);
+            logger.error('Failed to disconnect device:', error);
             throw new Error(error.response?.data?.message || 'Failed to disconnect device');
         }
     }
@@ -118,12 +119,12 @@ class HealthIntegrationService {
      */
     async syncWearable(deviceId: string): Promise<WearableData> {
         try {
-            const response = await api.post('/api/integration/wearable/sync', {
+            const response = await api.post('/api/v1/integration/wearable/sync', {
                 device_id: deviceId
             });
             return response.data.data;
         } catch (error: any) {
-            console.error('Failed to sync wearable:', error);
+            logger.error('Failed to sync wearable:', error);
             throw new Error(error.response?.data?.message || 'Failed to sync device');
         }
     }
@@ -133,14 +134,14 @@ class HealthIntegrationService {
      */
     async syncGoogleFit(accessToken: string, dateFrom?: string, dateTo?: string): Promise<any> {
         try {
-            const response = await api.post('/api/integration/wearable/google-fit/sync', {
+            const response = await api.post('/api/v1/integration/wearable/google-fit/sync', {
                 access_token: accessToken,
                 date_from: dateFrom,
                 date_to: dateTo
             });
             return response.data;
         } catch (error: any) {
-            console.error('Failed to sync Google Fit:', error);
+            logger.error('Failed to sync Google Fit:', error);
             throw new Error(error.response?.data?.message || 'Failed to sync Google Fit');
         }
     }
@@ -150,12 +151,12 @@ class HealthIntegrationService {
      */
     async syncAppleHealth(healthData: any): Promise<any> {
         try {
-            const response = await api.post('/api/integration/wearable/apple-health/sync', {
+            const response = await api.post('/api/v1/integration/wearable/apple-health/sync', {
                 health_data: healthData
             });
             return response.data;
         } catch (error: any) {
-            console.error('Failed to sync Apple Health:', error);
+            logger.error('Failed to sync Apple Health:', error);
             throw new Error(error.response?.data?.message || 'Failed to sync Apple Health');
         }
     }
@@ -165,12 +166,12 @@ class HealthIntegrationService {
      */
     async syncHealthData(sources: string[] = ['google_fit']): Promise<any> {
         try {
-            const response = await api.post('/api/integration/health/sync', {
+            const response = await api.post('/api/v1/integration/health/sync', {
                 sources
             });
             return response.data;
         } catch (error: any) {
-            console.error('Failed to sync health data:', error);
+            logger.error('Failed to sync health data:', error);
             throw new Error(error.response?.data?.message || 'Failed to sync health data');
         }
     }
@@ -180,10 +181,10 @@ class HealthIntegrationService {
      */
     async getFHIRPatient(): Promise<any> {
         try {
-            const response = await api.get('/api/integration/fhir/patient');
+            const response = await api.get('/api/v1/integration/fhir/patient');
             return response.data;
         } catch (error: any) {
-            console.error('Failed to fetch FHIR patient data:', error);
+            logger.error('Failed to fetch FHIR patient data:', error);
             throw new Error(error.response?.data?.message || 'Failed to load patient data');
         }
     }
@@ -193,10 +194,10 @@ class HealthIntegrationService {
      */
     async getFHIRObservations(): Promise<any> {
         try {
-            const response = await api.get('/api/integration/fhir/observation');
+            const response = await api.get('/api/v1/integration/fhir/observation');
             return response.data;
         } catch (error: any) {
-            console.error('Failed to fetch FHIR observations:', error);
+            logger.error('Failed to fetch FHIR observations:', error);
             throw new Error(error.response?.data?.message || 'Failed to load observations');
         }
     }
@@ -206,14 +207,14 @@ class HealthIntegrationService {
      */
     async createCrisisReferral(crisisType: string, urgencyLevel: string, notes: string): Promise<any> {
         try {
-            const response = await api.post('/api/integration/crisis/referral', {
+            const response = await api.post('/api/v1/integration/crisis/referral', {
                 crisis_type: crisisType,
                 urgency_level: urgencyLevel,
                 notes
             });
             return response.data;
         } catch (error: any) {
-            console.error('Failed to create crisis referral:', error);
+            logger.error('Failed to create crisis referral:', error);
             throw new Error(error.response?.data?.message || 'Failed to create referral');
         }
     }

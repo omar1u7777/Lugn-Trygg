@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';import { logger } from '../utils/logger';
+
 
 interface UseGratitudeOptions {
     user: any;
@@ -30,16 +31,16 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                     // but logic suggests if data exists we might want to resume.
                     // However, original 'startGratitudeChallenge' loads data.
                     // Let's stick to manual start or inferred activity.
-                    console.log('💾 Loaded gratitude challenge progress:', parsed);
+                    logger.debug('💾 Loaded gratitude challenge progress:', parsed);
                 } catch (error) {
-                    console.error('Failed to load gratitude challenge:', error);
+                    logger.error('Failed to load gratitude challenge:', error);
                 }
             }
         }
     }, [user]);
 
     const start = useCallback(() => {
-        console.log('🙏 Starting 7-day gratitude challenge');
+        logger.debug('🙏 Starting 7-day gratitude challenge');
         setIsActive(true);
         setDay(1);
         setStartDate(new Date());
@@ -55,7 +56,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                     if (parsed.startDate) {
                         setStartDate(new Date(parsed.startDate));
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { logger.error(e); }
             }
         }
     }, [user]);
@@ -83,7 +84,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                     lastUpdated: new Date().toISOString()
                 };
                 localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(challengeData));
-                console.log('💾 Saved gratitude entry:', challengeData);
+                logger.debug('💾 Saved gratitude entry:', challengeData);
             }
 
             onProgress('exercise', 5);
@@ -94,14 +95,14 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
             }, 500);
 
         } catch (error) {
-            console.error('Failed to save gratitude entry:', error);
+            logger.error('Failed to save gratitude entry:', error);
             setIsSaving(false);
             announce('Kunde inte spara tacksamhet', 'assertive');
         }
     }, [entries, isSaving, user, day, startDate, onProgress, announce]);
 
     const complete = useCallback(() => {
-        console.log('🎉 Gratitude challenge completed!');
+        logger.debug('🎉 Gratitude challenge completed!');
         if (user?.user_id) {
             localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
         }
@@ -114,7 +115,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
     }, [user, onProgress, announce]);
 
     const cancel = useCallback(() => {
-        console.log('❌ Gratitude challenge cancelled');
+        logger.debug('❌ Gratitude challenge cancelled');
         if (user?.user_id) {
             localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
         }

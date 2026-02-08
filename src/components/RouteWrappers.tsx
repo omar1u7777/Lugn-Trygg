@@ -4,7 +4,8 @@
  */
 import React, { useState, useEffect, lazy } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';import { logger } from '../utils/logger';
+
 
 // Helper function to get user ID from auth context
 const getUserId = (user: any): string => {
@@ -76,7 +77,7 @@ export const DailyInsightsWrapper: React.FC = () => {
           setMoodData([]);
         }
       } catch (error) {
-        console.error('Error fetching mood data:', error);
+        logger.error('Error fetching mood data:', error);
         setError('Kunde inte hämta humördata');
         setMoodData([]); // HONEST: Empty array, not fake data
       } finally {

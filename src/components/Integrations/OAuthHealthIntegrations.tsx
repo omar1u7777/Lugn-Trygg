@@ -3,6 +3,8 @@ import oauthHealthService, { OAuthStatus, OAuthProvider } from '../../services/o
 import { useAuth } from '../../contexts/AuthContext';
 import SyncHistory from './SyncHistory';
 import { LazyHealthDataCharts as HealthDataCharts } from '../Charts/LazyChartWrapper';
+import { logger } from '../../utils/logger';
+
 
 interface AnalysisResult {
     status: string;
@@ -37,7 +39,7 @@ const OAuthHealthIntegrations: React.FC = () => {
             const allStatuses = await oauthHealthService.checkAllStatuses();
             setStatuses(allStatuses);
         } catch (err: unknown) {
-            console.error('Failed to load OAuth statuses:', err);
+            logger.error('Failed to load OAuth statuses:', err);
         }
     };
 
@@ -82,7 +84,7 @@ const OAuthHealthIntegrations: React.FC = () => {
 
         try {
             const healthData = await oauthHealthService.syncHealthData(providerId, 7);
-            console.log('Synced health data:', healthData);
+            logger.debug('Synced health data:', healthData);
             
             // Check if any data was returned
             if (!healthData || Object.keys(healthData).length === 0) {
@@ -114,19 +116,10 @@ const OAuthHealthIntegrations: React.FC = () => {
         setAnalyzing(true);
 
         try {
-            const response = await fetch('/api/integration/health/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
-            }
-
-            const result: AnalysisResult = await response.json();
+            const { default: api } = await import('../../api/client');
+            const { API_ENDPOINTS } = await import('../../api/constants');
+            const response = await api.post(API_ENDPOINTS.INTEGRATION.HEALTH_ANALYZE);
+            const result: AnalysisResult = response.data?.data || response.data;
             setAnalysisResult(result);
             
             if (result.status === 'insufficient_data') {

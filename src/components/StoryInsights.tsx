@@ -5,6 +5,7 @@ import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import useAuth from '../hooks/useAuth';
+import { logger } from '../utils/logger';
 import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
@@ -53,15 +54,38 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
-        getChatHistory(user.user_id).catch(() => []),
+        getChatHistory(user.user_id).catch(() => ({ conversation: [] })),
       ]);
 
       // Calculate insights based on real data
       const totalMoods = moodsData.length;
-      const streakDays = weeklyAnalysisData.streak_days || 0;
-      const weeklyProgress = weeklyAnalysisData.weekly_progress || 0;
-      const weeklyGoal = weeklyAnalysisData.weekly_goal || 7;
-      const totalChats = chatHistoryData.length;
+
+      // Calculate streak from mood data: consecutive days counting back from today
+      const now = new Date();
+      const daySet = new Set(
+        (Array.isArray(moodsData) ? moodsData : []).map((m: any) => new Date(m.timestamp).toDateString())
+      );
+      let streakDays = 0;
+      for (let i = 0; i < 365; i++) {
+        const checkDate = new Date(now);
+        checkDate.setDate(now.getDate() - i);
+        if (daySet.has(checkDate.toDateString())) {
+          streakDays++;
+        } else if (i > 0) {
+          break;
+        }
+      }
+
+      // Calculate weekly progress: unique days with mood entries in last 7 days
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      const weeklyProgress = new Set(
+        moodsData
+          .filter((m: any) => new Date(m.timestamp) >= sevenDaysAgo)
+          .map((m: any) => new Date(m.timestamp).toDateString())
+      ).size;
+      const weeklyGoal = 7;
+      const totalChats = chatHistoryData.conversation?.length || 0;
 
       // Calculate average mood
       const averageMood = totalMoods > 0
@@ -160,7 +184,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       announceToScreenReader(`${insights.length} insikter laddade`, 'polite');
 
     } catch (error) {
-      console.error('Failed to load insights:', error);
+      logger.error('Failed to load insights:', error);
       announceToScreenReader('Failed to load insights', 'assertive');
 
       // Set fallback insights

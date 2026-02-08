@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
+import { logger } from '../../utils/logger';
+
 
 interface EmailInviteProps {
     referralCode?: string; // Made optional since it's not used yet
@@ -29,7 +32,7 @@ const EmailInvite: React.FC<EmailInviteProps> = () => {
 
         try {
             setSending(true);
-            const response = await api.post('/api/referral/invite', {
+            const response = await api.post(API_ENDPOINTS.REFERRAL.INVITE, {
                 user_id: user.user_id,
                 email: email,
                 referrer_name: user.displayName || user.email || 'Din vän'
@@ -48,7 +51,7 @@ const EmailInvite: React.FC<EmailInviteProps> = () => {
                 });
             }
         } catch (err: unknown) {
-            console.error('Failed to send invite:', err);
+            logger.error('Failed to send invite:', err);
             const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
                 ? String(err.response.data.error)
                 : 'Något gick fel';

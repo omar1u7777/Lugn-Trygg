@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
+import { logger } from "../utils/logger";
 
 /**
  * APIResponse wrapper from backend
@@ -67,7 +68,7 @@ export const getCSRFToken = async (): Promise<string> => {
     // Support both camelCase (new) and snake_case (legacy)
     return (responseData as CSRFTokenResponse).csrfToken || (responseData as CSRFTokenResponse).csrf_token || '';
   } catch (error: unknown) {
-    console.error("❌ CSRF token error:", error);
+    logger.error("CSRF token error:", error);
     return '';
   }
 };
@@ -95,7 +96,7 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
     const responseData = response.data?.data || response.data;
 
     // Log performance metrics
-    console.log(`✅ Dashboard summary fetched in ${duration.toFixed(2)}ms`, {
+    logger.debug(`Dashboard summary fetched in ${duration.toFixed(2)}ms`, {
       cached: responseData.cached || false,
       responseTime: responseData.responseTime,
       totalMoods: responseData.totalMoods,
@@ -124,7 +125,7 @@ export const getDashboardQuickStats = async (userId: string): Promise<QuickStats
     return responseData as QuickStats;
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ Quick stats error:", apiError);
+    logger.error("Quick stats error:", apiError);
     return { totalMoods: 0, totalChats: 0, cached: false };
   }
 };
@@ -135,16 +136,16 @@ export const getDashboardQuickStats = async (userId: string): Promise<QuickStats
  * @throws Error if wellness goals retrieval fails
  */
 export const getWellnessGoals = async () => {
-  console.log('🎯 API - getWellnessGoals called');
+  logger.debug('getWellnessGoals called');
   try {
     const response = await api.get(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`);
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
-    console.log('✅ API - Wellness goals retrieved:', responseData.wellnessGoals);
+    logger.debug('Wellness goals retrieved:', responseData.wellnessGoals);
     return responseData.wellnessGoals;
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ Get wellness goals error:", apiError);
+    logger.error("Get wellness goals error:", apiError);
     return [];
   }
 };
@@ -156,18 +157,18 @@ export const getWellnessGoals = async () => {
  * @throws Error if wellness goals save fails
  */
 export const setWellnessGoals = async (goals: string[]) => {
-  console.log('🎯 API - setWellnessGoals called', { goals });
+  logger.debug('setWellnessGoals called', { goals });
   try {
     const response = await api.post(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`, {
       wellnessGoals: goals
     });
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
-    console.log('✅ API - Wellness goals saved:', responseData.wellnessGoals);
+    logger.debug('Wellness goals saved:', responseData.wellnessGoals);
     return responseData.wellnessGoals;
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ Set wellness goals error:", apiError);
+    logger.error("Set wellness goals error:", apiError);
     throw new Error((apiError.response?.data as any)?.error || "Failed to save wellness goals");
   }
 };

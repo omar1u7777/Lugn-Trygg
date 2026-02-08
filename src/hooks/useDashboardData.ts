@@ -6,7 +6,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getDashboardSummary } from '../api/dashboard';
-import { analytics } from '../services/analytics';
+import { analytics } from '../services/analytics';import { logger } from '../utils/logger';
+
 
 interface RawActivity {
   id: string;
@@ -114,8 +115,8 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
       // Single API call - backend handles batching and caching
       const data = await getDashboardSummary(userId, forceRefresh);
 
-      console.log('📊 Dashboard data received:', data);
-      console.log('🎯 Wellness goals from backend:', data.wellnessGoals);
+      logger.debug('📊 Dashboard data received:', data);
+      logger.debug('🎯 Wellness goals from backend:', data.wellnessGoals);
 
       // Map backend response to frontend stats format
       const newStats: DashboardStats = {
@@ -150,7 +151,7 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
       });
 
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      logger.error('Failed to load dashboard data:', error);
       setError(error as Error);
 
       analytics.track('Dashboard Load Error', {
@@ -171,10 +172,10 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
   }, [userId]);
 
   const refresh = useCallback(async () => {
-    console.log('🔄 REFRESH FUNCTION CALLED in useDashboardData', { userId });
+    logger.debug('🔄 REFRESH FUNCTION CALLED in useDashboardData', { userId });
     analytics.track('Dashboard Refreshed', { userId });
     await loadDashboardData(true); // Force refresh
-    console.log('✅ REFRESH COMPLETED');
+    logger.debug('✅ REFRESH COMPLETED');
   }, [loadDashboardData, userId]);
 
   useEffect(() => {

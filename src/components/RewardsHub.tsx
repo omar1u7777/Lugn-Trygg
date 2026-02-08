@@ -150,7 +150,7 @@ const RewardsHub: React.FC = () => {
     try {
       const result = await claimReward(rewardId);
 
-      if (result.success) {
+      if (result.message) {
         setSuccessMessage(`🎉 ${result.message}`);
         // Refresh data after claiming
         await loadRewardsData();

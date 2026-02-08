@@ -25,7 +25,8 @@ import useAuth from '../hooks/useAuth';
 import { getMoods, saveMeditationSession, getMeditationSessions, getWellnessGoals } from '../api/api';
 import { Card, Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
-import { getWellnessHeroImageId } from '../config/env';
+import { getWellnessHeroImageId } from '../config/env';import { logger } from '../utils/logger';
+
 
 // ----------------------------------------------------------------------
 // Constants & Types
@@ -261,7 +262,7 @@ const WellnessHub: React.FC = () => {
         meditationMinutes: prev.meditationMinutes + duration,
         relaxationSessions: prev.relaxationSessions + 1
       }));
-    } catch (e) { console.error(e); }
+    } catch (e) { logger.error(e); }
 
     stopMeditation();
   };
