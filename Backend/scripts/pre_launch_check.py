@@ -168,10 +168,10 @@ def check_ssl_certificate():
     
     # Check if nginx config exists
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    nginx_config = os.path.join(project_root, 'nginx-production.conf')
+    nginx_config = os.path.join(project_root, 'infra', 'nginx', 'nginx-production.conf')
     
     if not os.path.exists(nginx_config):
-        print_error("nginx-production.conf not found")
+        print_error("infra/nginx/nginx-production.conf not found")
         return False
     
     print_success("Nginx production config exists")

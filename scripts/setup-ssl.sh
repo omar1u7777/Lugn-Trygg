@@ -114,7 +114,7 @@ echo "🔧 Updating nginx configuration..."
 if grep -q "ssl_certificate" /etc/nginx/sites-available/lugn-trygg 2>/dev/null; then
     echo "ℹ️  SSL already configured in nginx"
 else
-    echo "⚠️  Copy nginx-production.conf to /etc/nginx/sites-available/lugn-trygg"
+    echo "⚠️  Copy infra/nginx/nginx-production.conf to /etc/nginx/sites-available/lugn-trygg"
     echo "   and update domain names"
 fi
 
