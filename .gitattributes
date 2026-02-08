@@ -1,0 +1,26 @@
+# GitHub Linguist overrides
+# https://github.com/github-linguist/linguist/blob/master/docs/overrides.md
+
+# Mark generated/vendored files to exclude from language stats
+package-lock.json   linguist-generated=true
+*.min.js            linguist-generated=true
+*.min.css           linguist-generated=true
+
+# Mark non-source HTML files
+public/*.html       linguist-documentation=true
+tests/**/*.html     linguist-documentation=true
+
+# Mark documentation
+docs/**             linguist-documentation=true
+infra/**/*.md       linguist-documentation=true
+k8s/*.md            linguist-documentation=true
+*.md                linguist-documentation=true
+
+# Mark vendored files
+src/translations/**/*.po  linguist-vendored=true
+src/translations/**/*.mo  linguist-vendored=true
+
+# Ensure correct language detection
+*.tsx  linguist-language=TypeScript
+*.ts   linguist-language=TypeScript
+*.py   linguist-language=Python
