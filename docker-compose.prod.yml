@@ -11,7 +11,7 @@ services:
       - "80:80"
     environment:
       NODE_ENV: production
-      VITE_API_URL: ${VITE_API_URL:-https://api.lugntrygg.se}
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-https://api.lugntrygg.se}
       VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
       VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
       VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
@@ -47,7 +47,7 @@ services:
       - Backend/.env
     volumes:
       - backend_uploads:/app/uploads
-      - Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
     depends_on:
       redis:
         condition: service_healthy

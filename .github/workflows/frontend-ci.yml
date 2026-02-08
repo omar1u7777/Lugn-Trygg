@@ -54,7 +54,7 @@ jobs:
     - name: Run E2E tests
       run: npm run test:e2e
       env:
-        VITE_API_URL: http://localhost:5001
+        VITE_BACKEND_URL: http://localhost:5001
         VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
     
     - name: Upload Playwright report
@@ -107,7 +107,7 @@ jobs:
     - name: Build production bundle
       run: npm run build
       env:
-        VITE_API_URL: https://api.lugntrygg.se
+        VITE_BACKEND_URL: https://api.lugntrygg.se
         VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
     
     - name: Run Lighthouse CI

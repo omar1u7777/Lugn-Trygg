@@ -24,7 +24,7 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: VITE_API_URL
+            - name: VITE_BACKEND_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "lugn-trygg.fullname" . }}-config
