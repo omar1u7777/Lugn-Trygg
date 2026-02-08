@@ -17,11 +17,37 @@ lerna-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+env
 
 # Firebase service account keys (HIGHLY SENSITIVE!)
 serviceAccountKey.json
 firebase-debug.log
 functions/serviceAccountKey.json
+Backend/serviceAccountKey.json
+Backend/**/serviceAccountKey.json
+
+# Backend backups (contains sensitive data)
+Backend/backups/
+Backend/**/*.backup
+Backend/**/*.backup.gz
+Backend/**/*.backup.json
+backups/
+
+# Secrets and credentials
+Backend/secrets_backup/
+Backend/**/secrets_backup/
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Environment files
+Backend/.env
+Backend/.env.*
+!.env.example
+Backend/.env.production
+Backend/.env.development
 
 # Build outputs
 node_modules/
@@ -46,6 +72,9 @@ cypress/screenshots/
 test-results/
 playwright-report/
 playwright/.cache/
+__pycache__/
+*.pyc
+reports/
 
 # Electron
 app/dist/
@@ -220,4 +249,58 @@ workbox-*.js.map
 sw.js
 sw.js.map
 .vercel
-"api_keys/" 
+api_keys/
+
+# Coverage
+.coverage
+
+# Lighthouse reports
+lighthouse-*
+lh-temp
+reports/lighthouse/
+*.report.html
+*.report.json
+lighthouserc.js
+
+# Test scripts (one-off, not part of production)
+load_test.py
+performance_test.py
+e2e_test.py
+api_test_commands.sh
+*_verification.py
+*_verification.ps1
+*_database_test.py
+
+# Build artifacts & temp
+build_errors.txt
+build_output.txt
+eslint_output.txt
+fresh_lint.txt
+tsc_errors.txt
+locale_errors.txt
+*.timestamp-*
+chromewebdata_*.html
+
+# ML models (too large for git)
+*.pkl
+
+# Misc one-off files
+app.json
+temp_*.tsx
+
+# Migration scripts already completed
+scripts/comment_mui_icons.py
+scripts/convert_sx_to_tailwind.py
+scripts/fix-duplicate-classnames.mjs
+scripts/fix-mui-remnants.mjs
+scripts/fix_broken_icons.py
+scripts/fix_duplicate_imports.py
+scripts/fix_import_paths.py
+scripts/fix_mui_props.py
+scripts/migrate-design-tokens.cjs
+scripts/migrate_mui_to_tailwind.py
+scripts/remove-grid-item-prop.mjs
+scripts/replace-mui-imports.mjs
+scripts/replace_all_icons.py
+scripts/replace_missing_icons.py
+scripts/revert-grid-imports.mjs

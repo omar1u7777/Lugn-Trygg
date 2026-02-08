@@ -143,3 +143,15 @@ dmypy.json
 # API Keys - NEVER commit
 api_keys/
 *.key
+
+# Backups (contains user data)
+backups/
+*.backup
+*.backup.gz
+*.backup.json
+
+# ML models (too large for git)
+*.pkl
+
+# ChatGPT / AI generated images
+ChatGPT*.png
