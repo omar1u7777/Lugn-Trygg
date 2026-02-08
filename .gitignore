@@ -2,6 +2,12 @@
 # Frontend - React/TypeScript/Vite .gitignore
 # ===========================================
 
+# Visual Studio IDE cache
+.vs/
+
+# Machine learning models (binary)
+*.pkl
+
 # Logs
 logs
 *.log
