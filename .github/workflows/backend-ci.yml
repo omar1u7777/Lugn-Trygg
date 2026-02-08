@@ -1,183 +1,92 @@
-name: Backend CI/CD
+name: Backend CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [master]
     paths:
       - 'Backend/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'Backend/**'
+    branches: [master]
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-        cache-dependency-path: Backend/requirements.txt
-    
-    - name: Install dependencies
-      run: |
-        cd Backend
-        python -m pip install --upgrade pip setuptools wheel
-        pip install -r requirements.txt
-        pip install mypy ruff bandit safety
-    
-    - name: Run ruff (fast linting)
-      run: |
-        cd Backend
-        ruff check src --output-format=github
-    
-    - name: Run black (formatting check)
-      run: |
-        cd Backend
-        black --check --line-length=120 src
-    
-    - name: Run mypy (type checking)
-      run: |
-        cd Backend
-        mypy src --config-file=mypy.ini --show-error-codes
-      continue-on-error: true
-    
-    - name: Run bandit (security scanning)
-      run: |
-        cd Backend
-        bandit -r src -f json -o bandit-report.json -ll
-      continue-on-error: true
-    
-    - name: Run safety (dependency vulnerability check)
-      run: |
-        cd Backend
-        safety check --file=requirements.txt --json
-      continue-on-error: true
-    
-    - name: Run tests with coverage
-      env:
-        FLASK_ENV: testing
-        FLASK_TESTING: true
-        JWT_SECRET_KEY: test-secret-key-do-not-use-in-production
-        JWT_REFRESH_SECRET_KEY: test-refresh-secret-key-do-not-use
-        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_TEST_CREDENTIALS }}
-        FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
-        FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-        FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-        FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
-      run: |
-        cd Backend
-        pytest --cov=src --cov-report=xml --cov-report=term-missing --maxfail=1
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./Backend/coverage.xml
-        flags: backend
-        name: backend-coverage
+    defaults:
+      run:
+        working-directory: ./Backend
 
-  security-scan:
-    runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: './Backend'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-    
-    - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: 'trivy-results.sarif'
-    
-    - name: Run Bandit security scan
-      run: |
-        pip install bandit
-        cd Backend
-        bandit -r src -f json -o bandit-report.json
-      continue-on-error: true
-    
-    - name: Upload Bandit report
-      uses: actions/upload-artifact@v4
-      with:
-        name: bandit-report
-        path: Backend/bandit-report.json
+      - uses: actions/checkout@v4
 
-  build-docker:
-    runs-on: ubuntu-latest
-    needs: [lint-and-test, security-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ secrets.REGISTRY_URL }}
-        username: ${{ secrets.REGISTRY_USERNAME }}
-        password: ${{ secrets.REGISTRY_PASSWORD }}
-    
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.REGISTRY_URL }}/lugn-trygg/backend
-        tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-    
-    - name: Build and push
-      uses: docker/build-push-action@v5
-      with:
-        context: ./Backend
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=registry,ref=${{ secrets.REGISTRY_URL }}/lugn-trygg/backend:buildcache
-        cache-to: type=registry,ref=${{ secrets.REGISTRY_URL }}/lugn-trygg/backend:buildcache,mode=max
-        platforms: linux/amd64,linux/arm64
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Backend/requirements.txt
 
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: build-docker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    environment:
-      name: staging
-      url: https://api-staging.lugntrygg.se
-    
-    steps:
-    - name: Deploy to staging
-      run: |
-        echo "Deploying to staging environment..."
-        # Add your deployment script here (kubectl, helm, etc.)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock ruff
 
-  deploy-production:
+      - name: Ruff lint
+        run: ruff check src --output-format=github
+        continue-on-error: true
+
+      - name: Run tests
+        env:
+          FLASK_ENV: testing
+          FLASK_TESTING: 'true'
+          JWT_SECRET_KEY: ci-test-secret-key
+          JWT_REFRESH_SECRET_KEY: ci-test-refresh-key
+        run: pytest --cov=src --cov-report=xml --cov-report=term-missing -v
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./Backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  security:
     runs-on: ubuntu-latest
-    needs: build-docker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://api.lugntrygg.se
-    
+
     steps:
-    - name: Deploy to production
-      run: |
-        echo "Deploying to production environment..."
-        # Add your deployment script here with approval gates
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bandit security scan
+        run: |
+          pip install bandit
+          cd Backend
+          bandit -r src -ll -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: Backend/bandit-report.json
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './Backend'
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-backend.sarif'

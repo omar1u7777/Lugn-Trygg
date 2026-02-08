@@ -2,6 +2,9 @@
 # Frontend - React/TypeScript/Vite .gitignore
 # ===========================================
 
+# Internal development files
+AGENTS.md
+
 # Visual Studio IDE cache
 .vs/
 
