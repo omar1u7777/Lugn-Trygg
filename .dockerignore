@@ -1,0 +1,11 @@
+.git
+node_modules
+cypress
+tests
+.env.example
+*.log
+tsconfig.tsbuildinfo
+vitest.config.ts
+cypress.config.ts
+eslint.config.js
+*.tsbuildinfo

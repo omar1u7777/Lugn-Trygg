@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lugn-trygg.fullname" . }}-frontend
+  labels:
+    app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.global.replicaCount.frontend }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          env:
+            - name: VITE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "lugn-trygg.fullname" . }}-config
+                  key: API_BASE_URL
+            - name: VITE_APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "lugn-trygg.fullname" . }}-config
+                  key: FRONTEND_DOMAIN
+            - name: VITE_CDN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "lugn-trygg.fullname" . }}-config
+                  key: CDN_URL
+          envFrom:
+            - configMapRef:
+                name: {{ include "lugn-trygg.fullname" . }}-config
+            - secretRef:
+                name: {{ include "lugn-trygg.fullname" . }}-secrets
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30

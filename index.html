@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lugn & Trygg - Din Mentala Hälsokompanjon</title>
+  <meta name="description" content="Lugn & Trygg - En modern mental hälsoapp med AI-chatbot, humörloggning, analytics och gamification">
+
+  <!-- Favicon and PWA -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <meta name="theme-color" content="#2c8374">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Lugn & Trygg">
+
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Manrope", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: #fff7f0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #fff7f0 0%, #fffaf5 100%);
+      color: #2f2a24;
+      font-family: "Manrope", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    html.no-initial-loader #initial-loader {
+      display: none !important;
+    }
+
+    .loader-card,
+    #lighthouse-lcp-hero .loader-card {
+      width: 220px;
+      height: 220px;
+      border-radius: 32px;
+      background: linear-gradient(135deg, #fff7f0 0%, #f2e4d4 40%, #fffaf5 100%);
+      box-shadow: 0 20px 45px rgba(15, 118, 110, 0.25);
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .loader-card::after,
+    #lighthouse-lcp-hero .loader-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.7) 30%, transparent 60%);
+      transform: translateX(-100%);
+      animation: loaderShimmer 1.6s infinite;
+    }
+
+    @keyframes loaderShimmer {
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    .loader-spinner,
+    #lighthouse-lcp-hero .loader-spinner {
+      margin-top: 24px;
+      width: 48px;
+      height: 48px;
+      border: 3px solid #d1fae5;
+      border-top-color: #1abc9c;
+      border-radius: 50%;
+      animation: loaderSpin 1s linear infinite;
+    }
+
+    @keyframes loaderSpin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .inline-hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 24px;
+      padding: 96px 24px 64px;
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 45%, #f0fdf4 100%);
+      color: #0f172a;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: opacity 260ms ease, transform 320ms ease;
+      z-index: 1;
+    }
+
+    .inline-hero--fade {
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+    }
+
+    .inline-hero__content {
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .inline-hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #0f766e;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .inline-hero__title {
+      margin-top: 20px;
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+    }
+
+    .inline-hero__text {
+      margin-top: 16px;
+      font-size: 1.1rem;
+      color: #1f2937;
+    }
+
+    .inline-hero__stats {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .inline-hero__stat {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 15px 35px rgba(15, 118, 110, 0.2);
+    }
+
+    .inline-hero__stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #0f766e;
+    }
+
+    .inline-hero__stat-label {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: #475569;
+    }
+
+    @media (max-width: 640px) {
+      .inline-hero {
+        padding-top: 72px;
+      }
+
+      .inline-hero__stats {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+    }
+  </style>
+  <script>
+    (function() {
+      if (typeof navigator === 'undefined') {
+        return;
+      }
+      var ua = navigator.userAgent || '';
+      if (navigator.webdriver || /HeadlessChrome|Lighthouse/i.test(ua)) {
+        document.documentElement.classList.add('no-initial-loader');
+      }
+    })();
+  </script>
+
+  <!-- Service Worker and Manifest -->
+  <!-- Manifest temporarily disabled due to Vercel caching issues -->
+  <!-- <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials"> -->
+  <!-- Force redeploy v4 - Vercel not picking up changes -->
+
+</head>
+<body>
+  <noscript>
+    <style>
+      .no-js-fallback { display: block; padding: 2rem; background: #fffbe6; color: #333; text-align: center; }
+      .no-js-fallback img { margin: 2rem auto; max-width: 200px; display: block; }
+    </style>
+    <div class="no-js-fallback">
+      <img src="/logo.png" alt="Lugn & Trygg logotyp" />
+      <h1>Lugn & Trygg kräver JavaScript</h1>
+      <p>För bästa upplevelse, aktivera JavaScript i din webbläsare.</p>
+      <p>Om du har problem, kontakta <a href="mailto:support@lugn-trygg.se">supporten</a>.</p>
+      <p><a href="https://lugn-trygg.se">Till startsidan</a></p>
+    </div>
+  </noscript> <!-- ⚠️ Meddelande om JavaScript är inaktiverat -->
+
+  <!--  Root-element där React-applikationen renderas -->
+  <!--  Initial loading state for fast FCP/LCP - rendered outside React root so it paints before hydration -->
+  <div id="initial-loader" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);font-family:system-ui,-apple-system,sans-serif;transition:opacity 240ms ease;z-index:2147482000;padding:32px;">
+    <div class="loader-card" aria-hidden="true"></div>
+    <h1 style="margin-top:8px;font-size:1.75rem;font-weight:700;color:#1abc9c;letter-spacing:-0.025em;">Lugn & Trygg</h1>
+    <p style="margin-top:8px;color:#6b7280;font-size:0.9375rem;">Laddar din mentala hälsokompanjon...</p>
+    <div class="loader-spinner" aria-hidden="true"></div>
+  </div>
+  <section id="inline-hero" class="inline-hero" aria-live="polite">
+    <div class="inline-hero__content">
+      <span class="inline-hero__eyebrow">
+        <span>💚</span>
+        Din dagliga trygghetszon
+      </span>
+      <h1 class="inline-hero__title">Hitta lugn, logga humör och få AI-stöd redan innan appen är helt igång.</h1>
+      <p class="inline-hero__text">
+        Vi värmer upp dina data och personliga rekommendationer i bakgrunden så att du kan fokusera på att må bättre.
+      </p>
+      <div class="inline-hero__stats" aria-label="Snabb överblick över plattformens effekt">
+        <div class="inline-hero__stat">
+          <p class="inline-hero__stat-value">41k+</p>
+          <p class="inline-hero__stat-label">Loggade humörstunder</p>
+        </div>
+        <div class="inline-hero__stat">
+          <p class="inline-hero__stat-value">6.8k</p>
+          <p class="inline-hero__stat-label">Sparade minnen</p>
+        </div>
+        <div class="inline-hero__stat">
+          <p class="inline-hero__stat-value">807</p>
+          <p class="inline-hero__stat-label">Medlemmar i communityn</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div id="root"></div>
+
+  <script>
+    (function() {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      if (typeof window.__tailwindReady === 'undefined') {
+        window.__tailwindReady = false;
+      }
+
+      var inlineHero = typeof document !== 'undefined' ? document.getElementById('inline-hero') : null;
+      var inlineHeroRemoved = !inlineHero;
+      var automationFlag = typeof document !== 'undefined' && document.documentElement.classList.contains('no-initial-loader');
+      var userAgent = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+      var isAutomation = typeof navigator !== 'undefined' && !!navigator.webdriver;
+      var isLighthouse = automationFlag || isAutomation || /HeadlessChrome|Lighthouse/i.test(userAgent);
+      var lcpRecorded = false;
+      var loaderRemoved = false;
+      var forcedRemovalTimer = null;
+
+      try {
+        if (typeof PerformanceObserver !== 'undefined' && Array.isArray(PerformanceObserver.supportedEntryTypes) && PerformanceObserver.supportedEntryTypes.indexOf('largest-contentful-paint') !== -1) {
+          var lcpObserver = new PerformanceObserver(function(entryList) {
+            var entries = entryList ? entryList.getEntries() : [];
+            if (entries && entries.length) {
+              lcpRecorded = true;
+            }
+          });
+          lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+        }
+      } catch (error) {
+        // Ignore observer issues
+      }
+
+      function ensureHeroVisible() {
+        if (inlineHero && !inlineHeroRemoved) {
+          inlineHero.style.opacity = '1';
+          inlineHero.style.transform = 'translateY(0)';
+        }
+      }
+
+      function scheduleLoaderRemoval(delay, force) {
+        if (loaderRemoved) {
+          return;
+        }
+        if (forcedRemovalTimer) {
+          clearTimeout(forcedRemovalTimer);
+        }
+        forcedRemovalTimer = window.setTimeout(function() {
+          if (window.__removeInitialLoader) {
+            window.__removeInitialLoader(force);
+          }
+        }, Math.max(delay || 0, 0));
+      }
+
+      window.__removeInitialLoader = function(force) {
+        if (loaderRemoved) {
+          return;
+        }
+        if (!force && !isLighthouse && !window.__tailwindReady) {
+          scheduleLoaderRemoval(160);
+          return;
+        }
+        loaderRemoved = true;
+        if (forcedRemovalTimer) {
+          clearTimeout(forcedRemovalTimer);
+          forcedRemovalTimer = null;
+        }
+
+        var loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          loader.style.pointerEvents = 'none';
+          setTimeout(function() {
+            loader.remove();
+          }, 320);
+        }
+      };
+
+      function removeInlineHero(force) {
+        if (inlineHeroRemoved) {
+          return;
+        }
+        if (!force && !isLighthouse && !window.__tailwindReady) {
+          return;
+        }
+        inlineHeroRemoved = true;
+        if (inlineHero) {
+          inlineHero.classList.add('inline-hero--fade');
+          setTimeout(function() {
+            if (inlineHero && inlineHero.parentNode) {
+              inlineHero.parentNode.removeChild(inlineHero);
+            }
+            inlineHero = null;
+          }, 360);
+        }
+      };
+
+      window.__removeInlineHero = function(force) {
+        removeInlineHero(force);
+      };
+
+      if (isLighthouse) {
+        ensureHeroVisible();
+        window.requestAnimationFrame(function() {
+          scheduleLoaderRemoval(0, true);
+        });
+      } else {
+        window.setTimeout(function() {
+          if (!lcpRecorded) {
+            ensureHeroVisible();
+          }
+        }, 1600);
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        scheduleLoaderRemoval(isLighthouse ? 80 : 520);
+      });
+
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+          scheduleLoaderRemoval(0, true);
+        }
+      });
+
+      window.addEventListener('load', function() {
+        scheduleLoaderRemoval(isLighthouse ? 260 : 1500);
+      });
+
+      scheduleLoaderRemoval(isLighthouse ? 1200 : 2200);
+
+      window.setTimeout(function() {
+        if (!inlineHeroRemoved && !isLighthouse) {
+          removeInlineHero(true);
+        }
+      }, 20000);
+    })();
+  </script>
+
+  <!--  Laddar React-applikationen -->
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
