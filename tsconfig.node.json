@@ -45,8 +45,7 @@
   /*  Inkluderade filer & mappar */
   "include": [
     "vite.config.ts",
-    "vitest.config.ts",
-    "cypress.config.ts"
+    "vitest.config.ts"
   ],
 
   /*  Exkluderade filer/mappar */
