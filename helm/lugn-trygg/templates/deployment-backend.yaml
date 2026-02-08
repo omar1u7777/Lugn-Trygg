@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lugn-trygg.fullname" . }}-backend
+  labels:
+    app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.global.replicaCount.backend }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "lugn-trygg.name" . }}
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.backend.service.port | quote }}
+            - name: REDIS_HOST
+              value: {{ .Values.backend.env.redisHost | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.backend.env.redisPort | quote }}
+            - name: REDIS_URL
+              value: redis://{{ .Values.backend.env.redisHost }}:{{ .Values.backend.env.redisPort }}/{{ .Values.backend.env.redisDb }}
+            - name: CORS_ALLOWED_ORIGINS
+              value: {{ .Values.backend.env.corsOrigins | quote }}
+            - name: FIREBASE_CREDENTIALS
+              value: /app/serviceAccountKey.json
+          envFrom:
+            - configMapRef:
+                name: {{ include "lugn-trygg.fullname" . }}-config
+            - secretRef:
+                name: {{ include "lugn-trygg.fullname" . }}-secrets
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.backend.service.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.backend.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: firebase-service-account
+              mountPath: /app/serviceAccountKey.json
+              subPath: serviceAccountKey.json
+    volumes:
+      - name: firebase-service-account
+        secret:
+          secretName: {{ include "lugn-trygg.fullname" . }}-secrets
+          items:
+            - key: firebaseServiceAccount
+              path: serviceAccountKey.json

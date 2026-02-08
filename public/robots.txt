@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lugn-trygg.vercel.app/sitemap.xml

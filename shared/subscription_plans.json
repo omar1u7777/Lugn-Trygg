@@ -1,0 +1,101 @@
+{
+  "free": {
+    "name": "Gratis",
+    "price": 0,
+    "currency": "SEK",
+    "interval": "month",
+    "limits": {
+      "moodLogsPerDay": 3,
+      "chatMessagesPerDay": 10,
+      "historyDays": 7
+    },
+    "features": {
+      "voiceChat": false,
+      "sounds": false,
+      "analytics": false,
+      "insights": false,
+      "journal": false,
+      "gamification": false,
+      "social": false,
+      "export": false,
+      "aiStories": false,
+      "recommendations": false,
+      "wellness": false
+    }
+  },
+  "premium": {
+    "name": "Premium",
+    "price": 99,
+    "currency": "SEK",
+    "interval": "month",
+    "limits": {
+      "moodLogsPerDay": -1,
+      "chatMessagesPerDay": -1,
+      "historyDays": -1
+    },
+    "features": {
+      "voiceChat": true,
+      "sounds": true,
+      "analytics": true,
+      "insights": true,
+      "journal": true,
+      "gamification": true,
+      "social": true,
+      "export": true,
+      "aiStories": true,
+      "recommendations": true,
+      "wellness": true
+    }
+  },
+  "enterprise": {
+    "name": "Enterprise",
+    "price": 249,
+    "currency": "SEK",
+    "interval": "month",
+    "limits": {
+      "moodLogsPerDay": -1,
+      "chatMessagesPerDay": -1,
+      "historyDays": -1
+    },
+    "features": {
+      "voiceChat": true,
+      "sounds": true,
+      "analytics": true,
+      "insights": true,
+      "journal": true,
+      "gamification": true,
+      "social": true,
+      "export": true,
+      "aiStories": true,
+      "recommendations": true,
+      "wellness": true,
+      "prioritySupport": true,
+      "teamManagement": true,
+      "advancedReporting": true
+    }
+  },
+  "trial": {
+    "name": "Testperiod",
+    "price": 0,
+    "currency": "SEK",
+    "interval": "trial",
+    "limits": {
+      "moodLogsPerDay": -1,
+      "chatMessagesPerDay": -1,
+      "historyDays": -1
+    },
+    "features": {
+      "voiceChat": true,
+      "sounds": true,
+      "analytics": true,
+      "insights": true,
+      "journal": true,
+      "gamification": true,
+      "social": true,
+      "export": true,
+      "aiStories": true,
+      "recommendations": true,
+      "wellness": true
+    }
+  }
+}

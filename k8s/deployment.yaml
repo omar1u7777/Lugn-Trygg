@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lugn-trygg-config
+data:
+  NODE_ENV: "production"
+  API_BASE_URL: "https://api.lugntrygg.se"
+  FRONTEND_DOMAIN: "app.lugntrygg.se"
+  CDN_URL: "https://cdn.lugntrygg.se"
+  BACKEND_PORT: "5001"
+  REDIS_HOST: "lugn-trygg-redis"
+  REDIS_PORT: "6379"
+  REDIS_URL: "redis://lugn-trygg-redis:6379/0"
+  RATE_LIMIT_WINDOW: "60"
+  RATE_LIMIT_MAX: "1000"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lugn-trygg-frontend
+  labels:
+    app: lugn-trygg-frontend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: lugn-trygg-frontend
+  template:
+    metadata:
+      labels:
+        app: lugn-trygg-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/lugntrygg/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: NODE_ENV
+            - name: VITE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: API_BASE_URL
+            - name: VITE_APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: FRONTEND_DOMAIN
+            - name: VITE_CDN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: CDN_URL
+            - name: VITE_FIREBASE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseApiKey
+            - name: VITE_FIREBASE_AUTH_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseAuthDomain
+            - name: VITE_FIREBASE_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseProjectId
+            - name: VITE_FIREBASE_STORAGE_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseStorageBucket
+            - name: VITE_FIREBASE_MESSAGING_SENDER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseSenderId
+            - name: VITE_FIREBASE_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseAppId
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lugn-trygg-backend
+  labels:
+    app: lugn-trygg-backend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: lugn-trygg-backend
+  template:
+    metadata:
+      labels:
+        app: lugn-trygg-backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/lugntrygg/backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5001
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: BACKEND_PORT
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: REDIS_PORT
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lugn-trygg-config
+                  key: REDIS_URL
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://app.lugntrygg.se,https://lugntrygg.se"
+            - name: FIREBASE_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseProjectId
+            - name: FIREBASE_STORAGE_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseStorageBucket
+            - name: FIREBASE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseApiKey
+            - name: FIREBASE_WEB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: firebaseWebApiKey
+            - name: FIREBASE_CREDENTIALS
+              value: /app/serviceAccountKey.json
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: jwtSecret
+            - name: JWT_REFRESH_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: jwtRefreshSecret
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: stripeSecret
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lugn-trygg-secrets
+                  key: openAiKey
+          volumeMounts:
+            - name: firebase-service-account
+              mountPath: /app/serviceAccountKey.json
+              subPath: serviceAccountKey.json
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 5001
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "750m"
+              memory: "1Gi"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: firebase-service-account
+          secret:
+            secretName: lugn-trygg-secrets
+            items:
+              - key: firebaseServiceAccount
+                path: serviceAccountKey.json

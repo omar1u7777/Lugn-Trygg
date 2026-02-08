@@ -1,0 +1,11 @@
+apiVersion: 1
+
+dashboardProviders:
+  - name: lugntrygg
+    orgId: 1
+    folder: Lugn & Trygg
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

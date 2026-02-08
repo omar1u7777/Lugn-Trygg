@@ -1,0 +1,172 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Regression",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "6f3d1f0d-2c2a-4a8e-9e2e-7c4b1d9a3c8b",
+    "description": "Key API endpoints for manual regression: auth, mood, chatbot, AI, memory, referral, feedback, text analysis. Use variables for base URL, token, and user_id."
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{base_url}}/api/auth/refresh", "host": ["{{base_url}}"], "path": ["api","auth","refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mood",
+      "item": [
+        {
+          "name": "Log Mood",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/mood/log", "host": ["{{base_url}}"], "path": ["api","mood","log"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"mood\": \"happy\",\n  \"score\": 8\n}" }
+          }
+        },
+        {
+          "name": "Weekly Analysis",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/mood/weekly-analysis?user_id={{user_id}}", "host": ["{{base_url}}"], "path": ["api","mood","weekly-analysis"], "query": [ {"key": "user_id", "value": "{{user_id}}"} ] }
+          }
+        },
+        {
+          "name": "Analyze Text (AI)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{base_url}}/api/mood/analyze-text", "host": ["{{base_url}}"], "path": ["api","mood","analyze-text"] },
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Jag känner mig lite stressad men också hoppfull.\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/chatbot/chat", "host": ["{{base_url}}"], "path": ["api","chatbot","chat"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"message\": \"Hej!\"\n}" }
+          }
+        },
+        {
+          "name": "Analyze Patterns",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/chatbot/analyze-patterns", "host": ["{{base_url}}"], "path": ["api","chatbot","analyze-patterns"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Generate Story",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/ai/story", "host": ["{{base_url}}"], "path": ["api","ai","story"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"prompt\": \"En kort upplyftande berättelse\"\n}" }
+          }
+        },
+        {
+          "name": "Forecast",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/ai/forecast", "host": ["{{base_url}}"], "path": ["api","ai","forecast"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"context\": \"Senaste veckans humördata\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Memory",
+      "item": [
+        {
+          "name": "List Memories",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{base_url}}/api/memory/list?user_id={{user_id}}", "host": ["{{base_url}}"], "path": ["api","memory","list"], "query": [ {"key": "user_id", "value": "{{user_id}}"} ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Referral",
+      "item": [
+        {
+          "name": "Generate Code",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{base_url}}/api/referral/generate", "host": ["{{base_url}}"], "path": ["api","referral","generate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}" }
+          }
+        },
+        {
+          "name": "Complete Referral",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{base_url}}/api/referral/complete", "host": ["{{base_url}}"], "path": ["api","referral","complete"] },
+            "body": { "mode": "raw", "raw": "{\n  \"referral_code\": \"ABC123\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feedback",
+      "item": [
+        {
+          "name": "Submit Feedback",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{base_url}}/api/feedback/submit", "host": ["{{base_url}}"], "path": ["api","feedback","submit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"rating\": 5,\n  \"comments\": \"Jättebra app!\"\n}" }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:54112" },
+    { "key": "token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "user_id", "value": "" }
+  ]
+}
