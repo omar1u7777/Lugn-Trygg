@@ -30,23 +30,34 @@ jobs:
         cd Backend
         python -m pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt
-        pip install flake8 black pylint pytest pytest-cov
+        pip install mypy ruff bandit safety
     
-    - name: Run flake8
+    - name: Run ruff (fast linting)
       run: |
         cd Backend
-        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        ruff check src --output-format=github
     
-    - name: Run black
+    - name: Run black (formatting check)
       run: |
         cd Backend
-        black --check src
+        black --check --line-length=120 src
     
-    - name: Run pylint
+    - name: Run mypy (type checking)
       run: |
         cd Backend
-        pylint src --disable=C0111,R0903,W0511 --max-line-length=127
+        mypy src --config-file=mypy.ini --show-error-codes
+      continue-on-error: true
+    
+    - name: Run bandit (security scanning)
+      run: |
+        cd Backend
+        bandit -r src -f json -o bandit-report.json -ll
+      continue-on-error: true
+    
+    - name: Run safety (dependency vulnerability check)
+      run: |
+        cd Backend
+        safety check --file=requirements.txt --json
       continue-on-error: true
     
     - name: Run tests with coverage

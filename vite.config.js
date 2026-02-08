@@ -168,8 +168,8 @@ export default defineConfig({
           if (id.includes("node_modules/firebase")) {
             return "firebase";
           }
-          if (id.includes("node_modules/@mui") || id.includes("node_modules/@emotion")) {
-            return "mui";
+          if (id.includes("node_modules/@headlessui") || id.includes("node_modules/@heroicons")) {
+            return "ui-components";
           }
           if (
             id.includes("node_modules/recharts") ||
@@ -238,7 +238,11 @@ export default defineConfig({
     },
   },
   define: {
-    "import.meta.env.VITE_BACKEND_URL": JSON.stringify("https://lugn-trygg-backend.onrender.com"),
+    ...(isProduction ? {
+      "import.meta.env.VITE_BACKEND_URL": JSON.stringify(
+        process.env.VITE_BACKEND_URL || "https://lugn-trygg-backend.onrender.com"
+      ),
+    } : {}),
     global: 'globalThis',
   },
 });

@@ -21,7 +21,7 @@ COPY . .
 
 # Set environment variables for build
 ENV NODE_ENV=production
-ENV VITE_API_URL=https://api.lugntrygg.se
+ENV VITE_BACKEND_URL=https://api.lugntrygg.se
 
 # Build the application
 RUN npm run build

@@ -55,7 +55,7 @@ services:
         condition: service_healthy
     environment:
       - NODE_ENV=production
-      - VITE_API_URL=http://backend:5001
+      - VITE_BACKEND_URL=http://backend:5001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
