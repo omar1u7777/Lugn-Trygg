@@ -44,7 +44,7 @@ spec:
                 configMapKeyRef:
                   name: lugn-trygg-config
                   key: NODE_ENV
-            - name: VITE_API_URL
+            - name: VITE_BACKEND_URL
               valueFrom:
                 configMapKeyRef:
                   name: lugn-trygg-config
