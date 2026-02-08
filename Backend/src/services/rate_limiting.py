@@ -223,10 +223,86 @@ class AdvancedRateLimiter:
 
         return base_limit
 
+    # ------------------------------------------------------------------
+    # In-memory rate limiting fallback (when Redis is unavailable)
+    # ------------------------------------------------------------------
+    _memory_store: Dict[str, List[float]] = {}
+    _last_prune: float = 0.0
+
+    def _prune_memory_store(self) -> None:
+        """Periodically remove stale keys from the in-memory store to prevent
+        unbounded memory growth from users who never return."""
+        now = time.time()
+        # Run at most once per 5 minutes
+        if now - self._last_prune < 300:
+            return
+        self._last_prune = now
+        max_age = 86400  # 24 hours
+        cutoff = now - max_age
+        stale_keys = [k for k, timestamps in self._memory_store.items()
+                      if not timestamps or max(timestamps) < cutoff]
+        for k in stale_keys:
+            del self._memory_store[k]
+        if stale_keys:
+            logger.debug(f"Pruned {len(stale_keys)} stale rate-limit keys from memory store")
+
+    def _check_rate_limit_in_memory(self, endpoint: str, user_id: Optional[str] = None) -> Tuple[bool, Dict]:
+        """Sliding-window rate limiting using an in-memory dict.
+
+        This ensures rate limiting is still enforced in development / when
+        Redis is not running.  The window size is derived from the endpoint's
+        configured limit string (e.g. '60 per minute').
+        """
+        import time as _time
+
+        # Periodically prune stale keys
+        self._prune_memory_store()
+
+        client_id = user_id or get_remote_address()
+        key = f"mem:{endpoint}:{client_id}"
+
+        # Parse configured limit
+        limit_str = self.get_rate_limit(endpoint, user_id)
+        max_requests = 100
+        window_seconds = 3600
+        try:
+            parts = limit_str.split()
+            if len(parts) == 3:
+                max_requests = int(parts[0])
+                unit = parts[2]
+                window_seconds = {'minute': 60, 'hour': 3600, 'day': 86400}.get(unit, 3600)
+        except (ValueError, IndexError):
+            pass
+
+        now = _time.time()
+        cutoff = now - window_seconds
+
+        # Prune old entries
+        timestamps = self._memory_store.get(key, [])
+        timestamps = [ts for ts in timestamps if ts > cutoff]
+
+        if len(timestamps) >= max_requests:
+            self._memory_store[key] = timestamps
+            return False, {
+                'retry_after': window_seconds,
+                'limit': max_requests,
+                'remaining': 0,
+                'reset': int(now + window_seconds),
+            }
+
+        timestamps.append(now)
+        self._memory_store[key] = timestamps
+
+        return True, {
+            'limit': max_requests,
+            'remaining': max(0, max_requests - len(timestamps)),
+            'reset': int(now + window_seconds),
+        }
+
     def check_rate_limit(self, endpoint: str, user_id: Optional[str] = None) -> Tuple[bool, Dict]:
         """Check if request should be rate limited"""
         if not self.redis_client:
-            return True, {}  # Allow if no Redis
+            return self._check_rate_limit_in_memory(endpoint, user_id)
 
         try:
             # Create unique key for this endpoint and user/IP

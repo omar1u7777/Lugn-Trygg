@@ -171,14 +171,20 @@ class SubscriptionService:
     @classmethod
     def build_status_payload(cls, user_id: str, user_data: Dict[str, Any] | None) -> Dict[str, Any]:
         context = cls.get_plan_context(user_data)
-        usage = cls.get_daily_usage(user_id)
+        usage_raw = cls.get_daily_usage(user_id)
+        # Transform usage keys to camelCase for frontend
+        usage = {
+            "date": usage_raw.get("date"),
+            "moodLogs": usage_raw.get("mood_logs", 0),
+            "chatMessages": usage_raw.get("chat_messages", 0),
+        }
         return {
             "plan": context["plan"],
             "status": context["status"],
-            "is_premium": context["is_premium"],
-            "is_trial": context["is_trial"],
-            "expires_at": context["expires_at"],
-            "trial_ends_at": context["trial_ends_at"],
+            "isPremium": context["is_premium"],
+            "isTrial": context["is_trial"],
+            "expiresAt": context["expires_at"],
+            "trialEndsAt": context["trial_ends_at"],
             "limits": context["limits"],
             "features": context["features"],
             "usage": usage,

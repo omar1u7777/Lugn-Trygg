@@ -330,13 +330,29 @@ class HealthCheckService:
         }
 
     async def _analyze_health_trends(self) -> Dict[str, Any]:
-        """Analyze health trends over time"""
-        # This would analyze historical health data
-        # For now, return placeholder
+        """Analyze health trends based on recent check results."""
+        improving = []
+        degrading = []
+        
+        for check in self.checks:
+            if check.last_result is not None:
+                result = check.last_result
+                status = result.get('status', 'unknown') if isinstance(result, dict) else 'unknown'
+                if status == 'healthy':
+                    improving.append(check.name)
+                elif status == 'unhealthy':
+                    degrading.append(check.name)
+        
+        overall = 'stable'
+        if len(degrading) > len(improving):
+            overall = 'degrading'
+        elif len(improving) > 0 and len(degrading) == 0:
+            overall = 'improving'
+        
         return {
-            'overall_trend': 'stable',
-            'improving_checks': [],
-            'degrading_checks': [],
+            'overall_trend': overall,
+            'improving_checks': improving,
+            'degrading_checks': degrading,
             'period': '24h'
         }
 

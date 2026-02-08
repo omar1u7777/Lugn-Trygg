@@ -59,7 +59,7 @@ Write-Host "✅ Logs directory ready" -ForegroundColor Green
 Write-Host "🌟 Starting Gunicorn production server..." -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "Workers: CPU * 2 + 1 (auto-detected)" -ForegroundColor Cyan
-$port = if ($env:PORT -ne $null -and $env:PORT -ne '') { $env:PORT } else { '5001' }
+$port = if ($null -ne $env:PORT -and $env:PORT -ne '') { $env:PORT } else { '5001' }
 Write-Host "Port: $port" -ForegroundColor Cyan
 Write-Host "Environment: production" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan

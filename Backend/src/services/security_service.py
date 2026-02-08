@@ -34,8 +34,15 @@ class SecurityService:
 
     def __init__(self, audit_service: IAuditService):
         self.audit = audit_service
-        self._encryption_key = ENCRYPTION_KEY.encode() if ENCRYPTION_KEY else secrets.token_bytes(32)
-        self._hipaa_key = HIPAA_ENCRYPTION_KEY.encode() if HIPAA_ENCRYPTION_KEY else secrets.token_bytes(32)
+        self._encryption_key = ENCRYPTION_KEY.encode() if ENCRYPTION_KEY else None
+        if not self._encryption_key:
+            logger.critical("⚠️ ENCRYPTION_KEY not set! Generating random key — encrypted data will NOT survive restarts!")
+            self._encryption_key = secrets.token_bytes(32)
+        self._hipaa_key = HIPAA_ENCRYPTION_KEY.encode() if HIPAA_ENCRYPTION_KEY else None
+        if not self._hipaa_key:
+            logger.warning("⚠️ HIPAA_ENCRYPTION_KEY not set — using random key")
+            self._hipaa_key = secrets.token_bytes(32)
+        self._rate_limit_store: Dict[str, list] = {}  # In-memory rate limit tracking
 
     @handle_service_errors
     def hash_password(self, password: str) -> str:
@@ -78,9 +85,13 @@ class SecurityService:
             f = Fernet(key)
             return f.encrypt(data.encode()).decode()
         except ImportError:
-            # Fallback to simple obfuscation (NOT secure for production)
-            logger.warning("Cryptography library not available, using insecure fallback")
-            return data[::-1]  # Simple reverse (insecure!)
+            # Fallback: use HMAC-based obfuscation (less secure but not plaintext)
+            logger.warning("Cryptography library not available, using HMAC-based fallback")
+            import base64
+            key = self._hipaa_key if hipaa_compliant else self._encryption_key
+            mac = hmac.new(key, data.encode(), hashlib.sha256).hexdigest()
+            encoded = base64.b64encode(data.encode()).decode()
+            return f"hmac:{mac}:{encoded}"
 
     @handle_service_errors
     def decrypt_sensitive_data(self, encrypted_data: str, hipaa_compliant: bool = False) -> str:
@@ -91,8 +102,13 @@ class SecurityService:
             f = Fernet(key)
             return f.decrypt(encrypted_data.encode()).decode()
         except ImportError:
-            # Fallback
-            return encrypted_data[::-1]
+            # Fallback: decode HMAC-based obfuscation
+            if encrypted_data.startswith('hmac:'):
+                import base64
+                parts = encrypted_data.split(':', 2)
+                if len(parts) == 3:
+                    return base64.b64decode(parts[2]).decode()
+            raise ValueError("Cannot decrypt data: cryptography library not available")
 
     @handle_service_errors
     def generate_secure_token(self, length: int = 32) -> str:
@@ -169,10 +185,27 @@ class SecurityService:
 
     @handle_service_errors
     def rate_limit_check(self, identifier: str, action: str, max_requests: int = 100, window_seconds: int = 3600) -> bool:
-        """Check if request should be rate limited"""
-        # This would integrate with Redis for distributed rate limiting
-        # For now, return False (allow all requests)
-        return False
+        """Check if request should be rate limited using sliding window."""
+        key = f"{identifier}:{action}"
+        now = time.time()
+        
+        # Clean up old entries
+        if key in self._rate_limit_store:
+            self._rate_limit_store[key] = [
+                ts for ts in self._rate_limit_store[key]
+                if now - ts < window_seconds
+            ]
+        else:
+            self._rate_limit_store[key] = []
+        
+        # Check count
+        if len(self._rate_limit_store[key]) >= max_requests:
+            logger.warning(f"Rate limit exceeded for {identifier} on {action}")
+            return True  # Rate limited
+        
+        # Record this request
+        self._rate_limit_store[key].append(now)
+        return False  # Not rate limited
 
     @handle_service_errors
     def log_security_event(self, event_type: str, user_id: str, details: Dict[str, Any],
@@ -235,22 +268,68 @@ class SecurityService:
             return False
 
     def require_auth(self, f):
-        """Decorator for requiring authentication"""
+        """Decorator for requiring authentication via JWT token."""
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # This would integrate with Flask-JWT-Extended or custom auth
-            # For now, just call the function
+            from flask import g, request as flask_request
+            
+            # Allow OPTIONS preflight
+            if flask_request.method == 'OPTIONS':
+                return ('', 204)
+            
+            auth_header = flask_request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return {'error': 'Authorization header saknas eller är ogiltig!'}, 401
+            
+            token = auth_header.split(' ')[1]
+            if not self.validate_token_format(token):
+                return {'error': 'Ogiltigt token-format!'}, 401
+            
+            try:
+                import jwt as pyjwt
+                payload = pyjwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+                user_id = payload.get('sub')
+                if not user_id:
+                    return {'error': 'Ogiltigt token-innehåll!'}, 401
+                g.user_id = user_id
+            except Exception:
+                return {'error': 'Ogiltigt eller utgånget token!'}, 401
+            
             return f(*args, **kwargs)
         return decorated_function
 
     def require_permission(self, permission: str):
-        """Decorator for requiring specific permissions"""
+        """Decorator for requiring specific permissions."""
         def decorator(f):
             @wraps(f)
             def decorated_function(*args, **kwargs):
-                # This would check user permissions
-                # For now, just call the function
-                return f(*args, **kwargs)
+                from flask import g
+                user_id = getattr(g, 'user_id', None)
+                if not user_id:
+                    return {'error': 'Autentisering krävs'}, 401
+                
+                # Check admin permission from Firestore
+                try:
+                    from ..firebase_config import db
+                    user_doc = db.collection('users').document(user_id).get()
+                    if user_doc.exists:
+                        user_data = user_doc.to_dict()
+                        user_role = user_data.get('role', 'user')
+                        user_permissions = user_data.get('permissions', [])
+                        
+                        # Admin has all permissions
+                        if user_role == 'admin':
+                            return f(*args, **kwargs)
+                        
+                        # Check specific permission
+                        if permission in user_permissions:
+                            return f(*args, **kwargs)
+                    
+                    logger.warning(f"Permission denied: user {user_id} lacks '{permission}'")
+                    return {'error': 'Behörighet saknas'}, 403
+                except Exception as e:
+                    logger.error(f"Permission check failed: {e}")
+                    return {'error': 'Kunde inte verifiera behörighet'}, 500
             return decorated_function
         return decorator
 

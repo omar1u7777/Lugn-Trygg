@@ -76,12 +76,12 @@ class SecurityHeadersMiddleware:
         
         directives = {
             'default-src': "'self'",
-            'script-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
-            'style-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+            'script-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
+            'style-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
             'font-src': "'self' https://fonts.gstatic.com",
             'img-src': "'self' data: https: blob:",
             # CRITICAL FIX: Allow API connections for frontend (including backend API)
-            'connect-src': "'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.vercel.app http://localhost:5001 https://localhost:5001",
+            'connect-src': "'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.vercel.app https://lugn-trygg-backend.onrender.com https://api.lugntrygg.se http://localhost:5001 https://unpkg.com",
             'frame-src': "'self' https://www.google.com https://accounts.google.com",  # Allow Google OAuth iframes
             'object-src': "'none'",
             'base-uri': "'self'",
@@ -109,6 +109,9 @@ class SecurityHeadersMiddleware:
 
     def _add_security_headers(self, response: Response) -> Response:
         """Add security headers to response"""
+        if response is None:
+            logger.warning("Received None response in security headers middleware")
+            response = Response('', status=500)
         try:
             # Content Security Policy
             if self.config['csp_enabled']:

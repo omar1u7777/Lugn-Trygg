@@ -9,6 +9,12 @@ backend_dir = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, project_root)
 sys.path.insert(0, backend_dir)
 
+# Ensure test environment settings before any config imports
+# Force these OVER any .env file values
+os.environ['FLASK_ENV'] = 'development'
+os.environ['FLASK_DEBUG'] = 'True'
+os.environ['TESTING'] = 'True'
+
 from src.utils.hf_cache import configure_hf_cache
 
 configure_hf_cache()

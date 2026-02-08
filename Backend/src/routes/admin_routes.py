@@ -2,7 +2,10 @@
 Admin Routes - Real admin dashboard and management endpoints
 Requires admin role for all endpoints
 """
-from flask import Blueprint, jsonify, request, g
+from __future__ import annotations
+
+from typing import Any, Callable, Tuple
+from flask import Blueprint, jsonify, request, g, Response
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -22,7 +25,7 @@ logger = logging.getLogger(__name__)
 ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,128}$')
 
 
-def _get_db():
+def _get_db() -> Any:
     """Safely return Firestore db or None."""
     try:
         return db
@@ -30,11 +33,11 @@ def _get_db():
         return None
 
 
-def require_admin(f):
+def require_admin(f: Callable) -> Callable:
     """Decorator to require admin role"""
     from functools import wraps
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated(*args: Any, **kwargs: Any) -> Response | Tuple[Response, int]:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
@@ -66,7 +69,7 @@ def require_admin(f):
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def get_performance_metrics():
+def get_performance_metrics() -> Response | Tuple[Response, int]:
     if request.method == 'OPTIONS':
         return '', 204
     try:
@@ -86,7 +89,7 @@ def get_performance_metrics():
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def get_admin_stats():
+def get_admin_stats() -> Response | Tuple[Response, int]:
     """
     Get comprehensive admin statistics
     
@@ -186,7 +189,7 @@ def get_admin_stats():
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def get_admin_users():
+def get_admin_users() -> Response | Tuple[Response, int]:
     """
     Get user list for admin management
     
@@ -269,7 +272,7 @@ def get_admin_users():
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def update_user_status(user_id):
+def update_user_status(user_id: str) -> Response | Tuple[Response, int]:
     """
     Update user status (suspend, activate, etc.)
     """
@@ -326,7 +329,7 @@ def update_user_status(user_id):
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def get_content_reports():
+def get_content_reports() -> Response | Tuple[Response, int]:
     """
     Get reported content for moderation
     """
@@ -375,7 +378,7 @@ def get_content_reports():
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def resolve_report(report_id):
+def resolve_report(report_id: str) -> Response | Tuple[Response, int]:
     """
     Resolve a content report
     """
@@ -467,7 +470,7 @@ def resolve_report(report_id):
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 @require_admin
-def get_system_health():
+def get_system_health() -> Response | Tuple[Response, int]:
     """
     Get system health status (admin only)
     """
@@ -482,7 +485,7 @@ def get_system_health():
             if db_handle:
                 db_handle.collection('health_check').document('test').get()
                 firebase_ok = True
-        except:
+        except Exception:
             pass
         
         # Get basic metrics

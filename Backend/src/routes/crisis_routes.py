@@ -94,12 +94,13 @@ def assess_crisis_risk():
             }
         )
         
-        # Log critical situations
+        # Escalate critical situations — notify care team + persist alert
         if assessment.overall_risk_level in ['critical', 'high']:
             logger.warning(
                 f"⚠️ CRITICAL: High crisis risk detected for user {user_id[:8]}... "
                 f"Risk level: {assessment.overall_risk_level}, Score: {assessment.risk_score:.2f}"
             )
+            _escalate_crisis(user_id, assessment)
         
         # Build response
         response_data = {
@@ -424,3 +425,126 @@ def check_escalation():
     except Exception as e:
         logger.exception(f"Error checking escalation: {e}")
         return APIResponse.error("Could not check escalation", "ESCALATION_ERROR", 500)
+
+
+def _escalate_crisis(user_id: str, assessment) -> None:
+    """
+    Escalate a critical/high-risk crisis detection.
+    Persists an alert document and notifies the care team via email.
+    """
+    try:
+        import os
+        alert_doc = {
+            'user_id': user_id,
+            'risk_level': assessment.overall_risk_level,
+            'risk_score': assessment.risk_score,
+            'active_indicators': [ind.indicator_id for ind in assessment.active_indicators],
+            'status': 'pending',
+            'created_at': datetime.now(timezone.utc),
+            'resolved_at': None,
+            'resolved_by': None,
+        }
+        db.collection('crisis_alerts').add(alert_doc)
+        logger.info(f"Crisis alert persisted for user {user_id[:8]}...")
+
+        # Notify care team via email (SendGrid / SMTP)
+        care_email = os.environ.get('CARE_TEAM_EMAIL')
+        if care_email:
+            _send_escalation_email(care_email, user_id, assessment)
+
+        # Notify user's emergency contacts if available
+        user_doc = db.collection('users').document(user_id).get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict() or {}
+            emergency_contacts = user_data.get('emergency_contacts', [])
+            for contact in emergency_contacts:
+                contact_email = contact.get('email')
+                if contact_email:
+                    _send_emergency_contact_notification(contact_email, contact.get('name', ''))
+
+    except Exception as e:
+        logger.error(f"Failed to escalate crisis for user {user_id[:8]}...: {e}")
+
+
+def _send_escalation_email(care_email: str, user_id: str, assessment) -> None:
+    """Send crisis escalation email to care team."""
+    try:
+        import smtplib
+        import os
+        from email.mime.text import MIMEText
+
+        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASSWORD', '')
+        from_email = os.environ.get('FROM_EMAIL', smtp_user)
+
+        if not smtp_user or not smtp_pass:
+            logger.warning("SMTP credentials not configured — skipping escalation email")
+            return
+
+        subject = f"🚨 Krisvarning — Risknivå: {assessment.overall_risk_level}"
+        body = (
+            f"En användare har triggat en krisvarning.\n\n"
+            f"Användar-ID: {user_id[:8]}...\n"
+            f"Risknivå: {assessment.overall_risk_level}\n"
+            f"Riskpoäng: {assessment.risk_score:.2f}\n"
+            f"Aktiva indikatorer: {len(assessment.active_indicators)}\n\n"
+            f"Logga in på adminpanelen för att granska ärendet."
+        )
+
+        msg = MIMEText(body, 'plain', 'utf-8')
+        msg['Subject'] = subject
+        msg['From'] = from_email
+        msg['To'] = care_email
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(from_email, [care_email], msg.as_string())
+
+        logger.info(f"Escalation email sent to {care_email}")
+
+    except Exception as e:
+        logger.error(f"Failed to send escalation email: {e}")
+
+
+def _send_emergency_contact_notification(email: str, name: str) -> None:
+    """Notify an emergency contact that their person may need support."""
+    try:
+        import smtplib
+        import os
+        from email.mime.text import MIMEText
+
+        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASSWORD', '')
+        from_email = os.environ.get('FROM_EMAIL', smtp_user)
+
+        if not smtp_user or not smtp_pass:
+            return
+
+        subject = "Lugn & Trygg — Din kontakt kan behöva stöd"
+        body = (
+            f"Hej {name},\n\n"
+            f"Du har angetts som nödkontakt i appen Lugn & Trygg.\n"
+            f"Vår system har identifierat att personen du bryr dig om kan behöva stöd just nu.\n\n"
+            f"Vänligen kontakta personen och vid akut fara, ring 112 eller Självmordslinjen 90101.\n\n"
+            f"Med vänliga hälsningar,\nLugn & Trygg-teamet"
+        )
+
+        msg = MIMEText(body, 'plain', 'utf-8')
+        msg['Subject'] = subject
+        msg['From'] = from_email
+        msg['To'] = email
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(from_email, [email], msg.as_string())
+
+        logger.info(f"Emergency contact notification sent to {name}")
+
+    except Exception as e:
+        logger.error(f"Failed to notify emergency contact {name}: {e}")
