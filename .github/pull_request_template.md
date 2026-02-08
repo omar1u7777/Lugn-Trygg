@@ -1,16 +1,23 @@
 ## Summary
-- 
 
-## Testing
-- [ ] `npm run lint`
-- [ ] `npm run test`
-- [ ] `npm run build`
-- [ ] Other (add below)
+<!-- Describe the change in 1-2 sentences -->
 
-## Image Performance Checklist (Day 3)
-Refer to [`docs/performance/images.md`](../docs/performance/images.md). Mark each box or write `N/A`.
-- [ ] All new or updated illustrations use `OptimizedImage` (no raw `<img>` tags).
-- [ ] Cloudinary public IDs live in `src/config/env.ts` helpers and `.env` values were updated.
-- [ ] `width`, `height`, `sizes`, and `placeholder` props are set to prevent CLS.
-- [ ] `fallbackSrc` (and `priority` when needed) is configured for hero-level assets.
-- [ ] Documentation/notes were updated if the pattern changed (e.g. this PR edits the guidelines).
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor (no functional change)
+- [ ] Documentation
+- [ ] Infrastructure / CI
+
+## Checklist
+
+- [ ] `npm run build` passes
+- [ ] `npm run lint` passes
+- [ ] `pytest` passes (if backend changes)
+- [ ] Tests added/updated for new functionality
+- [ ] Documentation updated (if applicable)
+
+## Screenshots
+
+<!-- Add screenshots for UI changes, or delete this section -->
