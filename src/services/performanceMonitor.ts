@@ -4,7 +4,8 @@
  * GDPR compliant with privacy-focused data collection
  */
 
-import { analytics } from './analytics';
+import { analytics } from './analytics';import { logger } from '../utils/logger';
+
 
 // Types for performance monitoring
 interface WebVitalsMetric {
@@ -88,10 +89,10 @@ const trackCoreWebVitals = () => {
         trackWebVitalsMetric(metric);
       });
     }).catch((error) => {
-      console.warn('Web Vitals tracking failed:', error);
+      logger.warn('Web Vitals tracking failed:', error);
     });
   } catch (error) {
-    console.warn('Core Web Vitals initialization failed:', error);
+    logger.warn('Core Web Vitals initialization failed:', error);
   }
 };
 
@@ -106,9 +107,9 @@ const trackWebVitalsMetric = (metric: WebVitalsMetric) => {
 
   // Log performance issues
   if (metric.rating === 'poor') {
-    console.warn(`⚠️ Poor ${metric.name}: ${metric.value}`);
+    logger.warn(`⚠️ Poor ${metric.name}: ${metric.value}`);
   } else if (metric.rating === 'needs-improvement') {
-    console.log(`📊 ${metric.name} needs improvement: ${metric.value}`);
+    logger.debug(`📊 ${metric.name} needs improvement: ${metric.value}`);
   }
 };
 
@@ -129,7 +130,7 @@ const checkPerformanceBudget = (resource: string, value: number) => {
       severity: 'warning',
     });
 
-    console.warn(`🚨 Performance budget exceeded: ${resource} (${value}${budget.unit} > ${budget.budget}${budget.unit})`);
+    logger.warn(`🚨 Performance budget exceeded: ${resource} (${value}${budget.unit} > ${budget.budget}${budget.unit})`);
   }
 };
 
@@ -170,7 +171,7 @@ const trackNavigationTiming = () => {
 
     navigationObserver.observe({ entryTypes: ['navigation'] });
   } catch (error) {
-    console.warn('Navigation timing tracking failed:', error);
+    logger.warn('Navigation timing tracking failed:', error);
   }
 };
 
@@ -214,7 +215,7 @@ const trackResourceTiming = () => {
 
     resourceObserver.observe({ entryTypes: ['resource'] });
   } catch (error) {
-    console.warn('Resource timing tracking failed:', error);
+    logger.warn('Resource timing tracking failed:', error);
   }
 };
 
@@ -272,7 +273,7 @@ const trackUserInteractions = () => {
     });
 
   } catch (error) {
-    console.warn('User interaction tracking failed:', error);
+    logger.warn('User interaction tracking failed:', error);
   }
 };
 
@@ -295,12 +296,12 @@ const trackMemoryUsage = () => {
 
         // Warn if memory usage is high (>50MB)
         if (memory.usedJSHeapSize > 50 * 1024 * 1024) {
-          console.warn('⚠️ High memory usage detected');
+          logger.warn('⚠️ High memory usage detected');
         }
       }
     }, 30000);
   } catch (error) {
-    console.warn('Memory usage tracking failed:', error);
+    logger.warn('Memory usage tracking failed:', error);
   }
 };
 
@@ -311,7 +312,7 @@ export const performanceMonitor = {
     try {
       performance.mark(name);
     } catch (error) {
-      console.warn('Performance mark failed:', error);
+      logger.warn('Performance mark failed:', error);
     }
   },
 
@@ -332,7 +333,7 @@ export const performanceMonitor = {
         });
       }
     } catch (error) {
-      console.warn('Performance measure failed:', error);
+      logger.warn('Performance measure failed:', error);
     }
   },
 
@@ -360,11 +361,11 @@ export const performanceMonitor = {
 // Initialize performance monitoring
 export function initializePerformanceMonitoring() {
   if (!ENABLE_PERFORMANCE_MONITORING) {
-    console.log('⚡ Performance monitoring disabled');
+    logger.debug('⚡ Performance monitoring disabled');
     return;
   }
 
-  console.log('🚀 Initializing performance monitoring...');
+  logger.debug('🚀 Initializing performance monitoring...');
 
   try {
     // Initialize all tracking systems
@@ -381,9 +382,9 @@ export function initializePerformanceMonitoring() {
       window.addEventListener('load', trackInitialPageLoad);
     }
 
-    console.log('✅ Performance monitoring initialized');
+    logger.debug('✅ Performance monitoring initialized');
   } catch (error) {
-    console.error('❌ Performance monitoring initialization failed:', error);
+    logger.error('❌ Performance monitoring initialization failed:', error);
   }
 }
 
@@ -409,7 +410,7 @@ const trackInitialPageLoad = () => {
       });
     }
   } catch (error) {
-    console.warn('Initial page load tracking failed:', error);
+    logger.warn('Initial page load tracking failed:', error);
   }
 };
 
@@ -429,7 +430,7 @@ export function cleanupPerformanceMonitoring() {
       interactionObserver.disconnect();
     }
   } catch (error) {
-    console.warn('Performance monitoring cleanup failed:', error);
+    logger.warn('Performance monitoring cleanup failed:', error);
   }
 }
 

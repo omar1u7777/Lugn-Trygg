@@ -31,6 +31,7 @@ import { usePMR } from '../hooks/usePMR';
 import { usePomodoro } from '../hooks/usePomodoro';
 import { useGratitude } from '../hooks/useGratitude';
 import { useJournaling } from '../hooks/useJournaling';
+import { logger } from '../utils/logger';
 
 
 
@@ -69,35 +70,35 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const saveUserProgress = useCallback((progress: typeof userProgress) => {
     if (user?.user_id) {
       localStorage.setItem(`user_progress_${user.user_id}`, JSON.stringify(progress));
-      console.log('Saved user progress:', progress);
+      logger.debug('Saved user progress:', progress);
     }
   }, [user?.user_id]);
   
   // Update progress when user completes an activity
   const updateProgress = useCallback((type: string, amount?: number) => {
-    console.log('📊 UPDATE PROGRESS called:', { type, amount, userId: user?.user_id });
+    logger.debug('📊 UPDATE PROGRESS called:', { type, amount, userId: user?.user_id });
     setUserProgress(prev => {
       const newProgress = { ...prev };
 
       switch (type) {
         case 'exercise':
           newProgress.exercisesCompleted += amount ?? 1;
-          console.log('📊 Exercise completed, new count:', newProgress.exercisesCompleted);
+          logger.debug('📊 Exercise completed, new count:', newProgress.exercisesCompleted);
           break;
         case 'meditation':
           newProgress.meditationMinutes += amount ?? 0;
-          console.log('📊 Meditation minutes added:', amount, 'total:', newProgress.meditationMinutes);
+          logger.debug('📊 Meditation minutes added:', amount, 'total:', newProgress.meditationMinutes);
           break;
         case 'article':
           newProgress.articlesRead += amount ?? 1;
-          console.log('📊 Article read, new count:', newProgress.articlesRead);
+          logger.debug('📊 Article read, new count:', newProgress.articlesRead);
           break;
       }
 
       // Calculate weekly goal progress (assuming 7 exercises/week goal)
       newProgress.weeklyGoalProgress = Math.min((newProgress.exercisesCompleted / 7) * 100, 100);
 
-      console.log('📊 New progress state:', newProgress);
+      logger.debug('📊 New progress state:', newProgress);
       saveUserProgress(newProgress);
       return newProgress;
     });
@@ -148,7 +149,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     difficulty: relaxationDifficulty,
     customTiming,
     onComplete: (duration, count) => {
-      console.log('💆 Progressive relaxation complete!', { duration });
+      logger.debug('💆 Progressive relaxation complete!', { duration });
 
       // Save session to history
       const newSession = {
@@ -174,7 +175,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     },
     onPhaseChange: (phase, muscleGroup) => {
       if (phase === 'tense' && muscleGroup) {
-        console.log(`💆 Starting: Tense ${muscleGroup.name}`);
+        logger.debug(`💆 Starting: Tense ${muscleGroup.name}`);
         announceToScreenReader(`Spänn ${muscleGroup.name} ...`, 'polite');
       }
     }
@@ -358,9 +359,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         setKbtThoughts(parsed.thoughts || { negative: '', evidence: '', alternative: '' });
         setKbtPhase(parsed.phase || 'identify');
         setKbtStep(parsed.step || 0);
-        console.log('💾 Loaded saved KBT progress:', parsed);
+        logger.debug('💾 Loaded saved KBT progress:', parsed);
       } catch (error) {
-        console.error('Failed to load KBT progress:', error);
+        logger.error('Failed to load KBT progress:', error);
       }
     }
   }, [user, setKbtThoughts, setKbtPhase, setKbtStep]);
@@ -375,7 +376,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         timestamp: Date.now()
       };
       localStorage.setItem(`kbt_progress_${user.user_id}`, JSON.stringify(progress));
-      console.log('Saved KBT progress:', progress);
+      logger.debug('Saved KBT progress:', progress);
     }
   }, [userThoughts, kbtPhase, kbtStep, user]);
 
@@ -411,39 +412,39 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   // Fetch wellness goals on mount
   useEffect(() => {
-    console.log('🔍 RECOMMENDATIONS COMPONENT - useEffect triggered', {
+    logger.debug('🔍 RECOMMENDATIONS COMPONENT - useEffect triggered', {
       user: user ? 'exists' : 'null',
       userId: user?.user_id,
       isAuthenticated: !!user?.user_id
     });
 
     const fetchWellnessGoalsData = async () => {
-      console.log('🔄 Starting wellness goals fetch...');
+      logger.debug('🔄 Starting wellness goals fetch...');
       setLoading(true);
       setError(null);
 
       try {
         if (user?.user_id) {
-          console.log('🎯 Fetching wellness goals for user:', user.user_id);
+          logger.debug('🎯 Fetching wellness goals for user:', user.user_id);
           const goals = await getWellnessGoals();
-          console.log('✅ Wellness goals response:', goals);
+          logger.debug('✅ Wellness goals response:', goals);
 
           // Ensure goals is an array
           const goalsArray = Array.isArray(goals) ? goals : [];
           setFetchedWellnessGoals(goalsArray);
-          console.log('🎯 Set wellness goals:', goalsArray);
+          logger.debug('🎯 Set wellness goals:', goalsArray);
         } else {
-          console.log('⚠️ No user ID available for wellness goals - showing generic recommendations');
+          logger.debug('⚠️ No user ID available for wellness goals - showing generic recommendations');
           setFetchedWellnessGoals([]); // Empty array will trigger generic recommendations
         }
       } catch (error) {
-        console.error('❌ Failed to fetch wellness goals:', error);
-        console.log('⚠️ Showing generic recommendations due to error');
+        logger.error('❌ Failed to fetch wellness goals:', error);
+        logger.debug('⚠️ Showing generic recommendations due to error');
         setFetchedWellnessGoals([]); // Show generic recommendations on error
         // Don't set error state - just show generic recommendations
       } finally {
         setLoading(false);
-        console.log('🏁 Wellness goals fetch completed');
+        logger.debug('🏁 Wellness goals fetch completed');
       }
     };
 
@@ -462,7 +463,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // Load recommendations when goals change
   useEffect(() => {
     const goalsToUse = wellnessGoals.length > 0 ? wellnessGoals : fetchedWellnessGoals;
-    console.log('📋 Loading recommendations with goals:', goalsToUse);
+    logger.debug('📋 Loading recommendations with goals:', goalsToUse);
 
     loadRecommendations(goalsToUse, announceToScreenReader);
   }, [wellnessGoals, fetchedWellnessGoals, loadRecommendations, announceToScreenReader]);
@@ -501,7 +502,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   };
 
   const startArticleReading = () => {
-    console.log('🧠 Starting neuroscience article reading');
+    logger.debug('🧠 Starting neuroscience article reading');
 
     // Start reading timer
     const timer = setInterval(() => {
@@ -518,7 +519,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         setCurrentSection(parsed.section || 0);
         setReadingTime(parsed.readingTime || 0);
         setArticleCompleted(parsed.completed || false);
-        console.log('💾 Loaded article progress:', parsed);
+        logger.debug('💾 Loaded article progress:', parsed);
       }
     }
   };
@@ -537,12 +538,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         lastUpdated: new Date().toISOString()
       };
       localStorage.setItem(`article_progress_focus-3_${user.user_id}`, JSON.stringify(progressData));
-      console.log('💾 Saved article progress:', progressData);
+      logger.debug('💾 Saved article progress:', progressData);
     }
   };
 
   const completeArticle = () => {
-    console.log('✅ Neuroscience article completed');
+    logger.debug('✅ Neuroscience article completed');
 
     setArticleCompleted(true);
     setArticleProgress(100);
@@ -563,7 +564,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     const wordsPerMinute = Math.round((totalWords / readingTime) * 60);
     const readingSpeed = wordsPerMinute > 250 ? 'snabb' : wordsPerMinute > 150 ? 'normal' : 'långsam';
 
-    console.log(`📊 Reading stats: ${totalWords} words in ${readingTime} s = ${wordsPerMinute} WPM (${readingSpeed})`);
+    logger.debug(`📊 Reading stats: ${totalWords} words in ${readingTime} s = ${wordsPerMinute} WPM (${readingSpeed})`);
 
     // Update progress with bonus based on reading speed
     const baseMinutes = 7;
@@ -620,12 +621,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     try {
       await saveMeditationSession(sessionData);
-      console.log('✅ Meditation session saved to backend');
+      logger.debug('✅ Meditation session saved to backend');
 
       // Refresh meditation history
       handleLoadMeditationHistory();
     } catch (error) {
-      console.error('Failed to save meditation session:', error);
+      logger.error('Failed to save meditation session:', error);
     }
   };
 
@@ -637,7 +638,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       const data = await getMeditationSessions(20);
       setMeditationSessions(data.sessions || []);
     } catch (error) {
-      console.error('Failed to load meditation sessions:', error);
+      logger.error('Failed to load meditation sessions:', error);
     } finally {
       setIsLoadingMeditation(false);
     }
@@ -723,25 +724,25 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   // Load user progress from localStorage
   const loadUserProgress = useCallback(() => {
-    console.log('📊 LOAD USER PROGRESS called, user:', user?.user_id);
+    logger.debug('📊 LOAD USER PROGRESS called, user:', user?.user_id);
     if (user?.user_id) {
       const storageKey = `user_progress_${user.user_id}`;
-      console.log('📊 Loading from localStorage key:', storageKey);
+      logger.debug('📊 Loading from localStorage key:', storageKey);
       const saved = localStorage.getItem(storageKey);
-      console.log('📊 Raw localStorage data:', saved);
+      logger.debug('📊 Raw localStorage data:', saved);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          console.log('📊 Parsed user progress:', parsed);
+          logger.debug('📊 Parsed user progress:', parsed);
           setUserProgress(parsed);
         } catch (error) {
-          console.error('Failed to load user progress:', error);
+          logger.error('Failed to load user progress:', error);
         }
       } else {
-        console.log('📊 No saved progress found in localStorage');
+        logger.debug('📊 No saved progress found in localStorage');
       }
     } else {
-      console.log('📊 No user ID available for loading progress');
+      logger.debug('📊 No user ID available for loading progress');
     }
   }, [user?.user_id]);
 
@@ -752,11 +753,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   // Debug: Check localStorage on mount
   useEffect(() => {
-    console.log('🔍 DEBUG: Checking all localStorage keys containing "progress"');
+    logger.debug('🔍 DEBUG: Checking all localStorage keys containing "progress"');
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.includes('progress')) {
-        console.log('🔍 Found progress key:', key, '=', localStorage.getItem(key));
+        logger.debug('🔍 Found progress key:', key, '=', localStorage.getItem(key));
       }
     }
   }, []);
@@ -772,7 +773,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         fcmToken: settings.fcmToken || false
       });
     } catch (error) {
-      console.error('Failed to load notification settings:', error);
+      logger.error('Failed to load notification settings:', error);
       // Keep default settings
     }
   }, [user]);
@@ -810,7 +811,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       setNotificationSettings(prev => ({ ...prev, fcmToken: true }));
       return true;
     } catch (error) {
-      console.error('Failed to register FCM token:', error);
+      logger.error('Failed to register FCM token:', error);
       return false;
     }
   };
@@ -849,7 +850,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       announceToScreenReader('Dagliga påminnelser har aktiverats', 'polite');
 
     } catch (error) {
-      console.error('Failed to enable daily reminders:', error);
+      logger.error('Failed to enable daily reminders:', error);
       alert('Kunde inte aktivera dagliga påminnelser. Försök igen.');
     } finally {
       setIsEnablingNotifications(false);
@@ -870,7 +871,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       announceToScreenReader('Dagliga påminnelser har inaktiverats', 'polite');
 
     } catch (error) {
-      console.error('Failed to disable daily reminders:', error);
+      logger.error('Failed to disable daily reminders:', error);
       alert('Kunde inte inaktivera dagliga påminnelser. Försök igen.');
     }
   };
@@ -888,7 +889,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       announceToScreenReader(`Påminnelsetid uppdaterad till ${newTime} `, 'polite');
 
     } catch (error) {
-      console.error('Failed to update reminder time:', error);
+      logger.error('Failed to update reminder time:', error);
       alert('Kunde inte uppdatera påminnelsetiden. Försök igen.');
     }
   };
@@ -907,7 +908,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     switch (action) {
       case 'start':
         // Track that user started this activity
-        console.log(`▶️ Started: ${recommendation.title} `);
+        logger.debug(`▶️ Started: ${recommendation.title} `);
 
         // Open content modal with the recommendation details
         setSelectedRecommendation(recommendation);
@@ -950,7 +951,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           component: 'Recommendations',
         });
 
-        console.log(`${newSavedState ? '💾' : '🗑️'} ${newSavedState ? 'Saved' : 'Unsaved'}: `, recommendation.title);
+        logger.debug(`${newSavedState ? '💾' : '🗑️'} ${newSavedState ? 'Saved' : 'Unsaved'}: `, recommendation.title);
         announceToScreenReader(
           newSavedState
             ? `${recommendation.title} sparad till dina favoriter`
@@ -969,21 +970,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
           navigator.share(shareData)
             .then(() => {
-              console.log('✅ Shared successfully:', recommendation.title);
+              logger.debug('✅ Shared successfully:', recommendation.title);
               announceToScreenReader('Rekommendation delad framgångsrikt', 'polite');
             })
             .catch((error) => {
-              console.log('Share cancelled or failed:', error);
+              logger.debug('Share cancelled or failed:', error);
             });
         } else {
           // Fallback to clipboard
           navigator.clipboard.writeText(`${shareData.title} \n${shareData.text} \n${shareData.url} `)
             .then(() => {
-              console.log('✅ Copied to clipboard:', recommendation.title);
+              logger.debug('✅ Copied to clipboard:', recommendation.title);
               announceToScreenReader('Länk kopierad till urklipp', 'polite');
             })
             .catch((error) => {
-              console.error('Failed to copy to clipboard:', error);
+              logger.error('Failed to copy to clipboard:', error);
               announceToScreenReader('Kunde inte kopiera länk', 'assertive');
             });
         }
@@ -1069,7 +1070,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           notes: 'Completed via Recommendations panel'
         });
       } catch (error) {
-        console.error('Failed to save meditation session:', error);
+        logger.error('Failed to save meditation session:', error);
       }
       announceToScreenReader(`${selectedRecommendation.title} slutförd! Bra jobbat!`, 'polite');
     }
@@ -1605,7 +1606,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         feedback: 'helpful',
                         component: 'Recommendations',
                       });
-                      console.log('👍 Positive feedback for:', recommendation.title);
+                      logger.debug('👍 Positive feedback for:', recommendation.title);
                       announceToScreenReader('Tack för din positiva feedback!', 'polite');
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-success-500 focus-visible:ring-offset-2"
@@ -1621,7 +1622,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         feedback: 'not_relevant',
                         component: 'Recommendations',
                       });
-                      console.log('👎 Negative feedback for:', recommendation.title);
+                      logger.debug('👎 Negative feedback for:', recommendation.title);
                       announceToScreenReader('Tack för din feedback, vi förbättrar våra rekommendationer!', 'polite');
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2"
@@ -3206,7 +3207,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         updateProgress('article');
                       }
 
-                      console.log('✅ Recommendation marked as completed:', selectedRecommendation.id);
+                      logger.debug('✅ Recommendation marked as completed:', selectedRecommendation.id);
                       analytics.track('Recommendation Completed', {
                         recommendationId: selectedRecommendation.id,
                         type: selectedRecommendation.type,
@@ -3217,7 +3218,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       setShowContentModal(false);
                       announceToScreenReader(`${selectedRecommendation.title} markerad som slutförd`, 'polite');
                     } catch (error) {
-                      console.error('Failed to mark as completed:', error);
+                      logger.error('Failed to mark as completed:', error);
                       announceToScreenReader('Kunde inte markera som slutförd', 'assertive');
                     }
                   }}
@@ -3443,7 +3444,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {(() => {
-            console.log('🎯 RENDERING PROGRESS UI - current userProgress:', userProgress);
+            logger.debug('🎯 RENDERING PROGRESS UI - current userProgress:', userProgress);
             return null;
           })()}
           <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

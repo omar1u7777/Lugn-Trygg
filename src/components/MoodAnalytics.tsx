@@ -19,7 +19,8 @@ import {
   CalendarDaysIcon,
   ChartPieIcon
 } from '@heroicons/react/24/outline';
-import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
+import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';import { logger } from '../utils/logger';
+
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
@@ -88,7 +89,7 @@ const loadJSPDF = (): Promise<JSPDFConstructor> => {
     document.body.appendChild(script);
 
     if ((import.meta as any).env?.DEV) {
-      console.warn('jsPDF CDN script injected dynamically.');
+      logger.warn('jsPDF CDN script injected dynamically.');
     }
   });
 };
@@ -141,7 +142,7 @@ const MoodAnalytics: React.FC = () => {
   const [daysAhead, setDaysAhead] = useState(7);
 
   useEffect(() => {
-    console.log('📊 MOOD ANALYTICS - Component mounted', { userId: user?.user_id, daysAhead });
+    logger.debug('📊 MOOD ANALYTICS - Component mounted', { userId: user?.user_id, daysAhead });
     if (user) {
       loadForecast();
       loadStatistics();
@@ -149,32 +150,32 @@ const MoodAnalytics: React.FC = () => {
   }, [daysAhead, user]);
 
   const loadStatistics = async () => {
-    console.log('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
+    logger.debug('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
     if (!user?.user_id) {
-      console.warn('⚠️ MOOD ANALYTICS - No user ID');
+      logger.warn('⚠️ MOOD ANALYTICS - No user ID');
       return;
     }
     
     try {
       const stats = await getMoodStatistics(user.user_id);
-      console.log('✅ MOOD ANALYTICS - Statistics loaded', stats);
+      logger.debug('✅ MOOD ANALYTICS - Statistics loaded', stats);
       setStatistics(stats);
     } catch (err) {
-      console.error('❌ MOOD ANALYTICS - Failed to load statistics:', err);
+      logger.error('❌ MOOD ANALYTICS - Failed to load statistics:', err);
       // Don't show error, just use null statistics
     }
   };
 
   const loadForecast = async () => {
-    console.log('🔮 MOOD ANALYTICS - Loading forecast', { daysAhead });
+    logger.debug('🔮 MOOD ANALYTICS - Loading forecast', { daysAhead });
     try {
       setLoading(true);
       setError(null);
       const response = await api.get(`${API_ENDPOINTS.MOOD.PREDICTIVE_FORECAST}?days_ahead=${daysAhead}`);
-      console.log('✅ MOOD ANALYTICS - Forecast loaded', response.data);
+      logger.debug('✅ MOOD ANALYTICS - Forecast loaded', response.data);
       setForecast(response.data);
     } catch (err: unknown) {
-      console.error('❌ MOOD ANALYTICS - Failed to load forecast:', err);
+      logger.error('❌ MOOD ANALYTICS - Failed to load forecast:', err);
       const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
         ? String(err.response.data.error)
         : t('analytics.loadError');
@@ -379,7 +380,7 @@ const MoodAnalytics: React.FC = () => {
         doc.save(`Lugn-Trygg-Analys-${new Date().toLocaleDateString('sv-SE')}.pdf`);
       })
       .catch((err) => {
-        console.error('Failed to export analytics as PDF', err);
+        logger.error('Failed to export analytics as PDF', err);
         setPdfError(
           t('analytics.pdfExportUnavailable', {
             defaultValue: 'PDF-exporten är tillfälligt otillgänglig. Försök igen senare.',

@@ -3,7 +3,8 @@
  * Handles OAuth 2.0 flows with health platforms
  */
 
-import api from '../api/api';
+import api from '../api/api';import { logger } from '../utils/logger';
+
 
 export interface OAuthProvider {
     id: string;
@@ -83,7 +84,7 @@ class OAuthHealthService {
      */
     async initiateOAuth(providerId: string): Promise<{ authorization_url: string; state: string }> {
         try {
-            const response = await api.get(`/api/integration/oauth/${providerId}/authorize`);
+            const response = await api.get(`/api/v1/integration/oauth/${providerId}/authorize`);
             
             if (response.data.authorization_url) {
                 // Open authorization URL in new window
@@ -103,7 +104,7 @@ class OAuthHealthService {
                 throw new Error('No authorization URL received');
             }
         } catch (error: any) {
-            console.error(`Failed to initiate OAuth for ${providerId}:`, error);
+            logger.error(`Failed to initiate OAuth for ${providerId}:`, error);
             throw error;
         }
     }
@@ -113,10 +114,10 @@ class OAuthHealthService {
      */
     async checkStatus(providerId: string): Promise<OAuthStatus> {
         try {
-            const response = await api.get(`/api/integration/oauth/${providerId}/status`);
+            const response = await api.get(`/api/v1/integration/oauth/${providerId}/status`);
             return response.data;
         } catch (error: any) {
-            console.error(`Failed to check OAuth status for ${providerId}:`, error);
+            logger.error(`Failed to check OAuth status for ${providerId}:`, error);
             throw error;
         }
     }
@@ -147,10 +148,10 @@ class OAuthHealthService {
      */
     async disconnect(providerId: string): Promise<void> {
         try {
-            await api.post(`/api/integration/oauth/${providerId}/disconnect`);
-            console.log(`Successfully disconnected from ${providerId}`);
+            await api.post(`/api/v1/integration/oauth/${providerId}/disconnect`);
+            logger.debug(`Successfully disconnected from ${providerId}`);
         } catch (error: any) {
-            console.error(`Failed to disconnect from ${providerId}:`, error);
+            logger.error(`Failed to disconnect from ${providerId}:`, error);
             throw error;
         }
     }
@@ -160,7 +161,7 @@ class OAuthHealthService {
      */
     async syncHealthData(providerId: string, days: number = 7): Promise<HealthData> {
         try {
-            const response = await api.post(`/api/integration/health/sync/${providerId}`, { days });
+            const response = await api.post(`/api/v1/integration/health/sync/${providerId}`, { days });
             
             if (response.data.success) {
                 return response.data.data;
@@ -168,7 +169,7 @@ class OAuthHealthService {
                 throw new Error(response.data.error || 'Failed to sync health data');
             }
         } catch (error: any) {
-            console.error(`Failed to sync health data from ${providerId}:`, error);
+            logger.error(`Failed to sync health data from ${providerId}:`, error);
             throw error;
         }
     }
@@ -213,7 +214,7 @@ class OAuthHealthService {
             // Check if already connected
             const status = await this.checkStatus(providerId);
             if (status.connected && !status.is_expired) {
-                console.log(`Already connected to ${providerId}`);
+                logger.debug(`Already connected to ${providerId}`);
                 return true;
             }
             
@@ -224,13 +225,13 @@ class OAuthHealthService {
             const result = await this.listenForOAuthCallback();
             
             if (result.success && result.provider === providerId) {
-                console.log(`Successfully connected to ${providerId}`);
+                logger.debug(`Successfully connected to ${providerId}`);
                 return true;
             } else {
                 throw new Error('OAuth callback mismatch');
             }
         } catch (error: any) {
-            console.error(`Failed to connect to ${providerId}:`, error);
+            logger.error(`Failed to connect to ${providerId}:`, error);
             throw error;
         }
     }

@@ -14,7 +14,8 @@ import {
   GamificationStats,
   LEVEL_TITLES,
 } from '../types';
-import { calculateLevel, getXPForLevel } from '../utils';
+import { calculateLevel, getXPForLevel } from '../utils';import { logger } from '../../../utils/logger';
+
 
 interface UseGamificationOptions {
   autoFetch?: boolean;
@@ -103,7 +104,7 @@ export function useGamification(options: UseGamificationOptions = {}): UseGamifi
 
   const claimReward = useCallback(async (rewardId: string): Promise<boolean> => {
     // In a real app, this would call an API
-    console.log('Claiming reward:', rewardId);
+    logger.debug('Claiming reward:', rewardId);
     return true;
   }, []);
 

@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
+import { logger } from "../utils/logger";
 
 // ============================================================================
 // Types
@@ -76,17 +77,17 @@ export interface UserApiResponse<T> {
  * @throws Error if profile retrieval fails
  */
 export const getUserProfile = async (): Promise<UserProfile> => {
-  console.log('👤 API - getUserProfile called');
+  logger.debug('getUserProfile called');
   try {
     const response = await api.get<UserApiResponse<{ profile: UserProfile }>>(
       `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/profile`
     );
-    console.log('✅ User profile retrieved successfully');
+    logger.debug('User profile retrieved successfully');
     const data = response.data?.data || response.data;
     return data.profile || data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Get user profile error:", apiError);
+    logger.error("Get user profile error:", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to get user profile");
   }
 };
@@ -98,45 +99,25 @@ export const getUserProfile = async (): Promise<UserProfile> => {
  * @throws Error if preferences update fails
  */
 export const updateUserPreferences = async (preferences: UserPreferences): Promise<UserPreferences> => {
-  console.log('👤 API - updateUserPreferences called', { preferences });
+  logger.debug('updateUserPreferences called');
   try {
     const response = await api.put<UserApiResponse<{ preferences: UserPreferences }>>(
       `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/preferences`,
       preferences
     );
-    console.log('✅ User preferences updated successfully');
+    logger.debug('User preferences updated successfully');
     const data = response.data?.data || response.data;
     return data.preferences || data;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Update user preferences error:", apiError);
+    logger.error("Update user preferences error:", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to update user preferences");
   }
 };
 
 // ============================================================================
-// Notification Settings
+// Notification Preferences
 // ============================================================================
-
-/**
- * Get notification settings
- * @returns Promise resolving to notification settings
- * @throws Error if notification settings retrieval fails
- */
-export const getNotificationSettings = async (): Promise<NotificationSettings> => {
-  console.log('🔔 API - getNotificationSettings called');
-  try {
-    const response = await api.get<UserApiResponse<NotificationSettings>>(
-      `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/notification-settings`
-    );
-    console.log('✅ Notification settings retrieved successfully');
-    return response.data?.data || response.data;
-  } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Get notification settings error:", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to get notification settings");
-  }
-};
 
 /**
  * Update notification preferences
@@ -145,16 +126,16 @@ export const getNotificationSettings = async (): Promise<NotificationSettings> =
  * @throws Error if notification preferences update fails
  */
 export const updateNotificationPreferences = async (preferences: NotificationPreferences): Promise<void> => {
-  console.log('🔔 API - updateNotificationPreferences called', { preferences });
+  logger.debug('updateNotificationPreferences called');
   try {
     await api.put(
       `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/notification-preferences`,
       preferences
     );
-    console.log('✅ Notification preferences updated successfully');
+    logger.debug('Notification preferences updated successfully');
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Update notification preferences error:", apiError);
+    logger.error("Update notification preferences error:", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to update notification preferences");
   }
 };
@@ -166,16 +147,16 @@ export const updateNotificationPreferences = async (preferences: NotificationPre
  * @throws Error if notification schedule setting fails
  */
 export const setNotificationSchedule = async (schedule: NotificationSchedule): Promise<void> => {
-  console.log('🔔 API - setNotificationSchedule called', { schedule });
+  logger.debug('setNotificationSchedule called');
   try {
     await api.post(
       `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/notification-schedule`,
       schedule
     );
-    console.log('✅ Notification schedule set successfully');
+    logger.debug('Notification schedule set successfully');
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Set notification schedule error:", apiError);
+    logger.error("Set notification schedule error:", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to set notification schedule");
   }
 };

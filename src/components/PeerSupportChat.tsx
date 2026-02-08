@@ -61,7 +61,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [presence, setPresence] = useState<{ active_count: number; typing_users: string[] }>({ active_count: 0, typing_users: [] });
+  const [presence, setPresence] = useState<{ activeCount: number; typingUsers: string[] }>({ activeCount: 0, typingUsers: [] });
   const [showReportDialog, setShowReportDialog] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
 
@@ -441,7 +441,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                           style={{ backgroundColor: `${room.color}22`, color: room.color }}
                         >
                           <UserGroupIcon className="w-4 h-4" aria-hidden="true" />
-                          <span>{room.member_count || 0} {isSwedish ? 'online' : 'online'}</span>
+                          <span>{room.memberCount || 0} {isSwedish ? 'online' : 'online'}</span>
                         </div>
                       </div>
                     </div>
@@ -469,16 +469,16 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                      {presence.active_count} {isSwedish ? 'online' : 'online'}
+                      {presence.activeCount} {isSwedish ? 'online' : 'online'}
                     </p>
                     <span className="text-xs text-gray-500">•</span>
                     <p className="text-xs text-primary-600">
                       {isSwedish ? 'Du är' : 'You are'} {session.avatar} {session.anonymous_name}
                     </p>
                   </div>
-                  {presence.typing_users.length > 0 && (
+                  {presence.typingUsers.length > 0 && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
-                      {presence.typing_users.join(', ')} {isSwedish ? 'skriver...' : 'typing...'}
+                      {presence.typingUsers.join(', ')} {isSwedish ? 'skriver...' : 'typing...'}
                     </p>
                   )}
                 </div>

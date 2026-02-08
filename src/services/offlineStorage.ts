@@ -3,6 +3,8 @@
  * Handles localStorage for offline mood logging and data queuing
  */
 
+import { logger } from '../utils/logger';
+
 interface OfflineData {
   moods: OfflineMoodLog[];
   memories: OfflineMemory[];
@@ -49,7 +51,7 @@ export function getOfflineData(): OfflineData {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Failed to retrieve offline data:', error);
+    logger.error('Failed to retrieve offline data:', error);
   }
 
   return {
@@ -66,9 +68,9 @@ export function getOfflineData(): OfflineData {
 function saveOfflineData(data: OfflineData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log('💾 Offline data saved');
+    logger.debug('💾 Offline data saved');
   } catch (error) {
-    console.error('Failed to save offline data:', error);
+    logger.error('Failed to save offline data:', error);
   }
 }
 
@@ -93,7 +95,7 @@ export function addOfflineMoodLog(
   offlineData.moods.push(moodLog);
   saveOfflineData(offlineData);
 
-  console.log('😊 Mood logged offline:', moodLog);
+  logger.debug('😊 Mood logged offline:', moodLog);
   return moodLog;
 }
 
@@ -113,7 +115,7 @@ export function addOfflineMemory(title: string, content: string): OfflineMemory 
   offlineData.memories.push(memory);
   saveOfflineData(offlineData);
 
-  console.log('💭 Memory stored offline:', memory);
+  logger.debug('💭 Memory stored offline:', memory);
   return memory;
 }
 
@@ -138,7 +140,7 @@ export function queueRequest(
   offlineData.queuedRequests.push(request);
   saveOfflineData(offlineData);
 
-  console.log('📤 Request queued:', request);
+  logger.debug('📤 Request queued:', request);
   return request;
 }
 
@@ -158,7 +160,7 @@ export function getUnsyncedData() {
                   offlineData.queuedRequests.filter((r) => r.retries < MAX_RETRIES).length
     };
   } catch (error) {
-    console.error('Failed to get unsynced data:', error);
+    logger.error('Failed to get unsynced data:', error);
     return {
       moods: [],
       memories: [],
@@ -177,7 +179,7 @@ export function markMoodAsSynced(moodId: string) {
   if (mood) {
     mood.synced = true;
     saveOfflineData(offlineData);
-    console.log('✅ Mood marked as synced:', moodId);
+    logger.debug('✅ Mood marked as synced:', moodId);
   }
 }
 
@@ -190,7 +192,7 @@ export function markMemoryAsSynced(memoryId: string) {
   if (memory) {
     memory.synced = true;
     saveOfflineData(offlineData);
-    console.log('✅ Memory marked as synced:', memoryId);
+    logger.debug('✅ Memory marked as synced:', memoryId);
   }
 }
 
@@ -201,7 +203,7 @@ export function removeQueuedRequest(requestId: string) {
   const offlineData = getOfflineData();
   offlineData.queuedRequests = offlineData.queuedRequests.filter((r) => r.id !== requestId);
   saveOfflineData(offlineData);
-  console.log('🗑️ Queued request removed:', requestId);
+  logger.debug('🗑️ Queued request removed:', requestId);
 }
 
 /**
@@ -213,7 +215,7 @@ export function retryQueuedRequest(requestId: string) {
   if (request) {
     request.retries++;
     saveOfflineData(offlineData);
-    console.log('🔄 Retrying queued request:', requestId, `(${request.retries}/${MAX_RETRIES})`);
+    logger.debug('🔄 Retrying queued request:', requestId, `(${request.retries}/${MAX_RETRIES})`);
   }
 }
 
@@ -223,9 +225,9 @@ export function retryQueuedRequest(requestId: string) {
 export function clearOfflineData() {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    console.log('🧹 Offline data cleared');
+    logger.debug('🧹 Offline data cleared');
   } catch (error) {
-    console.error('Failed to clear offline data:', error);
+    logger.error('Failed to clear offline data:', error);
   }
 }
 
@@ -245,21 +247,21 @@ export function listenForOnlineStatus(
   onOffline: () => void
 ): () => void {
   const handleOnline = () => {
-    console.log('🌐 Back online!');
+    logger.debug('🌐 Back online!');
     onOnline();
 
     // Trigger background sync when coming online
     if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
       navigator.serviceWorker.ready.then((registration) => {
         (registration as any).sync.register('background-mood-sync').catch((error: any) => {
-          console.warn('Background sync registration failed:', error);
+          logger.warn('Background sync registration failed:', error);
         });
       });
     }
   };
 
   const handleOffline = () => {
-    console.log('📴 Went offline!');
+    logger.debug('📴 Went offline!');
     onOffline();
   };
 

@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useAuth } from './AuthContext';
 import { getSubscriptionStatus } from '../api/subscription';
 import planConfigJson from '../../shared/subscription_plans.json';
+import { logger } from '../utils/logger';
+
 
 /**
  * Subscription Plan Types
@@ -78,6 +80,9 @@ interface SharedPlanConfig {
 
 const PLAN_CONFIG = planConfigJson as Record<string, SharedPlanConfig>;
 
+// Create the context
+const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
+
 const createPlan = (tier: SubscriptionTier): SubscriptionPlan => {
   const config = PLAN_CONFIG[tier] ?? PLAN_CONFIG['free'];
   return {
@@ -105,9 +110,9 @@ const DEFAULT_USAGE: DailyUsage = {
   lastResetDate: new Date().toISOString().split('T')[0] || '',
 };
 
-// Local storage keys
-const USAGE_STORAGE_KEY = 'lugn_trygg_daily_usage';
-const SUBSCRIPTION_CACHE_KEY = 'lugn_trygg_subscription_cache';
+// Local storage keys — namespaced per user
+const getUsageStorageKey = (userId?: string) => `lugn_trygg_daily_usage_${userId || 'anonymous'}`;
+const getSubscriptionCacheKey = (userId?: string) => `lugn_trygg_subscription_cache_${userId || 'anonymous'}`;
 
 /**
  * SubscriptionProvider
@@ -124,7 +129,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Check and reset daily usage if needed
   const checkAndResetDailyUsage = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
-    const stored = localStorage.getItem(USAGE_STORAGE_KEY);
+    const stored = localStorage.getItem(getUsageStorageKey(user?.user_id));
     
     if (stored) {
       try {
@@ -134,7 +139,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           return;
         }
       } catch (e) {
-        console.warn('Failed to parse usage data:', e);
+        logger.warn('Failed to parse usage data:', e);
       }
     }
     
@@ -145,7 +150,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       lastResetDate: today || '',
     };
     setUsage(newUsage);
-    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(newUsage));
+    localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(newUsage));
   }, []);
 
   // Fetch subscription status from backend
@@ -159,7 +164,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     try {
       // Try to get from cache first
-      const cached = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
+      const cached = localStorage.getItem(getSubscriptionCacheKey(user?.user_id));
       if (cached) {
         try {
           const { plan: cachedPlan, usage: cachedUsage, timestamp } = JSON.parse(cached);
@@ -173,7 +178,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
             // Still fetch in background to update
           }
         } catch (e) {
-          console.warn('Failed to parse subscription cache:', e);
+          logger.warn('Failed to parse subscription cache:', e);
         }
       }
 
@@ -223,17 +228,17 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         lastResetDate: data.usage?.date || new Date().toISOString().split('T')[0] || DEFAULT_USAGE.lastResetDate,
       };
       setUsage(latestUsage);
-      localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(latestUsage));
+      localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(latestUsage));
       
       // Cache the result
-      localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify({
+      localStorage.setItem(getSubscriptionCacheKey(user?.user_id), JSON.stringify({
         plan: newPlan,
         usage: latestUsage,
         timestamp: Date.now(),
       }));
 
     } catch (error) {
-      console.warn('Failed to fetch subscription status, defaulting to free:', error);
+      logger.warn('Failed to fetch subscription status, defaulting to free:', error);
       setPlan(FREE_PLAN);
       setUsage(DEFAULT_USAGE);
     } finally {
@@ -255,8 +260,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   // Save usage to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(usage));
-  }, [usage]);
+    localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(usage));
+  }, [usage, user?.user_id]);
 
   // Derived states
   const isPremium = plan.tier === 'premium' || plan.tier === 'enterprise';
@@ -306,7 +311,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Manual refresh
   const refreshSubscription = useCallback(async () => {
     setLoading(true);
-    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+    localStorage.removeItem(getSubscriptionCacheKey(user?.user_id));
     await fetchSubscription();
   }, [fetchSubscription]);
 

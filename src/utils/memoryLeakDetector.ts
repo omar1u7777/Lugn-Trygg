@@ -1,3 +1,4 @@
+import { logger } from './logger';
 // Memory Leak Detection Utility for Lugn & Trygg
 // Tracks active timers, intervals, and event listeners
 
@@ -116,7 +117,7 @@ class MemoryLeakDetector {
     );
 
     if (oldTimers.length > 0) {
-      console.warn('🚨 Potential Memory Leaks - Active Timers:', oldTimers);
+      logger.warn('🚨 Potential Memory Leaks - Active Timers:', oldTimers);
     }
 
     // Check for old listeners
@@ -125,11 +126,11 @@ class MemoryLeakDetector {
     );
 
     if (oldListeners.length > 0) {
-      console.warn('🚨 Potential Memory Leaks - Active Event Listeners:', oldListeners);
+      logger.warn('🚨 Potential Memory Leaks - Active Event Listeners:', oldListeners);
     }
 
     // Summary
-    console.log(`📊 Memory Tracker: ${this.timers.size} timers, ${this.listeners.size} listeners`);
+    logger.debug(`📊 Memory Tracker: ${this.timers.size} timers, ${this.listeners.size} listeners`);
   };
 
   // Start periodic reporting

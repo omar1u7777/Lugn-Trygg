@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, recordAudio, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';
+import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, recordAudio, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';import { logger } from '../../utils/logger';
+
 
 interface VoiceRecorderProps {
   onTranscriptComplete?: (transcript: string, emotion?: string) => void;
@@ -29,7 +30,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         const status = await getVoiceServiceStatus();
         setServiceStatus(status);
       } catch (err) {
-        console.error('Failed to check voice service status:', err);
+        logger.error('Failed to check voice service status:', err);
       }
     };
     checkStatus();
@@ -102,7 +103,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         setError('Transkribering misslyckades. Prova att tala tydligare.');
       }
     } catch (err: any) {
-      console.error('Voice recording error:', err);
+      logger.error('Voice recording error:', err);
       setError(err.message || 'Ett fel uppstod vid bearbetning av röstinspelningen.');
     } finally {
       setIsProcessing(false);

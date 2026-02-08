@@ -6,6 +6,8 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import { chatWithAI, analyzeText, transcribeAudio, analyzeVoiceEmotion } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { MicrophoneIcon, PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
+
 
 interface VoiceChatProps {
   onMessageSent?: (message: string, isVoice: boolean) => void;
@@ -89,7 +91,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       });
 
     } catch (error) {
-      console.error('Error starting recording:', error);
+      logger.error('Error starting recording:', error);
       announceToScreenReader('Kunde inte starta röstinspelning', 'assertive');
     }
   };
@@ -112,38 +114,28 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
     try {
       // REAL: Use Google Cloud Speech-to-Text API via backend
-      const transcriptionResult = await transcribeAudio(audioBlob, 'sv-SE');
+      const transcriptionResult = await transcribeAudio(audioBlob);
       
       let transcribedText = '';
       
-      if (transcriptionResult.success && transcriptionResult.transcript) {
-        transcribedText = transcriptionResult.transcript;
-        console.log('✅ Google Speech transcription successful:', transcribedText.substring(0, 50));
-      } else if (transcriptionResult.fallback === 'web_speech_api') {
-        // Backend suggests using Web Speech API as fallback
-        announceToScreenReader('Använder webbläsarens taligenkänning som reserv...', 'polite');
-        
-        // Try browser's Web Speech API during next recording
-        // For this recording, ask user to type
-        announceToScreenReader('Kunde inte transkribera rösten. Tala tydligare eller skriv ditt meddelande.', 'polite');
-        setIsProcessing(false);
-        return;
+      if (transcriptionResult.text) {
+        transcribedText = transcriptionResult.text;
+        logger.debug('✅ Speech transcription successful:', transcribedText.substring(0, 50));
       } else {
-        // Transcription failed completely
-        announceToScreenReader(transcriptionResult.message || 'Rösttranskribering misslyckades. Skriv ditt meddelande istället.', 'polite');
+        // Transcription failed or returned empty
+        announceToScreenReader('Rösttranskribering misslyckades. Skriv ditt meddelande istället.', 'polite');
         setIsProcessing(false);
         return;
       }
       
       // REAL: Analyze voice emotion
-      const emotionResult = await analyzeVoiceEmotion(audioBlob, transcribedText);
+      const emotionResult = await analyzeVoiceEmotion(audioBlob);
       if (emotionResult) {
-        console.log('🎭 Voice emotion detected:', emotionResult.primary_emotion);
+        logger.debug('🎭 Voice emotion detected:', emotionResult.emotion);
         analytics.track('Voice Emotion Detected', {
           component: 'VoiceChat',
-          emotion: emotionResult.primary_emotion,
-          energy: emotionResult.energy_level,
-          pace: emotionResult.speaking_pace
+          emotion: emotionResult.emotion,
+          confidence: emotionResult.confidence
         });
       }
 
@@ -170,7 +162,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           setMessages(prev => [...prev, aiResponse]);
           announceToScreenReader('AI svar mottaget', 'polite');
         } catch (aiError) {
-          console.error('AI response error:', aiError);
+          logger.error('AI response error:', aiError);
           const errorResponse: Message = {
             id: (Date.now() + 1).toString(),
             text: 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
@@ -191,7 +183,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       }
 
     } catch (error) {
-      console.error('Error processing voice message:', error);
+      logger.error('Error processing voice message:', error);
       announceToScreenReader('Kunde inte bearbeta röstmeddelande', 'assertive');
     } finally {
       setIsProcessing(false);
@@ -232,7 +224,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         setMessages(prev => [...prev, aiResponse]);
         announceToScreenReader('AI svar mottaget', 'polite');
       } catch (error) {
-        console.error('AI response error:', error);
+        logger.error('AI response error:', error);
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',

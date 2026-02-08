@@ -4,6 +4,7 @@
  */
 
 import api from './client';
+import { API_ENDPOINTS } from './constants';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -67,7 +68,7 @@ export const getRetentionStatus = async (userId: string): Promise<RetentionStatu
     success: boolean;
     data: RetentionStatus;
     message: string;
-  }>(`/api/privacy/retention/status/${userId}`);
+  }>(`${API_ENDPOINTS.PRIVACY.RETENTION_STATUS}/${userId}`);
   
   return response.data.data;
 };
@@ -83,7 +84,7 @@ export const triggerRetentionCleanup = async (userId: string): Promise<Retention
     success: boolean;
     data: RetentionCleanupResult;
     message: string;
-  }>(`/api/privacy/retention/cleanup/${userId}`);
+  }>(`${API_ENDPOINTS.PRIVACY.RETENTION_CLEANUP}/${userId}`);
   
   return response.data.data;
 };
@@ -97,7 +98,7 @@ export const triggerSystemRetentionCleanup = async (): Promise<RetentionCleanupR
     success: boolean;
     data: RetentionCleanupResult;
     message: string;
-  }>('/api/privacy/retention/cleanup-all');
+  }>(`${API_ENDPOINTS.PRIVACY.RETENTION_CLEANUP_ALL}`);
   
   return response.data.data;
 };

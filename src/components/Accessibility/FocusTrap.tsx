@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useAccessibility } from '../../hooks/useAccessibility';
+import { useAccessibility } from '../../hooks/useAccessibility';import { logger } from '../../utils/logger';
+
 
 // Constants for better maintainability
 const FOCUSABLE_SELECTORS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -56,7 +57,7 @@ const FocusTrap: React.FC<FocusTrapProps> = ({
         try {
           setFocus(firstElement);
         } catch (error) {
-          console.warn('FocusTrap: Failed to set initial focus', error);
+          logger.warn('FocusTrap: Failed to set initial focus', error);
         }
       }
     }
@@ -79,7 +80,7 @@ const FocusTrap: React.FC<FocusTrapProps> = ({
         try {
           setFocus(previouslyFocusedRef.current);
         } catch (error) {
-          console.warn('FocusTrap: Failed to restore focus', error);
+          logger.warn('FocusTrap: Failed to restore focus', error);
         }
       }
     };

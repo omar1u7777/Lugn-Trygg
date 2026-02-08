@@ -15,7 +15,8 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { Button, Alert, Card } from './ui/tailwind';
+import { Button, Alert, Card } from './ui/tailwind';import { logger } from '../utils/logger';
+
 
 interface AIStory {
   id: string;
@@ -52,7 +53,7 @@ const AIStories: React.FC = () => {
       setStories(response.data?.stories || []);
     } catch (err) {
       setError(t('ai.stories.loadError'));
-      console.error('Failed to load AI stories:', err);
+      logger.error('Failed to load AI stories:', err);
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ const AIStories: React.FC = () => {
       setStories(prev => [response.data, ...prev]);
     } catch (err) {
       setError(t('ai.stories.generateError'));
-      console.error('Failed to generate story:', err);
+      logger.error('Failed to generate story:', err);
     } finally {
       setGenerating(false);
     }

@@ -14,7 +14,8 @@ import {
   deleteAllUserData,
 } from '../utils/encryptionService';
 import { trackEvent } from '../services/analytics';
-import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+
 
 interface PrivacySettingsProps {
   userId: string;
@@ -36,10 +37,10 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
   // Load settings from backend on mount
   useEffect(() => {
     const loadSettings = async () => {
-      console.log('🔒 PRIVACY - Loading settings for user:', userId);
+      logger.debug('🔒 PRIVACY - Loading settings for user:', userId);
       setIsLoading(true);
       const loadedSettings = await getPrivacySettings(userId);
-      console.log('⚙️ PRIVACY - Settings loaded:', loadedSettings);
+      logger.debug('⚙️ PRIVACY - Settings loaded:', loadedSettings);
       setSettings(loadedSettings);
       setIsLoading(false);
     };
@@ -66,7 +67,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
     setExportSuccess(false);
     
     try {
-      console.log('📦 Starting data export for user:', userId);
+      logger.debug('📦 Starting data export for user:', userId);
       const dataBlob = await exportUserData(userId);
       
       // Create download link
@@ -79,7 +80,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      console.log('✅ Data export completed successfully');
+      logger.debug('✅ Data export completed successfully');
       setExportSuccess(true);
       
       trackEvent('data_exported', { userId });
@@ -90,7 +91,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
         setExportSuccess(false);
       }, 2000);
     } catch (error) {
-      console.error('❌ Failed to export data:', error);
+      logger.error('❌ Failed to export data:', error);
       setExportError(error instanceof Error ? error.message : 'Export failed');
     } finally {
       setIsExporting(false);
@@ -107,10 +108,10 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
     setDeleteError(null);
     
     try {
-      console.log('🗑️ Starting permanent data deletion for user:', userId);
+      logger.debug('🗑️ Starting permanent data deletion for user:', userId);
       await deleteAllUserData(userId);
       
-      console.log('✅ Data deletion completed successfully');
+      logger.debug('✅ Data deletion completed successfully');
       trackEvent('data_deleted', { userId });
       
       // Clear auth state and redirect
@@ -124,7 +125,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
         window.location.href = '/';
       }, 1000);
     } catch (error) {
-      console.error('❌ Failed to delete data:', error);
+      logger.error('❌ Failed to delete data:', error);
       setDeleteError(error instanceof Error ? error.message : 'Deletion failed');
       setIsDeleting(false);
     }

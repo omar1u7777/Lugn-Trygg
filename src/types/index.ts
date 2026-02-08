@@ -1,3 +1,5 @@
+import { logger } from "../utils/logger";
+
 // 📌 Definiera tillåtna användarroller
 export const USER_ROLES = ["user", "admin"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
@@ -48,7 +50,7 @@ export function parseUserDates(user: User): User {
     if (!date) return undefined;
     const parsed = date instanceof Date ? date : new Date(date);
     if (isNaN(parsed.getTime())) {
-      console.error("❌ Ogiltigt datumformat:", date);
+      logger.error("Ogiltigt datumformat", undefined, { date });
       return undefined;
     }
     return parsed;

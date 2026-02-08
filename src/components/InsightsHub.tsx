@@ -88,7 +88,7 @@ const InsightsHub: React.FC = () => {
 
         // Fetch weekly analysis to get trends
         const weeklyData = await getWeeklyAnalysis(user.user_id);
-        const trendsAnalyzed = weeklyData?.trends?.length || 0;
+        const trendsAnalyzed = weeklyData?.trend ? 1 : 0;
 
         // Estimate prediction accuracy based on data points
         const predictionAccuracy = Math.min(70 + totalDataPoints * 0.3, 92);
@@ -173,9 +173,9 @@ const InsightsHub: React.FC = () => {
           });
         }
 
-        console.log('✅ INSIGHTS HUB - Stats calculated', { totalDataPoints, averageMoodScore, trendsAnalyzed, predictionAccuracy });
+        logger.debug('✅ INSIGHTS HUB - Stats calculated', { totalDataPoints, averageMoodScore, trendsAnalyzed, predictionAccuracy });
       } catch (error) {
-        console.error('❌ INSIGHTS HUB - Failed to fetch insights data:', error);
+        logger.error('❌ INSIGHTS HUB - Failed to fetch insights data:', error);
       } finally {
         setLoading(false);
       }

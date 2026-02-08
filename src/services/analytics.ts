@@ -4,6 +4,8 @@
  * GDPR compliant with privacy-focused data collection
  */
 
+import { logger } from '../utils/logger';
+
 // Temporarily disable Sentry to fix React import issues
 // import * as Sentry from '@sentry/react';
 const Sentry = {
@@ -82,9 +84,9 @@ export const analytics = {
         (window as any).va('pageview');
       }
 
-      console.log('📊 Page tracked:', pageData);
+      logger.debug('📊 Page tracked:', pageData);
     } catch (error) {
-      console.warn('Page tracking failed:', error);
+      logger.warn('Page tracking failed:', error);
     }
   },
 
@@ -112,9 +114,9 @@ export const analytics = {
         (window as any).va('event', { name: eventName, properties });
       }
 
-      console.log('📊 Event tracked:', eventName, eventData);
+      logger.debug('📊 Event tracked:', eventName, eventData);
     } catch (error) {
-      console.warn('Event tracking failed:', error);
+      logger.warn('Event tracking failed:', error);
     }
   },
 
@@ -148,9 +150,9 @@ export const analytics = {
         username: properties.email?.split('@')[0] || '',
       });
 
-      console.log('👤 User identified:', userData);
+      logger.debug('👤 User identified:', userData);
     } catch (error) {
-      console.warn('User identification failed:', error);
+      logger.warn('User identification failed:', error);
     }
   },
 
@@ -182,9 +184,9 @@ export const analytics = {
         amplitudeInstance.logEvent('Error Occurred', errorData);
       }
 
-      console.error('❌ Error tracked:', errorData);
+      logger.error('❌ Error tracked:', errorData);
     } catch (err) {
-      console.warn('Error tracking failed:', err);
+      logger.warn('Error tracking failed:', err);
     }
   },
 
@@ -228,9 +230,9 @@ export const analytics = {
         data: performanceData,
       });
 
-      console.log('⚡ Performance tracked:', performanceData);
+      logger.debug('⚡ Performance tracked:', performanceData);
     } catch (error) {
-      console.warn('Performance tracking failed:', error);
+      logger.warn('Performance tracking failed:', error);
     }
   },
 
@@ -419,10 +421,10 @@ const trackWebVitals = () => {
         category: 'web-vitals',
       }));
     }).catch((error) => {
-      console.warn('Web Vitals import failed:', error);
+      logger.warn('Web Vitals import failed:', error);
     });
   } catch (error) {
-    console.warn('Web Vitals tracking failed:', error);
+    logger.warn('Web Vitals tracking failed:', error);
   }
 };
 
@@ -431,11 +433,11 @@ const trackWebVitals = () => {
   */
 export function initializeAnalytics() {
   if (!ENABLE_ANALYTICS) {
-    console.log('📊 Analytics disabled for development');
+    logger.debug('📊 Analytics disabled for development');
     return;
   }
 
-  console.log('🚀 Initializing analytics services...');
+  logger.debug('🚀 Initializing analytics services...');
 
   try {
     // Initialize in order
@@ -456,9 +458,9 @@ export function initializeAnalytics() {
       cookieEnabled: navigator.cookieEnabled,
     });
 
-    console.log('✅ Analytics initialized successfully');
+    logger.debug('✅ Analytics initialized successfully');
   } catch (error) {
-    console.error('❌ Analytics initialization failed:', error);
+    logger.error('❌ Analytics initialization failed:', error);
   }
 }
 
@@ -470,9 +472,9 @@ export function trackEvent(eventName: string, properties?: Record<string, any>) 
     if (typeof window !== 'undefined' && (window as any).amplitude) {
       (window as any).amplitude.getInstance().logEvent(eventName, properties);
     }
-    console.log(`📊 Event tracked: ${eventName}`, properties);
+    logger.debug(`📊 Event tracked: ${eventName}`, properties);
   } catch (error) {
-    console.error('Failed to track event:', error);
+    logger.error('Failed to track event:', error);
     trackError(error as Error);
   }
 }
@@ -487,9 +489,9 @@ export function setUserProperties(userId: string, properties: Record<string, any
       (window as any).amplitude.getInstance().setUserProperties(properties);
     }
     Sentry.setUser({ id: userId });
-    console.log('👤 User properties set:', properties);
+    logger.debug('👤 User properties set:', properties);
   } catch (error) {
-    console.error('Failed to set user properties:', error);
+    logger.error('Failed to set user properties:', error);
   }
 }
 
@@ -502,9 +504,9 @@ export function clearUserData() {
       (window as any).amplitude.getInstance().clearUserProperties();
     }
     Sentry.setUser(null);
-    console.log('🧹 User data cleared');
+    logger.debug('🧹 User data cleared');
   } catch (error) {
-    console.error('Failed to clear user data:', error);
+    logger.error('Failed to clear user data:', error);
   }
 }
 
@@ -580,9 +582,9 @@ export function trackRetention(daysSinceSignup: number) {
 export function trackError(error: Error) {
   try {
     Sentry.captureException(error);
-    console.error('🚨 Error tracked in Sentry:', error);
+    logger.error('🚨 Error tracked in Sentry:', error);
   } catch (e) {
-    console.error('Failed to track error:', e);
+    logger.error('Failed to track error:', e);
   }
 }
 

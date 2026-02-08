@@ -1,3 +1,4 @@
+import { logger } from './logger';
 /**
  * Accessibility Audit Utility for WCAG 2.1 AA Compliance
  * Automated testing and validation of accessibility features
@@ -418,7 +419,7 @@ export class AccessibilityAuditor {
 
       return focusableWithNegativeTabIndex.length === 0;
     } catch (error) {
-      console.error('Keyboard navigation test failed:', error);
+      logger.error('Keyboard navigation test failed:', error);
       return false;
     }
   }

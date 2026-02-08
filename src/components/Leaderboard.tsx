@@ -12,11 +12,16 @@ import {
   getStreakLeaderboard,
   getMoodLeaderboard,
   getUserRanking,
-  LeaderboardEntry
+  type XPLeaderboardUser,
+  type StreakLeaderboardUser,
+  type MoodLeaderboardUser,
+  type LeaderboardUser,
 } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowTrendingUpIcon, FireIcon, TrophyIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
+
+type LeaderboardEntry = XPLeaderboardUser | StreakLeaderboardUser | MoodLeaderboardUser;
 
 export const Leaderboard: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -107,9 +112,9 @@ export const Leaderboard: React.FC = () => {
 
   const getScoreValue = (entry: LeaderboardEntry): number => {
     switch (activeTab) {
-      case 0: return entry.xp || 0;
-      case 1: return entry.current_streak || 0;
-      case 2: return entry.mood_count || 0;
+      case 0: return (entry as XPLeaderboardUser).xp || 0;
+      case 1: return (entry as StreakLeaderboardUser).current_streak || 0;
+      case 2: return (entry as MoodLeaderboardUser).mood_count || 0;
       default: return 0;
     }
   };

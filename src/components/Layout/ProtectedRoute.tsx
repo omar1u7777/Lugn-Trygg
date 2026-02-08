@@ -1,7 +1,8 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import WorldClassDashboardSkeleton from "../WorldClassDashboardSkeleton";
+import WorldClassDashboardSkeleton from "../WorldClassDashboardSkeleton";import { logger } from '../../utils/logger';
+
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -29,7 +30,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
   }
 
   const loggedIn = isLoggedIn;
-  console.log('🛡️ ProtectedRoute check:', { loggedIn, isInitialized, requireAdmin, userRole: user?.role });
+  logger.debug('🛡️ ProtectedRoute check:', { loggedIn, isInitialized, requireAdmin, userRole: user?.role });
 
   // Not logged in at all
   if (!loggedIn) {
@@ -38,7 +39,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   // Logged in but not admin when admin required
   if (requireAdmin && user?.role !== 'admin') {
-    console.warn('⚠️ Admin access denied for user:', user?.email);
+    logger.warn('⚠️ Admin access denied for user:', user?.email);
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="text-center max-w-md">

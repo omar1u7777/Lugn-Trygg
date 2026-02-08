@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
+import { API_ENDPOINTS } from "./constants";
 
 /**
  * API Key Rotation Status
@@ -54,7 +55,7 @@ export interface SecurityMetrics {
  */
 export const getKeyRotationStatus = async (): Promise<ApiKeyRotationStatus> => {
   try {
-    const response = await api.get('/api/security/key-rotation/status');
+    const response = await api.get(API_ENDPOINTS.SECURITY.KEY_ROTATION_STATUS);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -75,7 +76,7 @@ export const getTamperEvents = async (limit: number = 50): Promise<{
   activeAlerts: TamperEvent[];
 }> => {
   try {
-    const response = await api.get('/api/security/tamper/events', {
+    const response = await api.get(API_ENDPOINTS.SECURITY.TAMPER_EVENTS, {
       params: { limit: Math.min(limit, 200) }
     });
     return response.data.data || response.data;
@@ -93,7 +94,7 @@ export const getTamperEvents = async (limit: number = 50): Promise<{
  */
 export const getSecurityMetrics = async (): Promise<SecurityMetrics> => {
   try {
-    const response = await api.get('/api/security/monitoring/metrics');
+    const response = await api.get(API_ENDPOINTS.SECURITY.MONITORING_METRICS);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
 import { XMarkIcon, EnvelopeIcon, PaperAirplaneIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { logger } from '../../utils/logger';
 import { Dialog } from "../ui/tailwind/Dialog";
 import { Input } from "../ui/tailwind/Input";
 import { Button } from "../ui/tailwind/Button";
@@ -72,7 +73,7 @@ const useForgotPassword = (onSuccess: () => void) => {
         onSuccess();
       }, 3000);
     } catch (err: unknown) {
-      console.error('Password reset error:', err);
+      logger.error('Password reset error:', err);
       const firebaseError = err as { code?: string; message?: string };
       let errorMessage: string = MESSAGES.GENERIC_ERROR;
 

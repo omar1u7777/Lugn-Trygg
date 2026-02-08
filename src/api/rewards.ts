@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
+import { API_ENDPOINTS } from "./constants";
 
 export interface UserReward {
   userId: string;
@@ -58,7 +59,7 @@ export interface CheckAchievementsResult {
  */
 export const getUserRewards = async (): Promise<UserReward> => {
   try {
-    const response = await api.get('/api/rewards/profile');
+    const response = await api.get(API_ENDPOINTS.REWARDS.PROFILE);
     // Backend returns { success: true, data: { rewards: {...} }, message: "..." }
     return response.data.data?.rewards || response.data.rewards || {};
   } catch (error: unknown) {
@@ -75,7 +76,7 @@ export const getUserRewards = async (): Promise<UserReward> => {
  */
 export const getRewardCatalog = async (): Promise<RewardItem[]> => {
   try {
-    const response = await api.get('/api/rewards/catalog');
+    const response = await api.get(API_ENDPOINTS.REWARDS.REWARD_CATALOG);
     // Backend returns { success: true, data: { rewards: [...] }, message: "..." }
     return response.data.data?.rewards || response.data.rewards || [];
   } catch (error: unknown) {
@@ -92,7 +93,7 @@ export const getRewardCatalog = async (): Promise<RewardItem[]> => {
  */
 export const getAchievements = async (): Promise<Achievement[]> => {
   try {
-    const response = await api.get('/api/rewards/achievements');
+    const response = await api.get(API_ENDPOINTS.REWARDS.ACHIEVEMENTS);
     // Backend returns { success: true, data: { achievements: [...] }, message: "..." }
     return response.data.data?.achievements || response.data.achievements || [];
   } catch (error: unknown) {
@@ -110,7 +111,7 @@ export const getAchievements = async (): Promise<Achievement[]> => {
  */
 export const claimReward = async (rewardId: string): Promise<ClaimRewardResult> => {
   try {
-    const response = await api.post('/api/rewards/claim', {
+    const response = await api.post(API_ENDPOINTS.REWARDS.CLAIM, {
       reward_id: rewardId
     });
     return response.data.data || response.data;
@@ -130,7 +131,7 @@ export const claimReward = async (rewardId: string): Promise<ClaimRewardResult> 
  */
 export const addXp = async (amount: number, reason: string = 'general') => {
   try {
-    const response = await api.post('/api/rewards/add-xp', {
+    const response = await api.post(API_ENDPOINTS.REWARDS.ADD_XP, {
       amount,
       reason
     });
@@ -158,7 +159,7 @@ export const checkAchievements = async (
   } = {}
 ): Promise<CheckAchievementsResult> => {
   try {
-    const response = await api.post('/api/rewards/check-achievements', stats);
+    const response = await api.post(API_ENDPOINTS.REWARDS.CHECK_ACHIEVEMENTS, stats);
     return response.data.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -174,7 +175,7 @@ export const checkAchievements = async (
  */
 export const getUserBadges = async () => {
   try {
-    const response = await api.get('/api/rewards/badges');
+    const response = await api.get(API_ENDPOINTS.REWARDS.BADGES);
     return response.data.data?.badges || response.data.badges || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {

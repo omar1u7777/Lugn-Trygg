@@ -8,6 +8,8 @@ import { api } from '../api/api';
 import { trackEvent } from './analytics';
 import { getFirebaseVapidKey } from '../config/env';
 import { loadFirebaseMessagingBundle } from './lazyFirebase';
+import { logger } from '../utils/logger';
+
 
 interface NotificationSchedule {
   morningReminder?: string; // HH:MM
@@ -47,34 +49,34 @@ export async function initializeMessaging() {
   try {
     // Skip Firebase Messaging initialization in development if there are permission issues
     if (import.meta.env.DEV) {
-      console.log('📱 Firebase Messaging initialization skipped in development mode');
+      logger.debug('📱 Firebase Messaging initialization skipped in development mode');
       return;
     }
 
     const { messagingInstance, messagingModule } = await ensureMessagingBundle();
     messaging = messagingInstance;
-    console.log('📱 Firebase Messaging initialized');
+    logger.debug('📱 Firebase Messaging initialized');
 
     // Do not request permission here; UI handles permission flow.
     if (Notification.permission !== 'granted') {
-      console.log('ℹ️ Notification permission not granted yet; skipping token fetch');
+      logger.debug('ℹ️ Notification permission not granted yet; skipping token fetch');
       return;
     }
 
     const vapidKey = getFirebaseVapidKey();
     if (!isLikelyVapidKey(vapidKey)) {
-      console.warn('⚠️ Missing or invalid VAPID key; skipping FCM token initialization');
+      logger.warn('⚠️ Missing or invalid VAPID key; skipping FCM token initialization');
       return;
     }
 
     const fcmToken = await messagingModule.getToken(messagingInstance, { vapidKey: vapidKey as string });
     if (fcmToken) {
-      console.log('📱 FCM Token:', fcmToken);
+      logger.debug('📱 FCM Token:', fcmToken);
       // Save token to backend
       await saveFCMToken(fcmToken);
     }
   } catch (error) {
-    console.error('Failed to initialize messaging:', error);
+    logger.error('Failed to initialize messaging:', error);
   }
 }
 
@@ -83,10 +85,10 @@ export async function initializeMessaging() {
  */
 async function saveFCMToken(token: string) {
   try {
-    await api.post('/api/notifications/fcm-token', { fcmToken: token });
-    console.log('💾 FCM token saved to backend');
+    await api.post('/api/v1/notifications/fcm-token', { fcmToken: token });
+    logger.debug('💾 FCM token saved to backend');
   } catch (error) {
-    console.error('Failed to save FCM token:', error);
+    logger.error('Failed to save FCM token:', error);
   }
 }
 
@@ -97,7 +99,7 @@ export async function listenForMessages() {
   const { messagingInstance, messagingModule } = await ensureMessagingBundle();
 
   messagingModule.onMessage(messagingInstance, (payload) => {
-    console.log('📬 Message received:', payload);
+    logger.debug('📬 Message received:', payload);
 
     const notificationTitle = payload.notification?.title || 'Lugn & Trygg';
     const notificationOptions: NotificationOptions = {
@@ -133,7 +135,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
     const permission = await Notification.requestPermission();
     return permission === 'granted';
   } catch (error) {
-    console.error('Failed to request notification permission:', error);
+    logger.error('Failed to request notification permission:', error);
     return false;
   }
 }
@@ -143,11 +145,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
  */
 export async function setNotificationSchedule(userId: string, schedule: NotificationSchedule) {
   try {
-    await api.post(`/api/users/${userId}/notification-schedule`, schedule);
-    console.log('⏰ Notification schedule saved');
+    await api.post('/api/v1/users/notification-schedule', schedule);
+    logger.debug('⏰ Notification schedule saved');
     trackEvent('notification_schedule_updated', schedule);
   } catch (error) {
-    console.error('Failed to save notification schedule:', error);
+    logger.error('Failed to save notification schedule:', error);
   }
 }
 
@@ -156,13 +158,13 @@ export async function setNotificationSchedule(userId: string, schedule: Notifica
  */
 export async function sendMeditationReminder(userId: string, meditationTitle: string) {
   try {
-    await api.post(`/api/notifications/send-reminder`, {
+    await api.post(`/api/v1/notifications/send-reminder`, {
       type: 'meditation_reminder',
       message: `Dags att meditera: ${meditationTitle}`,
     });
-    console.log('🧘 Meditation reminder sent');
+    logger.debug('🧘 Meditation reminder sent');
   } catch (error) {
-    console.error('Failed to send meditation reminder:', error);
+    logger.error('Failed to send meditation reminder:', error);
   }
 }
 
@@ -171,13 +173,13 @@ export async function sendMeditationReminder(userId: string, meditationTitle: st
  */
 export async function sendMoodCheckInReminder(userId: string) {
   try {
-    await api.post(`/api/notifications/send-reminder`, {
+    await api.post(`/api/v1/notifications/send-reminder`, {
       type: 'mood_check_in',
       message: 'Hur mår du idag? Ta en stund för en snabb humör-check.',
     });
-    console.log('😊 Mood check-in reminder sent');
+    logger.debug('😊 Mood check-in reminder sent');
   } catch (error) {
-    console.error('Failed to send mood check-in reminder:', error);
+    logger.error('Failed to send mood check-in reminder:', error);
   }
 }
 
@@ -190,17 +192,17 @@ export async function scheduleDailyNotifications(
   enabled: boolean = true
 ) {
   try {
-    await api.post(`/api/notifications/schedule-daily`, {
+    await api.post(`/api/v1/notifications/schedule-daily`, {
       enabled,
       time: reminderTime,
     });
-    console.log('📅 Daily notifications scheduled');
+    logger.debug('📅 Daily notifications scheduled');
     trackEvent('daily_notifications_scheduled', {
       reminderTime,
       enabled,
     });
   } catch (error) {
-    console.error('Failed to schedule daily notifications:', error);
+    logger.error('Failed to schedule daily notifications:', error);
   }
 }
 
@@ -209,7 +211,7 @@ export async function scheduleDailyNotifications(
  */
 export async function getNotificationSettings(userId: string): Promise<NotificationSchedule | null> {
   try {
-    const response = await api.get(`/api/notifications/settings`);
+    const response = await api.get(`/api/v1/notifications/settings`);
     const data = response.data?.data?.settings || response.data?.settings;
     if (!data) return null;
     
@@ -221,7 +223,7 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
       moodCheckInTime: data.reminderTime || '09:00',
     };
   } catch (error) {
-    console.error('Failed to fetch notification settings:', error);
+    logger.error('Failed to fetch notification settings:', error);
     return null;
   }
 }
@@ -234,14 +236,14 @@ export async function updateNotificationPreferences(
   preferences: Partial<NotificationSchedule>
 ) {
   try {
-    await api.post(`/api/notifications/settings`, {
+    await api.post(`/api/v1/notifications/settings`, {
       dailyRemindersEnabled: preferences.enableMoodReminders || preferences.enableMeditationReminders,
       reminderTime: preferences.morningReminder || preferences.moodCheckInTime,
     });
-    console.log('📲 Notification preferences updated');
+    logger.debug('📲 Notification preferences updated');
     trackEvent('notification_preferences_updated', preferences);
   } catch (error) {
-    console.error('Failed to update notification preferences:', error);
+    logger.error('Failed to update notification preferences:', error);
   }
 }
 
@@ -250,11 +252,11 @@ export async function updateNotificationPreferences(
  */
 export async function disableAllNotifications(userId: string) {
   try {
-    await api.post(`/api/notifications/disable-all`, {});
-    console.log('🔕 All notifications disabled');
+    await api.post(`/api/v1/notifications/disable-all`, {});
+    logger.debug('🔕 All notifications disabled');
     trackEvent('all_notifications_disabled');
   } catch (error) {
-    console.error('Failed to disable notifications:', error);
+    logger.error('Failed to disable notifications:', error);
   }
 }
 

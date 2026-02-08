@@ -12,7 +12,8 @@ import { logMood } from '../api/api';
 import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import '../styles/world-class-design.css';
+import '../styles/world-class-design.css';import { logger } from '../utils/logger';
+
 
 // ----------------------------------------------------------------------
 // Types & Constants
@@ -272,7 +273,7 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
       // Close modal
       onClose();
     } catch (error) {
-      console.error('Failed to save mood:', error);
+      logger.error('Failed to save mood:', error);
       announceToScreenReader('Kunde inte spara humör. Försök igen.');
     } finally {
       setIsSaving(false);

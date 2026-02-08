@@ -64,18 +64,18 @@ const SocialHub: React.FC = () => {
       try {
         logger.debug('Fetching leaderboard, referrals, moods...');
         // Fetch leaderboard to get community size and user rank
-        const leaderboardData = await getLeaderboard(100);
+        const leaderboardData = await getLeaderboard('xp');
         const communityMembers = leaderboardData.length;
 
         // Find user's rank
         const userRankEntry = leaderboardData.find(
-          (entry: any) => entry.user_id === user.user_id
+          (entry: any) => entry.userId === user.user_id
         );
         const userRank = userRankEntry?.rank || 0;
 
         // Fetch referral stats (includes challenges data)
         const referralStats = await getReferralStats(user.user_id);
-        const challengesCompleted = referralStats.successful_referrals || 0;
+        const challengesCompleted = referralStats.successfulReferrals || 0;
 
         // Fetch moods to calculate support messages (approximate with mood logs)
         const moods = await getMoods(user.user_id);
