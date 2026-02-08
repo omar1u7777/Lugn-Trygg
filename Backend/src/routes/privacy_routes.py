@@ -551,7 +551,11 @@ def system_retention_cleanup():
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
         
-        # TODO: Add admin role check
+        # Admin role check - verify user is admin
+        user_doc = db.collection('users').document(current_user_id).get()  # type: ignore
+        if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
+            return APIResponse.forbidden("Admin privileges required")
+        
         if data_retention_service is None:
             return APIResponse.error("Data retention service unavailable", "SERVICE_UNAVAILABLE", 503)
 
@@ -736,7 +740,11 @@ def get_breach_history():
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
         
-        # TODO: Add admin role check
+        # Admin role check - verify user is admin
+        user_doc = db.collection('users').document(current_user_id).get()  # type: ignore
+        if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
+            return APIResponse.forbidden("Admin privileges required")
+        
         limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
 
         if breach_notification_service is None:

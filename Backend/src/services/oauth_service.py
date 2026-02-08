@@ -61,8 +61,48 @@ class OAuthService:
             'api_base': 'https://wbsapi.withings.net'
         }
         
-        # State storage (in production, use Redis or database)
-        self.oauth_states = {}
+        # State storage using Redis with in-memory fallback
+        self._redis_client = None
+        try:
+            from ..redis_config import get_redis_client
+            self._redis_client = get_redis_client()
+            logger.info("OAuth state storage: Redis")
+        except Exception:
+            logger.warning("OAuth state storage: in-memory fallback (states lost on restart)")
+        self._memory_states: Dict[str, Any] = {}
+    
+    def _set_state(self, state: str, data: Dict[str, Any], ttl: int = 600) -> None:
+        """Store OAuth state with 10-minute TTL."""
+        import json as _json
+        if self._redis_client:
+            try:
+                self._redis_client.setex(f"oauth_state:{state}", ttl, _json.dumps(data))
+                return
+            except Exception:
+                pass
+        self._memory_states[state] = data
+    
+    def _get_state(self, state: str) -> Optional[Dict[str, Any]]:
+        """Retrieve OAuth state."""
+        import json as _json
+        if self._redis_client:
+            try:
+                raw = self._redis_client.get(f"oauth_state:{state}")
+                if raw:
+                    return _json.loads(raw)
+                return None
+            except Exception:
+                pass
+        return self._memory_states.get(state)
+    
+    def _delete_state(self, state: str) -> None:
+        """Delete OAuth state."""
+        if self._redis_client:
+            try:
+                self._redis_client.delete(f"oauth_state:{state}")
+            except Exception:
+                pass
+        self._memory_states.pop(state, None)
     
     def get_authorization_url(self, provider: str, user_id: str) -> Dict[str, str]:
         """
@@ -82,11 +122,11 @@ class OAuthService:
             
             # Generate state for CSRF protection
             state = secrets.token_urlsafe(32)
-            self.oauth_states[state] = {
+            self._set_state(state, {
                 'user_id': user_id,
                 'provider': provider,
                 'created_at': datetime.now(UTC).isoformat()
-            }
+            })
             
             # Build authorization URL
             params = {
@@ -136,10 +176,11 @@ class OAuthService:
         """
         try:
             # Verify state
-            if state not in self.oauth_states:
+            stored_state = self._get_state(state)
+            if not stored_state:
                 raise ValueError("Invalid state parameter")
             
-            state_data = self.oauth_states[state]
+            state_data = stored_state
             if state_data['provider'] != provider:
                 raise ValueError("Provider mismatch")
             
@@ -176,7 +217,7 @@ class OAuthService:
             token_data['obtained_at'] = datetime.now(UTC).isoformat()
             
             # Clean up state
-            del self.oauth_states[state]
+            self._delete_state(state)
             
             logger.info(f"Successfully exchanged code for token - {provider} - user: {state_data['user_id']}")
             

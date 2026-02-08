@@ -93,7 +93,7 @@ class AuditService:
                 # Decrypt details
                 try:
                     data["details"] = self.decrypt_data(data["details"])
-                except:
+                except Exception:
                     data["details"] = "Decryption failed"
                 audit_trail.append(data)
 
@@ -135,7 +135,7 @@ class AuditService:
             if field in decrypted_data and isinstance(decrypted_data[field], str):
                 try:
                     decrypted_data[field] = self.decrypt_data(decrypted_data[field])
-                except:
+                except Exception:
                     logger.warning(f"Failed to decrypt field: {field}")
 
         return decrypted_data

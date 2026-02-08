@@ -5,7 +5,7 @@ Provides interactive API documentation and testing interface
 
 import os
 import logging
-from flask import Blueprint, jsonify, render_template_string, request
+from flask import Blueprint, jsonify, render_template_string, request, g
 from src.docs.swagger_config import get_openapi_spec, get_openapi_json, get_openapi_yaml
 from src.services.rate_limiting import rate_limit_by_endpoint
 
@@ -23,8 +23,7 @@ SWAGGER_UI_HTML = """
 <head>
     <title>Lugn & Trygg API Documentation</title>
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui.css" />
-    <link rel="icon" type="image/png" href="https://lugntrygg.se/favicon.ico" />
-    <style>
+    <style nonce="{{ csp_nonce }}">
         html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
         *, *:before, *:after { box-sizing: inherit; }
         body { margin: 0; background: #fafafa; }
@@ -37,7 +36,7 @@ SWAGGER_UI_HTML = """
     <div id="swagger-ui"></div>
     <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-bundle.js"></script>
     <script src="https://unpkg.com/swagger-ui-dist@5.10.3/swagger-ui-standalone-preset.js"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}">
         window.onload = function() {
             const ui = SwaggerUIBundle({
                 url: '/api/docs/openapi.json',
@@ -66,8 +65,9 @@ SWAGGER_UI_HTML = """
                     if (response.url.includes('/api/auth/') && response.status === 200) {
                         try {
                             const data = JSON.parse(response.data);
-                            if (data.access_token) {
-                                localStorage.setItem('token', data.access_token);
+                            const tokenData = data.data || data;
+                            if (tokenData.accessToken) {
+                                localStorage.setItem('token', tokenData.accessToken);
                             }
                         } catch (e) {
                             // Ignore parsing errors
@@ -90,14 +90,13 @@ REDOC_UI_HTML = """
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
-    <link rel="icon" type="image/png" href="https://lugntrygg.se/favicon.ico" />
-    <style>
+    <style nonce="{{ csp_nonce }}">
         body { margin: 0; padding: 0; }
     </style>
 </head>
 <body>
     <redoc spec-url='/api/docs/openapi.json'></redoc>
-    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
 </body>
 </html>
 """
@@ -123,7 +122,8 @@ def api_docs():
     if request.method == 'OPTIONS':
         return '', 204
     logger.info("Swagger UI documentation accessed")
-    return render_template_string(SWAGGER_UI_HTML)
+    csp_nonce = getattr(g, 'csp_nonce', '')
+    return render_template_string(SWAGGER_UI_HTML, csp_nonce=csp_nonce)
 
 @docs_bp.route('/redoc', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
@@ -146,7 +146,8 @@ def api_docs_redoc():
     if request.method == 'OPTIONS':
         return '', 204
     logger.info("ReDoc documentation accessed")
-    return render_template_string(REDOC_UI_HTML)
+    csp_nonce = getattr(g, 'csp_nonce', '')
+    return render_template_string(REDOC_UI_HTML, csp_nonce=csp_nonce)
 
 @docs_bp.route('/openapi.json', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint

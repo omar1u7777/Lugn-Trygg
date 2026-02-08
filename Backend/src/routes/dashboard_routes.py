@@ -461,6 +461,17 @@ def get_quick_stats(user_id: str):
             })
             return APIResponse.forbidden('Unauthorized access')
 
+        # Check short-lived cache first (60s TTL for quick stats)
+        cache_key = f"quick_stats:{user_id}"
+        if cache_key in _dashboard_cache:
+            cached = _dashboard_cache[cache_key]
+            if datetime.now(timezone.utc).timestamp() - cached.get('_cached_at', 0) < 60:
+                cached_copy = {k: v for k, v in cached.items() if k != '_cached_at'}
+                cached_copy['cached'] = True
+                return APIResponse.success(data=cached_copy, message='Quick stats retrieved (cached)')
+            else:
+                del _dashboard_cache[cache_key]
+
         # Check database availability
         if db is None:
             logger.error("❌ Quick stats - Database unavailable")
@@ -483,12 +494,17 @@ def get_quick_stats(user_id: str):
             logger.warning(f"⚠️ Quick stats chat query failed: {e}")
             total_chats = 0
 
+        stats_data = {
+            'totalMoods': total_moods,
+            'totalChats': total_chats,
+            'cached': False
+        }
+
+        # Cache for 60 seconds
+        _dashboard_cache[cache_key] = {**stats_data, '_cached_at': datetime.now(timezone.utc).timestamp()}
+
         return APIResponse.success(
-            data={
-                'totalMoods': total_moods,
-                'totalChats': total_chats,
-                'cached': False
-            },
+            data=stats_data,
             message='Quick stats retrieved'
         )
 

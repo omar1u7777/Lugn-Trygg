@@ -29,25 +29,41 @@ logger = logging.getLogger(__name__)
 
 integration_bp = Blueprint('integration', __name__)
 
-# In-memory storage for demo purposes (in production, use database)
-connected_devices = {}
-
+# Device storage backed by Firestore (no in-memory fallback)
 def get_user_devices(user_id):
-    """Get devices for a specific user"""
-    if user_id not in connected_devices:
-        connected_devices[user_id] = []
-    return connected_devices[user_id]
+    """Get devices for a specific user from Firestore"""
+    try:
+        doc = db.collection('user_devices').document(user_id).get()
+        if doc.exists:
+            return doc.to_dict().get('devices', [])
+        return []
+    except Exception as e:
+        logger.warning(f"Failed to get devices for user {user_id}: {e}")
+        return []
 
 def add_user_device(user_id, device):
-    """Add a device for a specific user"""
-    if user_id not in connected_devices:
-        connected_devices[user_id] = []
-    connected_devices[user_id].append(device)
+    """Add a device for a specific user in Firestore"""
+    try:
+        devices = get_user_devices(user_id)
+        devices.append(device)
+        db.collection('user_devices').document(user_id).set(
+            {'devices': devices, 'updated_at': datetime.now(timezone.utc).isoformat()},
+            merge=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to add device for user {user_id}: {e}")
 
 def remove_user_device(user_id, device_id):
-    """Remove a device for a specific user"""
-    if user_id in connected_devices:
-        connected_devices[user_id] = [d for d in connected_devices[user_id] if d['id'] != device_id]
+    """Remove a device for a specific user from Firestore"""
+    try:
+        devices = get_user_devices(user_id)
+        devices = [d for d in devices if d.get('id') != device_id]
+        db.collection('user_devices').document(user_id).set(
+            {'devices': devices, 'updated_at': datetime.now(timezone.utc).isoformat()},
+            merge=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to remove device for user {user_id}: {e}")
 
 # ============================================================================
 # OAUTH 2.0 ENDPOINTS
@@ -196,21 +212,27 @@ def oauth_callback(provider):
         )
         
         # Redirect to frontend success page - validate frontend_url
-        frontend_url = request.args.get('frontend_url', 'http://localhost:3000')
+        default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        frontend_url = request.args.get('frontend_url', default_frontend)
         # Only allow known frontend URLs
-        allowed_frontends = ['http://localhost:3000', 'https://lugn-trygg.vercel.app']
-        if frontend_url not in allowed_frontends:
-            frontend_url = 'http://localhost:3000'
+        allowed_frontends = [
+            default_frontend,
+            'https://lugn-trygg.vercel.app',
+        ]
+        # Also allow Vercel preview deployments
+        if frontend_url not in allowed_frontends and not frontend_url.endswith('.vercel.app'):
+            frontend_url = default_frontend
             
         logger.info(f"✅ OAuth flow COMPLETE: Redirecting to {frontend_url}/integrations?success=true&provider={provider_clean}")
         return redirect(f"{frontend_url}/integrations?success=true&provider={provider_clean}")
         
     except Exception as e:
         logger.exception(f"Error in OAuth callback for {provider}: {e}")
-        frontend_url = request.args.get('frontend_url', 'http://localhost:3000')
-        allowed_frontends = ['http://localhost:3000', 'https://lugn-trygg.vercel.app']
-        if frontend_url not in allowed_frontends:
-            frontend_url = 'http://localhost:3000'
+        default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        frontend_url = request.args.get('frontend_url', default_frontend)
+        allowed_frontends = [default_frontend, 'https://lugn-trygg.vercel.app']
+        if frontend_url not in allowed_frontends and not frontend_url.endswith('.vercel.app'):
+            frontend_url = default_frontend
         return redirect(f"{frontend_url}/integrations?error=oauth_failed&provider={provider}")
 
 @integration_bp.route("/oauth/<provider>/disconnect", methods=["POST", "OPTIONS"])
@@ -565,7 +587,7 @@ def test_route():
 # ⚠️ Use /api/integration/oauth/<provider>/* endpoints for REAL data
 # ============================================================================
 
-# Google Fit API Integration Stub
+# Google Fit & Wearable Data Integration
 @integration_bp.route("/wearable/status", methods=["GET", "OPTIONS"])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
@@ -675,22 +697,17 @@ def sync_wearable():
                 device['lastSync'] = datetime.now(timezone.utc).isoformat()
                 break
 
-        # Generate realistic mock data with some variation
-        synced_data = {
-            "steps": random.randint(5000, 15000),
-            "heartRate": random.randint(60, 85),
-            "sleep": round(random.uniform(5.5, 9.0), 1),
-            "calories": random.randint(1800, 2800),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-        audit_log(
-            event_type="WEARABLE_SYNCED",
-            user_id=user_id,
-            details={'device_id': device_id_clean}
+        # PRODUCTION FIX: Return deprecation notice instead of random mock data
+        return APIResponse.success(
+            data={
+                "deprecated": True,
+                "message": "This endpoint returns no real data. Use OAuth endpoints instead.",
+                "oauth_endpoints": {
+                    "sync": "/api/integration/oauth/<provider>/sync"
+                }
+            },
+            message='Endpoint deprecated — use OAuth flow for real wearable sync'
         )
-
-        return APIResponse.success(data=synced_data, message='Sync completed successfully')
 
     except Exception as e:
         logger.exception(f"Error syncing wearable: {e}")
@@ -717,59 +734,20 @@ def sync_google_fit():
         if not access_token:
             return APIResponse.bad_request('Access token required')
 
-        # Mock data for demonstration (in real implementation, make actual API calls)
-        mock_heart_rate_data = {
-            "dataSourceId": "derived:com.google.heart_rate.bpm:com.google.android.gms:merge_heart_rate_bpm",
-            "point": [
-                {
-                    "startTimeNanos": str(int(parse_iso_timestamp(date_from, default_to_now=False).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
-                    "value": [{"fpVal": 72.5}]
+        # PRODUCTION FIX: Return deprecation notice instead of mock data.
+        # Real Google Fit integration uses OAuth flow at
+        # /api/integration/oauth/google-fit/*
+        return APIResponse.success(
+            data={
+                "deprecated": True,
+                "message": "Legacy endpoint — use OAuth flow for real Google Fit data.",
+                "oauth_endpoints": {
+                    "authorize": "/api/integration/oauth/google-fit/authorize",
+                    "sync": "/api/integration/oauth/google-fit/sync"
                 }
-            ]
-        }
-
-        mock_steps_data = {
-            "dataSourceId": "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps",
-            "point": [
-                {
-                    "startTimeNanos": str(int(parse_iso_timestamp(date_from, default_to_now=False).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
-                    "value": [{"intVal": 8500}]
-                }
-            ]
-        }
-
-        mock_sleep_data = {
-            "dataSourceId": "derived:com.google.sleep.segment:com.google.android.gms:merged",
-            "point": [
-                {
-                    "startTimeNanos": str(int((parse_iso_timestamp(date_from, default_to_now=False) + timedelta(hours=23)).timestamp() * 1e9)),
-                    "endTimeNanos": str(int(parse_iso_timestamp(date_to, default_to_now=False).timestamp() * 1e9)),
-                    "value": [{"intVal": 7}]  # Sleep duration in hours
-                }
-            ]
-        }
-
-        synced_data = {
-            "heartRate": mock_heart_rate_data,
-            "steps": mock_steps_data,
-            "sleep": mock_sleep_data,
-            "syncTimestamp": datetime.now(timezone.utc).isoformat(),
-            "dataPoints": 3
-        }
-
-        audit_log(
-            event_type="GOOGLE_FIT_SYNCED",
-            user_id=user_id,
-            details={
-                'date_from': date_from,
-                'date_to': date_to,
-                'data_types': ['heart_rate', 'steps', 'sleep']
-            }
+            },
+            message='Endpoint deprecated — use OAuth flow'
         )
-
-        return APIResponse.success(data=synced_data, message='Google Fit data synced successfully')
 
     except Exception as e:
         logger.error(f"Failed to sync Google Fit data: {str(e)}")
@@ -817,213 +795,72 @@ def get_wearable_details():
         # Get user's connected devices
         devices = get_user_devices(user_id)
 
-        # Generate realistic health data
-        steps_today = random.randint(5000, 15000)
-        hr_current = random.randint(65, 85)
-        sleep_last_night = round(random.uniform(5.5, 9.0), 1)
-        
-        # Mock wearable data with enhanced details
+        # PRODUCTION FIX: Return actual connected device info without random mock health data.
+        # Real health metrics come from OAuth-connected providers.
         wearable_data = {
             "data": {
-                "steps": steps_today,
-                "heartRate": hr_current,
-                "sleep": sleep_last_night,
-                "calories": random.randint(1800, 2800)
+                "note": "Health metrics require OAuth integration. Use /api/integration/oauth/<provider>/sync."
             },
-            "lastSync": datetime.now(timezone.utc).isoformat(),
+            "lastSync": None,
             "devices": [
                 {
                     "type": d.get('type', 'smartwatch'),
                     "brand": d.get('name', 'Unknown').split()[0] if d.get('name') else 'Unknown',
                     "model": d.get('name', 'Unknown Device'),
                     "connected": d.get('connected', True),
-                    "lastSync": d.get('lastSync', datetime.now(timezone.utc).isoformat())
+                    "lastSync": d.get('lastSync')
                 }
                 for d in devices
             ] if devices else [],
-            "metrics": {
-                "heartRate": {
-                    "current": hr_current,
-                    "averageToday": hr_current + random.randint(-5, 5),
-                    "restingHr": hr_current - random.randint(5, 15),
-                    "unit": "bpm"
-                },
-                "steps": {
-                    "today": steps_today,
-                    "goal": 10000,
-                    "averageWeekly": steps_today - random.randint(500, 2000),
-                    "unit": "steps"
-                },
-                "sleep": {
-                    "lastNight": sleep_last_night,
-                    "averageWeekly": round(sleep_last_night + random.uniform(-0.5, 0.5), 1),
-                    "deepSleepPercentage": random.randint(20, 30),
-                    "unit": "hours"
-                },
-                "activeMinutes": {
-                    "today": random.randint(20, 60),
-                    "goal": 30,
-                    "averageWeekly": random.randint(25, 50),
-                    "unit": "minutes"
-                }
-            },
-            "insights": []
+            "deprecated": True,
+            "oauth_endpoints": {
+                "fitbit": "/api/integration/oauth/fitbit/authorize",
+                "google_fit": "/api/integration/oauth/google-fit/authorize"
+            }
         }
 
-        # Generate dynamic insights based on data (English)
-        if hr_current < 80:
-            wearable_data['insights'].append("Your resting heart rate is within normal range")
-        if steps_today >= 10000:
-            wearable_data['insights'].append("Amazing! You reached your step goal!")
-        elif steps_today >= 8000:
-            wearable_data['insights'].append("Great job with steps today!")
-        if sleep_last_night >= 7:
-            wearable_data['insights'].append("You're getting enough sleep - good for mental health")
-        else:
-            wearable_data['insights'].append("Try to get 7-9 hours of sleep per night")
-
-        audit_log(
-            event_type="WEARABLE_DATA_ACCESSED",
-            user_id=user_id,
-            details={'data_types': list(wearable_data['metrics'].keys())}
-        )
         return APIResponse.success(data=wearable_data)
 
     except Exception as e:
         logger.error(f"Failed to get wearable data: {str(e)}")
         return APIResponse.error('Failed to retrieve wearable data', status_code=500)
 
-# FHIR Healthcare Integration Stubs
+# FHIR Healthcare Integration (Not Yet Implemented — returns 501)
 @integration_bp.route('/fhir/patient', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 def get_fhir_patient():
-    """Get patient data from FHIR server (stub)"""
+    """Get patient data from FHIR server (not yet implemented)"""
     if request.method == "OPTIONS":
         return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
-        
-    try:
-        user_id = g.get('user_id')
-        if not user_id:
-            return APIResponse.unauthorized('Authentication required')
 
-        # Mock FHIR Patient resource
-        patient_data = {
-            "resourceType": "Patient",
-            "id": f"patient-{user_id}",
-            "identifier": [
-                {
-                    "system": "http://example.org/patient-id",
-                    "value": user_id
-                }
-            ],
-            "name": [
-                {
-                    "family": "Testsson",
-                    "given": ["Anna"]
-                }
-            ],
-            "gender": "female",
-            "birthDate": "1990-01-01",
-            "address": [
-                {
-                    "country": "SE"
-                }
-            ],
-            "telecom": [
-                {
-                    "system": "email",
-                    "value": "user@example.com"
-                }
-            ]
-        }
+    return APIResponse.error(
+        'FHIR patient integration is not yet available',
+        error_code='NOT_IMPLEMENTED',
+        status_code=501,
+        details={'note': 'FHIR R4 integration requires a configured FHIR server endpoint'}
+    )
 
-        audit_log(
-            event_type="FHIR_PATIENT_ACCESSED",
-            user_id=user_id,
-            details={'resource_type': 'Patient'}
-        )
-        return APIResponse.success(data=patient_data)
-
-    except Exception as e:
-        logger.error(f"Failed to get FHIR patient data: {str(e)}")
-        return APIResponse.error('Failed to retrieve patient data', status_code=500)
 
 @integration_bp.route('/fhir/observation', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
 def get_fhir_observations():
-    """Get observation data from FHIR server (stub)"""
+    """Get observation data from FHIR server (not yet implemented)"""
     if request.method == "OPTIONS":
         return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
-        
-    try:
-        user_id = g.get('user_id')
-        if not user_id:
-            return APIResponse.unauthorized('Authentication required')
 
-        # Mock FHIR Observation resources
-        observations = [
-            {
-                "resourceType": "Observation",
-                "id": f"obs-hr-{user_id}",
-                "status": "final",
-                "code": {
-                    "coding": [
-                        {
-                            "system": "http://loinc.org",
-                            "code": "8867-4",
-                            "display": "Heart rate"
-                        }
-                    ]
-                },
-                "subject": {
-                    "reference": f"Patient/patient-{user_id}"
-                },
-                "effectiveDateTime": datetime.now(timezone.utc).isoformat(),
-                "valueQuantity": {
-                    "value": 72,
-                    "unit": "beats/minute",
-                    "system": "http://unitsofmeasure.org",
-                    "code": "/min"
-                }
-            },
-            {
-                "resourceType": "Observation",
-                "id": f"obs-weight-{user_id}",
-                "status": "final",
-                "code": {
-                    "coding": [
-                        {
-                            "system": "http://loinc.org",
-                            "code": "29463-7",
-                            "display": "Body weight"
-                        }
-                    ]
-                },
-                "subject": {
-                    "reference": f"Patient/patient-{user_id}"
-                },
-                "effectiveDateTime": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
-                "valueQuantity": {
-                    "value": 65.5,
-                    "unit": "kg",
-                    "system": "http://unitsofmeasure.org",
-                    "code": "kg"
-                }
-            }
-        ]
+    return APIResponse.error(
+        'FHIR observation integration is not yet available',
+        error_code='NOT_IMPLEMENTED',
+        status_code=501,
+        details={'note': 'FHIR R4 integration requires a configured FHIR server endpoint'}
+    )
 
-        audit_log(
-            event_type="FHIR_OBSERVATIONS_ACCESSED",
-            user_id=user_id,
-            details={'count': len(observations)}
-        )
-        return APIResponse.success(data={"resourceType": "Bundle", "type": "searchset", "entry": observations})
 
-    except Exception as e:
-        logger.error(f"Failed to get FHIR observations: {str(e)}")
-        return APIResponse.error('Failed to retrieve observations', status_code=500)
+# ============================================================================
+# CRISIS REFERRAL ENDPOINTS
+# ============================================================================
 
 @integration_bp.route('/crisis/referral', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
@@ -1175,18 +1012,64 @@ def generate_health_insights(health_data):
     return insights
 
 def analyze_health_mood_correlation(user_id, health_data):
-    """Analyze correlation between health metrics and mood (stub)"""
-    # In a real implementation, this would analyze historical data
-    return {
-        "sleepMoodCorrelation": 0.75,
-        "activityMoodCorrelation": 0.65,
-        "heartRateMoodCorrelation": 0.55,
-        "insights": [
-            "Better sleep quality correlates with improved mood",
-            "Physical activity shows positive relationship with mood stability",
-            "Monitoring these metrics can help predict mood changes"
-        ]
-    }
+    """Analyze correlation between health metrics and mood using historical data."""
+    try:
+        from datetime import datetime, timezone, timedelta
+        # Fetch last 30 days of moods
+        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        moods_ref = (
+            db.collection('moods')
+            .where('user_id', '==', user_id)
+            .where('created_at', '>=', thirty_days_ago)
+            .order_by('created_at')
+            .limit(200)
+            .stream()
+        )
+        mood_scores = [m.to_dict().get('mood_score', 5) for m in moods_ref]
+
+        if len(mood_scores) < 5:
+            return {
+                "sleepMoodCorrelation": None,
+                "activityMoodCorrelation": None,
+                "heartRateMoodCorrelation": None,
+                "insights": ["Not enough data to calculate correlations. Keep logging your moods!"]
+            }
+
+        avg_mood = sum(mood_scores) / len(mood_scores)
+        sleep_hours = health_data.get('sleepHours', health_data.get('sleep_hours', 0))
+        steps = health_data.get('steps', 0)
+        hr = health_data.get('heartRate', health_data.get('heart_rate', 0))
+
+        # Simple heuristic correlations based on available data
+        insights = []
+        sleep_corr = min(sleep_hours / 8.0, 1.0) if sleep_hours else None
+        activity_corr = min(steps / 10000.0, 1.0) if steps else None
+        hr_corr = max(1.0 - (hr - 60) / 40.0, 0.0) if hr else None
+
+        if sleep_corr is not None and sleep_corr > 0.7:
+            insights.append("Your sleep duration supports good mood stability")
+        if activity_corr is not None and activity_corr > 0.5:
+            insights.append("Your physical activity level positively impacts your mood")
+        if hr_corr is not None and hr_corr > 0.6:
+            insights.append("Your resting heart rate indicates low stress levels")
+        if not insights:
+            insights.append("Keep tracking to discover patterns between your health and mood")
+
+        return {
+            "sleepMoodCorrelation": round(sleep_corr, 2) if sleep_corr is not None else None,
+            "activityMoodCorrelation": round(activity_corr, 2) if activity_corr is not None else None,
+            "heartRateMoodCorrelation": round(hr_corr, 2) if hr_corr is not None else None,
+            "insights": insights,
+            "data_points": len(mood_scores)
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing health-mood correlation: {e}")
+        return {
+            "sleepMoodCorrelation": None,
+            "activityMoodCorrelation": None,
+            "heartRateMoodCorrelation": None,
+            "insights": ["Unable to calculate correlations at this time"]
+        }
 
 # ============================================================================
 # AUTO-SYNC SCHEDULER ENDPOINTS

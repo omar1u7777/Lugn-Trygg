@@ -262,4 +262,13 @@ logger.info(
 logger.info(f"✅ Tillåtna CORS-origins: {CORS_ALLOWED_ORIGINS}")
 logger.info("✅ Backend är korrekt konfigurerad men inga hemligheter visas i loggen.")
 
-__all__ = ["config", "get_env_variable", "Config"]
+# 2026-Compliant: Export both old and new config for backward compatibility
+try:
+    from .settings import Settings, get_settings, settings as new_settings
+    __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings"]
+    # For backward compatibility, also export old config
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from .settings import Settings as SettingsType
+except ImportError:
+    __all__ = ["config", "get_env_variable", "Config"]

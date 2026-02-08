@@ -128,7 +128,7 @@ class HealthAnalyticsService:
                 date2 = date2.date()
 
             return date1 == date2
-        except:
+        except Exception:
             return False
     
     def _find_patterns(self, correlations: List[Dict]) -> List[Dict[str, str]]:

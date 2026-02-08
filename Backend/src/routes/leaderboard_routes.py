@@ -78,6 +78,7 @@ def user_rank_options(user_id):
 
 
 @leaderboard_bp.route('/xp', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_xp_leaderboard():
     """Get top users by XP"""
@@ -130,6 +131,7 @@ def get_xp_leaderboard():
 
 
 @leaderboard_bp.route('/streaks', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_streak_leaderboard():
     """Get top users by current streak"""
@@ -174,6 +176,7 @@ def get_streak_leaderboard():
 
 
 @leaderboard_bp.route('/moods', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_mood_leaderboard():
     """Get top users by mood log count"""
@@ -288,6 +291,7 @@ def get_user_rank(user_id: str):
 
 
 @leaderboard_bp.route('/weekly-winners', methods=['GET'])
+@AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_weekly_winners():
     """Get last week's top performers"""
