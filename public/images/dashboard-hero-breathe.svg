@@ -1,0 +1,67 @@
+<svg width="720" height="540" viewBox="0 0 720 540" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">Lugn &amp; Trygg Dashboard Hero</title>
+  <desc id="heroDesc">Illustration av en lugn person som mediterar framför mjuka statistik-kort.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff" />
+      <stop offset="45%" stop-color="#ecfdf5" />
+      <stop offset="100%" stop-color="#ede9fe" />
+    </linearGradient>
+    <linearGradient id="sun" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+    <linearGradient id="mat" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#22d3ee" />
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+      <stop offset="100%" stop-color="#f1f5f9" stop-opacity="0.9" />
+    </linearGradient>
+    <clipPath id="blob">
+      <path d="M108 94C174 -7 324 -22 417 17C510 54 594 166 606 270C616 366 561 454 479 492C396 531 287 520 205 467C103 403 28 213 108 94Z"/>
+    </clipPath>
+  </defs>
+  <rect width="720" height="540" rx="56" fill="url(#bg)" />
+  <g clip-path="url(#blob)" transform="translate(30,40)">
+    <rect width="600" height="430" fill="url(#bg)" />
+    <circle cx="520" cy="60" r="90" fill="url(#sun)" opacity="0.3" />
+    <circle cx="120" cy="110" r="70" fill="#bfdbfe" opacity="0.25" />
+  </g>
+  <ellipse cx="360" cy="430" rx="220" ry="55" fill="#0f172a" opacity="0.08" />
+  <rect x="170" y="380" width="380" height="36" rx="18" fill="url(#mat)" opacity="0.9" />
+  <g>
+    <circle cx="248" cy="260" r="86" fill="#10b981" opacity="0.18" />
+    <circle cx="472" cy="250" r="86" fill="#2563eb" opacity="0.14" />
+  </g>
+  <g id="figure" transform="translate(210,140)">
+    <ellipse cx="150" cy="232" rx="120" ry="18" fill="#0f172a" opacity="0.1" />
+    <path d="M106 122C106 93 129 70 158 70C186 70 209 93 210 122V182H106V122Z" fill="#1f2937" />
+    <path d="M150 26C167 26 182 41 182 58V84C182 111 162 133 136 133H164C180 133 194 146 197 162L210 226H90L103 162C106 146 120 133 136 133H118C92 133 72 111 72 84V58C72 41 87 26 104 26Z" fill="#2563eb" />
+    <path d="M138 14C152 14 164 26 164 40V58C164 72 152 84 138 84C124 84 112 72 112 58V40C112 26 124 14 138 14Z" fill="#fcd34d" />
+    <path d="M60 226C70 180 92 150 122 150H178C208 150 230 180 240 226L244 246H16L20 226H60Z" fill="#0ea5e9" opacity="0.35" />
+    <path d="M34 246C46 206 66 182 90 182H210C234 182 254 206 266 246H34Z" fill="url(#mat)" opacity="0.95" />
+    <circle cx="64" cy="138" r="34" fill="#4ade80" opacity="0.35" />
+    <circle cx="246" cy="138" r="34" fill="#93c5fd" opacity="0.35" />
+  </g>
+  <g transform="translate(90,70)">
+    <rect x="0" y="0" width="200" height="120" rx="22" fill="url(#card)" />
+    <rect x="28" y="28" width="110" height="16" rx="8" fill="#cbd5f5" opacity="0.9" />
+    <rect x="28" y="56" width="150" height="12" rx="6" fill="#93c5fd" opacity="0.8" />
+    <rect x="28" y="78" width="120" height="12" rx="6" fill="#d1fae5" />
+    <circle cx="150" cy="48" r="22" fill="#2563eb" opacity="0.15" />
+  </g>
+  <g transform="translate(470,330)">
+    <rect width="190" height="130" rx="24" fill="url(#card)" />
+    <rect x="26" y="28" width="80" height="14" rx="7" fill="#2563eb" opacity="0.4" />
+    <rect x="26" y="54" width="120" height="12" rx="6" fill="#fbbf24" opacity="0.8" />
+    <rect x="26" y="76" width="90" height="12" rx="6" fill="#34d399" opacity="0.8" />
+    <circle cx="146" cy="94" r="18" fill="#10b981" opacity="0.25" />
+  </g>
+  <g transform="translate(540,120)">
+    <path d="M20 80C0 40 14 10 46 0C78 -8 116 8 128 42C138 72 122 108 96 118C70 128 46 118 36 100" fill="#1d976c" opacity="0.2" />
+    <path d="M38 92C22 66 24 40 44 30C64 20 90 28 100 50C108 70 100 92 82 100C64 108 46 106 38 92Z" fill="#10b981" opacity="0.35" />
+    <rect x="56" y="108" width="14" height="44" rx="7" fill="#0c4a6e" opacity="0.5" />
+  </g>
+</svg>

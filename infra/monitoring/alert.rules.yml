@@ -1,0 +1,45 @@
+groups:
+  - name: lugn-trygg-runtime
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job="lugn-trygg-backend",status=~"5.."}[5m]) / rate(http_requests_total{job="lugn-trygg-backend"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate >5%"
+          description: "{{ $labels.job }} is returning >5% errors"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="lugn-trygg-backend"}[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency above 5s"
+
+      - alert: BackendDown
+        expr: up{job="lugn-trygg-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend deployment is not responding"
+
+      - alert: RedisMemoryPressure
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage over 80%"
+
+  - name: infrastructure-health
+    rules:
+      - alert: TLSCertificateExpiringSoon
+        expr: (sum by (instance) (probe_ssl_earliest_cert_expiry{job="uptime-probe"}) - time()) < 1209600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS certificate expires in <14 days"

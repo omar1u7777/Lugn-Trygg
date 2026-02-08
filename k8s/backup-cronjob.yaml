@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: lugn-trygg-backup
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: lugn-trygg-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: firestore-backup
+              image: ghcr.io/lugntrygg/backend:latest
+              imagePullPolicy: IfNotPresent
+              command: ["python", "backup_firestore.py", "--output-dir", "/backups/daily"]
+              env:
+                - name: FIREBASE_CREDENTIALS
+                  value: /app/serviceAccountKey.json
+                - name: FIREBASE_PROJECT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: lugn-trygg-secrets
+                      key: firebaseProjectId
+                - name: FIREBASE_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: lugn-trygg-secrets
+                      key: firebaseApiKey
+                - name: FIREBASE_STORAGE_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: lugn-trygg-secrets
+                      key: firebaseStorageBucket
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backups
+                - name: firebase-service-account
+                  mountPath: /app/serviceAccountKey.json
+                  subPath: serviceAccountKey.json
+          volumes:
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: lugn-trygg-backup-pvc
+            - name: firebase-service-account
+              secret:
+                secretName: lugn-trygg-secrets
+                items:
+                  - key: firebaseServiceAccount
+                    path: serviceAccountKey.json
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lugn-trygg-backup-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

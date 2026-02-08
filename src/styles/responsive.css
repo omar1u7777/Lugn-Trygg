@@ -1,0 +1,623 @@
+/**
+ * Lugn & Trygg - Enhanced Responsive Design System
+ * Professional UI/UX optimizations for all screen sizes
+ * Mobile-first approach with smooth transitions
+ */
+
+/* ===========================================
+   1. GLOBAL RESPONSIVE UTILITIES
+   =========================================== */
+
+/* Improved Container System */
+.container-responsive {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem; /* 16px mobile */
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding: 0 1.5rem; /* 24px tablet */
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container-responsive {
+    padding: 0 2rem; /* 32px */
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding: 0 2.5rem; /* 40px */
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive {
+    padding: 0 3rem; /* 48px */
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container-responsive {
+    padding: 0 4rem; /* 64px large desktop */
+    max-width: 1536px;
+  }
+}
+
+/* ===========================================
+   2. GRID SYSTEMS - Optimized for All Screens
+   =========================================== */
+
+/* Auto-responsive Grid */
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .grid-auto-fit {
+    grid-template-columns: 1fr; /* Single column mobile */
+    gap: 1rem;
+  }
+}
+
+/* Dashboard Widgets Grid */
+.widgets-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* Mobile: stack */
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .widgets-grid {
+    grid-template-columns: repeat(2, 1fr); /* Tablet: 2 cols */
+  }
+}
+
+@media (min-width: 1024px) {
+  .widgets-grid {
+    grid-template-columns: repeat(3, 1fr); /* Desktop: 3 cols */
+  }
+}
+
+@media (min-width: 1280px) {
+  .widgets-grid {
+    grid-template-columns: repeat(4, 1fr); /* Large: 4 cols */
+  }
+}
+
+/* Cards Grid (Integrations, Features) */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* ===========================================
+   3. TYPOGRAPHY - Fluid Scaling
+   =========================================== */
+
+/* Heading Scales */
+.heading-xl {
+  font-size: clamp(2rem, 5vw, 3.5rem); /* 32px - 56px */
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.heading-lg {
+  font-size: clamp(1.75rem, 4vw, 2.5rem); /* 28px - 40px */
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.heading-md {
+  font-size: clamp(1.5rem, 3vw, 2rem); /* 24px - 32px */
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.heading-sm {
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem); /* 20px - 24px */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.body-lg {
+  font-size: clamp(1.125rem, 2vw, 1.25rem); /* 18px - 20px */
+  line-height: 1.6;
+}
+
+.body-base {
+  font-size: clamp(1rem, 1.5vw, 1.125rem); /* 16px - 18px */
+  line-height: 1.6;
+}
+
+.body-sm {
+  font-size: clamp(0.875rem, 1.2vw, 1rem); /* 14px - 16px */
+  line-height: 1.5;
+}
+
+/* ===========================================
+   4. SPACING SYSTEM - Consistent Rhythm
+   =========================================== */
+
+/* Section Spacing */
+.section-padding {
+  padding-top: clamp(2rem, 4vw, 4rem);
+  padding-bottom: clamp(2rem, 4vw, 4rem);
+}
+
+.section-padding-sm {
+  padding-top: clamp(1rem, 2vw, 2rem);
+  padding-bottom: clamp(1rem, 2vw, 2rem);
+}
+
+/* Card Padding */
+.card-padding {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.card-padding-lg {
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+/* ===========================================
+   5. TOUCH TARGETS - Mobile Accessibility
+   =========================================== */
+
+/* Minimum 44x44px for touch targets (Apple HIG) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 1024px) {
+  .touch-target {
+    min-height: 40px; /* Can be slightly smaller on desktop */
+    min-width: 40px;
+    padding: 0.625rem 1rem;
+  }
+}
+
+/* Button Sizes */
+.btn-mobile {
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  min-height: 48px; /* Extra large for mobile */
+  border-radius: 12px;
+}
+
+@media (min-width: 768px) {
+  .btn-mobile {
+    padding: 0.75rem 1.25rem;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .btn-mobile {
+    padding: 0.625rem 1rem;
+    min-height: 40px;
+    border-radius: 8px;
+  }
+}
+
+/* ===========================================
+   6. CARDS - Enhanced Responsive Design
+   =========================================== */
+
+.card-responsive {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .card-responsive {
+    border-radius: 20px;
+  }
+}
+
+.card-responsive:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Dark mode card */
+.dark .card-responsive {
+  background: var(--card-bg-dark, #1e293b);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark .card-responsive:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================================
+   7. NAVIGATION - Mobile-First
+   =========================================== */
+
+.nav-responsive {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--nav-bg, rgba(255, 255, 255, 0.95));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px; /* Mobile nav height */
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .nav-content {
+    height: 72px;
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .nav-content {
+    height: 80px;
+    padding: 0 2rem;
+  }
+}
+
+/* Mobile Menu */
+.mobile-menu {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--nav-bg, #ffffff);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.mobile-menu.active {
+  transform: translateX(0);
+}
+
+@media (min-width: 1024px) {
+  .mobile-menu {
+    display: none; /* Hidden on desktop */
+  }
+}
+
+/* ===========================================
+   8. FORMS - Touch-Friendly Inputs
+   =========================================== */
+
+.input-responsive {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  border: 2px solid var(--input-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--input-bg, #ffffff);
+  transition: all 0.2s ease;
+  min-height: 48px; /* Touch-friendly */
+}
+
+.input-responsive:focus {
+  outline: none;
+  border-color: var(--primary-color, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+@media (min-width: 768px) {
+  .input-responsive {
+    padding: 0.875rem 1.125rem;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .input-responsive {
+    padding: 0.75rem 1rem;
+    min-height: 42px;
+    border-radius: 8px;
+  }
+}
+
+/* ===========================================
+   9. MODALS - Responsive Overlays
+   =========================================== */
+
+.modal-responsive {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end; /* Mobile: bottom sheet */
+  justify-content: center;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+@media (min-width: 768px) {
+  .modal-responsive {
+    align-items: center; /* Tablet+: centered */
+    padding: 2rem;
+  }
+}
+
+.modal-content {
+  background: var(--modal-bg, #ffffff);
+  border-radius: 24px 24px 0 0; /* Mobile: rounded top only */
+  max-height: 90vh;
+  width: 100%;
+  overflow-y: auto;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) {
+  .modal-content {
+    border-radius: 20px; /* Tablet+: all corners rounded */
+    max-width: 600px;
+    max-height: 85vh;
+    animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===========================================
+   10. ACCESSIBILITY - Focus & States
+   =========================================== */
+
+/* Enhanced Focus Indicators */
+*:focus-visible {
+  outline: 3px solid var(--focus-color, #6366f1);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .card-responsive {
+    border: 2px solid var(--border-color, #000000);
+  }
+  
+  .btn-mobile {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ===========================================
+   11. PRINT STYLES
+   =========================================== */
+
+@media print {
+  .nav-responsive,
+  .mobile-menu,
+  .modal-responsive,
+  button,
+  .no-print {
+    display: none !important;
+  }
+  
+  .card-responsive {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+  * {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ===========================================
+   12. LOADING & SKELETON STATES
+   =========================================== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-bg, #f0f0f0) 25%,
+    var(--skeleton-shimmer, #e0e0e0) 50%,
+    var(--skeleton-bg, #f0f0f0) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #2d3748 25%,
+    #4a5568 50%,
+    #2d3748 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ===========================================
+   13. UTILITY CLASSES
+   =========================================== */
+
+/* Visibility Helpers */
+.show-mobile {
+  display: block;
+}
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none;
+  }
+}
+
+.show-tablet {
+  display: none;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .show-tablet {
+    display: block;
+  }
+}
+
+.show-desktop {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .show-desktop {
+    display: block;
+  }
+}
+
+/* Aspect Ratio Boxes */
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-portrait {
+  aspect-ratio: 3 / 4;
+}
+
+/* Truncate Text */
+.truncate-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Safe Area Insets (for iOS notch/home indicator) */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ===========================================
+   14. PERFORMANCE OPTIMIZATIONS
+   =========================================== */
+
+/* GPU Acceleration for Animations */
+.gpu-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Content Visibility for Large Lists */
+.lazy-render {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* ===========================================
+   END OF RESPONSIVE DESIGN SYSTEM
+   =========================================== */

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lugn-trygg-frontend
+  labels:
+    app: lugn-trygg-frontend
+spec:
+  type: LoadBalancer
+  selector:
+    app: lugn-trygg-frontend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lugn-trygg-backend
+  labels:
+    app: lugn-trygg-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: lugn-trygg-backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5001
+      targetPort: 5001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lugn-trygg-redis
+  labels:
+    app: lugn-trygg-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: lugn-trygg-redis
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379

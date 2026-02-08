@@ -1,0 +1,15 @@
+apiVersion: v2
+name: lugn-trygg
+version: 0.1.0
+description: Helm chart for the Lugn & Trygg frontend, backend and Redis services
+appVersion: "1.0.0"
+type: application
+keywords:
+  - mental-health
+  - react
+  - flask
+  - firebase
+home: https://www.lugntrygg.se
+maintainers:
+  - name: LugnTrygg DevOps
+    email: devops@lugntrygg.se

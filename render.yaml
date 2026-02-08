@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: lugn-trygg-backend
+    runtime: python
+    pythonVersion: 3.11
+    plan: free
+
+    repo: https://github.com/omar1u7777/Lugn-Trygg
+    branch: main
+
+    rootDir: Backend
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: python start_waitress.py
+
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: PYTHONUNBUFFERED
+        value: "True"
+      - key: PORT
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        value: lugn-trygg-53d75.appspot.com
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_REFRESH_SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true

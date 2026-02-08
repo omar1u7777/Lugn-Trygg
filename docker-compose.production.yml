@@ -1,0 +1,126 @@
+# 🐳 Docker Compose - PRODUCTION Configuration
+# Deploy full stack for 10k users
+
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.production
+    container_name: lugn-trygg-backend-prod
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=False
+      - PORT=5001
+      - HOST=0.0.0.0
+    env_file:
+      - ./Backend/.env.production
+    volumes:
+      - ./Backend/logs:/app/logs
+      - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - lugn-trygg-network
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 16G
+        reservations:
+          cpus: '4.0'
+          memory: 8G
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: lugn-trygg-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=http://backend:5001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - lugn-trygg-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Redis Cache (Optional - for API caching)
+  redis:
+    image: redis:7-alpine
+    container_name: lugn-trygg-redis-prod
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - lugn-trygg-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Nginx Reverse Proxy (Load Balancer)
+  nginx:
+    image: nginx:alpine
+    container_name: lugn-trygg-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - lugn-trygg-network
+
+networks:
+  lugn-trygg-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  backend-logs:
+  redis-data:
