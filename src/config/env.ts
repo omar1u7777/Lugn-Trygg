@@ -160,12 +160,12 @@ export const getBackendUrl = (): string => {
 
 export const getFirebaseConfig = () => {
   const config = {
-    apiKey: getEnvValue('VITE_FIREBASE_API_KEY') || 'AIzaSyAxs7Monr1bJaXmUecl8eICvDaDhUkCFYY',
-    authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN') || 'lugn-trygg-53d75.firebaseapp.com',
-    projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID') || 'lugn-trygg-53d75',
-    storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET') || 'lugn-trygg-53d75.appspot.com',
-    messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID') || '412776932054',
-    appId: getEnvValue('VITE_FIREBASE_APP_ID') || '1:412776932054:web:7c4c72c93eb9b5c49fdaf0',
+    apiKey: getEnvValue('VITE_FIREBASE_API_KEY'),
+    authDomain: getEnvValue('VITE_FIREBASE_AUTH_DOMAIN'),
+    projectId: getEnvValue('VITE_FIREBASE_PROJECT_ID'),
+    storageBucket: getEnvValue('VITE_FIREBASE_STORAGE_BUCKET'),
+    messagingSenderId: getEnvValue('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+    appId: getEnvValue('VITE_FIREBASE_APP_ID'),
     measurementId: getEnvValue('VITE_FIREBASE_MEASUREMENT_ID'),
   };
 
@@ -180,8 +180,10 @@ export const getFirebaseConfig = () => {
 export const getFirebaseVapidKey = (): string | undefined => getEnvValue('VITE_FIREBASE_VAPID_KEY');
 
 export const getEncryptionKey = (): string => {
-  // Try VITE_ENCRYPTION_KEY first, then fall back to a development key
-  const key = getEnvValue('VITE_ENCRYPTION_KEY') || 'dev-encryption-key-lugn-trygg-2025-secure-fallback-32chars';
+  const key = getEnvValue('VITE_ENCRYPTION_KEY');
+  if (!key) {
+    throw new Error('VITE_ENCRYPTION_KEY is required but not set!');
+  }
   if (key === 'your-encryption-key-here') {
     throw new Error('VITE_ENCRYPTION_KEY must be set to a secure random value!');
   }
