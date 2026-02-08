@@ -1,5 +1,13 @@
 # Lugn & Trygg
 
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com)
+[![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
+
 > A full-stack mental health platform for mood tracking, AI-powered insights, peer support, and personal wellness — built with React, Flask, and Firebase.
 
 ---
@@ -142,8 +150,8 @@ The application is a **monorepo** with a React single-page application at the ro
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-org/lugn-trygg.git
-cd lugn-trygg
+git clone https://github.com/omar1u7777/Lugn-Trygg.git
+cd Lugn-Trygg
 ```
 
 ### 2. Frontend setup
@@ -362,5 +370,7 @@ Full Swagger documentation is available at `/api/docs` when the backend is runni
 
 ## License
 
-Copyright &copy; 2025 Lugn & Trygg. All rights reserved.</content>
+Copyright &copy; 2025 Omar Alhaek. All rights reserved.
+
+This software is proprietary. Unauthorized copying, distribution, or modification is prohibited. See [COPYRIGHT](COPYRIGHT) for details.</content>
 <filePath>c:\Projekt\Lugn-Trygg-main_klar\README.md
