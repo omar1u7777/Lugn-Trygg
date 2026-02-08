@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { useAccessibility } from '../hooks/useAccessibility';
 import SkipLinks from './Accessibility/SkipLinks';
 import { accessibilityAuditor } from '../utils/accessibilityAudit';
-import OfflineIndicator from './OfflineIndicator';
+import OfflineIndicator from './OfflineIndicator';import { logger } from '../utils/logger';
+
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -29,7 +30,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
     if (process.env.NODE_ENV === 'development') {
       accessibilityAuditor.runFullAudit().then(result => {
         if (!result.passed) {
-          console.warn('Accessibility Audit Issues:', result);
+          logger.warn('Accessibility Audit Issues:', result);
         }
       });
     }

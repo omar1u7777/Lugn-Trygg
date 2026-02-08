@@ -4,17 +4,19 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFirebaseConfig as loadFirebaseConfig } from "./config/env";
+import { logger } from "./utils/logger";
 
 // Initialisera Firebase-applikationen med den validerade konfigurationen
 const firebaseConfig = loadFirebaseConfig();
 
 // Production build: No console output for security
 if (import.meta.env.DEV) {
-  console.log('🔥 Firebase Configuration Loaded:');
-  console.log('   API Key:', firebaseConfig.apiKey?.substring(0, 10) + '...');
-  console.log('   Auth Domain:', firebaseConfig.authDomain);
-  console.log('   Project ID:', firebaseConfig.projectId);
-  console.log('   Storage Bucket:', firebaseConfig.storageBucket);
+  logger.debug('Firebase Configuration Loaded', {
+    apiKey: firebaseConfig.apiKey?.substring(0, 10) + '...',
+    authDomain: firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
+    storageBucket: firebaseConfig.storageBucket,
+  });
 }
 
 const firebaseOptions: FirebaseOptions = {
@@ -39,8 +41,8 @@ const missingKeys = Object.entries(firebaseConfig).filter(
 );
 
 if (missingKeys.length > 0 && import.meta.env.DEV) {
-  console.warn(
-    `⚠️ Firebase-konfiguration saknas för följande nycklar: ${missingKeys
+  logger.warn(
+    `Firebase-konfiguration saknas för följande nycklar: ${missingKeys
       .map(([key]) => key)
       .join(", ")}. Firebase-funktioner kommer inte att fungera.`
   );
@@ -57,7 +59,7 @@ const analytics: Analytics | null = null;
 //   try {
 //     analytics = getAnalytics(app);
 //   } catch (error) {
-//     console.warn('Firebase Analytics initialization failed:', error);
+//     logger.warn('Firebase Analytics initialization failed', { error });
 //   }
 // }
 

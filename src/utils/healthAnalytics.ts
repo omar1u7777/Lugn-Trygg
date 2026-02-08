@@ -3,7 +3,8 @@
  * Helper functions for working with health-mood correlation analysis
  */
 
-import { analyzeHealthMoodPatterns } from '@/api/integrations';
+import { analyzeHealthMoodPatterns } from '@/api/integrations';import { logger } from './logger';
+
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -66,7 +67,7 @@ export async function getHealthMoodAnalysis(days: number = 30): Promise<HealthMo
     const result = await analyzeHealthMoodPatterns(days);
     return result;
   } catch (error) {
-    console.error('Failed to get health-mood analysis:', error);
+    logger.error('Failed to get health-mood analysis:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error',

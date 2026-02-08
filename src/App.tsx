@@ -92,7 +92,7 @@ function App() {
 
     return (
         <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner isLoading={false} />}>
+            <Suspense fallback={<LoadingSpinner isLoading={true} />}>
                 <Routes>
                     <Route element={<AuthEntryLayout />}>
                         {authRoutes.map((route) => (
@@ -124,14 +124,14 @@ function App() {
                                         {t('common.pageNotFound')}
                                     </h2>
                                     <p className="text-slate-600 dark:text-slate-400 text-lg mb-8">
-                                        Sidan du letar efter finns inte.
+                                        {t('common.pageNotFoundDescription', 'Sidan du letar efter finns inte.')}
                                     </p>
                                     <button
                                         onClick={() => window.history.back()}
                                         className="btn btn-primary px-6 py-3"
                                     >
                                         <span className="mr-2">⬅️</span>
-                                        Gå tillbaka
+                                        {t('common.goBack', 'Gå tillbaka')}
                                     </button>
                                 </div>
                             </div>

@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
+import { logger } from "../utils/logger";
 
 /**
  * Save a meditation session
@@ -16,15 +17,15 @@ export const saveMeditationSession = async (sessionData: {
   moodAfter?: number;
   notes?: string;
 }) => {
-  console.log('🧘 API - saveMeditationSession called', { sessionData });
+  logger.debug('saveMeditationSession called', { sessionData });
   try {
     const response = await api.post(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions`, sessionData);
-    console.log('✅ Meditation session saved successfully');
+    logger.debug('Meditation session saved successfully');
     // Handle APIResponse wrapper: { success: true, data: {...}, message: "..." }
     return response.data?.data || response.data;
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ Save meditation session error:", apiError);
+    logger.error("Save meditation session error:", apiError);
     throw new Error((apiError.response?.data as any)?.error || "Failed to save meditation session");
   }
 };
@@ -36,16 +37,16 @@ export const saveMeditationSession = async (sessionData: {
  * @throws Error if meditation sessions retrieval fails
  */
 export const getMeditationSessions = async (limit: number = 50) => {
-  console.log('🧘 API - getMeditationSessions called', { limit });
+  logger.debug('getMeditationSessions called', { limit });
   try {
     const response = await api.get(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions?limit=${limit}`);
     // Handle APIResponse wrapper: { success: true, data: { sessions: [...], stats: {...} }, message: "..." }
     const responseData = response.data?.data || response.data;
-    console.log('✅ Meditation sessions retrieved:', responseData.sessions?.length || 0);
+    logger.debug('Meditation sessions retrieved:', responseData.sessions?.length || 0);
     return responseData;
   } catch (error: unknown) {
     const apiError = error as any;
-    console.error("❌ Get meditation sessions error:", apiError);
+    logger.error("Get meditation sessions error:", apiError);
     throw new Error((apiError.response?.data as any)?.error || "Failed to get meditation sessions");
   }
 };

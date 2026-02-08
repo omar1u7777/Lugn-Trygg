@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { saveJournalEntry, getJournalEntries } from '../api/api';
+import { saveJournalEntry, getJournalEntries } from '../api/api';import { logger } from '../utils/logger';
+
 
 interface UseJournalingOptions {
     user: any;
@@ -23,7 +24,7 @@ export const useJournaling = ({ user, announce, onProgress }: UseJournalingOptio
             const history = await getJournalEntries(user.user_id, 20);
             setEntries(history);
         } catch (error) {
-            console.error('Failed to load journal entries:', error);
+            logger.error('Failed to load journal entries:', error);
         } finally {
             setIsLoading(false);
         }
@@ -49,7 +50,7 @@ export const useJournaling = ({ user, announce, onProgress }: UseJournalingOptio
             // Refresh journal history
             loadHistory();
         } catch (error) {
-            console.error('Failed to save journal entry:', error);
+            logger.error('Failed to save journal entry:', error);
             announce('Kunde inte spara journalanteckning', 'assertive');
         } finally {
             setIsSaving(false);

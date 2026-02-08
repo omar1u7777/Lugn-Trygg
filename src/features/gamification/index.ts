@@ -10,7 +10,6 @@ export { default as Gamification } from '../../components/WorldClassGamification
 export { default as GamificationSystem } from '../../components/GamificationSystem';
 export { default as BadgeDisplay } from '../../components/BadgeDisplay';
 export { default as Leaderboard } from '../../components/Leaderboard';
-export { default as AchievementSharing } from '../../components/AchievementSharing';
 export { default as GroupChallenges } from '../../components/GroupChallenges';
 
 // Hooks

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { CloudIcon, CloudArrowUpIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import offlineStorage from '../services/offlineStorage';
+import offlineStorage from '../services/offlineStorage';import { logger } from '../utils/logger';
+
 
 interface OfflineIndicatorProps {
   position?: 'top' | 'bottom';
@@ -65,7 +66,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
             // Sync mood with API
             offlineStorage.markMoodAsSynced(mood.id);
           } catch (error) {
-            console.error('Failed to sync mood:', error);
+            logger.error('Failed to sync mood:', error);
           }
         }
       }
@@ -76,14 +77,14 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           try {
             offlineStorage.markMemoryAsSynced(memory.id);
           } catch (error) {
-            console.error('Failed to sync memory:', error);
+            logger.error('Failed to sync memory:', error);
           }
         }
       }
 
       updateUnsyncedCount();
     } catch (error) {
-      console.error('Sync failed:', error);
+      logger.error('Sync failed:', error);
     } finally {
       setIsSyncing(false);
     }

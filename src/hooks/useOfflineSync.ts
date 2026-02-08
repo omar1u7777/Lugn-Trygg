@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import offlineStorage from '../services/offlineStorage';
-import { trackEvent } from '../services/analytics';
+import { trackEvent } from '../services/analytics';import { logger } from '../utils/logger';
+
 
 interface OfflineData {
   moods: Array<any>;
@@ -153,7 +154,7 @@ export const useOfflineSync = (userId?: string): UseOfflineSyncReturn => {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Sync failed';
       setError(errorMsg);
-      console.error('Manual sync error:', err);
+      logger.error('Manual sync error:', err);
     } finally {
       setIsSyncing(false);
     }

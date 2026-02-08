@@ -4,6 +4,7 @@ import { logoutUser } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 import { tokenStorage } from "../utils/secureStorage";
+import { logger } from '../utils/logger';
 
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -16,7 +17,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return savedUser ? JSON.parse(savedUser) : null;
       } catch (error) {
         if ((import.meta as any).env?.DEV) {
-          console.warn("Failed to parse user data from localStorage:", error);
+          logger.warn("Failed to parse user data from localStorage:", error);
         }
         return null;
       }
@@ -62,13 +63,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (storedToken && userData) {
           // Valid session exists - restore it BEFORE marking as initialized
           if ((import.meta as any).env?.DEV) {
-            console.log("✅ Token & user loaded from secure storage:", userData);
+            logger.debug("✅ Token & user loaded from secure storage:", userData);
           }
           setTokenState(storedToken);
           setUserState(userData);
         }
       } catch (error) {
-        console.error("❌ Failed to load token from secure storage:", error);
+        logger.error("❌ Failed to load token from secure storage:", error);
       } finally {
         // Mark as initialized AFTER state has been set
         setTimeout(() => setIsInitialized(true), 0);
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 🔓 Hantera inloggning och lagra användarinformation
   const login = useCallback(async (accessToken: string, emailOrUser: string | User, userId?: string) => {
-    console.log('🔑 AUTH CONTEXT - Login called', { email: typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email });
+    logger.debug('🔑 AUTH CONTEXT - Login called', { email: typeof emailOrUser === 'string' ? emailOrUser : emailOrUser.email });
 
     try {
       // Store token securely
@@ -108,13 +109,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUserState(userData);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      console.log('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
+      logger.debug('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
 
       // ✅ FIX: Navigate to dashboard after successful login
       navigate("/dashboard");
 
     } catch (error) {
-      console.error('❌ AUTH CONTEXT - Login failed:', error);
+      logger.error('❌ AUTH CONTEXT - Login failed:', error);
       throw error;
     }
   }, [navigate]);
@@ -125,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await logoutUser();
     } catch (error) {
       if ((import.meta as any).env?.DEV) {
-        console.warn("⚠️ Utloggning misslyckades, rensar ändå lokalt.");
+        logger.warn("⚠️ Utloggning misslyckades, rensar ändå lokalt.");
       }
     } finally {
       setTokenState(null);

@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
+import { API_ENDPOINTS } from "./constants";
 
 export interface ChatRoom {
   id: string;
@@ -42,7 +43,7 @@ export interface ChatSession {
  */
 export const getChatRooms = async (): Promise<ChatRoom[]> => {
   try {
-    const response = await api.get('/api/peer-chat/rooms');
+    const response = await api.get(API_ENDPOINTS.PEER_CHAT.CHAT_ROOMS);
     return response.data?.data?.rooms || response.data?.rooms || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -60,7 +61,7 @@ export const getChatRooms = async (): Promise<ChatRoom[]> => {
  */
 export const joinChatRoom = async (roomId: string, userId: string): Promise<ChatSession> => {
   try {
-    const response = await api.post(`/api/peer-chat/room/${roomId}/join`, { user_id: userId });
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_ROOM_JOIN}/${roomId}/join`, { user_id: userId });
     const data = response.data?.data || response.data;
     
     // Normalize response to include both camelCase and snake_case for compatibility
@@ -89,7 +90,7 @@ export const joinChatRoom = async (roomId: string, userId: string): Promise<Chat
  */
 export const leaveChatRoom = async (roomId: string, sessionId: string) => {
   try {
-    const response = await api.post(`/api/peer-chat/room/${roomId}/leave`, { session_id: sessionId });
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_ROOM_LEAVE}/${roomId}/leave`, { session_id: sessionId });
     return response.data?.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -112,7 +113,7 @@ export const getChatMessages = async (roomId: string, sessionId?: string, after?
     if (sessionId) params.append('session_id', sessionId);
     if (after) params.append('after', after);
     
-    const response = await api.get(`/api/peer-chat/room/${roomId}/messages?${params.toString()}`);
+    const response = await api.get(`${API_ENDPOINTS.PEER_CHAT.CHAT_MESSAGES}/${roomId}/messages?${params.toString()}`);
     return response.data?.data?.messages || response.data?.messages || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -139,7 +140,7 @@ export const sendChatMessage = async (
   avatar?: string
 ) => {
   try {
-    const response = await api.post(`/api/peer-chat/room/${roomId}/send`, {
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_SEND}/${roomId}/send`, {
       session_id: sessionId,
       message,
       anonymous_name: anonymousName,
@@ -162,7 +163,7 @@ export const sendChatMessage = async (
  */
 export const toggleMessageLike = async (messageId: string, sessionId: string) => {
   try {
-    const response = await api.post(`/api/peer-chat/message/${messageId}/like`, { session_id: sessionId });
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_LIKE}/${messageId}/like`, { session_id: sessionId });
     return response.data?.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -181,7 +182,7 @@ export const toggleMessageLike = async (messageId: string, sessionId: string) =>
  */
 export const reportChatMessage = async (messageId: string, sessionId: string, reason: string) => {
   try {
-    const response = await api.post(`/api/peer-chat/message/${messageId}/report`, { 
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_REPORT}/${messageId}/report`, { 
       session_id: sessionId,
       reason 
     });
@@ -203,7 +204,7 @@ export const reportChatMessage = async (messageId: string, sessionId: string, re
  */
 export const updateTypingStatus = async (roomId: string, sessionId: string, isTyping: boolean) => {
   try {
-    const response = await api.post(`/api/peer-chat/room/${roomId}/typing`, { 
+    const response = await api.post(`${API_ENDPOINTS.PEER_CHAT.CHAT_TYPING}/${roomId}/typing`, { 
       session_id: sessionId,
       is_typing: isTyping 
     });
@@ -223,7 +224,7 @@ export const updateTypingStatus = async (roomId: string, sessionId: string, isTy
  */
 export const getRoomPresence = async (roomId: string) => {
   try {
-    const response = await api.get(`/api/peer-chat/room/${roomId}/presence`);
+    const response = await api.get(`${API_ENDPOINTS.PEER_CHAT.CHAT_PRESENCE}/${roomId}/presence`);
     return response.data?.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {

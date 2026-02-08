@@ -10,6 +10,7 @@ import OptimizedImage from './ui/OptimizedImage';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getMoods, getChatHistory, getMemories, changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
+import { logger } from '../utils/logger';
 import {
   BellIcon,
   ShieldCheckIcon,
@@ -106,17 +107,17 @@ const ProfileHub: React.FC = () => {
 
   useEffect(() => {
     const fetchProfileData = async () => {
-      console.log('👤 PROFILE HUB - Component mounted, loading data', { userId: user?.user_id });
+      logger.debug('👤 PROFILE HUB - Component mounted, loading data', { userId: user?.user_id });
       if (!user?.user_id) {
-        console.warn('⚠️ PROFILE HUB - No user ID');
+        logger.warn('⚠️ PROFILE HUB - No user ID');
         setLoading(false);
         return;
       }
 
       try {
-        console.log('📊 PROFILE HUB - Fetching moods, chats, memories...');
+        logger.debug('📊 PROFILE HUB - Fetching moods, chats, memories...');
         // Fetch user activity data
-        const [moods, chatHistory, memories] = await Promise.all([
+        const [moods, chatHistoryResult, memories] = await Promise.all([
           getMoods(user.user_id),
           getChatHistory(user.user_id),
           getMemories(user.user_id),
@@ -127,19 +128,19 @@ const ProfileHub: React.FC = () => {
 
         setProfileStats({
           totalMoods: moods.length,
-          totalConversations: chatHistory.length,
+          totalConversations: chatHistoryResult.conversation?.length || 0,
           totalMemories: memories.length,
           accountAge,
         });
-        console.log('✅ PROFILE HUB - Stats calculated', { totalMoods: moods.length, totalConversations: chatHistory.length, totalMemories: memories.length, accountAge });
+        logger.debug('✅ PROFILE HUB - Stats calculated', { totalMoods: moods.length, totalConversations: chatHistoryResult.conversation?.length || 0, totalMemories: memories.length, accountAge });
       } catch (error: unknown) {
-        console.error('❌ PROFILE HUB - Failed to fetch profile data:', error);
+        logger.error('❌ PROFILE HUB - Failed to fetch profile data:', error);
         // CRITICAL FIX: Better error handling with user-friendly messages
         const errorMessage = error instanceof Error && 'response' in error && typeof error.response === 'object' && error.response && 'data' in error.response && typeof error.response.data === 'object' && error.response.data && 'error' in error.response.data
           ? String(error.response.data.error)
           : error instanceof Error ? error.message : 'Kunde inte ladda profildata';
         // CRITICAL FIX: Log error (component doesn't have error state, but we log it)
-        console.error('Profile data fetch error:', errorMessage);
+        logger.error('Profile data fetch error:', errorMessage);
       } finally {
         setLoading(false);
       }
@@ -149,7 +150,7 @@ const ProfileHub: React.FC = () => {
   }, [user?.user_id]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    console.log('👤 PROFILE HUB - Tab changed', { newTab: newValue });
+    logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
     setActiveTab(newValue);
   };
 

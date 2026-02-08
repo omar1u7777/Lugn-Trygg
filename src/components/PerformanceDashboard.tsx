@@ -3,7 +3,8 @@ import { Card, CardContent, Typography, Grid, Chip, Alert, Button, Divider } fro
 // TODO: Replace icons with Heroicons
 import { analytics } from '../services/analytics';
 import { initializePerformanceMonitoring, performanceMonitor } from '../services/performanceMonitor';
-import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+
 
 interface PerformanceMetrics {
   coreWebVitals: {
@@ -100,7 +101,7 @@ const PerformanceDashboard: React.FC = () => {
       setMetrics(mockMetrics);
       analyzePerformanceIssues(mockMetrics);
     } catch (error) {
-      console.error('Failed to load performance metrics:', error);
+      logger.error('Failed to load performance metrics:', error);
     }
   };
 

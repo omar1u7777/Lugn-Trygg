@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from './ui/tailwind';
 import { getJournalEntries } from '../api/api';
 import useAuth from '../hooks/useAuth';
+import { logger } from '../utils/logger';
 import {
   CalendarDaysIcon,
   TagIcon,
@@ -45,14 +46,14 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('📝 Loading journal entries for user:', user.user_id);
+      logger.debug('📝 Loading journal entries for user:', user.user_id);
 
-      const response = await getJournalEntries(100);
-      console.log('✅ Journal entries loaded:', response.length);
+      const response = await getJournalEntries(user.user_id, 100);
+      logger.debug('✅ Journal entries loaded:', response.length);
 
       setEntries(response);
     } catch (error: any) {
-      console.error('❌ Failed to load journal entries:', error);
+      logger.error('❌ Failed to load journal entries:', error);
       setError(error?.response?.data?.error || 'Failed to load journal entries');
     } finally {
       setLoading(false);

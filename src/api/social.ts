@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
+import { API_ENDPOINTS } from "./constants";
 
 export interface LeaderboardEntry {
   userId: string;
@@ -22,8 +23,9 @@ export interface ReferralStats {
  */
 export const getLeaderboard = async (type: string = 'xp'): Promise<LeaderboardEntry[]> => {
   try {
-    const response = await api.get(`/api/leaderboard/${type}`);
-    return response.data.leaderboard || [];
+    const response = await api.get(`${API_ENDPOINTS.LEADERBOARD.BASE}/${type}`);
+    const data = response.data?.data || response.data;
+    return data.leaderboard || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -39,7 +41,7 @@ export const getLeaderboard = async (type: string = 'xp'): Promise<LeaderboardEn
  */
 export const getReferralStats = async (userId: string): Promise<ReferralStats> => {
   try {
-    const response = await api.get(`/api/referral/stats?user_id=${userId}`);
+    const response = await api.get(`${API_ENDPOINTS.REFERRAL.STATS}?user_id=${userId}`);
     // Handle APIResponse wrapper: { success: true, data: {...} }
     const data = response.data?.data || response.data;
     return data || {

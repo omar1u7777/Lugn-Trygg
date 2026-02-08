@@ -5,6 +5,7 @@ import { ThemeProvider } from "../contexts/ThemeContext";
 import "../i18n"; // Initialize i18n
 import { I18nextProvider } from "react-i18next";
 import i18n from "../i18n";
+import { logger } from './logger';
 
 // Force Swedish for tests before rendering
 i18n.changeLanguage('sv');
@@ -20,7 +21,7 @@ if (typeof window !== 'undefined' && typeof process !== 'undefined' && process.e
     localStorage.setItem('user', JSON.stringify(TEST_USER));
     localStorage.setItem(`onboarding_${TEST_USER.user_id}_complete`, 'true');
   } catch (error) {
-    console.warn('Failed to seed test data:', error);
+    logger.warn('Failed to seed test data:', error);
   }
 }
 

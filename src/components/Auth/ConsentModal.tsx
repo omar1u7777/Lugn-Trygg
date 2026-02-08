@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { grantBulkConsents, mapFrontendConsentsToBackend } from '../../api/consent';
+import { logger } from '../../utils/logger';
 
 // Define consent types for type safety and maintainability
 const CONSENT_TYPES = {
@@ -140,7 +141,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose }) => {
       localStorage.setItem('consent_version', '1.0');
       onClose();
     } catch (error) {
-      console.error('Failed to save consent:', error);
+      logger.error('Failed to save consent:', error);
       setError(getErrorMessage(error, t));
     } finally {
       setIsSubmitting(false);

@@ -19,6 +19,7 @@ import {
   CreditCardIcon,
   HeartIcon,
 } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
 import { Card } from '@/components/ui/tailwind';
 
 /** Alla premium-fördelar */
@@ -124,7 +125,7 @@ const UpgradePage: React.FC = () => {
         setErrorMessage('Kunde inte skapa betalningssession. Försök igen.');
       }
     } catch (error: unknown) {
-      console.error('Stripe checkout failed:', error);
+      logger.error('Stripe checkout failed', error);
       const apiError = error as { response?: { data?: { error?: string } } };
       const message = apiError?.response?.data?.error || 'Ett fel uppstod vid betalningen.';
       setErrorMessage(message);

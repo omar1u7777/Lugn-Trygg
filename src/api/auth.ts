@@ -2,6 +2,7 @@ import axios from "axios";
 import { tokenStorage } from "@/utils/secureStorage";
 import { api } from "@/api/client";
 import { API_ENDPOINTS } from "@/api/constants";
+import { logger } from "@/utils/logger";
 
 // TypeScript interfaces for API responses
 interface User {
@@ -69,7 +70,7 @@ class CsrfTokenManager {
       this.expiry = Date.now() + this.TOKEN_TTL;
       return token;
     } catch (error) {
-      console.error("Failed to fetch CSRF token:", error);
+      logger.error("Failed to fetch CSRF token", { error });
       throw new AuthError("Failed to get CSRF token", undefined, error);
     }
   }
@@ -162,7 +163,7 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
     try {
       await csrfManager.getToken();
     } catch (csrfError) {
-      console.warn("Failed to fetch CSRF token after login:", csrfError);
+      logger.warn("Failed to fetch CSRF token after login", { csrfError });
     }
 
     return validatedData;
@@ -210,7 +211,7 @@ export const logoutUser = async (): Promise<void> => {
   try {
     await api.post(API_ENDPOINTS.AUTH.LOGOUT);
   } catch (error: unknown) {
-    console.error("API Logout error:", error);
+    logger.error("API Logout error", { error });
   } finally {
     // Save onboarding status before clearing
     const savedOnboarding = saveOnboardingData();
@@ -237,7 +238,7 @@ const getFirebaseToken = async (): Promise<string | null> => {
   try {
     const firebaseModule = await import("../firebase-config").catch(() => null);
     if (!firebaseModule) {
-      console.warn("Firebase module not available");
+      logger.warn("Firebase module not available");
       return null;
     }
 
@@ -245,15 +246,15 @@ const getFirebaseToken = async (): Promise<string | null> => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      console.warn("No Firebase user found");
+      logger.warn("No Firebase user found");
       return null;
     }
 
     const token = await currentUser.getIdToken(true);
-    console.log("Firebase token refreshed successfully");
+    logger.debug("Firebase token refreshed successfully");
     return token;
   } catch (error) {
-    console.error("Firebase token refresh failed:", error);
+    logger.error("Firebase token refresh failed", { error });
     return null;
   }
 };
@@ -267,7 +268,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
     const newFirebaseToken = await getFirebaseToken();
 
     if (!newFirebaseToken) {
-      console.warn("Firebase token refresh failed");
+      logger.warn("Firebase token refresh failed");
       return null;
     }
 
@@ -284,12 +285,12 @@ export const refreshAccessToken = async (): Promise<string | null> => {
       }
       return responseData.accessToken;
     } else {
-      console.warn("Invalid refresh token response, logging out");
+      logger.warn("Invalid refresh token response, logging out");
       await logoutUser();
       return null;
     }
   } catch (error: unknown) {
-    console.error("API Refresh Token error:", error);
+    logger.error("API Refresh Token error", { error });
     return null;
   }
 };

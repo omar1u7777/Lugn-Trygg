@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
+import { logger } from '../../utils/logger';
+
 
 interface Reward {
     id: string;
@@ -30,10 +33,11 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
     const fetchRewards = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/api/referral/rewards/catalog');
-            setRewards(response.data.rewards || []);
+            const response = await api.get(API_ENDPOINTS.REFERRAL.REWARDS_CATALOG);
+            const data = response.data?.data || response.data;
+            setRewards(data.rewards || []);
         } catch (err) {
-            console.error('Failed to fetch rewards:', err);
+            logger.error('Failed to fetch rewards:', err);
         } finally {
             setLoading(false);
         }
@@ -49,7 +53,7 @@ const RewardsCatalog: React.FC<RewardsCatalogProps> = ({ availableWeeks, onRedem
 
         try {
             setRedeeming(rewardId);
-            await api.post('/api/referral/rewards/redeem', {
+            await api.post(API_ENDPOINTS.REFERRAL.REWARDS_REDEEM, {
                 user_id: user.user_id,
                 reward_id: rewardId
             });

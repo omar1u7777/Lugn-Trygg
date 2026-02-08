@@ -6,7 +6,8 @@ import { logMood, getMoods } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { Card } from './ui/tailwind';
-import { UsageLimitBanner } from './UsageLimitBanner';
+import { UsageLimitBanner } from './UsageLimitBanner';import { logger } from '../utils/logger';
+
 
 interface MoodLoggerProps {
   onMoodLogged?: (mood?: number, note?: string) => void;
@@ -62,7 +63,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
   const handleLogMood = async () => {
     if (selectedMood === null || !user?.user_id) {
-      console.warn('⚠️ MoodLogger - Missing selected mood or user');
+      logger.warn('⚠️ MoodLogger - Missing selected mood or user');
       return;
     }
 
@@ -109,7 +110,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       setNote('');
 
     } catch (error) {
-      console.error('Failed to log mood:', error);
+      logger.error('Failed to log mood:', error);
       const quotaExceeded = Boolean(
         typeof error === 'object' &&
         error !== null &&
@@ -189,7 +190,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
       setRecentMoods(normalized);
     } catch (error) {
-      console.error('Failed to load recent moods:', error);
+      logger.error('Failed to load recent moods:', error);
     }
   };
 
@@ -206,7 +207,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         <div className="mb-6">
           <button
             onClick={() => {
-              console.log('🔙 Back button clicked, calling onMoodLogged');
+              logger.debug('🔙 Back button clicked, calling onMoodLogged');
               onMoodLogged();
             }}
             className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"

@@ -6,7 +6,8 @@
  */
 
 import React, { Component, ReactNode } from 'react';
-import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';import { logger } from '../../utils/logger';
+
 
 interface Props {
   children: ReactNode;
@@ -39,8 +40,8 @@ export class FeatureErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
     
     // Log to console in development
-    console.error(`[${this.props.featureName}] Error:`, error);
-    console.error('Error Info:', errorInfo);
+    logger.error(`[${this.props.featureName}] Error:`, error);
+    logger.error('Error Info:', errorInfo);
     
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);

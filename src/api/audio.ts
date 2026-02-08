@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiError } from "./errors";
+import { API_ENDPOINTS } from "./constants";
 
 /**
  * Audio track with relaxing sounds
@@ -45,7 +46,7 @@ export interface AudioLibrary {
  */
 export const getAudioLibrary = async (): Promise<AudioLibrary> => {
   try {
-    const response = await api.get('/api/audio/library');
+    const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_LIBRARY);
     // Backend returns { success: true, library: {...} }
     return response.data.library || {};
   } catch (error: unknown) {
@@ -62,7 +63,7 @@ export const getAudioLibrary = async (): Promise<AudioLibrary> => {
  */
 export const getAudioCategories = async (): Promise<Omit<AudioCategory, 'tracks'>[]> => {
   try {
-    const response = await api.get('/api/audio/categories');
+    const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_CATEGORIES);
     return response.data.categories || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -79,7 +80,7 @@ export const getAudioCategories = async (): Promise<Omit<AudioCategory, 'tracks'
  */
 export const getAudioCategoryTracks = async (categoryId: string): Promise<{ category: Omit<AudioCategory, 'tracks'>, tracks: AudioTrack[] }> => {
   try {
-    const response = await api.get(`/api/audio/category/${encodeURIComponent(categoryId)}`);
+    const response = await api.get(`${API_ENDPOINTS.AUDIO.AUDIO_CATEGORY}/${encodeURIComponent(categoryId)}`);
     return {
       category: response.data.category,
       tracks: response.data.tracks || []
@@ -99,7 +100,7 @@ export const getAudioCategoryTracks = async (categoryId: string): Promise<{ cate
  */
 export const searchAudioTracks = async (query: string): Promise<AudioTrack[]> => {
   try {
-    const response = await api.get('/api/audio/search', {
+    const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_SEARCH, {
       params: { q: query }
     });
     return response.data.results || [];

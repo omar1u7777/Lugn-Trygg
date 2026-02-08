@@ -15,7 +15,8 @@ import '@/styles/responsive.css';
 import '@/styles/design-system.css';
 import '@/styles/animations.css';
 import '@/styles/world-class-design.css';
-import '@/styles/accessibility.css';
+import '@/styles/accessibility.css';import { logger } from '../../utils/logger';
+
 
 const ProtectedAppShell: React.FC = () => {
   const { i18n } = useTranslation();
@@ -40,7 +41,7 @@ const ProtectedAppShell: React.FC = () => {
 
   // Redirect to login if not authenticated
   if (!isLoggedIn) {
-    console.log('🔒 ProtectedAppShell: Not logged in, redirecting to login');
+    logger.debug('🔒 ProtectedAppShell: Not logged in, redirecting to login');
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

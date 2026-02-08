@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
 import ReferralLeaderboard from './ReferralLeaderboard';
 import ReferralHistory from './ReferralHistory';
 import RewardsCatalog from './RewardsCatalog';
 import EmailInvite from './EmailInvite';
+import { logger } from '../../utils/logger';
+
 
 interface ReferralData {
     referralCode: string;
@@ -45,21 +48,21 @@ const ReferralProgram: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.post('/api/referral/generate', {
+            const response = await api.post(API_ENDPOINTS.REFERRAL.GENERATE_REFERRAL, {
                 user_id: user.user_id
             });
             
-            const data = response.data;
+            const data = response.data?.data || response.data;
             setReferralData({
-                referralCode: data.referral_code || '',
-                referralLink: `https://lugn-trygg.vercel.app/register?ref=${data.referral_code}`,
-                referralCount: data.successful_referrals || 0,
-                rewards: data.rewards_earned || 0,
-                tier: calculateTier(data.successful_referrals || 0)
+                referralCode: data.referralCode || data.referral_code || '',
+                referralLink: `https://lugn-trygg.vercel.app/register?ref=${data.referralCode || data.referral_code}`,
+                referralCount: data.successfulReferrals || data.successful_referrals || 0,
+                rewards: data.rewardsEarned || data.rewards_earned || 0,
+                tier: calculateTier(data.successfulReferrals || data.successful_referrals || 0)
             });
             setError(null);
         } catch (err: unknown) {
-            console.error('❌ Failed to fetch referral data:', err);
+            logger.error('❌ Failed to fetch referral data:', err);
             const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
                 ? String(err.response.data.error)
                 : 'Failed to load referral data';
@@ -73,16 +76,16 @@ const ReferralProgram: React.FC = () => {
         if (!user?.user_id) return;
 
         try {
-            const response = await api.get(`/api/referral/stats?user_id=${user.user_id}`);
-            const data = response.data;
+            const response = await api.get(`${API_ENDPOINTS.REFERRAL.STATS}?user_id=${user.user_id}`);
+            const data = response.data?.data || response.data;
             
             setStats({
-                total: data.total_referrals || 0,
-                active: data.successful_referrals || 0,
-                converted: data.successful_referrals || 0
+                total: data.totalReferrals || data.total_referrals || 0,
+                active: data.successfulReferrals || data.successful_referrals || 0,
+                converted: data.successfulReferrals || data.successful_referrals || 0
             });
         } catch (err: unknown) {
-            console.error('❌ Failed to fetch referral stats:', err);
+            logger.error('❌ Failed to fetch referral stats:', err);
         }
     };
 

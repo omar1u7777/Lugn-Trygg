@@ -1,7 +1,7 @@
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
-import CryptoJS from "crypto-js";
-import { getBackendUrl, getEncryptionKey } from "../config/env";
+import { getBackendUrl } from "../config/env";
 import { tokenStorage } from "../utils/secureStorage";
+import { logger } from "../utils/logger";
 
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
@@ -29,21 +29,13 @@ export interface ApiConfig extends AxiosRequestConfig {
   retryCount?: number;
 }
 
-export interface MoodData {
-  score: number;
-  note?: string;
-  timestamp?: Date;
-  emotions?: string[];
-  activities?: string[];
-}
-
 // Base URL for API
 export const API_BASE_URL = getBackendUrl();
 
 // Force reload environment variables in development
 if (typeof import.meta !== "undefined" && import.meta.hot) {
   import.meta.hot.accept(() => {
-    console.log("🔄 Environment variables reloaded");
+    logger.debug("Environment variables reloaded");
   });
 }
 
@@ -53,6 +45,9 @@ export const api = axios.create({
   withCredentials: true, // Ensures cookies are sent for session handling
   headers: { [CONTENT_TYPE_HEADER]: CONTENT_TYPE_JSON },
 });
+
+// Alias for modules that import as apiClient
+export const apiClient = api;
 
 // Export api as default export
 export default api;
@@ -99,7 +94,7 @@ const trackApiCall = async (
     const analytics = await getAnalytics();
     analytics.business.apiCall(url, method, duration, status, extraData);
   } catch (error) {
-    console.warn('Failed to track API call:', error);
+    logger.warn('Failed to track API call:', { error: String(error) });
   }
 };
 
@@ -112,7 +107,7 @@ const trackError = async (
     const analytics = await getAnalytics();
     analytics.business.error(errorType, extraData);
   } catch (error) {
-    console.warn('Failed to track error:', error);
+    logger.warn('Failed to track error:', { error: String(error) });
   }
 };
 
@@ -125,9 +120,9 @@ const queueOfflineRequest = async (
   try {
     const { queueRequest } = await getOfflineStorage();
     queueRequest(method, url, data);
-    console.log('📴 Request queued for offline sync');
+    logger.info('Request queued for offline sync');
   } catch (error) {
-    console.error('Failed to queue request:', error);
+    logger.error('Failed to queue request:', error);
   }
 };
 
@@ -153,7 +148,7 @@ const handleSuccessfulResponse = async (response: AxiosResponse): Promise<AxiosR
 
 const handleRateLimitError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
   const retryAfter = parseInt(error.response?.headers[RETRY_AFTER_HEADER] || DEFAULT_RETRY_AFTER.toString());
-  console.warn(`⚠️ Rate limit exceeded. Retry after ${retryAfter} seconds`);
+  logger.warn(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
   await trackError('Rate Limit Exceeded', {
     endpoint: originalRequest.url,
     retryAfter,
@@ -162,7 +157,7 @@ const handleRateLimitError = async (error: AxiosError, originalRequest: ApiConfi
 };
 
 const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
-  console.warn("⚠️ Request timeout - checking offline status");
+  logger.warn("Request timeout - checking offline status");
   if (!navigator.onLine) {
     await queueOfflineRequest(
       (originalRequest.method?.toUpperCase() as 'POST' | 'PUT' | 'DELETE') || 'POST',
@@ -175,7 +170,7 @@ const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig)
 };
 
 const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
-  console.error("API Network Error:", {
+  logger.error("API Network Error:", {
     message: error.message,
     url: originalRequest.url,
     method: originalRequest.method,
@@ -202,7 +197,7 @@ const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig)
 };
 
 const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
-  console.error("API Error:", error.message);
+  logger.error("API Error:", error.message);
   await trackError('API Setup Error', {
     message: error.message,
     url: originalRequest.url
@@ -226,13 +221,13 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
       api.defaults.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
       originalRequest.headers = originalRequest.headers || {};
       originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
-      console.log("🔄 Token refreshed successfully");
+      logger.info("Token refreshed successfully");
       isRefreshing = false;
       return api(originalRequest);
     }
   } catch (refreshError) {
-    console.error("❌ Automatic token refresh failed:", refreshError);
-    console.warn("⚠️ Token refresh failed, logging out user");
+    logger.error("Automatic token refresh failed:", refreshError);
+    logger.warn("Token refresh failed, logging out user");
     isRefreshing = false;
     const { logoutUser } = await getAuth();
     logoutUser();
@@ -269,7 +264,7 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
       method: originalRequest.method,
       timestamp: Date.now()
     };
-    console.error("API Error Response:", errorData);
+    logger.error("API Error Response:", errorData);
 
     if (error.response.status === 401 && !originalRequest._retry) {
       return await handle401Error(error, originalRequest);
@@ -310,7 +305,7 @@ const retryRequest = async (error: AxiosError): Promise<AxiosResponse> => {
   config.retryCount = (config.retryCount || 0) + 1;
 
   if (config.retryCount <= MAX_RETRY_ATTEMPTS && shouldRetry(error)) {
-    console.warn(`Retrying request (${config.retryCount}/${MAX_RETRY_ATTEMPTS}): ${config.url}`);
+    logger.warn(`Retrying request (${config.retryCount}/${MAX_RETRY_ATTEMPTS}): ${config.url}`);
     await delay(RETRY_DELAY_MS * config.retryCount);
     return api(config);
   }
@@ -359,7 +354,7 @@ api.interceptors.request.use(
           config.headers[CSRF_HEADER] = csrf;
         }
       } catch (error) {
-        console.warn('Failed to get CSRF token, proceeding without it:', error);
+        logger.warn('Failed to get CSRF token, proceeding without it:', { error: String(error) });
       }
     }
 
@@ -371,31 +366,3 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Encryption helper functions
-let ENCRYPTION_KEY: string | null = null;
-
-const getOrInitEncryptionKey = (): string => {
-  if (!ENCRYPTION_KEY) {
-    try {
-      ENCRYPTION_KEY = getEncryptionKey();
-    } catch {
-      console.warn("⚠️ ENCRYPTION_KEY saknas, använder development fallback.");
-      ENCRYPTION_KEY = 'dev-encryption-key-lugn-trygg-2025-secure-fallback-32chars';
-    }
-  }
-  return ENCRYPTION_KEY;
-};
-
-/**
- * Encrypt data using AES encryption (available for future use with encrypted requests)
- * @param data - The string data to encrypt
- * @returns The encrypted data as a string
- */
-export const _encryptData = (data: string): string => {
-  const key = getOrInitEncryptionKey();
-  if (!key) {
-    console.warn("⚠️ ENCRYPTION_KEY saknas, returnerar okrypterad data i testläge.");
-    return data;
-  }
-  return CryptoJS.AES.encrypt(data, key).toString();
-};

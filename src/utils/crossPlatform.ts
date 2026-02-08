@@ -3,7 +3,8 @@
  * Ensures consistent behavior across different browsers and devices
  */
 
-import { analytics } from './analytics';
+import { analytics } from './analytics';import { logger } from './logger';
+
 
 // Browser detection and feature support
 export const browserSupport = {
@@ -372,7 +373,7 @@ export const storageUtils = {
           transaction.onerror = () => reject(transaction.error);
         });
       } catch (error) {
-        console.warn('IndexedDB set failed:', error);
+        logger.warn('IndexedDB set failed:', error);
         return false;
       }
     },
@@ -389,7 +390,7 @@ export const storageUtils = {
           request.onerror = () => reject(request.error);
         });
       } catch (error) {
-        console.warn('IndexedDB get failed:', error);
+        logger.warn('IndexedDB get failed:', error);
         return null;
       }
     },
@@ -448,7 +449,7 @@ export const mediaUtils = {
       stream.getTracks().forEach(track => track.stop());
       return true;
     } catch (error) {
-      console.error('Microphone permission denied:', error);
+      logger.error('Microphone permission denied:', error);
       return false;
     }
   },
@@ -552,14 +553,14 @@ function loadScript(src: string): Promise<void> {
 
 // Initialize cross-platform compatibility
 export const initCrossPlatformSupport = async () => {
-  console.log('Initializing cross-platform support...');
+  logger.debug('Initializing cross-platform support...');
 
   // Check browser compatibility
   const features = browserSupport.checkFeatures();
   const browserInfo = browserSupport.getBrowserInfo();
 
-  console.log('Browser features:', features);
-  console.log('Browser info:', browserInfo);
+  logger.debug('Browser features:', features);
+  logger.debug('Browser info:', browserInfo);
 
   // Load polyfills if needed
   if (!browserSupport.isOutdatedBrowser()) {

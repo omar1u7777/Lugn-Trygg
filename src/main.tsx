@@ -25,12 +25,13 @@ import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
 import { getWellnessHeroImageId, getJournalHeroImageId, getDashboardHeroImageId, getOnboardingHeroImageId } from "./config/env";
 import { getOptimizedImageUrl } from "./utils/cloudinary";
+import { logger } from "./utils/logger";
 
 // Import Tailwind CSS - REPLACES MUI
 const tailwindStylesPromise: Promise<unknown> = typeof window !== 'undefined'
   ? import("./index.css").catch((error) => {
       if ((import.meta as any).env?.DEV) {
-        console.warn("⚠️ Failed to load Tailwind bundle immediately", error);
+        logger.warn("Failed to load Tailwind bundle immediately", { error });
       }
     })
   : Promise.resolve();
@@ -136,7 +137,7 @@ const TelemetryPortal = () => {
     scheduleIdleTask(() => {
       lazyLoadTelemetry().catch((telemetryError) => {
         if ((import.meta as any).env?.DEV) {
-          console.warn("⚠️ Failed to load telemetry modules", telemetryError);
+          logger.warn("Failed to load telemetry modules", { error: telemetryError });
         }
       });
     }, 1800);
@@ -171,7 +172,7 @@ const startApp = async () => {
   const rootElement = document.getElementById("root");
 
   if (!rootElement) {
-    console.error("❌ Root-elementet saknas i index.html! Kontrollera att <div id='root'></div> finns.");
+    logger.error("Root-elementet saknas i index.html! Kontrollera att <div id='root'></div> finns.");
     throw new Error("Root-element saknas i index.html!");
   }
 
@@ -187,13 +188,13 @@ const startApp = async () => {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then((registration) => {
           if ((import.meta as any).env?.DEV) {
-            console.log('✅ Service Worker registered successfully:', registration.scope);
-            console.log('📦 Offline support activated for 1000 users');
+            logger.debug('Service Worker registered successfully', { scope: registration.scope });
+            logger.debug('Offline support activated for 1000 users');
           }
         })
         .catch((error) => {
           if ((import.meta as any).env?.DEV) {
-            console.warn('⚠️ Service Worker registration failed:', error);
+            logger.warn('Service Worker registration failed', { error });
           }
         });
     });
@@ -232,5 +233,5 @@ const startApp = async () => {
 };
 
 startApp().catch((error) => {
-  console.error('❌ Failed to bootstrap application', error);
+  logger.error('Failed to bootstrap application', error);
 });

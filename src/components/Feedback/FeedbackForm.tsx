@@ -4,7 +4,10 @@ import { PaperAirplaneIcon, ClockIcon, PencilIcon, StarIcon } from '@heroicons/r
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
+import { API_ENDPOINTS } from '../../api/constants';
 import FeedbackHistory from './FeedbackHistory';
+import { logger } from '../../utils/logger';
+
 
 interface FeedbackData {
     category: string;
@@ -54,7 +57,7 @@ const FeedbackForm: React.FC = () => {
             setLoading(true);
             setError(null);
             
-            await api.post('/api/feedback/submit', {
+            await api.post(API_ENDPOINTS.FEEDBACK.SUBMIT, {
                 user_id: user.user_id,
                 category: feedback.category,
                 rating: feedback.rating,
@@ -77,7 +80,7 @@ const FeedbackForm: React.FC = () => {
                 setSubmitted(false);
             }, 3000);
         } catch (err: unknown) {
-            console.error('❌ Failed to submit feedback:', err);
+            logger.error('❌ Failed to submit feedback:', err);
             const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'message' in err.response.data
                 ? String(err.response.data.message)
                 : 'Något gick fel vid inlämnandet. Försök igen.';

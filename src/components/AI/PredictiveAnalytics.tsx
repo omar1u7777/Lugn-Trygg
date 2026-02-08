@@ -6,7 +6,8 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@/api/client';
-import { logger } from '@/api/logger';
+import { API_ENDPOINTS } from '@/api/constants';
+import { logger } from '@/utils/logger';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, ExclamationTriangleIcon, LightBulbIcon } from '@heroicons/react/24/outline';
 
 // TypeScript interfaces for API responses
@@ -59,10 +60,10 @@ const usePredictiveData = () => {
 
       // Fetch multiple endpoints in parallel for better performance
       const [predictionsRes, insightsRes, trendsRes, crisisRes] = await Promise.allSettled([
-        api.get<ApiResponse<PredictiveData['predictions']>>('/api/predictive/predict?days=7'),
-        api.get<ApiResponse<PredictiveData['insights']>>('/api/predictive/insights'),
-        api.get<ApiResponse<PredictiveData['trends']>>('/api/predictive/trends?period=30d'),
-        api.get<ApiResponse<PredictiveData['crisis_risk']>>('/api/predictive/crisis-check'),
+        api.get<ApiResponse<PredictiveData['predictions']>>(`${API_ENDPOINTS.PREDICTIVE.PREDICT}?days=7`),
+        api.get<ApiResponse<PredictiveData['insights']>>(API_ENDPOINTS.PREDICTIVE.INSIGHTS),
+        api.get<ApiResponse<PredictiveData['trends']>>(`${API_ENDPOINTS.PREDICTIVE.TRENDS}?period=30d`),
+        api.get<ApiResponse<PredictiveData['crisis_risk']>>(API_ENDPOINTS.PREDICTIVE.CRISIS_CHECK),
       ]);
 
       const newData: PredictiveData = {};

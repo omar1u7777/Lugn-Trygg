@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react"
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { logger } from '../../utils/logger';
 import { loginUser, api } from "../../api/index";
 import { API_ENDPOINTS } from "../../api/constants";
 import { useAuth } from "../../contexts/AuthContext";
@@ -96,7 +97,7 @@ const LoginForm = () => {
       return;
     }
 
-    console.log('🔑 LOGIN - Form submitted', { email });
+    logger.debug('LOGIN - Form submitted', { email });
     setLoading(true);
     setError("");
     setValidationErrors({});
@@ -104,13 +105,13 @@ const LoginForm = () => {
     announceToScreenReader(MESSAGES.LOGGING_IN, "polite");
 
     try {
-      console.log('📝 LOGIN - Calling loginUser API...');
+      logger.debug('LOGIN - Calling loginUser API...');
       const data = await loginUser(email, password);
-      console.log('✅ LOGIN - Success', { userId: data.user_id });
-      login(data.access_token, email, data.user_id);
+      logger.debug('LOGIN - Success', { userId: data.userId });
+      login(data.accessToken, email, data.userId);
       announceToScreenReader(MESSAGES.LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
-      console.error('❌ LOGIN - Failed:', err);
+      logger.error('LOGIN - Failed:', err);
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${MESSAGES.LOGIN_FAILED}: ${errorMessage}`, "assertive");
@@ -122,7 +123,7 @@ const LoginForm = () => {
   const handleGoogleSignIn = async () => {
     if (loading) return; // Prevent multiple submissions
 
-    console.log('🔑 LOGIN - Google sign-in initiated');
+    logger.debug('LOGIN - Google sign-in initiated');
     setLoading(true);
     setError("");
     setValidationErrors({});
@@ -145,11 +146,12 @@ const LoginForm = () => {
       const idToken = await user.getIdToken();
       const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
 
-      const data = response.data;
-      login(data.access_token, user.email!, data.user_id);
+      // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
+      const data = response.data?.data || response.data;
+      login(data.accessToken, user.email!, data.userId);
       announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
-      console.error('Google sign-in error:', err);
+      logger.error('Google sign-in error:', err);
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${MESSAGES.GOOGLE_LOGIN_FAILED}: ${errorMessage}`, "assertive");

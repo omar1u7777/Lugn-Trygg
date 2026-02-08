@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { getMoods } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
-import { LockClosedIcon } from '@heroicons/react/24/outline';
+import { LockClosedIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+
 
 interface Badge {
   id: string;
@@ -151,7 +152,7 @@ const BadgeDisplay: React.FC = () => {
 
         setBadges(badgeList);
       } catch (error) {
-        console.error('Failed to calculate badges:', error);
+        logger.error('Failed to calculate badges:', error);
       } finally {
         setLoading(false);
       }

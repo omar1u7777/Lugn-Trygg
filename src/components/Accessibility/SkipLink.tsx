@@ -8,7 +8,8 @@
  * @param children - The text content of the skip link (default: 'Hoppa till huvudinnehållet')
  */
 
-import React from 'react';
+import React from 'react';import { logger } from '../../utils/logger';
+
 
 // Constants for better maintainability
 const DEFAULT_TARGET_ID = 'main-content';
@@ -44,7 +45,7 @@ export const SkipLink: React.FC<SkipLinkProps> = ({
       target.focus();
       target.scrollIntoView({ behavior: 'smooth' });
     } else {
-      console.warn(`SkipLink: Target element with ID "${targetId}" not found or not an HTMLElement.`);
+      logger.warn(`SkipLink: Target element with ID "${targetId}" not found or not an HTMLElement.`);
     }
   };
 
@@ -84,7 +85,7 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>) 
 
     const focusableElements = container.querySelectorAll<HTMLElement>(focusableSelectors);
     if (focusableElements.length === 0) {
-      console.warn('useFocusTrap: No focusable elements found in the container.');
+      logger.warn('useFocusTrap: No focusable elements found in the container.');
       return;
     }
 
@@ -151,7 +152,7 @@ export function useAnnounce() {
   const announce = React.useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
     const region = liveRegionRef.current;
     if (!region) {
-      console.warn('useAnnounce: Live region not available.');
+      logger.warn('useAnnounce: Live region not available.');
       return;
     }
 

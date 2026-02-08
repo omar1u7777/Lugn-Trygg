@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
+import { logger } from "../utils/logger";
 
 // ============================================================================
 // Types
@@ -61,21 +62,22 @@ export interface JournalApiResponse<T> {
  * @throws Error if journal entry save fails
  */
 export const saveJournalEntry = async (
+  userId: string,
   content: string,
   mood?: number,
   tags?: string[]
 ): Promise<JournalEntry> => {
-  console.log('📝 API - saveJournalEntry called', { contentLength: content.length, mood, tags });
+  logger.debug('API - saveJournalEntry called', { userId, contentLength: content.length, mood, tags });
   try {
     const response = await api.post<JournalApiResponse<JournalEntry>>(
-      `${API_ENDPOINTS.JOURNAL.ENTRIES}/journal`,
+      `${API_ENDPOINTS.JOURNAL.ENTRIES}/${userId}/journal`,
       { content, mood, tags }
     );
-    console.log('✅ Journal entry saved successfully');
+    logger.debug('Journal entry saved successfully');
     return response.data?.data || response.data as unknown as JournalEntry;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Save journal entry error:", apiError);
+    logger.error("Save journal entry error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to save journal entry");
   }
 };
@@ -87,20 +89,21 @@ export const saveJournalEntry = async (
  * @throws Error if journal entries retrieval fails
  */
 export const getJournalEntries = async (
+  userId: string,
   limit: number = 50
 ): Promise<JournalEntry[]> => {
-  console.log('📝 API - getJournalEntries called', { limit });
+  logger.debug('API - getJournalEntries called', { userId, limit });
   try {
     const response = await api.get<JournalApiResponse<{ entries: JournalEntry[] }>>(
-      `${API_ENDPOINTS.JOURNAL.ENTRIES}/journal?limit=${Math.min(limit, 100)}`
+      `${API_ENDPOINTS.JOURNAL.ENTRIES}/${userId}/journal?limit=${Math.min(limit, 100)}`
     );
     const responseData = response.data?.data || response.data;
     const entries = (responseData as { entries?: JournalEntry[] }).entries || [];
-    console.log('✅ Journal entries retrieved:', entries.length);
+    logger.debug('Journal entries retrieved', { count: entries.length });
     return entries;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Get journal entries error:", apiError);
+    logger.error("Get journal entries error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to get journal entries");
   }
 };
@@ -118,17 +121,17 @@ export const updateJournalEntry = async (
   entryId: string,
   data: UpdateJournalEntryRequest
 ): Promise<JournalEntry> => {
-  console.log('📝 API - updateJournalEntry called', { userId, entryId, data });
+  logger.debug('API - updateJournalEntry called', { userId, entryId, data });
   try {
     const response = await api.put<JournalApiResponse<JournalEntry>>(
       `${API_ENDPOINTS.JOURNAL.ENTRY}/${userId}/journal/${entryId}`,
       data
     );
-    console.log('✅ Journal entry updated successfully');
+    logger.debug('Journal entry updated successfully');
     return response.data?.data || response.data as unknown as JournalEntry;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Update journal entry error:", apiError);
+    logger.error("Update journal entry error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to update journal entry");
   }
 };
@@ -144,13 +147,13 @@ export const deleteJournalEntry = async (
   userId: string,
   entryId: string
 ): Promise<void> => {
-  console.log('📝 API - deleteJournalEntry called', { userId, entryId });
+  logger.debug('API - deleteJournalEntry called', { userId, entryId });
   try {
     await api.delete(`${API_ENDPOINTS.JOURNAL.ENTRY}/${userId}/journal/${entryId}`);
-    console.log('✅ Journal entry deleted successfully');
+    logger.debug('Journal entry deleted successfully');
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Delete journal entry error:", apiError);
+    logger.error("Delete journal entry error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to delete journal entry");
   }
 };
@@ -166,16 +169,16 @@ export const getJournalEntryById = async (
   userId: string,
   entryId: string
 ): Promise<JournalEntry | null> => {
-  console.log('📝 API - getJournalEntryById called', { userId, entryId });
+  logger.debug('API - getJournalEntryById called', { userId, entryId });
   try {
     // Get all entries and find the specific one (backend doesn't have single entry endpoint)
-    const entries = await getJournalEntries(100);
+    const entries = await getJournalEntries(userId, 100);
     const entry = entries.find(e => e.id === entryId);
-    console.log('✅ Journal entry lookup:', entry ? 'found' : 'not found');
+    logger.debug('Journal entry lookup', { found: !!entry });
     return entry || null;
   } catch (error: unknown) {
     const apiError = error as { response?: { data?: { error?: string } } };
-    console.error("❌ Get journal entry by ID error:", apiError);
+    logger.error("Get journal entry by ID error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to get journal entry");
   }
 };

@@ -1,13 +1,14 @@
 import React from 'react';
 import { VoiceRecorder } from '@/components/VoiceRecorder';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '../utils/logger';
 
 export const VoicePage: React.FC = () => {
   const navigate = useNavigate();
 
   const handleTranscriptComplete = (transcript: string, emotion?: string) => {
-    console.log('Transcript:', transcript);
-    console.log('Emotion:', emotion);
+    logger.debug('Transcript received', { transcript });
+    logger.debug('Emotion detected', { emotion });
     // You can save to journal, mood log, etc.
   };
 

@@ -26,12 +26,6 @@ export const LoadingSpinner: React.FC<LoadingProps> = ({
 }) => {
   if (!isLoading) return <>{children}</>;
 
-  const sizeMap = {
-    small: 30,
-    medium: 50,
-    large: 70,
-  };
-
   const sizeClasses = {
     small: 'w-8 h-8',
     medium: 'w-12 h-12',
