@@ -3,7 +3,7 @@ import { Card, CardContent, Typography, Button, Input, Chip, Avatar } from './ui
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { chatWithAI, analyzeText, transcribeAudio, analyzeVoiceEmotion } from '../api/api';
+import { chatWithAI, transcribeAudio, analyzeVoiceEmotion } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { MicrophoneIcon, PaperAirplaneIcon, StopIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';

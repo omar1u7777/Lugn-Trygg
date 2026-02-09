@@ -10,6 +10,7 @@ import OptimizedImage from './ui/OptimizedImage';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getMoods, getChatHistory, getMemories, changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
+import { getUserProfile, updateUserPreferences } from '../api/users';
 import { logger } from '../utils/logger';
 import {
   BellIcon,
@@ -115,24 +116,44 @@ const ProfileHub: React.FC = () => {
       }
 
       try {
-        logger.debug('📊 PROFILE HUB - Fetching moods, chats, memories...');
-        // Fetch user activity data
-        const [moods, chatHistoryResult, memories] = await Promise.all([
+        logger.debug('📊 PROFILE HUB - Fetching moods, chats, memories, profile...');
+        // Fetch user activity data and saved preferences
+        const [moods, chatHistoryResult, memories, profileResult] = await Promise.allSettled([
           getMoods(user.user_id),
           getChatHistory(user.user_id),
           getMemories(user.user_id),
+          getUserProfile(),
         ]);
 
-        // Calculate account age (placeholder - would need user creation date from backend)
-        const accountAge = 30; // Default to 30 days
+        // Load saved settings from profile
+        const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
+        if (profile?.preferences) {
+          setSettings(prev => ({
+            ...prev,
+            ...(typeof profile.preferences === 'object' ? profile.preferences : {}),
+          }));
+        }
+
+        // Calculate account age from user creation date
+        let accountAge = 0;
+        if (user.createdAt) {
+          const created = typeof user.createdAt === 'string' ? new Date(user.createdAt) : user.createdAt;
+          if (!isNaN(created.getTime())) {
+            accountAge = Math.max(1, Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24)));
+          }
+        }
+
+        const moodsData = moods.status === 'fulfilled' ? moods.value : [];
+        const chatData = chatHistoryResult.status === 'fulfilled' ? chatHistoryResult.value : { conversation: [] };
+        const memoriesData = memories.status === 'fulfilled' ? memories.value : [];
 
         setProfileStats({
-          totalMoods: moods.length,
-          totalConversations: chatHistoryResult.conversation?.length || 0,
-          totalMemories: memories.length,
+          totalMoods: Array.isArray(moodsData) ? moodsData.length : 0,
+          totalConversations: chatData?.conversation?.length || 0,
+          totalMemories: Array.isArray(memoriesData) ? memoriesData.length : 0,
           accountAge,
         });
-        logger.debug('✅ PROFILE HUB - Stats calculated', { totalMoods: moods.length, totalConversations: chatHistoryResult.conversation?.length || 0, totalMemories: memories.length, accountAge });
+        logger.debug('✅ PROFILE HUB - Stats calculated', { totalMoods: profileStats.totalMoods, accountAge });
       } catch (error: unknown) {
         logger.error('❌ PROFILE HUB - Failed to fetch profile data:', error);
         // CRITICAL FIX: Better error handling with user-friendly messages
@@ -155,7 +176,15 @@ const ProfileHub: React.FC = () => {
   };
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSettings({ ...settings, [setting]: event.target.checked });
+    const newSettings = { ...settings, [setting]: event.target.checked };
+    setSettings(newSettings);
+    // Persist to backend
+    updateUserPreferences(newSettings).catch((err) => {
+      logger.error('Failed to save setting', err);
+      showSnackbar('Kunde inte spara inställning', 'error');
+      // Revert on failure
+      setSettings(settings);
+    });
   };
 
   // Modal handlers

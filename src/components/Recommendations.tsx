@@ -8,7 +8,7 @@ const formatPomodoroTime = (seconds: number) => {
 import { useNavigate } from 'react-router-dom';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
 import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
 import { saveJournalEntry, getJournalEntries } from '../api/journaling';

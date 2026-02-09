@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { createCheckoutSession } from '../api/subscription';import { logger } from '../utils/logger';
+import useAuth from '../hooks/useAuth';
+import { createCheckoutSession } from '../api/subscription';
+import { logger } from '../utils/logger';
 
 
 const SubscriptionForm: React.FC = () => {
