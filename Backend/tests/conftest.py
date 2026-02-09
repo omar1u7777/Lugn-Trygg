@@ -22,8 +22,8 @@ os.environ.setdefault('FIREBASE_API_KEY', 'test-firebase-api-key')
 os.environ.setdefault('FIREBASE_PROJECT_ID', 'test-project')
 os.environ.setdefault('FIREBASE_STORAGE_BUCKET', 'test-project.appspot.com')
 os.environ.setdefault('FIREBASE_CREDENTIALS', '{"type":"service_account","project_id":"test","private_key_id":"k","private_key":"-----BEGIN RSA PRIVATE KEY-----\\nMIIBogIBAAJBALRiMLAH\\n-----END RSA PRIVATE KEY-----\\n","client_email":"t@t.iam.gserviceaccount.com","client_id":"1","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}')
-os.environ.setdefault('JWT_SECRET_KEY', 'test-secret-key')
-os.environ.setdefault('JWT_REFRESH_SECRET_KEY', 'test-refresh-secret-key')
+os.environ.setdefault('JWT_SECRET_KEY', 'test-secret-key-that-is-at-least-32-chars-long')
+os.environ.setdefault('JWT_REFRESH_SECRET_KEY', 'test-refresh-secret-key-at-least-32-chars-long')
 
 from src.utils.hf_cache import configure_hf_cache
 
