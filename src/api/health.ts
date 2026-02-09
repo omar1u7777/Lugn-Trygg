@@ -108,7 +108,7 @@ export interface HealthCheckResult {
   status: 'healthy' | 'unhealthy';
   response_time: number;
   timestamp: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   error?: string;
 }
 

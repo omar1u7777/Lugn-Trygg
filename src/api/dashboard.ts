@@ -106,8 +106,9 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
 
     return responseData as DashboardSummary;
   } catch (error: unknown) {
-    const apiError = error as any;
-    throw new Error((apiError.response?.data as any)?.error || "Failed to load dashboard summary");
+    const apiError = error as Record<string, unknown>;
+    const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+    throw new Error((responseData?.error as string) || "Failed to load dashboard summary");
   }
 };
 
@@ -124,7 +125,7 @@ export const getDashboardQuickStats = async (userId: string): Promise<QuickStats
     const responseData = response.data?.data || response.data;
     return responseData as QuickStats;
   } catch (error: unknown) {
-    const apiError = error as any;
+    const apiError = error as Record<string, unknown>;
     logger.error("Quick stats error:", apiError);
     return { totalMoods: 0, totalChats: 0, cached: false };
   }
@@ -144,7 +145,7 @@ export const getWellnessGoals = async () => {
     logger.debug('Wellness goals retrieved:', responseData.wellnessGoals);
     return responseData.wellnessGoals;
   } catch (error: unknown) {
-    const apiError = error as any;
+    const apiError = error as Record<string, unknown>;
     logger.error("Get wellness goals error:", apiError);
     return [];
   }
@@ -167,8 +168,9 @@ export const setWellnessGoals = async (goals: string[]) => {
     logger.debug('Wellness goals saved:', responseData.wellnessGoals);
     return responseData.wellnessGoals;
   } catch (error: unknown) {
-    const apiError = error as any;
+    const apiError = error as Record<string, unknown>;
     logger.error("Set wellness goals error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to save wellness goals");
+    const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+    throw new Error((responseData?.error as string) || "Failed to save wellness goals");
   }
 };

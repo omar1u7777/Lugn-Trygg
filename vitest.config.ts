@@ -19,6 +19,7 @@ export default defineConfig({
   },
   define: {
     'process.env.NODE_ENV': '"development"',
+    'import.meta.env.VITE_ENCRYPTION_KEY': '"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"',
   },
   esbuild: {
     jsxInject: `import React from 'react'`,
