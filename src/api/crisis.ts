@@ -76,12 +76,12 @@ export interface AssessmentHistory {
     active_indicators: CrisisIndicator[];
     intervention_recommendations: string[];
     confidence_score: number;
-    risk_trends: Record<string, any>;
+    risk_trends: Record<string, unknown>;
     assessment_timestamp: string;
     created_at: string;
   }>;
   total_count: number;
-  latest_assessment: any | null;
+  latest_assessment: Record<string, unknown> | null;
   risk_trend: 'increasing' | 'stable' | 'decreasing';
 }
 
@@ -121,7 +121,7 @@ export interface UserContext {
   current_anxiety_score?: number;
   mood_decline_points_per_day?: number;
   recent_data_days?: number;
-  mood_patterns?: Record<string, any>;
+  mood_patterns?: Record<string, unknown>;
   effective_coping_strategies?: string[];
   emergency_contacts?: Array<{
     name: string;
