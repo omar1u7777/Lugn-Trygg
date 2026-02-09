@@ -235,6 +235,24 @@ def mock_jwt(mocker):
     return 'user123'
 
 
+@pytest.fixture(autouse=True)
+def _reset_shared_mock_db():
+    """Auto-reset the shared mock_db before every test to prevent cross-test pollution.
+
+    Without this, tests that set mock_db.collection.side_effect = Exception(...)
+    would poison the shared object for all subsequent tests since route modules
+    hold a direct reference to it via 'from src.firebase_config import db'.
+    """
+    db = sys.modules['src.firebase_config'].db
+    db.reset_mock()
+    # Restore the default side_effect so db.collection('x') returns a proper mock chain
+    db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+    yield
+    # Post-test cleanup: reset again to be safe
+    db.reset_mock()
+    db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+
+
 @pytest.fixture(scope='function')
 def mock_db():
     """Returnerar den globala mockade Firestore db för modifiering i tester."""
