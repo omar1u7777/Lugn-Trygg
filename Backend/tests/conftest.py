@@ -1,7 +1,8 @@
-import pytest
-import sys
 import os
-from unittest.mock import patch, MagicMock
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add project root to path for imports (main.py is at root level)
 project_root = os.path.join(os.path.dirname(__file__), '..', '..')
@@ -14,6 +15,15 @@ sys.path.insert(0, backend_dir)
 os.environ['FLASK_ENV'] = 'development'
 os.environ['FLASK_DEBUG'] = 'True'
 os.environ['TESTING'] = 'True'
+
+# Set Firebase env vars for CI/test environments if not already set
+os.environ.setdefault('FIREBASE_WEB_API_KEY', 'test-firebase-web-api-key')
+os.environ.setdefault('FIREBASE_API_KEY', 'test-firebase-api-key')
+os.environ.setdefault('FIREBASE_PROJECT_ID', 'test-project')
+os.environ.setdefault('FIREBASE_STORAGE_BUCKET', 'test-project.appspot.com')
+os.environ.setdefault('FIREBASE_CREDENTIALS', '{"type":"service_account","project_id":"test","private_key_id":"k","private_key":"-----BEGIN RSA PRIVATE KEY-----\\nMIIBogIBAAJBALRiMLAH\\n-----END RSA PRIVATE KEY-----\\n","client_email":"t@t.iam.gserviceaccount.com","client_id":"1","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}')
+os.environ.setdefault('JWT_SECRET_KEY', 'test-secret-key')
+os.environ.setdefault('JWT_REFRESH_SECRET_KEY', 'test-refresh-secret-key')
 
 from src.utils.hf_cache import configure_hf_cache
 
@@ -61,7 +71,7 @@ def create_mock_collection():
     usage_doc_ref.update = MagicMock()
     usage_collection.document = MagicMock(return_value=usage_doc_ref)
     mock_doc_ref.collection = MagicMock(return_value=usage_collection)
-    
+
     mock_collection.document = MagicMock(return_value=mock_doc_ref)
     mock_collection.add = MagicMock(return_value=(None, mock_doc_ref))
     mock_collection.where = MagicMock(return_value=mock_collection)
@@ -69,7 +79,7 @@ def create_mock_collection():
     mock_collection.limit = MagicMock(return_value=mock_collection)
     mock_collection.stream = MagicMock(return_value=[])
     mock_collection.get = MagicMock(return_value=[])
-    
+
     return mock_collection
 
 def create_mock_transaction(*args, **kwargs):
@@ -114,6 +124,8 @@ except Exception as e:
 
 # Import app from Backend's main.py (one level up from tests/)
 import importlib.util
+from datetime import UTC
+
 spec = importlib.util.spec_from_file_location("main", os.path.join(os.path.dirname(__file__), '..', 'main.py'))
 main_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(main_module)
@@ -169,13 +181,14 @@ def runner(app):
 @pytest.fixture(scope='function')
 def auth_headers():
     """Returnerar authentication headers för tester."""
+    from datetime import datetime, timedelta
+
     import jwt
-    from datetime import datetime, timezone, timedelta
 
     # Create a proper JWT token with correct signature
     payload = {
         "sub": "test-user-id",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1)
+        "exp": datetime.now(UTC) + timedelta(hours=1)
     }
 
     # Use the same secret key as the app (from config)
@@ -224,13 +237,13 @@ def mock_jwt(mocker):
 def mock_db():
     """Returnerar den globala mockade Firestore db för modifiering i tester."""
     db = sys.modules['src.firebase_config'].db
-    
+
     # Reset mock between tests
     db.reset_mock()
-    
+
     # Create a dictionary to store collection mocks
     collections_dict = {}
-    
+
     def get_or_create_collection(name):
         """Get existing collection mock or create new one"""
         if name not in collections_dict:
@@ -249,7 +262,7 @@ def mock_db():
             usage_doc_ref.update = MagicMock()
             usage_collection.document = MagicMock(return_value=usage_doc_ref)
             mock_doc_ref.collection = MagicMock(return_value=usage_collection)
-            
+
             mock_collection.document = MagicMock(return_value=mock_doc_ref)
             mock_collection.add = MagicMock(return_value=(None, mock_doc_ref))
             mock_collection.where = MagicMock(return_value=mock_collection)
@@ -257,11 +270,11 @@ def mock_db():
             mock_collection.limit = MagicMock(return_value=mock_collection)
             mock_collection.stream = MagicMock(return_value=[])
             mock_collection.get = MagicMock(return_value=[])
-            
+
             collections_dict[name] = mock_collection
-        
+
         return collections_dict[name]
-    
+
     db.collection = MagicMock(side_effect=get_or_create_collection)
-    
+
     return db
