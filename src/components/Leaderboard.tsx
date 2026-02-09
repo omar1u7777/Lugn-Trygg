@@ -17,7 +17,7 @@ import {
   type MoodLeaderboardUser,
   type LeaderboardUser,
 } from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 import { ArrowTrendingUpIcon, FireIcon, TrophyIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 

@@ -185,7 +185,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   return (
     <div className={containerClasses}>
       <div className={cardClasses}>
-        <div className={`p - 6 border - b border - slate - 200 dark: border - slate - 700 flex - shrink - 0 ${embedded ? 'px-0 pt-0' : ''} `}>
+        <div className={`p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0 pt-0' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
               <span className="text-2xl">🎵</span>
@@ -233,16 +233,16 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         {!loading && !error && categories.length > 0 && (
           <>
             {/* Category Selection */}
-            <div className={`px - 6 py - 4 border - b border - slate - 200 dark: border - slate - 700 flex - shrink - 0 ${embedded ? 'px-0' : ''} `}>
+            <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
               <div className="flex flex-wrap gap-3">
                 {categories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`px - 4 py - 2 rounded - lg text - sm font - medium transition - all duration - 200 ${selectedCategory === category.id
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedCategory === category.id
                       ? 'bg-primary-500 text-white shadow-lg'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
-                      } `}
+                      }`}
                   >
                     <span className="mr-2">{category.icon}</span>
                     {getLocalizedText(category)}
@@ -254,7 +254,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
               {/* Track List */}
               <div className="flex-1 flex flex-col min-h-0">
-                <div className={`px - 6 py - 4 border - b border - slate - 200 dark: border - slate - 700 flex - shrink - 0 ${embedded ? 'px-0' : ''} `}>
+                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
                   <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <span>{currentCategory?.icon}</span>
                     {currentCategory && getLocalizedText(currentCategory)}
@@ -262,16 +262,16 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                   <p className="text-sm text-slate-600 dark:text-slate-400">{currentCategory?.description}</p>
                 </div>
 
-                <div className={`flex - 1 overflow - y - auto px - 6 py - 4 ${embedded ? 'px-0' : ''} `}>
+                <div className={`flex-1 overflow-y-auto px-6 py-4 ${embedded ? 'px-0' : ''}`}>
                   <div className="space-y-3">
                     {currentPlaylist.map((track, index) => (
                       <div
                         key={track.id}
                         onClick={() => selectTrack(track, index)}
-                        className={`p - 4 rounded - lg border cursor - pointer transition - all duration - 200 ${selectedTrack?.id === track.id
+                        className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTrack?.id === track.id
                           ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-600 shadow-md'
                           : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
-                          } `}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
@@ -298,7 +298,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
 
               {/* Player Controls - Always Visible */}
               <div className="lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
-                <div className={`p - 6 h - full flex flex - col ${embedded ? 'px-4' : ''} `}>
+                <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
                   <div className="text-center mb-6">
                     <div
                       className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors"

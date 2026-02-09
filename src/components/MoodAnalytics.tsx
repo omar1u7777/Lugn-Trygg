@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 import api, { getMoodStatistics } from '../api/api';
 import { API_ENDPOINTS } from '../api/constants';
 import { LoadingSpinner } from './LoadingStates';
@@ -19,7 +19,8 @@ import {
   CalendarDaysIcon,
   ChartPieIcon
 } from '@heroicons/react/24/outline';
-import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';import { logger } from '../utils/logger';
+import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
+import { logger } from '../utils/logger';
 
 
 // Lazy load heavy components - Analytics charts now using placeholder
@@ -180,28 +181,8 @@ const MoodAnalytics: React.FC = () => {
         ? String(err.response.data.error)
         : t('analytics.loadError');
       setError(errorMessage);
-      // HONEST: Don't show AI confidence when AI service is unavailable
-      setForecast({
-        forecast: {
-          daily_predictions: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
-          average_forecast: 0.4,
-          trend: 'stable',
-          confidence_interval: { lower: 0.2, upper: 0.6 }
-        },
-        model_info: {
-          algorithm: 'fallback',
-          training_rmse: 0.5,
-          data_points_used: 0
-        },
-        current_analysis: {
-          recent_average: 0.3,
-          volatility: 0.4
-        },
-        risk_factors: [],
-        recommendations: ['Continue logging your mood regularly'],
-        confidence: 0, // HONEST: No AI confidence when service unavailable
-        ai_unavailable: true // HONEST: Mark as AI unavailable
-      });
+      // Set null forecast on error — don't fabricate fake prediction data
+      setForecast(null);
     } finally {
       setLoading(false);
     }

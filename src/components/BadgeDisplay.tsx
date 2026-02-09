@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { getMoods } from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
-import { LockClosedIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+import useAuth from '../hooks/useAuth';
+import { LockClosedIcon } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
 
 
 interface Badge {
@@ -97,11 +98,11 @@ const BadgeDisplay: React.FC = () => {
             title: 'Mindful Observer',
             description: 'Completed 10 mindfulness exercises',
             icon: '🧘',
-            earned: false, // Would be calculated from exercise completions
+            earned: false, // Requires backend exercise tracking
             streak: 0,
             category: 'mindfulness',
             rarity: 'common',
-            progress: 3,
+            progress: 0,
             maxProgress: 10,
           },
           {
@@ -109,11 +110,11 @@ const BadgeDisplay: React.FC = () => {
             title: 'Storyteller',
             description: 'Listened to 5 AI-generated stories',
             icon: '📚',
-            earned: false, // Would be calculated from story listens
+            earned: false, // Requires backend story tracking
             streak: 0,
             category: 'engagement',
             rarity: 'common',
-            progress: 2,
+            progress: 0,
             maxProgress: 5,
           },
           {
@@ -141,11 +142,11 @@ const BadgeDisplay: React.FC = () => {
             title: 'Prediction Master',
             description: 'Viewed mood predictions 10 times',
             icon: '🔮',
-            earned: false, // Would be calculated from prediction views
+            earned: false, // Requires backend prediction view tracking
             streak: 0,
             category: 'advanced',
             rarity: 'epic',
-            progress: 1,
+            progress: 0,
             maxProgress: 10,
           },
         ];

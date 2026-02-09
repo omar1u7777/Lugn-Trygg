@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../contexts/AuthContext';
+import useAuth from '../hooks/useAuth';
 import api from '../api/api';
 import { API_ENDPOINTS } from '../api/constants';
 import {
@@ -15,7 +15,8 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
-import { Button, Alert, Card } from './ui/tailwind';import { logger } from '../utils/logger';
+import { Button, Alert, Card } from './ui/tailwind';
+import { logger } from '../utils/logger';
 
 
 interface AIStory {
@@ -50,7 +51,16 @@ const AIStories: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await api.get(API_ENDPOINTS.AI.GET_STORIES);
-      setStories(response.data?.stories || []);
+      const loadedStories: AIStory[] = response.data?.stories || [];
+      // Restore favorites from localStorage
+      try {
+        const saved = localStorage.getItem('lugn_trygg_favorite_stories');
+        if (saved) {
+          const favoriteIds: string[] = JSON.parse(saved);
+          loadedStories.forEach(s => { s.isFavorite = favoriteIds.includes(s.id); });
+        }
+      } catch { /* ignore */ }
+      setStories(loadedStories);
     } catch (err) {
       setError(t('ai.stories.loadError'));
       logger.error('Failed to load AI stories:', err);
@@ -96,11 +106,19 @@ const AIStories: React.FC = () => {
   };
 
   const toggleFavorite = async (storyId: string) => {
-    setStories(prev => prev.map(story =>
-      story.id === storyId
-        ? { ...story, isFavorite: !story.isFavorite }
-        : story
-    ));
+    setStories(prev => {
+      const updated = prev.map(story =>
+        story.id === storyId
+          ? { ...story, isFavorite: !story.isFavorite }
+          : story
+      );
+      // Persist favorites to localStorage
+      try {
+        const favoriteIds = updated.filter(s => s.isFavorite).map(s => s.id);
+        localStorage.setItem('lugn_trygg_favorite_stories', JSON.stringify(favoriteIds));
+      } catch { /* localStorage may be unavailable */ }
+      return updated;
+    });
   };
 
   const stopPlayback = () => {

@@ -5,7 +5,7 @@ import PeerSupportChat from './PeerSupportChat';
 import GroupChallenges from './GroupChallenges';
 import Leaderboard from './Leaderboard';
 import useAuth from '../hooks/useAuth';
-import { getLeaderboard, getReferralStats, getMoods } from '../api/api';
+import { getLeaderboard, getReferralStats, getMoods, getChatHistory } from '../api/api';
 import {
   ChatBubbleLeftRightIcon,
   ShareIcon,
@@ -35,8 +35,8 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
 
 interface SocialStats {
   communityMembers: number;
-  supportMessages: number;
-  challengesCompleted: number;
+  moodLogs: number;
+  referrals: number;
   leaderboardRank: number;
 }
 
@@ -46,8 +46,8 @@ const SocialHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [socialStats, setSocialStats] = useState<SocialStats>({
     communityMembers: 0,
-    supportMessages: 0,
-    challengesCompleted: 0,
+    moodLogs: 0,
+    referrals: 0,
     leaderboardRank: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -73,21 +73,21 @@ const SocialHub: React.FC = () => {
         );
         const userRank = userRankEntry?.rank || 0;
 
-        // Fetch referral stats (includes challenges data)
+        // Fetch referral stats
         const referralStats = await getReferralStats(user.user_id);
-        const challengesCompleted = referralStats.successfulReferrals || 0;
+        const referrals = referralStats.successfulReferrals || 0;
 
-        // Fetch moods to calculate support messages (approximate with mood logs)
+        // Fetch moods to show real mood log count
         const moods = await getMoods(user.user_id);
-        const supportMessages = moods.length; // Use mood count as proxy for engagement
+        const moodLogs = moods.length;
 
         setSocialStats({
           communityMembers,
-          supportMessages,
-          challengesCompleted,
+          moodLogs,
+          referrals,
           leaderboardRank: userRank,
         });
-        logger.debug('SocialHub stats calculated', { communityMembers, supportMessages, challengesCompleted, userRank });
+        logger.debug('SocialHub stats calculated', { communityMembers, moodLogs, referrals, userRank });
       } catch (error) {
         logger.error('Failed to fetch social data:', error);
         // Keep default values on error
@@ -144,11 +144,11 @@ const SocialHub: React.FC = () => {
               {loading ? (
                 <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
               ) : (
-                socialStats.supportMessages
+                socialStats.moodLogs
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Dina supportmeddelanden
+              Dina humörloggningar
             </p>
           </div>
         </Card>
@@ -160,11 +160,11 @@ const SocialHub: React.FC = () => {
               {loading ? (
                 <span className="inline-block w-16 h-8 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"></span>
               ) : (
-                socialStats.challengesCompleted
+                socialStats.referrals
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Slutförda utmaningar
+              Lyckade referrals
             </p>
           </div>
         </Card>
@@ -275,14 +275,13 @@ const SocialHub: React.FC = () => {
 
                 {/* Achievement cards based on real stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mb-6">
-                  {socialStats.supportMessages > 0 && (
-                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer"
-                      onClick={() => { }}>
+                  {socialStats.moodLogs > 0 && (
+                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer">
                       <div className="flex items-center gap-3">
                         <span className="text-3xl">📊</span>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            {socialStats.supportMessages} Mood Logs
+                            {socialStats.moodLogs} Mood Logs
                           </p>
                           <p className="text-sm text-gray-500">Konsekvent spårning</p>
                         </div>
@@ -290,14 +289,13 @@ const SocialHub: React.FC = () => {
                     </Card>
                   )}
 
-                  {socialStats.challengesCompleted > 0 && (
-                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer"
-                      onClick={() => { }}>
+                  {socialStats.referrals > 0 && (
+                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer">
                       <div className="flex items-center gap-3">
                         <span className="text-3xl">🎯</span>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            {socialStats.challengesCompleted} Referrals
+                            {socialStats.referrals} Referrals
                           </p>
                           <p className="text-sm text-gray-500">Hjälpt andra hitta appen</p>
                         </div>
@@ -306,8 +304,7 @@ const SocialHub: React.FC = () => {
                   )}
 
                   {socialStats.leaderboardRank > 0 && (
-                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer"
-                      onClick={() => { }}>
+                    <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer">
                       <div className="flex items-center gap-3">
                         <span className="text-3xl">🏅</span>
                         <div>
@@ -320,8 +317,7 @@ const SocialHub: React.FC = () => {
                     </Card>
                   )}
 
-                  <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => { }}>
+                  <Card className="p-4 text-left hover:shadow-lg transition-shadow cursor-pointer">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">⭐</span>
                       <div>

@@ -3,8 +3,9 @@
  * This file makes all components accessible as standalone routes
  */
 import React, { useState, useEffect, lazy } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';import { logger } from '../utils/logger';
+import useAuth from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { logger } from '../utils/logger';
 
 
 // Helper function to get user ID from auth context

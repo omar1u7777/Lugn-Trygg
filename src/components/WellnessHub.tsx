@@ -25,7 +25,8 @@ import useAuth from '../hooks/useAuth';
 import { getMoods, saveMeditationSession, getMeditationSessions, getWellnessGoals } from '../api/api';
 import { Card, Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
-import { getWellnessHeroImageId } from '../config/env';import { logger } from '../utils/logger';
+import { getWellnessHeroImageId } from '../config/env';
+import { logger } from '../utils/logger';
 
 
 // ----------------------------------------------------------------------
@@ -205,7 +206,7 @@ const WellnessHub: React.FC = () => {
       if (moods.length > 0) streak = 1;
 
       setWellnessStats({
-        meditationMinutes: mins || moods.length * 5, // Fallback if no real data
+        meditationMinutes: mins, // Real data only — no fabricated fallback
         breathingExercises: breathing,
         relaxationSessions: relax,
         streakDays: streak

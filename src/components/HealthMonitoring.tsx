@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { analytics } from '../services/analytics';
+import { getAdminStats, getSystemHealth } from '../api/admin';
+import { logger } from '../utils/logger';
 import { 
   CheckCircleIcon, 
   ExclamationCircleIcon, 
@@ -33,54 +35,97 @@ interface HealthMetrics {
 
 const HealthMonitoring: React.FC = () => {
   const [metrics, setMetrics] = useState<HealthMetrics>({
-    totalUsers: 15420,
-    activeMonitoring: 2340,
-    crisisAlerts: 12,
-    safetyChecks: 8750,
-    averageMood: 6.8,
+    totalUsers: 0,
+    activeMonitoring: 0,
+    crisisAlerts: 0,
+    safetyChecks: 0,
+    averageMood: 0,
     riskLevel: 'low',
   });
 
-  const [crisisIndicators, setCrisisIndicators] = useState<CrisisIndicator[]>([
-    {
-      id: '1',
-      type: 'mood',
-      severity: 'high',
-      description: 'User reported mood score of 2/10 for 3 consecutive days',
-      detectedAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      userId: 'user_123',
-      resolved: false,
-      actions: [
-        'Schedule therapist consultation',
-        'Send supportive message',
-        'Monitor daily check-ins',
-      ],
-    },
-    {
-      id: '2',
-      type: 'communication',
-      severity: 'medium',
-      description: 'User mentioned feeling "hopeless" in chatbot conversation',
-      detectedAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      userId: 'user_456',
-      resolved: false,
-      actions: [
-        'Flag for immediate review',
-        'Contact emergency contacts if available',
-        'Provide crisis resources',
-      ],
-    },
-  ]);
+  const [crisisIndicators, setCrisisIndicators] = useState<CrisisIndicator[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [selectedIndicator, setSelectedIndicator] = useState<CrisisIndicator | null>(null);
   const [actionDialog, setActionDialog] = useState(false);
   const [selectedAction, setSelectedAction] = useState('');
 
+  const loadRealMetrics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [statsResult, healthResult] = await Promise.allSettled([
+        getAdminStats(),
+        getSystemHealth(),
+      ]);
+
+      const stats = statsResult.status === 'fulfilled' ? statsResult.value : null;
+      const health = healthResult.status === 'fulfilled' ? healthResult.value : null;
+
+      const totalUsers = stats?.users?.total ?? 0;
+      const activeUsers = stats?.users?.active7d ?? 0;
+      const totalMoods = stats?.moods?.total ?? 0;
+      const errorRate = health?.errorRate ?? 0;
+      const systemStatus = health?.status ?? 'unknown';
+
+      // Calculate average mood from backend data if available
+      const avgMood = stats?.moods?.averageMood ?? 0;
+
+      // Determine risk level from system health
+      let riskLevel: 'low' | 'medium' | 'high' = 'low';
+      if (systemStatus === 'degraded' || errorRate > 5) riskLevel = 'medium';
+      if (systemStatus === 'unhealthy' || errorRate > 15) riskLevel = 'high';
+
+      setMetrics({
+        totalUsers,
+        activeMonitoring: activeUsers,
+        crisisAlerts: 0, // Real crisis detection would come from a dedicated backend endpoint
+        safetyChecks: totalMoods,
+        averageMood: avgMood,
+        riskLevel,
+      });
+
+      // Generate alerts from real data
+      const alerts: CrisisIndicator[] = [];
+      if (systemStatus === 'degraded' || systemStatus === 'unhealthy') {
+        alerts.push({
+          id: 'sys-health',
+          type: 'behavior',
+          severity: systemStatus === 'unhealthy' ? 'critical' : 'medium',
+          description: `System status: ${systemStatus} — backend may affect user experience`,
+          detectedAt: new Date(),
+          userId: 'system',
+          resolved: false,
+          actions: ['Check backend logs', 'Review error rate', 'Contact DevOps'],
+        });
+      }
+      if (errorRate > 10) {
+        alerts.push({
+          id: 'error-rate',
+          type: 'communication',
+          severity: errorRate > 20 ? 'high' : 'medium',
+          description: `High backend error rate: ${errorRate.toFixed(1)}%`,
+          detectedAt: new Date(),
+          userId: 'system',
+          resolved: false,
+          actions: ['Check server logs', 'Review recent deployments', 'Monitor trends'],
+        });
+      }
+      setCrisisIndicators(alerts);
+
+      logger.info('HealthMonitoring: loaded real metrics', { totalUsers, activeUsers, avgMood, systemStatus });
+    } catch (err) {
+      logger.error('HealthMonitoring: failed to load metrics', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     analytics.page('Health Monitoring Dashboard', {
       component: 'HealthMonitoring',
     });
-  }, []);
+    loadRealMetrics();
+  }, [loadRealMetrics]);
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -138,6 +183,16 @@ const HealthMonitoring: React.FC = () => {
     });
   };
 
+  // Static color map to avoid dynamic Tailwind classes that get purged by JIT
+  const colorClasses: Record<string, string> = {
+    primary: 'text-primary-600 dark:text-primary-400',
+    secondary: 'text-secondary-600 dark:text-secondary-400',
+    success: 'text-success-600 dark:text-success-400',
+    error: 'text-error-600 dark:text-error-400',
+    warning: 'text-warning-600 dark:text-warning-400',
+    info: 'text-info-600 dark:text-info-400',
+  };
+
   const MetricCard: React.FC<{
     title: string;
     value: string | number;
@@ -152,7 +207,7 @@ const HealthMonitoring: React.FC = () => {
             {title}
           </p>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {typeof value === 'number' ? value.toLocaleString() : value}
+            {loading ? '—' : typeof value === 'number' ? value.toLocaleString() : value}
           </p>
           {subtitle && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -160,7 +215,7 @@ const HealthMonitoring: React.FC = () => {
             </p>
           )}
         </div>
-        <div className={`text-${color}-600 dark:text-${color}-400`}>
+        <div className={colorClasses[color] ?? colorClasses.primary}>
           {icon}
         </div>
       </div>
@@ -176,7 +231,7 @@ const HealthMonitoring: React.FC = () => {
           <div>
             <h3 className="font-bold text-lg">Admin Dashboard</h3>
             <p className="text-purple-100 text-sm">
-              Endast för administratörer. Visar simulerade metrics för demo.
+              Endast för administratörer. Realtidsdata från backend.
             </p>
           </div>
         </div>
