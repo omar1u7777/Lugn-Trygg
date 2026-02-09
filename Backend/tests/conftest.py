@@ -102,6 +102,8 @@ mock_firebase_config.auth.sign_in_with_email_and_password = MagicMock()
 mock_firebase_config.auth.verify_id_token = MagicMock()
 mock_firebase_config.initialize_firebase = MagicMock(return_value=True)
 sys.modules['src.firebase_config'] = mock_firebase_config
+# Also mock under Backend.src path so tests using that prefix don't trigger real init
+sys.modules['Backend.src.firebase_config'] = mock_firebase_config
 
 # Patch the jwt_required decorator BEFORE importing routes
 def mock_jwt_required(f):
