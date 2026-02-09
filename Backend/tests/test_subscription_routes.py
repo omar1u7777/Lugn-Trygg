@@ -228,7 +228,7 @@ class TestGetSubscriptionStatus:
         
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/status/test123')
+        response = client.get('/api/subscription/status/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -260,7 +260,7 @@ class TestGetSubscriptionStatus:
         
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/status/test123')
+        response = client.get('/api/subscription/status/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -285,7 +285,7 @@ class TestGetSubscriptionStatus:
         
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/status/test123')
+        response = client.get('/api/subscription/status/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -309,7 +309,7 @@ class TestGetSubscriptionStatus:
         
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/status/test123')
+        response = client.get('/api/subscription/status/test-user-id')
         
         assert response.status_code == 404
         data = response.get_json()
@@ -326,7 +326,7 @@ class TestGetSubscriptionStatus:
         """Test status with database error"""
         mock_db.collection.side_effect = Exception("Database error")
         
-        response = client.get('/api/subscription/status/test123')
+        response = client.get('/api/subscription/status/test-user-id')
         
         assert response.status_code == 500
         data = response.get_json()
@@ -664,7 +664,7 @@ class TestGetUserPurchases:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/purchases/test123')
+        response = client.get('/api/subscription/purchases/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -693,7 +693,7 @@ class TestGetUserPurchases:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/purchases/test123')
+        response = client.get('/api/subscription/purchases/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -717,7 +717,7 @@ class TestGetUserPurchases:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/purchases/test123')
+        response = client.get('/api/subscription/purchases/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -740,7 +740,7 @@ class TestGetUserPurchases:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.get('/api/subscription/purchases/test123')
+        response = client.get('/api/subscription/purchases/test-user-id')
         
         assert response.status_code == 404
 
@@ -748,7 +748,7 @@ class TestGetUserPurchases:
         """Test purchases with database error"""
         mock_db.collection.side_effect = Exception("DB error")
         
-        response = client.get('/api/subscription/purchases/test123')
+        response = client.get('/api/subscription/purchases/test-user-id')
         
         assert response.status_code == 500
 
@@ -784,7 +784,7 @@ class TestCancelSubscription:
         
         mock_stripe.Subscription.modify.return_value = Mock()
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -823,7 +823,7 @@ class TestCancelSubscription:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 400
         data = response.get_json()
@@ -846,7 +846,7 @@ class TestCancelSubscription:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 404
 
@@ -873,7 +873,7 @@ class TestCancelSubscription:
 
         mock_db.collection.side_effect = collection_side_effect
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 400
         data = response.get_json()
@@ -881,7 +881,7 @@ class TestCancelSubscription:
 
     def test_cancel_subscription_stripe_unavailable(self, mock_stripe_unavailable, client):
         """Test canceling when Stripe unavailable"""
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 503
 
@@ -910,7 +910,7 @@ class TestCancelSubscription:
         
         mock_stripe.Subscription.modify.side_effect = Exception("Subscription not found")
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 400
 
@@ -918,6 +918,6 @@ class TestCancelSubscription:
         """Test canceling with database error"""
         mock_db.collection.side_effect = Exception("DB error")
         
-        response = client.post('/api/subscription/cancel/test123')
+        response = client.post('/api/subscription/cancel/test-user-id')
         
         assert response.status_code == 500
