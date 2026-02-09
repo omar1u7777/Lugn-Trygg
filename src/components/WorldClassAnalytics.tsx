@@ -10,10 +10,8 @@ import {
   XMarkIcon,
   ArrowPathIcon,
   ArrowDownTrayIcon,
-  ShareIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -54,7 +52,6 @@ interface AnalyticsData {
 }
 
 const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) => {
-  const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -97,7 +94,7 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      let [moodsData, weeklyAnalysisData] = await Promise.all([
+      const [moodsData, _weeklyAnalysisData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
       ]);

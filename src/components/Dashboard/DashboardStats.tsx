@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card } from '../ui/tailwind/Card';
-import { DASHBOARD_REGION_MAP, getDashboardRegionProps } from '../../constants/accessibility';
+import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatNumber } from '../../utils/intlFormatters';
 
 export interface DashboardStatsData {

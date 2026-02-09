@@ -4,17 +4,12 @@ import {
   XMarkIcon,
   SparklesIcon,
   UserIcon,
-  HandThumbUpIcon,
-  HandThumbDownIcon,
-  SpeakerWaveIcon,
-  SpeakerXMarkIcon,
   ChatBubbleLeftRightIcon, // Changed to BubbleLeftRight for better semantics
   LockClosedIcon,
   HeartIcon,
   LightBulbIcon,
   FaceSmileIcon
 } from '@heroicons/react/24/outline';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
@@ -23,8 +18,7 @@ import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import '../styles/world-class-design.css';
-import { Card } from './ui/tailwind'; // Keep for structure, but override styles
-import { UsageLimitBanner } from './UsageLimitBanner';
+
 import { logger } from '../utils/logger';
 
 // ----------------------------------------------------------------------
@@ -33,15 +27,6 @@ import { logger } from '../utils/logger';
 
 interface WorldClassAIChatProps {
   onClose: () => void;
-}
-
-interface ChatHistoryMessage {
-  timestamp?: any;
-  role?: string;
-  content?: string;
-  message?: string;
-  sentiment?: string;
-  emotions?: string[];
 }
 
 interface ChatMessage {
@@ -57,7 +42,7 @@ interface ChatMessage {
 // Component: Message Bubble
 // ----------------------------------------------------------------------
 
-const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ message, isLast }) => {
+const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
@@ -116,16 +101,15 @@ const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ me
 // ----------------------------------------------------------------------
 
 const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
-  const { t } = useTranslation();
+  useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
-  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, refreshSubscription } = useSubscription();
+  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan } = useSubscription();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
 
   const canSendMore = canSendMessage();

@@ -5,25 +5,14 @@ import {
   HomeIcon,
   FaceSmileIcon,
   ChatBubbleLeftRightIcon,
-  MusicalNoteIcon,
-  ChartBarIcon,
   UserCircleIcon,
   SparklesIcon,
-  TrophyIcon,
-  BookOpenIcon,
-  HeartIcon,
-  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   FaceSmileIcon as FaceSmileIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
-  MusicalNoteIcon as MusicalNoteIconSolid,
-  ChartBarIcon as ChartBarIconSolid,
   UserCircleIcon as UserCircleIconSolid,
-  TrophyIcon as TrophyIconSolid,
-  BookOpenIcon as BookOpenIconSolid,
-  HeartIcon as HeartIconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {

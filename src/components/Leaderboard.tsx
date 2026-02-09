@@ -15,7 +15,6 @@ import {
   type XPLeaderboardUser,
   type StreakLeaderboardUser,
   type MoodLeaderboardUser,
-  type LeaderboardUser,
 } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { ArrowTrendingUpIcon, FireIcon, TrophyIcon, ArrowPathIcon } from '@heroicons/react/24/outline';

@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
 import { BREATHING_PHASES } from '../constants/recommendations';
-import { BreathingPhaseName } from '../types/recommendation';
 
 export type BreathingPhase = 'prepare' | 'exhale' | 'inhale' | 'hold' | 'exhale2' | 'rest' | 'completed';
 

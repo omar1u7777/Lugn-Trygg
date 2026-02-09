@@ -13,7 +13,7 @@ const needsAsyncRuntime = () => {
     return true;
   }
   try {
-    // eslint-disable-next-line no-new-func
+     
     new Function('async function test() {}');
     return typeof (Symbol as any).asyncIterator === 'undefined';
   } catch {

@@ -7,7 +7,7 @@ import React, { lazy } from 'react';
 import type { ComponentType } from 'react';
 
 // Lazy loading with error boundaries
-import { getOptimizedImageUrl } from '../../utils/cloudinary';import { logger } from './logger';
+import { logger } from './logger';
 
 
 export const lazyWithFallback = <T extends ComponentType<any>>(

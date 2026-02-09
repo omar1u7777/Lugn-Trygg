@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import DailyInsights from './DailyInsights';
 import WeeklyAnalysis from './WeeklyAnalysis';
@@ -8,7 +7,6 @@ import { getMoods, getWeeklyAnalysis } from '../api/mood';
 import {
   ArrowTrendingUpIcon,
   LightBulbIcon,
-  ChartBarIcon,
   CalendarIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
@@ -55,7 +53,7 @@ const getTrendNarrative = (stats: InsightsStats) => {
 };
 
 const InsightsHub: React.FC = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [insightsStats, setInsightsStats] = useState<InsightsStats>({

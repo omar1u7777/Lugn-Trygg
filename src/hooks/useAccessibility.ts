@@ -538,7 +538,7 @@ export const keyboardUtils = {
       container.style.top = '6px';
     });
 
-    container.addEventListener('focusout', (event) => {
+    container.addEventListener('focusout', (_event) => {
       // Hide if focus moves outside skip links
       setTimeout(() => {
         if (!container.contains(document.activeElement)) {

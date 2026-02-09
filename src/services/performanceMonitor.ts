@@ -4,7 +4,8 @@
  * GDPR compliant with privacy-focused data collection
  */
 
-import { analytics } from './analytics';import { logger } from '../utils/logger';
+import { analytics } from './analytics';
+import { logger } from '../utils/logger';
 
 
 // Types for performance monitoring
@@ -15,13 +16,7 @@ interface WebVitalsMetric {
   delta?: number;
 }
 
-interface UserExperienceMetric {
-  interaction: string;
-  duration: number;
-  timestamp: number;
-  element?: string;
-  component?: string;
-}
+
 
 interface PerformanceBudget {
   resource: string;

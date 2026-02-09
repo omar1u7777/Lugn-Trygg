@@ -5,7 +5,7 @@ import PeerSupportChat from './PeerSupportChat';
 import GroupChallenges from './GroupChallenges';
 import Leaderboard from './Leaderboard';
 import useAuth from '../hooks/useAuth';
-import { getLeaderboard, getReferralStats, getMoods, getChatHistory } from '../api/api';
+import { getLeaderboard, getReferralStats, getMoods } from '../api/api';
 import {
   ChatBubbleLeftRightIcon,
   ShareIcon,
@@ -41,7 +41,7 @@ interface SocialStats {
 }
 
 const SocialHub: React.FC = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [socialStats, setSocialStats] = useState<SocialStats>({
@@ -99,7 +99,7 @@ const SocialHub: React.FC = () => {
     fetchSocialData();
   }, [user?.user_id]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('SocialHub tab changed', { newTab: newValue });
     setActiveTab(newValue);
   };

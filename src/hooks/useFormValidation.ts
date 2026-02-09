@@ -155,7 +155,7 @@ export const validationRules = {
  */
 export const useFormValidation = (
   schema: ValidationSchema,
-  initialData?: Record<string, any>
+  _initialData?: Record<string, any>
 ) => {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});

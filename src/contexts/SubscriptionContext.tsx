@@ -222,7 +222,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       setPlan(newPlan);
 
-      let latestUsage: DailyUsage = {
+      const latestUsage: DailyUsage = {
         moodLogs: data.usage?.moodLogs ?? DEFAULT_USAGE.moodLogs,
         chatMessages: data.usage?.chatMessages ?? DEFAULT_USAGE.chatMessages,
         lastResetDate: data.usage?.date || new Date().toISOString().split('T')[0] || DEFAULT_USAGE.lastResetDate,
