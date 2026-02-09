@@ -7,8 +7,8 @@ These tests ensure the application is secure and functions correctly.
 
 import pytest
 from unittest.mock import Mock, patch
-from Backend.src.services.auth_service import AuthService
-from Backend.src.utils.error_handling import ServiceError, ValidationError, AuthenticationError
+from src.services.auth_service import AuthService
+from src.utils.error_handling import ServiceError, ValidationError, AuthenticationError
 
 
 class TestCriticalSecurity:
@@ -16,7 +16,7 @@ class TestCriticalSecurity:
 
     def test_sql_injection_protection(self):
         """Test that SQL injection attempts are properly sanitized"""
-        from Backend.src.utils.sql_injection_protection import sanitize_sql_input
+        from src.utils.sql_injection_protection import sanitize_sql_input
 
         # Test malicious inputs
         malicious_inputs = [
@@ -35,7 +35,7 @@ class TestCriticalSecurity:
 
     def test_xss_protection(self):
         """Test XSS protection in user inputs"""
-        from Backend.src.utils.input_sanitization import sanitize_html
+        from src.utils.input_sanitization import sanitize_html
 
         xss_payloads = [
             "<script>alert('xss')</script>",
@@ -50,7 +50,7 @@ class TestCriticalSecurity:
             assert "javascript:" not in sanitized
             assert "onerror" not in sanitized
 
-    @patch('Backend.src.services.auth_service.firebase_auth')
+    @patch('src.services.auth_service.firebase_auth')
     def test_brute_force_protection(self, mock_auth):
         """Test account lockout after failed login attempts"""
         # Mock Firebase auth to always fail
@@ -89,7 +89,7 @@ class TestCriticalSecurity:
 
     def test_rate_limiting(self):
         """Test rate limiting functionality"""
-        from Backend.src.services.rate_limiting import RateLimiter
+        from src.services.rate_limiting import RateLimiter
 
         limiter = RateLimiter()
 
@@ -106,7 +106,7 @@ class TestCriticalSecurity:
 class TestBusinessLogic:
     """Test critical business logic paths"""
 
-    @patch('Backend.src.services.auth_service.firebase_auth')
+    @patch('src.services.auth_service.firebase_auth')
     def test_user_registration_validation(self, mock_auth):
         """Test user registration input validation"""
         mock_auth.create_user.return_value = Mock(uid="test-uid")
@@ -128,7 +128,7 @@ class TestBusinessLogic:
 
     def test_mood_data_validation(self):
         """Test mood data input validation"""
-        from Backend.src.utils.input_sanitization import validate_mood_input
+        from src.utils.input_sanitization import validate_mood_input
 
         # Valid mood data
         valid_mood = {
@@ -150,7 +150,7 @@ class TestBusinessLogic:
 
     def test_ai_service_fallback(self):
         """Test AI service fallback when OpenAI is unavailable"""
-        from Backend.src.services.ai_service import AIServices
+        from src.services.ai_service import AIServices
 
         # Test that AIServices can be instantiated (lazy loading means no direct patching)
         ai_services = AIServices()
@@ -171,7 +171,7 @@ class TestBusinessLogic:
 
     def test_crisis_detection(self):
         """Test crisis indicator detection"""
-        from Backend.src.services.ai_service import AIServices
+        from src.services.ai_service import AIServices
 
         ai_service = AIServices()
 
@@ -196,7 +196,7 @@ class TestBusinessLogic:
         test_key = Fernet.generate_key().decode()
         os.environ['HIPAA_ENCRYPTION_KEY'] = test_key
         
-        from Backend.src.services.audit_service import AuditService
+        from src.services.audit_service import AuditService
         audit_svc = AuditService()
 
         test_data = "Sensitive user information"
@@ -215,7 +215,7 @@ class TestErrorHandling:
 
     def test_service_error_handling(self):
         """Test service error decorator"""
-        from Backend.src.utils.error_handling import handle_service_errors
+        from src.utils.error_handling import handle_service_errors
 
         @handle_service_errors
         def successful_function():
@@ -237,7 +237,7 @@ class TestErrorHandling:
 
     def test_validation_error_handling(self):
         """Test validation error handling"""
-        from Backend.src.utils.error_handling import validate_required_fields
+        from src.utils.error_handling import validate_required_fields
 
         # Valid data
         valid_data = {"name": "John", "email": "john@example.com"}
