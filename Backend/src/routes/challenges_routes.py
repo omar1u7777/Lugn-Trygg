@@ -3,19 +3,20 @@ Challenges Routes - Group Challenges API
 Real implementation for team-based wellness challenges
 """
 
-import os
 import logging
-from flask import Blueprint, request, g
-from datetime import datetime, timedelta, timezone
-import uuid
+import os
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, g, request
+
 try:
     from google.cloud import firestore as gcfirestore  # For atomic updates if available
 except Exception:
     gcfirestore = None
+from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import input_sanitizer
-from ..services.audit_service import audit_log
 from ..utils.response_utils import APIResponse
 
 challenges_bp = Blueprint("challenges", __name__)
@@ -40,7 +41,7 @@ def _can_use_memory() -> bool:
 
 def _cleanup_expired_challenges():
     """Mark expired challenges inactive and prune very old ones from memory."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     purge_before = now - timedelta(days=30)
     to_delete = []
     deactivated = 0
@@ -73,7 +74,7 @@ def _cleanup_expired_challenges():
 def _cleanup_firestore_expired(db):
     """Mark expired challenges inactive in Firestore (no delete)."""
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         marked_inactive = 0
         challenges_ref = db.collection('challenges')
         for doc in challenges_ref.stream():
@@ -132,7 +133,7 @@ def _to_camel_case_challenge(challenge: dict) -> dict:
             'contribution': m.get('contribution', 0),
             'joinedAt': m.get('joined_at', '')
         })
-    
+
     return {
         'id': challenge.get('id', ''),
         'title': challenge.get('title', ''),
@@ -161,7 +162,7 @@ def _init_default_challenges():
     if _defaults_initialized:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     _challenges_store.update({
         'mood-marathon-weekly': {
             'id': 'mood-marathon-weekly',
@@ -269,7 +270,7 @@ def get_challenges():
                 challenge_data = doc.to_dict()
                 challenge_data['id'] = doc.id
                 challenges.append(_to_camel_case_challenge(challenge_data))
-            
+
             return APIResponse.success({
                 'challenges': challenges,
                 'source': 'firestore'
@@ -283,7 +284,7 @@ def get_challenges():
             'challenges': challenges,
             'source': 'memory'
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to get challenges: {e}")
         return APIResponse.error(str(e))
@@ -317,9 +318,9 @@ def get_challenge(challenge_id: str):
             return APIResponse.success({
                 'challenge': _to_camel_case_challenge(_challenges_store[challenge_id])
             })
-        
+
         return APIResponse.not_found('Challenge not found')
-        
+
     except Exception as e:
         logger.error(f"Failed to get challenge {challenge_id}: {e}")
         return APIResponse.error(str(e))
@@ -335,19 +336,19 @@ def join_challenge(challenge_id: str):
         data = request.get_json() or {}
         username = data.get('username', 'Anonymous')
         username = input_sanitizer.sanitize(username, content_type='text', max_length=80) or 'Anonymous'
-        
+
         _cleanup_expired_challenges()
-        
+
         db = _get_db()
-        now = datetime.now(timezone.utc)
-        
+        now = datetime.now(UTC)
+
         member_data = {
             'user_id': user_id,
             'username': username,
             'contribution': 0,
             'joined_at': now.isoformat()
         }
-        
+
         if db:
             _cleanup_firestore_expired(db)
             challenge_ref = db.collection('challenges').document(challenge_id)
@@ -407,7 +408,7 @@ def join_challenge(challenge_id: str):
                 'message': 'Successfully joined challenge',
                 'challengeId': challenge_id
             })
-        
+
         if not _can_use_memory():
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
@@ -415,33 +416,33 @@ def join_challenge(challenge_id: str):
         _init_default_challenges()
         if challenge_id not in _challenges_store:
             return APIResponse.not_found('Challenge not found')
-        
+
         challenge = _challenges_store[challenge_id]
         members = challenge.get('members', [])
-        
+
         if any(m.get('user_id') == user_id for m in members):
             return APIResponse.bad_request('Already joined this challenge')
-        
+
         if len(members) >= challenge.get('max_team_size', 10):
             return APIResponse.bad_request('Challenge is full')
-        
+
         members.append(member_data)
         challenge['members'] = members
         challenge['team_size'] = len(members)
-        
+
         # Track user's challenges
         if user_id not in _user_challenges:
             _user_challenges[user_id] = {}
         _user_challenges[user_id][challenge_id] = {'joined_at': now.isoformat()}
-        
+
         logger.info(f"User {user_id} joined challenge {challenge_id} (memory)")
         audit_log('challenge_joined', user_id, {'challengeId': challenge_id, 'source': 'memory'})
-        
+
         return APIResponse.success({
             'message': 'Successfully joined challenge',
             'challengeId': challenge_id
         })
-        
+
     except Exception as e:
         return APIResponse.error(str(e))
 
@@ -455,31 +456,31 @@ def leave_challenge(challenge_id: str):
         user_id = g.user_id
 
         _cleanup_expired_challenges()
-        
+
         db = _get_db()
-        
+
         if db:
             _cleanup_firestore_expired(db)
             challenge_ref = db.collection('challenges').document(challenge_id)
             doc = challenge_ref.get()
-            
+
             if not doc.exists:
                 return APIResponse.not_found('Challenge not found')
-            
+
             challenge_data = doc.to_dict()
             members = challenge_data.get('members', [])
-            
+
             # Remove user from members
             members = [m for m in members if m.get('user_id') != user_id]
-            
+
             challenge_ref.update({
                 'members': members,
                 'team_size': len(members)
             })
-            
+
             logger.info(f"User {user_id} left challenge {challenge_id} (firestore)")
             audit_log('challenge_left', user_id, {'challengeId': challenge_id, 'source': 'firestore'})
-            
+
             return APIResponse.success({'message': 'Successfully left challenge'})
 
         if not _can_use_memory():
@@ -492,12 +493,12 @@ def leave_challenge(challenge_id: str):
             members = challenge.get('members', [])
             challenge['members'] = [m for m in members if m.get('user_id') != user_id]
             challenge['team_size'] = len(challenge['members'])
-        
+
         logger.info(f"User {user_id} left challenge {challenge_id} (memory)")
         audit_log('challenge_left', user_id, {'challengeId': challenge_id, 'source': 'memory'})
-        
+
         return APIResponse.success({'message': 'Successfully left challenge'})
-        
+
     except Exception as e:
         return APIResponse.error(str(e))
 
@@ -526,49 +527,49 @@ def contribute_to_challenge(challenge_id: str):
             amount = 1
         if amount > 50:
             amount = 50
-        
+
         _cleanup_expired_challenges()
 
         db = _get_db()
-        
+
         if db:
             _cleanup_firestore_expired(db)
             challenge_ref = db.collection('challenges').document(challenge_id)
             doc = challenge_ref.get()
-            
+
             if not doc.exists:
                 return APIResponse.not_found('Challenge not found')
-            
+
             challenge_data = doc.to_dict()
-            
+
             # Check if user is a member
             members = challenge_data.get('members', [])
             member_index = next((i for i, m in enumerate(members) if m.get('user_id') == user_id), -1)
-            
+
             if member_index == -1:
                 return APIResponse.bad_request('User is not a member of this challenge')
-            
+
             # Check if challenge category matches contribution type
             if challenge_data.get('category') != contribution_type:
                 return APIResponse.bad_request(f'This challenge is for {challenge_data.get("category")}, not {contribution_type}')
-            
+
             # Update contribution
             members[member_index]['contribution'] = members[member_index].get('contribution', 0) + amount
-            
+
             # Update overall progress
             new_progress = challenge_data.get('current_progress', 0) + amount
             goal = challenge_data.get('goal', 100)
-            
+
             # Check if challenge completed
             completed = new_progress >= goal
-            
+
             challenge_ref.update({
                 'members': members,
                 'current_progress': new_progress,
                 'completed': completed,
-                'completed_at': datetime.now(timezone.utc).isoformat() if completed else None
+                'completed_at': datetime.now(UTC).isoformat() if completed else None
             })
-            
+
             logger.info(f"User {user_id} contributed {amount} to {challenge_id} (firestore)")
             audit_log('challenge_contribution', user_id, {
                 'challengeId': challenge_id,
@@ -577,7 +578,7 @@ def contribute_to_challenge(challenge_id: str):
                 'completed': completed,
                 'source': 'firestore'
             })
-            
+
             return APIResponse.success({
                 'message': 'Contribution added',
                 'newProgress': new_progress,
@@ -585,7 +586,7 @@ def contribute_to_challenge(challenge_id: str):
                 'completed': completed,
                 'userContribution': members[member_index]['contribution']
             })
-        
+
         if not _can_use_memory():
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
@@ -594,14 +595,14 @@ def contribute_to_challenge(challenge_id: str):
         if challenge_id in _challenges_store:
             challenge = _challenges_store[challenge_id]
             members = challenge.get('members', [])
-            
+
             member_index = next((i for i, m in enumerate(members) if m.get('user_id') == user_id), -1)
             if member_index == -1:
                 return APIResponse.bad_request('User is not a member of this challenge')
-            
+
             members[member_index]['contribution'] = members[member_index].get('contribution', 0) + amount
             challenge['current_progress'] = challenge.get('current_progress', 0) + amount
-            
+
             logger.info(f"User {user_id} contributed {amount} to {challenge_id} (memory)")
             audit_log('challenge_contribution', user_id, {
                 'challengeId': challenge_id,
@@ -609,15 +610,15 @@ def contribute_to_challenge(challenge_id: str):
                 'newProgress': challenge['current_progress'],
                 'source': 'memory'
             })
-            
+
             return APIResponse.success({
                 'message': 'Contribution added',
                 'newProgress': challenge['current_progress'],
                 'goal': challenge.get('goal', 100)
             })
-        
+
         return APIResponse.not_found('Challenge not found')
-        
+
     except Exception as e:
         return APIResponse.error(str(e))
 
@@ -638,7 +639,7 @@ def get_user_challenges(user_id: str):
 
         db = _get_db()
         user_challenges = []
-        
+
         if db:
             _cleanup_firestore_expired(db)
             # Get all challenges where user is a member
@@ -646,11 +647,11 @@ def get_user_challenges(user_id: str):
             for doc in challenges_ref.where('active', '==', True).stream():
                 challenge_data = doc.to_dict()
                 members = challenge_data.get('members', [])
-                
+
                 if any(m.get('user_id') == user_id for m in members):
                     challenge_data['id'] = doc.id
                     user_challenges.append(_to_camel_case_challenge(challenge_data))
-            
+
             return APIResponse.success({'challenges': user_challenges})
 
         if not _can_use_memory():
@@ -658,13 +659,13 @@ def get_user_challenges(user_id: str):
 
         # Fallback to in-memory
         _init_default_challenges()
-        for challenge_id, challenge in _challenges_store.items():
+        for _challenge_id, challenge in _challenges_store.items():
             members = challenge.get('members', [])
             if any(m.get('user_id') == user_id for m in members):
                 user_challenges.append(_to_camel_case_challenge(challenge))
-        
+
         return APIResponse.success({'challenges': user_challenges})
-        
+
     except Exception as e:
         return APIResponse.error(str(e))
 

@@ -3,17 +3,19 @@ Dashboard Routes
 Provides batched dashboard data endpoints for frontend efficiency
 """
 
-from flask import Blueprint, request, jsonify, g
-from ..services.auth_service import AuthService
-from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.audit_service import audit_log
-from ..firebase_config import db
-from ..utils.input_sanitization import input_sanitizer
-from ..utils.response_utils import APIResponse
-from datetime import datetime, timezone, timedelta
 import logging
 import re
-from typing import Dict, List, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from flask import Blueprint, g, request
+
+from ..firebase_config import db
+from ..services.audit_service import audit_log
+from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
+from ..utils.input_sanitization import input_sanitizer
+from ..utils.response_utils import APIResponse
 
 # Validate user_id format: Firebase UID is alphanumeric 28 chars
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
@@ -44,21 +46,21 @@ def get_csrf_token():
 def _get_score_from_mood_text(mood_text: str) -> str:
     """Infer score from mood text (Swedish keywords)"""
     mood_text = mood_text.lower() if mood_text else ''
-    
+
     # Very positive moods (8-10)
     if any(word in mood_text for word in ['fantastisk', 'underbar', 'lycklig', 'euforisk', 'strålande']):
         return "9/10"
     if any(word in mood_text for word in ['glad', 'nöjd', 'bra', 'positiv', 'energisk', 'spännande']):
         return "8/10"
-    
+
     # Moderately positive (6-7)
     if any(word in mood_text for word in ['okej', 'lugn', 'avslappnad', 'stabil']):
         return "7/10"
-    
+
     # Neutral (5)
     if any(word in mood_text for word in ['neutral', 'så där', 'varken', 'medel']):
         return "5/10"
-    
+
     # Negative moods (2-4)
     if any(word in mood_text for word in ['trött', 'uttråkad', 'irriterad', 'stressad']):
         return "4/10"
@@ -66,12 +68,12 @@ def _get_score_from_mood_text(mood_text: str) -> str:
         return "3/10"
     if any(word in mood_text for word in ['arg', 'frustrerad', 'deprimerad', 'hopplös']):
         return "2/10"
-    
+
     # Default to neutral if no match
     return "5/10"
 
 # In-memory cache for dashboard data (5 minute TTL)
-_dashboard_cache: Dict[str, Dict[str, Any]] = {}
+_dashboard_cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
 CACHE_MAX_SIZE = 1000  # Max entries before cleanup
 _last_cleanup = 0.0
@@ -80,21 +82,21 @@ _last_cleanup = 0.0
 def _cleanup_expired_cache() -> None:
     """Remove expired cache entries to prevent memory leak"""
     global _last_cleanup
-    now = datetime.now(timezone.utc).timestamp()
-    
+    now = datetime.now(UTC).timestamp()
+
     # Only cleanup every 60 seconds to avoid overhead
     if now - _last_cleanup < 60:
         return
-    
+
     _last_cleanup = now
     expired_keys = [
         key for key, data in _dashboard_cache.items()
         if now - data.get('_cached_at', 0) >= CACHE_TTL_SECONDS
     ]
-    
+
     for key in expired_keys:
         del _dashboard_cache[key]
-    
+
     # If still too large, remove oldest entries
     if len(_dashboard_cache) > CACHE_MAX_SIZE:
         sorted_keys = sorted(
@@ -103,18 +105,18 @@ def _cleanup_expired_cache() -> None:
         )
         for key in sorted_keys[:len(_dashboard_cache) - CACHE_MAX_SIZE]:
             del _dashboard_cache[key]
-    
+
     if expired_keys:
         logger.debug(f"🧹 Cache cleanup: removed {len(expired_keys)} expired entries")
 
 
-def _get_cached_data(user_id: str) -> Dict[str, Any] | None:
+def _get_cached_data(user_id: str) -> dict[str, Any] | None:
     """Get cached dashboard data if still valid"""
     _cleanup_expired_cache()  # Cleanup on read
-    
+
     if user_id in _dashboard_cache:
         cached = _dashboard_cache[user_id]
-        if datetime.now(timezone.utc).timestamp() - cached.get('_cached_at', 0) < CACHE_TTL_SECONDS:
+        if datetime.now(UTC).timestamp() - cached.get('_cached_at', 0) < CACHE_TTL_SECONDS:
             return cached
         else:
             # Remove expired entry
@@ -122,9 +124,9 @@ def _get_cached_data(user_id: str) -> Dict[str, Any] | None:
     return None
 
 
-def _set_cached_data(user_id: str, data: Dict[str, Any]) -> None:
+def _set_cached_data(user_id: str, data: dict[str, Any]) -> None:
     """Cache dashboard data"""
-    data['_cached_at'] = datetime.now(timezone.utc).timestamp()
+    data['_cached_at'] = datetime.now(UTC).timestamp()
     _dashboard_cache[user_id] = data
 
 
@@ -148,7 +150,7 @@ def get_dashboard_summary(user_id: str):
 
         # Verify user owns this data
         if g.user_id != user_id:
-            logger.warning(f"❌ Dashboard - Unauthorized access attempt")
+            logger.warning("❌ Dashboard - Unauthorized access attempt")
             audit_log('unauthorized_dashboard_access', g.user_id, {
                 'attempted_user_id': user_id,
                 'endpoint': 'summary'
@@ -166,7 +168,7 @@ def get_dashboard_summary(user_id: str):
                 cached_data['cached'] = True
                 return APIResponse.success(data=cached_data, message='Dashboard summary retrieved (cached)')
 
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
 
         # Check database availability
         if db is None:
@@ -176,7 +178,7 @@ def get_dashboard_summary(user_id: str):
         # Fetch user data
         user_ref = db.collection('users').document(user_id)
         user_doc = user_ref.get()
-        
+
         wellness_goals = []
         if user_doc.exists:
             user_data = user_doc.to_dict()
@@ -184,8 +186,8 @@ def get_dashboard_summary(user_id: str):
 
         # Fetch mood data (last 30 days)
         # CRITICAL FIX: Moods are stored in user subcollection, not root collection
-        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-        
+        datetime.now(UTC) - timedelta(days=30)
+
         try:
             # Correct path: users/{user_id}/moods (subcollection)
             moods_ref = db.collection('users').document(user_id).collection('moods').order_by('timestamp', direction='DESCENDING').limit(100)
@@ -196,22 +198,22 @@ def get_dashboard_summary(user_id: str):
             mood_docs = []
 
         total_moods = len(mood_docs)
-        
+
         # Calculate average mood and weekly progress
         average_mood = 0
         weekly_progress = 0
-        week_start = datetime.now(timezone.utc) - timedelta(days=7)
-        
+        week_start = datetime.now(UTC) - timedelta(days=7)
+
         mood_scores = []
         for doc in mood_docs:
             mood_data = doc.to_dict()
             # CRITICAL FIX: Get score from user input (1-10 scale), not sentiment score
             score = mood_data.get('score')
             sentiment_score = mood_data.get('sentiment_score')
-            
+
             # Determine the best score to use
             final_score = None
-            
+
             # Check if we have a valid user score (1-10, not 0)
             if score is not None:
                 try:
@@ -239,7 +241,7 @@ def get_dashboard_summary(user_id: str):
                         final_score = round((score_val + 1) * 4.5 + 1, 1)
                 except (ValueError, TypeError):
                     pass
-            
+
             # If still no score, try sentiment_score directly
             if final_score is None and sentiment_score is not None:
                 try:
@@ -248,28 +250,28 @@ def get_dashboard_summary(user_id: str):
                         final_score = round((sent_val + 1) * 4.5 + 1, 1)
                 except (ValueError, TypeError):
                     pass
-            
+
             # Add to scores if valid
             if final_score is not None:
                 final_score = max(1, min(10, final_score))  # Clamp to 1-10
                 mood_scores.append(final_score)
-            
+
             # Check if mood is from this week
             timestamp = mood_data.get('timestamp')
             if timestamp:
                 try:
                     if hasattr(timestamp, 'timestamp'):
-                        mood_time = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc)
+                        mood_time = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC)
                     elif isinstance(timestamp, str):
                         mood_time = datetime.fromisoformat(str(timestamp).replace('Z', '+00:00'))
                     else:
                         mood_time = timestamp if hasattr(timestamp, 'date') else None
-                    
+
                     if mood_time and mood_time >= week_start:
                         weekly_progress += 1
                 except Exception as e:
                     logger.debug(f"⚠️ Failed to parse timestamp: {e}")
-        
+
         if mood_scores:
             average_mood = round(sum(mood_scores) / len(mood_scores), 1)
 
@@ -297,7 +299,7 @@ def get_dashboard_summary(user_id: str):
                         if hasattr(timestamp, 'date'):
                             mood_date = timestamp.date()
                         elif hasattr(timestamp, 'timestamp'):
-                            mood_date = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc).date()
+                            mood_date = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC).date()
                         elif isinstance(timestamp, str):
                             mood_date = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).date()
                         else:
@@ -305,12 +307,12 @@ def get_dashboard_summary(user_id: str):
                         logged_dates.add(mood_date)
                     except Exception:
                         continue
-            
+
             # Count consecutive days - start from today or yesterday
             # (if user logged yesterday but not today yet, still count the streak)
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
             yesterday = today - timedelta(days=1)
-            
+
             # Start from today if logged today, otherwise start from yesterday
             if today in logged_dates:
                 current_date = today
@@ -318,13 +320,13 @@ def get_dashboard_summary(user_id: str):
                 current_date = yesterday
             else:
                 current_date = None
-            
+
             # Count consecutive days backwards
             if current_date:
                 while current_date in logged_dates:
                     streak_days += 1
                     current_date -= timedelta(days=1)
-            
+
             logger.info(f"📊 Dashboard - Streak: {streak_days} days, logged dates: {len(logged_dates)}")
 
         # Build recent activity
@@ -335,18 +337,18 @@ def get_dashboard_summary(user_id: str):
             if hasattr(timestamp, 'isoformat'):
                 timestamp_str = timestamp.isoformat()
             elif hasattr(timestamp, 'timestamp'):
-                timestamp_str = datetime.fromtimestamp(timestamp.timestamp(), tz=timezone.utc).isoformat()
+                timestamp_str = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC).isoformat()
             else:
                 timestamp_str = str(timestamp)
-            
+
             # CRITICAL FIX: Get score properly
             # 'score' is user's 1-10 input, 'sentiment_score' is AI analysis (-1 to 1)
             raw_score = mood_data.get('score')
             sentiment_score = mood_data.get('sentiment_score')
-            
+
             # Determine the best score to display
             score_display = "N/A"
-            
+
             # Check if we have a valid user score (1-10 range, not 0)
             if raw_score is not None:
                 try:
@@ -383,7 +385,7 @@ def get_dashboard_summary(user_id: str):
                             score_display = f"{converted:.1f}/10"
                 except (ValueError, TypeError):
                     pass
-            
+
             # If still N/A, try sentiment_score
             if score_display == "N/A" and sentiment_score is not None:
                 try:
@@ -397,12 +399,12 @@ def get_dashboard_summary(user_id: str):
                             score_display = f"{converted:.1f}/10"
                 except (ValueError, TypeError):
                     pass
-            
+
             # Last resort: try to infer from mood_text
             if score_display == "N/A":
                 mood_text = mood_data.get('mood_text', '').lower()
                 score_display = _get_score_from_mood_text(mood_text)
-            
+
             recent_activity.append({
                 'id': doc.id,
                 'type': 'mood',
@@ -410,7 +412,7 @@ def get_dashboard_summary(user_id: str):
                 'description': f"Humör loggat: {score_display}"
             })
 
-        response_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+        response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         summary = {
             'totalMoods': total_moods,
@@ -465,7 +467,7 @@ def get_quick_stats(user_id: str):
         cache_key = f"quick_stats:{user_id}"
         if cache_key in _dashboard_cache:
             cached = _dashboard_cache[cache_key]
-            if datetime.now(timezone.utc).timestamp() - cached.get('_cached_at', 0) < 60:
+            if datetime.now(UTC).timestamp() - cached.get('_cached_at', 0) < 60:
                 cached_copy = {k: v for k, v in cached.items() if k != '_cached_at'}
                 cached_copy['cached'] = True
                 return APIResponse.success(data=cached_copy, message='Quick stats retrieved (cached)')
@@ -501,7 +503,7 @@ def get_quick_stats(user_id: str):
         }
 
         # Cache for 60 seconds
-        _dashboard_cache[cache_key] = {**stats_data, '_cached_at': datetime.now(timezone.utc).timestamp()}
+        _dashboard_cache[cache_key] = {**stats_data, '_cached_at': datetime.now(UTC).timestamp()}
 
         return APIResponse.success(
             data=stats_data,

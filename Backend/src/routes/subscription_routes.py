@@ -1,6 +1,7 @@
 import logging
-from flask import Blueprint, request, g
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from flask import Blueprint, g, request
 
 # FieldFilter import with fallback
 try:
@@ -8,27 +9,27 @@ try:
 except ImportError:
     FieldFilter = None  # type: ignore
 
-from ..firebase_config import db
+import os
+
 from ..config import (
-    STRIPE_SECRET_KEY,
-    STRIPE_PUBLISHABLE_KEY,
+    STRIPE_PRICE_CBT_MODULE,
+    STRIPE_PRICE_ENTERPRISE,
     STRIPE_PRICE_PREMIUM,
     STRIPE_PRICE_PREMIUM_YEARLY,
-    STRIPE_PRICE_ENTERPRISE,
-    STRIPE_PRICE_CBT_MODULE,
+    STRIPE_SECRET_KEY,
 )
 from ..config.subscription_config import load_subscription_plans
-import os
+from ..firebase_config import db
 
 # Frontend URL for Stripe redirect - use env var, never hardcode localhost in production
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
-from ..services.subscription_service import SubscriptionService
+from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.audit_service import audit_log
-from ..utils.response_utils import APIResponse
+from ..services.subscription_service import SubscriptionService
 from ..utils.input_sanitization import sanitize_text
+from ..utils.response_utils import APIResponse
 
 # Configure Stripe if available
 try:
@@ -119,10 +120,10 @@ def create_checkout_session():
                 "billing_cycle": billing_cycle,
             }
         )
-        
+
         audit_log("CHECKOUT_SESSION_CREATED", user_id, {"plan": plan, "sessionId": checkout_session.id})
         logger.info(f"✅ Stripe checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
-        
+
         return APIResponse.success({
             "sessionId": checkout_session.id,
             "url": checkout_session.url
@@ -142,7 +143,7 @@ def get_subscription_status(user_id: str):
         user_id = sanitize_text(user_id, max_length=128)
         if not user_id:
             return APIResponse.bad_request("User ID is required")
-        
+
         # Security: Only allow users to view their own status
         current_user_id = g.get('user_id')
         if not current_user_id:
@@ -228,7 +229,7 @@ def stripe_webhook():
                                 purchases.append(module)
                                 user_ref.update({
                                     "purchases": purchases,
-                                    "updated_at": datetime.now(timezone.utc).isoformat()
+                                    "updated_at": datetime.now(UTC).isoformat()
                                 })
                                 logger.info(f"✅ CBT module '{module}' purchased for user: {user_id}")
                 else:
@@ -239,8 +240,8 @@ def stripe_webhook():
                         "plan": plan,
                         "stripe_customer_id": session.get("customer"),
                         "stripe_subscription_id": session.get("subscription"),
-                        "start_date": datetime.now(timezone.utc).isoformat(),
-                        "updated_at": datetime.now(timezone.utc).isoformat()
+                        "start_date": datetime.now(UTC).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat()
                     }
 
                     db.collection("users").document(user_id).update({  # type: ignore
@@ -276,7 +277,7 @@ def stripe_webhook():
                     user_id = user_doc.id
                     db.collection("users").document(user_id).update({  # type: ignore
                         "subscription.status": "past_due",
-                        "subscription.updated_at": datetime.now(timezone.utc).isoformat()
+                        "subscription.updated_at": datetime.now(UTC).isoformat()
                     })
                     audit_log("PAYMENT_FAILED", user_id, {"subscriptionId": subscription_id})
                     logger.warning(f"⚠️ Subscription marked past_due for user: {user_id}")
@@ -296,13 +297,13 @@ def stripe_webhook():
                 users = db.collection("users").where(  # type: ignore
                     "subscription.stripe_customer_id", "==", customer_id
                 ).stream()
-            
+
             for user_doc in users:
                 user_id = user_doc.id
                 db.collection("users").document(user_id).update({  # type: ignore
                     "subscription.status": "canceled",
-                    "subscription.end_date": datetime.now(timezone.utc).isoformat(),
-                    "subscription.updated_at": datetime.now(timezone.utc).isoformat()
+                    "subscription.end_date": datetime.now(UTC).isoformat(),
+                    "subscription.updated_at": datetime.now(UTC).isoformat()
                 })
                 audit_log("SUBSCRIPTION_CANCELED", user_id, {"customerId": customer_id})
                 logger.info(f"✅ Subscription canceled for user: {user_id}")
@@ -364,7 +365,7 @@ def purchase_cbt_module():
 
         audit_log("CBT_MODULE_CHECKOUT", user_id, {"module": module, "sessionId": checkout_session.id})
         logger.info(f"✅ CBT module checkout session created successfully for user: {user_id}, session_id: {checkout_session.id}")
-        
+
         return APIResponse.success({
             "sessionId": checkout_session.id,
             "url": checkout_session.url
@@ -396,7 +397,7 @@ def get_user_purchases(user_id: str):
         user_id = sanitize_text(user_id, max_length=128)
         if not user_id:
             return APIResponse.bad_request("User ID is required")
-        
+
         # Security: Only allow users to view their own purchases
         current_user_id = g.get('user_id')
         if not current_user_id:
@@ -427,13 +428,13 @@ def cancel_subscription(user_id: str):
     """Cancel user's subscription"""
     try:
         user_id = sanitize_text(user_id, max_length=128)
-        
+
         if not STRIPE_AVAILABLE:
             return APIResponse.error("Payment service is not available", "SERVICE_UNAVAILABLE", 503)
 
         if not user_id:
             return APIResponse.bad_request("User ID is required")
-        
+
         # Security: Only allow users to cancel their own subscription
         current_user_id = g.get('user_id')
         if not current_user_id:
@@ -469,12 +470,12 @@ def cancel_subscription(user_id: str):
         # Update Firestore
         db.collection("users").document(user_id).update({  # type: ignore
             "subscription.status": "canceling",
-            "subscription.updated_at": datetime.now(timezone.utc).isoformat()
+            "subscription.updated_at": datetime.now(UTC).isoformat()
         })
 
         audit_log("SUBSCRIPTION_CANCEL_INITIATED", user_id, {"subscriptionId": stripe_subscription_id})
         logger.info(f"✅ Subscription cancellation initiated for user: {user_id}")
-        
+
         return APIResponse.success({
             "message": "Subscription will be canceled at end of billing period"
         }, "Cancellation initiated")

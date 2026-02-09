@@ -6,13 +6,12 @@ timestamps to ensure consistent behavior across all services and routes.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional, Union
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
 
-def parse_iso_timestamp(timestamp_str: Optional[str], default_to_now: bool = True) -> datetime:
+def parse_iso_timestamp(timestamp_str: str | None, default_to_now: bool = True) -> datetime:
     """
     Parse an ISO format timestamp string into a timezone-aware datetime object.
 
@@ -42,7 +41,7 @@ def parse_iso_timestamp(timestamp_str: Optional[str], default_to_now: bool = Tru
     """
     if not timestamp_str:
         if default_to_now:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         else:
             raise ValueError("Timestamp string cannot be None or empty")
 
@@ -61,13 +60,13 @@ def parse_iso_timestamp(timestamp_str: Optional[str], default_to_now: bool = Tru
 
         # Ensure timezone awareness - if naive, assume UTC
         if parsed_dt.tzinfo is None:
-            parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+            parsed_dt = parsed_dt.replace(tzinfo=UTC)
         else:
             # Convert to UTC if it's timezone-aware
-            parsed_dt = parsed_dt.astimezone(timezone.utc)
+            parsed_dt = parsed_dt.astimezone(UTC)
 
         # Validate the parsed timestamp is reasonable (not in far future/past)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if abs((parsed_dt - now).total_seconds()) > 315360000:  # 10 years in seconds
             logger.warning(f"Parsed timestamp seems unreasonable: {parsed_dt} (more than 10 years from now)")
             if default_to_now:
@@ -80,12 +79,12 @@ def parse_iso_timestamp(timestamp_str: Optional[str], default_to_now: bool = Tru
         logger.warning(f"Failed to parse timestamp '{timestamp_str}': {str(e)}")
         if default_to_now:
             logger.info("Using current UTC time as fallback")
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         else:
             raise ValueError(f"Invalid timestamp format: {timestamp_str}") from e
 
 
-def format_iso_timestamp(dt: Union[datetime, str], include_timezone: bool = True) -> str:
+def format_iso_timestamp(dt: datetime | str, include_timezone: bool = True) -> str:
     """
     Format a datetime object as an ISO timestamp string.
 
@@ -111,14 +110,14 @@ def format_iso_timestamp(dt: Union[datetime, str], include_timezone: bool = True
             return format_iso_timestamp(parsed, include_timezone)
         except ValueError:
             # If invalid, return current time
-            dt = datetime.now(timezone.utc)
+            dt = datetime.now(UTC)
 
     if not isinstance(dt, datetime):
         raise ValueError("Input must be a datetime object or valid ISO string")
 
     # Ensure timezone awareness
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
 
     # Format as ISO string
     iso_str = dt.isoformat()
@@ -126,7 +125,7 @@ def format_iso_timestamp(dt: Union[datetime, str], include_timezone: bool = True
     if include_timezone:
         # Ensure it ends with timezone info
         if not iso_str.endswith(('+00:00', 'Z')):
-            iso_str = dt.astimezone(timezone.utc).isoformat()
+            iso_str = dt.astimezone(UTC).isoformat()
     else:
         # Remove timezone info if not wanted
         if '+' in iso_str:

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta, UTC
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 from threading import Lock
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 from .audit_service import audit_service
 
@@ -21,11 +21,11 @@ class TamperEvent:
     event_type: str
     severity: str
     message: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     created_at: datetime
     risk_score: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["created_at"] = self.created_at.isoformat()
         return data
@@ -35,7 +35,7 @@ class SecurityTamperService:
     """Centralized tamper detection and security event tracker"""
 
     def __init__(self, max_events: int = 200):
-        self._events: Deque[TamperEvent] = deque(maxlen=max_events)
+        self._events: deque[TamperEvent] = deque(maxlen=max_events)
         self._lock = Lock()
         self._severity_weight = {
             "low": 1,
@@ -50,7 +50,7 @@ class SecurityTamperService:
         event_type: str,
         message: str,
         severity: str = "low",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TamperEvent:
         """Store tamper event and forward to audit log if needed"""
 
@@ -87,12 +87,12 @@ class SecurityTamperService:
         logger.warning("Tamper event detected: %s - %s", event_type, message)
         return event
 
-    def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_recent_events(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return the newest tamper events"""
         with self._lock:
             return [evt.to_dict() for evt in list(self._events)[:limit]]
 
-    def get_active_alerts(self) -> List[Dict[str, Any]]:
+    def get_active_alerts(self) -> list[dict[str, Any]]:
         """Return high-severity alerts from last hour"""
         cutoff = datetime.now(UTC) - timedelta(hours=1)
         with self._lock:
@@ -113,7 +113,7 @@ class SecurityTamperService:
             return "elevated"
         return "low"
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Aggregate summary for dashboards"""
         with self._lock:
             total = len(self._events)

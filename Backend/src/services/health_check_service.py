@@ -12,12 +12,13 @@ Provides detailed health checks for all system components including:
 
 import asyncio
 import logging
-import time
-import psutil
 import socket
-from typing import Dict, Any, List, Optional, Callable
-from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor
+import time
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
+
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class HealthCheck:
         self.last_result = None
         self.last_error = None
 
-    async def run(self) -> Dict[str, Any]:
+    async def run(self) -> dict[str, Any]:
         """Run the health check"""
         start_time = time.time()
 
@@ -56,23 +57,23 @@ class HealthCheck:
             self.last_result = {
                 'status': 'healthy',
                 'response_time': response_time,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
                 'details': result if isinstance(result, dict) else {}
             }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.last_result = {
                 'status': 'unhealthy',
                 'error': 'Timeout',
                 'response_time': self.timeout,
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
         except Exception as e:
             self.last_result = {
                 'status': 'unhealthy',
                 'error': str(e),
                 'response_time': time.time() - start_time,
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
 
         self.last_check = time.time()
@@ -82,7 +83,7 @@ class HealthCheckService:
     """Comprehensive health check service"""
 
     def __init__(self):
-        self.checks: Dict[str, HealthCheck] = {}
+        self.checks: dict[str, HealthCheck] = {}
         self.overall_status = 'unknown'
         self.last_overall_check = 0
 
@@ -108,7 +109,7 @@ class HealthCheckService:
         # Application checks
         self.register_check('application_startup', self._check_application_startup, critical=True)
 
-    async def run_all_checks(self) -> Dict[str, Any]:
+    async def run_all_checks(self) -> dict[str, Any]:
         """Run all health checks and return comprehensive report"""
         start_time = time.time()
 
@@ -129,7 +130,7 @@ class HealthCheckService:
                 if isinstance(result, Exception):
                     logger.error(f"Health check error: {result}")
                     continue
-                
+
                 # Type check: result should be tuple, not Exception
                 if not isinstance(result, tuple) or len(result) != 2:
                     logger.error(f"Invalid health check result format: {result}")
@@ -157,7 +158,7 @@ class HealthCheckService:
         # Create comprehensive report
         report = {
             'status': overall_status,
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'response_time': time.time() - start_time,
             'checks': results,
             'summary': {
@@ -176,20 +177,20 @@ class HealthCheckService:
         result = await check.run()
         return name, result
 
-    async def get_health_status(self) -> Dict[str, Any]:
+    async def get_health_status(self) -> dict[str, Any]:
         """Get current health status (cached if recent)"""
         # Return cached result if less than 30 seconds old
         if time.time() - self.last_overall_check < 30:
             return {
                 'status': self.overall_status,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
                 'cached': True
             }
 
         # Run fresh checks
         return await self.run_all_checks()
 
-    async def _get_system_info(self) -> Dict[str, Any]:
+    async def _get_system_info(self) -> dict[str, Any]:
         """Get basic system information"""
         try:
             return {
@@ -209,7 +210,7 @@ class HealthCheckService:
 
     # Default health check implementations
 
-    def _check_cpu_usage(self) -> Dict[str, Any]:
+    def _check_cpu_usage(self) -> dict[str, Any]:
         """Check CPU usage"""
         cpu_percent = psutil.cpu_percent(interval=1)
 
@@ -226,7 +227,7 @@ class HealthCheckService:
             'thresholds': {'warning': 70, 'critical': 90}
         }
 
-    def _check_memory_usage(self) -> Dict[str, Any]:
+    def _check_memory_usage(self) -> dict[str, Any]:
         """Check memory usage"""
         memory = psutil.virtual_memory()
         memory_percent = memory.percent
@@ -246,7 +247,7 @@ class HealthCheckService:
             'thresholds': {'warning': 80, 'critical': 90}
         }
 
-    def _check_disk_usage(self) -> Dict[str, Any]:
+    def _check_disk_usage(self) -> dict[str, Any]:
         """Check disk usage"""
         disk = psutil.disk_usage('/')
         disk_percent = disk.percent
@@ -267,7 +268,7 @@ class HealthCheckService:
             'thresholds': {'warning': 85, 'critical': 95}
         }
 
-    def _check_network_connectivity(self) -> Dict[str, Any]:
+    def _check_network_connectivity(self) -> dict[str, Any]:
         """Check basic network connectivity"""
         try:
             # Try to connect to a reliable host (Google DNS)
@@ -284,7 +285,7 @@ class HealthCheckService:
                 'error': str(e)
             }
 
-    def _check_application_startup(self) -> Dict[str, Any]:
+    def _check_application_startup(self) -> dict[str, Any]:
         """Check if application started properly"""
         # This would check application-specific startup indicators
         # For now, just return healthy if the health check service is running
@@ -313,7 +314,7 @@ class HealthCheckService:
         """Register a custom health check"""
         self.register_check(name, check_func, critical=critical, timeout=timeout, interval=interval)
 
-    async def get_detailed_report(self) -> Dict[str, Any]:
+    async def get_detailed_report(self) -> dict[str, Any]:
         """Get detailed health report with trends and recommendations"""
         basic_report = await self.run_all_checks()
 
@@ -329,11 +330,11 @@ class HealthCheckService:
             'recommendations': recommendations
         }
 
-    async def _analyze_health_trends(self) -> Dict[str, Any]:
+    async def _analyze_health_trends(self) -> dict[str, Any]:
         """Analyze health trends based on recent check results."""
         improving = []
         degrading = []
-        
+
         for check in self.checks:
             if check.last_result is not None:
                 result = check.last_result
@@ -342,13 +343,13 @@ class HealthCheckService:
                     improving.append(check.name)
                 elif status == 'unhealthy':
                     degrading.append(check.name)
-        
+
         overall = 'stable'
         if len(degrading) > len(improving):
             overall = 'degrading'
         elif len(improving) > 0 and len(degrading) == 0:
             overall = 'improving'
-        
+
         return {
             'overall_trend': overall,
             'improving_checks': improving,
@@ -356,7 +357,7 @@ class HealthCheckService:
             'period': '24h'
         }
 
-    def _generate_recommendations(self, report: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(self, report: dict[str, Any]) -> list[str]:
         """Generate health recommendations based on report"""
         recommendations = []
 

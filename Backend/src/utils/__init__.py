@@ -1,6 +1,7 @@
 # Utils package for Lugn-Trygg application
 import idna
 
+
 def convert_email_to_punycode(email: str) -> str:
     """
     Konverterar domänen i en e-postadress till Punycode-format.
@@ -20,4 +21,4 @@ def convert_email_to_punycode(email: str) -> str:
         encoded_domain = idna.encode(domain).decode("utf-8")
         return f"{local_part}@{encoded_domain}"  # Sätter ihop e-postadressen igen
     except Exception as e:
-        raise ValueError(f"⚠️ Fel vid Punycode-konvertering: {str(e)}")
+        raise ValueError(f"⚠️ Fel vid Punycode-konvertering: {str(e)}") from e

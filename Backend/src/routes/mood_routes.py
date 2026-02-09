@@ -12,23 +12,21 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import Optional, Tuple, Any, Dict, Callable
+from typing import Any
 
-from flask import Blueprint, current_app, g, jsonify, make_response, request, Response
-from google.cloud.firestore import FieldFilter
+from flask import Blueprint, Response, current_app, g, jsonify, request
 
 # Absolute imports (project standard)
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.subscription_service import SubscriptionService, SubscriptionLimitError
-from src.services.consent_service import consent_service
-from src.utils.timestamp_utils import parse_iso_timestamp
-from src.utils.response_utils import APIResponse, success_response, error_response, created_response
+from src.services.subscription_service import SubscriptionLimitError, SubscriptionService
 from src.utils.input_sanitization import input_sanitizer
+from src.utils.response_utils import APIResponse
 
 # Lazy import to avoid OpenAI/Pydantic conflicts at module load time
 ai_services_module: Any = None
@@ -62,11 +60,11 @@ _redis_unavailable = False  # Track if Redis failed to avoid repeated connection
 def _get_redis_client() -> Any:
     """Get Redis client for caching (lazy initialization with failure tracking)"""
     global _redis_client, _redis_unavailable
-    
+
     # Skip if Redis already marked as unavailable (avoid repeated connection attempts)
     if _redis_unavailable:
         return None
-        
+
     if _redis_client is None:
         try:
             import redis  # type: ignore
@@ -84,7 +82,7 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
     """Cache decorator for mood endpoints - FULLY OPTIMIZED for dict returns"""
     def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def wrapper(*args: Any, **kwargs: Any) -> Response | Tuple[Response, int]:
+        def wrapper(*args: Any, **kwargs: Any) -> Response | tuple[Response, int]:
             user_id = g.get('user_id')
             if not user_id:
                 result = f(*args, **kwargs)
@@ -120,22 +118,22 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
 
             # CACHE MISS - Call the actual function
             result = f(*args, **kwargs)
-            
+
             # Handle dict return from function
             if isinstance(result, tuple) and len(result) == 2:
                 response_data, status_code = result
-                
+
                 if status_code == 200 and isinstance(response_data, dict):
                     # Store in memory cache
                     _mood_cache[cache_key] = (response_data, time.time())
-                    
+
                     # Store in Redis if available
                     if redis_client:
                         try:
                             redis_client.setex(cache_key, ttl, json.dumps(response_data))
                         except Exception:
                             pass
-                    
+
                     # Cleanup old cache entries if needed
                     if len(_mood_cache) > MOOD_CACHE_MAX_SIZE:
                         sorted_keys = sorted(
@@ -144,14 +142,14 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
                         )
                         for key in sorted_keys[:MOOD_CACHE_CLEANUP_BATCH]:
                             _mood_cache.pop(key, None)
-                    
+
                     return jsonify(response_data), status_code
-                
+
                 # Non-200 or non-dict response
                 if isinstance(response_data, dict):
                     return jsonify(response_data), status_code
                 return result
-            
+
             return result
 
         return wrapper
@@ -161,12 +159,12 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
 def invalidate_mood_cache(user_id: str) -> None:
     """Invalidate cached mood data for a user after new mood is logged"""
     global _mood_cache
-    
+
     # Remove all cache entries for this user
     keys_to_remove = [k for k in _mood_cache.keys() if f":{user_id}:" in k]
     for key in keys_to_remove:
         del _mood_cache[key]
-    
+
     # Also try to invalidate Redis cache
     redis_client = _get_redis_client()
     if redis_client:
@@ -195,28 +193,28 @@ MAX_ANALYZE_TEXT_LENGTH = 4000
 @mood_bp.route('/analyze-text', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def analyze_text() -> Response | Tuple[Response, int]:
+def analyze_text() -> Response | tuple[Response, int]:
     """
     Analyze text for sentiment and mood indicators.
     Frontend calls /api/mood/analyze-text - this endpoint matches that expectation.
     """
     if request.method == 'OPTIONS':
         return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
-    
+
     try:
         data = request.get_json(force=True, silent=True) or {}
         text = data.get('text', '').strip()
-        
+
         if not text:
             return APIResponse.bad_request('Text field is empty')
         if not isinstance(text, str):
             return APIResponse.bad_request('Text must be a string')
         if len(text) > MAX_ANALYZE_TEXT_LENGTH:
             return APIResponse.bad_request(f'Text must be max {MAX_ANALYZE_TEXT_LENGTH} characters')
-        
+
         # Use AI services for sentiment analysis
         analysis = _get_ai_services_module().ai_services.analyze_sentiment(text) or {}
-        
+
         response = {
             'sentiment': analysis.get('sentiment'),
             'score': analysis.get('score'),
@@ -224,9 +222,9 @@ def analyze_text() -> Response | Tuple[Response, int]:
             'intensity': analysis.get('intensity'),
             'method': analysis.get('method')
         }
-        
+
         return APIResponse.success(data=response, message='Text analyzed')
-        
+
     except Exception as e:
         logger.exception(f"Error analyzing text: {e}")
         return APIResponse.error('Internal server error during text analysis')
@@ -235,7 +233,7 @@ def analyze_text() -> Response | Tuple[Response, int]:
 @mood_bp.route('/log', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def log_mood() -> Response | Tuple[Response, int]:
+def log_mood() -> Response | tuple[Response, int]:
     """Log a new mood entry"""
     logger.info("🎯 Mood log endpoint called")
     if request.method == 'OPTIONS':
@@ -263,7 +261,7 @@ def log_mood() -> Response | Tuple[Response, int]:
         plan_context = SubscriptionService.get_plan_context(user_data)
         try:
             SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
-        except SubscriptionLimitError as exc:
+        except SubscriptionLimitError:
             limit_value = plan_context['limits'].get('moodLogsPerDay')
             logger.info(
                 "Mood log denied due to quota: user=%s limit=%s", user_id, limit_value
@@ -310,12 +308,12 @@ def log_mood() -> Response | Tuple[Response, int]:
                     user_score = None
             except (ValueError, TypeError):
                 user_score = None
-        
+
         timestamp = (
-            data.get('timestamp', datetime.now(timezone.utc).isoformat())
-            if data else datetime.now(timezone.utc).isoformat()
+            data.get('timestamp', datetime.now(UTC).isoformat())
+            if data else datetime.now(UTC).isoformat()
         )
-        
+
         logger.info(f"📝 Mood log data: score={user_score}, note='{note}', mood_text='{mood_text}'")
 
         # --- End unified payload handling ---
@@ -422,7 +420,7 @@ def log_mood() -> Response | Tuple[Response, int]:
             logger.info(f"💾 Mood data: score={user_score}, text='{final_mood_text}', timestamp={timestamp}")
 
             mood_ref = db.collection('users').document(user_id).collection('moods')
-            
+
             # CRITICAL FIX: Use user's score (1-10) instead of sentiment score
             # If no user score provided, try to infer from sentiment or default to 5
             final_score = user_score
@@ -434,7 +432,7 @@ def log_mood() -> Response | Tuple[Response, int]:
                     final_score = max(1, min(10, final_score))  # Clamp to 1-10
                 else:
                     final_score = 5  # Default to neutral
-            
+
             mood_data = {
                 'mood_text': final_mood_text,
                 'note': note,
@@ -456,7 +454,7 @@ def log_mood() -> Response | Tuple[Response, int]:
             # doc_ref is a tuple in some Firestore versions, get the document reference
             doc_id = doc_ref[1].id if isinstance(doc_ref, tuple) else doc_ref.id
             logger.info(f"✅ Mood entry saved to database with ID: {doc_id}")
-            
+
             # AUTO-AWARD XP for logging a mood
             try:
                 from ..services.rewards_helper import award_xp
@@ -464,7 +462,7 @@ def log_mood() -> Response | Tuple[Response, int]:
                 logger.info(f"⭐ XP awarded for mood log: +{xp_result.get('xp_gained', 0)}")
             except Exception as xp_err:
                 logger.warning(f"XP award failed (non-blocking): {xp_err}")
-            
+
             # PERFORMANCE: Invalidate cache so next GET returns fresh data
             invalidate_mood_cache(user_id)
         except Exception as db_error:
@@ -551,7 +549,7 @@ def log_mood() -> Response | Tuple[Response, int]:
 @mood_bp.route('/test', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def test_mood() -> Response | Tuple[Response, int]:
+def test_mood() -> Response | tuple[Response, int]:
     """Test route for mood endpoints"""
     return APIResponse.success({'status': 'ok'}, 'Mood routes are working!')
 
@@ -559,7 +557,7 @@ def test_mood() -> Response | Tuple[Response, int]:
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=300)  # Cache for 5 minutes - PERFORMANCE CRITICAL
-def get_moods() -> Dict[str, Any] | Tuple[Dict[str, Any], int]:
+def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
     """Get user's mood history with pagination and filtering - OPTIMIZED"""
     try:
         user_id = g.get('user_id')
@@ -611,7 +609,7 @@ def get_moods() -> Dict[str, Any] | Tuple[Dict[str, Any], int]:
 @mood_bp.route('/<mood_id>', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_mood(mood_id: str) -> Response | Tuple[Response, int]:
+def get_mood(mood_id: str) -> Response | tuple[Response, int]:
     """Get a specific mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -644,7 +642,7 @@ def get_mood(mood_id: str) -> Response | Tuple[Response, int]:
 @mood_bp.route('/<mood_id>', methods=['DELETE'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def delete_mood(mood_id: str) -> Response | Tuple[Response, int]:
+def delete_mood(mood_id: str) -> Response | tuple[Response, int]:
     """Delete a mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -682,7 +680,7 @@ def delete_mood(mood_id: str) -> Response | Tuple[Response, int]:
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=60)  # Cache for 1 minute
-def get_recent_moods() -> Response | Tuple[Response, int]:
+def get_recent_moods() -> Response | tuple[Response, int]:
     """Get user's recent mood entries (last 7 days)"""
     logger.info("📅 Getting recent mood entries")
     try:
@@ -691,7 +689,7 @@ def get_recent_moods() -> Response | Tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Get moods from last 7 days
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        seven_days_ago = datetime.now(UTC) - timedelta(days=7)
         seven_days_ago_str = seven_days_ago.isoformat()
 
         mood_ref = db.collection('users').document(user_id).collection('moods')
@@ -720,7 +718,7 @@ def get_recent_moods() -> Response | Tuple[Response, int]:
 @mood_bp.route('/<mood_id>', methods=['PUT'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def update_mood(mood_id: str) -> Response | Tuple[Response, int]:
+def update_mood(mood_id: str) -> Response | tuple[Response, int]:
     """Update a mood entry"""
     # Validate mood_id
     mood_id = input_sanitizer.sanitize(mood_id)
@@ -787,7 +785,7 @@ def update_mood(mood_id: str) -> Response | Tuple[Response, int]:
 @mood_bp.route('/today', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_today_mood() -> Response | Tuple[Response, int]:
+def get_today_mood() -> Response | tuple[Response, int]:
     """Get user's mood for today"""
     logger.info("📅 Getting today's mood")
     try:
@@ -796,9 +794,9 @@ def get_today_mood() -> Response | Tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Get today's date range
-        today = datetime.now(timezone.utc).date()
-        start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
-        end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=timezone.utc)
+        today = datetime.now(UTC).date()
+        start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
+        end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=UTC)
 
         mood_ref = db.collection('users').document(user_id).collection('moods')
         query = mood_ref.where('timestamp', '>=', start_of_day.isoformat()).where('timestamp', '<=', end_of_day.isoformat())
@@ -839,7 +837,7 @@ def get_today_mood() -> Response | Tuple[Response, int]:
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=3600)  # Cache for 1 hour
-def get_mood_streaks() -> Response | Tuple[Response, int]:
+def get_mood_streaks() -> Response | tuple[Response, int]:
     """Get user's mood logging streaks"""
     logger.info("🔥 Getting mood streaks")
     try:
@@ -880,10 +878,10 @@ def get_mood_streaks() -> Response | Tuple[Response, int]:
 
         if sorted_dates:
             # Calculate current streak
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
             current_date = today
 
-            for i in range(len(sorted_dates) + 1):  # +1 to check today
+            for _ in range(len(sorted_dates) + 1):  # +1 to check today
                 date_str = current_date.strftime('%Y-%m-%d')
                 if date_str in logged_dates:
                     current_streak += 1
@@ -909,7 +907,7 @@ def get_mood_streaks() -> Response | Tuple[Response, int]:
             longest_streak = max(longest_streak, temp_streak)
 
         # Calculate consistency (last 30 days)
-        thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).date()
         recent_dates = [d for d in logged_dates if datetime.strptime(d, '%Y-%m-%d').date() >= thirty_days_ago]
         consistency_percentage = (len(recent_dates) / 30) * 100 if thirty_days_ago else 0
 
@@ -935,7 +933,7 @@ def get_mood_streaks() -> Response | Tuple[Response, int]:
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 @cached_mood_data(ttl=600)  # Cache for 10 minutes
-def get_weekly_analysis() -> Response | Tuple[Response, int]:
+def get_weekly_analysis() -> Response | tuple[Response, int]:
     """Get weekly mood analysis with AI-generated insights"""
     logger.info("📊 Getting weekly mood analysis")
     try:
@@ -944,9 +942,9 @@ def get_weekly_analysis() -> Response | Tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Get moods from last 7 days
-        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        datetime.now(UTC) - timedelta(days=7)
         mood_ref = db.collection('users').document(user_id).collection('moods')
-        
+
         try:
             # Query moods from last 7 days
             mood_docs = list(
@@ -979,11 +977,11 @@ def get_weekly_analysis() -> Response | Tuple[Response, int]:
             mood_data = doc.to_dict()
             mood_data['id'] = doc.id
             moods_data.append(mood_data)
-            
+
             sentiment = mood_data.get('sentiment', 'NEUTRAL')
             score = mood_data.get('score', 0)
             sentiment_scores.append(score)
-            
+
             if sentiment == 'POSITIVE':
                 positive_count += 1
             elif sentiment == 'NEGATIVE':
@@ -1001,7 +999,7 @@ def get_weekly_analysis() -> Response | Tuple[Response, int]:
             older_half = sentiment_scores[len(sentiment_scores)//2:]
             recent_avg = sum(recent_half) / len(recent_half)
             older_avg = sum(older_half) / len(older_half)
-            
+
             if recent_avg > older_avg + 0.15:
                 trend = 'improving'
             elif recent_avg < older_avg - 0.15:
@@ -1056,20 +1054,20 @@ def get_weekly_analysis() -> Response | Tuple[Response, int]:
 @mood_bp.route('/predictive-forecast', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 @AuthService.jwt_required
-def predictive_mood_forecast() -> Response | Tuple[Response, int]:
+def predictive_mood_forecast() -> Response | tuple[Response, int]:
     """
     Get predictive mood forecast for the user.
     This endpoint provides ML-based mood predictions used by MoodAnalytics.tsx.
-    
+
     Query Parameters:
         days_ahead: Number of days to forecast (1-30, default 7)
-    
+
     Returns:
         JSON with forecast data including predictions, risk factors, and recommendations
     """
     if request.method == 'OPTIONS':
         return APIResponse.success()
-    
+
     try:
         user_id = g.get('user_id')
         if not user_id:
@@ -1155,15 +1153,15 @@ def predictive_mood_forecast() -> Response | Tuple[Response, int]:
         return APIResponse.error('An internal error occurred during forecast generation')
 
 
-def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str, 
+def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str,
                              positive_count: int, negative_count: int, neutral_count: int) -> str:
     """Generate AI-style insights based on mood data"""
-    
+
     if total_moods == 0:
         return "Start logging your mood daily to get personal insights about your patterns and wellbeing."
-    
+
     insights = []
-    
+
     # Overall mood assessment
     if average_sentiment > 0.3:
         insights.append(f"Fantastic! Your average mood this week has been very positive ({round(average_sentiment * 10, 1)}/10).")
@@ -1173,7 +1171,7 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
         insights.append(f"Your mood has been relatively neutral this week ({round(average_sentiment * 10 + 5, 1)}/10).")
     else:
         insights.append("Your week seems to have been challenging. Remember that it's okay to ask for support.")
-    
+
     # Trend insights
     if trend == 'improving':
         insights.append("📈 Great job! Your mood is showing a positive trend.")
@@ -1181,7 +1179,7 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
         insights.append("📉 Your mood has dipped a bit. Take a moment for self-care today.")
     else:
         insights.append("📊 Your mood has been stable.")
-    
+
     # Activity insights
     if total_moods >= 7:
         insights.append(f"🌟 Excellent habit! You've logged {total_moods} times this week.")
@@ -1189,7 +1187,7 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
         insights.append(f"👍 Great start! {total_moods} logs this week. Try logging daily for better insights.")
     else:
         insights.append(f"💡 You've logged {total_moods} time(s). Regular logging helps you understand your patterns.")
-    
+
     # Positive ratio
     if total_moods > 0:
         positive_ratio = positive_count / total_moods
@@ -1197,5 +1195,5 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
             insights.append("😊 The majority of your entries have been positive!")
         elif negative_count > positive_count:
             insights.append("💙 You've had more challenging days. Breathing and meditation can help.")
-    
+
     return " ".join(insights)

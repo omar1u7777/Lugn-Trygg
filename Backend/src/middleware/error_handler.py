@@ -6,12 +6,13 @@ and automatic recovery mechanisms for production environments.
 """
 
 import logging
-import time
 import threading
-from typing import Dict, Any, Optional, Callable, List, Type
-from datetime import datetime, timezone, timedelta
-from functools import wraps
+import time
 import traceback
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from functools import wraps
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class CircuitBreaker:
     """Circuit breaker for external service calls"""
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60,
-                 expected_exception: Type[Exception] = Exception):
+                 expected_exception: type[Exception] = Exception):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.expected_exception = expected_exception
@@ -81,10 +82,10 @@ class ErrorHandler:
     """Centralized error handling and recovery system"""
 
     def __init__(self):
-        self.error_counts: Dict[str, int] = {}
-        self.error_history: List[Dict[str, Any]] = []
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
-        self.recovery_actions: Dict[str, Callable] = {}
+        self.error_counts: dict[str, int] = {}
+        self.error_history: list[dict[str, Any]] = []
+        self.circuit_breakers: dict[str, CircuitBreaker] = {}
+        self.recovery_actions: dict[str, Callable] = {}
 
         # Error thresholds for alerts
         self.error_thresholds = {
@@ -108,9 +109,9 @@ class ErrorHandler:
         self.recovery_actions[error_type] = action
         logger.info(f"Registered recovery action for: {error_type}")
 
-    def handle_error(self, error: Exception, context: Optional[Dict[str, Any]] = None,
+    def handle_error(self, error: Exception, context: dict[str, Any] | None = None,
                     should_retry: bool = False, max_retries: int = 3,
-                    retry_callable: Optional[Callable] = None) -> Dict[str, Any]:
+                    retry_callable: Callable | None = None) -> dict[str, Any]:
         """
         Handle an error with comprehensive logging and recovery
 
@@ -126,7 +127,7 @@ class ErrorHandler:
         """
         error_type = type(error).__name__
         error_message = str(error)
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Create error record
         error_record = {
@@ -182,7 +183,7 @@ class ErrorHandler:
             'should_alert': self._should_alert(error_record)
         }
 
-    def _log_error(self, error_record: Dict[str, Any]):
+    def _log_error(self, error_record: dict[str, Any]):
         """Log error with appropriate severity"""
         error_type = error_record['error_type']
         context = error_record['context']
@@ -209,7 +210,7 @@ class ErrorHandler:
 
         logger.log(log_level, message, exc_info=True)
 
-    def _attempt_recovery(self, error_record: Dict[str, Any]) -> Dict[str, Any]:
+    def _attempt_recovery(self, error_record: dict[str, Any]) -> dict[str, Any]:
         """Attempt to recover from error"""
         error_type = error_record['error_type']
 
@@ -217,7 +218,7 @@ class ErrorHandler:
         if error_type in self.recovery_actions:
             try:
                 action = self.recovery_actions[error_type]
-                result = action(error_record)
+                action(error_record)
 
                 logger.info(f"Recovery action succeeded for {error_type}")
                 return {
@@ -241,7 +242,7 @@ class ErrorHandler:
 
         return {'recovered': False}
 
-    def _attempt_reconnection(self, error_record: Dict[str, Any]) -> Dict[str, Any]:
+    def _attempt_reconnection(self, error_record: dict[str, Any]) -> dict[str, Any]:
         """Attempt to recover from connection errors"""
         context = error_record['context']
         service_name = context.get('service', 'unknown')
@@ -254,7 +255,7 @@ class ErrorHandler:
 
         # Attempt reconnection by testing the service
         logger.info(f"Attempting reconnection to {service_name}")
-        
+
         try:
             if service_name in ('firebase', 'firestore', 'database'):
                 from ..firebase_config import db
@@ -269,10 +270,10 @@ class ErrorHandler:
                     return {'recovered': True, 'action': 'reconnection_success'}
         except Exception as reconnect_err:
             logger.warning(f"Reconnection to {service_name} failed: {reconnect_err}")
-        
+
         return {'recovered': False, 'action': 'reconnection_failed'}
 
-    def _attempt_timeout_recovery(self, error_record: Dict[str, Any]) -> Dict[str, Any]:
+    def _attempt_timeout_recovery(self, error_record: dict[str, Any]) -> dict[str, Any]:
         """Attempt to recover from timeout errors by increasing tolerance."""
         context = error_record.get('context', {})
         current_timeout = context.get('timeout', 5.0)
@@ -281,8 +282,8 @@ class ErrorHandler:
         logger.info(f"Timeout recovery: suggesting increased timeout {current_timeout}s -> {new_timeout}s")
         return {'recovered': True, 'action': 'timeout_backoff', 'suggested_timeout': new_timeout}
 
-    def _attempt_retry(self, operation: Callable, context: Optional[Dict[str, Any]],
-                      max_retries: int) -> Dict[str, Any]:
+    def _attempt_retry(self, operation: Callable, context: dict[str, Any] | None,
+                      max_retries: int) -> dict[str, Any]:
         """Attempt to retry operation with exponential backoff"""
         for attempt in range(max_retries):
             try:
@@ -304,7 +305,7 @@ class ErrorHandler:
 
         return {'success': False, 'attempt': max_retries}
 
-    def _should_alert(self, error_record: Dict[str, Any]) -> bool:
+    def _should_alert(self, error_record: dict[str, Any]) -> bool:
         """Determine if error should trigger an alert"""
         error_type = error_record['error_type']
         error_count = self.error_counts.get(error_type, 0)
@@ -315,7 +316,7 @@ class ErrorHandler:
         # Check recent error rate (last 5 minutes)
         recent_errors = [
             e for e in self.error_history
-            if (datetime.now(timezone.utc) - e['timestamp']).total_seconds() < 300
+            if (datetime.now(UTC) - e['timestamp']).total_seconds() < 300
             and e['error_type'] == error_type
         ]
 
@@ -343,7 +344,7 @@ class ErrorHandler:
         # Check for error spikes
         recent_errors = [
             e for e in self.error_history
-            if (datetime.now(timezone.utc) - e['timestamp']).total_seconds() < 300  # Last 5 minutes
+            if (datetime.now(UTC) - e['timestamp']).total_seconds() < 300  # Last 5 minutes
         ]
 
         if len(recent_errors) > 50:  # High error rate
@@ -361,7 +362,7 @@ class ErrorHandler:
 
     def _cleanup_error_history(self):
         """Clean up old error records"""
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=24)
 
         # Keep only errors from last 24 hours
         self.error_history = [
@@ -369,12 +370,12 @@ class ErrorHandler:
             if error['timestamp'] > cutoff_time
         ]
 
-    def get_error_stats(self) -> Dict[str, Any]:
+    def get_error_stats(self) -> dict[str, Any]:
         """Get comprehensive error statistics"""
         total_errors = len(self.error_history)
         recent_errors = [
             e for e in self.error_history
-            if (datetime.now(timezone.utc) - e['timestamp']).total_seconds() < 3600  # Last hour
+            if (datetime.now(UTC) - e['timestamp']).total_seconds() < 3600  # Last hour
         ]
 
         error_types = {}

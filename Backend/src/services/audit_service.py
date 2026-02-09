@@ -1,8 +1,10 @@
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional, TYPE_CHECKING
-from cryptography.fernet import Fernet
 import os
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
+
+from cryptography.fernet import Fernet
+
 from ..firebase_config import db
 
 if TYPE_CHECKING:
@@ -36,8 +38,8 @@ class AuditService:
         """Decrypt sensitive data"""
         return self.cipher.decrypt(encrypted_data.encode()).decode()
 
-    def log_event(self, event_type: str, user_id: str, details: Dict[str, Any],
-                  ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> None:
+    def log_event(self, event_type: str, user_id: str, details: dict[str, Any],
+                  ip_address: str | None = None, user_agent: str | None = None) -> None:
         """Log audit event to Firestore with HIPAA compliance"""
         try:
             # Encrypt sensitive details
@@ -47,7 +49,7 @@ class AuditService:
                 "event_type": event_type,
                 "user_id": user_id,
                 "details": encrypted_details,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "hipaa_compliant": True
@@ -68,7 +70,7 @@ class AuditService:
     def _apply_retention_policy(self) -> None:
         """Apply retention policy - delete audit logs older than 7 years (HIPAA requirement)"""
         try:
-            retention_date = datetime.now(timezone.utc) - timedelta(days=2555)  # 7 years approx
+            retention_date = datetime.now(UTC) - timedelta(days=2555)  # 7 years approx
             retention_iso = retention_date.isoformat()
 
             # Query and delete old logs using standard Firestore syntax
@@ -115,7 +117,7 @@ class AuditService:
             }
         )
 
-    def encrypt_sensitive_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def encrypt_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Encrypt sensitive fields in data dict for HIPAA"""
         sensitive_fields = ["email", "phone", "medical_data", "personal_info"]
         encrypted_data = data.copy()
@@ -126,7 +128,7 @@ class AuditService:
 
         return encrypted_data
 
-    def decrypt_sensitive_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def decrypt_sensitive_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Decrypt sensitive fields in data dict"""
         sensitive_fields = ["email", "phone", "medical_data", "personal_info"]
         decrypted_data = data.copy()
@@ -155,7 +157,7 @@ class AuditServiceProxy:
     """Proxy to provide lazy initialization for audit_service"""
     def __getattr__(self, name):
         return getattr(get_audit_service(), name)
-    
+
     def log_event(self, *args, **kwargs):
         return get_audit_service().log_event(*args, **kwargs)
 
@@ -165,9 +167,9 @@ audit_service = AuditServiceProxy()
 def audit_log(
     event_type: str,
     user_id: str,
-    details: Dict[str, Any],
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    details: dict[str, Any],
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> None:
     """Global audit logging function."""
     get_audit_service().log_event(event_type, user_id, details, ip_address, user_agent)
@@ -176,13 +178,13 @@ def audit_log(
 def log_admin_action(
     admin_id: str,
     action: str,
-    metadata: Optional[Dict[str, Any]] = None,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    metadata: dict[str, Any] | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> None:
     """Specialized helper to record administrative actions."""
 
-    details: Dict[str, Any] = {"action": action}
+    details: dict[str, Any] = {"action": action}
     if metadata:
         details["metadata"] = metadata
 

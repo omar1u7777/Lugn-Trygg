@@ -3,14 +3,14 @@ Input Sanitization Utilities for Lugn & Trygg
 Comprehensive input cleaning and validation to prevent XSS, injection attacks, and data corruption
 """
 
-import re
-import html
-import bleach
-from typing import Any, Dict, List, Optional, Union, Callable
-from urllib.parse import quote, unquote
 import logging
+import re
 from functools import wraps
-from flask import request, g
+from typing import Any
+from urllib.parse import quote, unquote
+
+import bleach
+from flask import g, request
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class InputSanitizer:
         }
 
     def sanitize(self, input_data: Any, content_type: str = 'text',
-                max_length: Optional[int] = None) -> Any:
+                max_length: int | None = None) -> Any:
         """
         Main sanitization method
 
@@ -112,7 +112,7 @@ class InputSanitizer:
             logger.error(f"Sanitization failed for {content_type}: {e}")
             return ""
 
-    def sanitize_dict(self, data: Dict[str, Any], field_rules: Optional[Dict[str, Dict]] = None) -> Dict[str, Any]:
+    def sanitize_dict(self, data: dict[str, Any], field_rules: dict[str, dict] | None = None) -> dict[str, Any]:
         """
         Sanitize dictionary data with field-specific rules
 
@@ -137,36 +137,36 @@ class InputSanitizer:
         return sanitized
 
     # Public convenience methods for direct access
-    
+
     def sanitize_html(self, html_content: str) -> str:
         """Public method to sanitize HTML content"""
         return self._sanitize_html(html_content)
-    
+
     def sanitize_email(self, email: str) -> str:
         """Public method to sanitize email address"""
         return self._sanitize_email(email)
-    
+
     def sanitize_url(self, url: str) -> str:
         """Public method to sanitize URL"""
         return self._sanitize_url(url)
-    
+
     def validate_phone(self, phone: str) -> bool:
         """Validate phone number format"""
         if not phone:
             return False
-        
+
         # Remove common formatting characters
         clean_phone = re.sub(r'[\s\-\(\)\.]', '', phone)
-        
+
         # Check if it's a valid phone number (international format)
         # Accepts formats like: +46701234567, +1234567890, etc.
         phone_pattern = r'^\+?[1-9]\d{1,14}$'
-        
+
         return bool(re.match(phone_pattern, clean_phone))
 
     def _sanitize_text(self, text: str) -> str:
         """Sanitize plain text input.
-        
+
         NOTE: We intentionally do NOT call html.escape() here because the
         escaped entities (&amp; &lt; &quot; etc.) would be permanently stored
         in Firestore and corrupt user content.  XSS protection is achieved by
@@ -315,7 +315,7 @@ class InputSanitizer:
 
         return identifier
 
-    def validate_input(self, input_data: Any, rules: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_input(self, input_data: Any, rules: dict[str, Any]) -> dict[str, Any]:
         """
         Validate input against rules
 
@@ -348,7 +348,7 @@ class InputSanitizer:
         pattern = rules.get('pattern')
         if pattern and isinstance(input_data, str):
             if not re.match(pattern, input_data):
-                errors.append(f"Input does not match required pattern")
+                errors.append("Input does not match required pattern")
 
         # Range validation for numbers
         if isinstance(input_data, (int, float)):
@@ -376,14 +376,14 @@ class InputSanitizer:
             'sanitized_value': input_data
         }
 
-    def sanitize_request_data(self, content_type_overrides: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def sanitize_request_data(self, content_type_overrides: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         """
         Sanitize all request data (JSON, form, args)
 
         Args:
             content_type_overrides: Override content types for specific fields {'field': {'type': 'text', 'max_length': 100}}
         """
-        sanitized: Dict[str, Any] = {}
+        sanitized: dict[str, Any] = {}
 
         # Sanitize JSON data
         if request.is_json and request.get_json():
@@ -444,7 +444,7 @@ def sanitize_request_decorator(f):
 
     return decorated_function
 
-def sanitize_input(content_type: str = 'text', max_length: Optional[int] = None):
+def sanitize_input(content_type: str = 'text', max_length: int | None = None):
     """Decorator to sanitize specific function parameters"""
     def decorator(f):
         @wraps(f)
@@ -471,7 +471,7 @@ def sanitize_input(content_type: str = 'text', max_length: Optional[int] = None)
 
     return decorator
 
-def validate_and_sanitize(rules: Dict[str, Dict]):
+def validate_and_sanitize(rules: dict[str, dict]):
     """Decorator to validate and sanitize function parameters"""
     def decorator(f):
         @wraps(f)
@@ -482,7 +482,7 @@ def validate_and_sanitize(rules: Dict[str, Dict]):
             param_names = list(sig.parameters.keys())
 
             # Map args to parameter names
-            args_dict = dict(zip(param_names, args))
+            args_dict = dict(zip(param_names, args, strict=False))
             args_dict.update(kwargs)
 
             # Validate and sanitize
@@ -516,7 +516,7 @@ def validate_and_sanitize(rules: Dict[str, Dict]):
     return decorator
 
 # Utility functions
-def sanitize_text(text: str, max_length: Optional[int] = None) -> str:
+def sanitize_text(text: str, max_length: int | None = None) -> str:
     """Sanitize plain text"""
     return input_sanitizer.sanitize(text, 'text', max_length)
 
@@ -551,7 +551,7 @@ __all__ = [
     'validate_mood_input'
 ]
 
-def validate_mood_input(mood_data: Dict[str, Any]) -> bool:
+def validate_mood_input(mood_data: dict[str, Any]) -> bool:
     """Validate mood input data"""
     if not isinstance(mood_data, dict):
         return False

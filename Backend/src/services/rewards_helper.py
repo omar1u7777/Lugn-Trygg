@@ -6,7 +6,6 @@ needing to know about Firestore structure or level calculations.
 """
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ XP_ACTIONS = {
 }
 
 
-def award_xp(user_id: str, action: str, amount: Optional[int] = None) -> dict:
+def award_xp(user_id: str, action: str, amount: int | None = None) -> dict:
     """
     Award XP to a user for a given action.
 

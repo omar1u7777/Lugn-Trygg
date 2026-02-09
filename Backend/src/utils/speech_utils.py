@@ -1,10 +1,9 @@
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> Optional[str]:
+def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> str | None:
     """
     Transcribe audio using Google Cloud Speech-to-Text API
 
@@ -16,8 +15,8 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
         Transcribed text or None if failed
     """
     try:
-        from google.cloud import speech
         import google.auth
+        from google.cloud import speech
 
         # Log project ID from credentials
         credentials, project = google.auth.default()

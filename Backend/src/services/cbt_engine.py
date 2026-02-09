@@ -4,9 +4,9 @@ Dynamic Cognitive Behavioral Therapy modules with Swedish content
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,11 @@ class CBTModule:
     category: str  # 'anxiety', 'depression', 'stress', 'general'
     difficulty_level: str  # 'beginner', 'intermediate', 'advanced'
     estimated_duration: int  # minutes
-    prerequisites: List[str]
-    learning_objectives: List[str]
-    swedish_content: Dict[str, Any]
-    adaptive_rules: Dict[str, Any]
-    completion_criteria: Dict[str, Any]
+    prerequisites: list[str]
+    learning_objectives: list[str]
+    swedish_content: dict[str, Any]
+    adaptive_rules: dict[str, Any]
+    completion_criteria: dict[str, Any]
 
 @dataclass
 class CBTExercise:
@@ -35,31 +35,31 @@ class CBTExercise:
     difficulty: str
     duration: int
     swedish_instructions: str
-    prompts: List[str]
-    adaptive_elements: Dict[str, Any]
-    success_metrics: List[str]
+    prompts: list[str]
+    adaptive_elements: dict[str, Any]
+    success_metrics: list[str]
 
 @dataclass
 class UserCBTProgress:
     """User's progress through CBT modules"""
     user_id: str
-    current_module: Optional[str]
-    completed_modules: List[str]
-    exercise_history: List[Dict[str, Any]]
-    skill_mastery: Dict[str, float]
-    adaptive_parameters: Dict[str, Any]
-    last_session_date: Optional[datetime]
+    current_module: str | None
+    completed_modules: list[str]
+    exercise_history: list[dict[str, Any]]
+    skill_mastery: dict[str, float]
+    adaptive_parameters: dict[str, Any]
+    last_session_date: datetime | None
     streak_count: int
 
 @dataclass
 class PersonalizedCBTSession:
     """Personalized CBT session for user"""
-    exercises: List[CBTExercise]
+    exercises: list[CBTExercise]
     session_theme: str
-    adaptive_adjustments: Dict[str, Any]
+    adaptive_adjustments: dict[str, Any]
     estimated_duration: int
     difficulty_progression: str
-    motivational_elements: List[str]
+    motivational_elements: list[str]
     swedish_guidance: str
 
 class CBTEngine:
@@ -78,7 +78,7 @@ class CBTEngine:
             'reinforcement_schedule': 'variable_ratio'
         }
 
-    def _initialize_cbt_modules(self) -> Dict[str, CBTModule]:
+    def _initialize_cbt_modules(self) -> dict[str, CBTModule]:
         """Initialize comprehensive CBT modules database"""
         modules = {}
 
@@ -219,7 +219,7 @@ class CBTEngine:
 
         return modules
 
-    def _initialize_cbt_exercises(self) -> Dict[str, CBTExercise]:
+    def _initialize_cbt_exercises(self) -> dict[str, CBTExercise]:
         """Initialize CBT exercises database"""
         exercises = {}
 
@@ -353,7 +353,7 @@ class CBTEngine:
         self,
         user_progress: UserCBTProgress,
         current_mood: str,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> PersonalizedCBTSession:
         """
         Generate a personalized CBT session based on user progress and context
@@ -397,7 +397,7 @@ class CBTEngine:
             swedish_guidance=swedish_guidance
         )
 
-    def _determine_session_focus(self, user_progress: UserCBTProgress, current_mood: str, context: Dict[str, Any]) -> str:
+    def _determine_session_focus(self, user_progress: UserCBTProgress, current_mood: str, context: dict[str, Any]) -> str:
         """Determine the focus for this CBT session"""
 
         # Priority based on current mood
@@ -424,8 +424,8 @@ class CBTEngine:
         self,
         user_progress: UserCBTProgress,
         session_focus: str,
-        context: Dict[str, Any]
-    ) -> List[CBTExercise]:
+        context: dict[str, Any]
+    ) -> list[CBTExercise]:
         """Select appropriate exercises for the session"""
 
         # Map focus to exercise types
@@ -491,7 +491,7 @@ class CBTEngine:
 
         return adapted_exercise
 
-    def _calculate_adaptive_adjustments(self, user_progress: UserCBTProgress, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_adaptive_adjustments(self, user_progress: UserCBTProgress, context: dict[str, Any]) -> dict[str, Any]:
         """Calculate adaptive adjustments for the session"""
 
         adjustments = {
@@ -539,7 +539,7 @@ class CBTEngine:
         else:
             return 'advanced_mastery'
 
-    def _generate_motivational_elements(self, user_progress: UserCBTProgress, session_focus: str) -> List[str]:
+    def _generate_motivational_elements(self, user_progress: UserCBTProgress, session_focus: str) -> list[str]:
         """Generate personalized motivational elements"""
 
         motivational_elements = []
@@ -565,7 +565,7 @@ class CBTEngine:
 
         return motivational_elements
 
-    def _generate_swedish_guidance(self, session_focus: str, context: Dict[str, Any]) -> str:
+    def _generate_swedish_guidance(self, session_focus: str, context: dict[str, Any]) -> str:
         """Generate Swedish guidance text for the session"""
 
         base_guidance = {
@@ -601,7 +601,7 @@ class CBTEngine:
         self,
         user_id: str,
         exercise_id: str,
-        completion_data: Dict[str, Any]
+        completion_data: dict[str, Any]
     ):
         """Update user's CBT progress after completing an exercise"""
 
@@ -609,8 +609,8 @@ class CBTEngine:
 
         # Calculate success metrics
         success_rate = completion_data.get('success_rate', 0.5)
-        time_spent = completion_data.get('time_spent', 0)
-        difficulty_rating = completion_data.get('difficulty_rating', 3)
+        completion_data.get('time_spent', 0)
+        completion_data.get('difficulty_rating', 3)
 
         # Update skill mastery
         exercise = self.exercises.get(exercise_id)
@@ -624,7 +624,7 @@ class CBTEngine:
 
             logger.info(f"Updated {skill_type} mastery from {current_mastery:.2f} to {new_mastery:.2f}")
 
-    def get_user_insights(self, user_progress: UserCBTProgress) -> Dict[str, Any]:
+    def get_user_insights(self, user_progress: UserCBTProgress) -> dict[str, Any]:
         """Generate insights about user's CBT journey"""
 
         insights = {
@@ -655,7 +655,7 @@ class CBTEngine:
 
         return min(1.0, progress)
 
-    def _identify_strength_areas(self, user_progress: UserCBTProgress) -> List[str]:
+    def _identify_strength_areas(self, user_progress: UserCBTProgress) -> list[str]:
         """Identify areas where user excels"""
 
         strengths = []
@@ -671,7 +671,7 @@ class CBTEngine:
 
         return strengths
 
-    def _identify_improvement_areas(self, user_progress: UserCBTProgress) -> List[str]:
+    def _identify_improvement_areas(self, user_progress: UserCBTProgress) -> list[str]:
         """Identify areas needing improvement"""
 
         improvements = []
@@ -687,7 +687,7 @@ class CBTEngine:
 
         return improvements
 
-    def _generate_next_steps(self, user_progress: UserCBTProgress) -> List[str]:
+    def _generate_next_steps(self, user_progress: UserCBTProgress) -> list[str]:
         """Generate recommended next steps"""
 
         next_steps = []

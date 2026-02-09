@@ -1,13 +1,15 @@
-from flask import Blueprint, request, g
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from firebase_admin import firestore
+from flask import Blueprint, g, request
+
+from ..firebase_config import db
+from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.audit_service import audit_log
-from ..firebase_config import db
-from ..utils.response_utils import APIResponse
 from ..utils.input_sanitization import sanitize_text
+from ..utils.response_utils import APIResponse
 
 users_bp = Blueprint('users', __name__)
 logger = logging.getLogger(__name__)
@@ -155,11 +157,11 @@ def get_notification_settings():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🔔 USERS - GET notification settings for user: {user_id}")
-    
+
     try:
         user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
-        
+
         defaults = {
             "morningReminder": "08:00",
             "eveningReminder": "20:00",
@@ -167,12 +169,12 @@ def get_notification_settings():
             "enableMoodReminders": True,
             "enableMeditationReminders": False
         }
-        
+
         if user_doc.exists:
             user_data = user_doc.to_dict() or {}
             settings = user_data.get('notification_settings', defaults)
             return APIResponse.success(settings, "Notification settings retrieved")
-        
+
         return APIResponse.success(defaults, "Notification settings retrieved")
     except Exception as e:
         logger.exception(f"Failed to get notification settings: {e}")
@@ -189,7 +191,7 @@ def update_notification_preferences():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🔔 USERS - UPDATE notification preferences for user: {user_id}")
-    
+
     try:
         data = request.get_json(silent=True) or {}
         user_ref = db.collection('users').document(user_id)  # type: ignore
@@ -211,7 +213,7 @@ def set_notification_schedule():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🔔 USERS - SET notification schedule for user: {user_id}")
-    
+
     try:
         data = request.get_json(silent=True) or {}
         user_ref = db.collection('users').document(user_id)  # type: ignore
@@ -237,11 +239,11 @@ def get_wellness_goals():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🎯 USERS - GET wellness goals for user: {user_id}")
-    
+
     try:
         user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
-        
+
         if not user_doc.exists:
             logger.warning(f"User not found: {user_id}")
             return APIResponse.success({"wellnessGoals": []}, "Wellness goals retrieved")
@@ -272,24 +274,24 @@ def set_wellness_goals():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🎯 USERS - SET wellness goals for user: {user_id}")
-    
+
     try:
         data = request.get_json(silent=True)
         if not data or 'wellnessGoals' not in data:
-            logger.warning(f"Missing wellnessGoals in request body or empty body")
+            logger.warning("Missing wellnessGoals in request body or empty body")
             return APIResponse.bad_request("Request body must contain wellnessGoals as a non-empty list")
-        
+
         goals = data.get('wellnessGoals')
         if not isinstance(goals, list) or len(goals) == 0:
             logger.warning(f"Invalid wellnessGoals value: {goals}")
             return APIResponse.bad_request("wellnessGoals must be a non-empty list")
-        
+
         logger.info(f"📝 Received wellness goals data: {goals}")
-        
+
         # Check if user exists first
         user_ref = db.collection('users').document(user_id)  # type: ignore
         user_doc = user_ref.get()
-        
+
         if not user_doc.exists:
             logger.warning(f"User document not found: {user_id} - creating it")
             # Create user document if it doesn't exist
@@ -305,7 +307,7 @@ def set_wellness_goals():
                 'wellnessGoals': goals,
                 'updatedAt': SERVER_TIMESTAMP
             })
-        
+
         audit_log(
             event_type="WELLNESS_GOALS_SET",
             user_id=user_id,
@@ -335,7 +337,7 @@ def save_journal_entry():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"📝 USERS - SAVE journal entry for user: {user_id}")
-    
+
     try:
         # Parse JSON data
         data = request.get_json(silent=True)
@@ -396,7 +398,7 @@ def get_journal_entries():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"📝 USERS - GET journal entries for user: {user_id}")
-    
+
     try:
         # Get query parameters
         limit = int(request.args.get('limit', 50))
@@ -451,7 +453,7 @@ def save_meditation_session():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🧘 USERS - SAVE meditation session for user: {user_id}")
-    
+
     try:
         data = request.get_json(silent=True)
         if not data:
@@ -509,12 +511,12 @@ def get_meditation_sessions():
         return APIResponse.unauthorized("Authentication required")
 
     logger.info(f"🧘 USERS - GET meditation sessions for user: {user_id}")
-    
+
     try:
         # Get query parameters
         limit = int(request.args.get('limit', 50))
-        start_date = request.args.get('startDate')
-        end_date = request.args.get('endDate')
+        request.args.get('startDate')
+        request.args.get('endDate')
 
         # Build query
         sessions_ref = db.collection('users').document(user_id).collection('meditation_sessions')  # type: ignore

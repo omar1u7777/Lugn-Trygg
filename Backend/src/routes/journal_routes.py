@@ -1,16 +1,18 @@
-from flask import Blueprint, request, g
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 import logging
 import re
+from datetime import UTC, datetime
+from typing import Any
+
+from flask import Blueprint, g, request
+
+from src.firebase_config import db
+from src.services.audit_service import audit_log
 
 # Absolute imports (project standard)
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
-from src.firebase_config import db
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +81,7 @@ def journal_entry_options(user_id, entry_id):
 def get_journal_entries(user_id):
     """Get user's journal entries"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
+        current_user_id: str | None = g.get('user_id')
 
         # Validate user_id format
         if not _validate_user_id(user_id):
@@ -153,7 +155,7 @@ def get_journal_entries(user_id):
 def save_journal_entry(user_id):
     """Save a new journal entry"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
+        current_user_id: str | None = g.get('user_id')
 
         # Validate user_id format
         if not _validate_user_id(user_id):
@@ -205,7 +207,7 @@ def save_journal_entry(user_id):
             tags = [input_sanitizer.sanitize(tag).strip() for tag in tags]
 
         # Save to Firestore
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entry_data = {
             'user_id': user_id,
             'content': content,
@@ -252,7 +254,7 @@ def save_journal_entry(user_id):
 def update_journal_entry(user_id, entry_id):
     """Update a journal entry"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
+        current_user_id: str | None = g.get('user_id')
 
         # Validate user_id and entry_id format
         if not _validate_user_id(user_id):
@@ -302,8 +304,8 @@ def update_journal_entry(user_id, entry_id):
             return APIResponse.forbidden('Unauthorized access to journal entry')
 
         # Update entry with validation
-        now = datetime.now(timezone.utc)
-        update_data: Dict[str, Any] = {
+        now = datetime.now(UTC)
+        update_data: dict[str, Any] = {
             'updated_at': now
         }
         changes_made: list[str] = []
@@ -366,7 +368,7 @@ def update_journal_entry(user_id, entry_id):
 def delete_journal_entry(user_id, entry_id):
     """Delete a journal entry"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
+        current_user_id: str | None = g.get('user_id')
 
         # Validate user_id and entry_id format
         if not _validate_user_id(user_id):

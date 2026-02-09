@@ -2,11 +2,11 @@
 import os
 import re
 import time
-from typing import Dict, List, Optional, Tuple, Any
+from collections import Counter
 from datetime import datetime, timedelta
-import json
+from typing import Any
+
 import numpy as np
-from collections import Counter, defaultdict
 from dotenv import load_dotenv
 
 from src.utils.hf_cache import configure_hf_cache
@@ -33,7 +33,8 @@ def _lazy_import_openai():
     """Lazy import OpenAI to avoid conflicts with pydantic at module load time"""
     global RateLimitError, APIError
     try:
-        from openai import RateLimitError as _RateLimitError, APIError as _APIError
+        from openai import APIError as _APIError
+        from openai import RateLimitError as _RateLimitError
         RateLimitError = _RateLimitError
         APIError = _APIError
         return True
@@ -88,10 +89,10 @@ class AIServices:
         api_key = os.getenv("OPENAI_API_KEY")
         if api_key:
             try:
-                from openai import OpenAI
                 # CRITICAL FIX: Add timeout to prevent hanging requests (4.1s timeout issue)
                 # Timeout: 10s connect, 30s read for total max 30s response time
                 import httpx
+                from openai import OpenAI
                 timeout = httpx.Timeout(10.0, connect=5.0, read=30.0, write=10.0, pool=5.0)
                 self.client = OpenAI(
                     api_key=api_key,
@@ -110,7 +111,7 @@ class AIServices:
             logger.warning("OPENAI_API_KEY not set")
             return False
 
-    def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+    def analyze_sentiment(self, text: str) -> dict[str, Any]:
         """
         Advanced sentiment analysis using Google Cloud Natural Language API with OpenAI fallback
 
@@ -149,7 +150,7 @@ class AIServices:
         # Final fallback
         return self._fallback_sentiment_analysis(text)
 
-    def _google_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+    def _google_sentiment_analysis(self, text: str) -> dict[str, Any]:
         """Google Cloud Natural Language API sentiment analysis"""
         from google.cloud import language_v1
 
@@ -183,7 +184,7 @@ class AIServices:
         logger.info(f"Google NLP sentiment analysis completed: {result['sentiment']} ({result['score']:.2f})")
         return result
 
-    def _openai_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+    def _openai_sentiment_analysis(self, text: str) -> dict[str, Any]:
         """OpenAI-based sentiment analysis as fallback"""
         if self.client is None:
             return self._fallback_sentiment_analysis(text)
@@ -245,7 +246,7 @@ Var noga med att returnera endast giltig JSON."""
             logger.error(f"OpenAI sentiment analysis failed: {str(e)}")
             return self._fallback_sentiment_analysis(text, quota_exceeded=False)
 
-    def _fallback_sentiment_analysis(self, text: str, quota_exceeded: bool = False) -> Dict[str, Any]:
+    def _fallback_sentiment_analysis(self, text: str, quota_exceeded: bool = False) -> dict[str, Any]:
         """Fallback sentiment analysis – uses ML model first, keyword matching as last resort."""
         try:
             from .ml_sentiment_service import ml_sentiment
@@ -300,9 +301,9 @@ Var noga med att returnera endast giltig JSON."""
         else:
             return "NEUTRAL"
 
-    def _extract_emotions_from_text(self, text: str, entities: Any) -> List[str]:
+    def _extract_emotions_from_text(self, text: str, entities: Any) -> list[str]:
         """Extract emotions from text using entity analysis"""
-        emotions: List[str] = []
+        emotions: list[str] = []
         text_lower = text.lower()
 
         # Emotion keywords mapping
@@ -323,18 +324,19 @@ Var noga med att returnera endast giltig JSON."""
 
         return emotions[:3] if emotions else ["neutral"]
 
-    def _extract_emotions_fallback(self, text: str) -> List[str]:
+    def _extract_emotions_fallback(self, text: str) -> list[str]:
         """Fallback emotion extraction"""
         return self._extract_emotions_from_text(text, [])
 
-    def analyze_voice_emotion(self, audio_data: bytes, transcript: str) -> Dict[str, Any]:
+    def analyze_voice_emotion(self, audio_data: bytes, transcript: str) -> dict[str, Any]:
         """
         Enhanced voice emotion analysis using advanced audio processing
         """
         try:
+            from io import BytesIO
+
             import librosa
             import numpy as np
-            from io import BytesIO
 
             # For now, combine transcript analysis with basic audio features
             transcript_analysis = self.analyze_sentiment(transcript)
@@ -359,12 +361,13 @@ Var noga med att returnera endast giltig JSON."""
             logger.warning("Advanced audio libraries not available, using basic analysis")
             return self._basic_voice_analysis(audio_data, transcript)
 
-    def _analyze_audio_features(self, audio_data: bytes) -> Dict[str, Any]:
+    def _analyze_audio_features(self, audio_data: bytes) -> dict[str, Any]:
         """Analyze audio features for emotion detection using librosa."""
         try:
+            from io import BytesIO
+
             import librosa
             import numpy as np
-            from io import BytesIO
 
             # Load audio from bytes using librosa (handles wav, mp3, ogg, etc.)
             audio_array, sr = librosa.load(BytesIO(audio_data), sr=None, mono=True)
@@ -444,7 +447,7 @@ Var noga med att returnera endast giltig JSON."""
                 "analysis_method": "failed"
             }
 
-    def _basic_voice_analysis(self, audio_data: bytes, transcript: str) -> Dict[str, Any]:
+    def _basic_voice_analysis(self, audio_data: bytes, transcript: str) -> dict[str, Any]:
         """Basic voice analysis when advanced libraries aren't available"""
         transcript_analysis = self.analyze_sentiment(transcript)
 
@@ -463,7 +466,7 @@ Var noga med att returnera endast giltig JSON."""
             **transcript_analysis
         }
 
-    def _combine_analyses(self, transcript_analysis: Dict, voice_characteristics: Dict) -> str:
+    def _combine_analyses(self, transcript_analysis: dict, voice_characteristics: dict) -> str:
         """Combine transcript and voice analysis for better accuracy"""
         transcript_sentiment = transcript_analysis.get("sentiment", "NEUTRAL")
         audio_score = voice_characteristics.get("emotion_score", 0.0)
@@ -478,14 +481,14 @@ Var noga med att returnera endast giltig JSON."""
 
         return transcript_sentiment
 
-    def analyze_voice_emotion_fallback(self, text: str = "") -> Dict[str, Any]:
+    def analyze_voice_emotion_fallback(self, text: str = "") -> dict[str, Any]:
         """
         Fallback voice emotion analysis when primary methods fail
         Uses simple keyword matching for Swedish text
-        
+
         Args:
             text: Transcript text to analyze (can be empty)
-            
+
         Returns:
             Basic emotion analysis dict
         """
@@ -498,12 +501,12 @@ Var noga med att returnera endast giltig JSON."""
             'trött': ['trött', 'utmattad', 'sliten', 'orkeslös'],
             'lugn': ['lugn', 'avslappnad', 'harmonisk', 'fridfull']
         }
-        
+
         text_lower = text.lower() if text else ""
         detected_emotions = []
         max_score = 0.0
         primary_emotion = 'neutral'
-        
+
         # Check for emotion keywords
         for emotion, keywords in emotion_keywords.items():
             for keyword in keywords:
@@ -513,13 +516,13 @@ Var noga med att returnera endast giltig JSON."""
                     if score > max_score:
                         max_score = score
                         primary_emotion = emotion
-        
+
         # If no keywords found, default to neutral
         if not detected_emotions:
             detected_emotions = ['neutral']
             primary_emotion = 'neutral'
             max_score = 0.5
-        
+
         # Map to sentiment
         sentiment_map = {
             'glad': 'POSITIVE',
@@ -530,9 +533,9 @@ Var noga med att returnera endast giltig JSON."""
             'lugn': 'POSITIVE',
             'neutral': 'NEUTRAL'
         }
-        
+
         sentiment = sentiment_map.get(primary_emotion, 'NEUTRAL')
-        
+
         return {
             "primary_emotion": primary_emotion,
             "confidence": max_score,
@@ -555,7 +558,7 @@ Var noga med att returnera endast giltig JSON."""
             "method": "fallback_keyword_analysis"
         }
 
-    def generate_personalized_recommendations(self, user_history: List[Dict], current_mood: str) -> Dict[str, Any]:
+    def generate_personalized_recommendations(self, user_history: list[dict], current_mood: str) -> dict[str, Any]:
         """
         Generate AI-powered personalized wellness recommendations using GPT-4o-mini
 
@@ -605,7 +608,7 @@ Var noga med att returnera endast giltig JSON."""
                 return self._fallback_recommendations(user_history, current_mood)
             recommendations = content.strip()
 
-            logger.info(f"✅ Personalized recommendations generated using gpt-4o-mini")
+            logger.info("✅ Personalized recommendations generated using gpt-4o-mini")
 
             return {
                 "ai_generated": True,
@@ -630,7 +633,7 @@ Var noga med att returnera endast giltig JSON."""
                 logger.error(f"OpenAI recommendation generation failed: {str(e)}")
             return self._fallback_recommendations(user_history, current_mood)
 
-    def _summarize_mood_history(self, history: List[Dict]) -> str:
+    def _summarize_mood_history(self, history: list[dict]) -> str:
         """Summarize user's mood history"""
         if not history:
             return "Ingen historik tillgänglig"
@@ -641,7 +644,7 @@ Var noga med att returnera endast giltig JSON."""
 
         return f"{positive_count} positiva, {negative_count} negativa, {neutral_count} neutrala stämningar"
 
-    def _fallback_recommendations(self, user_history: List[Dict], current_mood: str, quota_exceeded: bool = False) -> Dict[str, Any]:
+    def _fallback_recommendations(self, user_history: list[dict], current_mood: str, quota_exceeded: bool = False) -> dict[str, Any]:
         """Fallback recommendations when AI is not available"""
         recommendations = {
             "POSITIVE": {
@@ -684,7 +687,7 @@ Långsiktiga välbefinnande-strategier:
             "quota_exceeded": quota_exceeded
         }
 
-    def generate_weekly_insights(self, weekly_data: Dict, locale: str = 'sv') -> Dict[str, Any]:
+    def generate_weekly_insights(self, weekly_data: dict, locale: str = 'sv') -> dict[str, Any]:
         """
         Generate AI-powered weekly insights from mood data using GPT-4o-mini
 
@@ -762,7 +765,7 @@ Långsiktiga välbefinnande-strategier:
                 return self._fallback_weekly_insights(weekly_data, locale)
             insights = content.strip()
 
-            logger.info(f"✅ Weekly insights generated using gpt-4o-mini")
+            logger.info("✅ Weekly insights generated using gpt-4o-mini")
 
             return {
                 "ai_generated": True,
@@ -787,7 +790,7 @@ Långsiktiga välbefinnande-strategier:
                 logger.error(f"OpenAI weekly insights generation failed: {str(e)}")
             return self._fallback_weekly_insights(weekly_data, locale)
 
-    def _fallback_weekly_insights(self, weekly_data: Dict, locale: str = 'sv', quota_exceeded: bool = False) -> Dict[str, Any]:
+    def _fallback_weekly_insights(self, weekly_data: dict, locale: str = 'sv', quota_exceeded: bool = False) -> dict[str, Any]:
         """Fallback weekly insights"""
         mood_count = len(weekly_data.get("moods", []))
         memory_count = len(weekly_data.get("memories", []))
@@ -914,7 +917,7 @@ Långsiktiga välbefinnande-strategier:
         crisis_result = self.detect_crisis_indicators(text)
         return crisis_result.get("requires_immediate_attention", False)
 
-    def detect_crisis_indicators(self, text: str) -> Dict[str, Any]:
+    def detect_crisis_indicators(self, text: str) -> dict[str, Any]:
         """
         Detect potential crisis indicators in user text
         Critical for mental health apps - requires immediate attention
@@ -930,7 +933,7 @@ Långsiktiga välbefinnande-strategier:
         detected_indicators = []
         severity_score = 0
 
-        for category, keywords in crisis_keywords.items():
+        for _category, keywords in crisis_keywords.items():
             matches = [keyword for keyword in keywords if keyword in text_lower]
             if matches:
                 detected_indicators.extend(matches)
@@ -962,7 +965,7 @@ Långsiktiga välbefinnande-strategier:
             "recommended_actions": self._get_crisis_recommendations(risk_level)
         }
 
-    def _get_crisis_recommendations(self, risk_level: str) -> List[str]:
+    def _get_crisis_recommendations(self, risk_level: str) -> list[str]:
         """Get appropriate recommendations based on crisis risk level"""
         recommendations = {
             "CRITICAL": [
@@ -990,7 +993,7 @@ Långsiktiga välbefinnande-strategier:
 
         return recommendations.get(risk_level, recommendations["LOW"])
 
-    def analyze_mood_patterns(self, mood_history: List[Dict]) -> Dict[str, Any]:
+    def analyze_mood_patterns(self, mood_history: list[dict]) -> dict[str, Any]:
         """
         Analyze mood patterns using machine learning techniques
         Predict future mood trends and provide insights
@@ -1034,7 +1037,7 @@ Långsiktiga välbefinnande-strategier:
 
             # Calculate moving averages
             short_ma = np.mean(scores_array[-7:])  # Last week
-            long_ma = np.mean(scores_array[-14:]) if len(scores_array) >= 14 else short_ma
+            np.mean(scores_array[-14:]) if len(scores_array) >= 14 else short_ma
 
             # Determine trend direction
             trend_direction = "improving" if trend > 0.05 else "declining" if trend < -0.05 else "stable"
@@ -1076,7 +1079,7 @@ Långsiktiga välbefinnande-strategier:
                 "confidence": 0.0
             }
 
-    def predictive_mood_analytics(self, mood_history: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
+    def predictive_mood_analytics(self, mood_history: list[dict], days_ahead: int = 7) -> dict[str, Any]:
         """
         Advanced predictive analytics for mood forecasting using ML techniques
         """
@@ -1124,7 +1127,7 @@ Långsiktiga välbefinnande-strategier:
 
             # Seasonal patterns (weekly)
             if len(scores_array) >= 14:
-                weekly_pattern = self._analyze_weekly_patterns(scores_array, dates)
+                self._analyze_weekly_patterns(scores_array, dates)
 
             # Predict future values
             future_predictions = []
@@ -1190,13 +1193,13 @@ Långsiktiga välbefinnande-strategier:
                 "recommendations": ["Försök igen senare"]
             }
 
-    def _analyze_weekly_patterns(self, scores: np.ndarray, dates: List[datetime]) -> Dict[str, Any]:
+    def _analyze_weekly_patterns(self, scores: np.ndarray, dates: list[datetime]) -> dict[str, Any]:
         """Analyze weekly mood patterns"""
         try:
             # Group by day of week
             weekday_scores = {i: [] for i in range(7)}
 
-            for score, date in zip(scores, dates):
+            for score, date in zip(scores, dates, strict=False):
                 weekday = date.weekday()  # 0=Monday, 6=Sunday
                 weekday_scores[weekday].append(score)
 
@@ -1214,9 +1217,9 @@ Långsiktiga välbefinnande-strategier:
         except Exception:
             return {"weekday_patterns": {}, "best_day": None, "worst_day": None}
 
-    def _generate_predictive_recommendations(self, risk_factors: List[str],
+    def _generate_predictive_recommendations(self, risk_factors: list[str],
                                            trend: float, volatility: float,
-                                           predictions: List[float]) -> List[str]:
+                                           predictions: list[float]) -> list[str]:
         """Generate personalized recommendations based on predictive analysis"""
         recommendations = []
 
@@ -1257,14 +1260,14 @@ Långsiktiga välbefinnande-strategier:
 
         return recommendations[:5]  # Return top 5 recommendations
 
-    def enhanced_sentiment_analysis(self, text: str) -> Dict[str, Any]:
+    def enhanced_sentiment_analysis(self, text: str) -> dict[str, Any]:
         """
         Enhanced sentiment analysis using transformers for Swedish
         Falls back to existing method if transformers unavailable
         """
         try:
-            from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
             import torch
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
             # Use a Swedish-capable model or multilingual model
             model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
@@ -1315,7 +1318,7 @@ Långsiktiga välbefinnande-strategier:
             "method": "keyword_based"
         }
 
-    def _extract_emotions_advanced(self, text: str) -> List[str]:
+    def _extract_emotions_advanced(self, text: str) -> list[str]:
         """Extract emotions using advanced NLP techniques"""
         # Enhanced emotion keywords for Swedish
         emotion_keywords = {
@@ -1341,8 +1344,8 @@ Långsiktiga välbefinnande-strategier:
         sorted_emotions = sorted(emotion_scores.items(), key=lambda x: x[1], reverse=True)
         return [emotion for emotion, score in sorted_emotions[:3]]
 
-    def generate_therapeutic_conversation(self, user_message: str, conversation_history: List[Dict],
-                                         user_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def generate_therapeutic_conversation(self, user_message: str, conversation_history: list[dict],
+                                         user_profile: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Generate sophisticated therapeutic responses using OpenAI GPT-4o-mini
         """
@@ -1383,7 +1386,7 @@ Långsiktiga välbefinnande-strategier:
             if user_profile:
                 system_prompt += f"\n\nAnvändarinformation: {user_profile.get('age_group', 'vuxen')}, {user_profile.get('main_concerns', 'allmänna välmående-frågor')}"
 
-            messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+            messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
 
             # Add relevant conversation history (last 6 exchanges for context)
             for msg in conversation_history[-6:]:
@@ -1415,7 +1418,7 @@ Långsiktiga välbefinnande-strategier:
             # Enhanced sentiment analysis for emotion detection
             sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
 
-            logger.info(f"✅ Therapeutic response generated successfully using gpt-4o-mini")
+            logger.info("✅ Therapeutic response generated successfully using gpt-4o-mini")
 
             # Add exercise recommendations based on sentiment and conversation
             exercise_recommendations = self._generate_exercise_recommendations(sentiment_analysis, user_message)
@@ -1445,7 +1448,7 @@ Långsiktiga välbefinnande-strategier:
                 logger.error(f"Enhanced therapeutic conversation failed: {str(e)}")
             return self._generate_fallback_therapeutic_response(user_message)
 
-    def _generate_crisis_response(self, crisis_analysis: Dict) -> str:
+    def _generate_crisis_response(self, crisis_analysis: dict) -> str:
         """Generate appropriate crisis response"""
         risk_level = crisis_analysis["risk_level"]
 
@@ -1481,7 +1484,7 @@ Vill du att jag hjälper dig att formulera hur du ska kontakta vården?"""
 
 Vill du prata mer om vad som känns svårt just nu?"""
 
-    def _generate_fallback_therapeutic_response(self, user_message: str, quota_exceeded: bool = False) -> Dict[str, Any]:
+    def _generate_fallback_therapeutic_response(self, user_message: str, quota_exceeded: bool = False) -> dict[str, Any]:
         """Enhanced fallback response"""
         # Generate fallback response locally
         fallback_response = self._generate_local_fallback_response(user_message)
@@ -1501,7 +1504,7 @@ Vill du prata mer om vad som känns svårt just nu?"""
             "quota_exceeded": quota_exceeded
         }
 
-    def _generate_local_fallback_response(self, user_message: str) -> Dict[str, Any]:
+    def _generate_local_fallback_response(self, user_message: str) -> dict[str, Any]:
         """Local fallback response generation"""
         # Simple keyword-based responses
         message_lower = user_message.lower()
@@ -1533,7 +1536,7 @@ Vill du prata mer om vad som känns svårt just nu?"""
             "ai_generated": False
         }
 
-    def generate_personalized_therapeutic_story(self, user_mood_data: List[Dict], user_profile: Optional[Dict[str, Any]] = None, locale: str = 'sv') -> Dict[str, Any]:
+    def generate_personalized_therapeutic_story(self, user_mood_data: list[dict], user_profile: dict[str, Any] | None = None, locale: str = 'sv') -> dict[str, Any]:
         """
         Generate personalized therapeutic stories using OpenAI GPT-4o-mini with user mood data
 
@@ -1619,7 +1622,7 @@ Historien skal være på norsk, empatisk og støttende."""
                 return self._fallback_therapeutic_story(user_mood_data, locale)
             story = content.strip()
 
-            logger.info(f"✅ Personalized therapeutic story generated using gpt-4o-mini")
+            logger.info("✅ Personalized therapeutic story generated using gpt-4o-mini")
 
             return {
                 "story": story,
@@ -1662,7 +1665,7 @@ Historien skal være på norsk, empatisk og støttende."""
                 logger.error(f"Story generation failed: {str(e)}")
             return self._fallback_therapeutic_story(user_mood_data, locale, quota_exceeded=False)
 
-    def _analyze_mood_for_story(self, mood_data: List[Dict]) -> Dict[str, Any]:
+    def _analyze_mood_for_story(self, mood_data: list[dict]) -> dict[str, Any]:
         """Analyze mood data to create context for therapeutic story"""
         if not mood_data:
             return {
@@ -1708,7 +1711,7 @@ Historien skal være på norsk, empatisk og støttende."""
             "data_points": len(mood_data)
         }
 
-    def _fallback_therapeutic_story(self, mood_data: List[Dict], locale: str = 'sv', quota_exceeded: bool = False) -> Dict[str, Any]:
+    def _fallback_therapeutic_story(self, mood_data: list[dict], locale: str = 'sv', quota_exceeded: bool = False) -> dict[str, Any]:
         """Fallback therapeutic story generation"""
         mood_summary = self._analyze_mood_for_story(mood_data)
 
@@ -1754,7 +1757,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             "quota_exceeded": quota_exceeded
         }
 
-    def _get_cached_ml_model(self, user_id: str, mood_history: List[Dict]) -> Optional[Dict]:
+    def _get_cached_ml_model(self, user_id: str, mood_history: list[dict]) -> dict | None:
         """Get cached ML model if still valid"""
         cache_key = f"ml_forecast_{user_id}"
         cached = self._ml_model_cache.get(cache_key)
@@ -1771,7 +1774,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
 
         return None
 
-    def _cache_ml_model(self, user_id: str, model_data: Dict, mood_history: List[Dict]):
+    def _cache_ml_model(self, user_id: str, model_data: dict, mood_history: list[dict]):
         """Cache trained ML model"""
         cache_key = f"ml_forecast_{user_id}"
         data_hash = hash(str(sorted([entry.get('timestamp', '') + str(entry.get('score', 0)) for entry in mood_history[-20:]])))
@@ -1782,7 +1785,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             oldest_key = min(self._ml_model_cache.keys(), key=lambda k: self._ml_model_cache[k][0])
             del self._ml_model_cache[oldest_key]
 
-    def predictive_mood_forecasting_simple(self, mood_history: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
+    def predictive_mood_forecasting_simple(self, mood_history: list[dict], days_ahead: int = 7) -> dict[str, Any]:
         """
         Fast, simple mood forecasting using basic statistical methods
         No ML training required - much faster than sklearn version
@@ -1889,7 +1892,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 "fallback": self.predictive_mood_analytics(mood_history, days_ahead)
             }
 
-    def predictive_mood_forecasting_sklearn(self, mood_history: List[Dict], days_ahead: int = 7, user_id: Optional[str] = None) -> Dict[str, Any]:
+    def predictive_mood_forecasting_sklearn(self, mood_history: list[dict], days_ahead: int = 7, user_id: str | None = None) -> dict[str, Any]:
         """
         Advanced predictive mood forecasting using scikit-learn ML models trained on historical mood logs
 
@@ -1907,13 +1910,14 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
 
         try:
-            import sklearn
-            from sklearn.linear_model import LinearRegression
-            from sklearn.ensemble import RandomForestRegressor
-            from sklearn.model_selection import train_test_split
-            from sklearn.metrics import mean_squared_error
-            import numpy as np
             import time
+
+            import numpy as np
+            import sklearn
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.linear_model import LinearRegression
+            from sklearn.metrics import mean_squared_error
+            from sklearn.model_selection import train_test_split
 
         except ImportError:
             logger.warning("scikit-learn not available, using simple forecasting")
@@ -2012,7 +2016,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 }
 
             # Generate forecast
-            last_features = features[-1]
+            features[-1]
             forecast_scores = []
 
             for day in range(days_ahead):
@@ -2093,7 +2097,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 "fallback": self.predictive_mood_analytics(mood_history, days_ahead)
             }
 
-    def _generate_ml_forecast_recommendations(self, risk_factors: List[str], trend: str, avg_forecast: float) -> List[str]:
+    def _generate_ml_forecast_recommendations(self, risk_factors: list[str], trend: str, avg_forecast: float) -> list[str]:
         """Generate recommendations based on ML forecast"""
         recommendations = []
 
@@ -2133,7 +2137,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
 
         return recommendations[:4]  # Return top 4 recommendations
 
-    def _generate_simple_forecast_recommendations(self, risk_factors: List[str], trend: str, avg_forecast: float) -> List[str]:
+    def _generate_simple_forecast_recommendations(self, risk_factors: list[str], trend: str, avg_forecast: float) -> list[str]:
         """Generate recommendations based on simple forecast analysis"""
         recommendations = []
 
@@ -2169,7 +2173,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
 
         return recommendations[:3]  # Return top 3 recommendations
 
-    def _generate_exercise_recommendations(self, sentiment_analysis: Dict, user_message: str) -> List[Dict]:
+    def _generate_exercise_recommendations(self, sentiment_analysis: dict, user_message: str) -> list[dict]:
         """Generate personalized exercise recommendations based on user state"""
         sentiment = sentiment_analysis.get("sentiment", "NEUTRAL")
         emotions = sentiment_analysis.get("emotions", [])

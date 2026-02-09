@@ -16,7 +16,7 @@ import os
 import pickle
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # a sizeable corpus here ensures the model works out-of-the-box.
 # ---------------------------------------------------------------------------
 
-_TRAINING_DATA: List[Tuple[str, str]] = [
+_TRAINING_DATA: list[tuple[str, str]] = [
     # ── POSITIVE (Swedish) ──
     ("Jag mår jättebra idag", "POSITIVE"),
     ("Jag är så glad och lycklig", "POSITIVE"),
@@ -156,7 +156,7 @@ _TRAINING_DATA: List[Tuple[str, str]] = [
 ]
 
 # Emotion keywords — used after sentiment classification for fine-grained labeling
-_EMOTION_LEXICON: Dict[str, List[str]] = {
+_EMOTION_LEXICON: dict[str, list[str]] = {
     "joy": [
         "glad", "lycklig", "glädje", "nöjd", "fantastisk", "underbart",
         "härligt", "kul", "skratt", "njuter", "stolt", "happy", "love",
@@ -213,10 +213,10 @@ class MLSentimentService:
     def _train_or_load(self):
         """Load a cached model from disk, or train a fresh one."""
         try:
-            from sklearn.pipeline import Pipeline
+            from sklearn.calibration import CalibratedClassifierCV
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.linear_model import LogisticRegression
-            from sklearn.calibration import CalibratedClassifierCV
+            from sklearn.pipeline import Pipeline
         except ImportError:
             logger.warning("scikit-learn not installed — ML sentiment analysis unavailable")
             return
@@ -245,7 +245,7 @@ class MLSentimentService:
 
         # ---------- train from scratch ----------
         texts = [t for t, _ in _TRAINING_DATA]
-        labels = [l for _, l in _TRAINING_DATA]
+        labels = [label for _, label in _TRAINING_DATA]
 
         self._pipeline = Pipeline([
             ("tfidf", TfidfVectorizer(
@@ -289,7 +289,7 @@ class MLSentimentService:
     def available(self) -> bool:
         return self._is_trained and self._pipeline is not None
 
-    def analyze(self, text: str) -> Dict[str, Any]:
+    def analyze(self, text: str) -> dict[str, Any]:
         """
         Analyze text and return sentiment dict compatible with ai_service format.
 
@@ -309,7 +309,7 @@ class MLSentimentService:
         classes = list(self._pipeline.classes_)
 
         # Extract per-class probabilities (convert numpy types to plain Python)
-        prob_map = {str(cls): float(p) for cls, p in zip(classes, probas)}
+        prob_map = {str(cls): float(p) for cls, p in zip(classes, probas, strict=False)}
         confidence = float(max(probas))
 
         # Compute a continuous score in [-1, 1]
@@ -345,17 +345,17 @@ class MLSentimentService:
         return text.strip()
 
     @staticmethod
-    def _detect_emotions(text: str) -> List[str]:
+    def _detect_emotions(text: str) -> list[str]:
         """Detect emotions using the lexicon."""
         text_lower = text.lower()
-        found: List[str] = []
+        found: list[str] = []
         for emotion, keywords in _EMOTION_LEXICON.items():
             if any(kw in text_lower for kw in keywords):
                 found.append(emotion)
         return found[:3] if found else ["neutral"]
 
     @staticmethod
-    def _neutral_result() -> Dict[str, Any]:
+    def _neutral_result() -> dict[str, Any]:
         return {
             "sentiment": "NEUTRAL",
             "score": 0.0,
@@ -367,7 +367,7 @@ class MLSentimentService:
         }
 
     @staticmethod
-    def _keyword_fallback(text: str) -> Dict[str, Any]:
+    def _keyword_fallback(text: str) -> dict[str, Any]:
         """Ultra-simple fallback if sklearn is unavailable."""
         positive = ["glad", "bra", "lycklig", "fantastisk", "nöjd", "tacksam", "happy", "great", "love"]
         negative = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "dålig", "trött", "sad", "angry"]

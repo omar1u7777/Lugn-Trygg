@@ -4,7 +4,8 @@ Provides curated audio tracks for relaxation and meditation
 Uses external royalty-free audio sources
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
+
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
@@ -225,7 +226,7 @@ def get_categories():
         return '', 204
     try:
         categories = []
-        for cat_id, cat_data in AUDIO_LIBRARY.items():
+        for _cat_id, cat_data in AUDIO_LIBRARY.items():
             categories.append({
                 'id': cat_data['id'],
                 'name': cat_data['name'],
@@ -234,7 +235,7 @@ def get_categories():
                 'description': cat_data['description'],
                 'trackCount': len(cat_data['tracks'])
             })
-        
+
         return APIResponse.success(
             {'categories': categories},
             f"Retrieved {len(categories)} audio categories"
@@ -254,9 +255,9 @@ def get_category_tracks(category_id: str):
         category_id = input_sanitizer.sanitize(category_id, content_type='text', max_length=50)
         if not category_id or category_id not in AUDIO_LIBRARY:
             return APIResponse.not_found("Category not found", "CATEGORY_NOT_FOUND")
-        
+
         category = AUDIO_LIBRARY[category_id]
-        
+
         # Convert tracks to camelCase
         tracks_camel = []
         for track in category['tracks']:
@@ -270,7 +271,7 @@ def get_category_tracks(category_id: str):
                 'description': track.get('description', ''),
                 'license': track.get('license', '')
             })
-        
+
         return APIResponse.success({
             'category': {
                 'id': category['id'],
@@ -308,7 +309,7 @@ def get_all_audio():
                     'description': track.get('description', ''),
                     'license': track.get('license', '')
                 })
-            
+
             library_camel[cat_id] = {
                 'id': cat_data['id'],
                 'name': cat_data['name'],
@@ -317,7 +318,7 @@ def get_all_audio():
                 'description': cat_data['description'],
                 'tracks': tracks_camel
             }
-        
+
         return APIResponse.success(
             {'library': library_camel},
             f"Retrieved complete audio library with {len(library_camel)} categories"
@@ -337,7 +338,7 @@ def get_track(track_id: str):
         track_id = input_sanitizer.sanitize(track_id, content_type='text', max_length=50)
         if not track_id:
             return APIResponse.bad_request("Invalid track ID")
-            
+
         for category in AUDIO_LIBRARY.values():
             for track in category['tracks']:
                 if track['id'] == track_id:
@@ -358,7 +359,7 @@ def get_track(track_id: str):
                             'icon': category['icon']
                         }
                     }, f"Retrieved track {track_id}")
-        
+
         return APIResponse.not_found("Track not found", "TRACK_NOT_FOUND")
     except Exception as e:
         return APIResponse.error("Failed to retrieve track", "TRACK_ERROR", 500, str(e))
@@ -375,10 +376,10 @@ def search_tracks():
         # Sanitize search query
         query = input_sanitizer.sanitize(raw_query, content_type='text', max_length=MAX_SEARCH_LENGTH)
         query = query.lower() if query else ''
-        
+
         if not query or len(query) < MIN_SEARCH_LENGTH:
             return APIResponse.bad_request(f"Search query must be at least {MIN_SEARCH_LENGTH} characters")
-        
+
         results = []
         for category in AUDIO_LIBRARY.values():
             for track in category['tracks']:
@@ -398,7 +399,7 @@ def search_tracks():
                         'categoryName': category['name'],
                         'categoryIcon': category['icon']
                     })
-        
+
         limited = results[:MAX_SEARCH_RESULTS]
 
         return APIResponse.success({

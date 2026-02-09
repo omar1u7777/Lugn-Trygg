@@ -3,10 +3,12 @@ API Documentation Routes - OpenAPI/Swagger UI
 Provides interactive API documentation and testing interface
 """
 
-import os
 import logging
-from flask import Blueprint, jsonify, render_template_string, request, g
-from src.docs.swagger_config import get_openapi_spec, get_openapi_json, get_openapi_yaml
+import os
+
+from flask import Blueprint, g, jsonify, render_template_string, request
+
+from src.docs.swagger_config import get_openapi_spec, get_openapi_yaml
 from src.services.rate_limiting import rate_limit_by_endpoint
 
 logger = logging.getLogger(__name__)
@@ -260,7 +262,7 @@ def test_auth_page():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     # SECURITY: Only allow in development environment
     if IS_PRODUCTION:
         logger.warning("Attempted access to /test-auth in production environment")
@@ -268,7 +270,7 @@ def test_auth_page():
             'error': 'This endpoint is only available in development mode',
             'status_code': 403
         }), 403
-    
+
     logger.info("Test auth page accessed (development mode)")
     test_html = """
     <!DOCTYPE html>

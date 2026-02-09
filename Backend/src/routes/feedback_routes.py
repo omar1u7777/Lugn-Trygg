@@ -3,15 +3,16 @@ Feedback Routes
 User feedback collection and management
 """
 import logging
-import os
 import re
-from flask import Blueprint, request, jsonify, g
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, g, request
+
 from src.firebase_config import db
-from src.services.email_service import EmailService
-from src.services.auth_service import AuthService
-from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.audit_service import audit_log
+from src.services.auth_service import AuthService
+from src.services.email_service import EmailService
+from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
@@ -47,7 +48,7 @@ def submit_feedback():
         logger.info("✅ FEEDBACK - OPTIONS preflight")
         # Handle CORS preflight
         return "", 204
-    
+
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = input_sanitizer.sanitize(data.get("user_id", "").strip())
@@ -60,7 +61,7 @@ def submit_feedback():
 
         if not user_id:
             return APIResponse.bad_request('user_id is required')
-        
+
         # Validate user_id format
         if not USER_ID_PATTERN.match(user_id):
             logger.warning(f"Invalid user_id format: {user_id[:50]}")
@@ -82,8 +83,8 @@ def submit_feedback():
             "feature_request": feature_request,
             "bug_report": bug_report,
             "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "timestamp": data.get("timestamp", datetime.now(timezone.utc).isoformat())
+            "created_at": datetime.now(UTC).isoformat(),
+            "timestamp": data.get("timestamp", datetime.now(UTC).isoformat())
         }
         feedback_ref.set(feedback_data)
         logger.info(f"✅ FEEDBACK - Stored feedback {feedback_ref.id} for user {user_id}")
@@ -100,7 +101,7 @@ def submit_feedback():
             feedback_count = user_data.get("feedback_submissions", 0) + 1
             user_ref.update({
                 "feedback_submissions": feedback_count,
-                "last_feedback_at": datetime.now(timezone.utc).isoformat()
+                "last_feedback_at": datetime.now(UTC).isoformat()
             })
 
         # Send email notifications
@@ -114,7 +115,7 @@ def submit_feedback():
                     rating=rating,
                     feedback_id=feedback_ref.id
                 )
-            
+
             # 2. Send notification to admin
             import os
             admin_email = os.getenv("ADMIN_EMAIL", "admin@lugn-trygg.com")
@@ -133,7 +134,7 @@ def submit_feedback():
             # Don't fail the request if emails fail
 
         logger.info(f"Feedback submitted by {user_id}: {category} - rating {rating}")
-        
+
         # Audit log for feedback submission
         audit_log(
             event_type="FEEDBACK_SUBMITTED",
@@ -163,24 +164,24 @@ def list_feedback():
     """List all feedback (admin only)"""
     if request.method == "OPTIONS":
         return "", 204
-    
+
     try:
         user_id = g.user_id
-        
+
         # Check if user is admin
         user_doc = db.collection("users").document(user_id).get()
         if not user_doc.exists:
             audit_log(event_type="FEEDBACK_LIST_UNAUTHORIZED", user_id=user_id, details={"reason": "user_not_found"})
             return APIResponse.not_found('User not found')
-        
+
         user_data = user_doc.to_dict()
         is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
-        
+
         if not is_admin:
             audit_log(event_type="FEEDBACK_LIST_UNAUTHORIZED", user_id=user_id, details={"reason": "not_admin"})
             logger.warning(f"Non-admin user {user_id} attempted to access feedback list")
             return APIResponse.forbidden('Admin access required')
-        
+
         status = request.args.get("status", "all")
         category = request.args.get("category", "all")
         limit = min(int(request.args.get("limit", 50)), 200)  # Cap at 200
@@ -219,25 +220,25 @@ def feedback_stats():
     """Get feedback statistics (admin only)"""
     if request.method == "OPTIONS":
         return "", 204
-    
+
     try:
         user_id = g.user_id
-        
+
         # Check if user is admin
         user_doc = db.collection("users").document(user_id).get()
         if not user_doc.exists:
             return APIResponse.not_found('User not found')
-        
+
         user_data = user_doc.to_dict()
         is_admin = user_data.get("role") == "admin" or user_data.get("is_admin", False)
-        
+
         if not is_admin:
             audit_log(event_type="FEEDBACK_STATS_UNAUTHORIZED", user_id=user_id, details={"reason": "not_admin"})
             return APIResponse.forbidden('Admin access required')
-        
+
         # Get date range parameters
         days = min(int(request.args.get("days", 30)), 365)  # Cap at 1 year
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        start_date = datetime.now(UTC) - timedelta(days=days)
 
         # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
         from google.cloud.firestore import FieldFilter
@@ -278,14 +279,14 @@ def get_user_feedback():
     """Get user's own feedback history"""
     if request.method == "OPTIONS":
         return "", 204
-    
+
     try:
         # SECURITY: Get user_id from JWT token, not from query params
         user_id = g.user_id
-        
+
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
-        
+
         # Query feedback by user_id
         # NOTE: Removed order_by to avoid requiring a composite index
         # We'll sort in memory instead (simpler for small datasets)
@@ -296,24 +297,24 @@ def get_user_feedback():
             .where(filter=FieldFilter("user_id", "==", user_id))
             .stream()
         )
-        
+
         feedback_list = []
         for doc in feedback_docs:
             feedback_data = doc.to_dict()
             feedback_data["id"] = doc.id
             feedback_list.append(_to_camel_case_feedback(feedback_data))
-        
+
         # Sort in memory by created_at (most recent first)
         feedback_list.sort(
             key=lambda x: x.get("createdAt", ""),
             reverse=True
         )
-        
+
         return APIResponse.success(
             data={'feedback': feedback_list, 'count': len(feedback_list)},
             message='User feedback retrieved'
         )
-    
+
     except Exception as e:
         logger.exception(f"Error getting user feedback: {e}")
         return APIResponse.error('Internal server error')
