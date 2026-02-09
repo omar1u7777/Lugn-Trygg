@@ -1,79 +1,54 @@
 /**
  * Input Component Tests - Lugn & Trygg Design System
- * Comprehensive test coverage for Input component
+ * Behavior-based tests for the Tailwind Input component
  */
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { Input } from '../Input';
+import { Input } from '../tailwind/Input';
 
 describe('Input Component', () => {
-  it('renders with basic props', () => {
-    render(<Input label="Test Label" />);
-    expect(screen.getByLabelText('Test Label')).toBeInTheDocument();
+  it('renders an input element', () => {
+    render(<Input />);
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
-  it('renders with placeholder', () => {
+  it('renders label when provided', () => {
+    render(<Input label="Email" />);
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+  });
+
+  it('renders placeholder', () => {
     render(<Input placeholder="Enter text" />);
     expect(screen.getByPlaceholderText('Enter text')).toBeInTheDocument();
   });
 
-  it('handles value changes', () => {
-    const handleChange = vi.fn();
-    render(<Input onChange={handleChange} />);
-
-    const input = screen.getByRole('textbox');
-    fireEvent.change(input, { target: { value: 'test value' } });
-
-    expect(handleChange).toHaveBeenCalled();
-  });
-
-  it('shows error state', () => {
+  it('shows error message with role="alert"', () => {
     render(<Input error="This field is required" />);
-    expect(screen.getByText('This field is required')).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent('This field is required');
     expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('shows helper text', () => {
+  it('shows helper text with role="status"', () => {
     render(<Input helperText="Helpful information" />);
-    expect(screen.getByText('Helpful information')).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveTextContent('Helpful information');
   });
 
-  it('handles required attribute', () => {
-    render(<Input label="Required Field" required />);
-    const input = screen.getByRole('textbox');
-    expect(input).toBeRequired();
+  it('shows error instead of helperText when both provided', () => {
+    render(<Input error="Error message" helperText="Helper text" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Error message');
+    expect(screen.queryByText('Helper text')).not.toBeInTheDocument();
   });
 
-  it('handles fullWidth prop', () => {
-    render(<Input fullWidth />);
-    expect(screen.getByRole('textbox')).toHaveClass('w-full');
-  });
-
-  it('renders with start and end adornments', () => {
-    render(
-      <Input
-        startAdornment={<span>@</span>}
-        endAdornment={<span>.com</span>}
-      />
-    );
-
-    expect(screen.getByText('@')).toBeInTheDocument();
-    expect(screen.getByText('.com')).toBeInTheDocument();
-  });
-
-  it('handles different input types', () => {
-    const { rerender } = render(<Input type="email" />);
-    expect(screen.getByRole('textbox')).toHaveAttribute('type', 'email');
-
-    rerender(<Input type="password" />);
-    expect(screen.getByDisplayValue('')).toHaveAttribute('type', 'password');
-  });
-
-  it('applies custom className', () => {
-    render(<Input className="custom-input" />);
-    expect(screen.getByRole('textbox').closest('.form-group')).toHaveClass('custom-input');
+  it('shows helperText when error is absent', () => {
+    render(<Input helperText="Helper text" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Helper text');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('handles disabled state', () => {
@@ -81,19 +56,46 @@ describe('Input Component', () => {
     expect(screen.getByRole('textbox')).toBeDisabled();
   });
 
-  it('passes through other props to TextField', () => {
+  it('shows required asterisk in label', () => {
+    render(<Input label="Name" required />);
+    const input = screen.getByRole('textbox');
+    expect(input).toBeRequired();
+    // The asterisk is rendered with aria-label
+    expect(screen.getByLabelText('obligatoriskt fält')).toBeInTheDocument();
+  });
+
+  it('renders leftIcon', () => {
+    render(<Input leftIcon={<span data-testid="left-icon">🔍</span>} />);
+    expect(screen.getByTestId('left-icon')).toBeInTheDocument();
+  });
+
+  it('renders rightIcon', () => {
+    render(<Input rightIcon={<span data-testid="right-icon">✓</span>} />);
+    expect(screen.getByTestId('right-icon')).toBeInTheDocument();
+  });
+
+  it('applies custom className to the input element', () => {
+    render(<Input className="my-custom-input" />);
+    expect(screen.getByRole('textbox')).toHaveClass('my-custom-input');
+  });
+
+  it('handles change events', () => {
+    const handleChange = vi.fn();
+    render(<Input onChange={handleChange} />);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'test value' } });
+    expect(handleChange).toHaveBeenCalled();
+  });
+
+  it('sets aria-required when required', () => {
+    render(<Input required />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('passes through HTML input attributes', () => {
     render(<Input data-testid="custom-input" maxLength={10} />);
     const input = screen.getByTestId('custom-input');
     expect(input).toHaveAttribute('maxLength', '10');
-  });
-
-  it('handles complex validation states', () => {
-    const { rerender } = render(<Input error="Error message" helperText="Helper text" />);
-    expect(screen.getByText('Error message')).toBeInTheDocument();
-    expect(screen.queryByText('Helper text')).not.toBeInTheDocument();
-
-    rerender(<Input helperText="Helper text" />);
-    expect(screen.getByText('Helper text')).toBeInTheDocument();
-    expect(screen.queryByText('Error message')).not.toBeInTheDocument();
   });
 });

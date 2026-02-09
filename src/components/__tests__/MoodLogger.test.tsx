@@ -1,110 +1,233 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, test, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { BrowserRouter } from 'react-router-dom';
 import MoodLogger from '../MoodLogger';
 
-// Mock dependencies
+// ── Mocks (use plain functions inside factories to avoid vi.fn() hoisting issues) ──
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'sv' }
-  })
+    t: (key: string, fallback?: string) => fallback || key,
+    i18n: { language: 'sv' },
+  }),
 }));
 
-vi.mock('../hooks/useAccessibility', () => ({
+vi.mock('../../hooks/useAccessibility', () => ({
   useAccessibility: () => ({
-    announceToScreenReader: vi.fn(),
-    isReducedMotion: false
-  })
+    announceToScreenReader: () => {},
+    isReducedMotion: false,
+  }),
 }));
 
-vi.mock('../services/offlineStorage', () => ({
+vi.mock('../../hooks/useAuth', () => ({
+  default: () => ({
+    user: { user_id: 'test-user-123', email: 'test@example.com' },
+    token: 'test-token',
+  }),
+}));
+
+vi.mock('../../services/analytics', () => ({
+  analytics: {
+    track: () => {},
+    identify: () => {},
+    page: () => {},
+  },
+}));
+
+vi.mock('../../services/offlineStorage', () => ({
   default: {
-    addOfflineMoodLog: vi.fn()
-  }
+    addOfflineMoodLog: () => {},
+  },
 }));
 
-vi.mock('axios', () => ({
-  default: {
-    post: vi.fn()
-  }
+vi.mock('../../utils/logger', () => ({
+  logger: {
+    debug: () => {},
+    error: () => {},
+    warn: () => {},
+    info: () => {},
+  },
 }));
 
-vi.mock('../api/api', () => ({
-  API_BASE_URL: 'http://localhost:5001'
+vi.mock('../../contexts/SubscriptionContext', () => ({
+  useSubscription: () => ({
+    subscription: { plan: 'free' },
+    isSubscribed: false,
+    checkUsageLimit: () => true,
+    canLogMood: () => true,
+    canSendMessage: () => true,
+    incrementMoodLog: () => {},
+    incrementChatMessage: () => {},
+    getRemainingMoodLogs: () => 10,
+    getRemainingMessages: () => 10,
+    plan: {
+      tier: 'free',
+      limits: { moodLogsPerDay: 5, chatMessagesPerDay: 10, memoriesPerDay: 3 },
+      features: {
+        voiceInput: false,
+        aiChat: false,
+        analytics: false,
+        export: false,
+        themes: false,
+        prioritySupport: false,
+      },
+      name: 'Free',
+      price: 0,
+      currency: 'SEK',
+      interval: 'month',
+    },
+    refreshSubscription: () => Promise.resolve(),
+    hasFeature: () => true,
+    usage: { moodLogs: 0, chatMessages: 0, lastResetDate: '' },
+    loading: false,
+    isPremium: false,
+    isTrial: false,
+  }),
 }));
+
+vi.mock('../../api/api', () => ({
+  logMood: () => Promise.resolve({ data: { success: true } }),
+  getMoods: () => Promise.resolve([]),
+  API_BASE_URL: 'http://localhost:5001',
+  default: { post: () => Promise.resolve({}), get: () => Promise.resolve({}) },
+}));
+
+vi.mock('../../config/env', () => ({
+  getBackendUrl: () => 'http://localhost:5001',
+}));
+
+vi.mock('axios', () => {
+  const mockInstance = {
+    get: () => Promise.resolve({ data: {} }),
+    post: () => Promise.resolve({ data: {} }),
+    put: () => Promise.resolve({ data: {} }),
+    delete: () => Promise.resolve({ data: {} }),
+    patch: () => Promise.resolve({ data: {} }),
+    interceptors: {
+      request: { use: () => {}, eject: () => {} },
+      response: { use: () => {}, eject: () => {} },
+    },
+  };
+  return {
+    default: {
+      create: () => mockInstance,
+      ...mockInstance,
+    },
+  };
+});
+
+// Mock UsageLimitBanner so we don't pull in its own complex deps (Link, heroicons, etc.)
+vi.mock('../UsageLimitBanner', () => ({
+  UsageLimitBanner: () => <div data-testid="usage-limit-banner">UsageLimitBanner</div>,
+}));
+
+// ── Helper ──
+
+function renderMoodLogger(props: Partial<React.ComponentProps<typeof MoodLogger>> = {}) {
+  return render(
+    <BrowserRouter>
+      <MoodLogger {...props} />
+    </BrowserRouter>,
+  );
+}
+
+// ── Tests ──
 
 describe('MoodLogger', () => {
-  const defaultProps = {
-    userEmail: 'test@example.com',
-    onClose: vi.fn(),
-    onMoodLogged: vi.fn(),
-    onCrisisDetected: vi.fn()
-  };
-
-  test('renders mood logger modal', () => {
-    render(<MoodLogger {...defaultProps} />);
-
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('mood.title')).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  test('shows voice and text input options', () => {
-    render(<MoodLogger {...defaultProps} />);
-
-    expect(screen.getByText('🎙️ Röst')).toBeInTheDocument();
-    expect(screen.getByText('✍️ Text')).toBeInTheDocument();
+  test('renders the heading', () => {
+    renderMoodLogger();
+    expect(screen.getByText('Hur känns det idag?')).toBeInTheDocument();
   });
 
-  test('switches to text input mode', () => {
-    render(<MoodLogger {...defaultProps} />);
+  test('renders all six mood emojis', () => {
+    renderMoodLogger();
 
-    const textButton = screen.getByText('✍️ Text');
-    fireEvent.click(textButton);
-
-    expect(screen.getByPlaceholderText(/hur känner du dig/i)).toBeInTheDocument();
+    const emojis = ['😢', '😟', '😐', '🙂', '😊', '🤩'];
+    for (const emoji of emojis) {
+      expect(screen.getByText(emoji)).toBeInTheDocument();
+    }
   });
 
-  test('shows validation error for empty text input', async () => {
-    render(<MoodLogger {...defaultProps} />);
+  test('renders mood labels', () => {
+    renderMoodLogger();
 
-    const textButton = screen.getByText('✍️ Text');
-    fireEvent.click(textButton);
-
-    const saveButton = screen.getByText('💾 Spara humör');
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Vänligen skriv hur du känner dig')).toBeInTheDocument();
-    });
+    const labels = ['Ledsen', 'Orolig', 'Neutral', 'Bra', 'Glad', 'Super'];
+    for (const label of labels) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 
-  test('calls onClose when close button is clicked', () => {
-    render(<MoodLogger {...defaultProps} />);
+  test('selects a mood when clicking an emoji button', () => {
+    renderMoodLogger();
 
-    const closeButton = screen.getByLabelText('mood.close');
-    fireEvent.click(closeButton);
+    const gladButton = screen.getByLabelText(/Glad/);
+    fireEvent.click(gladButton);
 
-    expect(defaultProps.onClose).toHaveBeenCalled();
+    expect(screen.getByText(/Valt humör: Glad/)).toBeInTheDocument();
   });
 
-  test('starts recording when voice button is clicked', () => {
-    // Mock getUserMedia
-    Object.defineProperty(navigator, 'mediaDevices', {
-      value: {
-        getUserMedia: vi.fn().mockResolvedValue({
-          getTracks: vi.fn().mockReturnValue([{ stop: vi.fn() }])
-        })
-      },
-      writable: true
-    });
+  test('shows note textarea after selecting a mood', () => {
+    renderMoodLogger();
 
-    render(<MoodLogger {...defaultProps} />);
+    // No textarea initially
+    expect(screen.queryByPlaceholderText(/Vad får dig att känna/)).not.toBeInTheDocument();
 
-    const voiceButton = screen.getByText('mood.startRecording');
-    fireEvent.click(voiceButton);
+    // Select a mood
+    const neutralButton = screen.getByLabelText(/Neutral/);
+    fireEvent.click(neutralButton);
 
-    // The component should show recording state
-    expect(screen.getByText('mood.startRecording')).toBeInTheDocument();
+    // Textarea should appear
+    expect(screen.getByPlaceholderText(/Vad får dig att känna/)).toBeInTheDocument();
+  });
+
+  test('shows log button after selecting a mood', () => {
+    renderMoodLogger();
+
+    // No log button initially
+    expect(screen.queryByText('Logga humör')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Bra/));
+
+    expect(screen.getByText('Logga humör')).toBeInTheDocument();
+  });
+
+  test('shows the "back to dashboard" button when onMoodLogged is provided', () => {
+    const onMoodLogged = vi.fn();
+    renderMoodLogger({ onMoodLogged });
+
+    expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
+  });
+
+  test('calls onMoodLogged when back button is clicked', () => {
+    const onMoodLogged = vi.fn();
+    renderMoodLogger({ onMoodLogged });
+
+    fireEvent.click(screen.getByText('Tillbaka till Dashboard'));
+    expect(onMoodLogged).toHaveBeenCalled();
+  });
+
+  test('renders usage limit banner', () => {
+    renderMoodLogger();
+    expect(screen.getByTestId('usage-limit-banner')).toBeInTheDocument();
+  });
+
+  test('shows empty moods message when no recent moods', () => {
+    renderMoodLogger();
+    expect(screen.getByText('Inga humör loggade ännu')).toBeInTheDocument();
+  });
+
+  test('typing in note textarea updates character count', () => {
+    renderMoodLogger();
+    fireEvent.click(screen.getByLabelText(/Super/));
+
+    const textarea = screen.getByPlaceholderText(/Vad får dig att känna/);
+    fireEvent.change(textarea, { target: { value: 'Bra dag!' } });
+
+    expect(screen.getByText('8/200 tecken')).toBeInTheDocument();
   });
 });

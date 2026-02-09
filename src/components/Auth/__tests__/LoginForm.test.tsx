@@ -31,7 +31,7 @@ const lazyFirebaseBundleMock = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock('../../../api/api', () => apiMocks);
+vi.mock('../../../api/index', () => apiMocks);
 
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => authMock,
@@ -66,8 +66,8 @@ describe('LoginForm', () => {
 
   it('calls login API and context on valid submission', async () => {
     apiMocks.loginUser.mockResolvedValue({
-      access_token: 'mock-token',
-      user_id: '123',
+      accessToken: 'mock-token',
+      userId: '123',
       email: 'test@example.com',
     });
 
@@ -108,7 +108,7 @@ describe('LoginForm', () => {
 
     expect(await screen.findByText(/loggar in/i)).toBeInTheDocument();
 
-    resolvePromise?.({ access_token: 'token', user_id: 'user-1', email: 'test@example.com' });
+    resolvePromise?.({ accessToken: 'token', userId: 'user-1', email: 'test@example.com' });
 
     await waitFor(() => {
       expect(authMock.login).toHaveBeenCalled();

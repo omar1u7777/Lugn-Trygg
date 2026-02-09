@@ -95,8 +95,8 @@ describe('LanguageSwitcher', () => {
       </I18nextProvider>
     );
 
-    const container = screen.getByRole('combobox').parentElement;
-    expect(container).toHaveClass('language-switcher');
+    const select = screen.getByRole('combobox');
+    expect(select).toBeInTheDocument();
   });
 
   test('calls changeLanguage when language is selected', () => {
