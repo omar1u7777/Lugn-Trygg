@@ -7,12 +7,10 @@ import {
   PlayIcon,
   PauseIcon,
   StopIcon,
-  ExclamationTriangleIcon,
   HeartIcon,
   FireIcon,
   MoonIcon,
   SunIcon,
-  BookOpenIcon,
   ArrowRightIcon,
   PencilSquareIcon,
   XMarkIcon
@@ -20,10 +18,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import RelaxingSounds from './RelaxingSounds';
 import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
-import MicroInteractions from './MicroInteractions';
 import useAuth from '../hooks/useAuth';
 import { getMoods, saveMeditationSession, getMeditationSessions, getWellnessGoals } from '../api/api';
-import { Card, Button } from './ui/tailwind'; // Keep compatible
+import { Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
 import { getWellnessHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
@@ -35,18 +32,12 @@ import { logger } from '../utils/logger';
 
 const WELLNESS_HERO_IMAGE_ID = getWellnessHeroImageId();
 const WELLNESS_HERO_FALLBACK_SRC = 'https://res.cloudinary.com/dxmijbysc/image/upload/c_scale,w_auto,dpr_auto,q_auto,f_auto/hero-bild_pfcdsx.jpg';
-const WELLNESS_HERO_SIZES = '(min-width: 1280px) 520px, (min-width: 1024px) 440px, (min-width: 768px) 70vw, 100vw';
 
 interface WellnessStats {
   meditationMinutes: number;
   breathingExercises: number;
   relaxationSessions: number;
   streakDays: number;
-}
-
-interface ApiError {
-  response?: { status?: number; data?: { error?: string } };
-  message?: string;
 }
 
 interface MeditationOption {
@@ -141,7 +132,7 @@ const BentoCard: React.FC<{
 // ----------------------------------------------------------------------
 
 const WellnessHub: React.FC = () => {
-  const { t } = useTranslation();
+  useTranslation();
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<'all' | 'meditation' | 'breathing' | 'sounds' | 'sleep'>('all');
 
@@ -153,8 +144,8 @@ const WellnessHub: React.FC = () => {
     streakDays: 0
   });
   const [userGoals, setUserGoals] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
 
   // Meditation Playback State
   const [selectedMeditation, setSelectedMeditation] = useState<MeditationOption | null>(null);

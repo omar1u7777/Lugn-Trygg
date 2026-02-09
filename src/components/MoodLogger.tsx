@@ -6,7 +6,8 @@ import { logMood, getMoods } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { Card } from './ui/tailwind';
-import { UsageLimitBanner } from './UsageLimitBanner';import { logger } from '../utils/logger';
+import { UsageLimitBanner } from './UsageLimitBanner';
+import { logger } from '../utils/logger';
 
 
 interface MoodLoggerProps {
@@ -33,7 +34,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
   // Kolla om användaren kan logga fler humör
   const canLogMore = canLogMood();
-  const remainingLogs = getRemainingMoodLogs();
+  const _remainingLogs = getRemainingMoodLogs();
 
   useEffect(() => {
     analytics.page('Mood Logger', {

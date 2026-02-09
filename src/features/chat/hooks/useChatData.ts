@@ -7,7 +7,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { chatWithAI } from '../../../api/ai';
 import useAuth from '../../../hooks/useAuth';
-import { ChatMessage, ChatSession, AIResponse } from '../types';
+import { ChatMessage, AIResponse } from '../types';
 
 interface UseChatDataOptions {
   maxMessages?: number;

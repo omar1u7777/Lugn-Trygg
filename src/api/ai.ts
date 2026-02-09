@@ -272,12 +272,12 @@ export const chatWithAI = async (
       message,
     });
     // Handle both APIResponse (data wrapper) and direct format
-    const raw = response.data as any;
-    const data: Record<string, any> = raw.data || raw;
+    const raw = response.data as unknown as Record<string, unknown>;
+    const data: Record<string, unknown> = (raw.data as Record<string, unknown>) || raw;
     return {
-      response: data.response || '',
-      emotionsDetected: data.emotionsDetected || data.emotions_detected || [],
-      suggestedActions: data.suggestedActions || data.suggested_actions || [],
+      response: (data.response as string) || '',
+      emotionsDetected: (data.emotionsDetected || data.emotions_detected || []) as string[],
+      suggestedActions: (data.suggestedActions || data.suggested_actions || []) as string[],
       crisisDetected: data.crisisDetected ?? data.crisis_detected ?? false,
       aiGenerated: data.aiGenerated ?? data.ai_generated ?? true,
       modelUsed: data.modelUsed || data.model_used || 'unknown',
@@ -325,12 +325,12 @@ export const analyzeMoodPatterns = async (): Promise<PatternAnalysisResponse> =>
       API_ENDPOINTS.CHATBOT.ANALYZE_PATTERNS
     );
     // Handle both APIResponse (data wrapper) and direct format
-    const raw = response.data as any;
-    const data: Record<string, any> = raw.data || raw;
+    const raw = response.data as unknown as Record<string, unknown>;
+    const data: Record<string, unknown> = (raw.data as Record<string, unknown>) || raw;
     return {
-      patternAnalysis: data.patternAnalysis || data.pattern_analysis,
-      dataPointsAnalyzed: data.dataPointsAnalyzed ?? data.data_points_analyzed ?? 0,
-      analysisTimestamp: data.analysisTimestamp || data.analysis_timestamp || '',
+      patternAnalysis: (data.patternAnalysis || data.pattern_analysis) as string,
+      dataPointsAnalyzed: (data.dataPointsAnalyzed ?? data.data_points_analyzed ?? 0) as number,
+      analysisTimestamp: (data.analysisTimestamp || data.analysis_timestamp || '') as string,
     };
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -357,13 +357,13 @@ export const startExercise = async (
       duration,
     });
     // Handle both APIResponse (data wrapper) and direct format
-    const raw = response.data as any;
-    const data: Record<string, any> = raw.data || raw;
+    const raw = response.data as unknown as Record<string, unknown>;
+    const data: Record<string, unknown> = (raw.data as Record<string, unknown>) || raw;
     return {
-      exercise: data.exercise,
-      exerciseType: data.exerciseType || data.exercise_type,
-      startedAt: data.startedAt || data.started_at,
-      duration: data.duration,
+      exercise: data.exercise as string,
+      exerciseType: (data.exerciseType || data.exercise_type) as string,
+      startedAt: (data.startedAt || data.started_at) as string,
+      duration: data.duration as number,
     };
   } catch (error: unknown) {
     if (error instanceof ApiError) {

@@ -238,16 +238,6 @@ const BadgeDisplay: React.FC = () => {
     );
   }
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'common': return '#9E9E9E';
-      case 'rare': return '#2196F3';
-      case 'epic': return '#9C27B0';
-      case 'legendary': return '#FF9800';
-      default: return '#9E9E9E';
-    }
-  };
-
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'consistency': return '🔥';

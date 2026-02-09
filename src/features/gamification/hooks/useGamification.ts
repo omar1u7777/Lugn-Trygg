@@ -14,7 +14,8 @@ import {
   GamificationStats,
   LEVEL_TITLES,
 } from '../types';
-import { calculateLevel, getXPForLevel } from '../utils';import { logger } from '../../../utils/logger';
+import { calculateLevel } from '../utils';
+import { logger } from '../../../utils/logger';
 
 
 interface UseGamificationOptions {

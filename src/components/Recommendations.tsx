@@ -11,7 +11,6 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
 import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
-import { saveJournalEntry, getJournalEntries } from '../api/journaling';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
 import {
   HandThumbDownIcon,
@@ -218,8 +217,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [meditationTimeLeft, setMeditationTimeLeft] = useState(0);
   const [isMeditationPaused, setIsMeditationPaused] = useState(false);
   const [meditationTimer, setMeditationTimer] = useState<NodeJS.Timeout | null>(null);
-  const [isLoadingMeditation, setIsLoadingMeditation] = useState(false);
-  const [meditationSessions, setMeditationSessions] = useState<any[]>([]);
+  const [, setIsLoadingMeditation] = useState(false);
+  const [, setMeditationSessions] = useState<any[]>([]);
   const [debugMode, setDebugMode] = useState(false);
 
   // Pomodoro extra state
@@ -270,18 +269,18 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   // Gratitude Challenge State
   // Gratitude Challenge State (Refactored to use useGratitude)
-  const [showGratitudeModal, setShowGratitudeModal] = useState(false);
+  const [, setShowGratitudeModal] = useState(false);
 
   // Gratitude Hook
   const {
     isActive: isGratitudeChallengeActive,
     day: gratitudeDay,
     entries: gratitudeEntries,
-    startDate: gratitudeChallengeStartDate,
+    startDate: _gratitudeChallengeStartDate,
     isSaving: isSavingGratitude,
     start: startGratitudeLogic,
     saveEntry: saveGratitudeEntry,
-    complete: completeGratitudeLogic,
+    complete: _completeGratitudeLogic,
     cancel: cancelGratitudeLogic,
     updateEntries: setGratitudeEntries,
     nextDay: nextGratitudeDay,
@@ -486,11 +485,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const startGratitudeChallenge = () => {
     startGratitudeLogic();
     setShowGratitudeModal(true);
-  };
-
-  const completeGratitudeChallenge = () => {
-    completeGratitudeLogic();
-    setShowGratitudeModal(false);
   };
 
   // Pomodoro functions provided by usePomodoro hook

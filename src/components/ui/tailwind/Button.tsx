@@ -29,7 +29,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       startIcon,
       endIcon,
       disabled,
-      sx, // MUI compatibility - destructure to remove from DOM
+      sx: _sx, // MUI compatibility - destructure to remove from DOM
       ...props
     },
     ref

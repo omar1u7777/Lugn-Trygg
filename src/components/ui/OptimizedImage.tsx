@@ -105,7 +105,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   }, [priority, isInView]);
 
   // Generate blur placeholder for better UX
-  const generateBlurPlaceholder = (src: string) => {
+  const generateBlurPlaceholder = (_src: string) => {
     // For now, return a simple data URL. In production, you might want to generate actual blur placeholders
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PC9zdmc+';
   };

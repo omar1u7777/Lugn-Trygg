@@ -120,7 +120,7 @@ interface ChipProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
-  ({ className, variant = 'default', size = 'md', icon, label, onDelete, children, color, ...props }, ref) => {
+  ({ className, variant = 'default', size = 'md', icon, label, onDelete, children, color: _color, ...props }, ref) => {
     const content = label || children; // MUI compatibility
     const variants = {
       default: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',

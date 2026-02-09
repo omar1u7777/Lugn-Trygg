@@ -123,17 +123,17 @@ const restoreOnboardingData = (saved: Record<string, string>): void => {
  * @param data - Response data from login API
  * @throws AuthError if data is invalid
  */
-const validateLoginResponse = (data: any): LoginResponse => {
+const validateLoginResponse = (data: unknown): LoginResponse => {
   if (!data || typeof data !== 'object') {
     throw new AuthError("Invalid login response format");
   }
-  if (!data.accessToken || typeof data.accessToken !== 'string') {
+  if (!(data as Record<string, unknown>).accessToken || typeof (data as Record<string, unknown>).accessToken !== 'string') {
     throw new AuthError("Login failed: Missing or invalid access token");
   }
-  if (!data.user || typeof data.user !== 'object') {
+  if (!(data as Record<string, unknown>).user || typeof (data as Record<string, unknown>).user !== 'object') {
     throw new AuthError("Login failed: Missing user data");
   }
-  if (!data.userId || typeof data.userId !== 'string') {
+  if (!(data as Record<string, unknown>).userId || typeof (data as Record<string, unknown>).userId !== 'string') {
     throw new AuthError("Login failed: Missing user ID");
   }
   return data as LoginResponse;
@@ -303,7 +303,7 @@ export const refreshAccessToken = async (): Promise<string | null> => {
  * @returns Promise resolving to reset response data
  * @throws AuthError if password reset fails
  */
-export const resetPassword = async (email: string): Promise<any> => {
+export const resetPassword = async (email: string): Promise<Record<string, unknown>> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, { email });
     return response.data;
@@ -319,7 +319,7 @@ export const resetPassword = async (email: string): Promise<any> => {
  * @returns Promise resolving to email change response
  * @throws AuthError if email change fails
  */
-export const changeEmail = async (newEmail: string, password: string): Promise<any> => {
+export const changeEmail = async (newEmail: string, password: string): Promise<Record<string, unknown>> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.CHANGE_EMAIL, {
       newEmail: newEmail,
@@ -338,7 +338,7 @@ export const changeEmail = async (newEmail: string, password: string): Promise<a
  * @returns Promise resolving to password change response
  * @throws AuthError if password change fails
  */
-export const changePassword = async (currentPassword: string, newPassword: string): Promise<any> => {
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<Record<string, unknown>> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
       current_password: currentPassword,
@@ -357,7 +357,7 @@ export const changePassword = async (currentPassword: string, newPassword: strin
  * @returns Promise resolving to 2FA setup data
  * @throws AuthError if 2FA setup fails
  */
-export const setup2FA = async (): Promise<any> => {
+export const setup2FA = async (): Promise<Record<string, unknown>> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.SETUP_2FA, {
       method: "totp"
@@ -374,7 +374,7 @@ export const setup2FA = async (): Promise<any> => {
  * @returns Promise resolving to 2FA verification response
  * @throws AuthError if 2FA verification fails
  */
-export const verify2FASetup = async (code: string): Promise<any> => {
+export const verify2FASetup = async (code: string): Promise<Record<string, unknown>> => {
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.VERIFY_2FA_SETUP, {
       code
@@ -438,7 +438,7 @@ export const exportUserData = async (): Promise<ExportDataResponse> => {
  * @returns Promise resolving to account deletion response
  * @throws AuthError if account deletion fails
  */
-export const deleteAccount = async (userId: string): Promise<any> => {
+export const deleteAccount = async (userId: string): Promise<Record<string, unknown>> => {
   if (!userId || typeof userId !== 'string') {
     throw new AuthError("Invalid user ID provided for account deletion");
   }

@@ -67,7 +67,7 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
-  ({ className, value = 0, max = 100, variant = 'default', size = 'md', showLabel = false, sx, ...props }, ref) => {
+  ({ className, value = 0, max = 100, variant = 'default', size = 'md', showLabel = false, sx: _sx, ...props }, ref) => {
     const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
     const effectiveVariant = variant === 'determinate' ? 'default' : variant; // MUI compatibility
 

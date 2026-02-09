@@ -219,7 +219,7 @@ interface GamificationState {
 export const useGamificationStore = create<GamificationState>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set, _get) => ({
         level: 1,
         xp: 0,
         xpToNextLevel: 100,
