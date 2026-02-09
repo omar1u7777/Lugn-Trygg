@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
 import { getBackendUrl } from "../config/env";
 import { tokenStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
@@ -56,9 +56,9 @@ export default api;
 let isRefreshing = false;
 
 // Cache for dynamic imports to improve performance
-let analyticsModule: any = null;
-let authModule: any = null;
-let offlineStorageModule: any = null;
+let analyticsModule: ReturnType<typeof import('../services/analytics.lazy')> | null = null;
+let authModule: ReturnType<typeof import('../services/authUtils')> | null = null;
+let offlineStorageModule: ReturnType<typeof import('../services/offlineStorage')> | null = null;
 
 // Helper functions for analytics
 const getAnalytics = async () => {
@@ -88,7 +88,7 @@ const trackApiCall = async (
   method: string,
   duration: number,
   status: number,
-  extraData: Record<string, any>
+  extraData: Record<string, unknown>
 ) => {
   try {
     const analytics = await getAnalytics();
@@ -101,7 +101,7 @@ const trackApiCall = async (
 // Helper function to track errors
 const trackError = async (
   errorType: string,
-  extraData: Record<string, any>
+  extraData: Record<string, unknown>
 ) => {
   try {
     const analytics = await getAnalytics();
@@ -115,7 +115,7 @@ const trackError = async (
 const queueOfflineRequest = async (
   method: 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data: any
+  data: unknown
 ) => {
   try {
     const { queueRequest } = await getOfflineStorage();
@@ -332,7 +332,7 @@ api.interceptors.response.use(
 
 // Request interceptor for adding Authorization and CSRF headers
 api.interceptors.request.use(
-  async (config: any) => {
+  async (config: InternalAxiosRequestConfig) => {
     // Ensure headers object exists
     if (!config.headers) {
       config.headers = {};
