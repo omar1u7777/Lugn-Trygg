@@ -2,18 +2,20 @@
 Health Check & Monitoring Endpoints
 Critical for production monitoring and load balancer health checks
 """
+import asyncio
 import logging
 import os
-import asyncio
-from flask import Blueprint, jsonify, request, g
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import psutil
+from flask import Blueprint, g, request
+
 from src.firebase_config import db
-from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.auth_service import AuthService
-from src.utils.response_utils import APIResponse
 from src.services.health_check_service import health_check_service, run_health_checks
 from src.services.monitoring_service import get_monitoring_service
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +30,11 @@ def health_check():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     return APIResponse.success(
         data={
             'status': 'healthy',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'service': 'Lugn & Trygg API'
         },
         message='Health check passed'
@@ -47,13 +49,13 @@ def readiness_check():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     checks = {
         'server': True,
         'firebase': False,
-        'timestamp': datetime.now(timezone.utc).isoformat()
+        'timestamp': datetime.now(UTC).isoformat()
     }
-    
+
     # Check Firebase connection
     try:
         if db is not None:
@@ -62,10 +64,10 @@ def readiness_check():
             checks['firebase'] = True
     except Exception as e:
         checks['firebaseError'] = str(e)
-    
+
     # Overall readiness
     is_ready = all([checks['server'], checks['firebase']])
-    
+
     if is_ready:
         return APIResponse.success(
             data={'status': 'ready', 'checks': checks},
@@ -88,12 +90,12 @@ def liveness_check():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     return APIResponse.success(
         data={
             'status': 'alive',
             'pid': os.getpid(),
-            'timestamp': datetime.now(timezone.utc).isoformat()
+            'timestamp': datetime.now(UTC).isoformat()
         },
         message='Server is alive'
     )
@@ -109,7 +111,7 @@ def metrics():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     # Check if user is admin (metrics should only be accessible to admins)
     user_id = g.user_id
     try:
@@ -123,16 +125,16 @@ def metrics():
     except Exception as e:
         logger.error(f"Error checking admin status: {e}")
         return APIResponse.error('Authorization check failed')
-    
+
     try:
         # Use monitoring_service if available, fallback to direct psutil
         monitoring_service = get_monitoring_service()
-        
+
         if monitoring_service:
             # Get comprehensive metrics from monitoring service
             system_metrics = monitoring_service.get_system_metrics()
             app_metrics = monitoring_service.get_application_metrics()
-            
+
             return APIResponse.success(
                 data={
                     'timestamp': system_metrics.timestamp.isoformat(),
@@ -170,10 +172,10 @@ def metrics():
             # Fallback to direct psutil if monitoring service not initialized
             process = psutil.Process(os.getpid())
             memory_info = process.memory_info()
-            
+
             return APIResponse.success(
                 data={
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'timestamp': datetime.now(UTC).isoformat(),
                     'system': {
                         'cpuPercent': psutil.cpu_percent(interval=0.1),
                         'cpuCount': psutil.cpu_count(),
@@ -214,34 +216,34 @@ def database_health():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
-        start_time = datetime.now(timezone.utc)
-        
+        start_time = datetime.now(UTC)
+
         # Test read operation
         test_collection = db.collection('_health_check')
-        docs = test_collection.limit(1).get()
-        
+        test_collection.limit(1).get()
+
         # Test write operation
         test_doc = test_collection.document('test')
         test_doc.set({
-            'last_check': datetime.now(timezone.utc).isoformat(),
+            'last_check': datetime.now(UTC).isoformat(),
             'status': 'ok'
         })
-        
-        end_time = datetime.now(timezone.utc)
+
+        end_time = datetime.now(UTC)
         latency_ms = (end_time - start_time).total_seconds() * 1000
-        
+
         return APIResponse.success(
             data={
                 'status': 'healthy',
                 'database': 'firestore',
                 'latencyMs': round(latency_ms, 2),
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             },
             message='Database is healthy'
         )
-        
+
     except Exception as e:
         return APIResponse.error(
             message='Database health check failed',
@@ -250,7 +252,7 @@ def database_health():
             details={
                 'status': 'unhealthy',
                 'error': str(e),
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
         )
 
@@ -265,7 +267,7 @@ def advanced_health_check():
     """
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     # Check if user is admin
     user_id = g.user_id
     try:
@@ -279,7 +281,7 @@ def advanced_health_check():
     except Exception as e:
         logger.error(f"Error checking admin status: {e}")
         return APIResponse.error('Authorization check failed')
-    
+
     try:
         # Register Firebase health check
         def check_firebase():
@@ -288,9 +290,9 @@ def advanced_health_check():
                 return {'connectivity': True, 'status': 'connected'}
             except Exception as e:
                 return {'connectivity': False, 'error': str(e)}
-        
+
         health_check_service.register_database_check(check_firebase)
-        
+
         # Run comprehensive health checks (async)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -298,7 +300,7 @@ def advanced_health_check():
             report = loop.run_until_complete(run_health_checks())
         finally:
             loop.close()
-        
+
         return APIResponse.success(
             data=report,
             message='Advanced health check completed'

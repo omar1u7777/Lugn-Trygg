@@ -3,21 +3,23 @@ Privacy & GDPR Compliance Routes
 Real backend implementation for data export and deletion
 """
 
-from flask import Blueprint, request, send_file, g
-from src.services.auth_service import AuthService
-from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
-from src.firebase_config import db, auth
-from src.utils.response_utils import APIResponse
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-import logging
-import json
 import io
+import json
+import logging
 import os
+from datetime import UTC, datetime
+from typing import Any
+
+from flask import Blueprint, g, request, send_file
 
 # Import firebase_storage from firebase_config module
 from src import firebase_config as _firebase_config
+from src.firebase_config import auth, db
+from src.services.audit_service import audit_log
+from src.services.auth_service import AuthService
+from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.response_utils import APIResponse
+
 firebase_storage = getattr(_firebase_config, 'firebase_storage', None)
 
 # Optional service imports with fallback
@@ -58,7 +60,7 @@ logger = logging.getLogger(__name__)
 @privacy_bp.route('/breach/history', methods=['OPTIONS'])
 @privacy_bp.route('/hipaa/encryption-status', methods=['OPTIONS'])
 @privacy_bp.route('/gdpr/data-residency', methods=['OPTIONS'])
-def handle_options(user_id: Optional[str] = None, consent_type: Optional[str] = None, feature: Optional[str] = None):
+def handle_options(user_id: str | None = None, consent_type: str | None = None, feature: str | None = None):
     """Handle CORS preflight requests."""
     return APIResponse.success()
 
@@ -72,21 +74,21 @@ def get_privacy_settings(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             logger.warning(f"❌ PRIVACY - Unauthorized: {current_user_id[:8]} != {user_id[:8]}")
             return APIResponse.forbidden("Not authorized to view other users' settings")
-        
+
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
-        
+
         # Get privacy settings from Firestore
         user_doc = db.collection('users').document(user_id).get()
-        
+
         if not user_doc.exists:
             return APIResponse.not_found("User not found")
-        
+
         user_data = user_doc.to_dict() or {}
         privacy_settings = user_data.get('privacy_settings', {
             'encryptLocalStorage': True,
@@ -95,11 +97,11 @@ def get_privacy_settings(user_id: str):
             'allowAnalytics': True,
             'shareAnonymizedData': False
         })
-        
+
         return APIResponse.success({
             'settings': privacy_settings
         }, "Privacy settings retrieved")
-        
+
     except Exception as e:
         logger.exception(f"Error getting privacy settings: {e}")
         return APIResponse.error("Could not retrieve privacy settings", "FETCH_ERROR", 500)
@@ -114,18 +116,18 @@ def update_privacy_settings(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             logger.warning(f"❌ PRIVACY - Unauthorized update: {current_user_id[:8]} != {user_id[:8]}")
             return APIResponse.forbidden("Not authorized to modify other users' settings")
-        
+
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
-        
+
         data = request.get_json(silent=True) or {}
         settings = data.get('settings', {})
-        
+
         # Validate settings
         allowed_keys = [
             'encryptLocalStorage',
@@ -134,25 +136,25 @@ def update_privacy_settings(user_id: str):
             'allowAnalytics',
             'shareAnonymizedData'
         ]
-        
+
         validated_settings = {
-            k: v for k, v in settings.items() 
+            k: v for k, v in settings.items()
             if k in allowed_keys
         }
-        
+
         # Update in Firestore
         db.collection('users').document(user_id).update({
             'privacy_settings': validated_settings,
-            'updated_at': datetime.now(timezone.utc)
+            'updated_at': datetime.now(UTC)
         })
-        
+
         logger.info(f"✅ Privacy settings updated for user {user_id[:8]}")
         audit_log('privacy_settings_updated', user_id, validated_settings)
-        
+
         return APIResponse.success({
             'settings': validated_settings
         }, "Privacy settings updated")
-        
+
     except Exception as e:
         logger.exception(f"Error updating privacy settings: {e}")
         return APIResponse.error("Could not update privacy settings", "UPDATE_ERROR", 500)
@@ -167,50 +169,50 @@ def export_user_data(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized to export other users' data")
-        
+
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
-        
+
         logger.info(f"📦 Starting data export for user {user_id[:8]}")
-        
+
         # Collect all user data from Firestore
-        export_data: Dict[str, Any] = {
+        export_data: dict[str, Any] = {
             'exportMetadata': {
                 'userId': user_id,
-                'exportDate': datetime.now(timezone.utc).isoformat(),
+                'exportDate': datetime.now(UTC).isoformat(),
                 'exportVersion': '1.0',
                 'dataFormat': 'JSON'
             }
         }
-        
+
         # 1. User Profile
         user_doc = db.collection('users').document(user_id).get()
         if user_doc.exists:
             export_data['userProfile'] = user_doc.to_dict() or {}
-            logger.info(f"  ✓ User profile collected")
-        
+            logger.info("  ✓ User profile collected")
+
         # 2. Mood Entries
         moods_ref = db.collection('users').document(user_id).collection('moods')
         moods = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in moods_ref.stream()]
         export_data['moods'] = moods
         logger.info(f"  ✓ {len(moods)} mood entries collected")
-        
+
         # 3. Memories/Journal Entries
         memories_ref = db.collection('users').document(user_id).collection('memories')
         memories = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in memories_ref.stream()]
         export_data['memories'] = memories
         logger.info(f"  ✓ {len(memories)} memories collected")
-        
+
         # 4. Chat Sessions (AI conversations)
         chat_sessions_ref = db.collection('users').document(user_id).collection('chat_sessions')
         chat_sessions = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in chat_sessions_ref.stream()]
         export_data['chatSessions'] = chat_sessions
         logger.info(f"  ✓ {len(chat_sessions)} chat sessions collected")
-        
+
         # 5. Feedback Submissions
         if FieldFilter is not None:
             feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
@@ -219,13 +221,13 @@ def export_user_data(user_id: str):
         feedback = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in feedback_query.stream()]
         export_data['feedback'] = feedback
         logger.info(f"  ✓ {len(feedback)} feedback entries collected")
-        
+
         # 6. Achievements/Rewards
         achievements_ref = db.collection('users').document(user_id).collection('achievements')
         achievements = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in achievements_ref.stream()]
         export_data['achievements'] = achievements
         logger.info(f"  ✓ {len(achievements)} achievements collected")
-        
+
         # 7. Referral Data (if any)
         if FieldFilter is not None:
             referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
@@ -263,23 +265,23 @@ def export_user_data(user_id: str):
         subscription_doc = db.collection('subscriptions').document(user_id).get()
         if subscription_doc.exists:
             export_data['subscription'] = subscription_doc.to_dict() or {}
-            logger.info(f"  ✓ Subscription data collected")
-        
+            logger.info("  ✓ Subscription data collected")
+
         # Create JSON file
         json_data = json.dumps(export_data, indent=2, default=str, ensure_ascii=False)
-        
+
         # Create in-memory file
         file_buffer = io.BytesIO()
         file_buffer.write(json_data.encode('utf-8'))
         file_buffer.seek(0)
-        
+
         # Generate filename
-        export_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        export_date = datetime.now(UTC).strftime('%Y-%m-%d')
         filename = f"lugn-trygg-data-{export_date}.json"
-        
+
         logger.info(f"✅ Data export completed for user {user_id[:8]} - {len(json_data)} bytes")
         audit_log('data_exported', user_id, {'size_bytes': len(json_data)})
-        
+
         # Return file for download
         return send_file(
             file_buffer,
@@ -287,7 +289,7 @@ def export_user_data(user_id: str):
             as_attachment=True,
             download_name=filename
         )
-        
+
     except Exception as e:
         logger.exception(f"Error exporting user data: {e}")
         return APIResponse.error("Could not export data", "EXPORT_ERROR", 500)
@@ -302,11 +304,11 @@ def delete_user_data(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized to delete other users' data")
-        
+
         # Require confirmation parameter
         confirmation = request.args.get('confirm', '').lower()
         if confirmation != 'delete my data':
@@ -314,18 +316,18 @@ def delete_user_data(user_id: str):
                 "Confirmation required. Add: ?confirm=delete my data",
                 "CONFIRMATION_REQUIRED"
             )
-        
+
         if db is None:
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
-        
+
         logger.warning(f"🗑️  Starting PERMANENT data deletion for user {user_id[:8]}")
-        
+
         deletion_summary = {
             'userId': user_id,
-            'deletionDate': datetime.now(timezone.utc).isoformat(),
+            'deletionDate': datetime.now(UTC).isoformat(),
             'deletedCollections': []
         }
-        
+
         # 1. Delete Mood Entries
         moods_ref = db.collection('users').document(user_id).collection('moods')
         deleted_moods = _delete_collection(moods_ref, batch_size=50)
@@ -334,7 +336,7 @@ def delete_user_data(user_id: str):
             'count': deleted_moods
         })
         logger.info(f"  ✓ Deleted {deleted_moods} mood entries")
-        
+
         # 2. Delete Memories
         memories_ref = db.collection('users').document(user_id).collection('memories')
         deleted_memories = _delete_collection(memories_ref, batch_size=50)
@@ -343,7 +345,7 @@ def delete_user_data(user_id: str):
             'count': deleted_memories
         })
         logger.info(f"  ✓ Deleted {deleted_memories} memories")
-        
+
         # 3. Delete Chat Sessions
         chat_ref = db.collection('users').document(user_id).collection('chat_sessions')
         deleted_chats = _delete_collection(chat_ref, batch_size=50)
@@ -352,7 +354,7 @@ def delete_user_data(user_id: str):
             'count': deleted_chats
         })
         logger.info(f"  ✓ Deleted {deleted_chats} chat sessions")
-        
+
         # 4. Delete Achievements
         achievements_ref = db.collection('users').document(user_id).collection('achievements')
         deleted_achievements = _delete_collection(achievements_ref, batch_size=50)
@@ -361,7 +363,7 @@ def delete_user_data(user_id: str):
             'count': deleted_achievements
         })
         logger.info(f"  ✓ Deleted {deleted_achievements} achievements")
-        
+
         # 5. Delete Feedback
         if FieldFilter is not None:
             feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
@@ -375,7 +377,7 @@ def delete_user_data(user_id: str):
             'count': len(feedback_docs)
         })
         logger.info(f"  ✓ Deleted {len(feedback_docs)} feedback entries")
-        
+
         # 6. Delete Referrals
         if FieldFilter is not None:
             referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
@@ -434,29 +436,29 @@ def delete_user_data(user_id: str):
                 'collection': 'subscriptions',
                 'count': 1
             })
-            logger.info(f"  ✓ Deleted subscription")
-        
+            logger.info("  ✓ Deleted subscription")
+
         # 12. Delete User Profile (LAST)
         db.collection('users').document(user_id).delete()
-        logger.info(f"  ✓ Deleted user profile")
-        
+        logger.info("  ✓ Deleted user profile")
+
         # 13. Delete Firebase Auth Account
         try:
             if auth is not None:
                 auth.delete_user(user_id)
-                logger.info(f"  ✓ Deleted Firebase Auth account")
+                logger.info("  ✓ Deleted Firebase Auth account")
         except Exception as auth_error:
             logger.error(f"  ⚠️  Failed to delete Firebase Auth: {auth_error}")
-        
+
         # Log audit event
         audit_log('account_permanently_deleted', user_id, deletion_summary)
-        
+
         logger.warning(f"✅ PERMANENT deletion completed for user {user_id[:8]}")
-        
+
         return APIResponse.success({
             'summary': deletion_summary
         }, "All your data has been permanently deleted")
-        
+
     except Exception as e:
         logger.exception(f"Error deleting user data: {e}")
         return APIResponse.error("Could not delete data", "DELETE_ERROR", 500)
@@ -465,26 +467,26 @@ def delete_user_data(user_id: str):
 def _delete_collection(collection_ref, batch_size: int = 50) -> int:
     """Helper to delete all documents in a collection in batches"""
     deleted = 0
-    
+
     while True:
         # Get batch of documents
         docs = list(collection_ref.limit(batch_size).stream())
-        
+
         if not docs:
             break
-        
+
         # Delete batch
         batch = db.batch()
         for doc in docs:
             batch.delete(doc.reference)
         batch.commit()
-        
+
         deleted += len(docs)
-        
+
         # If batch was smaller than limit, we're done
         if len(docs) < batch_size:
             break
-    
+
     return deleted
 
 
@@ -497,7 +499,7 @@ def get_retention_status(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -523,7 +525,7 @@ def manual_retention_cleanup(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -550,12 +552,12 @@ def system_retention_cleanup():
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Admin role check - verify user is admin
         user_doc = db.collection('users').document(current_user_id).get()  # type: ignore
         if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
             return APIResponse.forbidden("Admin privileges required")
-        
+
         if data_retention_service is None:
             return APIResponse.error("Data retention service unavailable", "SERVICE_UNAVAILABLE", 503)
 
@@ -578,7 +580,7 @@ def get_user_consents(user_id: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -604,7 +606,7 @@ def grant_consent(user_id: str, consent_type: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -621,7 +623,7 @@ def grant_consent(user_id: str, consent_type: str):
             audit_log('consent_granted', user_id, {'consent_type': consent_type, 'version': version})
             return APIResponse.success({
                 'consentType': consent_type,
-                'grantedAt': datetime.now(timezone.utc).isoformat()
+                'grantedAt': datetime.now(UTC).isoformat()
             }, f"Consent granted for {consent_type}")
         else:
             return APIResponse.bad_request("Could not grant consent", "GRANT_FAILED")
@@ -640,7 +642,7 @@ def withdraw_consent(user_id: str, consent_type: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -654,7 +656,7 @@ def withdraw_consent(user_id: str, consent_type: str):
             audit_log('consent_withdrawn', user_id, {'consent_type': consent_type})
             return APIResponse.success({
                 'consentType': consent_type,
-                'withdrawnAt': datetime.now(timezone.utc).isoformat()
+                'withdrawnAt': datetime.now(UTC).isoformat()
             }, f"Consent withdrawn for {consent_type}")
         else:
             return APIResponse.bad_request("Could not withdraw consent", "WITHDRAW_FAILED")
@@ -673,7 +675,7 @@ def validate_feature_access(user_id: str, feature: str):
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Verify user owns this data
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized")
@@ -699,7 +701,7 @@ def report_potential_breach():
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         data = request.get_json(silent=True) or {}
 
         incident_details = {
@@ -709,8 +711,8 @@ def report_potential_breach():
             'affected_users': data.get('affected_users', 0),
             'data_types': data.get('data_types', []),
             'breach_type': data.get('breach_type', 'unknown'),
-            'detected_at': data.get('detected_at', datetime.now(timezone.utc).isoformat()),
-            'reported_at': datetime.now(timezone.utc).isoformat()
+            'detected_at': data.get('detected_at', datetime.now(UTC).isoformat()),
+            'reported_at': datetime.now(UTC).isoformat()
         }
 
         if breach_notification_service is None:
@@ -739,12 +741,12 @@ def get_breach_history():
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Admin role check - verify user is admin
         user_doc = db.collection('users').document(current_user_id).get()  # type: ignore
         if not user_doc.exists or user_doc.to_dict().get('role') != 'admin':
             return APIResponse.forbidden("Admin privileges required")
-        
+
         limit = min(int(request.args.get('limit', 50)), 100)  # Cap at 100
 
         if breach_notification_service is None:
@@ -773,7 +775,7 @@ def get_encryption_status():
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         if breach_notification_service is None:
             return APIResponse.error("Breach notification service unavailable", "SERVICE_UNAVAILABLE", 503)
 

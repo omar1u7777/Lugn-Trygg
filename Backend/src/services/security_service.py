@@ -5,26 +5,26 @@ Handles authentication, authorization, input validation, encryption,
 and security monitoring for the entire application.
 """
 
-from typing import Optional, Dict, Any, List, Tuple
-import logging
 import hashlib
-import secrets
 import hmac
-import time
+import logging
+import os
 import re
-from datetime import datetime, timezone, timedelta
+import secrets
+import time
+from datetime import UTC, datetime
 from functools import wraps
+from typing import Any
 
 from ..config import (
-    JWT_SECRET_KEY,
-    JWT_REFRESH_SECRET_KEY,
     ENCRYPTION_KEY,
+    JWT_SECRET_KEY,
 )
-import os
+
 # HIPAA_ENCRYPTION_KEY is optional and defined in security_config
 HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')
 
-from ..utils.error_handling import handle_service_errors, ServiceError, ValidationError
+from ..utils.error_handling import handle_service_errors
 from . import IAuditService
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class SecurityService:
         if not self._hipaa_key:
             logger.warning("⚠️ HIPAA_ENCRYPTION_KEY not set — using random key")
             self._hipaa_key = secrets.token_bytes(32)
-        self._rate_limit_store: Dict[str, list] = {}  # In-memory rate limit tracking
+        self._rate_limit_store: dict[str, list] = {}  # In-memory rate limit tracking
 
     @handle_service_errors
     def hash_password(self, password: str) -> str:
@@ -101,14 +101,14 @@ class SecurityService:
             key = self._hipaa_key if hipaa_compliant else self._encryption_key
             f = Fernet(key)
             return f.decrypt(encrypted_data.encode()).decode()
-        except ImportError:
+        except ImportError as err:
             # Fallback: decode HMAC-based obfuscation
             if encrypted_data.startswith('hmac:'):
                 import base64
                 parts = encrypted_data.split(':', 2)
                 if len(parts) == 3:
                     return base64.b64decode(parts[2]).decode()
-            raise ValueError("Cannot decrypt data: cryptography library not available")
+            raise ValueError("Cannot decrypt data: cryptography library not available") from err
 
     @handle_service_errors
     def generate_secure_token(self, length: int = 32) -> str:
@@ -188,7 +188,7 @@ class SecurityService:
         """Check if request should be rate limited using sliding window."""
         key = f"{identifier}:{action}"
         now = time.time()
-        
+
         # Clean up old entries
         if key in self._rate_limit_store:
             self._rate_limit_store[key] = [
@@ -197,19 +197,19 @@ class SecurityService:
             ]
         else:
             self._rate_limit_store[key] = []
-        
+
         # Check count
         if len(self._rate_limit_store[key]) >= max_requests:
             logger.warning(f"Rate limit exceeded for {identifier} on {action}")
             return True  # Rate limited
-        
+
         # Record this request
         self._rate_limit_store[key].append(now)
         return False  # Not rate limited
 
     @handle_service_errors
-    def log_security_event(self, event_type: str, user_id: str, details: Dict[str, Any],
-                          ip_address: Optional[str] = None, user_agent: Optional[str] = None):
+    def log_security_event(self, event_type: str, user_id: str, details: dict[str, Any],
+                          ip_address: str | None = None, user_agent: str | None = None):
         """Log security-related events"""
         security_details = {
             **details,
@@ -217,13 +217,13 @@ class SecurityService:
             'event_type': event_type,
             'ip_address': ip_address,
             'user_agent': user_agent,
-            'timestamp': datetime.now(timezone.utc).isoformat()
+            'timestamp': datetime.now(UTC).isoformat()
         }
 
         self.audit.log_event(f"SECURITY_{event_type.upper()}", user_id, security_details)
 
     @handle_service_errors
-    def validate_request_origin(self, request, allowed_origins: List[str]) -> bool:
+    def validate_request_origin(self, request, allowed_origins: list[str]) -> bool:
         """Validate request origin for CORS and CSRF protection"""
         origin = request.headers.get('Origin') or request.headers.get('Referer', '').split('/')[2]
 
@@ -271,20 +271,21 @@ class SecurityService:
         """Decorator for requiring authentication via JWT token."""
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            from flask import g, request as flask_request
-            
+            from flask import g
+            from flask import request as flask_request
+
             # Allow OPTIONS preflight
             if flask_request.method == 'OPTIONS':
                 return ('', 204)
-            
+
             auth_header = flask_request.headers.get('Authorization')
             if not auth_header or not auth_header.startswith('Bearer '):
                 return {'error': 'Authorization header saknas eller är ogiltig!'}, 401
-            
+
             token = auth_header.split(' ')[1]
             if not self.validate_token_format(token):
                 return {'error': 'Ogiltigt token-format!'}, 401
-            
+
             try:
                 import jwt as pyjwt
                 payload = pyjwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
@@ -294,7 +295,7 @@ class SecurityService:
                 g.user_id = user_id
             except Exception:
                 return {'error': 'Ogiltigt eller utgånget token!'}, 401
-            
+
             return f(*args, **kwargs)
         return decorated_function
 
@@ -307,7 +308,7 @@ class SecurityService:
                 user_id = getattr(g, 'user_id', None)
                 if not user_id:
                     return {'error': 'Autentisering krävs'}, 401
-                
+
                 # Check admin permission from Firestore
                 try:
                     from ..firebase_config import db
@@ -316,15 +317,15 @@ class SecurityService:
                         user_data = user_doc.to_dict()
                         user_role = user_data.get('role', 'user')
                         user_permissions = user_data.get('permissions', [])
-                        
+
                         # Admin has all permissions
                         if user_role == 'admin':
                             return f(*args, **kwargs)
-                        
+
                         # Check specific permission
                         if permission in user_permissions:
                             return f(*args, **kwargs)
-                    
+
                     logger.warning(f"Permission denied: user {user_id} lacks '{permission}'")
                     return {'error': 'Behörighet saknas'}, 403
                 except Exception as e:
@@ -335,7 +336,7 @@ class SecurityService:
 
     @handle_service_errors
     def audit_access(self, user_id: str, resource: str, action: str, success: bool,
-                    ip_address: Optional[str] = None, user_agent: Optional[str] = None):
+                    ip_address: str | None = None, user_agent: str | None = None):
         """Audit resource access"""
         self.audit.log_event("ACCESS_AUDIT", user_id, {
             'resource': resource,
@@ -346,7 +347,7 @@ class SecurityService:
         })
 
     @handle_service_errors
-    def check_password_strength(self, password: str) -> Tuple[bool, List[str]]:
+    def check_password_strength(self, password: str) -> tuple[bool, list[str]]:
         """Check password strength and return issues"""
         issues = []
 

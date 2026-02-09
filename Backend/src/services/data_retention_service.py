@@ -4,9 +4,11 @@ Implements automated data retention and deletion policies
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from google.cloud.firestore import FieldFilter
+
 from ..firebase_config import db
 from .audit_service import audit_service
 
@@ -34,7 +36,7 @@ class DataRetentionService:
         # HIPAA: 7 years minimum for medical records
         self.hipaa_retention_days = 2555
 
-    def apply_retention_policy(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+    def apply_retention_policy(self, user_id: str | None = None) -> dict[str, Any]:
         """
         Apply data retention policies to delete expired data
 
@@ -84,7 +86,7 @@ class DataRetentionService:
                 'success': True,
                 'total_deleted': total_deleted,
                 'collections_processed': collections_processed,
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             }
 
         except Exception as e:
@@ -96,7 +98,7 @@ class DataRetentionService:
                 'collections_processed': []
             }
 
-    def _process_user_retention(self, user_id: str) -> Dict[str, Any]:
+    def _process_user_retention(self, user_id: str) -> dict[str, Any]:
         """Process data retention for a specific user"""
         total_deleted = 0
         collections = []
@@ -124,7 +126,7 @@ class DataRetentionService:
 
     def _delete_expired_data(self, user_id: str, collection_name: str, retention_days: int) -> int:
         """Delete data older than retention period for a specific collection"""
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
         cutoff_iso = cutoff_date.isoformat()
 
         deleted_count = 0
@@ -212,7 +214,7 @@ class DataRetentionService:
 
         return deleted_count
 
-    def get_retention_status(self, user_id: str) -> Dict[str, Any]:
+    def get_retention_status(self, user_id: str) -> dict[str, Any]:
         """Get current data retention status for a user"""
         status = {}
 
@@ -231,12 +233,12 @@ class DataRetentionService:
         return {
             'user_id': user_id,
             'retention_status': status,
-            'next_cleanup': (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            'next_cleanup': (datetime.now(UTC) + timedelta(days=1)).isoformat()
         }
 
     def _count_expired_data(self, user_id: str, collection_name: str, retention_days: int) -> int:
         """Count expired data without deleting"""
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
         cutoff_iso = cutoff_date.isoformat()
 
         try:

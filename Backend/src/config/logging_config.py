@@ -9,14 +9,14 @@ Provides comprehensive logging setup with:
 - Security event logging
 """
 
-import os
+import json
 import logging
 import logging.config
-import json
+import os
 import sys
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         # Create base log entry
         log_entry = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
@@ -75,7 +75,7 @@ class SecurityFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'level': record.levelname,
             'event_type': getattr(record, 'event_type', 'unknown'),
             'message': record.getMessage(),
@@ -104,7 +104,7 @@ def setup_logging(
     max_file_size: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
     enable_security_logging: bool = True
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Set up comprehensive logging configuration
 

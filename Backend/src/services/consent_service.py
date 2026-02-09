@@ -4,8 +4,9 @@ Manages user consent for data processing and feature access
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from datetime import UTC, datetime
+from typing import Any
+
 from ..firebase_config import db
 from .audit_service import audit_service
 
@@ -54,7 +55,7 @@ class ConsentService:
             }
         }
 
-    def check_consent(self, user_id: str, consent_type: str) -> Dict[str, Any]:
+    def check_consent(self, user_id: str, consent_type: str) -> dict[str, Any]:
         """
         Check if user has given consent for a specific type
 
@@ -104,7 +105,7 @@ class ConsentService:
                 'error': str(e)
             }
 
-    def grant_consent(self, user_id: str, consent_type: str, version: Optional[str] = None) -> bool:
+    def grant_consent(self, user_id: str, consent_type: str, version: str | None = None) -> bool:
         """
         Grant consent for a specific type
 
@@ -125,7 +126,7 @@ class ConsentService:
 
             consent_data = {
                 'granted': True,
-                'granted_at': datetime.now(timezone.utc).isoformat(),
+                'granted_at': datetime.now(UTC).isoformat(),
                 'version': current_version,
                 'withdrawn': False
             }
@@ -133,7 +134,7 @@ class ConsentService:
             # Update user document
             db.collection('users').document(user_id).update({  # type: ignore
                 f'consents.{consent_type}': consent_data,
-                'updated_at': datetime.now(timezone.utc)
+                'updated_at': datetime.now(UTC)
             })
 
             # Audit log
@@ -168,8 +169,8 @@ class ConsentService:
             # Update consent record
             db.collection('users').document(user_id).update({  # type: ignore
                 f'consents.{consent_type}.withdrawn': True,
-                f'consents.{consent_type}.withdrawn_at': datetime.now(timezone.utc).isoformat(),
-                'updated_at': datetime.now(timezone.utc)
+                f'consents.{consent_type}.withdrawn_at': datetime.now(UTC).isoformat(),
+                'updated_at': datetime.now(UTC)
             })
 
             # Audit log
@@ -188,7 +189,7 @@ class ConsentService:
             logger.error(f"Error withdrawing consent for user {user_id}: {str(e)}")
             return False
 
-    def get_user_consents(self, user_id: str) -> Dict[str, Any]:
+    def get_user_consents(self, user_id: str) -> dict[str, Any]:
         """Get all consent records for a user"""
         try:
             user_doc = db.collection('users').document(user_id).get()  # type: ignore
@@ -201,7 +202,7 @@ class ConsentService:
             # Add metadata for each consent type
             result = {}
             for consent_type, metadata in self.required_consents.items():
-                consent_record = consents.get(consent_type, {})
+                consents.get(consent_type, {})
                 result[consent_type] = {
                     **metadata,
                     'status': self.check_consent(user_id, consent_type)
@@ -213,7 +214,7 @@ class ConsentService:
             logger.error(f"Error getting user consents for {user_id}: {str(e)}")
             return {'error': str(e)}
 
-    def validate_feature_access(self, user_id: str, feature: str) -> Dict[str, Any]:
+    def validate_feature_access(self, user_id: str, feature: str) -> dict[str, Any]:
         """
         Validate if user has required consents for a feature
 
@@ -257,7 +258,7 @@ class ConsentService:
             'missing_consents': missing_consents
         }
 
-    def require_consent(self, consent_types: List[str]):
+    def require_consent(self, consent_types: list[str]):
         """
         Decorator to require specific consents for route access
 
@@ -266,7 +267,7 @@ class ConsentService:
         """
         def decorator(f):
             def wrapper(*args, **kwargs):
-                from flask import g, request, jsonify
+                from flask import g, jsonify, request
 
                 user_id = getattr(g, 'user_id', None)
                 if not user_id:

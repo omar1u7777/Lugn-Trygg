@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..firebase_config import db
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PRIVACY_SETTINGS: Dict[str, Any] = {
+DEFAULT_PRIVACY_SETTINGS: dict[str, Any] = {
     "encryptLocalStorage": True,
     "dataRetentionDays": 365,
     "autoDeleteOldData": False,
@@ -24,10 +24,10 @@ class PrivacySettingsService:
 
     def __init__(self, cache_ttl_seconds: int = 300):
         self._cache_ttl_seconds = cache_ttl_seconds
-        self._cached_summary: Optional[Dict[str, Any]] = None
-        self._cache_expires_at: Optional[datetime] = None
+        self._cached_summary: dict[str, Any] | None = None
+        self._cache_expires_at: datetime | None = None
 
-    def get_anonymization_summary(self) -> Dict[str, Any]:
+    def get_anonymization_summary(self) -> dict[str, Any]:
         """Return aggregated anonymization settings for admin monitoring."""
         now = datetime.now(UTC)
         if self._cached_summary and self._cache_expires_at and now < self._cache_expires_at:
@@ -46,9 +46,9 @@ class PrivacySettingsService:
             "auto_delete_enabled": 0,
             "defaults_applied": 0,
         }
-        retention_distribution: Dict[str, int] = {}
-        oldest_update: Optional[datetime] = None
-        newest_update: Optional[datetime] = None
+        retention_distribution: dict[str, int] = {}
+        oldest_update: datetime | None = None
+        newest_update: datetime | None = None
 
         try:
             users_ref = db.collection("users")
@@ -117,7 +117,7 @@ class PrivacySettingsService:
         self._cache(summary, now)
         return summary
 
-    def _build_preference_snapshot(self, enabled: int, total: int) -> Dict[str, Any]:
+    def _build_preference_snapshot(self, enabled: int, total: int) -> dict[str, Any]:
         disabled = max(total - enabled, 0)
         return {
             "enabled": enabled,
@@ -125,7 +125,7 @@ class PrivacySettingsService:
             "enabled_ratio": self._safe_ratio(enabled, total),
         }
 
-    def _cache(self, summary: Dict[str, Any], now: datetime, ttl_seconds: Optional[int] = None) -> None:
+    def _cache(self, summary: dict[str, Any], now: datetime, ttl_seconds: int | None = None) -> None:
         ttl = timedelta(seconds=ttl_seconds or self._cache_ttl_seconds)
         self._cached_summary = summary
         self._cache_expires_at = now + ttl
@@ -137,7 +137,7 @@ class PrivacySettingsService:
         return round(part / whole, 4)
 
     @staticmethod
-    def _build_error_summary(error: str, now: datetime) -> Dict[str, Any]:
+    def _build_error_summary(error: str, now: datetime) -> dict[str, Any]:
         return {
             "status": "error",
             "error": error,
@@ -150,7 +150,7 @@ class PrivacySettingsService:
         }
 
 
-def _parse_datetime(value: Any) -> Optional[datetime]:
+def _parse_datetime(value: Any) -> datetime | None:
     if isinstance(value, datetime):
         return value if value.tzinfo else value.replace(tzinfo=UTC)
     if isinstance(value, str):

@@ -3,15 +3,17 @@ Rate Limiting Management Routes
 API endpoints for monitoring and managing rate limits
 """
 
-from flask import Blueprint, jsonify, request, g
-from typing import Optional
-from src.services.rate_limiting import rate_limiter, get_rate_limit_status, rate_limit_by_endpoint
-from src.services.auth_service import AuthService
-from src.services.audit_service import log_admin_action, audit_log
-from src.utils.response_utils import APIResponse
-from src.utils.input_sanitization import sanitize_text
-from .admin_routes import require_admin
 import logging
+
+from flask import Blueprint, g
+
+from src.services.audit_service import audit_log, log_admin_action
+from src.services.auth_service import AuthService
+from src.services.rate_limiting import get_rate_limit_status, rate_limit_by_endpoint, rate_limiter
+from src.utils.input_sanitization import sanitize_text
+from src.utils.response_utils import APIResponse
+
+from .admin_routes import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ rate_limit_bp = Blueprint('rate_limit', __name__)
 @rate_limit_bp.route('/test/<category>', methods=['OPTIONS'])
 @rate_limit_bp.route('/reset/<category>', methods=['OPTIONS'])
 @rate_limit_bp.route('/stats', methods=['OPTIONS'])
-def handle_options(category: Optional[str] = None):
+def handle_options(category: str | None = None):
     """Handle CORS preflight requests"""
     return APIResponse.success()
 

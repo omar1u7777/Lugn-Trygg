@@ -1,11 +1,12 @@
 import logging
-from flask import Blueprint, request, jsonify, g
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from flask import Blueprint, g, request
+
 from src.firebase_config import db
+from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
-from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
 ALLOWED_LOCALES = {'sv', 'en', 'no'}
@@ -78,7 +79,7 @@ def generate_therapeutic_story():
             story_result = ai_services._fallback_therapeutic_story(mood_history, locale)
 
         # Save story generation to database for tracking
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         story_ref = db_handle.collection("users").document(user_id).collection("stories")
 
         story_ref.document(f"story_{timestamp}").set({
@@ -188,7 +189,7 @@ def generate_ai_mood_forecast():
             forecast_result = ai_services.predictive_mood_analytics(mood_history, days_ahead)
 
         # Save forecast to database for tracking
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         forecast_ref = db_handle.collection("users").document(user_id).collection("forecasts")
 
         forecast_ref.document(f"forecast_{timestamp}").set({

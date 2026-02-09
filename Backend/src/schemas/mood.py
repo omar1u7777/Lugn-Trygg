@@ -3,16 +3,16 @@ Mood tracking and analysis schemas
 Pydantic models for mood logging, analysis, and therapeutic content
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date
-from enum import Enum
-from .base import (
-    BaseRequest, BaseResponse, SanitizedString, MoodValue,
-    validate_safe_string
-)
+from datetime import date, datetime
+from enum import StrEnum
+from typing import Any
 
-class MoodCategory(str, Enum):
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from .base import BaseRequest, BaseResponse, MoodValue, SanitizedString, validate_safe_string
+
+
+class MoodCategory(StrEnum):
     """Mood categories for classification"""
     JOYFUL = "glad"
     STRESSED = "stressad"
@@ -25,14 +25,14 @@ class MoodCategory(str, Enum):
     MOTIVATED = "motiverad"
     CONFUSED = "förvirrad"
 
-class MoodIntensity(str, Enum):
+class MoodIntensity(StrEnum):
     """Mood intensity levels"""
     LOW = "låg"
     MEDIUM = "måttlig"
     HIGH = "hög"
     EXTREME = "extrem"
 
-class TriggerType(str, Enum):
+class TriggerType(StrEnum):
     """Types of mood triggers"""
     WORK = "arbete"
     RELATIONSHIPS = "relationer"
@@ -45,15 +45,15 @@ class TriggerType(str, Enum):
 class MoodLogRequest(BaseRequest):
     """Mood logging request"""
     mood_value: MoodValue = Field(..., ge=1, le=10, description="Mood value (1-10)")
-    category: Optional[MoodCategory] = None
-    intensity: Optional[MoodIntensity] = None
-    note: Optional[SanitizedString] = Field(None, max_length=1000, description="Optional mood note")
-    voice_data: Optional[str] = Field(None, description="Base64 encoded voice recording")
-    triggers: Optional[List[TriggerType]] = Field(default_factory=list, max_length=5)
-    location: Optional[Dict[str, float]] = None  # {"lat": float, "lng": float}
-    weather: Optional[Dict[str, Any]] = None  # Weather context
-    activities: Optional[List[SanitizedString]] = Field(default_factory=list, max_length=10)
-    timestamp: Optional[datetime] = None
+    category: MoodCategory | None = None
+    intensity: MoodIntensity | None = None
+    note: SanitizedString | None = Field(None, max_length=1000, description="Optional mood note")
+    voice_data: str | None = Field(None, description="Base64 encoded voice recording")
+    triggers: list[TriggerType] | None = Field(default_factory=list, max_length=5)
+    location: dict[str, float] | None = None  # {"lat": float, "lng": float}
+    weather: dict[str, Any] | None = None  # Weather context
+    activities: list[SanitizedString] | None = Field(default_factory=list, max_length=10)
+    timestamp: datetime | None = None
 
     @field_validator('note', mode='before')
     @classmethod
@@ -87,20 +87,20 @@ class MoodEntry(BaseModel):
     id: str
     user_id: str
     mood_value: MoodValue
-    category: Optional[MoodCategory]
-    intensity: Optional[MoodIntensity]
-    note: Optional[SanitizedString]
-    voice_transcript: Optional[str]
-    triggers: List[TriggerType] = Field(default_factory=list)
-    location: Optional[Dict[str, float]]
-    weather: Optional[Dict[str, Any]]
-    activities: List[SanitizedString] = Field(default_factory=list)
+    category: MoodCategory | None
+    intensity: MoodIntensity | None
+    note: SanitizedString | None
+    voice_transcript: str | None
+    triggers: list[TriggerType] = Field(default_factory=list)
+    location: dict[str, float] | None
+    weather: dict[str, Any] | None
+    activities: list[SanitizedString] = Field(default_factory=list)
     timestamp: datetime
 
     # AI analysis
-    sentiment_score: Optional[float] = Field(None, ge=-1, le=1)
-    keywords: List[str] = Field(default_factory=list)
-    ai_insights: Optional[Dict[str, Any]] = None
+    sentiment_score: float | None = Field(None, ge=-1, le=1)
+    keywords: list[str] = Field(default_factory=list)
+    ai_insights: dict[str, Any] | None = None
 
     # System fields
     created_at: datetime
@@ -112,12 +112,12 @@ class MoodEntry(BaseModel):
 
 class MoodUpdateRequest(BaseRequest):
     """Update mood entry request"""
-    mood_value: Optional[MoodValue] = None
-    category: Optional[MoodCategory] = None
-    intensity: Optional[MoodIntensity] = None
-    note: Optional[SanitizedString] = Field(None, max_length=1000)
-    triggers: Optional[List[TriggerType]] = None
-    activities: Optional[List[SanitizedString]] = None
+    mood_value: MoodValue | None = None
+    category: MoodCategory | None = None
+    intensity: MoodIntensity | None = None
+    note: SanitizedString | None = Field(None, max_length=1000)
+    triggers: list[TriggerType] | None = None
+    activities: list[SanitizedString] | None = None
 
     @field_validator('note', mode='before')
     @classmethod
@@ -148,8 +148,8 @@ class MoodTrend(BaseModel):
     trend_direction: str  # improving, declining, stable
     trend_strength: float = Field(ge=0, le=1)  # 0-1 scale
     volatility: float = Field(ge=0)  # Mood variability
-    best_day: Optional[str] = None
-    worst_day: Optional[str] = None
+    best_day: str | None = None
+    worst_day: str | None = None
 
 class MoodCorrelation(BaseModel):
     """Mood correlation analysis"""
@@ -165,35 +165,35 @@ class MoodInsight(BaseModel):
     title: str
     description: str
     confidence: float = Field(ge=0, le=1)
-    severity: Optional[str] = None  # low, medium, high
+    severity: str | None = None  # low, medium, high
     actionable: bool = False
 
 class MoodAnalysis(BaseModel):
     """Complete mood analysis"""
     user_id: str
     period: str
-    date_range: Dict[str, datetime]
+    date_range: dict[str, datetime]
 
     # Basic statistics
     total_entries: int
     average_mood: float = Field(ge=1, le=10)
-    mood_distribution: Dict[str, int]  # category -> count
-    most_common_triggers: List[Dict[str, Any]]
+    mood_distribution: dict[str, int]  # category -> count
+    most_common_triggers: list[dict[str, Any]]
 
     # Trends
     trend: MoodTrend
 
     # Correlations (optional)
-    correlations: Optional[List[MoodCorrelation]] = None
+    correlations: list[MoodCorrelation] | None = None
 
     # AI insights
-    insights: List[MoodInsight] = Field(default_factory=list)
-    recommendations: List[str] = Field(default_factory=list)
+    insights: list[MoodInsight] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
 
     # Risk assessment
     risk_level: str  # low, medium, high
-    risk_factors: List[str] = Field(default_factory=list)
-    crisis_indicators: List[str] = Field(default_factory=list)
+    risk_factors: list[str] = Field(default_factory=list)
+    crisis_indicators: list[str] = Field(default_factory=list)
 
     # Generated at
     generated_at: datetime
@@ -213,10 +213,10 @@ class VoiceAnalysisResult(BaseModel):
     """Voice analysis result"""
     transcript: str
     confidence: float = Field(ge=0, le=1)
-    detected_mood: Optional[MoodValue] = None
+    detected_mood: MoodValue | None = None
     sentiment_score: float = Field(ge=-1, le=1)
-    emotional_indicators: Dict[str, float] = Field(default_factory=dict)
-    speech_characteristics: Dict[str, Any] = Field(default_factory=dict)
+    emotional_indicators: dict[str, float] = Field(default_factory=dict)
+    speech_characteristics: dict[str, Any] = Field(default_factory=dict)
 
 # Prediction schemas
 class MoodPredictionRequest(BaseRequest):
@@ -230,7 +230,7 @@ class MoodPrediction(BaseModel):
     date: date
     predicted_mood: float = Field(ge=1, le=10)
     confidence: float = Field(ge=0, le=1)
-    factors: List[Dict[str, Any]] = Field(default_factory=list)
+    factors: list[dict[str, Any]] = Field(default_factory=list)
     risk_assessment: str  # low, medium, high
 
 # Response schemas
@@ -240,9 +240,9 @@ class MoodLogResponse(BaseResponse):
 
 class MoodListResponse(BaseResponse):
     """Mood entries list response"""
-    entries: List[MoodEntry]
+    entries: list[MoodEntry]
     total: int
-    pagination: Dict[str, Any]
+    pagination: dict[str, Any]
 
 class MoodAnalysisResponse(BaseResponse):
     """Mood analysis response"""
@@ -251,30 +251,30 @@ class MoodAnalysisResponse(BaseResponse):
 class VoiceAnalysisResponse(BaseResponse):
     """Voice analysis response"""
     analysis: VoiceAnalysisResult
-    suggested_mood: Optional[MoodValue] = None
+    suggested_mood: MoodValue | None = None
 
 class MoodPredictionResponse(BaseResponse):
     """Mood prediction response"""
-    predictions: List[MoodPrediction]
+    predictions: list[MoodPrediction]
     model_accuracy: float = Field(ge=0, le=1)
     prediction_period: str
 
 # Bulk operations
 class BulkMoodDeleteRequest(BaseRequest):
     """Bulk delete mood entries"""
-    entry_ids: List[str] = Field(..., max_length=100, description="IDs of entries to delete")
+    entry_ids: list[str] = Field(..., max_length=100, description="IDs of entries to delete")
 
 class BulkMoodUpdateRequest(BaseRequest):
     """Bulk update mood entries"""
-    updates: Dict[str, Any] = Field(..., description="Fields to update")
-    entry_ids: List[str] = Field(..., max_length=50, description="IDs of entries to update")
+    updates: dict[str, Any] = Field(..., description="Fields to update")
+    entry_ids: list[str] = Field(..., max_length=50, description="IDs of entries to update")
 
 # Export schemas
 class MoodExportRequest(BaseRequest):
     """Mood data export request"""
     format: str = Field(..., pattern=r'^(json|csv|pdf)$', description="Export format")
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+    date_from: date | None = None
+    date_to: date | None = None
     include_analysis: bool = True
     include_insights: bool = True
 
@@ -287,12 +287,12 @@ class MoodExportResponse(BaseResponse):
     format: str
 
 # Validation utilities
-def validate_mood_data(data: Dict[str, Any]) -> MoodLogRequest:
+def validate_mood_data(data: dict[str, Any]) -> MoodLogRequest:
     """Validate mood logging data"""
     try:
         return MoodLogRequest(**data)
     except Exception as e:
-        raise ValueError(f"Mood data validation failed: {str(e)}")
+        raise ValueError(f"Mood data validation failed: {str(e)}") from e
 
 def sanitize_mood_note(note: str) -> str:
     """Sanitize mood note content"""

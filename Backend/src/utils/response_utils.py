@@ -6,7 +6,8 @@ All responses follow a standardized JSON structure for better frontend integrati
 """
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 from flask import jsonify
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class APIResponse:
         data: Any = None,
         message: str = "Operation completed successfully",
         status_code: int = 200,
-        meta: Optional[Dict[str, Any]] = None
+        meta: dict[str, Any] | None = None
     ) -> tuple:
         """
         Create a standardized success response.
@@ -51,7 +52,7 @@ class APIResponse:
         message: str = "An error occurred",
         error_code: str = "INTERNAL_ERROR",
         status_code: int = 500,
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """
         Create a standardized error response.
@@ -81,7 +82,7 @@ class APIResponse:
     def created(
         data: Any = None,
         message: str = "Resource created successfully",
-        meta: Optional[Dict[str, Any]] = None
+        meta: dict[str, Any] | None = None
     ) -> tuple:
         """Create a standardized 201 Created response."""
         return APIResponse.success(data, message, 201, meta)
@@ -96,7 +97,7 @@ class APIResponse:
     @staticmethod
     def bad_request(
         message: str = "Invalid request",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 400 Bad Request response."""
         return APIResponse.error(message, "BAD_REQUEST", 400, details)
@@ -104,7 +105,7 @@ class APIResponse:
     @staticmethod
     def unauthorized(
         message: str = "Authentication required",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 401 Unauthorized response."""
         return APIResponse.error(message, "UNAUTHORIZED", 401, details)
@@ -112,7 +113,7 @@ class APIResponse:
     @staticmethod
     def forbidden(
         message: str = "Access denied",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 403 Forbidden response."""
         return APIResponse.error(message, "FORBIDDEN", 403, details)
@@ -120,7 +121,7 @@ class APIResponse:
     @staticmethod
     def not_found(
         message: str = "Resource not found",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 404 Not Found response."""
         return APIResponse.error(message, "NOT_FOUND", 404, details)
@@ -128,7 +129,7 @@ class APIResponse:
     @staticmethod
     def conflict(
         message: str = "Resource conflict",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 409 Conflict response."""
         return APIResponse.error(message, "CONFLICT", 409, details)
@@ -136,7 +137,7 @@ class APIResponse:
     @staticmethod
     def unprocessable_entity(
         message: str = "Validation failed",
-        details: Optional[Any] = None
+        details: Any | None = None
     ) -> tuple:
         """Create a standardized 422 Unprocessable Entity response."""
         return APIResponse.error(message, "VALIDATION_ERROR", 422, details)

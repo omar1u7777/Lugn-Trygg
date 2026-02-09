@@ -1,5 +1,6 @@
-import bcrypt
 import logging
+
+import bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,7 @@ COST_FACTOR = 12  # Rekommenderat: 12-14 för optimal säkerhet och prestanda
 def hash_password(password: str) -> str:
     """
     🔹 Hashar ett lösenord med bcrypt.
-    
+
     Args:
         password (str): Det lösenord som ska hashas.
 
@@ -25,7 +26,7 @@ def hash_password(password: str) -> str:
         return hashed_password
     except Exception as e:
         logger.exception(f"🔥 Fel vid lösenordshashning: {str(e)}")
-        raise ValueError("Ett fel uppstod vid hashning av lösenord.")
+        raise ValueError("Ett fel uppstod vid hashning av lösenord.") from e
 
 def verify_password(password: str, hashed: str) -> bool:
     """
@@ -122,7 +123,7 @@ if __name__ == "__main__":
     test_password = os.getenv("TEST_PASSWORD", "TestP@ssw0rd!")  # nosec B105
     hashed_pw = hash_password(test_password)
     print(f"🔐 Hashat lösenord: {hashed_pw}")
-    
+
     # Verification test
     is_valid = verify_password(test_password, hashed_pw)
     print(f"✅ Lösenordsverifiering: {'Lyckades' if is_valid else 'Misslyckades'}")

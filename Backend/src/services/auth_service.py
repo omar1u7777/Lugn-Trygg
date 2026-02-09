@@ -1,32 +1,31 @@
-from typing import Tuple, Optional, Dict, Any, TYPE_CHECKING
-from datetime import datetime, timezone
+import hashlib
+import json
 import logging
+import secrets
+from datetime import UTC, datetime
+from functools import wraps
+from typing import TYPE_CHECKING, Any
+
 import jwt
 import requests
-import secrets
-import hashlib
-import base64
-import json
-from functools import wraps
-from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
-    generate_authentication_options,
-    verify_authentication_response
-)
-from webauthn.helpers import (
-    base64url_to_bytes,
-    bytes_to_base64url,
-    options_to_json_dict
-)
-from webauthn.helpers.structs import UserVerificationRequirement
+from flask import jsonify, request
 from google.cloud.firestore_v1.base_query import FieldFilter
-from flask import request, jsonify
-from ..utils import convert_email_to_punycode  # Flyttad till utils.py
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url, options_to_json_dict
+from webauthn.helpers.structs import UserVerificationRequirement
+
 from ..firebase_config import (
     auth as firebase_auth,
+)
+from ..firebase_config import (
     db,
 )
+from ..utils import convert_email_to_punycode  # Flyttad till utils.py
 from .tamper_detection_service import tamper_detection_service
 
 # Type checking imports for Pylance
@@ -37,32 +36,28 @@ if TYPE_CHECKING:
 # Runtime type hints with None fallback for lazy initialization
 _db: "_FirestoreClient" = db  # type: ignore[assignment]
 _auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
-from ..models.user import User
-from ..services.audit_service import AuditService
 from ..config import (
-    JWT_SECRET_KEY,
-    JWT_REFRESH_SECRET_KEY,
     ACCESS_TOKEN_EXPIRES,
-    REFRESH_TOKEN_EXPIRES,
     FIREBASE_WEB_API_KEY,
-    WEBAUTHN_RP_ID,
-    WEBAUTHN_RP_NAME,
-    WEBAUTHN_ORIGIN,
-    MAX_FAILED_LOGIN_ATTEMPTS,
+    JWT_REFRESH_SECRET_KEY,
+    JWT_SECRET_KEY,
     LOCKOUT_DURATION_MINUTES_FIRST,
     LOCKOUT_DURATION_MINUTES_SECOND,
-    LOCKOUT_DURATION_MINUTES_THIRD
+    LOCKOUT_DURATION_MINUTES_THIRD,
+    MAX_FAILED_LOGIN_ATTEMPTS,
+    REFRESH_TOKEN_EXPIRES,
+    WEBAUTHN_ORIGIN,
+    WEBAUTHN_RP_ID,
+    WEBAUTHN_RP_NAME,
 )
+from ..models.user import User
+from ..services.audit_service import AuditService
 from ..utils.error_handling import (
-    handle_service_errors,
-    ServiceError,
     ValidationError,
-    AuthenticationError,
-    AuthorizationError,
-    NotFoundError,
-    ERROR_MESSAGES
+    handle_service_errors,
 )
 from ..utils.password_utils import verify_password as utils_verify_password
+
 
 # Password reset request model
 class ConfirmPasswordResetRequest:
@@ -105,7 +100,7 @@ class AuthService:
         user_data = {
             "email": email,
             "email_punycode": punycode_email,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "last_login": None
         }
 
@@ -120,7 +115,7 @@ class AuthService:
         return user
 
     @staticmethod
-    def verify_user_identity(user_id: str) -> Tuple[Optional[User], Optional[str]]:
+    def verify_user_identity(user_id: str) -> tuple[User | None, str | None]:
         """Verify user identity for account changes"""
         try:
             # Get user record from Firebase Auth
@@ -133,7 +128,7 @@ class AuthService:
             return None, "User could not be verified"
 
     @staticmethod
-    def login_user(email: str, password: str) -> Tuple[Optional[User], Optional[str], Optional[str], Optional[str]]:
+    def login_user(email: str, password: str) -> tuple[User | None, str | None, str | None, str | None]:
         """
         Login user with email and password
 
@@ -151,7 +146,7 @@ class AuthService:
             if is_locked:
                 logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
                 logger.info(f"🔐 DEBUG: Account lockout detected for {email}")
-                
+
                 # Record security event for locked account access attempt
                 tamper_detection_service.record_event(
                     event_type='LOCKED_ACCOUNT_ACCESS',
@@ -163,7 +158,7 @@ class AuthService:
                         'lockout_message': lockout_message
                     }
                 )
-                
+
                 return None, lockout_message, None, None
             logger.info(f"🔐 DEBUG: No account lockout for {email}")
 
@@ -174,17 +169,17 @@ class AuthService:
                 "password": password,
                 "returnSecureToken": True
             }, timeout=10)
-            
+
             if signin_response.status_code != 200:
                 error_data = signin_response.json()
                 error_message = error_data.get("error", {}).get("message", "UNKNOWN_ERROR")
                 logger.warning(f"Firebase login failed: {error_message}")
                 raise Exception(f"Firebase auth failed: {error_message}")
-            
+
             signin_data = signin_response.json()
             user_uid = signin_data.get("localId")
             user_email = signin_data.get("email")
-            
+
             if not user_uid:
                 raise Exception("No user ID returned from Firebase")
 
@@ -198,7 +193,7 @@ class AuthService:
             # Store refresh token
             _db.collection("refresh_tokens").document(user_uid).set({
                 "jwt_refresh_token": refresh_token,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(UTC).isoformat()
             }, merge=True)
 
             user = User(uid=str(user_uid), email=str(user_email))
@@ -229,7 +224,7 @@ class AuthService:
             return None, "Invalid email or password", None, None
 
     @staticmethod
-    def login_with_id_token(id_token: str) -> Tuple[Optional[User], Optional[str], Optional[str], Optional[str]]:
+    def login_with_id_token(id_token: str) -> tuple[User | None, str | None, str | None, str | None]:
         """Verifierar Firebase ID-token och genererar JWT tokens med account lockout protection"""
         email = None
         try:
@@ -250,7 +245,7 @@ class AuthService:
                 is_locked, lockout_message = AuthService.check_account_lockout(email)
                 if is_locked:
                     logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
-                    
+
                     # Record security event for locked account access attempt
                     tamper_detection_service.record_event(
                         event_type='LOCKED_ACCOUNT_ACCESS',
@@ -262,7 +257,7 @@ class AuthService:
                             'lockout_message': lockout_message
                         }
                     )
-                    
+
                     return None, f"Account is locked out due to too many failed attempts. {lockout_message}", None, None
 
             # Verify ID token with Firebase Admin SDK
@@ -286,7 +281,7 @@ class AuthService:
             # Save refresh token in Firestore
             _db.collection("refresh_tokens").document(user_id).set({
                 "jwt_refresh_token": refresh_token,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(UTC).isoformat()
             }, merge=True)
 
             user = User(uid=str(user_record.uid), email=str(user_record.email))
@@ -319,7 +314,7 @@ class AuthService:
 
 
     @staticmethod
-    def refresh_token(user_id: str) -> Tuple[Optional[str], Optional[str]]:
+    def refresh_token(user_id: str) -> tuple[str | None, str | None]:
         """Renew access token using our own JWT refresh token"""
         try:
             # Get our JWT refresh token from Firestore
@@ -332,7 +327,7 @@ class AuthService:
             if not refresh_data:
                 logger.warning(f"⛔ Empty refresh token data for UID: {user_id}")
                 return None, "Invalid refresh token"
-                
+
             jwt_refresh_token = refresh_data.get("jwt_refresh_token")
 
             if not jwt_refresh_token:
@@ -370,7 +365,7 @@ class AuthService:
         """Generate JWT access token"""
         return jwt.encode({
             "sub": user_id,
-            "exp": datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRES
+            "exp": datetime.now(UTC) + ACCESS_TOKEN_EXPIRES
         }, JWT_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
@@ -378,11 +373,11 @@ class AuthService:
         """Generate JWT refresh token"""
         return jwt.encode({
             "sub": user_id,
-            "exp": datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRES
+            "exp": datetime.now(UTC) + REFRESH_TOKEN_EXPIRES
         }, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
-    def logout(user_id: str) -> Tuple[Optional[str], Optional[str]]:
+    def logout(user_id: str) -> tuple[str | None, str | None]:
         """Remove refresh token on logout"""
         try:
             _db.collection("refresh_tokens").document(user_id).delete()
@@ -397,7 +392,7 @@ class AuthService:
             return None, f"Internal error during logout: {str(e)}"
 
     @staticmethod
-    def verify_token(token: str) -> Tuple[Optional[str], Optional[str]]:
+    def verify_token(token: str) -> tuple[str | None, str | None]:
         """Verify JWT token and return user_id if valid"""
         # CRITICAL FIX: Enhanced token validation with security checks
         try:
@@ -405,27 +400,27 @@ class AuthService:
             if not token or len(token) < 20:
                 logger.warning("⚠️ Invalid token format (too short)")
                 return None, "Invalid token format"
-            
+
             # CRITICAL FIX: Validate token structure (JWT has 3 parts separated by dots)
             if token.count('.') != 2:
                 logger.warning("⚠️ Invalid token structure")
                 return None, "Invalid token format"
-            
+
             # Decode and verify token
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
             user_id = payload.get("sub")
-            
+
             if not user_id:
                 logger.warning("⚠️ Token missing user_id (sub claim)")
                 return None, "Invalid token content"
-            
+
             # CRITICAL FIX: Validate user_id format (should be alphanumeric)
             if not isinstance(user_id, str) or len(user_id) < 10:
                 logger.warning(f"⚠️ Invalid user_id format: {user_id}")
                 return None, "Invalid user ID in token"
-            
+
             return user_id, None
-            
+
         except jwt.ExpiredSignatureError:
             logger.warning("⚠️ Token expired")
             return None, "Token has expired"
@@ -441,12 +436,12 @@ class AuthService:
         """Decorator requiring valid JWT token - OPTIMIZED for performance"""
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            from flask import request, g
-            
+            from flask import g, request
+
             # Fast-path for OPTIONS preflight requests
             if request.method == 'OPTIONS':
                 return ('', 204)
-            
+
             # Get and validate authorization header
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
@@ -459,13 +454,13 @@ class AuthService:
 
             # Set user_id in Flask g context
             g.user_id = user_id
-            
+
             return f(*args, **kwargs)
         return decorated_function
 
     # WebAuthn 2FA Methods
     @staticmethod
-    def generate_webauthn_challenge(user_id: str) -> Dict[str, Any]:
+    def generate_webauthn_challenge(user_id: str) -> dict[str, Any]:
         """Generate WebAuthn challenge for registration using proper WebAuthn library"""
         try:
             # Generate registration options using webauthn library
@@ -481,7 +476,7 @@ class AuthService:
             challenge_b64 = bytes_to_base64url(registration_options.challenge)
             _db.collection("webauthn_challenges").document(user_id).set({
                 "challenge": challenge_b64,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "type": "registration"
             })
 
@@ -494,7 +489,7 @@ class AuthService:
             raise
 
     @staticmethod
-    def register_webauthn_credential(user_id: str, credential_data: Dict[str, Any]) -> bool:
+    def register_webauthn_credential(user_id: str, credential_data: dict[str, Any]) -> bool:
         """Register WebAuthn credential with full cryptographic verification"""
         try:
             # Get stored challenge
@@ -507,7 +502,7 @@ class AuthService:
             if not challenge_data:
                 logger.warning(f"Empty challenge data for user {user_id}")
                 return False
-                
+
             stored_challenge_b64 = challenge_data.get("challenge")
             if not stored_challenge_b64:
                 logger.warning(f"No challenge stored for user {user_id}")
@@ -534,7 +529,7 @@ class AuthService:
                 "credential_id": credential_id_b64,
                 "public_key": public_key_b64,
                 "sign_count": verification.sign_count,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(UTC).isoformat()
             })
 
             # Clean up challenge
@@ -552,7 +547,7 @@ class AuthService:
             return False
 
     @staticmethod
-    def authenticate_webauthn(user_id: str) -> Optional[Dict[str, Any]]:
+    def authenticate_webauthn(user_id: str) -> dict[str, Any] | None:
         """Generate WebAuthn authentication options"""
         try:
             # Get stored credentials for this user
@@ -578,7 +573,7 @@ class AuthService:
             challenge_b64 = bytes_to_base64url(auth_options.challenge)
             _db.collection("webauthn_challenges").document(user_id).set({
                 "challenge": challenge_b64,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "type": "authentication"
             })
 
@@ -591,7 +586,7 @@ class AuthService:
             return None
 
     @staticmethod
-    def verify_webauthn_assertion(user_id: str, assertion_data: Dict[str, Any]) -> bool:
+    def verify_webauthn_assertion(user_id: str, assertion_data: dict[str, Any]) -> bool:
         """Verify WebAuthn assertion with full cryptographic verification"""
         try:
             # Get stored challenge
@@ -604,7 +599,7 @@ class AuthService:
             if not challenge_data:
                 logger.warning(f"Empty challenge data for user {user_id}")
                 return False
-                
+
             stored_challenge_b64 = challenge_data.get("challenge")
             if not stored_challenge_b64:
                 logger.warning(f"No challenge stored for user {user_id}")
@@ -626,7 +621,7 @@ class AuthService:
             if not cred_data:
                 logger.warning(f"Empty credential data for {credential_id_b64}")
                 return False
-                
+
             if cred_data.get("user_id") != user_id:
                 logger.warning(f"Credential does not belong to user {user_id}")
                 return False
@@ -634,7 +629,7 @@ class AuthService:
             # Convert stored data back to bytes
             expected_challenge = base64url_to_bytes(stored_challenge_b64)
             credential_public_key = base64url_to_bytes(cred_data["public_key"])
-            credential_id = base64url_to_bytes(cred_data["credential_id"])
+            base64url_to_bytes(cred_data["credential_id"])
 
             # Verify the authentication response using webauthn library
             verification = verify_authentication_response(
@@ -650,7 +645,7 @@ class AuthService:
             # Update sign count
             _db.collection("webauthn_credentials").document(credential_id_b64).update({
                 "sign_count": verification.new_sign_count,
-                "last_used": datetime.now(timezone.utc).isoformat()
+                "last_used": datetime.now(UTC).isoformat()
             })
 
             # Clean up challenge
@@ -669,7 +664,7 @@ class AuthService:
 
     # Account Lockout Methods
     @staticmethod
-    def check_account_lockout(email: str) -> Tuple[bool, Optional[str]]:
+    def check_account_lockout(email: str) -> tuple[bool, str | None]:
         """Check if account is currently locked out"""
         try:
             # Get failed attempts document
@@ -682,14 +677,14 @@ class AuthService:
             data = doc.to_dict()
             if not data:
                 return False, None
-                
+
             lockout_until = data.get("lockout_until")
 
             if lockout_until:
                 # Parse the lockout_until timestamp
                 from ..utils.timestamp_utils import parse_iso_timestamp
                 lockout_time = parse_iso_timestamp(lockout_until, default_to_now=False)
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
 
                 if current_time < lockout_time:
                     remaining_minutes = int((lockout_time - current_time).total_seconds() / 60)
@@ -712,7 +707,7 @@ class AuthService:
             doc_ref = _db.collection("failed_login_attempts").document(email)
             doc = doc_ref.get()
 
-            current_time = datetime.now(timezone.utc).isoformat()
+            current_time = datetime.now(UTC).isoformat()
 
             attempt_count = 1
             if doc.exists:
@@ -734,7 +729,7 @@ class AuthService:
                         lockout_minutes = LOCKOUT_DURATION_MINUTES_THIRD
 
                     from datetime import timedelta
-                    lockout_until = (datetime.now(timezone.utc) + timedelta(minutes=lockout_minutes)).isoformat()
+                    lockout_until = (datetime.now(UTC) + timedelta(minutes=lockout_minutes)).isoformat()
 
                 doc_ref.update({
                     "attempt_count": attempt_count,
@@ -770,7 +765,6 @@ class AuthService:
     def generate_password_reset_token(user_id: str) -> str:
         """Generate a secure password reset token"""
         import secrets
-        import hashlib
         from datetime import datetime, timedelta
 
         # Generate a cryptographically secure random token
@@ -780,12 +774,12 @@ class AuthService:
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
         # Store token in database with expiry (1 hour)
-        expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        expiry = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
 
         try:
             _db.collection('password_reset_tokens').document(token_hash).set({
                 'user_id': user_id,
-                'created_at': datetime.now(timezone.utc).isoformat(),
+                'created_at': datetime.now(UTC).isoformat(),
                 'expires_at': expiry,
                 'used': False
             })
@@ -797,9 +791,8 @@ class AuthService:
         return token
 
     @staticmethod
-    def verify_password_reset_token(token: str) -> Tuple[Optional[str], Optional[str]]:
+    def verify_password_reset_token(token: str) -> tuple[str | None, str | None]:
         """Verify a password reset token and return user_id if valid"""
-        import hashlib
 
         # Hash the provided token
         token_hash = hashlib.sha256(token.encode()).hexdigest()
@@ -827,7 +820,7 @@ class AuthService:
             if expires_at:
                 from ..utils.timestamp_utils import parse_iso_timestamp
                 expiry_time = parse_iso_timestamp(expires_at, default_to_now=False)
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
 
                 if current_time > expiry_time:
                     logger.warning("Password reset token expired")
@@ -841,7 +834,7 @@ class AuthService:
             # Mark token as used
             _db.collection('password_reset_tokens').document(token_hash).update({
                 'used': True,
-                'used_at': datetime.now(timezone.utc).isoformat()
+                'used_at': datetime.now(UTC).isoformat()
             })
 
             logger.info(f"Password reset token verified for user {user_id}")
@@ -867,7 +860,7 @@ class AuthService:
 
     # Audit Integration
     @staticmethod
-    def _audit_log(event_type: str, user_id: str, details: Dict[str, Any]):
+    def _audit_log(event_type: str, user_id: str, details: dict[str, Any]):
         """Internal audit logging"""
         try:
             from flask import request

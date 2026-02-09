@@ -1,22 +1,23 @@
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Union, List
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 from ..utils.timestamp_utils import parse_iso_timestamp
+
 
 @dataclass
 class User:
     uid: str
     email: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    last_login: Optional[datetime] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_login: datetime | None = None
     email_verified: bool = field(default=False)
 
     def update_last_login(self):
         """🔹 Uppdatera senaste inloggningstid."""
-        self.last_login = datetime.now(timezone.utc)
+        self.last_login = datetime.now(UTC)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """🔹 Konverterar User-objekt till dictionary (t.ex. för Firestore-lagring)."""
         return {
             "uid": self.uid,
@@ -27,11 +28,11 @@ class User:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "User":
+    def from_dict(data: dict[str, Any]) -> "User":
         """🔹 Skapar en User-instans från en dictionary (t.ex. Firestore-data)."""
         email_verified_raw = data.get("email_verified", False)
         email_verified = bool(email_verified_raw) if not isinstance(email_verified_raw, bool) else email_verified_raw
-        
+
         return User(
             uid=data["uid"],
             email=data["email"],
@@ -46,17 +47,17 @@ class UserProfile:
     """User profile with extended information for display and personalization."""
     uid: str
     email: str
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    bio: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
     language: str = "sv"
     timezone: str = "Europe/Stockholm"
     onboarding_completed: bool = False
     subscription_tier: str = "free"
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: Optional[datetime] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "uid": self.uid,
             "email": self.email,
@@ -72,7 +73,7 @@ class UserProfile:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "UserProfile":
+    def from_dict(data: dict[str, Any]) -> "UserProfile":
         return UserProfile(
             uid=data.get("uid", ""),
             email=data.get("email", ""),
@@ -96,14 +97,14 @@ class UserPreferences:
     notifications_enabled: bool = True
     email_notifications: bool = True
     push_notifications: bool = True
-    daily_reminder_time: Optional[str] = "09:00"
+    daily_reminder_time: str | None = "09:00"
     weekly_summary: bool = True
     data_sharing_analytics: bool = False
     data_sharing_research: bool = False
     mood_reminder_frequency: str = "daily"
     language: str = "sv"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "uid": self.uid,
             "dark_mode": self.dark_mode,
@@ -119,7 +120,7 @@ class UserPreferences:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "UserPreferences":
+    def from_dict(data: dict[str, Any]) -> "UserPreferences":
         return UserPreferences(
             uid=data.get("uid", ""),
             dark_mode=data.get("dark_mode", False),

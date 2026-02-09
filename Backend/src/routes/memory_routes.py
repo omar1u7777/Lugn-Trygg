@@ -6,20 +6,21 @@ Uses Firebase Storage for file storage and Firestore for metadata
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 import re
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
-from flask import Blueprint, request as flask_request, g, Response
-from werkzeug.utils import secure_filename
+from datetime import UTC, datetime, timedelta
+
 from firebase_admin import storage
+from flask import Blueprint, Response, g
+from flask import request as flask_request
+from werkzeug.utils import secure_filename
 
 # Absolute imports (project standard)
 from src.firebase_config import db
+from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
@@ -73,26 +74,26 @@ def allowed_file(filename: str) -> bool:
 
 @memory_bp.route('', methods=['OPTIONS'])
 @memory_bp.route('/upload', methods=['OPTIONS'])
-def memory_base_options() -> Response | Tuple[Response, int]:
+def memory_base_options() -> Response | tuple[Response, int]:
     """Handle CORS preflight for base memory endpoints"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('/list/<user_id>', methods=['OPTIONS'])
-def memory_list_options(user_id: str) -> Response | Tuple[Response, int]:
+def memory_list_options(user_id: str) -> Response | tuple[Response, int]:
     """Handle CORS preflight for list memories endpoint"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('/get/<memory_id>', methods=['OPTIONS'])
-def memory_get_options(memory_id: str) -> Response | Tuple[Response, int]:
+def memory_get_options(memory_id: str) -> Response | tuple[Response, int]:
     """Handle CORS preflight for get memory endpoint"""
     return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('', methods=['GET'])
 @rate_limit_by_endpoint
-def memory_root_placeholder() -> Response | Tuple[Response, int]:
+def memory_root_placeholder() -> Response | tuple[Response, int]:
     """Return 404 for the legacy /api/memory endpoint used in integration smoke tests."""
     return APIResponse.not_found("Endpoint not available at this path")
 
@@ -104,16 +105,16 @@ def memory_root_placeholder() -> Response | Tuple[Response, int]:
 @memory_bp.route("/upload", methods=["POST"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def upload_memory() -> Response | Tuple[Response, int]:
+def upload_memory() -> Response | tuple[Response, int]:
     """Upload audio memory to Firebase Storage"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
-        
+        current_user_id: str | None = g.get('user_id')
+
         if "audio" not in flask_request.files:
             return APIResponse.bad_request("Audio file required")
 
         file = flask_request.files["audio"]
-        
+
         # Get user_id from form or use authenticated user
         form_user_id = flask_request.form.get("user_id", "").strip()
         if form_user_id:
@@ -129,7 +130,7 @@ def upload_memory() -> Response | Tuple[Response, int]:
             user_id = form_user_id
         else:
             user_id = current_user_id
-        
+
         if not user_id or not _validate_user_id(user_id):
             return APIResponse.bad_request("Invalid user ID")
 
@@ -144,7 +145,7 @@ def upload_memory() -> Response | Tuple[Response, int]:
         if file_length > MAX_FILE_SIZE:
             return APIResponse.bad_request("File too large. Max 10MB allowed")
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         extension = original_filename.rsplit(".", 1)[1].lower() if "." in original_filename else "mp3"
         filename = f"memories/{user_id}/{timestamp}.{extension}"
         secure_name = secure_filename(filename)
@@ -171,7 +172,7 @@ def upload_memory() -> Response | Tuple[Response, int]:
             "user_id": user_id,
             "file_path": secure_name,
             "timestamp": timestamp,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(UTC).isoformat()
         })
 
         # Generate secure temporary URL (1 hour validity)
@@ -200,12 +201,12 @@ def upload_memory() -> Response | Tuple[Response, int]:
 @memory_bp.route("/list/<user_id>", methods=["GET"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def list_memories(user_id: str) -> Response | Tuple[Response, int]:
+def list_memories(user_id: str) -> Response | tuple[Response, int]:
     """List all memories for a user"""
     logger.info(f"📸 MEMORY - LIST memories for user: {user_id}")
     try:
-        current_user_id: Optional[str] = g.get('user_id')
-        
+        current_user_id: str | None = g.get('user_id')
+
         # Sanitize and validate user_id
         user_id = input_sanitizer.sanitize(user_id, 'text', 100)
         if not user_id or not _validate_user_id(user_id):
@@ -249,7 +250,7 @@ def list_memories(user_id: str) -> Response | Tuple[Response, int]:
                 "createdAt": data.get("created_at")
             })
         memory_list.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-        
+
         logger.info(f"✅ MEMORY - Retrieved {len(memory_list)} memories for user {user_id}")
         return APIResponse.success({"memories": memory_list}, f"Retrieved {len(memory_list)} memories")
 
@@ -266,11 +267,11 @@ def list_memories(user_id: str) -> Response | Tuple[Response, int]:
 @memory_bp.route("/get/<memory_id>", methods=["GET"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def get_memory(memory_id: str) -> Response | Tuple[Response, int]:
+def get_memory(memory_id: str) -> Response | tuple[Response, int]:
     """Get signed URL for a specific memory"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
-        
+        current_user_id: str | None = g.get('user_id')
+
         # Sanitize and validate memory_id
         memory_id = input_sanitizer.sanitize(memory_id, 'text', 100)
         if not memory_id or not _validate_memory_id(memory_id):
@@ -331,11 +332,11 @@ def get_memory(memory_id: str) -> Response | Tuple[Response, int]:
 @memory_bp.route("/list/<memory_id>", methods=["DELETE"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
-def delete_memory(memory_id: str) -> Response | Tuple[Response, int]:
+def delete_memory(memory_id: str) -> Response | tuple[Response, int]:
     """Delete a specific memory"""
     try:
-        current_user_id: Optional[str] = g.get('user_id')
-        
+        current_user_id: str | None = g.get('user_id')
+
         # Sanitize and validate memory_id
         memory_id = input_sanitizer.sanitize(memory_id, 'text', 100)
         if not memory_id or not _validate_memory_id(memory_id):
@@ -394,7 +395,7 @@ def delete_memory(memory_id: str) -> Response | Tuple[Response, int]:
 
 @memory_bp.route('/<path:unsafe_path>', methods=['GET', 'POST', 'PUT', 'PATCH'])
 @rate_limit_by_endpoint
-def block_memory_path_traversal(unsafe_path: str) -> Response | Tuple[Response, int]:
+def block_memory_path_traversal(unsafe_path: str) -> Response | tuple[Response, int]:
     """Return 404 for any unexpected deep paths (prevents path traversal attacks).
     Note: DELETE is excluded as it's handled by delete_memory for valid paths."""
     normalized = unsafe_path.replace('\\', '/').split('/')

@@ -86,6 +86,7 @@ jobs:
           scan-ref: './Backend'
           format: 'sarif'
           output: 'trivy-backend.sarif'
+          exit-code: '0'
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4

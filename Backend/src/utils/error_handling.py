@@ -6,8 +6,9 @@ All services should use these utilities for uniform error handling and logging.
 """
 
 import logging
-from typing import Any, Callable, Optional, Tuple, TypeVar, Coroutine, cast
+from collections.abc import Callable, Coroutine
 from functools import wraps
+from typing import Any, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ T = TypeVar('T')
 class ServiceError(Exception):
     """Base exception for service-level errors"""
 
-    def __init__(self, message: str, error_code: str = "SERVICE_ERROR", details: Optional[Any] = None):
+    def __init__(self, message: str, error_code: str = "SERVICE_ERROR", details: Any | None = None):
         self.message = message
         self.error_code = error_code
         self.details = details
@@ -26,29 +27,29 @@ class ServiceError(Exception):
 
 class ValidationError(ServiceError):
     """Exception for validation errors"""
-    def __init__(self, message: str, details: Optional[Any] = None):
+    def __init__(self, message: str, details: Any | None = None):
         super().__init__(message, "VALIDATION_ERROR", details)
 
 
 class AuthenticationError(ServiceError):
     """Exception for authentication errors"""
-    def __init__(self, message: str, details: Optional[Any] = None):
+    def __init__(self, message: str, details: Any | None = None):
         super().__init__(message, "AUTHENTICATION_ERROR", details)
 
 
 class AuthorizationError(ServiceError):
     """Exception for authorization errors"""
-    def __init__(self, message: str, details: Optional[Any] = None):
+    def __init__(self, message: str, details: Any | None = None):
         super().__init__(message, "AUTHORIZATION_ERROR", details)
 
 
 class NotFoundError(ServiceError):
     """Exception for resource not found errors"""
-    def __init__(self, message: str, details: Optional[Any] = None):
+    def __init__(self, message: str, details: Any | None = None):
         super().__init__(message, "NOT_FOUND", details)
 
 
-def handle_service_errors(func: Callable[..., Any]) -> Callable[..., Tuple[Any, Optional[str]]]:
+def handle_service_errors(func: Callable[..., Any]) -> Callable[..., tuple[Any, str | None]]:
     """
     Decorator for service methods to provide standardized error handling.
 
@@ -62,7 +63,7 @@ def handle_service_errors(func: Callable[..., Any]) -> Callable[..., Tuple[Any, 
         Wrapped function that returns (result, error_message)
     """
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Tuple[Any, Optional[str]]:
+    def wrapper(*args: Any, **kwargs: Any) -> tuple[Any, str | None]:
         try:
             result = func(*args, **kwargs)
             return result, None
@@ -96,7 +97,7 @@ def handle_async_service_errors(func: Callable[..., Coroutine[Any, Any, T]]) -> 
             raise  # Re-raise service errors as-is
         except Exception as e:
             logger.exception(f"Unexpected error in async {func.__name__}: {str(e)}")
-            raise ServiceError("Ett internt fel uppstod. Försök igen senare.", "INTERNAL_ERROR", str(e))
+            raise ServiceError("Ett internt fel uppstod. Försök igen senare.", "INTERNAL_ERROR", str(e)) from e
 
     return cast(Callable[..., Coroutine[Any, Any, T]], wrapper)
 

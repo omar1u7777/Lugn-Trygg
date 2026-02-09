@@ -5,24 +5,25 @@ This module handles Firebase initialization, authentication, and service setup
 using environment variables and credentials.
 """
 
-import os
-import logging
-import time
 import asyncio
-from pathlib import Path
-from typing import Any, Dict, Optional, List, Union
+import logging
+import os
+import time
 from functools import wraps
-
-from dotenv import load_dotenv
+from pathlib import Path
+from typing import Any
 
 import firebase_admin
+from dotenv import load_dotenv
+from firebase_admin import auth as firebase_admin_auth_module
 from firebase_admin import (
     credentials,
     firestore,
     storage,
+)
+from firebase_admin import (
     exceptions as firebase_admin_exceptions,
 )
-from firebase_admin import auth as firebase_admin_auth_module
 
 # 🔹 Ladda miljövariabler från .env
 load_dotenv()
@@ -96,7 +97,7 @@ def get_env_variable(
 ):
     """
     Hämtar en miljövariabel och kastar fel om den saknas (om `required=True`).
-    
+
     Args:
         var_name (str): Namnet på miljövariabeln.
         default: Standardvärde om variabeln saknas.
@@ -117,15 +118,15 @@ def get_env_variable(
         raise ValueError(f"Miljövariabel '{var_name}' saknas och är obligatorisk!")
 
     try:
-        if cast_type == bool:
+        if cast_type is bool:
             value = str(value).strip().lower() in ["1", "true", "yes"]
-        elif cast_type == int:
+        elif cast_type is int:
             value = int(str(value).strip())
-        elif cast_type == float:
+        elif cast_type is float:
             value = float(str(value).strip())
-        elif cast_type == str:
+        elif cast_type is str:
             value = str(value).strip()
-    except ValueError:
+    except ValueError as err:
         logger.critical(
             f"❌ Miljövariabel '{var_name}' har fel format och kunde inte "
             f"omvandlas till {cast_type.__name__}."
@@ -133,7 +134,7 @@ def get_env_variable(
         raise ValueError(
             f"Miljövariabel '{var_name}' har fel format och kunde inte "
             f"omvandlas till {cast_type.__name__}."
-        )
+        ) from err
 
     # Logga inte känsliga värden
     log_value = "***" if hide_value else value
@@ -142,10 +143,10 @@ def get_env_variable(
     return value
 
 
-db: Optional[Any] = None  # Firestore client
-auth: Optional[Any] = None
-firebase_admin_auth: Optional[Any] = None
-firebase_storage: Optional[Any] = None
+db: Any | None = None  # Firestore client
+auth: Any | None = None
+firebase_admin_auth: Any | None = None
+firebase_storage: Any | None = None
 firebase_exceptions = firebase_admin_exceptions
 
 
@@ -210,7 +211,7 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
 
         cred = credentials.Certificate(cred_path)
 
-    options: Dict[str, Any] = {}
+    options: dict[str, Any] = {}
 
     # GDPR COMPLIANCE: Force EU data residency for all Firebase services
     # This ensures data is stored and processed in EU regions only
@@ -276,7 +277,7 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
     return True
 
 
-def get_firebase_services() -> Dict[str, Any]:
+def get_firebase_services() -> dict[str, Any]:
     """
     Get initialized Firebase services.
 
@@ -313,11 +314,11 @@ def warmup_firestore():
     if db is None:
         logger.warning("🔥 Firestore warmup skipped - db not initialized")
         return
-    
+
     import threading
-    
+
     result = {"success": False, "elapsed": 0}
-    
+
     def _do_warmup():
         try:
             start = time.time()
@@ -326,12 +327,12 @@ def warmup_firestore():
             result["success"] = True
         except Exception:
             result["elapsed"] = 0
-    
+
     try:
         thread = threading.Thread(target=_do_warmup, daemon=True)
         thread.start()
         thread.join(timeout=10)  # Max 10 seconds for warmup
-        
+
         if result["success"]:
             logger.info(f"🔥 Firestore warmup completed in {result['elapsed']:.0f}ms")
         elif thread.is_alive():
@@ -392,7 +393,7 @@ async def safe_firestore_operation_async(operation_func, *args, **kwargs):
     return await loop.run_in_executor(None, execute_operation)
 
 
-async def batch_firestore_operations(operations: List[Dict[str, Any]]) -> List[Any]:
+async def batch_firestore_operations(operations: list[dict[str, Any]]) -> list[Any]:
     """
     Execute multiple Firestore operations concurrently for better performance.
 

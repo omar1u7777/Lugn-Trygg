@@ -3,29 +3,27 @@ Automated Backup Service for Lugn & Trygg
 Comprehensive backup system with scheduling, encryption, and recovery
 """
 
-import os
-import json
+import base64
 import gzip
-import shutil
+import json
+import logging
+import os
 import threading
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import logging
-from firebase_admin import firestore, storage
-import firebase_admin
-from google.cloud import storage as gcp_storage
+from typing import Any
+
 import schedule
-import hashlib
-import base64
+from firebase_admin import firestore, storage
 
 logger = logging.getLogger(__name__)
 
 class BackupService:
     """Comprehensive backup service for all Lugn & Trygg data"""
 
-    def __init__(self, backup_dir: str = "backups", encryption_key: Optional[str] = None):
+    def __init__(self, backup_dir: str = "backups", encryption_key: str | None = None):
         self.backup_dir = Path(backup_dir)
         self.backup_dir.mkdir(exist_ok=True)
 
@@ -53,21 +51,21 @@ class BackupService:
         ]
 
         # Backup status
-        self.backup_status: Dict[str, Any] = {}
+        self.backup_status: dict[str, Any] = {}
         self.is_running = False
-        self.scheduler_thread: Optional[threading.Thread] = None
+        self.scheduler_thread: threading.Thread | None = None
 
         # Callbacks
-        self.backup_callbacks: List[Callable] = []
-        self.restore_callbacks: List[Callable] = []
-    
+        self.backup_callbacks: list[Callable] = []
+        self.restore_callbacks: list[Callable] = []
+
     @property
     def db(self):
         """Lazy initialize Firestore client"""
         if self._db is None:
             self._db = firestore.client()
         return self._db
-    
+
     @property
     def bucket(self):
         """Lazy initialize Storage bucket"""
@@ -128,7 +126,7 @@ class BackupService:
                 logger.error(f"Backup scheduler error: {e}")
                 time.sleep(300)  # Wait 5 minutes on error
 
-    def create_backup(self, schedule_type: str, backup_type: str = 'firestore') -> Optional[str]:
+    def create_backup(self, schedule_type: str, backup_type: str = 'firestore') -> str | None:
         """
         Create a backup
 
@@ -139,9 +137,9 @@ class BackupService:
         Returns:
             Backup filename if successful
         """
-        backup_id: Optional[str] = None
+        backup_id: str | None = None
         try:
-            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
             backup_id = f"{schedule_type}_{timestamp}"
 
             logger.info(f"📦 Creating {schedule_type} backup: {backup_id}")
@@ -150,7 +148,7 @@ class BackupService:
                 'backup_id': backup_id,
                 'schedule_type': schedule_type,
                 'backup_type': backup_type,
-                'timestamp': datetime.now(timezone.utc),
+                'timestamp': datetime.now(UTC),
                 'collections': {},
                 'metadata': {
                     'version': '1.0',
@@ -193,7 +191,7 @@ class BackupService:
             # Update status
             self.backup_status[backup_id] = {
                 'status': 'completed',
-                'timestamp': datetime.now(timezone.utc),
+                'timestamp': datetime.now(UTC),
                 'filename': filename,
                 'size': os.path.getsize(filename) if filename and os.path.exists(filename) else 0
             }
@@ -215,13 +213,13 @@ class BackupService:
             if backup_id:
                 self.backup_status[backup_id] = {
                     'status': 'failed',
-                    'timestamp': datetime.now(timezone.utc),
+                    'timestamp': datetime.now(UTC),
                     'error': str(e)
                 }
 
             return None
 
-    def _backup_collection(self, collection: str, batch_size: int = 1000) -> List[Dict]:
+    def _backup_collection(self, collection: str, batch_size: int = 1000) -> list[dict]:
         """Backup all documents in a collection"""
         docs = []
         # Order by document ID to enable cursors
@@ -233,7 +231,7 @@ class BackupService:
             for doc in query.stream():
                 doc_data = doc.to_dict()
                 doc_data['_id'] = doc.id
-                doc_data['_backup_timestamp'] = datetime.now(timezone.utc)
+                doc_data['_backup_timestamp'] = datetime.now(UTC)
                 batch_docs.append(doc_data)
                 last_doc_ref = doc
 
@@ -249,7 +247,7 @@ class BackupService:
 
         return docs
 
-    def _backup_storage_files(self) -> List[Dict]:
+    def _backup_storage_files(self) -> list[dict]:
         """Backup Firebase Storage file metadata"""
         files = []
         try:
@@ -269,7 +267,7 @@ class BackupService:
 
         return files
 
-    def _save_backup(self, backup_data: Dict, backup_id: str) -> Optional[str]:
+    def _save_backup(self, backup_data: dict, backup_id: str) -> str | None:
         """Save backup data to compressed file"""
         try:
             # Convert to JSON
@@ -299,7 +297,7 @@ class BackupService:
         if not self.encryption_key:
             logger.warning("No encryption key provided, skipping encryption")
             return data
-            
+
         try:
             from cryptography.fernet import Fernet
 
@@ -320,7 +318,7 @@ class BackupService:
         if not self.encryption_key:
             logger.warning("No encryption key provided, using unencrypted data")
             return data
-            
+
         try:
             from cryptography.fernet import Fernet
 
@@ -357,13 +355,13 @@ class BackupService:
             backup_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
 
             # Remove files older than retention period
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            cutoff_time = datetime.now(UTC) - timedelta(days=retention_days)
 
             removed_count = 0
             for backup_file in backup_files[1:]:  # Keep the newest
                 file_time = datetime.fromtimestamp(
                     backup_file.stat().st_mtime,
-                    tz=timezone.utc,
+                    tz=UTC,
                 )
                 if file_time < cutoff_time:
                     backup_file.unlink()
@@ -375,7 +373,7 @@ class BackupService:
         except Exception as e:
             logger.warning(f"Cleanup failed: {e}")
 
-    def restore_backup(self, backup_id_or_file: str, collections: Optional[List[str]] = None) -> bool:
+    def restore_backup(self, backup_id_or_file: str, collections: list[str] | None = None) -> bool:
         """
         Restore from backup
 
@@ -416,14 +414,14 @@ class BackupService:
                 except Exception as e:
                     logger.error(f"Restore callback error: {e}")
 
-            logger.info(f"✅ Backup restoration completed")
+            logger.info("✅ Backup restoration completed")
             return True
 
         except Exception as e:
             logger.error(f"❌ Backup restoration failed: {e}")
             return False
 
-    def _load_backup(self, backup_id_or_file: str) -> Optional[Dict]:
+    def _load_backup(self, backup_id_or_file: str) -> dict | None:
         """Load backup data from file"""
         try:
             # Check if it's a file path
@@ -456,7 +454,7 @@ class BackupService:
             logger.error(f"Failed to load backup: {e}")
             return None
 
-    def _restore_collection(self, collection: str, docs: List[Dict]) -> int:
+    def _restore_collection(self, collection: str, docs: list[dict]) -> int:
         """Restore documents to a collection"""
         restored_count = 0
 
@@ -477,7 +475,7 @@ class BackupService:
 
         return restored_count
 
-    def get_backup_status(self) -> Dict[str, Any]:
+    def get_backup_status(self) -> dict[str, Any]:
         """Get comprehensive backup status"""
         status = {
             'service_running': self.is_running,
@@ -512,7 +510,7 @@ class BackupService:
 
         return status
 
-    def _get_storage_usage(self) -> Dict[str, Any]:
+    def _get_storage_usage(self) -> dict[str, Any]:
         """Get backup storage usage"""
         try:
             total_size = 0
@@ -532,11 +530,11 @@ class BackupService:
             logger.error(f"Storage usage calculation failed: {e}")
             return {'error': str(e)}
 
-    def _get_next_run_time(self, schedule_type: str) -> Optional[datetime]:
+    def _get_next_run_time(self, schedule_type: str) -> datetime | None:
         """Get next scheduled run time"""
         # This is a simplified implementation
         # In a real system, you'd query the schedule library
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if schedule_type == 'hourly':
             # Next hour
@@ -572,11 +570,11 @@ class BackupService:
         """Add callback for restore events"""
         self.restore_callbacks.append(callback)
 
-    def create_manual_backup(self, backup_type: str = 'full') -> Optional[str]:
+    def create_manual_backup(self, backup_type: str = 'full') -> str | None:
         """Create a manual backup"""
         return self.create_backup('manual', backup_type)
 
-    def list_backups(self) -> List[Dict[str, Any]]:
+    def list_backups(self) -> list[dict[str, Any]]:
         """List all available backups"""
         backups = []
 
@@ -619,15 +617,15 @@ def stop_backup_service():
     """Stop the automated backup service"""
     _get_backup_service().stop_automated_backups()
 
-def create_backup(schedule_type: str = 'manual', backup_type: str = 'firestore') -> Optional[str]:
+def create_backup(schedule_type: str = 'manual', backup_type: str = 'firestore') -> str | None:
     """Create a backup"""
     return _get_backup_service().create_backup(schedule_type, backup_type)
 
-def restore_backup(backup_id: str, collections: Optional[List[str]] = None) -> bool:
+def restore_backup(backup_id: str, collections: list[str] | None = None) -> bool:
     """Restore from backup"""
     return _get_backup_service().restore_backup(backup_id, collections)
 
-def get_backup_status() -> Dict[str, Any]:
+def get_backup_status() -> dict[str, Any]:
     """Get backup service status"""
     return _get_backup_service().get_backup_status()
 

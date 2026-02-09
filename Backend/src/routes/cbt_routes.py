@@ -6,22 +6,22 @@ personalized sessions, and user progress tracking.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from flask import Blueprint, g, request
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
-from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.cbt_engine import (
-    cbt_engine,
-    CBTModule,
     CBTExercise,
-    UserCBTProgress,
+    CBTModule,
     PersonalizedCBTSession,
+    UserCBTProgress,
+    cbt_engine,
 )
+from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 cbt_bp = Blueprint("cbt", __name__)
 
 
-def _module_to_dict(module: CBTModule) -> Dict[str, Any]:
+def _module_to_dict(module: CBTModule) -> dict[str, Any]:
     """Convert CBTModule dataclass to API response dict."""
     return {
         "moduleId": module.module_id,
@@ -45,7 +45,7 @@ def _module_to_dict(module: CBTModule) -> Dict[str, Any]:
     }
 
 
-def _exercise_to_dict(exercise: CBTExercise) -> Dict[str, Any]:
+def _exercise_to_dict(exercise: CBTExercise) -> dict[str, Any]:
     """Convert CBTExercise dataclass to API response dict."""
     return {
         "exerciseId": exercise.exercise_id,
@@ -60,7 +60,7 @@ def _exercise_to_dict(exercise: CBTExercise) -> Dict[str, Any]:
     }
 
 
-def _session_to_dict(session: PersonalizedCBTSession) -> Dict[str, Any]:
+def _session_to_dict(session: PersonalizedCBTSession) -> dict[str, Any]:
     """Convert PersonalizedCBTSession dataclass to API response dict."""
     return {
         "exercises": [_exercise_to_dict(ex) for ex in session.exercises],
@@ -117,7 +117,7 @@ def _save_user_progress(progress: UserCBTProgress) -> bool:
                 "adaptiveParameters": progress.adaptive_parameters,
                 "lastSessionDate": progress.last_session_date,
                 "streakCount": progress.streak_count,
-                "updatedAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(UTC),
             },
             merge=True,
         )
@@ -136,7 +136,7 @@ def _save_user_progress(progress: UserCBTProgress) -> bool:
 def get_modules():
     """
     Get all available CBT modules.
-    
+
     Returns:
         List of CBT modules with metadata.
     """
@@ -146,7 +146,7 @@ def get_modules():
     try:
         # Get user progress to show completion status
         user_progress = _get_user_progress(user_id)
-        
+
         modules_list = []
         for module_id, module in cbt_engine.modules.items():
             module_dict = _module_to_dict(module)
@@ -158,7 +158,7 @@ def get_modules():
             modules_list.append(module_dict)
 
         audit_log("CBT_MODULES_VIEWED", user_id, {"moduleCount": len(modules_list)})
-        
+
         return APIResponse.success(
             data={"modules": modules_list},
             message="CBT modules retrieved successfully",
@@ -181,10 +181,10 @@ def get_modules():
 def get_module_detail(module_id: str):
     """
     Get detailed information about a specific CBT module.
-    
+
     Args:
         module_id: The module identifier.
-        
+
     Returns:
         Module details including Swedish content.
     """
@@ -253,10 +253,10 @@ def get_module_detail(module_id: str):
 def get_personalized_session():
     """
     Generate a personalized CBT session based on user progress and mood.
-    
+
     Query params:
         mood: Current mood state (optional)
-        
+
     Returns:
         Personalized session with exercises and guidance.
     """
@@ -311,14 +311,14 @@ def get_personalized_session():
 def update_progress():
     """
     Update user's CBT progress after completing an exercise.
-    
+
     Request body:
         exerciseId: ID of completed exercise
         successRate: 0.0-1.0 success rating
         timeSpent: Time spent in minutes
         difficultyRating: 1-5 difficulty rating
         notes: Optional user notes
-        
+
     Returns:
         Updated progress and any unlocked achievements.
     """
@@ -352,7 +352,7 @@ def update_progress():
         # Update exercise history
         exercise_entry = {
             "exerciseId": exercise_id,
-            "completedAt": datetime.now(timezone.utc).isoformat(),
+            "completedAt": datetime.now(UTC).isoformat(),
             "successRate": min(1.0, max(0.0, float(data.get("successRate", 0.5)))),
             "timeSpent": int(data.get("timeSpent", 0)),
             "difficultyRating": min(5, max(1, int(data.get("difficultyRating", 3)))),
@@ -369,24 +369,24 @@ def update_progress():
         user_progress.skill_mastery[skill_type] = new_mastery
 
         # Update streak
-        user_progress.last_session_date = datetime.now(timezone.utc)
+        user_progress.last_session_date = datetime.now(UTC)
         user_progress.streak_count += 1  # Simplified - should check daily
 
         # Check module completion
         module_id = exercise.module_id
         module = cbt_engine.modules.get(module_id)
-        achievements: List[str] = []
+        achievements: list[str] = []
 
         if module:
             module_exercises = [
                 ex_id for ex_id, ex in cbt_engine.exercises.items()
                 if ex.module_id == module_id
             ]
-            completed_exercises = set(
+            completed_exercises = {
                 entry["exerciseId"]
                 for entry in user_progress.exercise_history
-            )
-            
+            }
+
             if all(ex_id in completed_exercises for ex_id in module_exercises):
                 if module_id not in user_progress.completed_modules:
                     user_progress.completed_modules.append(module_id)
@@ -452,7 +452,7 @@ def update_progress():
 def get_insights():
     """
     Get insights about user's CBT journey and progress.
-    
+
     Returns:
         Progress statistics, strengths, improvement areas, and recommendations.
     """
@@ -504,18 +504,18 @@ def get_insights():
 def get_exercises():
     """
     Get all available CBT exercises.
-    
+
     Query params:
         module: Filter by module ID (optional)
         type: Filter by exercise type (optional)
-        
+
     Returns:
         List of CBT exercises.
     """
     user_id = g.user_id
     module_filter = request.args.get("module")
     type_filter = request.args.get("type")
-    
+
     logger.info(f"📋 User {user_id} fetching exercises (module={module_filter}, type={type_filter})")
 
     try:
@@ -545,7 +545,7 @@ def get_exercises():
 # ─────────────────────────────────────────────────────────────────────────────
 def _get_time_of_day() -> str:
     """Get current time of day category."""
-    hour = datetime.now(timezone.utc).hour
+    hour = datetime.now(UTC).hour
     if 5 <= hour < 12:
         return "morning"
     elif 12 <= hour < 17:

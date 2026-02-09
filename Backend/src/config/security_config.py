@@ -10,7 +10,6 @@ Centralized security configuration for the entire application including:
 """
 
 import os
-from typing import List, Dict, Any
 
 # Password Security Settings
 PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', '8'))
@@ -52,9 +51,9 @@ API_RATE_LIMITS = {
 }
 
 # CORS Security Settings
-CORS_ALLOWED_ORIGINS: List[str] = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
-CORS_ALLOWED_METHODS: List[str] = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
-CORS_ALLOWED_HEADERS: List[str] = [
+CORS_ALLOWED_ORIGINS: list[str] = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+CORS_ALLOWED_METHODS: list[str] = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+CORS_ALLOWED_HEADERS: list[str] = [
     'Content-Type',
     'Authorization',
     'X-Requested-With',
@@ -63,7 +62,7 @@ CORS_ALLOWED_HEADERS: List[str] = [
     'Origin',
     'User-Agent'
 ]
-CORS_EXPOSE_HEADERS: List[str] = ['X-Total-Count', 'X-Rate-Limit-Remaining']
+CORS_EXPOSE_HEADERS: list[str] = ['X-Total-Count', 'X-Rate-Limit-Remaining']
 CORS_SUPPORTS_CREDENTIALS = True
 CORS_MAX_AGE = 86400  # 24 hours
 
@@ -111,9 +110,9 @@ AUDIT_LOG_RATE_LIMITS = os.getenv('AUDIT_LOG_RATE_LIMITS', 'true').lower() == 't
 AUDIT_LOG_SUSPICIOUS_ACTIVITY = os.getenv('AUDIT_LOG_SUSPICIOUS_ACTIVITY', 'true').lower() == 'true'
 
 # IP Security Settings
-TRUSTED_PROXIES: List[str] = os.getenv('TRUSTED_PROXIES', '').split(',') if os.getenv('TRUSTED_PROXIES') else []
-BLOCKED_IPS: List[str] = os.getenv('BLOCKED_IPS', '').split(',') if os.getenv('BLOCKED_IPS') else []
-ALLOWED_COUNTRIES: List[str] = os.getenv('ALLOWED_COUNTRIES', '').split(',') if os.getenv('ALLOWED_COUNTRIES') else []
+TRUSTED_PROXIES: list[str] = os.getenv('TRUSTED_PROXIES', '').split(',') if os.getenv('TRUSTED_PROXIES') else []
+BLOCKED_IPS: list[str] = os.getenv('BLOCKED_IPS', '').split(',') if os.getenv('BLOCKED_IPS') else []
+ALLOWED_COUNTRIES: list[str] = os.getenv('ALLOWED_COUNTRIES', '').split(',') if os.getenv('ALLOWED_COUNTRIES') else []
 
 # Two-Factor Authentication Settings
 TFA_ENABLED = os.getenv('TFA_ENABLED', 'true').lower() == 'true'
@@ -125,7 +124,7 @@ API_KEY_REQUIRED = os.getenv('API_KEY_REQUIRED', 'false').lower() == 'true'
 API_KEY_ROTATION_DAYS = int(os.getenv('API_KEY_ROTATION_DAYS', '90'))
 
 # Monitoring and Alerting
-SECURITY_ALERT_EMAILS: List[str] = os.getenv('SECURITY_ALERT_EMAILS', '').split(',') if os.getenv('SECURITY_ALERT_EMAILS') else []
+SECURITY_ALERT_EMAILS: list[str] = os.getenv('SECURITY_ALERT_EMAILS', '').split(',') if os.getenv('SECURITY_ALERT_EMAILS') else []
 FAILED_LOGIN_ALERT_THRESHOLD = int(os.getenv('FAILED_LOGIN_ALERT_THRESHOLD', '10'))
 SUSPICIOUS_ACTIVITY_ALERT_THRESHOLD = int(os.getenv('SUSPICIOUS_ACTIVITY_ALERT_THRESHOLD', '5'))
 
@@ -171,7 +170,7 @@ def is_country_allowed(country_code: str) -> bool:
         return True  # No restrictions
     return country_code.upper() in [c.upper() for c in ALLOWED_COUNTRIES]
 
-def get_rate_limit_for_endpoint(endpoint: str) -> Dict[str, int]:
+def get_rate_limit_for_endpoint(endpoint: str) -> dict[str, int]:
     """Get rate limit settings for specific endpoint"""
     # Determine endpoint type
     if endpoint.startswith('/api/auth'):
@@ -185,7 +184,7 @@ def get_rate_limit_for_endpoint(endpoint: str) -> Dict[str, int]:
     else:
         return API_RATE_LIMITS['public']
 
-def validate_security_config() -> List[str]:
+def validate_security_config() -> list[str]:
     """Validate security configuration and return any issues"""
     issues = []
 
