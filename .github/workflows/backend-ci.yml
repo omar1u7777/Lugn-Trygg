@@ -39,8 +39,8 @@ jobs:
         env:
           FLASK_ENV: testing
           FLASK_TESTING: 'true'
-          JWT_SECRET_KEY: ci-test-secret-key
-          JWT_REFRESH_SECRET_KEY: ci-test-refresh-key
+          JWT_SECRET_KEY: ci-test-secret-key-that-is-at-least-32-chars-long
+          JWT_REFRESH_SECRET_KEY: ci-test-refresh-key-that-is-at-least-32-chars-long
           FIREBASE_WEB_API_KEY: ci-test-firebase-web-api-key
           FIREBASE_API_KEY: ci-test-firebase-api-key
           FIREBASE_PROJECT_ID: ci-test-project
