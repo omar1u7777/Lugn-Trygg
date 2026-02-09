@@ -5,6 +5,19 @@
 
 import { api } from './client';
 import { API_ENDPOINTS } from './constants';
+import type { AxiosResponse } from 'axios';
+
+/**
+ * Unwrap API response that may be nested in a `data` wrapper.
+ * Handles both `{ data: T }` and direct `T` response shapes.
+ */
+function unwrapResponse<T>(response: AxiosResponse<{ data: T } | T>): T {
+  const payload = response.data;
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
 
 // ============================================================================
 // TYPES AND INTERFACES
@@ -278,7 +291,7 @@ export async function getOAuthAuthorizeUrl(
   const response = await api.get<{ data: OAuthAuthorizeResponse } | OAuthAuthorizeResponse>(
     `${API_ENDPOINTS.INTEGRATION.OAUTH_AUTHORIZE}/${provider}/authorize`
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -292,7 +305,7 @@ export async function getOAuthStatus(
   const response = await api.get<{ data: OAuthStatusResponse } | OAuthStatusResponse>(
     `${API_ENDPOINTS.INTEGRATION.OAUTH_STATUS}/${provider}/status`
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -306,7 +319,7 @@ export async function disconnectOAuth(
   const response = await api.post<{ data: { success: boolean; message: string } } | { success: boolean; message: string }>(
     `${API_ENDPOINTS.INTEGRATION.OAUTH_DISCONNECT}/${provider}/disconnect`
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -327,7 +340,7 @@ export async function syncHealthDataFromProvider(
     `${API_ENDPOINTS.INTEGRATION.HEALTH_SYNC_PROVIDER}/${provider}`,
     { days: Math.min(Math.max(days, 1), 90) }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -342,15 +355,11 @@ export async function syncHealthDataMulti(
     API_ENDPOINTS.INTEGRATION.HEALTH_SYNC_MULTI,
     { sources }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
-/**
- * Analyze health and mood patterns
- * @param days - Number of days to analyze (default: 30)
- * @returns Analysis results with patterns and recommendations
- */
-export async function analyzeHealthMoodPatterns(days: number = 30): Promise<{
+/** Health & mood analysis result */
+export interface HealthMoodAnalysisResult {
   success: boolean;
   message: string;
   status: 'success' | 'insufficient_data' | 'error';
@@ -385,13 +394,18 @@ export async function analyzeHealthMoodPatterns(days: number = 30): Promise<{
     health_entries: number;
     mood_entries: number;
   };
-}> {
-  const response = await api.post<{
-    data?: any;
-    success?: boolean;
-    message?: string;
-  }>(API_ENDPOINTS.INTEGRATION.HEALTH_ANALYZE, { days });
-  return (response.data as any).data || response.data;
+}
+
+/**
+ * Analyze health and mood patterns
+ * @param days - Number of days to analyze (default: 30)
+ * @returns Analysis results with patterns and recommendations
+ */
+export async function analyzeHealthMoodPatterns(days: number = 30): Promise<HealthMoodAnalysisResult> {
+  const response = await api.post<{ data: HealthMoodAnalysisResult } | HealthMoodAnalysisResult>(
+    API_ENDPOINTS.INTEGRATION.HEALTH_ANALYZE, { days }
+  );
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -412,7 +426,7 @@ export async function checkHealthAlerts(
     API_ENDPOINTS.INTEGRATION.HEALTH_CHECK_ALERTS,
     { provider, health_data: healthData }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -427,7 +441,7 @@ export async function updateAlertSettings(
     API_ENDPOINTS.INTEGRATION.HEALTH_ALERT_SETTINGS,
     settings
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -469,7 +483,7 @@ export async function toggleAutoSync(
     enabled,
     frequency,
   });
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -480,7 +494,7 @@ export async function getAutoSyncSettings(): Promise<AutoSyncSettingsResponse> {
   const response = await api.get<{ data: AutoSyncSettingsResponse } | AutoSyncSettingsResponse>(
     API_ENDPOINTS.INTEGRATION.AUTO_SYNC_SETTINGS
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -496,7 +510,7 @@ export async function getWearableStatus(): Promise<WearableStatusResponse> {
   const response = await api.get<{ data: WearableStatusResponse } | WearableStatusResponse>(
     API_ENDPOINTS.INTEGRATION.WEARABLE_STATUS
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -512,7 +526,7 @@ export async function disconnectWearable(
     API_ENDPOINTS.INTEGRATION.WEARABLE_DISCONNECT,
     { device_id: deviceId }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -529,7 +543,7 @@ export async function syncWearable(
   } | { success: boolean; message: string; data: HealthMetrics }>(
     API_ENDPOINTS.INTEGRATION.WEARABLE_SYNC, { device_id: deviceId }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -540,7 +554,7 @@ export async function getWearableDetails(): Promise<WearableDetailsResponse> {
   const response = await api.get<{ data: WearableDetailsResponse } | WearableDetailsResponse>(
     API_ENDPOINTS.INTEGRATION.WEARABLE_DETAILS
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -568,7 +582,7 @@ export async function syncGoogleFit(
       date_to: dateTo,
     }
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -583,7 +597,7 @@ export async function getFHIRPatient(): Promise<FHIRPatient> {
   const response = await api.get<{ data: FHIRPatient } | FHIRPatient>(
     API_ENDPOINTS.INTEGRATION.FHIR_PATIENT
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 /**
@@ -594,7 +608,7 @@ export async function getFHIRObservations(): Promise<FHIRBundleResponse> {
   const response = await api.get<{ data: FHIRBundleResponse } | FHIRBundleResponse>(
     API_ENDPOINTS.INTEGRATION.FHIR_OBSERVATIONS
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
@@ -613,7 +627,7 @@ export async function createCrisisReferral(
     API_ENDPOINTS.INTEGRATION.CRISIS_REFERRAL,
     request
   );
-  return (response.data as any).data || response.data;
+  return unwrapResponse(response);
 }
 
 // ============================================================================
