@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DashboardQuickActions } from '../DashboardQuickActions';
 
 const mockUseSubscription = vi.fn();
@@ -10,35 +10,86 @@ vi.mock('@/contexts/SubscriptionContext', () => ({
 }));
 
 describe('DashboardQuickActions', () => {
+  const mockOnActionClick = vi.fn();
+
   beforeEach(() => {
     mockUseSubscription.mockReset();
+    mockOnActionClick.mockReset();
   });
 
-  it('shows premium badges for locked actions on free plan', () => {
-    mockUseSubscription.mockReturnValue({
-      isPremium: false,
-      getRemainingMoodLogs: () => 1,
-      getRemainingMessages: () => 2,
-      hasFeature: () => false,
+  describe('free plan', () => {
+    beforeEach(() => {
+      mockUseSubscription.mockReturnValue({
+        isPremium: false,
+        getRemainingMoodLogs: () => 3,
+        getRemainingMessages: () => 5,
+        hasFeature: () => false,
+      });
     });
 
-    render(<DashboardQuickActions onActionClick={() => undefined} />);
+    it('renders the heading', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      expect(screen.getByText('Hur vill du ta hand om dig?')).toBeInTheDocument();
+    });
 
-    const badges = screen.getAllByText('⭐ Premium');
-    expect(badges).toHaveLength(2);
+    it('renders action buttons with correct titles', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      expect(screen.getByText('Känn efter')).toBeInTheDocument();
+      expect(screen.getByText('Få stöd')).toBeInTheDocument();
+    });
+
+    it('shows remaining counts for free users', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      expect(screen.getByText('3 kvar idag')).toBeInTheDocument();
+      expect(screen.getByText('5 meddelanden')).toBeInTheDocument();
+    });
+
+    it('calls onActionClick with the correct action id when clicked', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      fireEvent.click(screen.getByText('Känn efter'));
+      expect(mockOnActionClick).toHaveBeenCalledWith('mood');
+
+      fireEvent.click(screen.getByText('Få stöd'));
+      expect(mockOnActionClick).toHaveBeenCalledWith('chat');
+    });
   });
 
-  it('unlocks premium actions when feature available', () => {
-    mockUseSubscription.mockReturnValue({
-      isPremium: true,
-      getRemainingMoodLogs: () => 10,
-      getRemainingMessages: () => 10,
-      hasFeature: () => true,
+  describe('premium plan', () => {
+    beforeEach(() => {
+      mockUseSubscription.mockReturnValue({
+        isPremium: true,
+        getRemainingMoodLogs: () => 999,
+        getRemainingMessages: () => 999,
+        hasFeature: () => true,
+      });
     });
 
-    render(<DashboardQuickActions onActionClick={() => undefined} />);
+    it('shows unlimited descriptions for premium users', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      expect(screen.getByText('Obegränsat idag')).toBeInTheDocument();
+      expect(screen.getByText('Alltid redo')).toBeInTheDocument();
+    });
 
-    expect(screen.queryByText('⭐ Premium')).toBeNull();
-    expect(screen.getByText('Visa alla dina sparade humör-inlägg')).toBeInTheDocument();
+    it('does not show PRO badges when all features are unlocked', () => {
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+      expect(screen.queryByText('PRO')).toBeNull();
+    });
+  });
+
+  describe('loading state', () => {
+    it('renders skeleton placeholders when loading', () => {
+      mockUseSubscription.mockReturnValue({
+        isPremium: false,
+        getRemainingMoodLogs: () => 0,
+        getRemainingMessages: () => 0,
+        hasFeature: () => false,
+      });
+
+      const { container } = render(
+        <DashboardQuickActions onActionClick={mockOnActionClick} isLoading />
+      );
+      expect(screen.queryByText('Hur vill du ta hand om dig?')).toBeNull();
+      expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+    });
   });
 });
