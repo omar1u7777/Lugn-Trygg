@@ -11,22 +11,24 @@ Provides comprehensive security middleware including:
 
 import logging
 import time
-from typing import Callable, Optional, Dict, Any
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
-from flask import request, g, jsonify, current_app
-from ..services.security_service import SecurityService
+from flask import g, jsonify, request
+
 from ..services.audit_service import AuditService
+from ..services.security_service import SecurityService
 
 logger = logging.getLogger(__name__)
 
 class SecurityMiddleware:
     """Security middleware for Flask applications"""
 
-    def __init__(self, app=None, security_service: Optional[SecurityService] = None):
+    def __init__(self, app=None, security_service: SecurityService | None = None):
         self.app = app
         self.security_service = security_service or SecurityService(AuditService())
-        self.rate_limits: Dict[str, Dict[str, Any]] = {}
+        self.rate_limits: dict[str, dict[str, Any]] = {}
 
         if app:
             self.init_app(app)
@@ -159,7 +161,7 @@ class SecurityMiddleware:
                 )
                 return jsonify({"error": "Invalid request parameters"}), 400
 
-    def _sanitize_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         """Recursively sanitize dictionary values"""
         sanitized = {}
         for key, value in data.items():
@@ -259,17 +261,17 @@ class SecurityMiddleware:
     def _handle_forbidden(self, e):
         """Handle 403 Forbidden errors"""
         from ..services.tamper_detection_service import tamper_detection_service
-        
+
         user_id = getattr(g, 'user_id', 'anonymous')
         client_ip = self._get_client_ip()
-        
+
         self.security_service.log_security_event(
             'FORBIDDEN_ACCESS',
             user_id,
             {'path': request.path},
             client_ip
         )
-        
+
         # Record in tamper detection - forbidden access is suspicious
         tamper_detection_service.record_event(
             event_type='FORBIDDEN_ACCESS',
@@ -282,23 +284,23 @@ class SecurityMiddleware:
                 'method': request.method
             }
         )
-        
+
         return jsonify({"error": "Forbidden"}), 403
 
     def _handle_rate_limit(self, e):
         """Handle 429 Rate Limit errors"""
         from ..services.tamper_detection_service import tamper_detection_service
-        
+
         user_id = getattr(g, 'user_id', 'anonymous')
         client_ip = self._get_client_ip()
-        
+
         self.security_service.log_security_event(
             'RATE_LIMIT_EXCEEDED',
             user_id,
             {'path': request.path},
             client_ip
         )
-        
+
         # Record in tamper detection for dashboard visibility
         tamper_detection_service.record_event(
             event_type='RATE_LIMIT_EXCEEDED',
@@ -310,7 +312,7 @@ class SecurityMiddleware:
                 'ip': client_ip
             }
         )
-        
+
         return jsonify({"error": "Rate limit exceeded", "retry_after": 3600}), 429
 
 # Decorator for requiring authentication

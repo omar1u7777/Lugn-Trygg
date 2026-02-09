@@ -3,18 +3,19 @@ Leaderboard Routes - Real leaderboard and ranking system
 Uses Firebase Firestore for user rankings based on XP, streaks, and achievements
 """
 
-from flask import Blueprint, request, g
-from datetime import datetime, timezone
-from typing import Optional
 import logging
 import re
+from datetime import UTC, datetime
+
+from flask import Blueprint, request
+
+from src.firebase_config import db
+from src.services.auth_service import AuthService
 
 # Absolute imports (project standard)
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.auth_service import AuthService
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
-from src.firebase_config import db
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +46,13 @@ def _anonymize_username(email_or_name: str) -> str:
     """Create anonymous display name from email or name"""
     if not email_or_name:
         return "Anonymous"
-    
+
     # If it's an email, use the part before @
     if "@" in email_or_name:
         name = email_or_name.split("@")[0]
     else:
         name = email_or_name
-    
+
     # Anonymize: show first 2 chars + *** + last char
     if len(name) > 3:
         return f"{name[:2]}***{name[-1]}"
@@ -85,26 +86,26 @@ def get_xp_leaderboard():
     try:
         limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
         timeframe = request.args.get('timeframe', 'all')  # all, weekly, monthly
-        
+
         # Validate timeframe
         if timeframe not in ['all', 'weekly', 'monthly']:
             timeframe = 'all'
-        
+
         # Query users collection sorted by XP
         query = db.collection('users').order_by('total_xp', direction='DESCENDING').limit(limit)
         docs = query.stream()
-        
+
         leaderboard = []
         rank = 1
-        
+
         for doc in docs:
             user_data = doc.to_dict()
-            
+
             # Only include users with XP > 0
             xp = user_data.get('total_xp', 0)
             if xp <= 0:
                 continue
-            
+
             leaderboard.append({
                 'rank': rank,
                 'userId': doc.id,
@@ -115,16 +116,16 @@ def get_xp_leaderboard():
                 'avatar': user_data.get('avatar_emoji', '🌟')
             })
             rank += 1
-        
+
         return APIResponse.success(
             data={
                 'leaderboard': leaderboard,
                 'timeframe': timeframe,
-                'updatedAt': datetime.now(timezone.utc).isoformat()
+                'updatedAt': datetime.now(UTC).isoformat()
             },
             message=f'Retrieved {len(leaderboard)} users'
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get XP leaderboard: {str(e)}")
         return APIResponse.error('Failed to load leaderboard')
@@ -137,21 +138,21 @@ def get_streak_leaderboard():
     """Get top users by current streak"""
     try:
         limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
-        
+
         # Query users sorted by current streak
         query = db.collection('users').order_by('current_streak', direction='DESCENDING').limit(limit)
         docs = query.stream()
-        
+
         leaderboard = []
         rank = 1
-        
+
         for doc in docs:
             user_data = doc.to_dict()
-            
+
             streak = user_data.get('current_streak', 0)
             if streak <= 0:
                 continue
-            
+
             leaderboard.append({
                 'rank': rank,
                 'userId': doc.id,
@@ -161,15 +162,15 @@ def get_streak_leaderboard():
                 'avatar': user_data.get('avatar_emoji', '🔥')
             })
             rank += 1
-        
+
         return APIResponse.success(
             data={
                 'leaderboard': leaderboard,
-                'updatedAt': datetime.now(timezone.utc).isoformat()
+                'updatedAt': datetime.now(UTC).isoformat()
             },
             message=f'Retrieved {len(leaderboard)} users'
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get streak leaderboard: {str(e)}")
         return APIResponse.error('Failed to load leaderboard')
@@ -182,21 +183,21 @@ def get_mood_leaderboard():
     """Get top users by mood log count"""
     try:
         limit = _validate_limit(request.args.get('limit', '20'), default=20, max_val=100)
-        
+
         # Query users sorted by mood count
         query = db.collection('users').order_by('mood_count', direction='DESCENDING').limit(limit)
         docs = query.stream()
-        
+
         leaderboard = []
         rank = 1
-        
+
         for doc in docs:
             user_data = doc.to_dict()
-            
+
             mood_count = user_data.get('mood_count', 0)
             if mood_count <= 0:
                 continue
-            
+
             leaderboard.append({
                 'rank': rank,
                 'userId': doc.id,
@@ -206,15 +207,15 @@ def get_mood_leaderboard():
                 'avatar': user_data.get('avatar_emoji', '📊')
             })
             rank += 1
-        
+
         return APIResponse.success(
             data={
                 'leaderboard': leaderboard,
-                'updatedAt': datetime.now(timezone.utc).isoformat()
+                'updatedAt': datetime.now(UTC).isoformat()
             },
             message=f'Retrieved {len(leaderboard)} users'
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get mood leaderboard: {str(e)}")
         return APIResponse.error('Failed to load leaderboard')
@@ -236,30 +237,30 @@ def get_user_rank(user_id: str):
     try:
         # Get user data
         user_doc = db.collection('users').document(user_id_clean).get()
-        
+
         if not user_doc.exists:
             return APIResponse.not_found('User not found')
-        
+
         user_data = user_doc.to_dict()
         user_xp = user_data.get('total_xp', 0)
         user_streak = user_data.get('current_streak', 0)
         user_moods = user_data.get('mood_count', 0)
-        
+
         # Calculate XP rank (count users with more XP)
         xp_rank_query = db.collection('users').where('total_xp', '>', user_xp).stream()
         xp_rank = len(list(xp_rank_query)) + 1
-        
+
         # Calculate streak rank
         streak_rank_query = db.collection('users').where('current_streak', '>', user_streak).stream()
         streak_rank = len(list(streak_rank_query)) + 1
-        
+
         # Calculate mood count rank
         mood_rank_query = db.collection('users').where('mood_count', '>', user_moods).stream()
         mood_rank = len(list(mood_rank_query)) + 1
-        
+
         # Get total user count for percentile
         total_users = len(list(db.collection('users').stream()))
-        
+
         return APIResponse.success(
             data={
                 'userId': user_id_clean,
@@ -284,7 +285,7 @@ def get_user_rank(user_id: str):
             },
             message='User rankings retrieved'
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get user rank: {str(e)}")
         return APIResponse.error('Failed to load user rankings')
@@ -297,17 +298,17 @@ def get_weekly_winners():
     """Get last week's top performers"""
     try:
         from datetime import timedelta
-        
+
         # Calculate last week's date range
-        today = datetime.now(timezone.utc)
+        today = datetime.now(UTC)
         last_week_start = today - timedelta(days=today.weekday() + 7)
         last_week_end = last_week_start + timedelta(days=6)
-        
+
         # For now, just return current top performers
         # In production, you'd track weekly stats separately
         xp_query = db.collection('users').order_by('total_xp', direction='DESCENDING').limit(3)
         xp_winners = []
-        
+
         for doc in xp_query.stream():
             user_data = doc.to_dict()
             if user_data.get('total_xp', 0) > 0:
@@ -316,7 +317,7 @@ def get_weekly_winners():
                     'xp': user_data.get('total_xp', 0),
                     'avatar': user_data.get('avatar_emoji', '🏆')
                 })
-        
+
         return APIResponse.success(
             data={
                 'weekStart': last_week_start.isoformat(),
@@ -327,7 +328,7 @@ def get_weekly_winners():
             },
             message='Weekly winners retrieved'
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get weekly winners: {str(e)}")
         return APIResponse.error('Failed to load weekly winners')

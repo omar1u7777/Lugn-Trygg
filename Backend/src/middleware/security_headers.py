@@ -3,13 +3,13 @@ Security Headers Middleware for Lugn & Trygg
 Comprehensive security headers implementation with CSP, HSTS, and protection against common attacks
 """
 
-import os
-from typing import Dict, List, Optional, Any, Callable
-from flask import request, Response, current_app, g
-import logging
-from datetime import datetime, timedelta, timezone
-import hashlib
 import base64
+import logging
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from flask import Response, current_app, g, request
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class SecurityHeadersMiddleware:
     def __init__(self, app=None):
         self.app = app
         self.nonce = None  # Will be set per request in _generate_nonce
-        self.csp_violations: List[Dict] = []
+        self.csp_violations: list[dict] = []
         self.csp_directives = {}  # Will be initialized in init_app
 
         # Security configurations
@@ -57,7 +57,7 @@ class SecurityHeadersMiddleware:
 
         # CRITICAL FIX: Generate nonce for each request (must be before CSP header building)
         app.before_request(self._generate_nonce)
-        
+
         # Initialize CSP directives with nonce
         self.csp_directives = self._get_csp_directives()
 
@@ -68,12 +68,12 @@ class SecurityHeadersMiddleware:
         self.nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
         g.csp_nonce = self.nonce
 
-    def _get_csp_directives(self) -> Dict[str, str]:
+    def _get_csp_directives(self) -> dict[str, str]:
         """Get Content Security Policy directives"""
         # CRITICAL FIX: Build CSP directives dynamically based on nonce and environment
         is_production = os.getenv('FLASK_ENV') == 'production'
         nonce_value = self.nonce or ''
-        
+
         directives = {
             'default-src': "'self'",
             'script-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
@@ -90,12 +90,12 @@ class SecurityHeadersMiddleware:
             'report-uri': "/api/security/csp-violation",
             'report-to': "'csp-endpoint'",
         }
-        
+
         # CRITICAL FIX: Only enforce HTTPS in production
         if is_production:
             directives['upgrade-insecure-requests'] = ""
             directives['block-all-mixed-content'] = ""
-        
+
         return directives
 
     def _get_permissions_policy(self) -> str:
@@ -187,13 +187,13 @@ class SecurityHeadersMiddleware:
             # Skip empty directives
             if not value:
                 continue
-                
+
             # CRITICAL FIX: Ensure nonce is properly included in script-src and style-src
             if directive == 'script-src' or directive == 'style-src':
                 # Nonce should already be in the value from _get_csp_directives, but verify
                 if self.nonce and f"'nonce-{self.nonce}'" not in value:
                     value = f"{value} 'nonce-{self.nonce}'"
-            
+
             directives.append(f"{directive} {value}")
 
         return '; '.join(directives)
@@ -205,7 +205,7 @@ class SecurityHeadersMiddleware:
 
             if violation_data:
                 violation = {
-                    'timestamp': datetime.now(timezone.utc),
+                    'timestamp': datetime.now(UTC),
                     'user_agent': request.headers.get('User-Agent'),
                     'ip_address': request.remote_addr,
                     'document_uri': violation_data.get('document-uri'),
@@ -236,7 +236,7 @@ class SecurityHeadersMiddleware:
             logger.error(f"CSP violation handling failed: {e}")
             return {'error': 'Failed to process violation report'}, 500
 
-    def get_security_status(self) -> Dict[str, Any]:
+    def get_security_status(self) -> dict[str, Any]:
         """Get comprehensive security status"""
         return {
             'headers_enabled': {
@@ -251,14 +251,14 @@ class SecurityHeadersMiddleware:
                 'total': len(self.csp_violations),
                 'recent': len([
                     v for v in self.csp_violations
-                    if v['timestamp'] > datetime.now(timezone.utc) - timedelta(hours=24)
+                    if v['timestamp'] > datetime.now(UTC) - timedelta(hours=24)
                 ])
             },
             'current_nonce': self.nonce,
             'configuration': self.config
         }
 
-    def update_csp_directives(self, updates: Dict[str, str]):
+    def update_csp_directives(self, updates: dict[str, str]):
         """Update CSP directives dynamically"""
         self.csp_directives.update(updates)
         logger.info(f"🔄 CSP directives updated: {updates}")
@@ -289,7 +289,7 @@ class SecurityHeaders:
         return all(directive in policy for directive in required_directives)
 
     @staticmethod
-    def get_recommended_security_headers() -> Dict[str, str]:
+    def get_recommended_security_headers() -> dict[str, str]:
         """Get recommended security headers for different environments"""
         return {
             'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'",
@@ -302,7 +302,7 @@ class SecurityHeaders:
         }
 
     @staticmethod
-    def check_security_headers(headers: Dict[str, str]) -> Dict[str, bool]:
+    def check_security_headers(headers: dict[str, str]) -> dict[str, bool]:
         """Check if security headers are properly configured"""
         required_headers = [
             'Content-Security-Policy',
@@ -324,11 +324,11 @@ def init_security_headers(app):
     """Initialize security headers for Flask app"""
     security_headers_middleware.init_app(app)
 
-def get_security_status() -> Dict[str, Any]:
+def get_security_status() -> dict[str, Any]:
     """Get security middleware status"""
     return security_headers_middleware.get_security_status()
 
-def update_csp_directives(updates: Dict[str, str]):
+def update_csp_directives(updates: dict[str, str]):
     """Update CSP directives"""
     security_headers_middleware.update_csp_directives(updates)
 

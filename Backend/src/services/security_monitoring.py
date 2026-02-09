@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any
 
 from .api_key_rotation import get_key_rotation_status
 from .privacy_settings_service import privacy_settings_service
@@ -29,7 +29,7 @@ def _serialize_datetimes(payload: Any) -> Any:
     return payload
 
 
-def _get_key_rotation_snapshot() -> Dict[str, Any]:
+def _get_key_rotation_snapshot() -> dict[str, Any]:
     try:
         status = get_key_rotation_status()
         return _serialize_datetimes(status)
@@ -38,7 +38,7 @@ def _get_key_rotation_snapshot() -> Dict[str, Any]:
         return {"error": "key_rotation_unavailable"}
 
 
-def _get_system_health() -> Dict[str, Any]:
+def _get_system_health() -> dict[str, Any]:
     service = monitoring_service
     if not service:
         return {"status": "uninitialized", "message": "Monitoring service not started"}
@@ -56,7 +56,7 @@ def _get_system_health() -> Dict[str, Any]:
         return {"status": "error", "message": "Health check failed"}
 
 
-def _get_anonymization_settings() -> Dict[str, Any]:
+def _get_anonymization_settings() -> dict[str, Any]:
     try:
         return privacy_settings_service.get_anonymization_summary()
     except Exception as exc:  # pragma: no cover - logging only
@@ -68,11 +68,11 @@ def _get_anonymization_settings() -> Dict[str, Any]:
         }
 
 
-def get_security_metrics() -> Dict[str, Any]:
+def get_security_metrics() -> dict[str, Any]:
     """Aggregate key rotation, tamper, and system health metrics."""
     tamper_summary = tamper_detection_service.get_summary()
 
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         "generated_at": datetime.now(UTC).isoformat(),
         "threat_level": tamper_summary.get("threat_level", "low"),
         "tamper_summary": tamper_summary,

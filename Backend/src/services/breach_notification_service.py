@@ -4,8 +4,9 @@ Handles detection and notification of data breaches
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
 from ..firebase_config import db
 from .audit_service import audit_service
 
@@ -30,7 +31,7 @@ class BreachNotificationService:
             'media': 60  # days for media notification if 500+ affected
         }
 
-    def detect_potential_breach(self, incident_details: Dict[str, Any]) -> Dict[str, Any]:
+    def detect_potential_breach(self, incident_details: dict[str, Any]) -> dict[str, Any]:
         """
         Detect and assess potential data breaches
 
@@ -57,7 +58,7 @@ class BreachNotificationService:
                 'breach_type': breach_type,
                 'requires_notification': is_breach,
                 'notification_deadlines': self.notification_deadlines if is_breach else {},
-                'detected_at': datetime.now(timezone.utc).isoformat()
+                'detected_at': datetime.now(UTC).isoformat()
             }
 
             # Log the breach detection
@@ -86,7 +87,7 @@ class BreachNotificationService:
                 'requires_notification': False
             }
 
-    def _assess_breach_criteria(self, affected_users: int, data_types: List[str], breach_type: str) -> bool:
+    def _assess_breach_criteria(self, affected_users: int, data_types: list[str], breach_type: str) -> bool:
         """
         Assess if incident meets HIPAA breach criteria
 
@@ -113,7 +114,7 @@ class BreachNotificationService:
 
         return False
 
-    def _calculate_severity(self, affected_users: int, data_types: List[str]) -> str:
+    def _calculate_severity(self, affected_users: int, data_types: list[str]) -> str:
         """Calculate breach severity level"""
         if affected_users >= 500:
             return 'HIGH'
@@ -122,17 +123,17 @@ class BreachNotificationService:
         else:
             return 'LOW'
 
-    def _initiate_breach_response(self, assessment: Dict[str, Any], incident_details: Dict[str, Any]):
+    def _initiate_breach_response(self, assessment: dict[str, Any], incident_details: dict[str, Any]):
         """Initiate breach response procedures"""
         try:
             # Create breach record
             breach_record = {
-                'breach_id': f"BREACH_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+                'breach_id': f"BREACH_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
                 'assessment': assessment,
                 'incident_details': incident_details,
                 'status': 'DETECTED',
                 'response_actions': [],
-                'created_at': datetime.now(timezone.utc).isoformat(),
+                'created_at': datetime.now(UTC).isoformat(),
                 'notifications_sent': [],
                 'compliance_status': 'IN_PROGRESS'
             }
@@ -160,10 +161,10 @@ class BreachNotificationService:
         except Exception as e:
             logger.error(f"Failed to initiate breach response: {str(e)}")
 
-    def _schedule_notifications(self, breach_record: Dict[str, Any]):
+    def _schedule_notifications(self, breach_record: dict[str, Any]):
         """Schedule breach notifications according to HIPAA requirements"""
         breach_id = breach_record['breach_id']
-        severity = breach_record['assessment'].get('severity', 'LOW')
+        breach_record['assessment'].get('severity', 'LOW')
         affected_users = breach_record['assessment'].get('affected_users', 0)
 
         notifications = []
@@ -196,10 +197,10 @@ class BreachNotificationService:
         # Update breach record with notifications
         _db.collection('breach_notifications').document(breach_id).update({
             'scheduled_notifications': notifications,
-            'updated_at': datetime.now(timezone.utc).isoformat()
+            'updated_at': datetime.now(UTC).isoformat()
         })
 
-    def get_breach_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_breach_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get breach notification history"""
         try:
             breaches = _db.collection('breach_notifications') \
@@ -212,7 +213,7 @@ class BreachNotificationService:
             logger.error(f"Failed to get breach history: {str(e)}")
             return []
 
-    def validate_encryption_compliance(self) -> Dict[str, Any]:
+    def validate_encryption_compliance(self) -> dict[str, Any]:
         """
         Validate that data encryption is properly implemented
         Required for HIPAA compliance
@@ -243,7 +244,7 @@ class BreachNotificationService:
                         'compliant': True,
                         'encryption_method': 'Fernet (AES 128)',
                         'key_strength': 'Strong',
-                        'last_validated': datetime.now(timezone.utc).isoformat()
+                        'last_validated': datetime.now(UTC).isoformat()
                     }
                 else:
                     return {

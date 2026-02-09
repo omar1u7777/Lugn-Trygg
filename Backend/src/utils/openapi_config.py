@@ -3,9 +3,9 @@
 Automatic API documentation generation with Flasgger
 """
 
-from typing import Any, Dict
+from typing import Any
 
-SWAGGER_CONFIG: Dict[str, Any] = {
+SWAGGER_CONFIG: dict[str, Any] = {
     "headers": [],
     "specs": [
         {
@@ -23,17 +23,17 @@ SWAGGER_CONFIG: Dict[str, Any] = {
     "version": "2.0.0",
     "description": """
     # 🧠 Lugn & Trygg AI Mental Health Platform API (2026 Standard)
-    
+
     **A world-class API for mental health tracking, AI therapy, and analytics**
-    
+
     ## API Versioning
-    
+
     - **Current Version:** v1
     - **Base URL:** `/api/v1/*`
     - **Future Versions:** `/api/v2/*` (for breaking changes)
-    
+
     ## Features
-    
+
     - 🔐 **Secure Authentication**: JWT-based auth with refresh tokens
     - 📝 **Mood Logging**: Track moods with voice, text, and photos
     - 🤖 **AI Therapy**: GPT-powered conversational therapy
@@ -41,27 +41,27 @@ SWAGGER_CONFIG: Dict[str, Any] = {
     - 🎯 **Gamification**: Achievements, streaks, and rewards
     - 💾 **Memories**: Encrypted storage of user memories
     - 🏥 **Health Integration**: Apple Health & Google Fit sync
-    
+
     ## Security
-    
+
     - End-to-end encryption for sensitive data
     - AES-256-GCM encryption for mood entries
     - HIPAA-compliant data handling
     - Rate limiting and DDoS protection
     - CORS configuration for web clients
     - Correlation IDs for distributed tracing (2026 standard)
-    
+
     ## Rate Limits
-    
+
     - **Authentication**: 10 requests/minute
     - **Mood Logging**: 60 requests/hour
     - **AI Chat**: 30 requests/hour
     - **Analytics**: 100 requests/hour
-    
+
     ## Error Handling
-    
+
     All endpoints return consistent error responses:
-    
+
     ```json
     {
       "error": "Error message",
@@ -70,13 +70,13 @@ SWAGGER_CONFIG: Dict[str, Any] = {
       "request_id": "correlation-id-for-tracing"
     }
     ```
-    
+
     ## Correlation IDs (2026 Standard)
-    
+
     All responses include correlation headers:
     - `X-Request-ID`: Request tracking ID
     - `X-Trace-ID`: Distributed tracing ID
-    
+
     Include these in error reports for better debugging.
     """,
     "termsOfService": "https://lugntrygg.se/terms",
@@ -146,7 +146,7 @@ SWAGGER_CONFIG: Dict[str, Any] = {
     ]
 }
 
-SWAGGER_TEMPLATE: Dict[str, Any] = {
+SWAGGER_TEMPLATE: dict[str, Any] = {
     "swagger": "3.0",
     "info": {
         "title": "Lugn & Trygg API",

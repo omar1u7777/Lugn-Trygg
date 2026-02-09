@@ -4,10 +4,9 @@ Early detection and intervention for mental health crises
 """
 
 import logging
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-import json
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +17,8 @@ class CrisisIndicator:
     name: str
     category: str  # 'behavioral', 'emotional', 'cognitive', 'physical'
     severity_level: str  # 'low', 'medium', 'high', 'critical'
-    detection_rules: Dict[str, Any]
-    intervention_triggers: List[str]
+    detection_rules: dict[str, Any]
+    intervention_triggers: list[str]
     swedish_description: str
     risk_weight: float
 
@@ -29,9 +28,9 @@ class CrisisAssessment:
     user_id: str
     overall_risk_level: str
     risk_score: float
-    active_indicators: List[CrisisIndicator]
-    risk_trends: Dict[str, Any]
-    intervention_recommendations: List[str]
+    active_indicators: list[CrisisIndicator]
+    risk_trends: dict[str, Any]
+    intervention_recommendations: list[str]
     assessment_timestamp: datetime
     confidence_score: float
 
@@ -41,10 +40,10 @@ class InterventionProtocol:
     protocol_id: str
     name: str
     risk_level: str
-    immediate_actions: List[str]
-    support_resources: List[Dict[str, str]]
-    follow_up_steps: List[str]
-    escalation_criteria: Dict[str, Any]
+    immediate_actions: list[str]
+    support_resources: list[dict[str, str]]
+    follow_up_steps: list[str]
+    escalation_criteria: dict[str, Any]
     swedish_guidance: str
 
 class CrisisInterventionService:
@@ -62,7 +61,7 @@ class CrisisInterventionService:
             'critical': 0.95
         }
 
-    def _initialize_crisis_indicators(self) -> Dict[str, CrisisIndicator]:
+    def _initialize_crisis_indicators(self) -> dict[str, CrisisIndicator]:
         """Initialize comprehensive crisis indicators database"""
         indicators = {}
 
@@ -237,7 +236,7 @@ class CrisisInterventionService:
 
         return indicators
 
-    def _initialize_intervention_protocols(self) -> Dict[str, InterventionProtocol]:
+    def _initialize_intervention_protocols(self) -> dict[str, InterventionProtocol]:
         """Initialize intervention protocols for different risk levels"""
         protocols = {}
 
@@ -387,7 +386,7 @@ class CrisisInterventionService:
 
         return protocols
 
-    def assess_crisis_risk(self, user_context: Dict[str, Any]) -> CrisisAssessment:
+    def assess_crisis_risk(self, user_context: dict[str, Any]) -> CrisisAssessment:
         """
         Assess user's current crisis risk based on comprehensive data analysis
 
@@ -438,7 +437,7 @@ class CrisisInterventionService:
 
         return assessment
 
-    def _evaluate_indicator(self, indicator: CrisisIndicator, user_context: Dict[str, Any]) -> bool:
+    def _evaluate_indicator(self, indicator: CrisisIndicator, user_context: dict[str, Any]) -> bool:
         """Evaluate if a crisis indicator is active"""
 
         rules = indicator.detection_rules
@@ -513,9 +512,9 @@ class CrisisInterventionService:
     def _generate_interventions(
         self,
         risk_level: str,
-        active_indicators: List[CrisisIndicator],
-        user_context: Dict[str, Any]
-    ) -> List[str]:
+        active_indicators: list[CrisisIndicator],
+        user_context: dict[str, Any]
+    ) -> list[str]:
         """Generate intervention recommendations"""
 
         protocol = self.intervention_protocols.get(f'{risk_level}_risk_protocol') or \
@@ -547,8 +546,8 @@ class CrisisInterventionService:
 
     def _calculate_assessment_confidence(
         self,
-        active_indicators: List[CrisisIndicator],
-        user_context: Dict[str, Any]
+        active_indicators: list[CrisisIndicator],
+        user_context: dict[str, Any]
     ) -> float:
         """Calculate confidence in the crisis assessment"""
 
@@ -573,7 +572,7 @@ class CrisisInterventionService:
 
         return min(0.95, confidence)
 
-    def _analyze_risk_trends(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_risk_trends(self, user_context: dict[str, Any]) -> dict[str, Any]:
         """Analyze trends in crisis risk over time"""
 
         trends = {
@@ -614,12 +613,12 @@ class CrisisInterventionService:
 
         return trends
 
-    def get_emergency_protocol(self, risk_level: str) -> Optional[InterventionProtocol]:
+    def get_emergency_protocol(self, risk_level: str) -> InterventionProtocol | None:
         """Get emergency intervention protocol for risk level"""
         protocol_key = f'{risk_level}_risk_emergency' if risk_level == 'critical' else f'{risk_level}_risk_crisis'
         return self.intervention_protocols.get(protocol_key)
 
-    def should_escalate_crisis(self, assessment: CrisisAssessment, new_context: Dict[str, Any]) -> bool:
+    def should_escalate_crisis(self, assessment: CrisisAssessment, new_context: dict[str, Any]) -> bool:
         """Determine if crisis situation requires escalation"""
 
         # Check escalation criteria from protocol
@@ -650,7 +649,7 @@ class CrisisInterventionService:
 
         return False
 
-    def generate_safety_plan(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_safety_plan(self, user_context: dict[str, Any]) -> dict[str, Any]:
         """Generate a personalized safety plan for crisis prevention"""
 
         safety_plan = {

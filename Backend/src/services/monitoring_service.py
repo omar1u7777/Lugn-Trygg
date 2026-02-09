@@ -3,15 +3,15 @@ Monitoring Service for Lugn & Trygg Backend
 Provides comprehensive monitoring, alerting, and health checks
 """
 
-import time
-import psutil
-import logging
-from datetime import datetime, timedelta, UTC
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
-import requests
-import redis
 import json
+import logging
+import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+import psutil
+import redis
 
 from ..config import Config
 
@@ -41,7 +41,7 @@ class ApplicationMetrics:
 class HealthStatus:
     """Overall health status"""
     status: str  # 'healthy', 'degraded', 'unhealthy'
-    checks: Dict[str, bool]
+    checks: dict[str, bool]
     message: str
     timestamp: datetime
 
@@ -116,7 +116,6 @@ class MonitoringService:
     def perform_health_check(self) -> HealthStatus:
         """Perform comprehensive health check"""
         checks = {}
-        messages = []
 
         try:
             # System health checks
@@ -168,7 +167,7 @@ class MonitoringService:
                 timestamp=datetime.now(UTC)
             )
 
-    def log_performance_metric(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    def log_performance_metric(self, name: str, value: float, tags: dict[str, str] | None = None):
         """Log performance metric"""
         try:
             metric_data = {
@@ -188,7 +187,7 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"Failed to log performance metric: {e}")
 
-    def log_business_event(self, event_type: str, properties: Optional[Dict[str, Any]] = None):
+    def log_business_event(self, event_type: str, properties: dict[str, Any] | None = None):
         """Log business event for analytics"""
         try:
             event_data = {
@@ -200,16 +199,16 @@ class MonitoringService:
 
             # Store in Redis for processing
             if self.redis_client:
-                key = f"events:{event_type}:{int(time.time())}"
-                self.redis_client.lpush(f"analytics_events", json.dumps(event_data))
-                self.redis_client.expire(f"analytics_events", 86400)  # 24 hours
+                f"events:{event_type}:{int(time.time())}"
+                self.redis_client.lpush("analytics_events", json.dumps(event_data))
+                self.redis_client.expire("analytics_events", 86400)  # 24 hours
 
             logger.info(f"Business event: {event_type}", extra=event_data)
 
         except Exception as e:
             logger.error(f"Failed to log business event: {e}")
 
-    def get_recent_metrics(self, metric_name: str, hours: int = 24) -> List[Dict]:
+    def get_recent_metrics(self, metric_name: str, hours: int = 24) -> list[dict]:
         """Get recent metrics for analysis"""
         try:
             if not self.redis_client:
@@ -284,7 +283,7 @@ class MonitoringService:
         """Get active database connections (estimated from Firebase pool)"""
         try:
             import firebase_admin
-            app = firebase_admin.get_app()
+            firebase_admin.get_app()
             # Firebase uses gRPC channels; return active thread count as proxy
             import threading
             return threading.active_count()
@@ -359,25 +358,25 @@ class MonitoringService:
             return False
 
     # Additional methods for test coverage
-    
+
     def track_request(self, endpoint: str, method: str, status_code: int, duration: float) -> None:
         """Track HTTP request metrics"""
         try:
             if self.redis_client:
                 # Increment total requests
                 self.redis_client.incr('metrics:http_requests_total')
-                
+
                 # Track errors (4xx, 5xx)
                 if status_code >= 400:
                     self.redis_client.incr('metrics:http_errors_total')
-                
+
                 # Update average response time
                 key = 'metrics:avg_response_time'
                 current_val = self.redis_client.get(key)
                 current_avg = float(str(current_val)) if current_val else 0.0
                 new_avg = (current_avg + duration) / 2  # Simple moving average
                 self.redis_client.set(key, str(new_avg))
-                
+
                 # Log request details
                 logger.info(f"Request tracked: {method} {endpoint} - {status_code} ({duration:.2f}ms)")
         except Exception as e:
@@ -392,18 +391,18 @@ class MonitoringService:
                 'message': error_message,
                 'timestamp': datetime.now(UTC).isoformat()
             }
-            
+
             if self.redis_client:
                 # Store error in Redis list
                 self.redis_client.lpush('errors:recent', json.dumps(error_data))
                 self.redis_client.ltrim('errors:recent', 0, 99)  # Keep last 100 errors
                 self.redis_client.incr('metrics:http_errors_total')
-            
+
             logger.error(f"Error tracked: {error_type} at {endpoint} - {error_message}")
         except Exception as e:
             logger.error(f"Failed to track error: {e}")
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get current health status as dictionary"""
         try:
             health_status = self.perform_health_check()
@@ -463,6 +462,6 @@ def init_monitoring_service(config: Config) -> MonitoringService:
     monitoring_service = MonitoringService(config)
     return monitoring_service
 
-def get_monitoring_service() -> Optional[MonitoringService]:
+def get_monitoring_service() -> MonitoringService | None:
     """Get global monitoring service instance"""
     return monitoring_service

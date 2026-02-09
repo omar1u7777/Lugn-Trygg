@@ -4,16 +4,17 @@ Provides Redis client setup and connection pooling for high-performance caching.
 """
 
 import logging
+
 import redis
 from redis.connection import ConnectionPool
-from typing import Optional, Any
+
 from .config import config
 
 logger = logging.getLogger(__name__)
 
 # Global Redis client instance
-redis_client: Optional[redis.Redis] = None
-redis_pool: Optional[ConnectionPool] = None
+redis_client: redis.Redis | None = None
+redis_pool: ConnectionPool | None = None
 
 
 def create_redis_pool() -> ConnectionPool:
@@ -77,7 +78,7 @@ def initialize_redis() -> bool:
         return False
 
 
-def get_redis_client() -> Optional[redis.Redis]:
+def get_redis_client() -> redis.Redis | None:
     """
     Get the Redis client instance.
 

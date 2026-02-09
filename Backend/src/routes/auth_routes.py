@@ -1,32 +1,28 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
-from datetime import datetime, timezone, timedelta
 import logging
 import re
-import requests
-from flask import Blueprint, request, jsonify, make_response, g, Response
+from datetime import UTC, datetime, timedelta
 
+import requests
+from flask import Blueprint, Response, g, jsonify, make_response, request
+
+from ..middleware.validation import validate_request
+from ..schemas.auth import (
+    ChangePasswordRequest,
+    ConfirmPasswordResetRequest,
+    ConsentUpdateRequest,
+    GoogleAuthRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+)
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
-from ..middleware.validation import validate_request
-from ..schemas.auth import (
-    RegisterRequest,
-    LoginRequest,
-    GoogleAuthRequest,
-    ResetPasswordRequest,
-    ConfirmPasswordResetRequest,
-    ChangePasswordRequest,
-    TwoFactorSetupRequest,
-    TwoFactorVerifyRequest,
-    UpdateProfileRequest,
-    ConsentUpdateRequest,
-    DeleteAccountRequest,
-)
-from ..utils.timestamp_utils import parse_iso_timestamp
-from ..utils.response_utils import APIResponse, success_response, error_response, created_response
 from ..utils.input_sanitization import input_sanitizer
+from ..utils.response_utils import APIResponse
+from ..utils.timestamp_utils import parse_iso_timestamp
 
 # 2026-Compliant: Try new config, fallback to old
 try:
@@ -35,7 +31,7 @@ try:
     JWT_REFRESH_SECRET_KEY = settings.jwt_refresh_secret_key
     FIREBASE_WEB_API_KEY = settings.firebase_web_api_key
 except ImportError:
-    from ..config import JWT_REFRESH_SECRET_KEY, FIREBASE_WEB_API_KEY
+    from ..config import FIREBASE_WEB_API_KEY, JWT_REFRESH_SECRET_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +58,10 @@ def _verify_current_password(email: str, password: str) -> bool:
 @auth_bp.route('/register', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 @validate_request(RegisterRequest)
-def register_user(validated_data: RegisterRequest) -> Tuple[Response, int] | Response:
+def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Response:
     """
     Register a new user
-    
+
     2026-Compliant: Type hints with RegisterRequest schema
     """
     if request.method == 'OPTIONS':
@@ -103,7 +99,7 @@ def register_user(validated_data: RegisterRequest) -> Tuple[Response, int] | Res
                 'email': email,
                 'name': name,
                 'referral_code': referral_code or None,
-                'created_at': datetime.now(timezone.utc).isoformat(),
+                'created_at': datetime.now(UTC).isoformat(),
                 'is_active': True,
                 'two_factor_enabled': False,
                 'biometric_enabled': False,
@@ -185,7 +181,7 @@ def login_user(validated_data):
     logger.info("🔑 AUTH - LOGIN endpoint called")
 
     try:
-        logger.info(f"📝 AUTH - Received validated login data")
+        logger.info("📝 AUTH - Received validated login data")
 
         email = validated_data.email.strip().lower()
         password = validated_data.password
@@ -208,7 +204,7 @@ def login_user(validated_data):
 
             # Update last_login timestamp
             db.collection('users').document(user.uid).update({
-                'last_login': datetime.now(timezone.utc).isoformat()
+                'last_login': datetime.now(UTC).isoformat()
             })
 
         except Exception as db_error:
@@ -260,8 +256,9 @@ def verify_2fa():
     """Verify two-factor authentication"""
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
+        from ..firebase_config import db
         user_id = g.user_id
         data = request.get_json() or {}
 
@@ -338,7 +335,7 @@ def setup_2fa_biometric():
     """Setup two-factor authentication for user (biometric/sms)"""
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -402,10 +399,10 @@ def setup_2fa_biometric():
 def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
     """Find or create Google OAuth user (simplified without transaction)"""
     from ..firebase_config import db
-    
+
     if db is None:
         raise RuntimeError("Database unavailable")
-    
+
     # Get user by firebase_uid
     user_ref = db.collection('users').document(firebase_uid)
     user_doc = user_ref.get()
@@ -414,7 +411,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
         user_data = user_doc.to_dict()
         user_id = user_doc.id
         # Update last login
-        user_ref.update({'last_login': datetime.now(timezone.utc).isoformat()})
+        user_ref.update({'last_login': datetime.now(UTC).isoformat()})
         return user_data, user_id, False  # False = not new
 
     # Check email mapping
@@ -431,7 +428,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
             user_id = existing_uid
             # Update with Google info
             update_data = {
-                'last_login': datetime.now(timezone.utc).isoformat(),
+                'last_login': datetime.now(UTC).isoformat(),
                 'login_method': 'google'
             }
             if not user_data.get('google_id'):
@@ -459,7 +456,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
             user_id = existing_uid
             # Update with firebase_uid
             update_data = {
-                'last_login': datetime.now(timezone.utc).isoformat()
+                'last_login': datetime.now(UTC).isoformat()
             }
             if not user_data.get('firebase_uid'):
                 update_data['firebase_uid'] = firebase_uid
@@ -473,7 +470,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
         'name': name,
         'google_id': google_id,
         'firebase_uid': firebase_uid,
-        'created_at': datetime.now(timezone.utc).isoformat(),
+        'created_at': datetime.now(UTC).isoformat(),
         'is_active': True,
         'two_factor_enabled': False,
         'biometric_enabled': False,
@@ -498,7 +495,7 @@ def google_login(validated_data=None):
     try:
         if validated_data is None:
             return APIResponse.bad_request('Invalid request data')
-        
+
         id_token = validated_data.id_token
 
         # Verify Firebase ID token (which contains Google OAuth info)
@@ -596,7 +593,7 @@ def logout():
     """Logout user by clearing the cookie"""
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
         user_id = g.user_id
 
@@ -738,7 +735,7 @@ def update_consent(validated_data):
             'analytics_consent': getattr(validated_data, 'analytics_consent', False),
             'marketing_consent': getattr(validated_data, 'marketing_consent', False),
             'data_processing_consent': getattr(validated_data, 'data_sharing_consent', True),  # Required
-            'consent_updated_at': datetime.now(timezone.utc).isoformat()
+            'consent_updated_at': datetime.now(UTC).isoformat()
         }
 
         try:
@@ -832,7 +829,7 @@ def refresh_token():
     """Refresh access token using refresh token"""
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     try:
         data = request.get_json() or {}
         refresh_token_value = data.get('refresh_token') if data else None
@@ -946,7 +943,7 @@ def change_email():
             # Update email in Firestore
             db.collection('users').document(user_id).update({
                 'email': new_email,
-                'email_updated_at': datetime.now(timezone.utc).isoformat()
+                'email_updated_at': datetime.now(UTC).isoformat()
             })
 
             audit_log('email_changed', user_id, {'old_email': user.email, 'new_email': new_email})
@@ -1029,10 +1026,11 @@ def setup_2fa():
             return APIResponse.bad_request('Only TOTP method is supported')
 
         try:
-            import pyotp
-            import qrcode
             import base64
             from io import BytesIO
+
+            import pyotp
+            import qrcode
 
             # Generate TOTP secret
             secret = pyotp.random_base32()
@@ -1069,7 +1067,7 @@ def setup_2fa():
             db.collection('users').document(user_id).update({
                 'temp_2fa_secret': secret,
                 'temp_2fa_method': 'totp',
-                'temp_2fa_created_at': datetime.now(timezone.utc).isoformat()
+                'temp_2fa_created_at': datetime.now(UTC).isoformat()
             })
 
             audit_log('2fa_setup_initiated', user_id, {'method': 'totp'})
@@ -1135,7 +1133,7 @@ def verify_2fa_setup():
             # Check if temp setup is not expired (5 minutes)
             if temp_created_at:
                 created_at = parse_iso_timestamp(temp_created_at, default_to_now=False)
-                if (datetime.now(timezone.utc) - created_at).total_seconds() > 300:  # 5 minutes
+                if (datetime.now(UTC) - created_at).total_seconds() > 300:  # 5 minutes
                     # Clean up expired temp data
                     db.collection('users').document(user_id).update({
                         'temp_2fa_secret': None,
@@ -1155,7 +1153,7 @@ def verify_2fa_setup():
                 'two_factor_enabled': True,
                 'two_factor_method': 'totp',
                 'two_factor_secret': temp_secret,
-                'two_factor_enabled_at': datetime.now(timezone.utc).isoformat(),
+                'two_factor_enabled_at': datetime.now(UTC).isoformat(),
                 # Clean up temp data
                 'temp_2fa_secret': None,
                 'temp_2fa_method': None,
@@ -1197,7 +1195,7 @@ def export_user_data():
 
             # Collect all user data
             export_data = {
-                'export_timestamp': datetime.now(timezone.utc).isoformat(),
+                'export_timestamp': datetime.now(UTC).isoformat(),
                 'user_id': user_id
             }
 
@@ -1261,7 +1259,7 @@ def export_user_data():
             })
 
             response = make_response(jsonify(export_data), 200)
-            response.headers['Content-Disposition'] = f'attachment; filename=user_data_{user_id}_{datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")}.json'
+            response.headers['Content-Disposition'] = f'attachment; filename=user_data_{user_id}_{datetime.now(UTC).strftime("%Y%m%d_%H%M%S")}.json'
             response.headers['Content-Type'] = 'application/json'
 
             return response
@@ -1301,9 +1299,9 @@ def delete_account(user_id):
             # Mark user as inactive (soft delete) and schedule hard deletion
             db.collection('users').document(user_id).update({
                 'is_active': False,
-                'deleted_at': datetime.now(timezone.utc).isoformat(),
+                'deleted_at': datetime.now(UTC).isoformat(),
                 'deletion_reason': 'user_requested',
-                'hard_delete_after': (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+                'hard_delete_after': (datetime.now(UTC) + timedelta(days=30)).isoformat()
             })
 
             # Disable the Firebase Auth account immediately

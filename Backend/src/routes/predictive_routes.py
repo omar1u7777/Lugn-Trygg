@@ -3,15 +3,17 @@ Predictive Analytics Routes for Lugn & Trygg
 API endpoints for mood prediction and trend analysis
 """
 
-from flask import Blueprint, request, g
+import logging
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, g, request
+
+from src.firebase_config import db
+from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.predictive_service import predictive_service
-from src.services.audit_service import audit_log
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.firebase_config import db
 from src.utils.response_utils import APIResponse
-import logging
-from datetime import datetime, timedelta, timezone
 
 try:
     from google.cloud.firestore import FieldFilter
@@ -168,9 +170,9 @@ def check_crisis_risk():
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
 
         # Get recent mood entries (last 30 days) from Firestore
-        thirty_days_ago_dt = datetime.now(timezone.utc) - timedelta(days=30)
+        thirty_days_ago_dt = datetime.now(UTC) - timedelta(days=30)
         mood_ref = db.collection('users').document(user_id).collection('moods')
-        
+
         if FieldFilter is not None:
             mood_docs = list(mood_ref.where(filter=FieldFilter('timestamp', '>=', thirty_days_ago_dt))
                 .order_by('timestamp', direction='DESCENDING')
@@ -234,10 +236,10 @@ def get_personal_insights():
         try:
             trend_result = predictive_service.predict_mood_trend(mood_data, 7)
             crisis_result = predictive_service.detect_crisis_risk(mood_data)
-            
+
             # Calculate average sentiment
             avg_score = sum(m.get('sentiment_score', 0) for m in mood_data) / len(mood_data)
-            
+
             insights = {
                 'overallMood': 'positive' if avg_score > 0.5 else 'negative' if avg_score < -0.5 else 'neutral',
                 'averageScore': round(avg_score, 2),
@@ -289,9 +291,9 @@ def get_mood_trends():
             return APIResponse.error("Database connection missing", "DB_ERROR", 503)
 
         # Get mood entries for period from Firestore
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        start_date = datetime.now(UTC) - timedelta(days=days)
         mood_ref = db.collection('users').document(user_id).collection('moods')
-        
+
         if FieldFilter is not None:
             mood_docs = list(mood_ref.where(filter=FieldFilter('timestamp', '>=', start_date))
                 .order_by('timestamp')
@@ -307,7 +309,7 @@ def get_mood_trends():
         # Analyze trends using predict_mood_trend
         if len(mood_data) > 0:
             avg_score = sum(m.get('sentiment_score', 0) for m in mood_data) / len(mood_data)
-            
+
             # Determine trend direction based on recent vs older data
             if len(mood_data) >= 7:
                 recent_avg = sum(m.get('sentiment_score', 0) for m in mood_data[-7:]) / 7
@@ -320,7 +322,7 @@ def get_mood_trends():
                     trend_direction = 'stable'
             else:
                 trend_direction = 'stable'
-            
+
             trends = {
                 'period': period,
                 'daysAnalyzed': days,
@@ -384,7 +386,7 @@ def mood_forecast():
             forecast_result = ai_services.predictive_mood_analytics(mood_data, days_ahead)
 
         # Save forecast to database for tracking
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         forecast_ref = db.collection("users").document(user_id).collection("forecasts")
 
         forecast_ref.document(f"forecast_{timestamp}").set({

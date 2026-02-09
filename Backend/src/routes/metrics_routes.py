@@ -8,18 +8,20 @@ Critical for:
 - System resource monitoring
 """
 
-import os
 import logging
+import os
 import time
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-from flask import Blueprint, Response, request as flask_request, g
+from datetime import UTC, datetime
+from typing import Any
+
 import psutil
+from flask import Blueprint, Response, g
+from flask import request as flask_request
 
 # Optional Prometheus support
 try:
     import prometheus_client as prom
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -27,8 +29,8 @@ except ImportError:
 
 # Absolute imports (project standard)
 from src.firebase_config import db
-from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.auth_service import AuthService
+from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -54,26 +56,26 @@ HEALTH_CHECK_DURATION = None
 if PROMETHEUS_AVAILABLE and prom is not None:
     # HTTP metrics
     REQUEST_COUNT = prom.Counter(
-        'http_requests_total', 
-        'Total HTTP requests', 
+        'http_requests_total',
+        'Total HTTP requests',
         ['method', 'endpoint', 'status']
     )
     REQUEST_LATENCY = prom.Histogram(
-        'http_request_duration_seconds', 
-        'HTTP request latency', 
+        'http_request_duration_seconds',
+        'HTTP request latency',
         ['method', 'endpoint']
     )
-    
+
     # System metrics
     CPU_USAGE = prom.Gauge('system_cpu_usage_percent', 'Current CPU usage')
     MEMORY_USAGE = prom.Gauge('system_memory_usage_percent', 'Current memory usage')
     DISK_USAGE = prom.Gauge('system_disk_usage_percent', 'Current disk usage')
-    
+
     # Business metrics (updated from database)
     ACTIVE_USERS = prom.Gauge('lugn_trygg_active_users', 'Number of active users')
     TOTAL_MOODS = prom.Gauge('lugn_trygg_moods_total', 'Total mood logs in database')
     TOTAL_MEMORIES = prom.Gauge('lugn_trygg_memories_total', 'Total memories in database')
-    
+
     # Health check duration
     HEALTH_CHECK_DURATION = prom.Histogram('health_check_duration_seconds', 'Health check duration')
 
@@ -109,7 +111,7 @@ def health_check():
         # Check system resources (non-blocking)
         cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
-        
+
         # Try to get disk usage (may fail in some containers)
         try:
             disk = psutil.disk_usage('/')
@@ -136,7 +138,7 @@ def health_check():
 
         health_data = {
             'status': 'healthy' if db_status == 'healthy' else 'degraded',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'version': os.getenv('APP_VERSION', '1.0.0'),
             'system': {
                 'cpuUsage': f"{cpu_percent:.1f}%",
@@ -174,7 +176,7 @@ def readiness_check():
         # Check if database is accessible
         db.collection("_health_check").limit(1).get()
         return APIResponse.success(
-            data={'status': 'ready', 'timestamp': datetime.now(timezone.utc).isoformat()},
+            data={'status': 'ready', 'timestamp': datetime.now(UTC).isoformat()},
             message='Service ready'
         )
     except Exception as e:
@@ -190,7 +192,7 @@ def liveness_check():
     Returns 200 if service is alive (minimal check).
     """
     return APIResponse.success(
-        data={'status': 'alive', 'timestamp': datetime.now(timezone.utc).isoformat()},
+        data={'status': 'alive', 'timestamp': datetime.now(UTC).isoformat()},
         message='Service alive'
     )
 
@@ -206,7 +208,7 @@ def prometheus_metrics():
     """
     Prometheus metrics endpoint.
     Requires prometheus-client to be installed.
-    
+
     Security: Consider adding authentication for production.
     """
     if not PROMETHEUS_AVAILABLE:
@@ -218,8 +220,9 @@ def prometheus_metrics():
 
     try:
         # Import here to ensure it's available
-        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST as PROM_CONTENT_TYPE
-        
+        from prometheus_client import CONTENT_TYPE_LATEST as PROM_CONTENT_TYPE
+        from prometheus_client import generate_latest
+
         # Update business metrics from database
         _update_business_metrics_from_db()
 
@@ -245,7 +248,7 @@ def business_metrics():
 
     try:
         from prometheus_client import CONTENT_TYPE_LATEST as PROM_CONTENT_TYPE
-        
+
         # Get fresh data from database
         stats = _get_business_stats_from_db()
 
@@ -271,7 +274,7 @@ def business_metrics():
 # Database Stats Functions (replaces mock data)
 # ============================================================================
 
-def _get_business_stats_from_db() -> Dict[str, int]:
+def _get_business_stats_from_db() -> dict[str, int]:
     """
     Get real business statistics from Firestore.
     Uses collection counts for accurate metrics.
@@ -282,27 +285,27 @@ def _get_business_stats_from_db() -> Dict[str, int]:
         "total_memories": 0,
         "total_achievements": 0
     }
-    
+
     try:
         # Count users (limit query to avoid timeout)
         users_count = len(list(db.collection("users").limit(10000).stream()))
         stats["total_users"] = users_count
-        
+
         # Count moods
         moods_count = len(list(db.collection("moods").limit(50000).stream()))
         stats["total_moods"] = moods_count
-        
+
         # Count memories
         memories_count = len(list(db.collection("memories").limit(10000).stream()))
         stats["total_memories"] = memories_count
-        
+
         # Count achievements
         achievements_count = len(list(db.collection("achievements").limit(10000).stream()))
         stats["total_achievements"] = achievements_count
-        
+
     except Exception as e:
         logger.warning(f"Error fetching business stats: {e}")
-    
+
     return stats
 
 
@@ -310,7 +313,7 @@ def _update_business_metrics_from_db():
     """Update Prometheus gauges with real data from database"""
     if not PROMETHEUS_AVAILABLE:
         return
-    
+
     try:
         stats = _get_business_stats_from_db()
         if ACTIVE_USERS is not None:
@@ -331,7 +334,7 @@ def init_metrics_tracking(app):
     """
     Initialize metrics tracking middleware.
     Call this in main.py after creating the Flask app.
-    
+
     Usage:
         from src.routes.metrics_routes import init_metrics_tracking
         init_metrics_tracking(app)
@@ -340,8 +343,7 @@ def init_metrics_tracking(app):
         logger.info("Prometheus not available, skipping metrics tracking")
         return
 
-    from flask import g
-    
+
     @app.before_request
     def track_request_start():
         g._start_time = time.time()
@@ -367,7 +369,7 @@ def init_metrics_tracking(app):
                 ).observe(duration)
 
         return response
-    
+
     logger.info("✅ Prometheus metrics tracking initialized")
 
 
@@ -375,25 +377,25 @@ def init_metrics_tracking(app):
 # Event Tracking (for use in other modules)
 # ============================================================================
 
-def track_business_event(event_type: str, properties: Optional[Dict[str, Any]] = None):
+def track_business_event(event_type: str, properties: dict[str, Any] | None = None):
     """
     Track business events for analytics.
     Call this from other modules when important events occur.
-    
+
     Usage:
         from src.routes.metrics_routes import track_business_event
         track_business_event('user_registration', {'source': 'google'})
     """
     if not PROMETHEUS_AVAILABLE:
         return
-    
+
     try:
         # Log event for debugging
         logger.debug(f"Business event: {event_type} - {properties}")
-        
+
         # Note: For real-time counters, you'd increment specific metrics here
         # The current implementation refreshes from database on each /metrics call
-        
+
     except Exception as e:
         logger.warning(f"Error tracking business event: {e}")
 

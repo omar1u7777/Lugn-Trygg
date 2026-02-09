@@ -1,17 +1,18 @@
 import logging
-from datetime import datetime, timezone
-from flask import Blueprint, request, g
+from datetime import UTC, datetime
+
+from flask import Blueprint, g, request
 
 from src.firebase_config import db
+from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.utils.input_sanitization import input_sanitizer
-from src.services.audit_service import audit_log
-from src.utils.response_utils import APIResponse
 from src.services.subscription_service import (
     SubscriptionLimitError,
     SubscriptionService,
 )
+from src.utils.input_sanitization import input_sanitizer
+from src.utils.response_utils import APIResponse
 
 chatbot_bp = Blueprint("chatbot", __name__)
 logger = logging.getLogger(__name__)
@@ -154,7 +155,7 @@ def chat_with_ai():
             ai_response = generate_fallback_response(user_message)
 
         # Save conversation to database
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # Save user message
         conversation_ref.document(f"user_{timestamp}").set({
@@ -529,7 +530,7 @@ def analyze_mood_patterns():
         try:
             logger.info(f"📊 Analyzing mood patterns for user {user_id}, {len(mood_history)} data points")
             pattern_analysis = ai_services.analyze_mood_patterns(mood_history)
-            logger.info(f"✅ Pattern analysis completed successfully")
+            logger.info("✅ Pattern analysis completed successfully")
         except Exception as pattern_error:
             logger.warning(f"⚠️ Pattern analysis failed, using fallback: {str(pattern_error)}")
             pattern_analysis = {
@@ -541,7 +542,7 @@ def analyze_mood_patterns():
         return APIResponse.success({
             "patternAnalysis": pattern_analysis,
             "dataPointsAnalyzed": len(mood_history),
-            "analysisTimestamp": datetime.now(timezone.utc).isoformat()
+            "analysisTimestamp": datetime.now(UTC).isoformat()
         })
 
     except Exception as e:
@@ -590,7 +591,7 @@ def start_exercise():
         exercise_content = generate_exercise_content(exercise_type, duration)
 
         # Save exercise session to database
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         exercise_ref = db.collection("users").document(user_id).collection("exercises")
 
         exercise_ref.document(f"exercise_{timestamp}").set({
@@ -625,7 +626,7 @@ def complete_exercise(user_id, exercise_id):
         # Verify user owns this exercise
         if g.user_id != user_id:
             return APIResponse.forbidden("Unauthorized")
-        
+
         if not user_id or not exercise_id:
             return APIResponse.bad_request("User ID and exercise ID required")
 
@@ -637,7 +638,7 @@ def complete_exercise(user_id, exercise_id):
 
         exercise_ref.update({
             "completed": True,
-            "completed_at": datetime.now(timezone.utc).isoformat()
+            "completed_at": datetime.now(UTC).isoformat()
         })
 
         logger.info(f"✅ Exercise completed for user {user_id}: {exercise_id}")

@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Literal
+from datetime import UTC, datetime
+from typing import Any, Literal
 
-from ..firebase_config import db
 from ..config.subscription_config import load_subscription_plans
+from ..firebase_config import db
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ UsageType = Literal["mood_logs", "chat_messages"]
 USAGE_COLLECTION = "usage"
 USAGE_DOC_ID = "daily"
 
-PLAN_LIMIT_MAP: Dict[UsageType, str] = {
+PLAN_LIMIT_MAP: dict[UsageType, str] = {
     "mood_logs": "moodLogsPerDay",
     "chat_messages": "chatMessagesPerDay",
 }
@@ -35,7 +35,7 @@ class SubscriptionService:
 
     @staticmethod
     def _today() -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return datetime.now(UTC).strftime("%Y-%m-%d")
 
     @staticmethod
     def _get_usage_ref(user_id: str):
@@ -61,7 +61,7 @@ class SubscriptionService:
         return plan_key in cls.PREMIUM_TIERS
 
     @classmethod
-    def get_plan_context(cls, user_data: Dict[str, Any] | None) -> Dict[str, Any]:
+    def get_plan_context(cls, user_data: dict[str, Any] | None) -> dict[str, Any]:
         user_data = user_data or {}
         subscription = user_data.get("subscription", {}) or {}
         plan_key = cls._normalize_plan(subscription.get("plan"))
@@ -87,7 +87,7 @@ class SubscriptionService:
         }
 
     @classmethod
-    def get_daily_usage(cls, user_id: str) -> Dict[str, Any]:
+    def get_daily_usage(cls, user_id: str) -> dict[str, Any]:
         today = cls._today()
         try:
             usage_ref = cls._get_usage_ref(user_id)
@@ -121,8 +121,8 @@ class SubscriptionService:
         cls,
         user_id: str,
         usage_type: UsageType,
-        plan_limits: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        plan_limits: dict[str, Any],
+    ) -> dict[str, Any]:
         limit_field = PLAN_LIMIT_MAP[usage_type]
         limit_value = int(plan_limits.get(limit_field, 0))
 
@@ -169,7 +169,7 @@ class SubscriptionService:
         }
 
     @classmethod
-    def build_status_payload(cls, user_id: str, user_data: Dict[str, Any] | None) -> Dict[str, Any]:
+    def build_status_payload(cls, user_id: str, user_data: dict[str, Any] | None) -> dict[str, Any]:
         context = cls.get_plan_context(user_data)
         usage_raw = cls.get_daily_usage(user_id)
         # Transform usage keys to camelCase for frontend

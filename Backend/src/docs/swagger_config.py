@@ -5,9 +5,9 @@ Generates comprehensive API documentation with examples and validation
 
 from importlib import metadata as importlib_metadata
 
+import marshmallow
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
-import marshmallow
 
 # ---------------------------------------------------------------------------
 # Compatibility helpers
@@ -24,11 +24,11 @@ except AttributeError:
 
 if needs_version:
     try:
-        setattr(marshmallow, "__version__", importlib_metadata.version("marshmallow"))
+        marshmallow.__version__ = importlib_metadata.version("marshmallow")
     except importlib_metadata.PackageNotFoundError:
         # As an absolute fallback, provide a placeholder version string so
         # flask-apispec can continue importing without crashing.
-        setattr(marshmallow, "__version__", "0")
+        marshmallow.__version__ = "0"
 
 try:
     from flask_apispec import FlaskApiSpec
@@ -38,65 +38,64 @@ except (ImportError, AttributeError) as e:
     FLASK_APISPEC_AVAILABLE = False
     FlaskApiSpec = None
 
-from marshmallow import Schema, fields, validate
 
-import os
+from marshmallow import Schema, fields, validate
 
 # Create APISpec instance
 spec = APISpec(
     title='Lugn & Trygg API',
     version='1.0.0',
     openapi_version='3.0.3',
-    info=dict(
-        description='Mental Health & Wellness Platform API - Comprehensive API for mood tracking, AI therapy, and health monitoring',
-        termsOfService='https://lugntrygg.se/terms',
-        contact=dict(
-            name='Lugn & Trygg Support',
-            email='support@lugntrygg.se',
-            url='https://lugntrygg.se/support'
-        ),
-        license=dict(
-            name='Proprietary',
-            url='https://lugntrygg.se/license'
-        )
-    ),
+    info={
+        "description": 'Mental Health & Wellness Platform API - Comprehensive API for mood tracking, AI therapy, and health monitoring',
+        "termsOfService": 'https://lugntrygg.se/terms',
+        "contact": {
+            "name": 'Lugn & Trygg Support',
+            "email": 'support@lugntrygg.se',
+            "url": 'https://lugntrygg.se/support'
+        },
+        "license": {
+            "name": 'Proprietary',
+            "url": 'https://lugntrygg.se/license'
+        }
+    },
     servers=[
-        dict(
-            url='http://localhost:5001',
-            description='Development server (local)'
-        ),
-        dict(
-            url='https://api.lugntrygg.se',
-            description='Production server'
-        )
+        {
+            "url": 'http://localhost:5001',
+            "description": 'Development server (local)'
+        },
+        {
+            "url": 'https://api.lugntrygg.se',
+            "description": 'Production server'
+        }
     ],
     security=[{'BearerAuth': []}],
     tags=[
-        dict(name='Health', description='Server health and readiness checks'),
-        dict(name='Authentication', description='User authentication and authorization'),
-        dict(name='Mood Tracking', description='Mood logging, streaks, and statistics'),
-        dict(name='Dashboard', description='User dashboard and quick stats'),
-        dict(name='AI Services', description='AI chatbot, sentiment analysis, and predictions'),
-        dict(name='Memory Management', description='User memory and media management'),
-        dict(name='Journal', description='Daily journal entries'),
-        dict(name='CBT', description='Cognitive Behavioral Therapy modules and exercises'),
-        dict(name='Crisis', description='Crisis assessment and safety planning'),
-        dict(name='Rewards', description='XP, levels, achievements, and rewards catalog'),
-        dict(name='Leaderboard', description='XP, streak, and mood leaderboards'),
-        dict(name='Challenges', description='Active challenges'),
-        dict(name='Subscriptions', description='Subscription plans, billing, and status'),
-        dict(name='Audio', description='Relaxation audio library and categories'),
-        dict(name='Users', description='User profile, preferences, and settings'),
-        dict(name='Notifications', description='Notification settings'),
-        dict(name='Consent', description='User consent management (GDPR)'),
-        dict(name='Privacy', description='Privacy settings, GDPR export, HIPAA compliance'),
-        dict(name='Onboarding', description='User onboarding flow and goals'),
-        dict(name='Referral', description='Referral code generation and tracking'),
-        dict(name='Peer Chat', description='Anonymous community peer support chat'),
-        dict(name='Voice', description='Voice transcription and emotion analysis'),
-        dict(name='Sync', description='Sync history and statistics'),
-        dict(name='Rate Limiting', description='Rate limit status'),
-        dict(name='Admin', description='Administrative functions (admin only)'),
+        {"name": 'Health', "description": 'Server health and readiness checks'},
+        {"name": 'Authentication', "description": 'User authentication and authorization'},
+        {"name": 'Mood Tracking', "description": 'Mood logging, streaks, and statistics'},
+        {"name": 'Dashboard', "description": 'User dashboard and quick stats'},
+        {"name": 'AI Services', "description": 'AI chatbot, sentiment analysis, and predictions'},
+        {"name": 'Memory Management', "description": 'User memory and media management'},
+        {"name": 'Journal', "description": 'Daily journal entries'},
+        {"name": 'CBT', "description": 'Cognitive Behavioral Therapy modules and exercises'},
+        {"name": 'Crisis', "description": 'Crisis assessment and safety planning'},
+        {"name": 'Rewards', "description": 'XP, levels, achievements, and rewards catalog'},
+        {"name": 'Leaderboard', "description": 'XP, streak, and mood leaderboards'},
+        {"name": 'Challenges', "description": 'Active challenges'},
+        {"name": 'Subscriptions', "description": 'Subscription plans, billing, and status'},
+        {"name": 'Audio', "description": 'Relaxation audio library and categories'},
+        {"name": 'Users', "description": 'User profile, preferences, and settings'},
+        {"name": 'Notifications', "description": 'Notification settings'},
+        {"name": 'Consent', "description": 'User consent management (GDPR)'},
+        {"name": 'Privacy', "description": 'Privacy settings, GDPR export, HIPAA compliance'},
+        {"name": 'Onboarding', "description": 'User onboarding flow and goals'},
+        {"name": 'Referral', "description": 'Referral code generation and tracking'},
+        {"name": 'Peer Chat', "description": 'Anonymous community peer support chat'},
+        {"name": 'Voice', "description": 'Voice transcription and emotion analysis'},
+        {"name": 'Sync', "description": 'Sync history and statistics'},
+        {"name": 'Rate Limiting', "description": 'Rate limit status'},
+        {"name": 'Admin', "description": 'Administrative functions (admin only)'},
     ],
     plugins=[MarshmallowPlugin()],
 )

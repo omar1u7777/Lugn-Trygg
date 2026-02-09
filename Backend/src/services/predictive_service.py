@@ -3,19 +3,19 @@ Predictive Analytics Service for Lugn & Trygg
 Handles mood prediction, trend analysis, and crisis detection
 """
 
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+import joblib
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
-import logging
-from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
-import joblib
-import os
-from pathlib import Path
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class PredictiveAnalyticsService:
 
         self.current_model = 'random_forest'
 
-    def preprocess_mood_data(self, mood_entries: List[Dict]) -> pd.DataFrame:
+    def preprocess_mood_data(self, mood_entries: list[dict]) -> pd.DataFrame:
         """
         Preprocess mood data for predictive modeling
 
@@ -71,11 +71,6 @@ class PredictiveAnalyticsService:
         df['day_of_year'] = df['timestamp'].dt.dayofyear  # type: ignore[attr-defined]
 
         # Calculate mood score (simplified sentiment mapping)
-        mood_score_map = {
-            'excellent': 5, 'very_good': 4, 'good': 3,
-            'neutral': 3, 'okay': 3,
-            'bad': 2, 'very_bad': 1, 'terrible': 1
-        }
 
         df['mood_score'] = df['mood_text'].apply(
             lambda x: self._extract_mood_score(x) if pd.notna(x) else 3
@@ -121,7 +116,7 @@ class PredictiveAnalyticsService:
         else:
             return 3
 
-    def train_predictive_model(self, mood_entries: List[Dict]) -> Dict[str, Any]:
+    def train_predictive_model(self, mood_entries: list[dict]) -> dict[str, Any]:
         """
         Train predictive model on mood data
 
@@ -200,7 +195,7 @@ class PredictiveAnalyticsService:
                 'model_path': None
             }
 
-    def predict_mood_trend(self, mood_entries: List[Dict], days_ahead: int = 7) -> Dict[str, Any]:
+    def predict_mood_trend(self, mood_entries: list[dict], days_ahead: int = 7) -> dict[str, Any]:
         """
         Predict mood trends for the next N days
 
@@ -292,7 +287,7 @@ class PredictiveAnalyticsService:
             }
 
     def _create_prediction_features(self, pred_date: pd.Timestamp,
-                                  last_entry: pd.Series, df: pd.DataFrame) -> Dict[str, float]:
+                                  last_entry: pd.Series, df: pd.DataFrame) -> dict[str, float]:
         """
         Create feature vector for prediction
         """
@@ -344,7 +339,7 @@ class PredictiveAnalyticsService:
 
         return float(confidence)
 
-    def detect_crisis_risk(self, mood_entries: List[Dict]) -> Dict[str, Any]:
+    def detect_crisis_risk(self, mood_entries: list[dict]) -> dict[str, Any]:
         """
         Detect potential crisis situations based on mood patterns
 
@@ -434,7 +429,7 @@ class PredictiveAnalyticsService:
                 'error': str(e)
             }
 
-    def _generate_crisis_recommendations(self, risk_level: str, indicators: List[str]) -> List[str]:
+    def _generate_crisis_recommendations(self, risk_level: str, indicators: list[str]) -> list[str]:
         """
         Generate personalized recommendations based on risk assessment
         """

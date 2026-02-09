@@ -3,20 +3,21 @@ Referral Program Routes
 Handles user referrals, tracking, and rewards
 """
 import logging
+import random
 import re
-from flask import Blueprint, request, jsonify, g
-from datetime import datetime, timezone
-from typing import Optional
+import string
+from datetime import UTC, datetime
+
+from flask import Blueprint, g, request
+
 from ..firebase_config import db
+from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.email_service import email_service
 from ..services.push_notification_service import push_notification_service
 from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.audit_service import audit_log
-from ..utils.response_utils import APIResponse
 from ..utils.input_sanitization import sanitize_text
-import random
-import string
+from ..utils.response_utils import APIResponse
 
 # FieldFilter import with fallback
 try:
@@ -58,12 +59,12 @@ def handle_options():
 def generate_referral():
     """Generate referral code and data for user"""
     logger.info("🎁 REFERRAL - GENERATE endpoint called")
-    
+
     try:
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         logger.info(f"👤 REFERRAL - Generating for user: {user_id}")
 
         # Get or create referral document
@@ -80,13 +81,13 @@ def generate_referral():
                 "successful_referrals": 0,
                 "pending_referrals": 0,
                 "rewards_earned": 0,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(UTC).isoformat()
             }
             referral_ref.set(referral_data)
             logger.info(f"✅ REFERRAL - Created new referral code {referral_code} for user {user_id}")
-            
+
             audit_log('REFERRAL_CODE_GENERATED', user_id, {'referral_code': referral_code})
-            
+
             return APIResponse.success({
                 "userId": user_id,
                 "referralCode": referral_code,
@@ -100,7 +101,7 @@ def generate_referral():
         # Return existing referral data
         referral_data = referral_doc.to_dict() or {}
         logger.info(f"✅ REFERRAL - Returning existing referral data for user {user_id}")
-        
+
         return APIResponse.success({
             "userId": referral_data.get("user_id"),
             "referralCode": referral_data.get("referral_code"),
@@ -122,12 +123,12 @@ def generate_referral():
 def get_referral_stats():
     """Get user's referral statistics"""
     logger.info("📊 REFERRAL - STATS endpoint called")
-    
+
     try:
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Security: Only allow users to view their own stats
         user_id = current_user_id
         logger.info(f"👤 REFERRAL - Getting stats for user: {user_id}")
@@ -146,10 +147,10 @@ def get_referral_stats():
                 "successful_referrals": 0,
                 "pending_referrals": 0,
                 "rewards_earned": 0,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(UTC).isoformat()
             }
             referral_ref.set(referral_data)
-            
+
             return APIResponse.success({
                 "userId": user_id,
                 "referralCode": referral_code,
@@ -161,7 +162,7 @@ def get_referral_stats():
             }, "Referral stats retrieved")
 
         referral_data = referral_doc.to_dict() or {}
-        
+
         return APIResponse.success({
             "userId": referral_data.get("user_id"),
             "referralCode": referral_data.get("referral_code"),
@@ -186,7 +187,7 @@ def send_invitation():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         data = request.get_json(force=True, silent=True) or {}
         email = sanitize_text(data.get("email", ""), max_length=254)
         referrer_name = sanitize_text(data.get("referrer_name", "Din vän"), max_length=100)
@@ -197,16 +198,16 @@ def send_invitation():
         # Get referral data
         referral_ref = db.collection("referrals").document(user_id)  # type: ignore
         referral_doc = referral_ref.get()
-        
+
         if not referral_doc.exists:
             return APIResponse.not_found("Referral code not found. Generate one first.")
-        
+
         referral_data = referral_doc.to_dict() or {}
         referral_code = referral_data.get("referral_code")
-        
+
         if not referral_code:
             return APIResponse.not_found("Referral code not found. Generate one first.")
-        
+
         referral_link = f"https://lugn-trygg.vercel.app/register?ref={referral_code}"
 
         # Store invitation in pending referrals
@@ -218,7 +219,7 @@ def send_invitation():
             "referral_code": referral_code,
             "referral_link": referral_link,
             "status": "sent",
-            "sent_at": datetime.now(timezone.utc).isoformat()
+            "sent_at": datetime.now(UTC).isoformat()
         })
 
         # Update pending referrals count
@@ -279,10 +280,10 @@ def complete_referral():
             base_rewards = successful_referrals  # 1 week per referral
             bonus_rewards = (successful_referrals // 10) * 2  # 2 weeks per 10 referrals
             total_weeks = base_rewards + bonus_rewards
-            
+
             # Tier bonuses:
             # Silver (5+): +4 weeks = 1 month
-            # Gold (15+): +12 weeks = 3 months  
+            # Gold (15+): +12 weeks = 3 months
             # Platinum (30+): +24 weeks = 6 months
             tier_bonus = 0
             if successful_referrals >= 30:
@@ -291,14 +292,14 @@ def complete_referral():
                 tier_bonus = 12  # Gold: 3 months
             elif successful_referrals >= 5:
                 tier_bonus = 4   # Silver: 1 month
-            
+
             rewards_earned = total_weeks + tier_bonus
 
             referral_ref.update({
                 "successful_referrals": successful_referrals,
                 "pending_referrals": pending_referrals,
                 "rewards_earned": rewards_earned,
-                "last_referral_at": datetime.now(timezone.utc).isoformat()
+                "last_referral_at": datetime.now(UTC).isoformat()
             })
 
             # Store referral history
@@ -308,7 +309,7 @@ def complete_referral():
                 "invitee_id": invitee_id,
                 "invitee_name": invitee_name,
                 "invitee_email": invitee_email,
-                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": datetime.now(UTC).isoformat(),
                 "rewards_granted": 1  # 1 week per referral
             })
 
@@ -326,7 +327,7 @@ def complete_referral():
                     referrer_email = referrer_info.get("email")
                     referrer_name = referrer_info.get("name", "User")
                     fcm_token = referrer_info.get("fcm_token")
-                    
+
                     # Send success notification email
                     if referrer_email:
                         email_service.send_referral_success_notification(
@@ -336,7 +337,7 @@ def complete_referral():
                             total_referrals=successful_referrals,
                             rewards_earned=rewards_earned
                         )
-                    
+
                     # Send push notification
                     if fcm_token:
                         push_notification_service.send_referral_success_notification(
@@ -345,7 +346,7 @@ def complete_referral():
                             new_user_name=invitee_name,
                             total_referrals=successful_referrals
                         )
-                    
+
                     # Check for tier upgrade
                     old_tier = "Bronze"
                     if successful_referrals - 1 >= 30:
@@ -354,7 +355,7 @@ def complete_referral():
                         old_tier = "Gold"
                     elif successful_referrals - 1 >= 5:
                         old_tier = "Silver"
-                    
+
                     new_tier = "Bronze"
                     if successful_referrals >= 30:
                         new_tier = "Platinum"
@@ -362,7 +363,7 @@ def complete_referral():
                         new_tier = "Gold"
                     elif successful_referrals >= 5:
                         new_tier = "Silver"
-                    
+
                     # Send tier upgrade notification
                     if new_tier != old_tier and fcm_token:
                         push_notification_service.send_tier_upgrade_notification(
@@ -370,7 +371,7 @@ def complete_referral():
                             new_tier=new_tier,
                             rewards_earned=rewards_earned
                         )
-                        
+
             except Exception as notification_err:
                 logger.warning(f"Could not send notifications: {notification_err}")
 
@@ -401,21 +402,21 @@ def get_leaderboard():
         referrals_ref = db.collection("referrals").order_by(  # type: ignore
             "successful_referrals", direction="DESCENDING"
         ).limit(limit)
-        
+
         referrals_docs = referrals_ref.get()
-        
+
         leaderboard = []
         for idx, doc in enumerate(referrals_docs, start=1):
             data = doc.to_dict() or {}
             user_id = data.get("user_id")
-            
+
             # Get user info
             user_doc = db.collection("users").document(user_id).get()  # type: ignore
             user_name = "Anonymous"
             if user_doc.exists:
                 user_info = user_doc.to_dict() or {}
                 user_name = user_info.get("name", "Anonymous")
-            
+
             # Calculate tier
             referrals = data.get("successful_referrals", 0)
             if referrals >= 30:
@@ -430,7 +431,7 @@ def get_leaderboard():
             else:
                 tier = "Bronze"
                 tier_emoji = "🥉"
-            
+
             leaderboard.append({
                 "rank": idx,
                 "userId": user_id,
@@ -440,7 +441,7 @@ def get_leaderboard():
                 "tier": tier,
                 "tierEmoji": tier_emoji
             })
-        
+
         return APIResponse.success({
             "leaderboard": leaderboard,
             "totalCount": len(leaderboard)
@@ -460,10 +461,10 @@ def get_referral_history():
         current_user_id = g.get('user_id')
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         # Support both query parameter and authenticated user context
         user_id = request.args.get("user_id", "").strip() or current_user_id
-        
+
         if not user_id:
             return APIResponse.bad_request("user_id required")
 
@@ -476,9 +477,9 @@ def get_referral_history():
             history_ref = db.collection("referral_history").where(  # type: ignore
                 "referrer_id", "==", user_id
             )
-        
+
         history_docs = history_ref.get()
-        
+
         history = []
         for doc in history_docs:
             data = doc.to_dict() or {}
@@ -488,13 +489,13 @@ def get_referral_history():
                 "completedAt": data.get("completed_at"),
                 "rewardsGranted": data.get("rewards_granted", 1)
             })
-        
+
         # Sort in memory by completed_at (most recent first)
         history.sort(
             key=lambda x: x.get("completedAt", ""),
             reverse=True
         )
-        
+
         return APIResponse.success({
             "history": history,
             "totalCount": len(history)
@@ -575,7 +576,7 @@ def get_rewards_catalog():
             "type": "merchandise"
         }
     ]
-    
+
     return APIResponse.success({
         "rewards": rewards_catalog
     }, "Rewards catalog retrieved")
@@ -590,7 +591,7 @@ def redeem_reward():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized("Authentication required")
-        
+
         data = request.get_json(force=True, silent=True) or {}
         reward_id = sanitize_text(data.get("reward_id", ""), max_length=50)
 
@@ -643,7 +644,7 @@ def redeem_reward():
             "user_id": user_id,
             "reward_id": reward_id,
             "cost": cost,
-            "redeemed_at": datetime.now(timezone.utc).isoformat(),
+            "redeemed_at": datetime.now(UTC).isoformat(),
             "status": "pending"
         })
 

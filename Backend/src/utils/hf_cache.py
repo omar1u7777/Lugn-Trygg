@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,8 @@ def configure_hf_cache(default_subdir: str = ".cache/huggingface") -> str:
 
     Returns the resolved cache path so callers can reuse it for logging/tests.
     """
-    hf_home: Optional[str] = os.getenv("HF_HOME")
-    legacy_source: Optional[str] = None
+    hf_home: str | None = os.getenv("HF_HOME")
+    legacy_source: str | None = None
 
     if not hf_home:
         for legacy_var in LEGACY_VARS:

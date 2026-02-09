@@ -3,15 +3,15 @@ Mood Statistics Routes - Comprehensive mood analytics
 Provides statistics, trends, and insights for user mood data
 """
 
-from flask import Blueprint, request, g
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, g
 
 # Absolute imports (project standard)
 from src.firebase_config import db
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -77,26 +77,26 @@ def get_mood_statistics():
             positive_count = 0
             negative_count = 0
             neutral_count = 0
-            
+
             # Track streaks (consecutive days with moods logged)
             dates_logged = set()
             mood_by_date = {}
-            
+
             for doc in mood_docs:
                 mood_data = doc.to_dict()
-                
+
                 # Sentiment analysis
                 sentiment = mood_data.get('sentiment', 'NEUTRAL')
                 score = mood_data.get('score', 0)
                 sentiment_scores.append(score)
-                
+
                 if sentiment == 'POSITIVE':
                     positive_count += 1
                 elif sentiment == 'NEGATIVE':
                     negative_count += 1
                 else:
                     neutral_count += 1
-                
+
                 # Track dates for streak calculation
                 timestamp = mood_data.get('timestamp', '')
                 if timestamp:
@@ -105,7 +105,7 @@ def get_mood_statistics():
                     else:
                         date_key = timestamp.strftime('%Y-%m-%d')
                     dates_logged.add(date_key)
-                    
+
                     # Store mood score by date for best/worst day
                     if date_key not in mood_by_date:
                         mood_by_date[date_key] = []
@@ -124,36 +124,36 @@ def get_mood_statistics():
             current_streak = 0
             longest_streak = 0
             temp_streak = 0
-            
+
             if sorted_dates:
                 # Check current streak (from today backwards)
-                today = datetime.now(timezone.utc).date()
+                today = datetime.now(UTC).date()
                 current_date = today
-                
-                for i in range(len(sorted_dates)):
+
+                for _ in range(len(sorted_dates)):
                     date_str = current_date.strftime('%Y-%m-%d')
                     if date_str in dates_logged:
                         current_streak += 1
                         current_date -= timedelta(days=1)
                     else:
                         break
-                
+
                 # Calculate longest streak
                 for i in range(len(sorted_dates)):
                     current_date_obj = datetime.strptime(sorted_dates[i], '%Y-%m-%d').date()
-                    
+
                     if i == 0:
                         temp_streak = 1
                     else:
                         prev_date_obj = datetime.strptime(sorted_dates[i-1], '%Y-%m-%d').date()
                         days_diff = (prev_date_obj - current_date_obj).days
-                        
+
                         if days_diff == 1:
                             temp_streak += 1
                         else:
                             longest_streak = max(longest_streak, temp_streak)
                             temp_streak = 1
-                
+
                 longest_streak = max(longest_streak, temp_streak)
 
             # Find best and worst days
@@ -169,7 +169,7 @@ def get_mood_statistics():
             if len(sentiment_scores) >= 14:
                 recent_avg = sum(sentiment_scores[:7]) / 7
                 previous_avg = sum(sentiment_scores[7:14]) / 7
-                
+
                 if recent_avg > previous_avg + 0.1:
                     recent_trend = 'improving'
                 elif recent_avg < previous_avg - 0.1:

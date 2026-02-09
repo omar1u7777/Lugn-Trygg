@@ -1,14 +1,16 @@
-from flask import Blueprint, request, g
 import logging
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
+
 from firebase_admin import messaging
 from firebase_admin.exceptions import FirebaseError
+from flask import Blueprint, g, request
+
+from src.firebase_config import db
+from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.audit_service import audit_log
-from src.firebase_config import db
-from src.utils.response_utils import APIResponse
 from src.utils.input_sanitization import sanitize_text
+from src.utils.response_utils import APIResponse
 
 notifications_bp = Blueprint('notifications', __name__)
 logger = logging.getLogger(__name__)
@@ -33,29 +35,29 @@ def save_fcm_token():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('User ID missing from context')
-        
+
         data = request.get_json(silent=True) or {}
         token = data.get('fcmToken')
-        
+
         if not token:
             return APIResponse.bad_request("FCM token is missing", "MISSING_TOKEN")
-        
+
         # Sanitize token
         token = sanitize_text(token, max_length=500)
 
         # Save FCM token to Firestore
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
-            
+
         user_ref = db.collection('users').document(user_id)
         user_ref.set({
             'fcmToken': token,
-            'fcmTokenUpdated': datetime.now(timezone.utc)
+            'fcmTokenUpdated': datetime.now(UTC)
         }, merge=True)
 
         logger.info(f"✅ FCM token saved for user: {user_id[:8]}...")
         audit_log("fcm_token_saved", user_id, {"token_prefix": token[:20] + "..."})
-        
+
         return APIResponse.success({
             "tokenSaved": True
         }, "Token saved successfully")
@@ -74,7 +76,7 @@ def send_reminder():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('User ID missing from context')
-        
+
         data = request.get_json(silent=True) or {}
         message = sanitize_text(data.get('message', 'Reminder from Lugn & Trygg'), max_length=500)
         notification_type = sanitize_text(data.get('type', 'daily'), max_length=50)
@@ -108,7 +110,7 @@ def send_reminder():
             data={
                 'type': notification_type,
                 'userId': user_id,
-                'timestamp': str(datetime.now(timezone.utc).timestamp())
+                'timestamp': str(datetime.now(UTC).timestamp())
             }
         )
 
@@ -125,7 +127,7 @@ def send_reminder():
             'type': notification_type,
             'message': message,
             'fcmResponse': response,
-            'sentAt': datetime.now(timezone.utc),
+            'sentAt': datetime.now(UTC),
             'status': 'sent'
         })
 
@@ -153,7 +155,7 @@ def schedule_daily():
         user_id = g.get('user_id')
         if not user_id:
             return APIResponse.unauthorized('User ID missing from context')
-        
+
         data = request.get_json(silent=True) or {}
         enabled = bool(data.get('enabled', True))
         reminder_time = sanitize_text(data.get('time', '09:00'), max_length=10)
@@ -172,7 +174,7 @@ def schedule_daily():
         user_ref.set({
             'dailyRemindersEnabled': enabled,
             'reminderTime': reminder_time,
-            'notificationSettingsUpdated': datetime.now(timezone.utc)
+            'notificationSettingsUpdated': datetime.now(UTC)
         }, merge=True)
 
         status_message = "Daily notifications enabled" if enabled else "Daily notifications disabled"
@@ -207,7 +209,7 @@ def disable_all():
         user_ref.set({
             'dailyRemindersEnabled': False,
             'fcmToken': None,
-            'notificationSettingsUpdated': datetime.now(timezone.utc)
+            'notificationSettingsUpdated': datetime.now(UTC)
         }, merge=True)
 
         logger.info(f"✅ All notifications disabled for user: {user_id[:8]}")
@@ -267,7 +269,7 @@ def notification_settings():
             reminder_time = data.get('reminderTime')
 
             update_data: dict = {
-                'notificationSettingsUpdated': datetime.now(timezone.utc)
+                'notificationSettingsUpdated': datetime.now(UTC)
             }
 
             if enabled is not None:

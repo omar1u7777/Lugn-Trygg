@@ -3,33 +3,37 @@ API Key Rotation Service for Lugn & Trygg
 Automated key rotation, secure key management, and zero-downtime key updates
 """
 
+import base64
+import hashlib
+import hmac
+import json
+import logging
 import os
 import secrets
 import string
-import hashlib
-import hmac
-import base64
-import json
-from datetime import datetime, timedelta, UTC
-from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
-from pathlib import Path
-import logging
-from functools import wraps
-from flask import request, g, current_app
 import threading
 import time
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from functools import wraps
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from flask import g, request
 
 # AES encryption using Fernet (AES-128-CBC with HMAC)
 ENCRYPTION_AVAILABLE: bool = False
 
 if TYPE_CHECKING:
-    from cryptography.fernet import Fernet as FernetType, InvalidToken as InvalidTokenType
+    from cryptography.fernet import Fernet as FernetType
+    from cryptography.fernet import InvalidToken as InvalidTokenType
     _Fernet: type[FernetType] = FernetType
     _InvalidToken: type[InvalidTokenType] = InvalidTokenType
     ENCRYPTION_AVAILABLE = True
 else:
     try:
-        from cryptography.fernet import Fernet as _Fernet, InvalidToken as _InvalidToken
+        from cryptography.fernet import Fernet as _Fernet
+        from cryptography.fernet import InvalidToken as _InvalidToken
         ENCRYPTION_AVAILABLE = True
     except ImportError:
         _Fernet = None
@@ -52,9 +56,9 @@ class APIKeyRotationService:
         self._fernet = self._init_fernet()
 
         self.rotation_interval_days = rotation_interval_days
-        self.current_keys: Dict[str, Dict] = {}
-        self.key_history: Dict[str, List[Dict]] = {}
-        self.rotation_schedule: Dict[str, datetime] = {}
+        self.current_keys: dict[str, dict] = {}
+        self.key_history: dict[str, list[dict]] = {}
+        self.rotation_schedule: dict[str, datetime] = {}
 
         # Key types and their configurations
         self.key_types = {
@@ -70,12 +74,12 @@ class APIKeyRotationService:
         self._load_keys()
 
         # Start rotation scheduler
-        self.scheduler_thread: Optional[threading.Thread] = None
+        self.scheduler_thread: threading.Thread | None = None
         self.is_running = False
 
         # Callbacks
-        self.rotation_callbacks: List[Callable] = []
-        self.key_update_callbacks: List[Callable] = []
+        self.rotation_callbacks: list[Callable] = []
+        self.key_update_callbacks: list[Callable] = []
 
     def start_rotation_scheduler(self):
         """Start the automatic key rotation scheduler"""
@@ -117,7 +121,7 @@ class APIKeyRotationService:
                 except Exception as e:
                     logger.error(f"Failed to rotate key {key_type}: {e}")
 
-    def generate_key(self, key_type: str, custom_length: Optional[int] = None) -> str:
+    def generate_key(self, key_type: str, custom_length: int | None = None) -> str:
         """
         Generate a new API key
 
@@ -142,7 +146,7 @@ class APIKeyRotationService:
 
         return key
 
-    def rotate_key(self, key_type: str, immediate: bool = False) -> Dict[str, Any]:
+    def rotate_key(self, key_type: str, immediate: bool = False) -> dict[str, Any]:
         """
         Rotate an API key with zero-downtime support
 
@@ -215,7 +219,7 @@ class APIKeyRotationService:
                 'error': str(e)
             }
 
-    def get_key(self, key_type: str, allow_deprecated: bool = False) -> Optional[str]:
+    def get_key(self, key_type: str, allow_deprecated: bool = False) -> str | None:
         """
         Get current API key
 
@@ -274,7 +278,7 @@ class APIKeyRotationService:
     def _get_or_create_encryption_key(self) -> bytes:
         """Get or create the master encryption key for API key storage"""
         key_file = self.keys_dir / ".master.key"
-        
+
         # Try to get from environment first (recommended for production)
         env_key = os.environ.get('API_KEY_ENCRYPTION_KEY')
         if env_key:
@@ -282,7 +286,7 @@ class APIKeyRotationService:
                 return base64.urlsafe_b64decode(env_key)
             except Exception:
                 logger.warning("Invalid API_KEY_ENCRYPTION_KEY format, generating new key")
-        
+
         # Try to load from file
         if key_file.exists():
             try:
@@ -290,13 +294,13 @@ class APIKeyRotationService:
                     return f.read()
             except Exception as e:
                 logger.error(f"Failed to load master key: {e}")
-        
+
         # Generate new key
         if ENCRYPTION_AVAILABLE and _Fernet:
             key = _Fernet.generate_key()
         else:
             key = base64.urlsafe_b64encode(secrets.token_bytes(32))
-        
+
         # Save key securely
         try:
             with open(key_file, 'wb') as f:
@@ -306,10 +310,10 @@ class APIKeyRotationService:
             logger.info("🔐 Generated new master encryption key")
         except Exception as e:
             logger.error(f"Failed to save master key: {e}")
-        
+
         return key
 
-    def _init_fernet(self) -> Optional[Any]:
+    def _init_fernet(self) -> Any | None:
         """Initialize Fernet cipher for AES encryption"""
         if not ENCRYPTION_AVAILABLE or not _Fernet:
             return None
@@ -330,7 +334,7 @@ class APIKeyRotationService:
         # Fallback to base64 (not secure, but backwards compatible)
         return base64.urlsafe_b64encode(value.encode()).decode()
 
-    def _decrypt_value(self, encrypted_value: str) -> Optional[str]:
+    def _decrypt_value(self, encrypted_value: str) -> str | None:
         """Decrypt a value using AES-128-CBC (Fernet)"""
         if self._fernet:
             try:
@@ -340,7 +344,7 @@ class APIKeyRotationService:
                 logger.warning("Invalid token - attempting base64 fallback")
             except Exception as e:
                 logger.error(f"Decryption failed: {e}")
-        
+
         # Fallback: try base64 decode (for legacy/unencrypted keys)
         try:
             return base64.urlsafe_b64decode(encrypted_value.encode()).decode()
@@ -351,7 +355,7 @@ class APIKeyRotationService:
             except Exception:
                 return None
 
-    def _save_key(self, key_type: str, key_metadata: Dict):
+    def _save_key(self, key_type: str, key_metadata: dict):
         """Save key metadata to AES-encrypted file"""
         try:
             key_file = self.keys_dir / f"{key_type}.key"
@@ -377,7 +381,7 @@ class APIKeyRotationService:
             # Save as JSON
             with open(key_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-            
+
             # Set restrictive file permissions
             os.chmod(key_file, 0o600)
 
@@ -391,9 +395,9 @@ class APIKeyRotationService:
                 # Skip hidden files (master key is stored as .master.key)
                 if key_file.name.startswith('.'):
                     continue
-                    
+
                 try:
-                    with open(key_file, 'r') as f:
+                    with open(key_file) as f:
                         data = json.load(f)
 
                     key_type = data['key_type']
@@ -448,7 +452,7 @@ class APIKeyRotationService:
 
         return cleaned_count
 
-    def get_key_status(self) -> Dict[str, Any]:
+    def get_key_status(self) -> dict[str, Any]:
         """Get comprehensive key status"""
         status = {
             'current_keys': {},
@@ -513,7 +517,7 @@ class APIKeyRotationService:
 
         return status
 
-    def force_rotate_all_keys(self) -> Dict[str, Any]:
+    def force_rotate_all_keys(self) -> dict[str, Any]:
         """Force rotation of all auto-rotating keys"""
         results = {
             'rotated': [],
@@ -558,11 +562,11 @@ def stop_key_rotation():
     """Stop the key rotation service"""
     key_rotation_service.stop_rotation_scheduler()
 
-def rotate_api_key(key_type: str) -> Dict[str, Any]:
+def rotate_api_key(key_type: str) -> dict[str, Any]:
     """Rotate a specific API key"""
     return key_rotation_service.rotate_key(key_type)
 
-def get_api_key(key_type: str) -> Optional[str]:
+def get_api_key(key_type: str) -> str | None:
     """Get current API key"""
     return key_rotation_service.get_key(key_type)
 
@@ -570,7 +574,7 @@ def validate_api_key(key_type: str, provided_key: str) -> bool:
     """Validate an API key"""
     return key_rotation_service.validate_key(key_type, provided_key)
 
-def get_key_rotation_status() -> Dict[str, Any]:
+def get_key_rotation_status() -> dict[str, Any]:
     """Get key rotation status"""
     return key_rotation_service.get_key_status()
 

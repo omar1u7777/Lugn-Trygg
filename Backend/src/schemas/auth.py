@@ -3,14 +3,25 @@ Authentication and user management schemas
 Pydantic models for login, registration, and user data validation
 """
 
-from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
 from .base import (
-    BaseRequest, BaseResponse, SanitizedString, Language,
-    SubscriptionPlan, validate_password, validate_safe_string,
-    UserBase, ContactInfo, Address, HealthMetrics, Preferences
+    Address,
+    BaseRequest,
+    BaseResponse,
+    ContactInfo,
+    HealthMetrics,
+    Language,
+    Preferences,
+    SanitizedString,
+    SubscriptionPlan,
+    validate_password,
+    validate_safe_string,
 )
+
 
 # Authentication schemas
 class LoginRequest(BaseRequest):
@@ -33,7 +44,7 @@ class RegisterRequest(BaseRequest):
     language: Language = Field(default=Language.SWEDISH, description="Preferred language")
     accept_terms: bool = Field(..., description="Accept terms and conditions")
     accept_privacy: bool = Field(..., description="Accept privacy policy")
-    referral_code: Optional[SanitizedString] = Field(None, max_length=50, description="Referral code")
+    referral_code: SanitizedString | None = Field(None, max_length=50, description="Referral code")
 
     @field_validator('password', mode='before')
     @classmethod
@@ -50,7 +61,7 @@ class RegisterRequest(BaseRequest):
 class GoogleAuthRequest(BaseRequest):
     """Google OAuth authentication"""
     id_token: str = Field(..., description="Google ID token")
-    access_token: Optional[str] = None
+    access_token: str | None = None
     language: Language = Field(default=Language.SWEDISH)
 
 class ResetPasswordRequest(BaseRequest):
@@ -80,7 +91,7 @@ class ChangePasswordRequest(BaseRequest):
 class TwoFactorSetupRequest(BaseRequest):
     """2FA setup request"""
     method: str = Field(..., pattern=r'^(sms|app)$', description="2FA method (sms or app)")
-    phone_number: Optional[str] = None
+    phone_number: str | None = None
 
     @field_validator('phone_number', mode='before')
     @classmethod
@@ -104,18 +115,18 @@ class UserProfile(BaseModel):
     subscription_active: bool = False
 
     # Personal info
-    first_name: Optional[SanitizedString] = None
-    last_name: Optional[SanitizedString] = None
-    display_name: Optional[SanitizedString] = None
+    first_name: SanitizedString | None = None
+    last_name: SanitizedString | None = None
+    display_name: SanitizedString | None = None
 
     # Contact info
     contact: ContactInfo = Field(default_factory=ContactInfo)
 
     # Address
-    address: Optional[Address] = None
+    address: Address | None = None
 
     # Health info
-    health: Optional[HealthMetrics] = None
+    health: HealthMetrics | None = None
 
     # Preferences
     preferences: Preferences = Field(default_factory=Preferences)
@@ -123,27 +134,27 @@ class UserProfile(BaseModel):
     # System fields
     created_at: datetime
     updated_at: datetime
-    last_login: Optional[datetime] = None
+    last_login: datetime | None = None
     login_count: int = 0
 
     # Security
     two_factor_enabled: bool = False
-    two_factor_method: Optional[str] = None
+    two_factor_method: str | None = None
 
     model_config = ConfigDict()
 
 class UpdateProfileRequest(BaseRequest):
     """Update user profile request"""
-    first_name: Optional[SanitizedString] = Field(None, max_length=50)
-    last_name: Optional[SanitizedString] = Field(None, max_length=50)
-    display_name: Optional[SanitizedString] = Field(None, max_length=100)
-    language: Optional[Language] = None
+    first_name: SanitizedString | None = Field(None, max_length=50)
+    last_name: SanitizedString | None = Field(None, max_length=50)
+    display_name: SanitizedString | None = Field(None, max_length=100)
+    language: Language | None = None
 
     # Nested updates
-    contact: Optional[ContactInfo] = None
-    address: Optional[Address] = None
-    health: Optional[HealthMetrics] = None
-    preferences: Optional[Preferences] = None
+    contact: ContactInfo | None = None
+    address: Address | None = None
+    health: HealthMetrics | None = None
+    preferences: Preferences | None = None
 
     @field_validator('first_name', 'last_name', 'display_name', mode='before')
     @classmethod
@@ -154,10 +165,10 @@ class UpdateProfileRequest(BaseRequest):
 
 class ConsentUpdateRequest(BaseRequest):
     """Update user consents"""
-    marketing_consent: Optional[bool] = None
-    analytics_consent: Optional[bool] = None
-    data_sharing_consent: Optional[bool] = None
-    research_consent: Optional[bool] = None
+    marketing_consent: bool | None = None
+    analytics_consent: bool | None = None
+    data_sharing_consent: bool | None = None
+    research_consent: bool | None = None
 
 # Authentication responses
 class AuthTokens(BaseModel):
@@ -173,7 +184,7 @@ class AuthResponse(BaseResponse):
     user: UserProfile
     tokens: AuthTokens
     requires_two_factor: bool = False
-    redirect_url: Optional[str] = None
+    redirect_url: str | None = None
 
 class LoginResponse(AuthResponse):
     """Login response"""
@@ -189,9 +200,9 @@ class RefreshTokenResponse(BaseResponse):
 
 class TwoFactorSetupResponse(BaseResponse):
     """2FA setup response"""
-    secret: Optional[str] = None  # For TOTP apps
-    qr_code_url: Optional[str] = None
-    backup_codes: Optional[List[str]] = None
+    secret: str | None = None  # For TOTP apps
+    qr_code_url: str | None = None
+    backup_codes: list[str] | None = None
 
 class TwoFactorVerifyResponse(BaseResponse):
     """2FA verification response"""
@@ -211,7 +222,7 @@ class PasswordChangeResponse(BaseResponse):
 class DeleteAccountRequest(BaseRequest):
     """Account deletion request"""
     confirm_delete: bool = Field(..., description="Confirm account deletion")
-    reason: Optional[SanitizedString] = Field(None, max_length=500, description="Reason for deletion")
+    reason: SanitizedString | None = Field(None, max_length=500, description="Reason for deletion")
     password: str = Field(..., description="Current password for verification")
 
     @field_validator('confirm_delete', mode='before')
@@ -224,7 +235,7 @@ class DeleteAccountRequest(BaseRequest):
 class DeleteAccountResponse(BaseResponse):
     """Account deletion response"""
     account_deleted: bool = True
-    deletion_scheduled: Optional[datetime] = None  # For GDPR compliance
+    deletion_scheduled: datetime | None = None  # For GDPR compliance
     data_export_available: bool = True
 
 # Session management
@@ -232,15 +243,15 @@ class SessionInfo(BaseModel):
     """User session information"""
     id: str
     user_id: str
-    user_agent: Optional[str]
-    ip_address: Optional[str]
+    user_agent: str | None
+    ip_address: str | None
     created_at: datetime
     expires_at: datetime
     is_active: bool = True
 
 class SessionsListResponse(BaseResponse):
     """List of user sessions"""
-    sessions: List[SessionInfo]
+    sessions: list[SessionInfo]
     current_session_id: str
 
 class RevokeSessionRequest(BaseRequest):
@@ -257,19 +268,19 @@ class SecurityEvent(BaseModel):
     id: str
     user_id: str
     event_type: str  # login, logout, password_change, etc.
-    ip_address: Optional[str]
-    user_agent: Optional[str]
+    ip_address: str | None
+    user_agent: str | None
     timestamp: datetime
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 class SecurityAuditResponse(BaseResponse):
     """Security audit log response"""
-    events: List[SecurityEvent]
+    events: list[SecurityEvent]
     total_events: int
-    pagination: Dict[str, Any]
+    pagination: dict[str, Any]
 
 # Validation utilities
-def validate_auth_request(data: Dict[str, Any]) -> BaseModel:
+def validate_auth_request(data: dict[str, Any]) -> BaseModel:
     """Validate authentication request data"""
     # Determine request type based on fields
     if 'password' in data and 'email' in data and 'accept_terms' not in data:

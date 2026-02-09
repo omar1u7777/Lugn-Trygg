@@ -3,16 +3,14 @@ Advanced Rate Limiting Service for Lugn & Trygg API
 Intelligent rate limiting with Redis, user-based limits, and adaptive throttling
 """
 
+import logging
+import os
 import time
-import hashlib
-from typing import Dict, Optional, Tuple, List
 from functools import wraps
-from flask import request, g, jsonify
-from flask_limiter import Limiter
+
+from flask import g, jsonify, request
 from flask_limiter.util import get_remote_address
 from redis import Redis
-import os
-import logging
 
 from .tamper_detection_service import tamper_detection_service
 
@@ -23,7 +21,7 @@ class AdvancedRateLimiter:
     Advanced rate limiting with multiple strategies and Redis backend
     """
 
-    def __init__(self, redis_url: Optional[str] = None):
+    def __init__(self, redis_url: str | None = None):
         self.redis_client = None
         if redis_url:
             try:
@@ -114,7 +112,7 @@ class AdvancedRateLimiter:
         self.adaptive_mode = True
         self.last_adjustment = time.time()
 
-    def get_user_tier(self, user_id: Optional[str] = None) -> str:
+    def get_user_tier(self, user_id: str | None = None) -> str:
         """Determine user tier for rate limiting"""
         if not user_id:
             return 'free'
@@ -165,7 +163,7 @@ class AdvancedRateLimiter:
 
         return 'default'
 
-    def get_rate_limit(self, endpoint: str, user_id: Optional[str] = None) -> str:
+    def get_rate_limit(self, endpoint: str, user_id: str | None = None) -> str:
         """Get appropriate rate limit for endpoint and user"""
         category = self.get_endpoint_category(endpoint)
         user_tier = self.get_user_tier(user_id) if user_id else 'free'
@@ -226,7 +224,7 @@ class AdvancedRateLimiter:
     # ------------------------------------------------------------------
     # In-memory rate limiting fallback (when Redis is unavailable)
     # ------------------------------------------------------------------
-    _memory_store: Dict[str, List[float]] = {}
+    _memory_store: dict[str, list[float]] = {}
     _last_prune: float = 0.0
 
     def _prune_memory_store(self) -> None:
@@ -246,7 +244,7 @@ class AdvancedRateLimiter:
         if stale_keys:
             logger.debug(f"Pruned {len(stale_keys)} stale rate-limit keys from memory store")
 
-    def _check_rate_limit_in_memory(self, endpoint: str, user_id: Optional[str] = None) -> Tuple[bool, Dict]:
+    def _check_rate_limit_in_memory(self, endpoint: str, user_id: str | None = None) -> tuple[bool, dict]:
         """Sliding-window rate limiting using an in-memory dict.
 
         This ensures rate limiting is still enforced in development / when
@@ -299,7 +297,7 @@ class AdvancedRateLimiter:
             'reset': int(now + window_seconds),
         }
 
-    def check_rate_limit(self, endpoint: str, user_id: Optional[str] = None) -> Tuple[bool, Dict]:
+    def check_rate_limit(self, endpoint: str, user_id: str | None = None) -> tuple[bool, dict]:
         """Check if request should be rate limited"""
         if not self.redis_client:
             return self._check_rate_limit_in_memory(endpoint, user_id)
@@ -362,7 +360,7 @@ class AdvancedRateLimiter:
         # Allow request if rate limiting fails
         return True, {}
 
-    def record_request(self, endpoint: str, user_id: Optional[str] = None):
+    def record_request(self, endpoint: str, user_id: str | None = None):
         """Record a successful request for analytics"""
         if not self.redis_client:
             return
@@ -451,7 +449,7 @@ def rate_limit_by_endpoint(f):
 
     return decorated_function
 
-def get_rate_limit_status(endpoint: str, user_id: Optional[str] = None) -> Dict:
+def get_rate_limit_status(endpoint: str, user_id: str | None = None) -> dict:
     """Get current rate limit status for an endpoint"""
     allowed, limit_info = rate_limiter.check_rate_limit(endpoint, user_id)
     return {
@@ -487,7 +485,7 @@ class RateLimiter:
         self.requests[key] += 1
         return self.requests[key]
 
-    def reset_rate_limits(self, client_id: Optional[str] = None, endpoint: Optional[str] = None) -> None:
+    def reset_rate_limits(self, client_id: str | None = None, endpoint: str | None = None) -> None:
         """Reset rate limits for client/endpoint or all"""
         if client_id and endpoint:
             key = f"{client_id}:{endpoint}"

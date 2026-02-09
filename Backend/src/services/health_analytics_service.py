@@ -5,9 +5,9 @@ Provides AI-powered recommendations for stress reduction and better sleep
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from statistics import mean, stdev
+from datetime import datetime
+from statistics import mean
+from typing import Any
 
 from ..utils.timestamp_utils import parse_iso_timestamp
 
@@ -15,30 +15,30 @@ logger = logging.getLogger(__name__)
 
 class HealthAnalyticsService:
     """Service for analyzing health data patterns and providing recommendations"""
-    
+
     def __init__(self):
         # Recommended ranges for healthy living
         self.RECOMMENDED_STEPS_PER_DAY = 8000
         self.RECOMMENDED_SLEEP_HOURS = 7.5
         self.RECOMMENDED_AVG_HR = 70  # Resting heart rate
         self.MOOD_SCALE = 10  # 0-10 scale
-    
+
     def analyze_health_mood_correlation(
         self,
-        health_data: List[Dict[str, Any]],
-        mood_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        health_data: list[dict[str, Any]],
+        mood_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Analyze correlation between health metrics and mood scores
-        
+
         Args:
             health_data: List of health data entries with date, steps, sleep, hr, etc
             mood_data: List of mood entries with date and mood_score (0-10)
-            
+
         Returns:
             Dict with patterns and correlations found
         """
-        
+
         try:
             if not health_data or not mood_data:
                 return {
@@ -47,10 +47,10 @@ class HealthAnalyticsService:
                     'patterns': [],
                     'recommendations': self._get_generic_recommendations()
                 }
-            
+
             # Match health data with mood data by date
             correlations = self._match_health_to_mood(health_data, mood_data)
-            
+
             if not correlations:
                 return {
                     'status': 'insufficient_data',
@@ -58,13 +58,13 @@ class HealthAnalyticsService:
                     'patterns': [],
                     'recommendations': self._get_generic_recommendations()
                 }
-            
+
             # Analyze patterns
             patterns = self._find_patterns(correlations)
-            
+
             # Generate personalized recommendations
             recommendations = self._generate_recommendations(patterns, health_data, mood_data)
-            
+
             return {
                 'status': 'success',
                 'days_analyzed': len(correlations),
@@ -74,7 +74,7 @@ class HealthAnalyticsService:
                 'mood_trend': self._calculate_trend(mood_data),
                 'health_summary': self._summarize_health(health_data)
             }
-            
+
         except Exception as e:
             logger.error(f"Error analyzing health-mood correlation: {str(e)}")
             return {
@@ -83,21 +83,21 @@ class HealthAnalyticsService:
                 'patterns': [],
                 'recommendations': self._get_generic_recommendations()
             }
-    
+
     def _match_health_to_mood(
         self,
-        health_data: List[Dict],
-        mood_data: List[Dict]
-    ) -> List[Dict[str, Any]]:
+        health_data: list[dict],
+        mood_data: list[dict]
+    ) -> list[dict[str, Any]]:
         """Match health data with mood data by date"""
-        
+
         correlations = []
-        
+
         for mood_entry in mood_data:
             mood_date = mood_entry.get('date')
             if not mood_date:
                 continue
-                
+
             # Find corresponding health data
             for health_entry in health_data:
                 health_date = health_entry.get('date')
@@ -111,9 +111,9 @@ class HealthAnalyticsService:
                         'calories': health_entry.get('calories', 0)
                     })
                     break
-        
+
         return correlations
-    
+
     def _same_day(self, date1: Any, date2: Any) -> bool:
         """Check if two dates are the same day"""
         try:
@@ -130,30 +130,30 @@ class HealthAnalyticsService:
             return date1 == date2
         except Exception:
             return False
-    
-    def _find_patterns(self, correlations: List[Dict]) -> List[Dict[str, str]]:
+
+    def _find_patterns(self, correlations: list[dict]) -> list[dict[str, str]]:
         """Identify patterns between health and mood"""
-        
+
         patterns = []
-        
+
         if len(correlations) < 2:
             return patterns
-        
+
         # Extract values
         moods = [c['mood_score'] for c in correlations]
         steps_list = [c['steps'] for c in correlations if c['steps'] > 0]
         sleep_list = [c['sleep_hours'] for c in correlations if c['sleep_hours'] > 0]
         hr_list = [c['heart_rate'] for c in correlations if c['heart_rate'] > 0]
-        
+
         # Pattern 1: Steps and Mood Correlation
         if len(steps_list) > 1 and len(moods) > 1:
             high_mood_days = [c for c in correlations if c['mood_score'] >= 6]
             low_mood_days = [c for c in correlations if c['mood_score'] < 6]
-            
+
             if high_mood_days and low_mood_days:
                 avg_steps_high = mean([d['steps'] for d in high_mood_days if d['steps'] > 0]) if any(d['steps'] > 0 for d in high_mood_days) else 0
                 avg_steps_low = mean([d['steps'] for d in low_mood_days if d['steps'] > 0]) if any(d['steps'] > 0 for d in low_mood_days) else 0
-                
+
                 if avg_steps_high > avg_steps_low * 1.1:
                     patterns.append({
                         'type': 'activity_mood_correlation',
@@ -162,16 +162,16 @@ class HealthAnalyticsService:
                         'impact': 'high',
                         'actionable': True
                     })
-        
+
         # Pattern 2: Sleep and Mood Correlation
         if len(sleep_list) > 1:
             high_mood_days = [c for c in correlations if c['mood_score'] >= 6]
             low_mood_days = [c for c in correlations if c['mood_score'] < 6]
-            
+
             if high_mood_days and low_mood_days:
                 avg_sleep_high = mean([d['sleep_hours'] for d in high_mood_days if d['sleep_hours'] > 0]) if any(d['sleep_hours'] > 0 for d in high_mood_days) else 0
                 avg_sleep_low = mean([d['sleep_hours'] for d in low_mood_days if d['sleep_hours'] > 0]) if any(d['sleep_hours'] > 0 for d in low_mood_days) else 0
-                
+
                 if avg_sleep_high > avg_sleep_low + 0.5:  # 30min+ difference
                     patterns.append({
                         'type': 'sleep_mood_correlation',
@@ -180,16 +180,16 @@ class HealthAnalyticsService:
                         'impact': 'high',
                         'actionable': True
                     })
-        
+
         # Pattern 3: Heart Rate and Stress
         if len(hr_list) > 1:
             high_mood_days = [c for c in correlations if c['mood_score'] >= 6]
             low_mood_days = [c for c in correlations if c['mood_score'] < 6]
-            
+
             if high_mood_days and low_mood_days:
                 avg_hr_high = mean([d['heart_rate'] for d in high_mood_days if d['heart_rate'] > 0]) if any(d['heart_rate'] > 0 for d in high_mood_days) else 0
                 avg_hr_low = mean([d['heart_rate'] for d in low_mood_days if d['heart_rate'] > 0]) if any(d['heart_rate'] > 0 for d in low_mood_days) else 0
-                
+
                 if avg_hr_low > avg_hr_high + 5:  # 5bpm+ higher on low mood
                     patterns.append({
                         'type': 'hr_stress_correlation',
@@ -198,7 +198,7 @@ class HealthAnalyticsService:
                         'impact': 'medium',
                         'actionable': True
                     })
-        
+
         # Pattern 4: Sedentary Days
         low_activity_days = [c for c in correlations if c['steps'] < 3000]
         if low_activity_days and len(low_activity_days) > len(correlations) * 0.3:
@@ -209,7 +209,7 @@ class HealthAnalyticsService:
                 'impact': 'medium',
                 'actionable': True
             })
-        
+
         # Pattern 5: Sleep Deprivation
         insufficient_sleep = [c for c in correlations if 0 < c['sleep_hours'] < 6]
         if insufficient_sleep and len(insufficient_sleep) > len(correlations) * 0.2:
@@ -220,37 +220,37 @@ class HealthAnalyticsService:
                 'impact': 'high',
                 'actionable': True
             })
-        
+
         return patterns
-    
+
     def _generate_recommendations(
         self,
-        patterns: List[Dict],
-        health_data: List[Dict],
-        mood_data: List[Dict]
-    ) -> List[Dict[str, Any]]:
+        patterns: list[dict],
+        health_data: list[dict],
+        mood_data: list[dict]
+    ) -> list[dict[str, Any]]:
         """Generate personalized recommendations based on patterns"""
-        
+
         recommendations = []
-        
+
         # If patterns found, base recommendations on those
         if patterns:
             for pattern in patterns:
                 rec = self._pattern_to_recommendation(pattern)
                 if rec:
                     recommendations.append(rec)
-        
+
         # Generic recommendations if not enough data
         if not recommendations:
             recommendations = self._get_generic_recommendations()
-        
+
         return recommendations
-    
-    def _pattern_to_recommendation(self, pattern: Dict) -> Optional[Dict[str, Any]]:
+
+    def _pattern_to_recommendation(self, pattern: dict) -> dict[str, Any] | None:
         """Convert a pattern to an actionable recommendation"""
-        
+
         pattern_type = pattern.get('type')
-        
+
         if pattern_type == 'activity_mood_correlation':
             return {
                 'title': '🏃 Increase Daily Activity',
@@ -259,7 +259,7 @@ class HealthAnalyticsService:
                 'action': 'Take a 30-minute walk or do light exercise',
                 'expected_benefit': 'Improved mood and energy levels'
             }
-        
+
         elif pattern_type == 'sleep_mood_correlation':
             return {
                 'title': '😴 Prioritize Sleep Quality',
@@ -268,7 +268,7 @@ class HealthAnalyticsService:
                 'action': 'Set a consistent bedtime and aim for 7-9 hours',
                 'expected_benefit': 'Improved emotional resilience'
             }
-        
+
         elif pattern_type == 'hr_stress_correlation':
             return {
                 'title': '🧘 Practice Stress Management',
@@ -277,7 +277,7 @@ class HealthAnalyticsService:
                 'action': 'Try meditation or breathing exercises',
                 'expected_benefit': 'Lower stress and better heart health'
             }
-        
+
         elif pattern_type == 'sedentary_pattern':
             return {
                 'title': '🚶 Move More Throughout the Day',
@@ -286,7 +286,7 @@ class HealthAnalyticsService:
                 'action': 'Take short breaks to walk or stretch',
                 'expected_benefit': 'Better mood and physical fitness'
             }
-        
+
         elif pattern_type == 'sleep_deprivation':
             return {
                 'title': '😴 Improve Sleep Consistency',
@@ -295,12 +295,12 @@ class HealthAnalyticsService:
                 'action': 'Create a bedtime routine and stick to it',
                 'expected_benefit': 'Better health and mood stability'
             }
-        
+
         return None
-    
-    def _get_generic_recommendations(self) -> List[Dict[str, Any]]:
+
+    def _get_generic_recommendations(self) -> list[dict[str, Any]]:
         """Return generic recommendations when data is insufficient"""
-        
+
         return [
             {
                 'title': '🏃 Start Moving',
@@ -324,53 +324,53 @@ class HealthAnalyticsService:
                 'expected_benefit': 'Better stress management'
             }
         ]
-    
-    def _calculate_trend(self, mood_data: List[Dict]) -> str:
+
+    def _calculate_trend(self, mood_data: list[dict]) -> str:
         """Calculate mood trend (improving, stable, declining)"""
-        
+
         if len(mood_data) < 2:
             return 'insufficient_data'
-        
+
         recent = mood_data[-7:]  # Last week
         older = mood_data[-14:-7]  # Week before
-        
+
         recent_avg = mean([m['mood_score'] for m in recent]) if recent else 5
         older_avg = mean([m['mood_score'] for m in older]) if older else 5
-        
+
         if recent_avg > older_avg + 0.5:
             return 'improving'
         elif recent_avg < older_avg - 0.5:
             return 'declining'
         else:
             return 'stable'
-    
-    def _summarize_health(self, health_data: List[Dict]) -> Dict[str, Any]:
+
+    def _summarize_health(self, health_data: list[dict]) -> dict[str, Any]:
         """Summarize health metrics"""
-        
+
         if not health_data:
             return {}
-        
+
         steps_list = [h['steps'] for h in health_data if h.get('steps', 0) > 0]
         sleep_list = [h['sleep_hours'] for h in health_data if h.get('sleep_hours', 0) > 0]
         hr_list = [h['heart_rate'] for h in health_data if h.get('heart_rate', 0) > 0]
-        
+
         summary = {}
-        
+
         if steps_list:
             avg_steps = mean(steps_list)
             summary['avg_steps'] = int(avg_steps)
             summary['steps_status'] = 'good' if avg_steps >= self.RECOMMENDED_STEPS_PER_DAY else 'low'
-        
+
         if sleep_list:
             avg_sleep = mean(sleep_list)
             summary['avg_sleep'] = round(avg_sleep, 1)
             summary['sleep_status'] = 'good' if 7 <= avg_sleep <= 9 else ('too_much' if avg_sleep > 9 else 'too_little')
-        
+
         if hr_list:
             avg_hr = mean(hr_list)
             summary['avg_hr'] = int(avg_hr)
             summary['hr_status'] = 'good' if avg_hr <= self.RECOMMENDED_AVG_HR else 'elevated'
-        
+
         return summary
 
 

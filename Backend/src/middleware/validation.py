@@ -3,11 +3,13 @@ Pydantic validation middleware for Flask
 Automatic request/response validation with error handling
 """
 
-from functools import wraps
-from flask import request, jsonify, g
-from pydantic import ValidationError
-from typing import Type, Optional, Dict, Any, Callable
 import logging
+from collections.abc import Callable
+from functools import wraps
+from typing import Any
+
+from flask import g, jsonify, request
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class ValidationMiddleware:
 
         return jsonify(response), 400
 
-def validate_request(schema_class: Type, source: str = 'json') -> Callable:
+def validate_request(schema_class: type, source: str = 'json') -> Callable:
     """
     Decorator to validate request data with Pydantic schema
 
@@ -71,7 +73,7 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
                     response.headers['Access-Control-Allow-Credentials'] = 'true'
                     response.headers['Access-Control-Max-Age'] = '86400'
                 return response
-            
+
             try:
                 # Get data based on source
                 if source == 'json':
@@ -94,9 +96,9 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
                 elif source == 'args':
                     data = request.args.to_dict()
                 elif source == 'files':
-                    data: Dict[str, Any] = dict(request.files.to_dict())
+                    data: dict[str, Any] = dict(request.files.to_dict())
                 else:
-                    data: Dict[str, Any] = {}
+                    data: dict[str, Any] = {}
 
                 # Handle file uploads with form data
                 if source == 'files' and request.form:
@@ -135,7 +137,7 @@ def validate_request(schema_class: Type, source: str = 'json') -> Callable:
         return decorated_function
     return decorator
 
-def validate_response(schema_class: Type) -> Callable:
+def validate_response(schema_class: type) -> Callable:
     """
     Decorator to validate response data with Pydantic schema
 
@@ -184,7 +186,7 @@ def validate_response(schema_class: Type) -> Callable:
         return decorated_function
     return decorator
 
-def validate_query_params(schema_class: Type) -> Callable:
+def validate_query_params(schema_class: type) -> Callable:
     """
     Decorator to validate query parameters with Pydantic schema
 
@@ -196,7 +198,7 @@ def validate_query_params(schema_class: Type) -> Callable:
         def decorated_function(*args, **kwargs):
             try:
                 # Get query parameters
-                query_data: Dict[str, Any] = dict(request.args.to_dict())
+                query_data: dict[str, Any] = dict(request.args.to_dict())
 
                 # Convert string values to appropriate types
                 for key, value in list(query_data.items()):                    # Only process string values
@@ -264,15 +266,15 @@ def sanitize_request_data() -> Callable:
     return decorator
 
 # Utility functions
-def get_validated_data() -> Optional[Any]:
+def get_validated_data() -> Any | None:
     """Get validated request data from flask g object"""
     return getattr(g, 'validated_data', None)
 
-def get_validated_query() -> Optional[Any]:
+def get_validated_query() -> Any | None:
     """Get validated query parameters from flask g object"""
     return getattr(g, 'validated_query', None)
 
-def get_sanitized_form() -> Optional[Dict[str, Any]]:
+def get_sanitized_form() -> dict[str, Any] | None:
     """Get sanitized form data from flask g object"""
     return getattr(g, 'sanitized_form', None)
 

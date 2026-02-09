@@ -3,14 +3,14 @@ Rewards Routes - User Rewards and Achievements API
 Real implementation for gamification rewards system
 """
 
-from flask import Blueprint, request, g
-from datetime import datetime, timedelta, timezone
-import uuid
 import re
-from typing import Optional
-from ..services.rate_limiting import rate_limit_by_endpoint
-from ..services.auth_service import AuthService
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, g, request
+
 from ..services.audit_service import audit_log
+from ..services.auth_service import AuthService
+from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 
@@ -158,7 +158,7 @@ def _get_db():
 def _get_user_rewards(user_id: str):
     """Get user's rewards data"""
     db = _get_db()
-    
+
     default_data = {
         'user_id': user_id,
         'xp': 0,
@@ -167,9 +167,9 @@ def _get_user_rewards(user_id: str):
         'claimed_rewards': [],
         'achievements': [],
         'premium_until': None,
-        'created_at': datetime.now(timezone.utc).isoformat()
+        'created_at': datetime.now(UTC).isoformat()
     }
-    
+
     if db:
         doc = db.collection('user_rewards').document(user_id).get()
         if doc.exists:
@@ -178,7 +178,7 @@ def _get_user_rewards(user_id: str):
             # Create new rewards profile
             db.collection('user_rewards').document(user_id).set(default_data)
             return default_data
-    
+
     return default_data
 
 
@@ -215,7 +215,7 @@ def get_reward_catalog():
     try:
         # Filter to only purchasable rewards
         purchasable = {k: v for k, v in REWARD_CATALOG.items() if v.get('available', True) and v.get('cost', 0) > 0}
-        
+
         return APIResponse.success({
             "rewards": list(purchasable.values())
         }, "Reward catalog retrieved")
@@ -244,10 +244,10 @@ def get_user_rewards():
     user_id = g.get('user_id')
     if not user_id:
         return APIResponse.unauthorized("Authentication required")
-    
+
     try:
         rewards_data = _get_user_rewards(user_id)
-        
+
         # Calculate level info
         xp = rewards_data.get('xp', 0)
         level = _calculate_level(xp)
@@ -255,7 +255,7 @@ def get_user_rewards():
         current_level_xp = _xp_for_next_level(level - 1) if level > 1 else 0
         progress_xp = xp - current_level_xp
         needed_xp = next_level_xp - current_level_xp
-        
+
         return APIResponse.success({
             "rewards": {
                 "userId": user_id,
@@ -288,31 +288,31 @@ def add_user_xp():
         data = request.get_json() or {}
         xp_amount = data.get('amount', 0)
         reason = sanitize_text(data.get('reason', 'general'), max_length=100)
-        
+
         if xp_amount <= 0:
             return APIResponse.bad_request("XP amount must be positive")
-        
+
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
-        
+
         old_xp = rewards_data.get('xp', 0)
         old_level = _calculate_level(old_xp)
-        
+
         new_xp = old_xp + xp_amount
         new_level = _calculate_level(new_xp)
-        
+
         level_up = new_level > old_level
-        
+
         if db:
             db.collection('user_rewards').document(user_id).update({  # type: ignore
                 'xp': new_xp,
                 'level': new_level,
-                'last_xp_earned': datetime.now(timezone.utc).isoformat(),
+                'last_xp_earned': datetime.now(UTC).isoformat(),
                 'last_xp_reason': reason
             })
-        
+
         audit_log("XP_ADDED", user_id, {"amount": xp_amount, "reason": reason, "levelUp": level_up})
-        
+
         return APIResponse.success({
             "xpAdded": xp_amount,
             "newXp": new_xp,
@@ -320,7 +320,7 @@ def add_user_xp():
             "levelUp": level_up,
             "reason": reason
         }, "XP added successfully")
-        
+
     except Exception as e:
         return APIResponse.error(str(e), "XP_ERROR", 500)
 
@@ -337,25 +337,25 @@ def claim_reward():
     try:
         data = request.get_json() or {}
         reward_id = sanitize_text(data.get('reward_id', ''), max_length=50)
-        
+
         if not reward_id:
             return APIResponse.bad_request("reward_id is required")
-        
+
         if reward_id not in REWARD_CATALOG:
             return APIResponse.not_found("Reward not found")
-        
+
         reward = REWARD_CATALOG[reward_id]
-        
+
         if not reward.get('available', True):
             return APIResponse.bad_request("This reward cannot be purchased")
-        
+
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
-        
+
         # Check if user has enough XP
         user_xp = rewards_data.get('xp', 0)
         cost = reward.get('cost', 0)
-        
+
         if user_xp < cost:
             return APIResponse.error(
                 f"Not enough XP. Need {cost}, have {user_xp}",
@@ -363,22 +363,22 @@ def claim_reward():
                 400,
                 {"needed": cost, "have": user_xp}
             )
-        
+
         # Check if already claimed (for one-time rewards)
         claimed = rewards_data.get('claimed_rewards', [])
         if reward_id in claimed and reward.get('type') != 'premium_time':
             return APIResponse.bad_request("Already claimed this reward")
-        
+
         # Deduct XP and add reward
         new_xp = user_xp - cost
         claimed.append(reward_id)
-        
+
         update_data = {
             'xp': new_xp,
             'claimed_rewards': claimed,
-            'last_claim': datetime.now(timezone.utc).isoformat()
+            'last_claim': datetime.now(UTC).isoformat()
         }
-        
+
         # Handle premium time rewards
         if reward.get('type') == 'premium_time':
             current_premium = rewards_data.get('premium_until')
@@ -386,15 +386,15 @@ def claim_reward():
                 # Extend existing premium
                 premium_date = datetime.fromisoformat(current_premium)
                 if premium_date.tzinfo is None:
-                    premium_date = premium_date.replace(tzinfo=timezone.utc)
-                if premium_date < datetime.now(timezone.utc):
-                    premium_date = datetime.now(timezone.utc)
+                    premium_date = premium_date.replace(tzinfo=UTC)
+                if premium_date < datetime.now(UTC):
+                    premium_date = datetime.now(UTC)
                 new_premium = premium_date + timedelta(days=reward.get('value', 7))
             else:
-                new_premium = datetime.now(timezone.utc) + timedelta(days=reward.get('value', 7))
-            
+                new_premium = datetime.now(UTC) + timedelta(days=reward.get('value', 7))
+
             update_data['premium_until'] = new_premium.isoformat()
-            
+
             # SYNC: Also update the user's subscription in the users collection
             # so subscription_service.get_plan_context() recognises the premium status
             if db:
@@ -404,29 +404,29 @@ def claim_reward():
                         'status': 'active',
                         'source': 'xp_reward',
                         'end_date': new_premium.isoformat(),
-                        'updated_at': datetime.now(timezone.utc).isoformat(),
+                        'updated_at': datetime.now(UTC).isoformat(),
                     }
                 }, merge=True)
-        
+
         # Handle badge rewards
         if reward.get('type') == 'badge':
             badges = rewards_data.get('badges', [])
             if reward.get('value') not in badges:
                 badges.append(reward.get('value'))
                 update_data['badges'] = badges
-        
+
         if db:
             db.collection('user_rewards').document(user_id).update(update_data)  # type: ignore
-        
+
         audit_log("REWARD_CLAIMED", user_id, {"rewardId": reward_id, "cost": cost})
-        
+
         return APIResponse.success({
             "message": f"Successfully claimed {reward['title']}",
             "reward": reward,
             "newXp": new_xp,
             "premiumUntil": update_data.get('premium_until')
         }, "Reward claimed successfully")
-        
+
     except Exception as e:
         return APIResponse.error(str(e), "CLAIM_ERROR", 500)
 
@@ -442,30 +442,30 @@ def check_achievements():
 
     try:
         data = request.get_json() or {}
-        
+
         # Stats to check against
         mood_count = data.get('mood_count', 0)
         streak = data.get('streak', 0)
         journal_count = data.get('journal_count', 0)
         referral_count = data.get('referral_count', 0)
         meditation_count = data.get('meditation_count', 0)
-        
+
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
         earned_achievements = rewards_data.get('achievements', [])
         badges = rewards_data.get('badges', [])
         xp = rewards_data.get('xp', 0)
-        
+
         new_achievements = []
         total_xp_earned = 0
-        
+
         for achievement_id, achievement in ACHIEVEMENTS.items():
             if achievement_id in earned_achievements:
                 continue  # Already earned
-            
+
             condition = achievement.get('condition', {})
             earned = False
-            
+
             if condition.get('type') == 'mood_count' and mood_count >= condition.get('value', 0):
                 earned = True
             elif condition.get('type') == 'streak' and streak >= condition.get('value', 0):
@@ -476,36 +476,36 @@ def check_achievements():
                 earned = True
             elif condition.get('type') == 'meditation_count' and meditation_count >= condition.get('value', 0):
                 earned = True
-            
+
             if earned:
                 new_achievements.append(achievement_id)
                 earned_achievements.append(achievement_id)
                 total_xp_earned += achievement.get('xp_reward', 0)
-                
+
                 badge = achievement.get('badge')
                 if badge and badge not in badges:
                     badges.append(badge)
-        
+
         if new_achievements and db:
             db.collection('user_rewards').document(user_id).update({  # type: ignore
                 'achievements': earned_achievements,
                 'badges': badges,
                 'xp': xp + total_xp_earned,
-                'last_achievement': datetime.now(timezone.utc).isoformat()
+                'last_achievement': datetime.now(UTC).isoformat()
             })
-            
+
             audit_log("ACHIEVEMENTS_EARNED", user_id, {
                 "achievements": new_achievements,
                 "xpEarned": total_xp_earned
             })
-        
+
         return APIResponse.success({
             "newAchievements": [ACHIEVEMENTS[a] for a in new_achievements],
             "totalXpEarned": total_xp_earned,
             "allAchievements": earned_achievements,
             "badges": badges
         }, "Achievements checked")
-        
+
     except Exception as e:
         return APIResponse.error(str(e), "ACHIEVEMENTS_ERROR", 500)
 
@@ -522,12 +522,12 @@ def get_user_badges():
     try:
         rewards_data = _get_user_rewards(user_id)
         user_badges = rewards_data.get('badges', [])
-        
+
         # Get badge details
         badge_details = []
         for badge_id in user_badges:
             # Find badge in rewards or achievements
-            for reward_id, reward in REWARD_CATALOG.items():
+            for _reward_id, reward in REWARD_CATALOG.items():
                 if reward.get('value') == badge_id:
                     badge_details.append({
                         "id": badge_id,
@@ -537,7 +537,7 @@ def get_user_badges():
                     })
                     break
             else:
-                for ach_id, ach in ACHIEVEMENTS.items():
+                for _ach_id, ach in ACHIEVEMENTS.items():
                     if ach.get('badge') == badge_id:
                         badge_details.append({
                             "id": badge_id,
@@ -546,10 +546,10 @@ def get_user_badges():
                             "description": ach.get('description')
                         })
                         break
-        
+
         return APIResponse.success({
             "badges": badge_details
         }, "User badges retrieved")
-        
+
     except Exception as e:
         return APIResponse.error(str(e), "BADGES_ERROR", 500)

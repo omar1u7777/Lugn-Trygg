@@ -35,21 +35,21 @@ def get_env_variable(
         raise ValueError(f"Miljövariabel '{var_name}' saknas och är obligatorisk!")
 
     try:
-        if cast_type == bool:
+        if cast_type is bool:
             value = str(value).strip().lower() in ["1", "true", "yes"]
-        elif cast_type == int:
+        elif cast_type is int:
             value = int(str(value).strip())
-        elif cast_type == float:
+        elif cast_type is float:
             value = float(str(value).strip())
-        elif cast_type == str:
+        elif cast_type is str:
             value = str(value).strip()
-    except ValueError:
+    except ValueError as err:
         logger.critical(
             f"❌ Miljövariabel '{var_name}' har fel format och kunde inte omvandlas till {cast_type.__name__}."
         )
         raise ValueError(
             f"Miljövariabel '{var_name}' har fel format och kunde inte omvandlas till {cast_type.__name__}."
-        )
+        ) from err
 
     log_value = "***" if hide_value else value
     logger.info(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
@@ -265,10 +265,12 @@ logger.info("✅ Backend är korrekt konfigurerad men inga hemligheter visas i l
 
 # 2026-Compliant: Export both old and new config for backward compatibility
 try:
-    from .settings import Settings, get_settings, settings as new_settings
-    __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings"]
-    # For backward compatibility, also export old config
     from typing import TYPE_CHECKING
+
+    from .settings import Settings, get_settings
+    from .settings import settings as new_settings
+
+    __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings"]
     if TYPE_CHECKING:
         from .settings import Settings as SettingsType
 except ImportError:

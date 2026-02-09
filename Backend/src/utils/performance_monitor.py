@@ -3,9 +3,9 @@ Performance Monitoring Service
 Tracks app performance metrics, errors, and optimization opportunities
 """
 import logging
-from datetime import datetime, timezone
-from typing import Dict, Any, List
 import time
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +13,9 @@ class PerformanceMonitor:
     """Monitor and track application performance metrics"""
 
     def __init__(self):
-        self.metrics: Dict[str, List[float]] = {}
-        self.error_counts: Dict[str, int] = {}
-        self.slow_endpoints: List[Dict[str, Any]] = []
+        self.metrics: dict[str, list[float]] = {}
+        self.error_counts: dict[str, int] = {}
+        self.slow_endpoints: list[dict[str, Any]] = []
 
     def track_request(self, endpoint: str, duration: float, status_code: int):
         """Track API request performance"""
@@ -30,7 +30,7 @@ class PerformanceMonitor:
                 "endpoint": endpoint,
                 "duration": duration,
                 "status_code": status_code,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             })
             logger.warning(f"Slow request: {endpoint} took {duration:.2f}s")
 
@@ -39,7 +39,7 @@ class PerformanceMonitor:
             error_key = f"{endpoint}_{status_code}"
             self.error_counts[error_key] = self.error_counts.get(error_key, 0) + 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get performance metrics summary"""
         summary = {}
 
@@ -61,7 +61,7 @@ class PerformanceMonitor:
             "slow_requests": self.slow_endpoints[-10:]  # Last 10 slow requests
         }
 
-    def _percentile(self, data: List[float], percentile: int) -> float:
+    def _percentile(self, data: list[float], percentile: int) -> float:
         """Calculate percentile"""
         if not data:
             return 0.0
@@ -119,7 +119,7 @@ class CacheService:
     """Simple in-memory cache for performance optimization"""
 
     def __init__(self):
-        self.cache: Dict[str, Dict[str, Any]] = {}
+        self.cache: dict[str, dict[str, Any]] = {}
 
     def get(self, key: str) -> Any:
         """Get cached value"""
@@ -150,7 +150,7 @@ class CacheService:
         self.cache.clear()
         logger.info("Cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         total_entries = len(self.cache)
         total_size = sum(len(str(v["value"])) for v in self.cache.values())

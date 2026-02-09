@@ -3,13 +3,15 @@ Base Pydantic schemas for Lugn & Trygg API
 Common models, validators, and utilities for request/response validation
 """
 
-from pydantic import BaseModel, Field, field_validator, EmailStr, HttpUrl, ConfigDict
-from pydantic.functional_validators import BeforeValidator
-from typing import Optional, List, Dict, Any, Union, Annotated
-from datetime import datetime, date, timezone
-from enum import Enum
 import re
+from datetime import UTC, date, datetime
+from enum import Enum, StrEnum
+from typing import Annotated, Any
+
 import bleach
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic.functional_validators import BeforeValidator
+
 
 class MoodValue(int, Enum):
     """Valid mood values (1-10 scale)"""
@@ -24,13 +26,13 @@ class MoodValue(int, Enum):
     VERY_HIGH = 9
     EXTREMELY_HIGH = 10
 
-class Language(str, Enum):
+class Language(StrEnum):
     """Supported languages"""
     SWEDISH = "sv"
     ENGLISH = "en"
     NORWEGIAN = "no"
 
-class SubscriptionPlan(str, Enum):
+class SubscriptionPlan(StrEnum):
     """Available subscription plans"""
     FREE = "free"
     BASIC = "basic"
@@ -61,8 +63,8 @@ class BaseRequest(BaseModel):
 class BaseResponse(BaseModel):
     """Base class for all API responses"""
     success: bool = True
-    message: Optional[str] = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    message: str | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -72,13 +74,13 @@ class ErrorResponse(BaseResponse):
     """Standard error response"""
     success: bool = False
     error: str
-    error_code: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    error_code: str | None = None
+    details: dict[str, Any] | None = None
 
 class PaginatedResponse(BaseResponse):
     """Response with pagination info"""
-    data: List[Any]
-    pagination: Dict[str, Any] = Field(default_factory=dict)
+    data: list[Any]
+    pagination: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator('pagination', mode='before')
     @classmethod
@@ -106,7 +108,7 @@ def validate_password(v: str) -> str:
         raise ValueError('Password must contain at least one digit')
     return v
 
-def validate_phone(v: Optional[str]) -> Optional[str]:
+def validate_phone(v: str | None) -> str | None:
     """Validate phone number format"""
     if v is None:
         return v
@@ -145,9 +147,9 @@ class UserBase(BaseModel):
     id: str
     email: EmailStr
     language: Language = Language.SWEDISH
-    subscription: Optional[SubscriptionPlan] = SubscriptionPlan.FREE
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    subscription: SubscriptionPlan | None = SubscriptionPlan.FREE
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 class Coordinates(BaseModel):
     """GPS coordinates"""
@@ -156,16 +158,16 @@ class Coordinates(BaseModel):
 
 class Address(BaseModel):
     """Address information"""
-    street: Optional[SanitizedString] = None
-    city: Optional[SanitizedString] = None
-    postal_code: Optional[str] = None
-    country: Optional[SanitizedString] = None
+    street: SanitizedString | None = None
+    city: SanitizedString | None = None
+    postal_code: str | None = None
+    country: SanitizedString | None = None
 
 class ContactInfo(BaseModel):
     """Contact information"""
-    phone: Optional[str] = None
-    emergency_contact: Optional[str] = None
-    emergency_phone: Optional[str] = None
+    phone: str | None = None
+    emergency_contact: str | None = None
+    emergency_phone: str | None = None
 
     @field_validator('phone', 'emergency_phone', mode='before')
     @classmethod
@@ -174,10 +176,10 @@ class ContactInfo(BaseModel):
 
 class HealthMetrics(BaseModel):
     """Basic health metrics"""
-    height_cm: Optional[float] = Field(None, ge=50, le=300)
-    weight_kg: Optional[float] = Field(None, ge=20, le=500)
-    date_of_birth: Optional[date] = None
-    gender: Optional[str] = None
+    height_cm: float | None = Field(None, ge=50, le=300)
+    weight_kg: float | None = Field(None, ge=20, le=500)
+    date_of_birth: date | None = None
+    gender: str | None = None
 
 class Preferences(BaseModel):
     """User preferences"""
@@ -188,14 +190,14 @@ class Preferences(BaseModel):
     language: Language = Language.SWEDISH
 
 # Validation utilities
-def validate_request_data(data: Dict[str, Any], schema_class: type) -> BaseModel:
+def validate_request_data(data: dict[str, Any], schema_class: type) -> BaseModel:
     """Validate request data against a Pydantic schema"""
     try:
         return schema_class(**data)
     except Exception as e:
-        raise ValueError(f"Validation error: {str(e)}")
+        raise ValueError(f"Validation error: {str(e)}") from e
 
-def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
+def sanitize_input(data: dict[str, Any]) -> dict[str, Any]:
     """Recursively sanitize string inputs in nested data"""
     if isinstance(data, dict):
         return {k: sanitize_input(v) for k, v in data.items()}
@@ -206,7 +208,7 @@ def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         return data
 
-def create_validation_error_response(errors: Dict[str, Any]) -> ErrorResponse:
+def create_validation_error_response(errors: dict[str, Any]) -> ErrorResponse:
     """Create a standardized validation error response"""
     return ErrorResponse(
         error="Validation failed",

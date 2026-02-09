@@ -2,10 +2,10 @@
 Email Service - Resend Integration
 Handles referral invitations and notification emails
 """
-import os
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+import os
+from datetime import UTC, datetime
+from typing import Any
 
 # Try to import resend, fallback to mock if not available
 try:
@@ -17,7 +17,7 @@ except ImportError:
     # Create a mock resend module for graceful degradation
     class MockResend:
         def __init__(self):
-            self.api_key: Optional[str] = None
+            self.api_key: str | None = None
         class Emails:
             @staticmethod
             def send(data):
@@ -29,12 +29,12 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     """Service for sending emails via Resend"""
-    
+
     def __init__(self):
         self.api_key = os.getenv('RESEND_API_KEY')
         self.from_email = os.getenv('RESEND_FROM_EMAIL', 'noreply@lugn-trygg.se')
         self.from_name = os.getenv('RESEND_FROM_NAME', 'Lugn & Trygg')
-        
+
         if not self.api_key:
             logger.warning("⚠️ RESEND_API_KEY not set - email sending disabled")
             self.client = None
@@ -49,24 +49,24 @@ class EmailService:
                 logger.warning("⚠️ Resend package not available - using mock email service")
                 self.client = resend  # Mock resend
                 self.enabled = False
-    
+
     def send_referral_invitation(
         self,
         to_email: str,
         referrer_name: str,
         referral_code: str,
         referral_link: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Send referral invitation email"""
-        
+
         if not self.client:
             logger.error("❌ Resend not configured")
             return {"success": False, "error": "Email service not configured"}
-        
+
         try:
             # Email content in Swedish
             subject = f"{referrer_name} bjuder in dig till Lugn & Trygg! 🎁"
-            
+
             html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -92,12 +92,12 @@ class EmailService:
             <h1>🎁 Du har fått en inbjudan!</h1>
             <p style="font-size: 18px; margin: 10px 0;">{referrer_name} vill dela Lugn & Trygg med dig</p>
         </div>
-        
+
         <div class="content">
             <p>Hej!</p>
-            
+
             <p><strong>{referrer_name}</strong> tycker att du skulle uppskatta Lugn & Trygg - en app för mental hälsa och välmående.</p>
-            
+
             <div class="benefits">
                 <h3 style="margin-top: 0;">🌟 Vad du får:</h3>
                 <div class="benefit-item">AI-driven mood tracking & analys</div>
@@ -106,7 +106,7 @@ class EmailService:
                 <div class="benefit-item">Krisdetektering & direkthjälp (112, 1177, Mind)</div>
                 <div class="benefit-item"><strong>1 vecka gratis premium</strong> med referenskod!</div>
             </div>
-            
+
             <div class="code-box">
                 <p style="margin: 0; color: #666;">Din referenskod:</p>
                 <div class="code">{referral_code}</div>
@@ -114,21 +114,21 @@ class EmailService:
                     Både du och {referrer_name} får 1 vecka gratis premium! 🎉
                 </p>
             </div>
-            
+
             <div style="text-align: center;">
                 <a href="{referral_link}" class="btn">Kom igång nu →</a>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: #666;">
                 Eller kopiera denna länk till din webbläsare:<br>
                 <a href="{referral_link}" style="color: #667eea; word-break: break-all;">{referral_link}</a>
             </p>
         </div>
-        
+
         <div class="footer">
             <p>Lugn & Trygg - Mental hälsa & välmående</p>
             <p>
-                <a href="https://lugn-trygg.vercel.app/privacy-policy.html" style="color: #667eea;">Integritetspolicy</a> | 
+                <a href="https://lugn-trygg.vercel.app/privacy-policy.html" style="color: #667eea;">Integritetspolicy</a> |
                 <a href="https://lugn-trygg.vercel.app/terms-of-service.html" style="color: #667eea;">Användarvillkor</a>
             </p>
             <p style="margin-top: 10px;">
@@ -139,7 +139,7 @@ class EmailService:
 </body>
 </html>
 """
-            
+
             plain_text = f"""
 {referrer_name} bjuder in dig till Lugn & Trygg!
 
@@ -164,7 +164,7 @@ Vad du får:
 Lugn & Trygg - Mental hälsa & välmående
 © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
 """
-            
+
             # CRITICAL FIX: Graceful degradation if API key is invalid
             try:
                 # Send email via Resend
@@ -178,7 +178,7 @@ Lugn & Trygg - Mental hälsa & välmående
             except Exception as send_error:
                 error_str = str(send_error).lower()
                 if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning(f"⚠️ Resend API key invalid for referral email - skipping email send")
+                    logger.warning("⚠️ Resend API key invalid for referral email - skipping email send")
                     # Return success=False but don't crash the application
                     return {
                         "success": False,
@@ -186,22 +186,22 @@ Lugn & Trygg - Mental hälsa & välmående
                         "email_id": None
                     }
                 raise  # Re-raise if it's a different error
-            
+
             logger.info(f"✅ Referral email sent to {to_email} (id: {response.get('id', 'N/A')})")
-            
+
             return {
                 "success": True,
                 "email_id": response.get("id"),
                 "message": "Email sent successfully"
             }
-            
+
         except Exception as e:
             logger.exception(f"❌ Failed to send referral email to {to_email}: {e}")
             return {
                 "success": False,
                 "error": str(e)
             }
-    
+
     def send_referral_success_notification(
         self,
         to_email: str,
@@ -209,15 +209,15 @@ Lugn & Trygg - Mental hälsa & välmående
         new_user_name: str,
         total_referrals: int,
         rewards_earned: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Notify referrer when someone uses their code"""
-        
+
         if not self.client:
             return {"success": False, "error": "Email service not configured"}
-        
+
         try:
             subject = f"🎉 {new_user_name} använde din referenskod!"
-            
+
             html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -242,12 +242,12 @@ Lugn & Trygg - Mental hälsa & välmående
             <h1>Grattis, {referrer_name}!</h1>
             <p style="font-size: 18px; margin: 10px 0;">Ny referral-framgång!</p>
         </div>
-        
+
         <div class="content">
             <p>Fantastiska nyheter!</p>
-            
+
             <p><strong>{new_user_name}</strong> har precis registrerat sig med din referenskod och ni har båda fått <strong>1 vecka gratis premium</strong>! 🎁</p>
-            
+
             <div class="stats-box">
                 <div style="text-align: center;">
                     <div class="stat">
@@ -260,11 +260,11 @@ Lugn & Trygg - Mental hälsa & välmående
                     </div>
                 </div>
             </div>
-            
+
             <p style="text-align: center; margin-top: 30px;">
                 <a href="https://lugn-trygg.vercel.app/referral" class="btn">Se ditt referensprogram →</a>
             </p>
-            
+
             <p style="margin-top: 30px; padding: 20px; background: #e0f2fe; border-radius: 8px; border-left: 4px solid #0284c7;">
                 💡 <strong>Tips:</strong> Fortsätt dela din referenslänk för att låsa upp fler belöningar!<br>
                 • Silver (5 ref): +1 månad premium<br>
@@ -276,7 +276,7 @@ Lugn & Trygg - Mental hälsa & välmående
 </body>
 </html>
 """
-            
+
             # Send email via Resend
             response = self.client.Emails.send({
                 "from": f"{self.from_name} <{self.from_email}>",
@@ -284,15 +284,15 @@ Lugn & Trygg - Mental hälsa & välmående
                 "subject": subject,
                 "html": html_content
             })
-            
+
             logger.info(f"✅ Success notification sent to {to_email} (id: {response.get('id', 'N/A')})")
-            
+
             return {"success": True, "email_id": response.get("id")}
-            
+
         except Exception as e:
             logger.exception(f"❌ Failed to send success notification: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def send_feedback_confirmation(
         self,
         to_email: str,
@@ -305,7 +305,7 @@ Lugn & Trygg - Mental hälsa & välmående
         if not self.enabled:
             logger.warning("Resend not configured, skipping feedback confirmation email")
             return False
-        
+
         category_names = {
             'general': 'Allmän feedback',
             'bug': 'Buggrapport',
@@ -314,12 +314,12 @@ Lugn & Trygg - Mental hälsa & välmående
             'performance': 'Prestanda',
             'content': 'Innehåll/Texter'
         }
-        
+
         category_display = category_names.get(category, category)
         stars = '⭐' * rating
-        
-        subject = f"Tack för din feedback! - Lugn & Trygg"
-        
+
+        subject = "Tack för din feedback! - Lugn & Trygg"
+
         html_content = f"""
         <html>
         <head>
@@ -341,23 +341,23 @@ Lugn & Trygg - Mental hälsa & välmående
                 <div class="content">
                     <p>Hej {user_name},</p>
                     <p>Vi har tagit emot din feedback och uppskattar att du tog dig tid att dela dina tankar med oss!</p>
-                    
+
                     <div class="feedback-box">
                         <p><strong>Kategori:</strong> {category_display}</p>
                         <p><strong>Betyg:</strong> {stars}</p>
                         <p><strong>Referens-ID:</strong> #{feedback_id[:8]}</p>
                     </div>
-                    
+
                     <p>Vårt team kommer att granska din feedback och återkoppla om vi behöver mer information.</p>
-                    
+
                     <p>Har du fler tankar? Du kan alltid skicka mer feedback via appen!</p>
-                    
+
                     <div style="text-align: center;">
                         <a href="https://lugn-trygg.vercel.app/feedback" class="button">Skicka mer feedback</a>
                     </div>
-                    
+
                     <p>Tack för att du hjälper oss förbättra Lugn & Trygg! 💚</p>
-                    
+
                     <p>Med vänliga hälsningar,<br>Lugn & Trygg Team</p>
                 </div>
                 <div class="footer">
@@ -368,7 +368,7 @@ Lugn & Trygg - Mental hälsa & välmående
         </body>
         </html>
         """
-        
+
         plain_content = f"""
 Hej {user_name},
 
@@ -388,9 +388,9 @@ Lugn & Trygg Team
 ---
 Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
         """
-        
+
         return self._send_email(to_email, subject, html_content, plain_content)
-    
+
     def send_feedback_admin_notification(
         self,
         admin_email: str,
@@ -405,7 +405,7 @@ Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
         if not self.enabled:
             logger.warning("Resend not configured, skipping admin notification email")
             return False
-        
+
         category_names = {
             'general': 'Allmän feedback',
             'bug': '🐛 Buggrapport',
@@ -414,13 +414,13 @@ Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
             'performance': '⚡ Prestanda',
             'content': '📝 Innehåll/Texter'
         }
-        
+
         category_display = category_names.get(category, category)
         stars = '⭐' * rating
         rating_color = '#22c55e' if rating >= 4 else '#eab308' if rating >= 3 else '#ef4444'
-        
+
         subject = f"Ny feedback från {user_name} - {category_display}"
-        
+
         html_content = f"""
         <html>
         <head>
@@ -446,15 +446,15 @@ Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
                         <p><strong>Email:</strong> {user_email}</p>
                         <p><strong>Kategori:</strong> {category_display}</p>
                         <p><strong>Betyg:</strong> <span class="rating">{stars} ({rating}/5)</span></p>
-                        <p><strong>Tid:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</p>
+                        <p><strong>Tid:</strong> {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}</p>
                         <p><strong>Feedback-ID:</strong> #{feedback_id[:12]}</p>
                     </div>
-                    
+
                     <div class="message-box">
                         <h3>Meddelande:</h3>
                         <p>{message}</p>
                     </div>
-                    
+
                     <p><em>Logga in i admin-panelen för att svara på denna feedback.</em></p>
                 </div>
                 <div class="footer">
@@ -464,7 +464,7 @@ Detta är ett automatiskt meddelande. Kontakta oss på support@lugn-trygg.se
         </body>
         </html>
         """
-        
+
         plain_content = f"""
 NY FEEDBACK MOTTAGEN
 
@@ -472,7 +472,7 @@ Från: {user_name}
 Email: {user_email}
 Kategori: {category_display}
 Betyg: {stars} ({rating}/5)
-Tid: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
+Tid: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}
 Feedback-ID: #{feedback_id[:12]}
 
 Meddelande:
@@ -481,19 +481,19 @@ Meddelande:
 ---
 Logga in i admin-panelen för att svara på denna feedback.
         """
-        
+
         return self._send_email(admin_email, subject, html_content, plain_content)
-    
+
     def send_analytics_alert(self, user_email: str, username: str, forecast_data: dict) -> bool:
         """Send email alert for negative mood trends"""
         subject = "🚨 Lugn & Trygg: AI upptäckte en nedåtgående trend"
-        
+
         trend = forecast_data.get('trend', 'unknown')
         current_score = forecast_data.get('current_score', 'N/A')
         avg_forecast = forecast_data.get('average_forecast', 'N/A')
         risk_factors = forecast_data.get('risk_factors', [])
         recommendations = forecast_data.get('recommendations', [])
-        
+
         html_content = f"""
         <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -502,7 +502,7 @@ Logga in i admin-panelen för att svara på denna feedback.
                     <p style="color: white; text-align: center;">Hej {username},</p>
                     <p style="color: white;">Vår AI-analys har upptäckt en nedåtgående trend i ditt humör de kommande dagarna.</p>
                 </div>
-                
+
                 <div style="max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; border-radius: 10px;">
                     <h3 style="color: #667eea;">📊 Prognosdata</h3>
                     <ul>
@@ -510,34 +510,34 @@ Logga in i admin-panelen för att svara på denna feedback.
                         <li><strong>Genomsnittlig prognos:</strong> {avg_forecast}/10</li>
                         <li><strong>Trend:</strong> {'📉 Nedåtgående' if trend == 'declining' else trend}</li>
                     </ul>
-                    
+
                     {f'''
                     <h3 style="color: #e74c3c;">⚠️ Riskfaktorer</h3>
                     <ul>
                         {"".join([f"<li>{risk}</li>" for risk in risk_factors])}
                     </ul>
                     ''' if risk_factors else ''}
-                    
+
                     {f'''
                     <h3 style="color: #27ae60;">💡 Rekommendationer</h3>
                     <ul>
                         {"".join([f"<li>{rec}</li>" for rec in recommendations[:3]])}
                     </ul>
                     ''' if recommendations else ''}
-                    
+
                     <p style="text-align: center; margin-top: 30px;">
-                        <a href="https://lugn-trygg.vercel.app/analytics" 
-                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                  color: white; 
-                                  padding: 12px 30px; 
-                                  text-decoration: none; 
-                                  border-radius: 25px; 
+                        <a href="https://lugn-trygg.vercel.app/analytics"
+                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                  color: white;
+                                  padding: 12px 30px;
+                                  text-decoration: none;
+                                  border-radius: 25px;
                                   display: inline-block;">
                             Se fullständig analys
                         </a>
                     </p>
                 </div>
-                
+
                 <div style="max-width: 600px; margin: 0 auto; padding: 10px; text-align: center; color: #666; font-size: 12px;">
                     <p>Detta är en automatisk varning från Lugn & Trygg AI-systemet.</p>
                     <p>Om du upplever allvarliga psykiska problem, kontakta vårdgivare eller ring 1177.</p>
@@ -545,20 +545,20 @@ Logga in i admin-panelen för att svara på denna feedback.
             </body>
         </html>
         """
-        
+
         # Build risk factors and recommendations text
         risk_text = ""
         if risk_factors:
             risk_list = "\n".join([f"- {risk}" for risk in risk_factors])
             risk_text = f"Riskfaktorer:\n{risk_list}\n\n"
-        
+
         rec_text = ""
         if recommendations:
             rec_list = "\n".join([f"- {rec}" for rec in recommendations[:3]])
             rec_text = f"Rekommendationer:\n{rec_list}\n\n"
-        
+
         trend_text = 'Nedåtgående' if trend == 'declining' else trend
-        
+
         plain_content = f"""
 Hej {username},
 
@@ -575,9 +575,9 @@ Prognosdata:
 Detta är en automatisk varning från Lugn & Trygg AI.
 Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
         """
-        
+
         return self._send_email(user_email, subject, html_content, plain_content)
-    
+
     def send_health_alert(self, user_email: str, username: str, alert_type: str, health_data: dict) -> bool:
         """Send email alert for abnormal health metrics"""
         alert_messages = {
@@ -586,15 +586,15 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
             'poor_sleep': '😴 Otillräcklig sömn upptäckt',
             'low_calories': '🔥 Låg energiförbränning upptäckt'
         }
-        
+
         subject = f"⚠️ Lugn & Trygg: {alert_messages.get(alert_type, 'Hälsovarning')}"
-        
+
         value = health_data.get('value', 'N/A')
         threshold = health_data.get('threshold', 'N/A')
         device = health_data.get('device', 'Din enhet')
         date = health_data.get('date', 'Idag')
         recommendations = health_data.get('recommendations', [])
-        
+
         html_content = f"""
         <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -603,7 +603,7 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
                     <p style="color: white; text-align: center;">Hej {username},</p>
                     <p style="color: white;">Vi upptäckte något i din hälsodata från {device} som kräver din uppmärksamhet.</p>
                 </div>
-                
+
                 <div style="max-width: 600px; margin: 20px auto; padding: 20px; background: #f9f9f9; border-radius: 10px;">
                     <h3 style="color: #e74c3c;">📊 Uppmätt värde</h3>
                     <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #e74c3c;">
@@ -611,34 +611,34 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
                         <p style="margin: 5px 0 0 0; color: #7f8c8d;"><strong>Rekommenderat:</strong> {threshold}</p>
                         <p style="margin: 5px 0 0 0; color: #95a5a6; font-size: 14px;">Datum: {date}</p>
                     </div>
-                    
+
                     {f'''
                     <h3 style="color: #27ae60; margin-top: 20px;">💡 Våra rekommendationer</h3>
                     <ul style="background: white; padding: 20px 20px 20px 40px; border-radius: 8px; border-left: 4px solid #27ae60;">
                         {"".join([f"<li style='margin: 8px 0;'>{rec}</li>" for rec in recommendations[:5]])}
                     </ul>
                     ''' if recommendations else ''}
-                    
+
                     <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 20px; border-radius: 8px;">
                         <p style="margin: 0; color: #856404;">
                             <strong>⚕️ Viktigt:</strong> Detta är en automatisk varning. Om du upplever allvarliga symptom eller är orolig för din hälsa, kontakta vårdgivare eller ring 1177.
                         </p>
                     </div>
-                    
+
                     <p style="text-align: center; margin-top: 30px;">
-                        <a href="https://lugn-trygg.vercel.app/integrations" 
-                           style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
-                                  color: white; 
-                                  padding: 12px 30px; 
-                                  text-decoration: none; 
-                                  border-radius: 25px; 
+                        <a href="https://lugn-trygg.vercel.app/integrations"
+                           style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                                  color: white;
+                                  padding: 12px 30px;
+                                  text-decoration: none;
+                                  border-radius: 25px;
                                   display: inline-block;
                                   font-weight: bold;">
                             Se din hälsodata
                         </a>
                     </p>
                 </div>
-                
+
                 <div style="max-width: 600px; margin: 20px auto; text-align: center; color: #7f8c8d; font-size: 12px;">
                     <p>Detta är en automatisk varning från Lugn & Trygg Health Monitoring</p>
                     <p>Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna</p>
@@ -646,7 +646,7 @@ Om du upplever allvarliga problem, kontakta vårdgivare eller ring 1177.
             </body>
         </html>
         """
-        
+
         plain_content = f"""
 Hälsovarning från Lugn & Trygg
 
@@ -669,10 +669,10 @@ Se din fullständiga hälsodata: https://lugn-trygg.vercel.app/integrations
 Detta är en automatisk varning från Lugn & Trygg Health Monitoring.
 Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
         """
-        
+
         return self._send_email(user_email, subject, html_content, plain_content)
-    
-    def send_password_reset_email(self, to_email: str, reset_token: str, reset_link: str) -> Dict[str, Any]:
+
+    def send_password_reset_email(self, to_email: str, reset_token: str, reset_link: str) -> dict[str, Any]:
         """Send password reset email"""
         if not self.client:
             logger.error("❌ Resend not configured")
@@ -780,7 +780,7 @@ Lugn & Trygg - Mental hälsa & välmående
             except Exception as send_error:
                 error_str = str(send_error).lower()
                 if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning(f"⚠️ Resend API key invalid for password reset email - skipping email send")
+                    logger.warning("⚠️ Resend API key invalid for password reset email - skipping email send")
                     return {
                         "success": False,
                         "error": "Email service temporarily unavailable",
@@ -803,7 +803,7 @@ Lugn & Trygg - Mental hälsa & välmående
                 "error": str(e)
             }
 
-    def _send_email(self, to_email: str, subject: str, html_content: str, plain_content: Optional[str] = None) -> bool:
+    def _send_email(self, to_email: str, subject: str, html_content: str, plain_content: str | None = None) -> bool:
         """Helper method to send email via Resend"""
         if not self.enabled:
             logger.warning(f"Resend not configured, skipping email to {to_email}")
@@ -828,7 +828,7 @@ Lugn & Trygg - Mental hälsa & välmående
             except Exception as send_error:
                 error_str = str(send_error).lower()
                 if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning(f"⚠️ Resend API key invalid or unauthorized - email service disabled")
+                    logger.warning("⚠️ Resend API key invalid or unauthorized - email service disabled")
                     # Return False but don't crash the application
                     return False
                 # Re-raise if it's a different error
