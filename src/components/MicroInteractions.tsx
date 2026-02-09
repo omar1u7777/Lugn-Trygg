@@ -187,7 +187,7 @@ const StaggerContainer = ({
     },
   };
 
-  const itemVariants = {
+  const _itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,

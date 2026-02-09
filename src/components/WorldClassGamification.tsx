@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   TrophyIcon,
-  FireIcon,
   SparklesIcon,
   HeartIcon,
   ArrowTrendingUpIcon,
   XMarkIcon,
-  ShareIcon,
   LockClosedIcon,
   CheckCircleIcon,
   ChartBarIcon,
@@ -15,15 +13,12 @@ import {
 import {
   StarIcon as StarIconSolid,
   FireIcon as FireIconSolid,
-  ShieldCheckIcon
 } from '@heroicons/react/24/solid';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { analytics } from '../services/analytics';
 import useAuth from '../hooks/useAuth';
 import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import '../styles/world-class-design.css';
-import { Button } from './ui/tailwind'; // Keep generic components
-import { colors } from '../theme/tokens';
+
 import { logger } from '../utils/logger';
 
 
@@ -142,7 +137,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
     try {
       setLoading(true);
-      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
+      const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
         getChatHistory(user.user_id).catch(() => ({ conversation: [] })),

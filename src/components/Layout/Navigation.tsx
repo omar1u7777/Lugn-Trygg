@@ -20,7 +20,7 @@ import { SparklesIcon } from "@heroicons/react/24/solid";
 const Navigation: React.FC = () => {
   const { isLoggedIn, logout, user } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { plan, loading: subscriptionLoading, hasFeature } = useSubscription();
+  const { plan, loading: subscriptionLoading } = useSubscription();
   const location = useLocation();
   const { t } = useTranslation();
 

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
-import { setWellnessGoals, getDashboardSummary, getWellnessGoals } from '../../api/api';
+import { setWellnessGoals, getDashboardSummary } from '../../api/api';
 import { analytics } from '../../services/analytics';
 import { logger } from '../../utils/logger';
 
@@ -29,7 +29,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
   onSkip,
   initialGoals = []
 }) => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [selectedGoals, setSelectedGoals] = useState<string[]>(initialGoals);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

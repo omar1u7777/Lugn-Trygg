@@ -22,7 +22,7 @@ interface Message {
 }
 
 const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([

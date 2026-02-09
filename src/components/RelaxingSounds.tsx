@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   getAudioLibrary,
   type AudioTrack,
-  type AudioCategory,
   type AudioLibrary
 } from "../api/api";
 import { logger } from '../utils/logger';

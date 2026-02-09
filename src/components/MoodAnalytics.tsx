@@ -370,7 +370,7 @@ const MoodAnalytics: React.FC = () => {
       });
   };
 
-  const getSentimentColor = (score: number) => {
+  const _getSentimentColor = (score: number) => {
     if (score > 0.2) return '#4CAF50';
     if (score < -0.2) return '#F44336';
     return '#FF9800';

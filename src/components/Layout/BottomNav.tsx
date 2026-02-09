@@ -4,14 +4,12 @@ import {
   HomeIcon,
   FaceSmileIcon,
   ChatBubbleLeftRightIcon,
-  HeartIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   FaceSmileIcon as FaceSmileIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
-  HeartIcon as HeartIconSolid,
   UserCircleIcon as UserCircleIconSolid,
 } from '@heroicons/react/24/solid';
 

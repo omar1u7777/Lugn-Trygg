@@ -39,7 +39,7 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
 );
 
 const JournalHub: React.FC = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState({

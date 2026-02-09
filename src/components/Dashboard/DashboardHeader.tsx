@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import OptimizedImage from '../ui/OptimizedImage';
-import { getDashboardHeroImageId } from '../../config/env';
 
 interface DashboardHeaderProps {
   userName?: string;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
-
-const HERO_FALLBACK_SRC = 'https://res.cloudinary.com/dxmijbysc/image/upload/c_scale,w_auto,dpr_auto,q_auto,f_auto/hero-bild_pfcdsx.jpg';
-const HERO_IMAGE_ID = getDashboardHeroImageId();
-const HERO_SIZES = '(min-width: 1280px) 560px, (min-width: 1024px) 480px, (min-width: 768px) 60vw, 90vw';
 
 const getGreeting = () => {
   const hour = new Date().getHours();

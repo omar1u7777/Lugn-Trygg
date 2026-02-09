@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, Input, Snackbar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import PrivacySettings from './PrivacySettings';
-import NotificationPermission from './NotificationPermission';
 import { ThemeToggle } from './ui/ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import OptimizedImage from './ui/OptimizedImage';
@@ -49,7 +48,7 @@ interface ProfileStats {
 }
 
 const ProfileHub: React.FC = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
@@ -170,7 +169,7 @@ const ProfileHub: React.FC = () => {
     fetchProfileData();
   }, [user?.user_id]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
     setActiveTab(newValue);
   };

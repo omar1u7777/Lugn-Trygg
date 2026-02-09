@@ -339,7 +339,6 @@ export const buildUserContextFromMoods = (
 
   const recentMoods = moods.slice(0, 7); // Last 7 days
   const scores = recentMoods.map(m => m.score);
-  const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
   const firstScore = scores[0] ?? 0;
   const lastScore = scores[scores.length - 1] ?? 0;
 

@@ -25,7 +25,7 @@ export const Typography = React.forwardRef<HTMLElement, TypographyProps>(
       fontWeight,
       className,
       children,
-      sx, // MUI prop - destructure to remove
+      sx: _sx, // MUI prop - destructure to remove
       ...props
     },
     ref

@@ -12,7 +12,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   logger.debug('🗂️ MoodList component rendered with onClose:', typeof onClose);
   const { user } = useAuth();
   const { isPremium, plan } = useSubscription();
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   
   // History limit for free users (7 days)

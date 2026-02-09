@@ -53,7 +53,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       setLoading(true);
 
       // Load real data from backend APIs
-      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
+      const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
         getChatHistory(user.user_id).catch(() => ({ conversation: [] })),

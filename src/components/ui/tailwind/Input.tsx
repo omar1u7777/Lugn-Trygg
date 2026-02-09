@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       leftIcon,
       rightIcon,
       disabled,
-      fullWidth, // MUI compatibility - destructure to remove from DOM
+      fullWidth: _fullWidth, // MUI compatibility - destructure to remove from DOM
       inputProps, // MUI compatibility - merge with props
       ...props
     },

@@ -19,7 +19,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, labelledBy, children }) 
       'a[href], button, textarea, input, select, [tabindex]:not([tabindex="-1"])'
     );
     // focus first focusable
-    focusable && focusable[0]?.focus();
+    if (focusable) { focusable[0]?.focus(); }
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

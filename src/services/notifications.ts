@@ -171,7 +171,7 @@ export async function sendMeditationReminder(userId: string, meditationTitle: st
 /**
  * Send mood check-in reminder
  */
-export async function sendMoodCheckInReminder(userId: string) {
+export async function sendMoodCheckInReminder(_userId: string) {
   try {
     await api.post(`/api/v1/notifications/send-reminder`, {
       type: 'mood_check_in',
@@ -187,7 +187,7 @@ export async function sendMoodCheckInReminder(userId: string) {
  * Schedule daily notifications
  */
 export async function scheduleDailyNotifications(
-  userId: string,
+  _userId: string,
   reminderTime: string = '09:00',
   enabled: boolean = true
 ) {
@@ -209,7 +209,7 @@ export async function scheduleDailyNotifications(
 /**
  * Get notification settings
  */
-export async function getNotificationSettings(userId: string): Promise<NotificationSchedule | null> {
+export async function getNotificationSettings(_userId: string): Promise<NotificationSchedule | null> {
   try {
     const response = await api.get(`/api/v1/notifications/settings`);
     const data = response.data?.data?.settings || response.data?.settings;
@@ -232,7 +232,7 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
  * Update notification preferences
  */
 export async function updateNotificationPreferences(
-  userId: string,
+  _userId: string,
   preferences: Partial<NotificationSchedule>
 ) {
   try {
@@ -250,7 +250,7 @@ export async function updateNotificationPreferences(
 /**
  * Disable all notifications
  */
-export async function disableAllNotifications(userId: string) {
+export async function disableAllNotifications(_userId: string) {
   try {
     await api.post(`/api/v1/notifications/disable-all`, {});
     logger.debug('🔕 All notifications disabled');

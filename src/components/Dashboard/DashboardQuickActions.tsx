@@ -1,9 +1,7 @@
 import React from 'react';
-import { Card } from '../ui/tailwind/Card';
-import { Button } from '../ui/tailwind/Button';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { QUICK_ACTIONS } from '../../config/appFeatures';
-import { DASHBOARD_REGION_MAP, getDashboardRegionProps } from '../../constants/accessibility';
+import { getDashboardRegionProps } from '../../constants/accessibility';
 
 interface DashboardQuickActionsProps {
   onActionClick: (actionId: string) => void;
