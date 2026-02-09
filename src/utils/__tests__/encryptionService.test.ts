@@ -7,6 +7,22 @@ import {
   exportUserData
 } from '../encryptionService';
 
+// Mock the api/client module to prevent axios.create issues
+vi.mock('../../api/client', () => ({
+  default: {
+    delete: vi.fn().mockResolvedValue({ data: { success: true } }),
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: new Blob(['{"userId":"user123","exportDate":"2025-01-01"}'], { type: 'application/json' }) }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+  },
+  api: {
+    delete: vi.fn().mockResolvedValue({ data: { success: true } }),
+    get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: new Blob(['{"userId":"user123","exportDate":"2025-01-01"}'], { type: 'application/json' }) }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+  },
+}));
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),

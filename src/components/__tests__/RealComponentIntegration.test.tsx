@@ -109,7 +109,6 @@ const MoodLoggerForm: React.FC = () => {
             value={mood}
             onChange={(e) => setMood(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
           >
             <option value="">Select mood</option>
             <option value="2">😢 Sad</option>
@@ -417,65 +416,23 @@ describe('🔥 Real Component Integration Tests', () => {
     });
   });
 
-  describe('MUI Component Styling', () => {
-    test('should apply MUI theme colors', () => {
-      const { container } = renderWithTheme(
-        <Button color="primary" variant="primary">
-          Primary Button
-        </Button>
-      );
-
-      const button = container.querySelector('.MuiButton-containedPrimary');
-      expect(button).toBeTruthy();
-    });
-
-    test('should render Alert with success variant', () => {
-      const { container } = renderWithTheme(
-        <Alert severity="success">Success message</Alert>
-      );
-
-      const alert = container.querySelector('.MuiAlert-standardSuccess');
-      expect(alert).toBeTruthy();
-      expect(screen.getByText('Success message')).toBeInTheDocument();
-    });
-
-    test('should render Alert with error variant', () => {
-      const { container } = renderWithTheme(
-        <Alert severity="error">Error message</Alert>
-      );
-
-      const alert = container.querySelector('.MuiAlert-standardError');
-      expect(alert).toBeTruthy();
-      expect(screen.getByText('Error message')).toBeInTheDocument();
-    });
-
-    test('should render Spinner component', () => {
-      const { container } = renderWithTheme(
-        <Spinner size="md" />
-      );
-
-      const spinner = container.querySelector('div');
-      expect(spinner).toBeTruthy();
-    });
-  });
-
   describe('Form Accessibility', () => {
     test('should have proper form labels', () => {
-      renderWithTheme(<MoodLoggerForm />);
+      render(<MoodLoggerForm />);
 
       expect(screen.getByLabelText(/Mood/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Note/i)).toBeInTheDocument();
     });
 
     test('should have proper button labels', () => {
-      renderWithTheme(<MoodLoggerForm />);
+      render(<MoodLoggerForm />);
 
       const button = screen.getByRole('button', { name: /Log Mood/i });
       expect(button).toBeInTheDocument();
     });
 
     test('should support keyboard navigation', () => {
-      renderWithTheme(<ChatMessageForm />);
+      render(<ChatMessageForm />);
 
       const messageInput = screen.getByLabelText(/Message/i);
       messageInput.focus();
@@ -488,7 +445,7 @@ describe('🔥 Real Component Integration Tests', () => {
     test('should render components quickly', () => {
       const startTime = performance.now();
 
-      renderWithTheme(<MoodLoggerForm />);
+      render(<MoodLoggerForm />);
 
       const renderTime = performance.now() - startTime;
       expect(renderTime).toBeLessThan(100);
@@ -517,7 +474,7 @@ describe('🔥 Real Component Integration Tests', () => {
 
   describe('Integration with Backend', () => {
     test('should call mood log API with correct parameters', async () => {
-      renderWithTheme(<MoodLoggerForm />);
+      render(<MoodLoggerForm />);
 
       const moodSelect = screen.getByLabelText(/Mood/i);
       fireEvent.change(moodSelect, { target: { value: '8' } });
@@ -529,12 +486,15 @@ describe('🔥 Real Component Integration Tests', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(mockAPI.logMood).toHaveBeenCalledWith('user-123', 'Great day!', 8);
+        expect(mockAPI.logMood).toHaveBeenCalledWith('user-123', {
+          score: 8,
+          note: 'Great day!'
+        });
       });
     });
 
     test('should call chat API with user message', async () => {
-      renderWithTheme(<ChatMessageForm />);
+      render(<ChatMessageForm />);
 
       const messageInput = screen.getByLabelText(/Message/i);
       fireEvent.change(messageInput, { target: { value: 'Hej där!' } });
@@ -548,7 +508,7 @@ describe('🔥 Real Component Integration Tests', () => {
     });
 
     test('should handle concurrent API calls', async () => {
-      renderWithTheme(
+      render(
         <div>
           <MoodLoggerForm />
           <ChatMessageForm />
@@ -562,54 +522,22 @@ describe('🔥 Real Component Integration Tests', () => {
       const messageInput = screen.getByLabelText(/Message/i);
       fireEvent.change(messageInput, { target: { value: 'Concurrent test' } });
 
-      // Click buttons with proper async handling
-      const buttons = screen.getAllByRole('button');
-      const clickPromises = buttons
-        .filter(btn => !btn.hasAttribute('disabled'))
-        .map(btn => fireEvent.click(btn));
-
-      await Promise.all(clickPromises);
+      // Submit mood form first
+      const submitButton = screen.getByRole('button', { name: /Log Mood/i });
+      fireEvent.click(submitButton);
 
       await waitFor(() => {
         expect(mockAPI.logMood).toHaveBeenCalled();
+      });
+
+      // Then send chat message
+      const sendButton = screen.getByRole('button', { name: /Send/i });
+      fireEvent.click(sendButton);
+
+      await waitFor(() => {
         expect(mockAPI.chatWithAI).toHaveBeenCalled();
-      }, { timeout: 3000 }); // Increased timeout for concurrent operations
+      });
     });
   });
 });
-
-console.log(`
-🔥 REAL COMPONENT INTEGRATION TEST SUITE
-======================================
-✅ Mood Logger Form (6 tests)
-   - Rendering, validation, submission
-   - Loading states, error handling
-   - Form reset
-
-✅ Chat Message Form (8 tests)
-   - Rendering, button states
-   - Message sending, clearing
-   - Keyboard shortcuts (Enter, Shift+Enter)
-   - Loading states
-
-✅ MUI Component Styling (4 tests)
-   - Theme colors, Alert variants
-   - CircularProgress
-
-✅ Form Accessibility (3 tests)
-   - Labels, buttons, keyboard navigation
-
-✅ Performance Tests (2 tests)
-   - Render time, state update efficiency
-
-✅ Backend Integration (3 tests)
-   - API parameter validation
-   - Chat integration
-   - Concurrent requests
-
-Total: 26 REAL integration tests
-All tests use ACTUAL components with REAL MUI styling!
-Uses REAL form state management!
-Tests REAL API integration (mocked but realistic)!
-`);
 

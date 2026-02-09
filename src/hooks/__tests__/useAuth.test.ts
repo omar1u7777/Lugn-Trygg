@@ -1,21 +1,16 @@
 import React from 'react';
-import { renderHook } from '@testing-library/react-hooks';
-import { vi, describe, test, expect } from 'vitest';
-import { AuthProvider } from '../../contexts/AuthContext';
+import { renderHook } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import useAuth from '../useAuth';
-
-// Mock the AuthContext
-vi.mock('../../contexts/AuthContext', () => ({
-  AuthContext: {
-    Provider: ({ children }: { children: React.ReactNode }) => children,
-    Consumer: ({ children }: { children: (value: any) => React.ReactNode }) => children({}),
-  },
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
+import { AuthContext } from '../../contexts/AuthContext';
 
 describe('useAuth', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('should throw error when used outside AuthProvider', () => {
-    // Mock console.error to avoid noise in test output
+    // Suppress React error boundary / console.error noise
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => {
@@ -25,22 +20,25 @@ describe('useAuth', () => {
     consoleSpy.mockRestore();
   });
 
-  test('should return auth context when used within AuthProvider', () => {
+  test('should return auth context when used within a provider', () => {
     const mockAuthContext = {
-      user: { email: 'test@example.com' },
+      user: { email: 'test@example.com', user_id: '123' },
+      token: 'mock-token',
       login: vi.fn(),
       logout: vi.fn(),
-      isAuthenticated: true,
+      isLoggedIn: true,
+      isInitialized: true,
     };
 
-    // Mock the context to return our mock auth context
-    (vi.mocked(require('../../contexts/AuthContext')).AuthContext.Consumer as any) = ({ children }: { children: (value: any) => React.ReactNode }) =>
-      children(mockAuthContext);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(
+        AuthContext.Provider,
+        { value: mockAuthContext as any },
+        children
+      );
 
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: ({ children }: { children: React.ReactNode }) => React.createElement(AuthProvider, { children })
-    });
+    const { result } = renderHook(() => useAuth(), { wrapper });
 
-    expect(result.current).toEqual(mockAuthContext);
+    expect(result.current).toBe(mockAuthContext);
   });
 });

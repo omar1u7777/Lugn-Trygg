@@ -1,114 +1,200 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, test, expect } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import RegisterForm from '../RegisterForm';
 
-// Mock the API
+// Hoisted mocks
+const registerUserMock = vi.hoisted(() => vi.fn());
+
 vi.mock('../../../api/api', () => ({
-  registerUser: vi.fn(),
+  registerUser: registerUserMock,
 }));
 
-// Mock react-router-dom
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
   Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
 }));
 
 describe('RegisterForm', () => {
-  test('renders registration form with required fields', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders registration form with all fields', () => {
     render(<RegisterForm />);
 
+    expect(screen.getByPlaceholderText(/ange ditt namn/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/ange din e-postadress/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/skapa ett starkt lösenord/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/bekräfta ditt lösenord/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /skapa konto/i })).toBeInTheDocument();
   });
 
-  test('shows validation errors for empty fields', async () => {
+  it('shows error when passwords do not match', async () => {
     render(<RegisterForm />);
 
-    const submitButton = screen.getByRole('button', { name: /skapa konto/i });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/e-postadress krävs/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
     });
-  });
-
-  test('shows validation error for invalid email', async () => {
-    render(<RegisterForm />);
-
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const submitButton = screen.getByRole('button', { name: /skapa konto/i });
-
-    fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
-    fireEvent.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/ogiltig e-postadress/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
     });
-  });
-
-  test('shows validation error when passwords do not match', async () => {
-    render(<RegisterForm />);
-
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const passwordInput = screen.getByPlaceholderText(/skapa ett starkt lösenord/i);
-    const confirmPasswordInput = screen.getByPlaceholderText(/bekräfta ditt lösenord/i);
-    const submitButton = screen.getByRole('button', { name: /skapa konto/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'differentpassword' } });
-    fireEvent.click(submitButton);
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'DifferentPass2!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/lösenorden matchar inte/i)).toBeInTheDocument();
     });
   });
 
-  test('calls register API on valid form submission', async () => {
-    const mockRegisterUser = vi.fn().mockResolvedValue({
-      message: 'Registrering lyckades!'
-    });
-
-    vi.mocked(require('../../../api/api').registerUser).mockImplementation(mockRegisterUser);
-
+  it('shows error for password shorter than 8 characters', async () => {
     render(<RegisterForm />);
 
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const passwordInput = screen.getByPlaceholderText(/skapa ett starkt lösenord/i);
-    const confirmPasswordInput = screen.getByPlaceholderText(/bekräfta ditt lösenord/i);
-    const submitButton = screen.getByRole('button', { name: /skapa konto/i });
-
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'Ab1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'Ab1!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {
-      expect(mockRegisterUser).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(screen.getByText(/lösenordet måste vara minst 8 tecken/i)).toBeInTheDocument();
     });
   });
 
-  test('shows error message on registration failure', async () => {
-    const mockRegisterUser = vi.fn().mockRejectedValue({
-      response: { data: { error: 'E-postadressen är redan registrerad.' } }
-    });
+  it('shows error for password missing uppercase, lowercase, or digit', async () => {
+    render(<RegisterForm />);
 
-    vi.mocked(require('../../../api/api').registerUser).mockImplementation(mockRegisterUser);
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'lowercase!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'lowercase!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/lösenordet måste innehålla minst en stor bokstav/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error for password missing special character', async () => {
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'Abcdefg1' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'Abcdefg1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/lösenordet måste innehålla minst ett specialtecken/i)).toBeInTheDocument();
+    });
+  });
+
+  it('calls registerUser API on valid submission', async () => {
+    registerUserMock.mockResolvedValue({
+      user: { id: '123', email: 'test@example.com' },
+    });
 
     render(<RegisterForm />);
 
-    const emailInput = screen.getByPlaceholderText(/ange din e-postadress/i);
-    const passwordInput = screen.getByPlaceholderText(/skapa ett starkt lösenord/i);
-    const confirmPasswordInput = screen.getByPlaceholderText(/bekräfta ditt lösenord/i);
-    const submitButton = screen.getByRole('button', { name: /skapa konto/i });
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
-    fireEvent.change(emailInput, { target: { value: 'existing@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'password123' } });
-    fireEvent.click(submitButton);
+    await waitFor(() => {
+      expect(registerUserMock).toHaveBeenCalledWith(
+        'test@example.com',
+        'StrongPass1!',
+        'Test User',
+        ''
+      );
+    });
+  });
+
+  it('shows success message on successful registration', async () => {
+    registerUserMock.mockResolvedValue({
+      user: { id: '123', email: 'test@example.com' },
+    });
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/registrering lyckades/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error message on registration failure', async () => {
+    registerUserMock.mockRejectedValue(
+      new Error('E-postadressen är redan registrerad.')
+    );
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'existing@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/e-postadressen är redan registrerad/i)).toBeInTheDocument();

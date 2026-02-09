@@ -1,197 +1,258 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { I18nextProvider } from 'react-i18next';
-import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
-import i18n from '../../i18n/i18n';
-import Dashboard from '../Dashboard/Dashboard';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import TestProviders from '../../utils/TestProviders';
-import { Squares2X2Icon } from '@heroicons/react/24/outline';
 
-// Provide a hand-rolled mock for the API module to avoid loading the real file (which uses import.meta)
-vi.mock('../../api/api', () => {
-  const apiMock = {
-    get: vi.fn().mockResolvedValue({ data: {} }),
-    post: vi.fn().mockResolvedValue({ data: {} }),
-    interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
-    defaults: { headers: {} }
-  };
-  return {
-    __esModule: true,
-    default: apiMock,
-    getMoods: vi.fn().mockResolvedValue([
-      { mood: 'glad', score: 0.8, timestamp: '2025-10-01T00:00:00Z' },
-      { mood: 'ledsen', score: -0.5, timestamp: '2025-10-02T00:00:00Z' }
-    ]),
-    logoutUser: vi.fn().mockResolvedValue(undefined),
-    refreshAccessToken: vi.fn().mockResolvedValue(null)
-  };
-});
-
-// Mock Chart.js to avoid canvas issues in tests
-vi.mock('react-chartjs-2', () => ({
-  Line: () => <div data-testid="mock-chart">Chart Component</div>
+// ---- Hoisted mocks (safe to reference inside vi.mock factories) ----
+const { mockNavigate, mockUseDashboardData, mockUseSubscription, mockAnalytics } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockUseDashboardData: vi.fn(),
+  mockUseSubscription: vi.fn(),
+  mockAnalytics: { page: vi.fn(), track: vi.fn() },
 }));
 
-// Mock child components
-vi.mock('../Dashboard/MoodChart', () => {
-  return function MockMoodChart() {
-    return <div data-testid="mood-chart">Mood Chart</div>;
-  };
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
 });
 
-vi.mock('../Dashboard/MemoryChart', () => {
-  return function MockMemoryChart() {
-    return <div data-testid="memory-chart">Memory Chart</div>;
-  };
-});
+vi.mock('../../hooks/useDashboardData', () => ({
+  useDashboardData: (...args: unknown[]) => mockUseDashboardData(...args),
+  clearDashboardCache: vi.fn(),
+}));
 
-vi.mock('../WeeklyAnalysis', () => {
-  return function MockWeeklyAnalysis({ refreshTrigger }: { refreshTrigger: number }) {
-    return <div data-testid="weekly-analysis">Weekly Analysis - Trigger: {refreshTrigger}</div>;
-  };
-});
+vi.mock('../../contexts/SubscriptionContext', () => ({
+  useSubscription: () => mockUseSubscription(),
+  SubscriptionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
-vi.mock('../RelaxingSounds', () => {
-  return function MockRelaxingSounds() {
-    return <div data-testid="relaxing-sounds">Relaxing Sounds</div>;
-  };
-});
+vi.mock('../../services/analytics', () => ({
+  analytics: mockAnalytics,
+}));
 
-describe('Dashboard Component', () => {
-  const renderDashboard = async (language: 'sv' | 'en' | 'no' = 'sv') => {
-    await act(async () => {
-      await i18n.changeLanguage(language);
-    });
+vi.mock('../../utils/logger', () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
 
-    return render(
-      <TestProviders>
-        <I18nextProvider i18n={i18n}>
-          <Squares2X2Icon className="w-5 h-5" />
-        </I18nextProvider>
-      </TestProviders>
-    );
-  };
+vi.mock('../../hooks/useAccessibility', () => ({
+  useAccessibility: () => ({
+    screenReaderActive: false,
+    highContrast: false,
+    reducedMotion: false,
+    focusVisible: true,
+    colorScheme: 'light',
+    fontSize: 'medium',
+    keyboardNavigation: true,
+    announceToScreenReader: vi.fn(),
+    setFocus: vi.fn(),
+    trapFocus: vi.fn(() => vi.fn()),
+    skipToContent: vi.fn(),
+    updateLiveRegion: vi.fn(),
+    handleKeyboardNavigation: vi.fn(),
+    getAriaLabel: vi.fn((c: string) => c),
+  }),
+}));
 
-  afterEach(async () => {
-    await act(async () => {
-      await i18n.changeLanguage('sv');
-    });
+// Mock heavy child components to keep tests focused on the Dashboard shell
+vi.mock('../MoodLogger', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-mood-logger' }, 'MoodLogger') }));
+vi.mock('../MoodList', () => ({ default: (props: any) => React.createElement('div', { 'data-testid': 'mock-mood-list' }, React.createElement('button', { onClick: props.onClose }, 'close')) }));
+vi.mock('../WorldClassAIChat', () => ({ default: (props: any) => React.createElement('div', { 'data-testid': 'mock-ai-chat' }, React.createElement('button', { onClick: props.onClose }, 'close')) }));
+vi.mock('../WorldClassGamification', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-gamification' }, 'Gamification') }));
+vi.mock('../Wellness/WellnessGoalsOnboarding', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-wellness-onboarding' }, 'Wellness Onboarding') }));
+vi.mock('../PremiumGate', () => ({ PremiumGate: () => React.createElement('div', { 'data-testid': 'mock-premium-gate' }, 'Premium Gate') }));
+vi.mock('../UsageLimitBanner', () => ({ UsageLimitBanner: () => React.createElement('div', { 'data-testid': 'mock-usage-banner' }, 'Usage Banner') }));
+vi.mock('../Recommendations', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-recommendations' }, 'Recommendations') }));
+vi.mock('../WorldClassAnalytics', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-analytics' }, 'Analytics') }));
+
+// The actual component under test
+import WorldClassDashboard from '../WorldClassDashboard';
+
+// ---- Helpers ----
+const defaultStats = {
+  totalMoods: 10,
+  totalChats: 5,
+  averageMood: 7.2,
+  streakDays: 3,
+  weeklyGoal: 7,
+  weeklyProgress: 4,
+  wellnessGoals: ['Hantera stress'],
+  recentActivity: [
+    { id: 'a1', type: 'mood' as const, timestamp: new Date(), description: 'Loggade humör: Glad' },
+  ],
+};
+
+function setupMocks(overrides: {
+  stats?: Partial<typeof defaultStats>;
+  loading?: boolean;
+  error?: Error | null;
+  isPremium?: boolean;
+} = {}) {
+  const { stats, loading = false, error = null, isPremium = false } = overrides;
+
+  mockUseDashboardData.mockReturnValue({
+    stats: { ...defaultStats, ...stats },
+    loading,
+    error,
+    refresh: vi.fn(),
   });
 
-  test('renders dashboard with Swedish translations', async () => {
-    await renderDashboard('sv');
+  mockUseSubscription.mockReturnValue({
+    isPremium,
+    plan: isPremium ? 'premium' : 'free',
+    getRemainingMoodLogs: () => (isPremium ? 999 : 3),
+    getRemainingMessages: () => (isPremium ? 999 : 5),
+    hasFeature: () => isPremium,
+    checkAccess: vi.fn(),
+    canAccessFeature: () => isPremium,
+    incrementUsage: vi.fn(),
+  });
+}
 
-    // Check for Swedish welcome message
+function renderDashboard(userId = 'test-user') {
+  return render(
+    <TestProviders>
+      <WorldClassDashboard userId={userId} />
+    </TestProviders>
+  );
+}
+
+// ---- Tests ----
+describe('WorldClassDashboard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMocks();
+  });
+
+  test('renders without crashing', () => {
+    const { container } = renderDashboard();
+    expect(container.querySelector('.world-class-dashboard')).toBeInTheDocument();
+  });
+
+  test('renders the DashboardHeader with a greeting', () => {
+    renderDashboard();
+    // DashboardHeader renders a time-based Swedish greeting (God morgon/dag/eftermiddag/kväll)
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
+
+  test('renders "Hur mår du idag?" mood check section', () => {
+    renderDashboard();
+    expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
+  });
+
+  test('renders the embedded MoodLogger component', () => {
+    renderDashboard();
+    expect(screen.getByTestId('mock-mood-logger')).toBeInTheDocument();
+  });
+
+  test('renders DashboardStats section', () => {
+    renderDashboard();
+    // Stats section renders values from the stats object
+    expect(screen.getByText(/Ditt Mående/)).toBeInTheDocument();
+    expect(screen.getByText(/Nuvarande Streak/)).toBeInTheDocument();
+  });
+
+  test('renders DashboardQuickActions section', () => {
+    renderDashboard();
+    expect(screen.getByText('Hur vill du ta hand om dig?')).toBeInTheDocument();
+    // The quick actions render "Känn efter" and "Få stöd" buttons
+    expect(screen.getByText('Känn efter')).toBeInTheDocument();
+    expect(screen.getByText('Få stöd')).toBeInTheDocument();
+  });
+
+  test('renders weekly progress card', () => {
+    renderDashboard();
+    expect(screen.getByText('Veckoprogress')).toBeInTheDocument();
+    // Shows progress text
+    expect(screen.getByText(/4 av 7 humör-inlägg denna vecka/)).toBeInTheDocument();
+  });
+
+  test('renders usage limit banner for free users', () => {
+    setupMocks({ isPremium: false });
+    renderDashboard();
+    expect(screen.getByTestId('mock-usage-banner')).toBeInTheDocument();
+  });
+
+  test('does not render usage limit banner for premium users', () => {
+    setupMocks({ isPremium: true });
+    renderDashboard();
+    expect(screen.queryByTestId('mock-usage-banner')).not.toBeInTheDocument();
+  });
+
+  test('shows error state when data fetch fails', () => {
+    setupMocks({ error: new Error('Network error') });
+    renderDashboard();
+    expect(screen.getByText(/Kunde inte ladda dashboard/)).toBeInTheDocument();
+    expect(screen.getByText('Network error')).toBeInTheDocument();
+    expect(screen.getByText('Försök igen')).toBeInTheDocument();
+  });
+
+  test('shows loading skeleton for stats when loading', () => {
+    setupMocks({ loading: true });
+    const { container } = renderDashboard();
+    // Stats and quick actions show pulse skeletons during loading
+    const pulseElements = container.querySelectorAll('.animate-pulse');
+    expect(pulseElements.length).toBeGreaterThan(0);
+  });
+
+  test('clicking "Känn efter" quick action switches to mood view', async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText('Känn efter'));
+    // After clicking, the view switches to mood-basic which shows back button + MoodLogger
     await waitFor(() => {
-      expect(screen.getByText(/Välkommen/)).toBeInTheDocument();
+      expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
     });
-
-    // Check for dashboard sections
-    expect(screen.getByText(/Humörtrender/)).toBeInTheDocument();
-    expect(screen.getByText(/Minnesfrekvens/)).toBeInTheDocument();
   });
 
-  test('renders dashboard with English translations when language changes', async () => {
-    await renderDashboard('en');
-
-    // Check for English welcome message
+  test('clicking "Få stöd" quick action switches to chat view', async () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText('Få stöd'));
     await waitFor(() => {
-      expect(screen.getByText(/Welcome/)).toBeInTheDocument();
+      expect(screen.getByTestId('mock-ai-chat')).toBeInTheDocument();
+      expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
     });
   });
 
-  test('renders dashboard with Norwegian translations when language changes', async () => {
-    await renderDashboard('no');
-
-    // Check for Norwegian welcome message
+  test('clicking back button returns to overview', async () => {
+    renderDashboard();
+    // Switch to mood view first
+    fireEvent.click(screen.getByText('Känn efter'));
     await waitFor(() => {
-      expect(screen.getByText(/Velkommen/)).toBeInTheDocument();
+      expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
     });
-  });
-
-  test('renders all dashboard components', async () => {
-    await renderDashboard();
-
-    // Check for mocked components
-    expect(screen.getByTestId('mood-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('memory-chart')).toBeInTheDocument();
-  });
-
-  test('renders action buttons', async () => {
-    await renderDashboard();
-
-    // Check for mood logging button
-    expect(screen.getByText(/Öppna Humörloggning/)).toBeInTheDocument();
-
-    // Check for mood logs button
-    expect(screen.getByText(/Visa Humörloggar/)).toBeInTheDocument();
-
-    // Check for memory recording button
-    expect(screen.getByText(/Öppna Inspelning/)).toBeInTheDocument();
-
-    // Check for memories button
-    expect(screen.getByText(/Visa Minnen/)).toBeInTheDocument();
-
-    // Check for AI therapist button
-    expect(screen.getByText(/Öppna Chatt/)).toBeInTheDocument();
-  });
-
-  test('handles mood logging button click', async () => {
-    await renderDashboard();
-
-    const moodButton = screen.getByText(/Öppna Humörloggning/);
-    fireEvent.click(moodButton);
-
-    // Since modals are conditionally rendered, we can't easily test the modal opening
-    // in this basic test setup. In a real scenario, we'd mock the modal state.
-    expect(moodButton).toBeInTheDocument();
-  });
-
-  test.skip('displays reminder when no mood logged today', async () => {
-    // Mock getMoods to return no moods for today (yesterday's mood with Firestore-like Timestamp)
-    const yesterday = new Date(Date.now() - 86400000); // 24 hours ago
-    const mockGetMoods = require('../../api/api').getMoods;
-    mockGetMoods.mockResolvedValueOnce([
-      { 
-        mood: 'glad', 
-        score: 0.8, 
-        timestamp: {
-          toDate: () => yesterday  // Mimic Firestore Timestamp
-        }
-      }
-    ]);
-
-    await renderDashboard();
-
-    // Wait for debounced checkTodayMood (500ms debounce + time for render)
-    // Use findBy which automatically waits for element to appear
-    const reminderElement = await screen.findByText(/Påminnelse/, {}, { timeout: 2000 });
-    expect(reminderElement).toBeDefined();
-  });
-
-  test('does not display reminder when mood logged today', async () => {
-    // Mock getMoods to return a mood for today
-    const today = new Date().toISOString().split('T')[0];
-    const mockGetMoods = require('../../api/api').getMoods;
-    mockGetMoods.mockResolvedValueOnce([
-      { mood: 'glad', score: 0.8, timestamp: `${today}T00:00:00Z` }
-    ]);
-
-    await renderDashboard();
-
+    // Click back
+    fireEvent.click(screen.getByText('Tillbaka till Dashboard'));
     await waitFor(() => {
-      expect(screen.queryByText(/Påminnelse/)).not.toBeInTheDocument();
+      expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
     });
   });
 
-  test('opens relaxing sounds component when button is clicked', async () => {
-    await renderDashboard();
+  test('shows wellness goals when available', () => {
+    setupMocks({ stats: { wellnessGoals: ['Hantera stress', 'Bättre sömn'] } });
+    renderDashboard();
+    expect(screen.getByText('Dina Wellness-Mål')).toBeInTheDocument();
+    expect(screen.getByText('Hantera stress')).toBeInTheDocument();
+    expect(screen.getByText('Bättre sömn')).toBeInTheDocument();
+  });
 
-    const relaxingButton = screen.getByText(/Öppna Musik/);
-    fireEvent.click(relaxingButton);
+  test('shows congratulations when weekly goal is met', () => {
+    setupMocks({ stats: { weeklyProgress: 7, weeklyGoal: 7 } });
+    renderDashboard();
+    expect(screen.getByText(/Grattis! Du har nått ditt veckomål!/)).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('relaxing-sounds')).toBeInTheDocument();
-    });
+  test('tracks page view on mount', () => {
+    renderDashboard();
+    expect(mockAnalytics.page).toHaveBeenCalledWith('World Class Dashboard', expect.any(Object));
+  });
+
+  test('renders recent activity section', () => {
+    renderDashboard();
+    expect(screen.getByText('Loggade humör: Glad')).toBeInTheDocument();
+  });
+
+  test('renders empty activity message when no activities', () => {
+    setupMocks({ stats: { recentActivity: [] } });
+    renderDashboard();
+    expect(screen.getByText(/Ingen aktivitet än/)).toBeInTheDocument();
   });
 });
