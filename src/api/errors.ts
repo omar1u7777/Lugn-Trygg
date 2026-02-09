@@ -2,6 +2,8 @@
  * Custom error classes for better error handling and type safety
  */
 
+import { AxiosError } from 'axios';
+
 export class ApiError extends Error {
   public readonly status?: number;
   public readonly statusText?: string;
@@ -44,11 +46,12 @@ export class ApiError extends Error {
   /**
    * Creates an ApiError from an Axios error response
    */
-  static fromAxiosError(error: any): ApiError {
+  static fromAxiosError(error: AxiosError): ApiError {
     if (error.response) {
+      const responseData = error.response.data as Record<string, unknown> | undefined;
       // Server responded with error status
       return new ApiError(
-        error.response.data?.message || error.response.data?.error || error.message,
+        (responseData?.message as string) || (responseData?.error as string) || error.message,
         {
           status: error.response.status,
           statusText: error.response.statusText,
@@ -105,7 +108,7 @@ export class ApiError extends Error {
    */
   get userMessage(): string {
     if (this.isRateLimit) {
-      const retryAfter = (this.data as any)?.retryAfter || 60;
+      const retryAfter = (this.data as Record<string, unknown>)?.retryAfter || 60;
       return `För många förfrågningar. Försök igen om ${retryAfter} sekunder.`;
     }
 
@@ -234,7 +237,7 @@ export function isApiError(error: unknown): error is ApiError {
  */
 export function isApiErrorType<T extends ApiError>(
   error: unknown,
-  ErrorClass: new (...args: any[]) => T
+  ErrorClass: new (...args: unknown[]) => T
 ): error is T {
   return error instanceof ErrorClass;
 }
