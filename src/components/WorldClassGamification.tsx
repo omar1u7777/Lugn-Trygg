@@ -20,7 +20,7 @@ import {
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import useAuth from '../hooks/useAuth';
-import { getMoods, getWeeklyAnalysis } from '../api/api';
+import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 import '../styles/world-class-design.css';
 import { Button } from './ui/tailwind'; // Keep generic components
 import { colors } from '../theme/tokens';
@@ -142,9 +142,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
     try {
       setLoading(true);
-      const [moodsData, weeklyAnalysisData] = await Promise.all([
+      const [moodsData, weeklyAnalysisData, chatHistoryData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
+        getChatHistory(user.user_id).catch(() => ({ conversation: [] })),
       ]);
 
       const totalMoods = Array.isArray(moodsData) ? moodsData.length : 0;
@@ -165,8 +166,8 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         }
       }
 
-      // totalChats not available from weekly analysis — use totalMoods as chat proxy
-      const totalChats = weeklyAnalysisData.totalMoods || 0;
+      // Get real chat count from chat history
+      const totalChats = chatHistoryData?.conversation?.length || 0;
 
       // Logic for Stats
       const moodXp = totalMoods * 10;

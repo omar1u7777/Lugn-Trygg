@@ -13,6 +13,8 @@ import {
   type RewardItem,
   type UserReward
 } from '../api/api';
+import { getJournalEntries } from '../api/journaling';
+import { getReferralStats } from '../api/social';
 import {
   SparklesIcon,
   StarIcon,
@@ -73,10 +75,12 @@ const RewardsHub: React.FC = () => {
 
     try {
       // Fetch all data in parallel
-      const [moods, userRewardsData, catalogData] = await Promise.all([
+      const [moods, userRewardsData, catalogData, journalResult, referralResult] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getUserRewards().catch(() => null),
-        getRewardCatalog().catch(() => [])
+        getRewardCatalog().catch(() => []),
+        getJournalEntries(user.user_id, 1000).catch(() => []),
+        getReferralStats(user.user_id).catch(() => ({ successful_referrals: 0 })),
       ]);
 
       setRewards(catalogData);
@@ -96,13 +100,15 @@ const RewardsHub: React.FC = () => {
         else if (i > 0) break;
       }
 
-      // Check for new achievements based on activity
+      // Check for new achievements based on real activity data
+      const journalCount = Array.isArray(journalResult) ? journalResult.length : 0;
+      const referralCount = referralResult?.successful_referrals ?? 0;
       const achievementCheck = await checkAchievements({
         mood_count: moods.length,
         streak: streak,
-        journal_count: 0, // TODO: Get from journal API
-        referral_count: 0,
-        meditation_count: 0
+        journal_count: journalCount,
+        referral_count: referralCount,
+        meditation_count: 0 // No meditation tracking backend yet
       }).catch(() => ({ newAchievements: [] }));
 
       // Show notification if new achievements earned

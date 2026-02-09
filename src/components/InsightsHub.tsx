@@ -35,7 +35,7 @@ interface InsightsStats {
   totalDataPoints: number;
   averageMoodScore: number;
   trendsAnalyzed: number;
-  predictionAccuracy: number;
+  dataConfidence: number; // Based on actual data volume, not fabricated
 }
 
 interface AIPrediction {
@@ -48,9 +48,10 @@ interface AIPrediction {
 
 // Helper to get trend narrative
 const getTrendNarrative = (stats: InsightsStats) => {
-  if (stats.predictionAccuracy > 80) return "Vi börjar lära oss dina mönster riktigt bra.";
-  if (stats.totalDataPoints < 10) return "Vi behöver lite mer data för att se tydliga mönster.";
-  return "Varje loggning hjälper oss att förstå dig bättre.";
+  if (stats.totalDataPoints >= 30) return "Vi har tillräckligt med data för att visa tydliga mönster.";
+  if (stats.totalDataPoints >= 10) return "Trenderna börjar ta form — fortsätt logga!";
+  if (stats.totalDataPoints > 0) return "Vi behöver lite mer data för att se tydliga mönster.";
+  return "Börja logga ditt humör för att se dina insikter.";
 };
 
 const InsightsHub: React.FC = () => {
@@ -61,7 +62,7 @@ const InsightsHub: React.FC = () => {
     totalDataPoints: 0,
     averageMoodScore: 0,
     trendsAnalyzed: 0,
-    predictionAccuracy: 0,
+    dataConfidence: 0,
   });
   const [aiPrediction, setAiPrediction] = useState<AIPrediction | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,14 +91,14 @@ const InsightsHub: React.FC = () => {
         const weeklyData = await getWeeklyAnalysis(user.user_id);
         const trendsAnalyzed = weeklyData?.trend ? 1 : 0;
 
-        // Estimate prediction accuracy based on data points
-        const predictionAccuracy = Math.min(70 + totalDataPoints * 0.3, 92);
+        // Data confidence: based on how much data we have (not fabricated accuracy)
+        const dataConfidence = totalDataPoints >= 30 ? 100 : Math.round((totalDataPoints / 30) * 100);
 
         setInsightsStats({
           totalDataPoints,
           averageMoodScore: Math.round(averageMoodScore * 10) / 10,
           trendsAnalyzed,
-          predictionAccuracy: Math.round(predictionAccuracy),
+          dataConfidence,
         });
 
         // Generate AI predictions based on real data
@@ -173,7 +174,7 @@ const InsightsHub: React.FC = () => {
           });
         }
 
-        logger.debug('✅ INSIGHTS HUB - Stats calculated', { totalDataPoints, averageMoodScore, trendsAnalyzed, predictionAccuracy });
+        logger.debug('✅ INSIGHTS HUB - Stats calculated', { totalDataPoints, averageMoodScore, trendsAnalyzed, dataConfidence });
       } catch (error) {
         logger.error('❌ INSIGHTS HUB - Failed to fetch insights data:', error);
       } finally {
@@ -225,7 +226,7 @@ const InsightsHub: React.FC = () => {
               {[
                 { label: 'Datapunkter', value: insightsStats.totalDataPoints, text: 'stunder loggade' },
                 { label: 'Trender', value: insightsStats.trendsAnalyzed, text: 'mönster funna' },
-                { label: 'Träffsäkerhet', value: `${insightsStats.predictionAccuracy}%`, text: 'i våra prognoser' }
+                { label: 'Datatäckning', value: `${insightsStats.dataConfidence}%`, text: 'av rekommenderat underlag' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/5 hover:bg-white/10 transition-colors">
                   <p className="text-2xl font-bold mb-1">{loading ? '-' : stat.value}</p>

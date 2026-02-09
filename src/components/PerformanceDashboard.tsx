@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, Typography, Grid, Chip, Alert, Button, Divider } from './ui/tailwind';
-// TODO: Replace icons with Heroicons
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, Typography, Chip, Alert, Button } from './ui/tailwind';
 import { analytics } from '../services/analytics';
 import { initializePerformanceMonitoring, performanceMonitor } from '../services/performanceMonitor';
-import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
-
+import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon, CpuChipIcon, ServerIcon, SignalIcon } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
 
 interface PerformanceMetrics {
   coreWebVitals: {
@@ -45,6 +44,30 @@ interface PerformanceIssue {
   timestamp: Date;
 }
 
+/** Read real Web Vitals from the browser Performance API */
+const getRealWebVitals = () => {
+  const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  const paint = performance.getEntriesByType('paint');
+  const fcpEntry = paint.find(e => e.name === 'first-contentful-paint');
+
+  return {
+    fcp: fcpEntry ? fcpEntry.startTime : 0,
+    lcp: 0,
+    ttfb: nav ? nav.responseStart - nav.requestStart : 0,
+    cls: 0,
+    fid: 0,
+  };
+};
+
+/** Get real memory usage if available */
+const getRealMemory = (): number => {
+  const perf = performance as any;
+  if (perf.memory) {
+    return Math.round(perf.memory.usedJSHeapSize / 1024 / 1024);
+  }
+  return 0;
+};
+
 const PerformanceDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
     coreWebVitals: { cls: 0, fid: 0, fcp: 0, lcp: 0, ttfb: 0 },
@@ -58,393 +81,346 @@ const PerformanceDashboard: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    analytics.page('Performance Dashboard', {
-      component: 'PerformanceDashboard',
-    });
-
-    // Initialize performance monitoring
-    initializePerformanceMonitoring();
-
-    // Load initial metrics
-    loadPerformanceMetrics();
-  }, []);
-
-  const loadPerformanceMetrics = async () => {
-    try {
-      // Get budgets status
-      const budgets = performanceMonitor.getBudgetsStatus();
-
-      // Mock real-time metrics (in production, these would come from actual measurements)
-      const mockMetrics: PerformanceMetrics = {
-        coreWebVitals: {
-          cls: Math.random() * 0.2,
-          fid: Math.random() * 150,
-          fcp: spacing.sm500 + Math.random() * 1000,
-          lcp: spacing.md000 + Math.random() * 1500,
-          ttfb: 200 + Math.random() * 300,
-        },
-        budgets,
-        memoryUsage: 25 + Math.random() * 25,
-        navigationTiming: {
-          loadTime: 1500 + Math.random() * 1000,
-          dnsLookup: 50 + Math.random() * 100,
-          tcpConnection: 100 + Math.random() * 200,
-        },
-        resourceMetrics: {
-          slowResources: Math.floor(Math.random() * 10),
-          largeResources: Math.floor(Math.random() * 5),
-          totalSize: 300 + Math.random() * 200,
-        },
-      };
-
-      setMetrics(mockMetrics);
-      analyzePerformanceIssues(mockMetrics);
-    } catch (error) {
-      logger.error('Failed to load performance metrics:', error);
-    }
-  };
-
-  const analyzePerformanceIssues = (metrics: PerformanceMetrics) => {
+  const analyzePerformanceIssues = useCallback((m: PerformanceMetrics) => {
     const newIssues: PerformanceIssue[] = [];
 
-    // Check Core Web Vitals
-    if (metrics.coreWebVitals.cls > 0.1) {
+    if (m.coreWebVitals.cls > 0.1) {
       newIssues.push({
-        id: 'cls-high',
-        type: 'vital',
-        severity: 'high',
-        title: 'High Cumulative Layout Shift',
-        description: 'Layout shifts are causing poor user experience',
-        value: metrics.coreWebVitals.cls,
-        threshold: 0.1,
-        timestamp: new Date(),
+        id: 'cls-high', type: 'vital', severity: 'high',
+        title: 'Hög Cumulative Layout Shift',
+        description: 'Layoutskiftningar påverkar användarupplevelsen negativt',
+        value: m.coreWebVitals.cls, threshold: 0.1, timestamp: new Date(),
       });
     }
-
-    if (metrics.coreWebVitals.fid > 100) {
+    if (m.coreWebVitals.fid > 100) {
       newIssues.push({
-        id: 'fid-high',
-        type: 'vital',
-        severity: 'medium',
-        title: 'Slow First Input Delay',
-        description: 'User interactions are delayed',
-        value: metrics.coreWebVitals.fid,
-        threshold: 100,
-        timestamp: new Date(),
+        id: 'fid-high', type: 'vital', severity: 'medium',
+        title: 'Långsam First Input Delay',
+        description: 'Användarinteraktioner fördröjs',
+        value: m.coreWebVitals.fid, threshold: 100, timestamp: new Date(),
       });
     }
-
-    if (metrics.coreWebVitals.lcp > 2500) {
+    if (m.coreWebVitals.lcp > 2500) {
       newIssues.push({
-        id: 'lcp-high',
-        type: 'vital',
-        severity: 'high',
-        title: 'Slow Largest Contentful Paint',
-        description: 'Main content loads too slowly',
-        value: metrics.coreWebVitals.lcp,
-        threshold: 2500,
-        timestamp: new Date(),
+        id: 'lcp-high', type: 'vital', severity: 'high',
+        title: 'Långsam Largest Contentful Paint',
+        description: 'Huvudinnehållet laddas för långsamt',
+        value: m.coreWebVitals.lcp, threshold: 2500, timestamp: new Date(),
       });
     }
-
-    // Check budgets
-    metrics.budgets.forEach(budget => {
+    m.budgets.forEach(budget => {
       if (budget.exceeded) {
         newIssues.push({
-          id: `budget-${budget.resource}`,
-          type: 'budget',
+          id: `budget-${budget.resource}`, type: 'budget',
           severity: budget.resource.includes('layout-shift') || budget.resource.includes('paint') ? 'high' : 'medium',
-          title: `Budget Exceeded: ${budget.resource}`,
-          description: `${budget.resource} exceeds budget (${budget.current}${budget.unit} > ${budget.budget}${budget.unit})`,
-          value: budget.current,
-          threshold: budget.budget,
-          timestamp: new Date(),
+          title: `Budget överskriden: ${budget.resource}`,
+          description: `${budget.resource} överskrider budget (${budget.current}${budget.unit} > ${budget.budget}${budget.unit})`,
+          value: budget.current, threshold: budget.budget, timestamp: new Date(),
         });
       }
     });
-
-    // Check memory usage
-    if (metrics.memoryUsage > 50) {
+    if (m.memoryUsage > 100) {
       newIssues.push({
-        id: 'memory-high',
-        type: 'memory',
-        severity: 'medium',
-        title: 'High Memory Usage',
-        description: 'Application is using excessive memory',
-        value: metrics.memoryUsage,
-        threshold: 50,
-        timestamp: new Date(),
+        id: 'memory-high', type: 'memory', severity: 'medium',
+        title: 'Hög minnesanvändning',
+        description: 'Applikationen använder mycket minne',
+        value: m.memoryUsage, threshold: 100, timestamp: new Date(),
       });
     }
-
     setIssues(newIssues);
-  };
+  }, []);
+
+  const loadPerformanceMetrics = useCallback(async () => {
+    try {
+      const budgets = performanceMonitor.getBudgetsStatus();
+      const realVitals = getRealWebVitals();
+      const memoryMB = getRealMemory();
+      const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+
+      const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+      const slowResources = resources.filter(r => r.duration > 1000).length;
+      const largeResources = resources.filter(r => r.transferSize > 100_000).length;
+      const totalSize = Math.round(resources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
+
+      const realMetrics: PerformanceMetrics = {
+        coreWebVitals: {
+          cls: realVitals.cls,
+          fid: realVitals.fid,
+          fcp: Math.round(realVitals.fcp),
+          lcp: Math.round(realVitals.lcp),
+          ttfb: Math.round(realVitals.ttfb),
+        },
+        budgets,
+        memoryUsage: memoryMB,
+        navigationTiming: {
+          loadTime: nav ? Math.round(nav.loadEventEnd - nav.startTime) : 0,
+          dnsLookup: nav ? Math.round(nav.domainLookupEnd - nav.domainLookupStart) : 0,
+          tcpConnection: nav ? Math.round(nav.connectEnd - nav.connectStart) : 0,
+        },
+        resourceMetrics: { slowResources, largeResources, totalSize },
+      };
+
+      setMetrics(realMetrics);
+      analyzePerformanceIssues(realMetrics);
+    } catch (error) {
+      logger.error('Failed to load performance metrics:', error);
+    }
+  }, [analyzePerformanceIssues]);
+
+  useEffect(() => {
+    analytics.page('Performance Dashboard', { component: 'PerformanceDashboard' });
+    initializePerformanceMonitoring();
+    loadPerformanceMetrics();
+  }, [loadPerformanceMetrics]);
+
+  // Observe LCP and CLS with PerformanceObserver
+  useEffect(() => {
+    const observers: PerformanceObserver[] = [];
+    try {
+      const lcpObserver = new PerformanceObserver((list) => {
+        const entries = list.getEntries();
+        const last = entries[entries.length - 1] as any;
+        if (last) {
+          setMetrics(prev => ({
+            ...prev,
+            coreWebVitals: { ...prev.coreWebVitals, lcp: Math.round(last.startTime) },
+          }));
+        }
+      });
+      lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+      observers.push(lcpObserver);
+    } catch { /* not supported */ }
+
+    try {
+      const clsObserver = new PerformanceObserver((list) => {
+        let clsValue = 0;
+        for (const entry of list.getEntries()) {
+          if (!(entry as any).hadRecentInput) {
+            clsValue += (entry as any).value;
+          }
+        }
+        if (clsValue > 0) {
+          setMetrics(prev => ({
+            ...prev,
+            coreWebVitals: { ...prev.coreWebVitals, cls: Math.round(clsValue * 1000) / 1000 },
+          }));
+        }
+      });
+      clsObserver.observe({ type: 'layout-shift', buffered: true });
+      observers.push(clsObserver);
+    } catch { /* not supported */ }
+
+    try {
+      const fidObserver = new PerformanceObserver((list) => {
+        const entry = list.getEntries()[0] as any;
+        if (entry) {
+          setMetrics(prev => ({
+            ...prev,
+            coreWebVitals: { ...prev.coreWebVitals, fid: Math.round(entry.processingStart - entry.startTime) },
+          }));
+        }
+      });
+      fidObserver.observe({ type: 'first-input', buffered: true });
+      observers.push(fidObserver);
+    } catch { /* not supported */ }
+
+    return () => { observers.forEach(o => o.disconnect()); };
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    analytics.track('Performance Data Refreshed', {
-      component: 'PerformanceDashboard',
-    });
-
+    analytics.track('Performance Data Refreshed', { component: 'PerformanceDashboard' });
     await loadPerformanceMetrics();
     setRefreshing(false);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'error';
-      case 'medium': return 'warning';
-      default: return 'info';
+  const getStatusClasses = (status: 'good' | 'warning' | 'error') => {
+    switch (status) {
+      case 'good': return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Bra' };
+      case 'warning': return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Varning' };
+      case 'error': return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Dålig' };
     }
   };
 
   const getSeverityIcon = (type: string) => {
     switch (type) {
-      case 'budget': return <ExclamationTriangleIcon className="w-5 h-5" />;
-      case 'vital': return <Speed />;
-      case 'resource': return <NetworkCheck />;
-      case 'memory': return <Memory />;
-      default: return <ChartBarIcon className="w-5 h-5" />;
+      case 'budget': return <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />;
+      case 'vital': return <ClockIcon className="w-5 h-5 text-red-500" />;
+      case 'resource': return <SignalIcon className="w-5 h-5 text-blue-500" />;
+      case 'memory': return <CpuChipIcon className="w-5 h-5 text-purple-500" />;
+      default: return <ChartBarIcon className="w-5 h-5 text-slate-500" />;
     }
   };
 
   const MetricCard: React.FC<{
-    title: string;
-    value: string | number;
-    unit?: string;
-    status?: 'good' | 'warning' | 'error';
-    icon: React.ReactNode;
-    subtitle?: string;
-  }> = ({ title, value, unit, status = 'good', icon, subtitle }) => (
-    <Card>
-      <CardContent>
-        <div className="flex items-center">
-          <div className="flex items-center gap-1"  >
-            {icon}
-            <Typography variant="h6" color="text.secondary">
-              {title}
-            </Typography>
+    title: string; value: string | number; unit?: string;
+    status?: 'good' | 'warning' | 'error'; icon: React.ReactNode; subtitle?: string;
+  }> = ({ title, value, unit, status = 'good', icon, subtitle }) => {
+    const s = getStatusClasses(status);
+    return (
+      <Card>
+        <CardContent>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {icon}
+              <Typography variant="body2" color="text.secondary">{title}</Typography>
+            </div>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>{s.label}</span>
           </div>
-          <Chip
-            label={status === 'good' ? 'Good' : status === 'warning' ? 'Warning' : 'Poor'}
-            color={status}
-            size="small"
-          />
-        </div>
-
-        <Typography variant="h4" component="div" gutterBottom>
-          {typeof value === 'number' ? value.toFixed(1) : value}{unit}
-        </Typography>
-
-        {subtitle && (
-          <Typography variant="body2" color="text.secondary">
-            {subtitle}
+          <Typography variant="h4" component="div">
+            {typeof value === 'number' ? value.toFixed(value < 1 ? 3 : 0) : value}
+            {unit && <span className="text-base text-slate-400 ml-1">{unit}</span>}
           </Typography>
-        )}
-      </CardContent>
-    </Card>
+          {subtitle && <Typography variant="body2" color="text.secondary" className="mt-1">{subtitle}</Typography>}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const TabButton: React.FC<{ index: number; label: string }> = ({ index, label }) => (
+    <button
+      onClick={() => setSelectedTab(index)}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+        selectedTab === index
+          ? 'bg-primary-500 text-white'
+          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`}
+    >
+      {label}
+    </button>
   );
 
   const WebVitalsSection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="First Contentful Paint"
-          value={metrics.coreWebVitals.fcp}
-          unit="ms"
-          status={metrics.coreWebVitals.fcp < 1800 ? 'good' : metrics.coreWebVitals.fcp < 3000 ? 'warning' : 'error'}
-          icon={<ClockIcon className="w-5 h-5" />}
-          subtitle="Time to first content"
-        />
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="Largest Contentful Paint"
-          value={metrics.coreWebVitals.lcp}
-          unit="ms"
-          status={metrics.coreWebVitals.lcp < 2500 ? 'good' : metrics.coreWebVitals.lcp < 4000 ? 'warning' : 'error'}
-          icon={<Speed />}
-          subtitle="Time to largest content"
-        />
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="First Input Delay"
-          value={metrics.coreWebVitals.fid}
-          unit="ms"
-          status={metrics.coreWebVitals.fid < 100 ? 'good' : metrics.coreWebVitals.fid < 300 ? 'warning' : 'error'}
-          icon={<ArrowTrendingUpIcon className="w-5 h-5" />}
-          subtitle="Input responsiveness"
-        />
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="Cumulative Layout Shift"
-          value={metrics.coreWebVitals.cls}
-          status={metrics.coreWebVitals.cls < 0.1 ? 'good' : metrics.coreWebVitals.cls < 0.25 ? 'warning' : 'error'}
-          icon={<ChartBarIcon className="w-5 h-5" />}
-          subtitle="Visual stability"
-        />
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="Time to First Byte"
-          value={metrics.coreWebVitals.ttfb}
-          unit="ms"
-          status={metrics.coreWebVitals.ttfb < 800 ? 'good' : metrics.coreWebVitals.ttfb < 1800 ? 'warning' : 'error'}
-          icon={<NetworkCheck />}
-          subtitle="Server response time"
-        />
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={4}>
-        <MetricCard
-          title="Memory Usage"
-          value={metrics.memoryUsage}
-          unit="MB"
-          status={metrics.memoryUsage < 50 ? 'good' : metrics.memoryUsage < 100 ? 'warning' : 'error'}
-          icon={<Memory />}
-          subtitle="JavaScript heap"
-        />
-      </Grid>
-    </Grid>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <MetricCard
+        title="First Contentful Paint" value={metrics.coreWebVitals.fcp} unit="ms"
+        status={metrics.coreWebVitals.fcp < 1800 ? 'good' : metrics.coreWebVitals.fcp < 3000 ? 'warning' : 'error'}
+        icon={<ClockIcon className="w-5 h-5 text-blue-500" />} subtitle="Tid till första innehåll"
+      />
+      <MetricCard
+        title="Largest Contentful Paint" value={metrics.coreWebVitals.lcp} unit="ms"
+        status={metrics.coreWebVitals.lcp < 2500 ? 'good' : metrics.coreWebVitals.lcp < 4000 ? 'warning' : 'error'}
+        icon={<ClockIcon className="w-5 h-5 text-indigo-500" />} subtitle="Tid till största innehåll"
+      />
+      <MetricCard
+        title="First Input Delay" value={metrics.coreWebVitals.fid} unit="ms"
+        status={metrics.coreWebVitals.fid < 100 ? 'good' : metrics.coreWebVitals.fid < 300 ? 'warning' : 'error'}
+        icon={<ArrowTrendingUpIcon className="w-5 h-5 text-green-500" />} subtitle="Interaktionsrespons"
+      />
+      <MetricCard
+        title="Cumulative Layout Shift" value={metrics.coreWebVitals.cls}
+        status={metrics.coreWebVitals.cls < 0.1 ? 'good' : metrics.coreWebVitals.cls < 0.25 ? 'warning' : 'error'}
+        icon={<ChartBarIcon className="w-5 h-5 text-orange-500" />} subtitle="Visuell stabilitet"
+      />
+      <MetricCard
+        title="Time to First Byte" value={metrics.coreWebVitals.ttfb} unit="ms"
+        status={metrics.coreWebVitals.ttfb < 800 ? 'good' : metrics.coreWebVitals.ttfb < 1800 ? 'warning' : 'error'}
+        icon={<ServerIcon className="w-5 h-5 text-cyan-500" />} subtitle="Serverresponstid"
+      />
+      <MetricCard
+        title="Minnesanvändning" value={metrics.memoryUsage} unit="MB"
+        status={metrics.memoryUsage < 50 ? 'good' : metrics.memoryUsage < 100 ? 'warning' : 'error'}
+        icon={<CpuChipIcon className="w-5 h-5 text-purple-500" />} subtitle="JavaScript heap"
+      />
+    </div>
   );
 
   const BudgetsSection = () => (
-    <div>
-      <Typography variant="h6" gutterBottom>
-        Performance Budgets
-      </Typography>
-      <Grid container spacing={2}>
-        {metrics.budgets.map((budget) => (
-          <Grid item xs={12} sm={6} md={4} key={budget.resource}>
-            <Card>
-              <CardContent>
-                <div className="flex items-center">
-                  <Typography variant="subtitle1">
-                    {budget.resource.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+    <div className="space-y-4">
+      <Typography variant="h6">Prestandabudgetar</Typography>
+      {metrics.budgets.length === 0 ? (
+        <Alert severity="info"><Typography>Inga prestandabudgetar konfigurerade.</Typography></Alert>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {metrics.budgets.map((budget) => {
+            const pct = Math.min((budget.current / budget.budget) * 100, 100);
+            return (
+              <Card key={budget.resource}>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <Typography variant="body1">
+                      {budget.resource.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Typography>
+                    <Chip label={budget.exceeded ? 'Överskriden' : 'OK'} color={budget.exceeded ? 'error' : 'success'} size="small" />
+                  </div>
+                  <Typography variant="body2" color="text.secondary" className="mb-2">
+                    {budget.current.toFixed(1)}{budget.unit} / {budget.budget}{budget.unit}
                   </Typography>
-                  <Chip
-                    label={budget.exceeded ? 'Exceeded' : 'OK'}
-                    color={budget.exceeded ? 'error' : 'success'}
-                    size="small"
-                  />
-                </div>
-                <Typography variant="h6" gutterBottom>
-                  {budget.current.toFixed(1)}{budget.unit} / {budget.budget}{budget.unit}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min((budget.current / budget.budget) * 100, 100)}
-                  color={budget.exceeded ? 'error' : 'success'}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${budget.exceeded ? 'bg-red-500' : 'bg-green-500'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
   const IssuesSection = () => (
-    <div>
-      <div className="flex items-center">
-        <Typography variant="h6">
-          Performance Issues
-        </Typography>
-        <Chip
-          label={`${issues.length} Issues`}
-          color={issues.length > 0 ? 'warning' : 'success'}
-          size="small"
-        />
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Typography variant="h6">Prestandaproblem</Typography>
+        <Chip label={`${issues.length} problem`} color={issues.length > 0 ? 'warning' : 'success'} size="small" />
       </div>
-
       {issues.length === 0 ? (
-        <Alert severity="success">
-          <Typography>No performance issues detected! 🎉</Typography>
-        </Alert>
+        <Alert severity="success"><Typography>Inga prestandaproblem upptäckta!</Typography></Alert>
       ) : (
-        <List>
-          {issues.map((issue, index) => (
-            <React.Fragment key={issue.id}>
-              <ListItem>
-                <ListItemIcon>
-                  {getSeverityIcon(issue.type)}
-                </ListItemIcon>
-                <ListItemText className="flex items-center gap-1" 
-                  primary={
-                    <div >
-                      <Typography variant="subtitle1">{issue.title}</Typography>
-                      <Chip
-                        label={issue.severity}
-                        color={getSeverityColor(issue.severity)}
-                        size="small"
-                      />
+        <div className="space-y-3">
+          {issues.map((issue) => (
+            <Card key={issue.id}>
+              <CardContent>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">{getSeverityIcon(issue.type)}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Typography variant="body1" className="font-medium">{issue.title}</Typography>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        issue.severity === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        : issue.severity === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      }`}>{issue.severity}</span>
                     </div>
-                  }
-                  secondary={
-                    <div>
-                      <Typography variant="body2" color="text.secondary">
-                        {issue.description}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Value: {issue.value.toFixed(2)} (Threshold: {issue.threshold})
-                      </Typography>
-                    </div>
-                  }
-                />
-              </ListItem>
-              {index < issues.length - 1 && <Divider />}
-            </React.Fragment>
+                    <Typography variant="body2" color="text.secondary">{issue.description}</Typography>
+                    <Typography variant="body2" color="text.secondary" className="mt-1">
+                      Värde: {issue.value.toFixed(2)} (Gräns: {issue.threshold})
+                    </Typography>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           ))}
-        </List>
+        </div>
       )}
     </div>
   );
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center">
+    <div className="space-y-6 p-4 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Performance Monitoring
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Real-time Core Web Vitals and performance metrics
-          </Typography>
+          <Typography variant="h4" component="h1">Prestandaövervakning</Typography>
+          <Typography variant="body1" color="text.secondary">Realtidsdata från Core Web Vitals och prestanda-API:er</Typography>
         </div>
-
-        <Button
-          variant="outline"
-          startIcon={<ArrowPathIcon className="w-5 h-5" />}
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
+        <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+          <ArrowPathIcon className={`w-5 h-5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Uppdaterar...' : 'Uppdatera'}
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div>
-        <Tabs value={selectedTab} onChange={(_, newValue) => setSelectedTab(newValue)}>
-          <Tab label="Core Web Vitals" />
-          <Tab label="Performance Budgets" />
-          <Tab label="Issues & Alerts" />
-        </Tabs>
+      <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+        <TabButton index={0} label="Core Web Vitals" />
+        <TabButton index={1} label="Prestandabudgetar" />
+        <TabButton index={2} label="Problem & Varningar" />
       </div>
 
-      {/* Tab Content */}
-      <div>
-        {selectedTab === 0 && <WebVitalsSection />}
-        {selectedTab === 1 && <BudgetsSection />}
-        {selectedTab === 2 && <IssuesSection />}
-      </div>
+      {selectedTab === 0 && <WebVitalsSection />}
+      {selectedTab === 1 && <BudgetsSection />}
+      {selectedTab === 2 && <IssuesSection />}
     </div>
   );
 };

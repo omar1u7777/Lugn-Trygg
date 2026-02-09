@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Typography, Button, Chip, Alert } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
@@ -24,6 +25,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [insights, setInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -205,16 +207,22 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
     // Handle different actions
     switch (insight.action) {
       case 'Se detaljer':
-        // Navigate to detailed analytics
+        navigate('/insights');
         break;
       case 'Dela prestation':
-        // Open share dialog
+        // Use Web Share API if available
+        if (navigator.share) {
+          navigator.share({
+            title: 'Min prestation på Lugn & Trygg',
+            text: insight.title || 'Kolla min prestation!',
+          }).catch(() => { /* user cancelled */ });
+        }
         break;
       case 'Prova nu':
-        // Navigate to mindfulness exercises
+        navigate('/wellness');
         break;
       case 'Logga nu':
-        // Navigate to mood logger
+        navigate('/mood');
         break;
     }
 
