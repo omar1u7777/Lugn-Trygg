@@ -50,10 +50,11 @@ class TestTherapeuticStory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "story" in data
-        assert "En vacker berättelse" in data["story"]
-        assert data["ai_generated"] == True
-        assert data["confidence"] == 0.9
+        assert data["success"] is True
+        assert "story" in data["data"]
+        assert "En vacker berättelse" in data["data"]["story"]
+        assert data["data"]["aiGenerated"] == True
+        assert data["data"]["confidence"] == 0.9
     
     def test_generate_story_missing_user_id(self, client):
         """Test story without user_id"""
@@ -64,8 +65,9 @@ class TestTherapeuticStory:
         
         assert response.status_code == 400
         data = response.get_json()
+        assert data["success"] is False
         assert "error" in data
-        assert "krävs" in data["error"].lower()
+        assert "message" in data
     
     def test_generate_story_empty_user_id(self, client):
         """Test story with empty user_id"""
@@ -119,8 +121,9 @@ class TestTherapeuticStory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["ai_generated"] == False
-        assert data["model_used"] == "fallback"
+        assert data["success"] is True
+        assert data["data"]["aiGenerated"] == False
+        assert data["data"]["modelUsed"] == "fallback"
         assert mock_fallback.called
     
     @patch('src.utils.ai_services.ai_services.generate_personalized_therapeutic_story')
@@ -149,7 +152,8 @@ class TestTherapeuticStory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["locale"] == "sv"  # Should default to Swedish
+        assert data["success"] is True
+        assert data["data"]["locale"] == "sv"  # Should default to Swedish
     
     @patch('src.utils.ai_services.ai_services.generate_personalized_therapeutic_story')
     def test_generate_story_english_locale(self, mock_ai, client, mock_db):
@@ -177,7 +181,8 @@ class TestTherapeuticStory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["locale"] == "en"
+        assert data["success"] is True
+        assert data["data"]["locale"] == "en"
     
     
     def test_generate_story_database_error(self, client, mock_db):
@@ -245,10 +250,11 @@ class TestMoodForecast:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "forecast" in data
-        assert data["forecast"]["trend"] == "improving"
-        assert data["confidence"] == 0.85
-        assert data["forecast_period_days"] == 7
+        assert data["success"] is True
+        assert "forecast" in data["data"]
+        assert data["data"]["forecast"]["trend"] == "improving"
+        assert data["data"]["confidence"] == 0.85
+        assert data["data"]["forecastPeriodDays"] == 7
     
     @patch('src.utils.ai_services.ai_services.predictive_mood_analytics')
     def test_forecast_fallback_method(self, mock_ai, client, mock_db):
@@ -277,7 +283,8 @@ class TestMoodForecast:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "forecast" in data
+        assert data["success"] is True
+        assert "forecast" in data["data"]
     
     def test_forecast_missing_user_id(self, client):
         """Test forecast without user_id"""
@@ -329,7 +336,7 @@ class TestMoodForecast:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["forecast_period_days"] == 7  # Should default
+        assert data["data"]["forecastPeriodDays"] == 7  # Should default
         
         # Test negative
         response = client.post('/api/ai/forecast',
@@ -339,7 +346,7 @@ class TestMoodForecast:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["forecast_period_days"] == 7
+        assert data["data"]["forecastPeriodDays"] == 7
         
         # Test non-integer
         response = client.post('/api/ai/forecast',
@@ -349,7 +356,7 @@ class TestMoodForecast:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["forecast_period_days"] == 7
+        assert data["data"]["forecastPeriodDays"] == 7
     
     @patch('src.utils.ai_services.ai_services.predictive_mood_forecasting_sklearn')
     @patch('src.utils.ai_services.ai_services.predictive_mood_analytics')
@@ -455,10 +462,11 @@ class TestStoryHistory:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert "stories" in data
-        assert len(data["stories"]) == 2
-        assert data["stories"][0]["id"] == "story_1"
-        assert data["stories"][0]["locale"] == "sv"
+        assert data["success"] is True
+        assert "stories" in data["data"]
+        assert len(data["data"]["stories"]) == 2
+        assert data["data"]["stories"][0]["id"] == "story_1"
+        assert data["data"]["stories"][0]["locale"] == "sv"
     
     def test_get_story_history_missing_user_id(self, client):
         """Test story history without user_id"""
@@ -491,8 +499,9 @@ class TestStoryHistory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "stories" in data
-        assert len(data["stories"]) == 0
+        assert data["success"] is True
+        assert "stories" in data["data"]
+        assert len(data["data"]["stories"]) == 0
     
     
     def test_get_story_history_database_error(self, client, mock_db):
@@ -563,10 +572,11 @@ class TestForecastHistory:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert "forecasts" in data
-        assert len(data["forecasts"]) == 2
-        assert data["forecasts"][0]["id"] == "forecast_1"
-        assert data["forecasts"][0]["forecast_summary"]["trend"] == "improving"
+        assert data["success"] is True
+        assert "forecasts" in data["data"]
+        assert len(data["data"]["forecasts"]) == 2
+        assert data["data"]["forecasts"][0]["id"] == "forecast_1"
+        assert data["data"]["forecasts"][0]["forecast_summary"]["trend"] == "improving"
     
     def test_get_forecast_history_missing_user_id(self, client):
         """Test forecast history without user_id"""
@@ -599,8 +609,9 @@ class TestForecastHistory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "forecasts" in data
-        assert len(data["forecasts"]) == 0
+        assert data["success"] is True
+        assert "forecasts" in data["data"]
+        assert len(data["data"]["forecasts"]) == 0
     
     
     def test_get_forecast_history_database_error(self, client, mock_db):

@@ -312,7 +312,7 @@ class TestAuthRoutesTargeted:
 
         assert response.status_code == 200
         payload = response.get_json()
-        assert payload['access_token'] == 'new-access-token'
+        assert payload['data']['access_token'] == 'new-access-token'
         assert 'access_token=new-access-token' in response.headers.get('Set-Cookie', '')
 
     def test_google_login_uses_fallback_verifier(self, client, mock_db, mocker):
@@ -335,6 +335,6 @@ class TestAuthRoutesTargeted:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['user']['login_method'] == 'google'
-        assert data['access_token'] == 'google-access-token'
+        assert data['data']['user']['login_method'] == 'google'
+        assert data['data']['access_token'] == 'google-access-token'
 

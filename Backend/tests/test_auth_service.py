@@ -228,8 +228,10 @@ def login_data(client, mock_firebase_auth, mock_firestore, test_user):
     """Loggar in en testanvändare och returnerar tokens."""
     # Return mock data directly to avoid account lockout issues
     return {
-        "access_token": "mock-access-token",
-        "refresh_token": "mock-refresh-token",
+        "data": {
+            "access_token": "mock-access-token",
+            "refresh_token": "mock-refresh-token",
+        },
         "user_id": "test-uid-123"
     }
 
@@ -280,7 +282,7 @@ def test_login_user(client, mock_firebase_auth, mock_firestore, test_user):
 # 🔹 Testa token-uppdatering
 def test_refresh_token(client, mock_firebase_auth, mock_firestore, login_data):
     """Testar token-uppdatering med ett giltigt refresh-token."""
-    refresh_token = login_data["refresh_token"]
+    refresh_token = login_data["data"]["refresh_token"]
     response = client.post("/api/auth/refresh", headers={"Authorization": f"Bearer {refresh_token}"})
     # Skip this test since refresh endpoint doesn't exist
     pytest.skip("Refresh token endpoint not implemented")
@@ -289,7 +291,7 @@ def test_refresh_token(client, mock_firebase_auth, mock_firestore, login_data):
 @pytest.mark.skip(reason="Authentication mocking needs to be fixed first")
 def test_store_mood(client, mock_firebase_auth, mock_firestore, login_data):
     """Testar lagring av humör med ett giltigt access-token."""
-    access_token = login_data["access_token"]
+    access_token = login_data["data"]["access_token"]
     response = client.post("/api/mood/log", json={
         "mood_text": "Jag känner mig glad idag!",
         "timestamp": "2024-01-15T10:00:00Z"
@@ -299,7 +301,7 @@ def test_store_mood(client, mock_firebase_auth, mock_firestore, login_data):
 # 🔹 Testa utloggning
 def test_logout(client, mock_firebase_auth, mock_firestore, login_data):
     """Testar utloggning med ett giltigt access-token."""
-    access_token = login_data["access_token"]
+    access_token = login_data["data"]["access_token"]
     response = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {access_token}"})
     assert response.status_code == 200, f"Fel statuskod: {response.status_code}"
     assert "Logged out successfully" in response.get_json()["message"]
@@ -329,9 +331,9 @@ def test_google_login(client, mock_firestore, mocker):
     if response.status_code == 200:
         data = response.get_json()
         assert "Google-inloggning lyckades!" in data["message"]
-        assert "access_token" in data
-        assert data["user"]["id"] == "test-uid-123"
-        assert data["user"]["email"] == "google@example.com"
+        assert "access_token" in data["data"]
+        assert data["data"]["user"]["id"] == "test-uid-123"
+        assert data["data"]["user"]["email"] == "google@example.com"
 
 # 🔹 Testa lösenordsåterställning
 def test_reset_password(client):
@@ -348,11 +350,11 @@ def test_reset_password_invalid_email(client):
     response = client.post("/api/auth/reset-password", json={"email": "invalid-email"})
     # Validation middleware now returns 400 for invalid email format
     assert response.status_code == 400
-    assert "value is not a valid email address" in response.get_json()["error"]
+    assert "value is not a valid email address" in response.get_json()["message"]
 
 @pytest.mark.skip(reason="Validation middleware behavior changed - tests need update")
 def test_reset_password_missing_email(client):
     """Testar lösenordsåterställning utan e-post."""
     response = client.post("/api/auth/reset-password", json={})
     assert response.status_code == 400
-    assert "field required" in response.get_json()["error"]
+    assert "field required" in response.get_json()["message"]
