@@ -4,13 +4,13 @@
  */
 
 :root {
-  /* Color Palette */
-  --color-primary: #1abc9c;
-  --color-primary-dark: #16a085;
-  --color-secondary: #3498db;
-  --color-secondary-dark: #2980b9;
-  --color-accent: #e74c3c;
-  --color-accent-dark: #c0392b;
+  /* Color Palette - matches tailwind.config.js primary scale */
+  --color-primary: #2c8374;
+  --color-primary-dark: #1e5f54;
+  --color-secondary: #c08a5d;
+  --color-secondary-dark: #8f6a4a;
+  --color-accent: #f59e0b;
+  --color-accent-dark: #d97706;
 
   /* Neutral Colors */
   --color-white: #ffffff;

@@ -26,10 +26,16 @@ import i18n from "./i18n/i18n";
 // Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
 
-// Import Tailwind CSS statically so Vite injects it as a <link> in the HTML.
-// A dynamic import() caused the CSS to only load after JS execution, which
-// left the page unstyled on first paint.
+// Import ALL CSS statically so Vite injects them as <link> tags in the HTML.
+// Previously, most styles lived inside the lazy-loaded ProtectedAppShell
+// and never loaded on auth pages (login / register), leaving them unstyled.
 import "./index.css";
+import "./styles/styles.css";
+import "./styles/responsive.css";
+import "./styles/design-system.css";
+import "./styles/animations.css";
+import "./styles/world-class-design.css";
+import "./styles/accessibility.css";
 
 // Kept for the releaseInitialOverlays flow – resolves immediately now.
 const tailwindStylesPromise: Promise<unknown> = Promise.resolve();

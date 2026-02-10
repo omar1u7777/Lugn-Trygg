@@ -10,12 +10,10 @@ import WorldClassDashboardSkeleton from '../WorldClassDashboardSkeleton';
 import { SkipLink } from '../Accessibility/SkipLink';
 import { useAuth } from '../../contexts/AuthContext';
 
-import '@/styles/styles.css';
-import '@/styles/responsive.css';
-import '@/styles/design-system.css';
-import '@/styles/animations.css';
-import '@/styles/world-class-design.css';
-import '@/styles/accessibility.css';import { logger } from '../../utils/logger';
+// CSS imports moved to src/main.tsx so they load on ALL pages (including
+// auth pages like login / register).  Keeping them here caused the login
+// page to render completely unstyled because ProtectedAppShell is lazy-loaded.
+import { logger } from '../../utils/logger';
 
 
 const ProtectedAppShell: React.FC = () => {
