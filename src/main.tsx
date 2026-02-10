@@ -26,14 +26,13 @@ import i18n from "./i18n/i18n";
 // Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
 
-// Import Tailwind CSS - REPLACES MUI
-const tailwindStylesPromise: Promise<unknown> = typeof window !== 'undefined'
-  ? import("./index.css").catch((error) => {
-      if ((import.meta as any).env?.DEV) {
-        logger.warn("Failed to load Tailwind bundle immediately", { error });
-      }
-    })
-  : Promise.resolve();
+// Import Tailwind CSS statically so Vite injects it as a <link> in the HTML.
+// A dynamic import() caused the CSS to only load after JS execution, which
+// left the page unstyled on first paint.
+import "./index.css";
+
+// Kept for the releaseInitialOverlays flow – resolves immediately now.
+const tailwindStylesPromise: Promise<unknown> = Promise.resolve();
 
 declare global {
   interface Window {
