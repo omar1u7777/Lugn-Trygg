@@ -127,9 +127,9 @@ def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_headers, moc
     response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
-    assert "insights" in data
+    assert "insights" in data["data"]
     # Accept either the test response or fallback response due to OpenAI quota issues
-    assert "Test insights" in data["insights"] or "AI-tjänst" in data["insights"]
+    assert "Test insights" in data["data"]["insights"] or "AI-tjänst" in data["data"]["insights"]
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
 def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_headers, mock_auth_service):
@@ -147,7 +147,7 @@ def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_headers, mo
     assert response.status_code == 200
     data = response.get_json()
     # Accept either the test response or fallback response due to OpenAI quota issues
-    assert "Cached insights" in data["insights"] or "AI-tjänst" in data["insights"]
+    assert "Cached insights" in data["data"]["insights"] or "AI-tjänst" in data["data"]["insights"]
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
 def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_headers, mock_auth_service):
@@ -165,7 +165,7 @@ def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_heade
         response = client.get(f"/api/mood/weekly-analysis?user_id=test-user-id&locale={locale}", headers=auth_headers)
         assert response.status_code == 200
         data = response.get_json()
-        assert "insights" in data
+        assert "insights" in data["data"]
 
 @pytest.mark.skip(reason="Route /api/mood/recommendations does not exist - feature not implemented")
 def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, mock_auth_service):
@@ -183,9 +183,9 @@ def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, moc
     response = client.get("/api/mood/recommendations?user_id=test-user-id", headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
-    assert "recommendations" in data
+    assert "recommendations" in data["data"]
     # Accept either the test response or fallback response due to OpenAI quota issues
-    assert "Test recommendations" in data["recommendations"] or "AI-tjänst" in data["recommendations"]
+    assert "Test recommendations" in data["data"]["recommendations"] or "AI-tjänst" in data["data"]["recommendations"]
 
 @pytest.mark.skip(reason="Route /api/mood/analyze-voice does not exist - feature not implemented")
 def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock_auth_service):
@@ -210,8 +210,8 @@ def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock
     }, headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
-    assert "primary_emotion" in data  # Should return the analysis directly
-    assert data["primary_emotion"] == "joy"
+    assert "primary_emotion" in data["data"]  # Should return the analysis directly
+    assert data["data"]["primary_emotion"] == "joy"
 
 
 def test_log_mood_options_request(client):
@@ -246,8 +246,8 @@ def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_h
     assert response.status_code == 201
     data = response.get_json()
     assert data['success'] is True
-    assert 'analysis' in data
-    assert data['analysis']['sentiment'] == 'POSITIVE'
+    assert 'analysis' in data['data']
+    assert data['data']['analysis']['sentiment'] == 'POSITIVE'
     mock_ai.analyze_sentiment.assert_called_once_with("Idag var en fantastisk dag!")
 
 
@@ -327,7 +327,7 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_h
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
-    assert 'mood' in data
+    assert 'mood' in data['data']
 
 
 @pytest.mark.skip(reason="Route /api/mood/recommendations does not exist - feature not implemented")
@@ -344,7 +344,7 @@ def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_hea
     response = client.get("/api/mood/recommendations", headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
-    assert "recommendations" in data
+    assert "recommendations" in data["data"]
 
 
 def _build_users_collection_with_moods(mood_doc):
@@ -362,7 +362,7 @@ def test_get_specific_mood_returns_payload(client, mocker, auth_headers, mock_au
     """Ensure GET /api/mood/<id> surfaces stored mood entry"""
     mood_doc = MagicMock()
     mood_doc.exists = True
-    mood_doc.id = 'mood-123'
+    mood_doc.id = 'mock-mood-id-123456'
     mood_doc.to_dict.return_value = {'mood_text': 'glad', 'timestamp': '2025-01-01T10:00:00Z'}
 
     users_collection, moods_collection = _build_users_collection_with_moods(mood_doc)
@@ -370,19 +370,19 @@ def test_get_specific_mood_returns_payload(client, mocker, auth_headers, mock_au
     mock_db.collection.side_effect = lambda name: users_collection if name == 'users' else MagicMock()
     mocker.patch('src.routes.mood_routes.db', mock_db)
 
-    response = client.get('/api/mood/mood-123', headers=auth_headers)
+    response = client.get('/api/mood/mock-mood-id-123456', headers=auth_headers)
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['mood']['id'] == 'mood-123'
-    assert payload['mood']['mood_text'] == 'glad'
+    assert payload['data']['mood']['id'] == 'mock-mood-id-123456'
+    assert payload['data']['mood']['mood_text'] == 'glad'
 
 
 def test_update_mood_recalculates_sentiment(client, mocker, auth_headers, mock_auth_service):
     """PUT /api/mood/<id> should re-run sentiment analysis when mood_text changes"""
     mood_doc = MagicMock()
     mood_doc.exists = True
-    mood_doc.id = 'mood-456'
+    mood_doc.id = 'mock-mood-id-456789'
     mood_doc.to_dict.return_value = {'mood_text': 'old', 'timestamp': '2025-01-01T10:00:00Z'}
 
     mood_doc_ref = MagicMock()
@@ -407,7 +407,7 @@ def test_update_mood_recalculates_sentiment(client, mocker, auth_headers, mock_a
     mocker.patch('src.routes.mood_routes._get_ai_services_module', return_value=SimpleNamespace(ai_services=mock_ai_services))
 
     response = client.put(
-        '/api/mood/mood-456',
+        '/api/mood/mock-mood-id-456789',
         json={'mood_text': 'Ny energi', 'timestamp': '2025-01-02T08:00:00Z'},
         headers=auth_headers
     )
@@ -452,6 +452,6 @@ def test_mood_streaks_reports_consecutive_days(client, mocker, auth_headers, moc
 
     assert response.status_code == 200
     data = response.get_json()
-    assert data['current_streak'] >= 2
-    assert data['longest_streak'] >= 2
-    assert data['total_logged_days'] == 3
+    assert data['data']['currentStreak'] >= 2
+    assert data['data']['longestStreak'] >= 2
+    assert data['data']['totalLoggedDays'] == 3

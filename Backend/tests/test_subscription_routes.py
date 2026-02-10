@@ -66,8 +66,8 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["sessionId"] == "cs_test_123"
-        assert data["url"] == "https://checkout.stripe.com/test"
+        assert data["data"]["sessionId"] == "cs_test_123"
+        assert data["data"]["url"] == "https://checkout.stripe.com/test"
         
         # Verify Stripe was called correctly
         mock_stripe.checkout.Session.create.assert_called_once()
@@ -94,8 +94,8 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["sessionId"] == "cs_enterprise_123"
-        assert data["url"] == "https://checkout.stripe.com/enterprise"
+        assert data["data"]["sessionId"] == "cs_enterprise_123"
+        assert data["data"]["url"] == "https://checkout.stripe.com/enterprise"
         
         call_args = mock_stripe.checkout.Session.create.call_args[1]
         assert call_args["metadata"]["plan"] == "enterprise"
@@ -111,7 +111,7 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "Användar-ID" in data["error"] or "user_id" in data["error"].lower()
+        assert "Användar-ID" in data["message"] or "user_id" in data["message"].lower()
 
     def test_create_session_missing_email(self, mock_stripe_available, client):
         """Test checkout with missing email"""
@@ -124,7 +124,7 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "e-post" in data["error"].lower() or "email" in data["error"].lower()
+        assert "e-post" in data["message"].lower() or "email" in data["message"].lower()
 
     def test_create_session_invalid_plan(self, mock_stripe_available, client):
         """Test checkout with invalid plan"""
@@ -138,7 +138,7 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "plan" in data["error"].lower() or "ogiltig" in data["error"].lower()
+        assert "plan" in data["message"].lower() or "ogiltig" in data["message"].lower()
 
     def test_create_session_stripe_unavailable(self, mock_stripe_unavailable, client):
         """Test checkout when Stripe is unavailable"""
@@ -152,7 +152,7 @@ class TestCreateCheckoutSession:
         
         assert response.status_code == 503
         data = response.get_json()
-        assert "tillgänglig" in data["error"].lower() or "unavailable" in data["error"].lower()
+        assert "tillgänglig" in data["message"].lower() or "unavailable" in data["message"].lower()
 
     def test_create_session_stripe_api_error(self, mock_stripe, mock_stripe_available, client):
         """Test checkout with Stripe API error"""
@@ -232,10 +232,10 @@ class TestGetSubscriptionStatus:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "active"
-        assert data["plan"] == "premium"
-        assert data["limits"]["chatMessagesPerDay"] == -1
-        assert data["usage"].get("chat_messages") == 0
+        assert data["data"]["status"] == "active"
+        assert data["data"]["plan"] == "premium"
+        assert data["data"]["limits"]["chatMessagesPerDay"] == -1
+        assert data["data"]["usage"].get("chat_messages") == 0
 
     def test_get_status_free_tier(self, mock_db, client):
         """Test getting status for free tier user"""
@@ -264,8 +264,8 @@ class TestGetSubscriptionStatus:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "free"
-        assert data["plan"] == "free"
+        assert data["data"]["status"] == "free"
+        assert data["data"]["plan"] == "free"
 
     def test_get_status_no_subscription_field(self, mock_db, client):
         """Test status when user has no subscription field (defaults to free)"""
@@ -289,8 +289,8 @@ class TestGetSubscriptionStatus:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "free"
-        assert data["plan"] == "free"
+        assert data["data"]["status"] == "free"
+        assert data["data"]["plan"] == "free"
 
     def test_get_status_user_not_found(self, mock_db, client):
         """Test status for non-existent user"""
@@ -313,7 +313,7 @@ class TestGetSubscriptionStatus:
         
         assert response.status_code == 404
         data = response.get_json()
-        assert "hittades inte" in data["error"].lower() or "not found" in data["error"].lower()
+        assert "hittades inte" in data["message"].lower() or "not found" in data["message"].lower()
 
     def test_get_status_empty_user_id(self, client):
         """Test status with empty user_id"""
@@ -374,7 +374,7 @@ class TestStripeWebhook:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "success"
+        assert data["data"]["status"] == "success"
         
         # Verify user subscription was updated
         mock_update.assert_called_once()
@@ -449,7 +449,7 @@ class TestStripeWebhook:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["status"] == "success"
+        assert data["data"]["status"] == "success"
 
     def test_webhook_payment_failed(self, mock_stripe_available, client):
         """Test webhook for failed payment"""
@@ -566,8 +566,8 @@ class TestPurchaseCBTModule:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["sessionId"] == "cs_cbt_123"
-        assert data["url"] == "https://checkout.stripe.com/cbt"
+        assert data["data"]["sessionId"] == "cs_cbt_123"
+        assert data["data"]["url"] == "https://checkout.stripe.com/cbt"
         
         # Verify Stripe session was created with correct metadata
         call_args = mock_stripe.checkout.Session.create.call_args[1]
@@ -625,20 +625,20 @@ class TestGetAvailablePlans:
         data = response.get_json()
         
         # Verify all plans are present
-        assert "free" in data
-        assert "premium" in data
-        assert "enterprise" in data
+        assert "free" in data["data"]
+        assert "premium" in data["data"]
+        assert "enterprise" in data["data"]
         
         # Verify plan structure
-        assert data["free"]["price"] == 0
-        assert data["premium"]["price"] > 0
-        assert data["enterprise"]["price"] > 0
+        assert data["data"]["free"]["price"] == 0
+        assert data["data"]["premium"]["price"] > 0
+        assert data["data"]["enterprise"]["price"] > 0
         
         # Verify features
-        assert "features" in data["free"]
-        assert "features" in data["premium"]
-        assert "features" in data["enterprise"]
-        assert len(data["free"]["features"]) > 0
+        assert "features" in data["data"]["free"]
+        assert "features" in data["data"]["premium"]
+        assert "features" in data["data"]["enterprise"]
+        assert len(data["data"]["free"]["features"]) > 0
 
 
 class TestGetUserPurchases:
@@ -668,10 +668,10 @@ class TestGetUserPurchases:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "purchases" in data
-        assert len(data["purchases"]) == 2
-        assert "anxiety_management" in data["purchases"]
-        assert "depression_support" in data["purchases"]
+        assert "purchases" in data["data"]
+        assert len(data["data"]["purchases"]) == 2
+        assert "anxiety_management" in data["data"]["purchases"]
+        assert "depression_support" in data["data"]["purchases"]
 
     def test_get_purchases_empty(self, mock_db, client):
         """Test getting purchases for user with no purchases"""
@@ -697,7 +697,7 @@ class TestGetUserPurchases:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["purchases"] == []
+        assert data["data"]["purchases"] == []
 
     def test_get_purchases_no_field(self, mock_db, client):
         """Test purchases when user has no purchases field"""
@@ -721,7 +721,7 @@ class TestGetUserPurchases:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["purchases"] == []
+        assert data["data"]["purchases"] == []
 
     def test_get_purchases_user_not_found(self, mock_db, client):
         """Test purchases for non-existent user"""
@@ -827,7 +827,7 @@ class TestCancelSubscription:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "ingen aktiv" in data["error"].lower() or "no active" in data["error"].lower()
+        assert "ingen aktiv" in data["message"].lower() or "no active" in data["message"].lower()
 
     def test_cancel_subscription_user_not_found(self, mock_db, mock_stripe_available, client):
         """Test canceling for non-existent user"""
@@ -877,7 +877,7 @@ class TestCancelSubscription:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "stripe" in data["error"].lower() or "id" in data["error"].lower()
+        assert "stripe" in data["message"].lower() or "id" in data["message"].lower()
 
     def test_cancel_subscription_stripe_unavailable(self, mock_stripe_unavailable, client):
         """Test canceling when Stripe unavailable"""

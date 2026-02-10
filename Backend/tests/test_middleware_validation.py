@@ -41,7 +41,7 @@ class TestValidationMiddleware:
                 assert status_code == 400
                 data = response.get_json()
                 assert 'error' in data
-                assert data['error'] == 'Validation failed'
+                assert data['message'] == 'Validation failed'
     
     def test_validate_request_json_success(self, client, mock_auth_service):
         """Test successful JSON validation"""

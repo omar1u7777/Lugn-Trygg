@@ -51,10 +51,10 @@ class TestChatEndpoint:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "response" in data
-        assert data["emotions_detected"] == ["stress"]
-        assert len(data["suggested_actions"]) == 2
-        assert data["ai_generated"] == True
+        assert "response" in data["data"]
+        assert data["data"]["emotions_detected"] == ["stress"]
+        assert len(data["data"]["suggested_actions"]) == 2
+        assert data["data"]["ai_generated"] == True
     
     def test_chat_missing_message(self, client):
         """Test chat without message"""
@@ -66,7 +66,7 @@ class TestChatEndpoint:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
-        assert "krävs" in data["error"].lower()
+        assert "krävs" in data["message"].lower()
     
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
@@ -99,10 +99,10 @@ class TestChatEndpoint:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data["response"] == "Hej!"
-        assert data["ai_generated"] is True
-        assert data["sentiment_analysis"]["sentiment"] == "NEUTRAL"
-        assert data["ai_feature_suggestions"]["suggest_story"] is False
+        assert data["data"]["response"] == "Hej!"
+        assert data["data"]["ai_generated"] is True
+        assert data["data"]["sentiment_analysis"]["sentiment"] == "NEUTRAL"
+        assert data["data"]["ai_feature_suggestions"]["suggest_story"] is False
     
     def test_chat_empty_message(self, client):
         """Test chat with empty message"""
@@ -117,7 +117,7 @@ class TestChatEndpoint:
         assert response.status_code == 400
         data = response.get_json()
         assert "error" in data
-        assert "meddelande" in data["error"].lower()
+        assert "meddelande" in data["message"].lower()
     
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
@@ -153,8 +153,8 @@ class TestChatEndpoint:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data["response"] == "Allt är bra"
-        assert data["sentiment_analysis"]["sentiment"] == "NEUTRAL"
+        assert data["data"]["response"] == "Allt är bra"
+        assert data["data"]["sentiment_analysis"]["sentiment"] == "NEUTRAL"
 
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.SubscriptionService.consume_quota')
@@ -178,8 +178,8 @@ class TestChatEndpoint:
 
         assert response.status_code == 429
         data = response.get_json()
-        assert "limit" in data
-        assert data["limit"] == 5
+        assert "limit" in data["data"]
+        assert data["data"]["limit"] == 5
 
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.SubscriptionService.consume_quota')
@@ -203,7 +203,7 @@ class TestChatEndpoint:
 
         assert response.status_code == 429
         data = response.get_json()
-        assert data["limit"] == 3
+        assert data["data"]["limit"] == 3
     
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
@@ -254,7 +254,7 @@ class TestChatEndpoint:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "response" in data
+        assert "response" in data["data"]
     
     @patch('src.routes.chatbot_routes.db')
     @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
@@ -294,7 +294,7 @@ class TestChatEndpoint:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["ai_generated"] == False
+        assert data["data"]["ai_generated"] == False
         assert mock_fallback.called
     
     @patch('src.routes.chatbot_routes.db')
@@ -361,10 +361,10 @@ class TestChatHistory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "conversation" in data
-        assert len(data["conversation"]) == 2
-        assert data["conversation"][0]["role"] == "user"
-        assert data["conversation"][1]["role"] == "assistant"
+        assert "conversation" in data["data"]
+        assert len(data["data"]["conversation"]) == 2
+        assert data["data"]["conversation"][0]["role"] == "user"
+        assert data["data"]["conversation"][1]["role"] == "assistant"
     
     def test_get_history_missing_user_id(self, client):
         """Test history without user_id"""
@@ -397,8 +397,8 @@ class TestChatHistory:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "conversation" in data
-        assert len(data["conversation"]) == 0
+        assert "conversation" in data["data"]
+        assert len(data["data"]["conversation"]) == 0
     
     @patch('src.routes.chatbot_routes.db')
     def test_get_history_database_error(self, mock_db, client):
@@ -456,10 +456,10 @@ class TestPatternAnalysis:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "pattern_analysis" in data
-        assert "data_points_analyzed" in data
-        assert data["data_points_analyzed"] == 2
-        assert "analysis_timestamp" in data
+        assert "pattern_analysis" in data["data"]
+        assert "data_points_analyzed" in data["data"]
+        assert data["data"]["data_points_analyzed"] == 2
+        assert "analysis_timestamp" in data["data"]
     
     def test_analyze_patterns_missing_user_id(self, client):
         """Test pattern analysis without user_id"""
@@ -506,8 +506,8 @@ class TestPatternAnalysis:
         assert response.status_code in [200, 500]
         if response.status_code == 200:
             data = response.get_json()
-            assert "pattern_analysis" in data
-            assert data["pattern_analysis"]["confidence"] == 0.0
+            assert "pattern_analysis" in data["data"]
+            assert data["data"]["pattern_analysis"]["confidence"] == 0.0
     
     @patch('src.firebase_config.db')
     def test_analyze_patterns_database_error(self, mock_db, client):
@@ -554,11 +554,11 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "exercise" in data
-        assert data["exercise_type"] == "breathing"
-        assert data["duration"] == 5
-        assert "title" in data["exercise"]
-        assert "steps" in data["exercise"]
+        assert "exercise" in data["data"]
+        assert data["data"]["exercise_type"] == "breathing"
+        assert data["data"]["duration"] == 5
+        assert "title" in data["data"]["exercise"]
+        assert "steps" in data["data"]["exercise"]
     
     @patch('src.routes.chatbot_routes.db')
     def test_start_exercise_mindfulness(self, mock_db, client):
@@ -580,8 +580,8 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["exercise_type"] == "mindfulness"
-        assert data["exercise"]["title"] == "Mindfulness - Kroppsskanning"
+        assert data["data"]["exercise_type"] == "mindfulness"
+        assert data["data"]["exercise"]["title"] == "Mindfulness - Kroppsskanning"
     
     @patch('src.routes.chatbot_routes.db')
     def test_start_exercise_cbt(self, mock_db, client):
@@ -603,8 +603,8 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["exercise_type"] == "cbt_thought_record"
-        assert "KBT" in data["exercise"]["title"]
+        assert data["data"]["exercise_type"] == "cbt_thought_record"
+        assert "KBT" in data["data"]["exercise"]["title"]
     
     @patch('src.routes.chatbot_routes.db')
     def test_start_exercise_gratitude(self, mock_db, client):
@@ -626,8 +626,8 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["exercise_type"] == "gratitude"
-        assert "Tacksamhet" in data["exercise"]["title"]
+        assert data["data"]["exercise_type"] == "gratitude"
+        assert "Tacksamhet" in data["data"]["exercise"]["title"]
     
     @patch('src.routes.chatbot_routes.db')
     def test_start_exercise_progressive_relaxation(self, mock_db, client):
@@ -649,8 +649,8 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["exercise_type"] == "progressive_relaxation"
-        assert "Progressiv" in data["exercise"]["title"]
+        assert data["data"]["exercise_type"] == "progressive_relaxation"
+        assert "Progressiv" in data["data"]["exercise"]["title"]
     
     @patch('src.routes.chatbot_routes.db')
     def test_start_exercise_unknown_type(self, mock_db, client):
@@ -672,8 +672,8 @@ class TestExercises:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "exercise" in data
-        assert "Andning" in data["exercise"]["title"]  # Should default to breathing
+        assert "exercise" in data["data"]
+        assert "Andning" in data["data"]["exercise"]["title"]  # Should default to breathing
     
     def test_start_exercise_missing_user_id(self, client):
         """Test exercise without user_id"""

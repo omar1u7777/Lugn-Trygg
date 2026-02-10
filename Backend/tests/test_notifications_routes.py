@@ -40,7 +40,7 @@ def test_save_fcm_token_missing_token(client, auth_headers, mock_auth_service):
     assert response.status_code == 400
     data = response.get_json()
     assert "error" in data
-    assert "fcmToken" in data["error"].lower() or "missing" in data["error"].lower()
+    assert "fcmToken" in data["message"].lower() or "missing" in data["message"].lower()
 
 
 def test_save_fcm_token_empty_token(client, auth_headers, mock_auth_service):
@@ -106,7 +106,7 @@ def test_save_fcm_token_exception(client, mocker):
     
     assert response.status_code == 500
     data = response.get_json()
-    assert data["error"] == "Failed to save token"
+    assert data["message"] == "Failed to save token"
 
 
 def test_save_fcm_token_options(client):
@@ -317,7 +317,7 @@ def test_disable_all_exception(client, mocker, auth_headers, mock_auth_service):
     
     assert response.status_code == 500
     data = response.get_json()
-    assert data["error"] == "Failed to disable notifications"
+    assert data["message"] == "Failed to disable notifications"
 
 
 def test_disable_all_options(client):

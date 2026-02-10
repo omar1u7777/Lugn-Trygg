@@ -37,7 +37,7 @@ def test_join_room_creates_presence_and_returns_history(client, mocker, mock_db)
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
-    assert data['session_id'].startswith('11111111')
+    assert data['data']['session_id'].startswith('11111111')
     presence_doc.set.assert_called_once()
 
 
@@ -48,7 +48,7 @@ def test_send_message_requires_session_id(client):
     )
 
     assert response.status_code == 400
-    assert response.get_json()['error'] == 'session_id is required'
+    assert response.get_json()['message'] == 'session_id is required'
 
 
 def test_send_message_rejects_unknown_session(client, mocker, mock_db):
@@ -65,7 +65,7 @@ def test_send_message_rejects_unknown_session(client, mocker, mock_db):
     )
 
     assert response.status_code == 401
-    assert 'Invalid session' in response.get_json()['error']
+    assert 'Invalid session' in response.get_json()['message']
 
 
 def test_send_message_persists_payload(client, mocker, mock_db):

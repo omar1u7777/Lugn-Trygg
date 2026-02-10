@@ -22,8 +22,8 @@ class TestIntegrationRoutes:
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        assert data['provider'] == 'google_fit'
-        assert data['authorization_url'].startswith('https://oauth.test')
+        assert data['data']['provider'] == 'google_fit'
+        assert data['data']['authorization_url'].startswith('https://oauth.test')
 
     def test_oauth_authorize_requires_user(self, client, mocker):
         mocker.patch('src.services.oauth_service.oauth_service.validate_config', return_value=True)
@@ -72,8 +72,8 @@ class TestIntegrationRoutes:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['connected'] is True
-        assert data['provider'] == 'google_fit'
+        assert data['data']['connected'] is True
+        assert data['data']['provider'] == 'google_fit'
 
     def test_toggle_auto_sync_persists_settings(self, client, auth_headers, mock_auth_service, mock_db):
         integrations_doc = mock_db.collection('integrations').document('test-user-id')
@@ -106,7 +106,7 @@ class TestIntegrationRoutes:
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        assert data['settings']['email_alerts'] is True
+        assert data['data']['settings']['email_alerts'] is True
         integrations_doc.set.assert_called()
 
     def test_check_health_alerts_triggers_warning(self, client, auth_headers, mock_auth_service, mock_db, mocker):
@@ -136,5 +136,5 @@ class TestIntegrationRoutes:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['alert_count'] >= 1
-        assert data['alerts'][0]['severity'] in ('warning', 'info')
+        assert data['data']['alert_count'] >= 1
+        assert data['data']['alerts'][0]['severity'] in ('warning', 'info')

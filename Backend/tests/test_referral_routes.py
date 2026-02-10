@@ -30,10 +30,11 @@ class TestReferralGeneration:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "referral_code" in data
-        assert "user_id" in data
-        assert data["total_referrals"] == 0
-        assert data["successful_referrals"] == 0
+        assert data["success"] == True
+        assert "referralCode" in data["data"]
+        assert "userId" in data["data"]
+        assert data["data"]["totalReferrals"] == 0
+        assert data["data"]["successfulReferrals"] == 0
         assert mock_document.set.called
     
     @patch('src.routes.referral_routes.db')
@@ -64,8 +65,9 @@ class TestReferralGeneration:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["referral_code"] == "TEST1234"
-        assert data["total_referrals"] == 5
+        assert data["success"] == True
+        assert data["data"]["referralCode"] == "TEST1234"
+        assert data["data"]["totalReferrals"] == 5
         assert not mock_document.set.called
     
     def test_generate_missing_user_id(self, client):
@@ -138,8 +140,9 @@ class TestReferralStats:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["total_referrals"] == 10
-        assert data["successful_referrals"] == 7
+        assert data["success"] == True
+        assert data["data"]["totalReferrals"] == 10
+        assert data["data"]["successfulReferrals"] == 7
     
     @patch('src.routes.referral_routes.db')
     def test_get_stats_new_user(self, mock_db, client):
@@ -157,8 +160,9 @@ class TestReferralStats:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert "referral_code" in data
-        assert data["total_referrals"] == 0
+        assert data["success"] == True
+        assert "referralCode" in data["data"]
+        assert data["data"]["totalReferrals"] == 0
         assert mock_document.set.called
     
     def test_get_stats_missing_user_id(self, client):
@@ -232,7 +236,7 @@ class TestSendInvitation:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert data["email_sent"] == True
+        assert data["data"]["emailSent"] == True
         assert mock_document.update.called
     
     def test_send_invitation_missing_fields(self, client):
@@ -318,7 +322,7 @@ class TestSendInvitation:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert data["email_sent"] == False
+        assert data["data"]["emailSent"] == False
     
     @patch('src.routes.referral_routes.db')
     def test_send_invitation_database_error(self, mock_db, client):
@@ -403,8 +407,8 @@ class TestCompleteReferral:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert data["successful_referrals"] == 3
-        assert data["rewards_earned"] == 3  # 3 referrals = 3 weeks (Bronze tier)
+        assert data["data"]["successfulReferrals"] == 3
+        assert data["data"]["rewardsEarned"] == 3  # 3 referrals = 3 weeks (Bronze tier)
     
     @patch('src.services.push_notification_service.push_notification_service')
     @patch('src.services.email_service.email_service')
@@ -459,9 +463,10 @@ class TestCompleteReferral:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["successful_referrals"] == 5
+        assert data["success"] == True
+        assert data["data"]["successfulReferrals"] == 5
         # 5 referrals + 4 weeks Silver bonus = 9 weeks
-        assert data["rewards_earned"] == 9
+        assert data["data"]["rewardsEarned"] == 9
     
     def test_complete_referral_missing_fields(self, client):
         """Test complete without required fields"""
@@ -572,9 +577,9 @@ class TestLeaderboard:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert len(data["leaderboard"]) == 2
-        assert data["leaderboard"][0]["tier"] == "Platinum"  # 50 referrals
-        assert data["leaderboard"][1]["tier"] == "Gold"     # 20 referrals
+        assert len(data["data"]["leaderboard"]) == 2
+        assert data["data"]["leaderboard"][0]["tier"] == "Platinum"  # 50 referrals
+        assert data["data"]["leaderboard"][1]["tier"] == "Gold"     # 20 referrals
     
     @patch('src.routes.referral_routes.db')
     def test_get_leaderboard_with_limit(self, mock_db, client):
@@ -655,10 +660,10 @@ class TestReferralHistory:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert len(data["history"]) == 2
-        assert data["total_count"] == 2
-        assert data["history"][0]["invitee_name"] == "User Two"
-        assert data["history"][1]["invitee_name"] == "User One"
+        assert len(data["data"]["history"]) == 2
+        assert data["data"]["totalCount"] == 2
+        assert data["data"]["history"][0]["inviteeName"] == "User Two"
+        assert data["data"]["history"][1]["inviteeName"] == "User One"
     
     def test_get_history_missing_user_id(self, client):
         """Test history without user_id"""
@@ -682,7 +687,7 @@ class TestReferralHistory:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert len(data["history"]) == 0
+        assert len(data["data"]["history"]) == 0
     
     @patch('src.routes.referral_routes.db')
     def test_get_history_database_error(self, mock_db, client):
@@ -711,11 +716,11 @@ class TestRewardsCatalog:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert "rewards" in data
-        assert len(data["rewards"]) > 0
+        assert "rewards" in data["data"]
+        assert len(data["data"]["rewards"]) > 0
         
         # Check structure of first reward
-        reward = data["rewards"][0]
+        reward = data["data"]["rewards"][0]
         assert "id" in reward
         assert "name" in reward
         assert "cost" in reward
@@ -759,7 +764,7 @@ class TestRedeemReward:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] == True
-        assert data["new_balance"] == 6  # 10 - 4 (cost of 1 month)
+        assert data["data"]["newBalance"] == 6  # 10 - 4 (cost of 1 month)
         assert mock_document.update.called
     
     @patch('src.routes.referral_routes.db')
@@ -790,9 +795,10 @@ class TestRedeemReward:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "Insufficient rewards" in data["error"]
-        assert data["available"] == 2
-        assert data["required"] == 4
+        assert data["error"] == "INSUFFICIENT_BALANCE"
+        assert "Insufficient rewards" in data["message"]
+        assert data["details"]["available"] == 2
+        assert data["details"]["required"] == 4
     
     def test_redeem_reward_invalid_reward_id(self, client):
         """Test redeeming with invalid reward_id"""
@@ -822,7 +828,8 @@ class TestRedeemReward:
             
             assert response.status_code == 400
             data = response.get_json()
-            assert "Invalid reward_id" in data["error"]
+            assert data["error"] == "BAD_REQUEST"
+            assert "Invalid reward_id" in data["message"]
     
     def test_redeem_reward_missing_fields(self, client):
         """Test redeem without required fields"""

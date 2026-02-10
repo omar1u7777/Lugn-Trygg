@@ -61,7 +61,7 @@ class TestSubmitFeedback:
         assert response.status_code == 200
         data = response.get_json()
         assert data["success"] is True
-        assert data["feedback_id"] == "feedback123"
+        assert data["data"]["feedbackId"] == "feedback123"
         assert "message" in data
         
         # Verify feedback was created
@@ -157,7 +157,7 @@ class TestSubmitFeedback:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "user_id" in data["error"].lower()
+        assert "user_id" in data["message"].lower()
 
     def test_submit_feedback_invalid_rating(self, client):
         """Test submit with invalid rating"""
@@ -171,7 +171,7 @@ class TestSubmitFeedback:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "rating" in data["error"].lower()
+        assert "rating" in data["message"].lower()
 
     def test_submit_feedback_rating_too_low(self, client):
         """Test submit with rating below 1"""
@@ -196,7 +196,7 @@ class TestSubmitFeedback:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "feedback" in data["error"].lower()
+        assert "feedback" in data["message"].lower()
 
     def test_submit_feedback_email_confirmation(self, mock_db, mock_email, client):
         """Test that confirmation email is sent when allowed"""
@@ -416,10 +416,10 @@ class TestListFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 2
-        assert len(data["feedback"]) == 2
-        assert data["feedback"][0]["id"] == "fb1"
-        assert data["feedback"][1]["id"] == "fb2"
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["feedback"]) == 2
+        assert data["data"]["feedback"][0]["id"] == "fb1"
+        assert data["data"]["feedback"][1]["id"] == "fb2"
 
     def test_list_feedback_by_status(self, mock_db, client):
         """Test filtering by status"""
@@ -451,7 +451,7 @@ class TestListFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 1
+        assert data["data"]["count"] == 1
 
     def test_list_feedback_by_category(self, mock_db, client):
         """Test filtering by category"""
@@ -506,7 +506,7 @@ class TestListFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 10
+        assert data["data"]["count"] == 10
 
     def test_list_feedback_empty(self, mock_db, client):
         """Test listing when no feedback exists"""
@@ -529,8 +529,8 @@ class TestListFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 0
-        assert data["feedback"] == []
+        assert data["data"]["count"] == 0
+        assert data["data"]["feedback"] == []
 
     def test_list_feedback_database_error(self, mock_db, client):
         """Test list with database error"""
@@ -582,7 +582,7 @@ class TestFeedbackStats:
         assert response.status_code in [200, 500]
         if response.status_code == 200:
             data = response.get_json()
-            assert "total_feedback" in data
+            assert "totalFeedback" in data["data"]
 
     def test_feedback_stats_empty(self, mock_db, client):
         """Test stats with no feedback"""
@@ -592,9 +592,9 @@ class TestFeedbackStats:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["total_feedback"] == 0
-        assert data["average_rating"] == 0
-        assert data["categories"] == {}
+        assert data["data"]["totalFeedback"] == 0
+        assert data["data"]["averageRating"] == 0
+        assert data["data"]["categories"] == {}
 
     def test_feedback_stats_database_error(self, mock_db, client):
         """Test stats with database error"""
@@ -644,8 +644,8 @@ class TestGetUserFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 2
-        assert len(data["feedback"]) == 2
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["feedback"]) == 2
 
     def test_get_user_feedback_missing_user_id(self, client):
         """Test without user_id"""
@@ -653,7 +653,7 @@ class TestGetUserFeedback:
         
         assert response.status_code == 400
         data = response.get_json()
-        assert "user_id" in data["error"].lower()
+        assert "user_id" in data["message"].lower()
 
     def test_get_user_feedback_no_feedback(self, mock_db, client):
         """Test when user has no feedback"""
@@ -669,8 +669,8 @@ class TestGetUserFeedback:
         
         assert response.status_code == 200
         data = response.get_json()
-        assert data["count"] == 0
-        assert data["feedback"] == []
+        assert data["data"]["count"] == 0
+        assert data["data"]["feedback"] == []
 
     def test_get_user_feedback_database_error(self, mock_db, client):
         """Test with database error"""
