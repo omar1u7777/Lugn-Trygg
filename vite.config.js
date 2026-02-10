@@ -17,17 +17,6 @@ const extraAllowedHosts = process.env.VITE_DEV_ALLOWED_HOSTS
   ? process.env.VITE_DEV_ALLOWED_HOSTS.split(",").map((host) => host.trim()).filter(Boolean)
   : [];
 const allowedHosts = Array.from(new Set([...defaultAllowedHosts, ...extraAllowedHosts]));
-const dashboardChunkTargets = [
-  'src/components/WorldClassDashboard',
-  'src/components/AnalyticsDashboard',
-  'src/components/PerformanceDashboard',
-  'src/components/MonitoringDashboard',
-];
-const analyticsChunkTargets = [
-  'src/components/MoodAnalytics',
-  'src/components/WorldClassAnalytics',
-];
-const normalizeId = (id) => id.split(path.sep).join('/');
 
 const resolveDevHttpsConfig = () => {
   if (!requestHttps) {
@@ -153,7 +142,6 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         manualChunks: (id) => {
-          const normalizedId = normalizeId(id);
           if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
             return "react-core";
           }
@@ -228,12 +216,10 @@ export default defineConfig({
           if (id.includes("node_modules/cloudinary") || id.includes("node_modules/sharp")) {
             return "images";
           }
-          if (dashboardChunkTargets.some((target) => normalizedId.includes(target))) {
-            return "dashboard-routes";
-          }
-          if (analyticsChunkTargets.some((target) => normalizedId.includes(target))) {
-            return "analytics-routes";
-          }
+          // Dashboard and analytics app components are NOT forced into
+          // manual chunks.  Rollup picks the optimal split on its own,
+          // avoiding TDZ / initialization-order bugs that occur when
+          // unrelated component trees are concatenated into one chunk.
         },
       },
       external: [],
