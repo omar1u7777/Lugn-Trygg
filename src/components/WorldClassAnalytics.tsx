@@ -93,7 +93,7 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      let [moodsData, _weeklyAnalysisData] = await Promise.all([
+      const [moodsData, _weeklyAnalysisData] = await Promise.all([
         getMoods(user.user_id).catch(() => []),
         getWeeklyAnalysis(user.user_id).catch(() => ({})),
       ]);
