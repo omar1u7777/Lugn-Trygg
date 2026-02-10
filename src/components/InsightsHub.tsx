@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import DailyInsights from './DailyInsights';
 import WeeklyAnalysis from './WeeklyAnalysis';
+import PredictiveAnalytics from './AI/PredictiveAnalytics';
 import useAuth from '../hooks/useAuth';
 import { getMoods, getWeeklyAnalysis } from '../api/mood';
 import {
@@ -312,7 +313,7 @@ const InsightsHub: React.FC = () => {
             {[
               { icon: CalendarIcon, label: 'Daglig Puls', index: 0 },
               { icon: ArrowTrendingUpIcon, label: 'Veckospårning', index: 1 },
-              // NOTE: More tabs can be added here
+              { icon: SparklesIcon, label: 'AI Prediktion', index: 2 },
             ].map((tab) => (
               <button
                 key={tab.index}
@@ -350,6 +351,18 @@ const InsightsHub: React.FC = () => {
             ) : (
               <div className="text-center py-20">
                 <p className="text-xl text-gray-500">Logga in för att se veckoanalyser.</p>
+              </div>
+            )}
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={2}>
+            {user?.user_id ? (
+              <div className="animate-fade-in">
+                <PredictiveAnalytics />
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <p className="text-xl text-gray-500">Logga in för att se AI-prediktioner.</p>
               </div>
             )}
           </TabPanel>

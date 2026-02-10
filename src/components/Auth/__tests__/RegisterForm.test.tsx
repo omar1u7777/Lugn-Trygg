@@ -6,8 +6,16 @@ import RegisterForm from '../RegisterForm';
 // Hoisted mocks
 const registerUserMock = vi.hoisted(() => vi.fn());
 
+const accessibilityMock = vi.hoisted(() => ({
+  announceToScreenReader: vi.fn(),
+}));
+
 vi.mock('../../../api/api', () => ({
   registerUser: registerUserMock,
+}));
+
+vi.mock('../../../hooks/useAccessibility', () => ({
+  useAccessibility: () => accessibilityMock,
 }));
 
 vi.mock('react-router-dom', () => ({

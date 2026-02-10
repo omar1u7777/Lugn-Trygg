@@ -50,7 +50,7 @@ export const uploadImage = async (file: File, folder = 'lugn-trygg') => {
   formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'optimized_images');
   formData.append('folder', folder);
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'lugn-trygg';
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dxmijbysc';
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,

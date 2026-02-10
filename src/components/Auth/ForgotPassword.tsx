@@ -11,7 +11,7 @@ import { useAccessibility } from "../../hooks/useAccessibility";
 // Constants for messages and error handling
 const MESSAGES = {
   SENDING_RESET_LINK: "Skickar återställningslänk...",
-  RESET_LINK_SENT: "Återställningslänk har skickats till din e-postadress!",
+  RESET_LINK_SENT: "Om e-postadressen finns registrerad har en återställningslänk skickats.",
   RESET_LINK_SENT_ANNOUNCEMENT: "Återställningslänk skickad",
   GENERIC_ERROR: "Ett fel uppstod. Försök igen senare.",
   EMAIL_HINT: "Vi skickar en återställningslänk till denna adress",
@@ -24,7 +24,6 @@ const MESSAGES = {
 } as const;
 
 const ERROR_MESSAGES = {
-  USER_NOT_FOUND: "Ingen användare hittades med denna e-postadress.",
   INVALID_EMAIL: "Ogiltig e-postadress.",
   TOO_MANY_REQUESTS: "För många förfrågningar. Försök igen senare.",
 } as const;
@@ -69,19 +68,18 @@ const useForgotPassword = (onSuccess: () => void) => {
       await sendPasswordResetEmail(firebaseAuth, email);
       setMessage(MESSAGES.RESET_LINK_SENT);
       announceToScreenReader(MESSAGES.RESET_LINK_SENT_ANNOUNCEMENT, "polite");
-      setTimeout(() => {
-        onSuccess();
-      }, 3000);
     } catch (err: unknown) {
       logger.error('Password reset error:', err);
       const firebaseError = err as { code?: string; message?: string };
       let errorMessage: string = MESSAGES.GENERIC_ERROR;
 
-      // Improved error handling with specific Firebase error codes
+      // Improved error handling — avoid revealing account existence
       switch (firebaseError.code) {
         case 'auth/user-not-found':
-          errorMessage = ERROR_MESSAGES.USER_NOT_FOUND;
-          break;
+          // Don't reveal whether the email exists — show generic success message
+          setMessage(MESSAGES.RESET_LINK_SENT);
+          announceToScreenReader(MESSAGES.RESET_LINK_SENT_ANNOUNCEMENT, "polite");
+          return;
         case 'auth/invalid-email':
           errorMessage = ERROR_MESSAGES.INVALID_EMAIL;
           break;
@@ -89,9 +87,6 @@ const useForgotPassword = (onSuccess: () => void) => {
           errorMessage = ERROR_MESSAGES.TOO_MANY_REQUESTS;
           break;
         default:
-          if (firebaseError.message) {
-            errorMessage = firebaseError.message;
-          }
           break;
       }
 
@@ -121,7 +116,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
   const { email, setEmail, loading, message, error, handleSubmit } = useForgotPassword(onSuccess);
 
   return (
-    <Dialog open={true} onClose={onClose} size="md">
+    <Dialog open={true} onClose={onClose} size="md" titleId="forgot-password-title">
       <div className="relative">
         <button
           onClick={onClose}
@@ -132,7 +127,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
         </button>
 
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <h2 id="forgot-password-title" className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <span className="text-2xl" aria-hidden="true">🔑</span>
             {MESSAGES.TITLE}
           </h2>
@@ -151,6 +146,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
 
           {error && (
             <Alert
+              id="reset-error"
               variant="error"
               role="alert"
               aria-live="assertive"
@@ -175,7 +171,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
                 placeholder={MESSAGES.EMAIL_PLACEHOLDER}
                 required
                 disabled={loading}
-                aria-describedby={error ? "reset-error" : "reset-hint"}
+                aria-describedby={error ? "reset-error reset-hint" : "reset-hint"}
                 aria-invalid={!!error}
               />
               <p id="reset-hint" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -198,7 +194,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
                 </>
               ) : (
                 <>
-                  <PaperAirplaneIcon className="w-5 h-5 mr-2" />
+                  <PaperAirplaneIcon className="w-5 h-5 mr-2" aria-hidden="true" />
                   {MESSAGES.SEND_BUTTON}
                 </>
               )}

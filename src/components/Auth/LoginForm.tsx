@@ -16,7 +16,7 @@ import { Divider } from "../ui/tailwind/Display";
 import { LoadingSpinner } from "../LoadingStates";
 import { useAccessibility } from "../../hooks/useAccessibility";
 import { usePasswordToggle } from "../../hooks/usePasswordToggle";
-import { ScreenReaderAnnouncer } from "../Accessibility/ScreenReader";
+// ScreenReaderAnnouncer removed — announcements handled by useAccessibility hook
 
 // Constants for messages and strings
 const MESSAGES = {
@@ -140,15 +140,12 @@ const LoginForm = () => {
       const result = await signInWithPopup(firebaseAuth, provider);
       const user = result.user;
 
-      // Delay to ensure token validity
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       const idToken = await user.getIdToken();
       const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
 
       // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
       const data = response.data?.data || response.data;
-      login(data.accessToken, user.email!, data.userId);
+      login(data.accessToken, user.email ?? '', data.userId);
       announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
       logger.error('Google sign-in error:', err);
@@ -162,16 +159,16 @@ const LoginForm = () => {
 
   return (
     <div 
-      className="px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 min-h-screen flex justify-center items-center bg-gradient-to-b from-[#fff7f0] to-[#fffaf5]"
+      className="px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 min-h-screen flex justify-center items-center bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] dark:from-gray-900 dark:to-gray-800"
       role="main"
       aria-labelledby="login-title"
     >
-      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg shadow-[0_20px_60px_rgba(47,42,36,0.08)] p-4 sm:p-6 md:p-8 border border-[#f2e4d4]">
+      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg shadow-[0_20px_60px_rgba(47,42,36,0.08)] p-4 sm:p-6 md:p-8 border border-[#f2e4d4] dark:border-gray-700">
         <div className="text-center mb-6 sm:mb-8">
           <Typography
             id="login-title"
             variant="h4"
-            className="p-1.5 flex justify-center items-center gap-1.5 font-bold text-xl sm:text-2xl md:text-3xl text-[#2f2a24]"
+            className="p-1.5 flex justify-center items-center gap-1.5 font-bold text-xl sm:text-2xl md:text-3xl text-[#2f2a24] dark:text-gray-100"
             color="text.primary"
           >
             <span className="text-2xl" aria-hidden="true">
@@ -184,11 +181,10 @@ const LoginForm = () => {
         {error && (
           <Alert
             id="login-error"
-            severity="error"
+            variant="error"
             role="alert"
             aria-live="assertive"
             className="mb-6"
-            icon={<span style={{ fontSize: "1.125rem" }}>⚠️</span>}
           >
             {error}
           </Alert>
@@ -215,7 +211,7 @@ const LoginForm = () => {
                 aria-invalid={!!(error || validationErrors.email)}
               />
               {validationErrors.email && (
-                <Typography variant="body2" color="error" className="mt-1 text-sm">
+                <Typography id="email-error" variant="body2" color="error" className="mt-1 text-sm">
                   {validationErrors.email}
                 </Typography>
               )}
@@ -257,7 +253,7 @@ const LoginForm = () => {
                 </button>
               </div>
               {validationErrors.password && (
-                <Typography variant="body2" color="error" className="mt-1 text-sm">
+                <Typography id="password-error" variant="body2" color="error" className="mt-1 text-sm">
                   {validationErrors.password}
                 </Typography>
               )}
@@ -332,7 +328,6 @@ const LoginForm = () => {
           onSuccess={() => setShowForgotPassword(false)}
         />
       )}
-      <ScreenReaderAnnouncer message={""} />
     </div>
   );
 };

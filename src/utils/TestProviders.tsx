@@ -1,6 +1,6 @@
 import React from "react";
-import { BrowserRouter } from "react-router-dom";  // Importera BrowserRouter
-import { AuthProvider } from "../contexts/AuthContext"; // Din AuthProvider-komponent
+import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from "../contexts/AuthContext";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import "../i18n"; // Initialize i18n
 import { I18nextProvider } from "react-i18next";
@@ -25,10 +25,19 @@ if (typeof window !== 'undefined' && typeof process !== 'undefined' && process.e
   }
 }
 
+/**
+ * React Router v6 future flags — opt in early to suppress deprecation warnings
+ * and prepare for React Router v7 migration.
+ */
+const routerFutureFlags = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 const TestProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <I18nextProvider i18n={i18n}>
-      <BrowserRouter>  {/* Lägg till BrowserRouter här för att tillhandahålla routing */}
+      <BrowserRouter future={routerFutureFlags}>
         <ThemeProvider>
           <AuthProvider>
             {children}
