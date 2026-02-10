@@ -29,6 +29,11 @@ instance/
 
 # Logs
 *.log
+
+# Test result temp files
+test_results.txt
+test_run_results.txt
+final_results.txt
 logs/
 app.log
 error.log
