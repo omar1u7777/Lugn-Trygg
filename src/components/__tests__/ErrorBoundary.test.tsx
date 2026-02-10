@@ -5,8 +5,18 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import ErrorBoundary from '../ErrorBoundary';
+
+// Mock analytics.lazy to prevent unhandled rejection errors
+vi.mock('../../services/analytics.lazy', () => ({
+  analytics: {
+    error: vi.fn(),
+    track: vi.fn(),
+    page: vi.fn(),
+    identify: vi.fn(),
+  },
+}));
 
 // Mock console.error to avoid test output pollution
 const originalConsoleError = console.error;

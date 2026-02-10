@@ -23,8 +23,7 @@ import { scheduleIdleTask } from "./utils/scheduleIdleTask";
 import App from "./App";
 import "./i18n/i18n"; // Initialize i18n
 import i18n from "./i18n/i18n";
-import { getWellnessHeroImageId, getJournalHeroImageId, getDashboardHeroImageId, getOnboardingHeroImageId } from "./config/env";
-import { getOptimizedImageUrl } from "./utils/cloudinary";
+// Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
 
 // Import Tailwind CSS - REPLACES MUI
@@ -74,27 +73,9 @@ const releaseInitialOverlays = () => {
  * - Analytics för att spåra användarbeteende.
  */
 
-const HERO_IMAGE_PUBLIC_IDS = Array.from(new Set<string>([
-  getWellnessHeroImageId(),
-  getJournalHeroImageId(),
-  getDashboardHeroImageId(),
-  getOnboardingHeroImageId(),
-]));
-
-const HERO_PRELOADS: PreloadAsset[] = HERO_IMAGE_PUBLIC_IDS.map((publicId) => ({
-  href: getOptimizedImageUrl(publicId, {
-    width: 1600,
-    quality: 80,
-    format: 'webp',
-    crop: 'fill',
-    gravity: 'auto',
-  }),
-  as: 'image',
-  crossOrigin: 'anonymous',
-  importance: 'high',
-}));
-
-const CRITICAL_PRELOADS: PreloadAsset[] = HERO_PRELOADS;
+// Hero image preloads removed from startup to avoid "preloaded but not used" warnings.
+// Images are loaded on-demand when their respective route components mount.
+const CRITICAL_PRELOADS: PreloadAsset[] = [];
 
 const RESOURCE_HINTS: ResourceHint[] = [
   { rel: 'preconnect', href: 'https://www.gstatic.com', crossOrigin: 'anonymous' },
