@@ -169,14 +169,11 @@ export default defineConfig({
           // a runtime error where React is undefined in the chunk scope.
           // Rollup will automatically co-locate them with the components
           // that import them, or create a shared chunk if needed.
-          if (
-            id.includes("node_modules/recharts") ||
-            id.includes("node_modules/chart.js") ||
-            id.includes("node_modules/react-chartjs-2") ||
-            id.includes("node_modules/d3")
-          ) {
-            return "charts";
-          }
+
+          // recharts / chart.js / d3 are NOT forced into a manual chunk
+          // either — they depend on React internals and isolating them
+          // triggers the same TDZ "Cannot access 'K' before initialization"
+          // error.  Rollup splits them optimally on its own.
           if (
             id.includes("node_modules/framer-motion") ||
             id.includes("node_modules/gsap") ||
