@@ -23,7 +23,7 @@ class TestIntegrationRoutes:
         data = response.get_json()
         assert data['success'] is True
         assert data['data']['provider'] == 'google_fit'
-        assert data['data']['authorization_url'].startswith('https://oauth.test')
+        assert data['data']['authorizationUrl'].startswith('https://oauth.test')
 
     def test_oauth_authorize_requires_user(self, client, mocker):
         mocker.patch('src.services.oauth_service.oauth_service.validate_config', return_value=True)
