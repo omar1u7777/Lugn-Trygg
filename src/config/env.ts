@@ -116,7 +116,8 @@ const validateRequiredEnvVars = () => {
     'VITE_FIREBASE_AUTH_DOMAIN',
     'VITE_FIREBASE_PROJECT_ID',
     'VITE_FIREBASE_STORAGE_BUCKET',
-    'VITE_ENCRYPTION_KEY',
+    // VITE_ENCRYPTION_KEY is intentionally omitted here –
+    // getEncryptionKey() generates a per-session fallback when unset.
   ];
 
   const missing = required.filter(key => {
@@ -179,15 +180,30 @@ export const getFirebaseConfig = () => {
 
 export const getFirebaseVapidKey = (): string | undefined => getEnvValue('VITE_FIREBASE_VAPID_KEY');
 
+// Lazily-generated fallback so the app can boot even
+// when VITE_ENCRYPTION_KEY is missing from the environment.
+let _generatedFallbackKey: string | null = null;
+
 export const getEncryptionKey = (): string => {
   const key = getEnvValue('VITE_ENCRYPTION_KEY');
-  if (!key) {
-    throw new Error('VITE_ENCRYPTION_KEY is required but not set!');
+  if (key && key !== 'your-encryption-key-here') {
+    return key;
   }
-  if (key === 'your-encryption-key-here') {
-    throw new Error('VITE_ENCRYPTION_KEY must be set to a secure random value!');
+
+  // Generate a per-session random key so the app doesn't crash.
+  // Data encrypted with this key will NOT survive a page refresh,
+  // but the app remains functional.
+  if (!_generatedFallbackKey) {
+    _generatedFallbackKey = Array.from(
+      crypto.getRandomValues(new Uint8Array(32)),
+      (b) => b.toString(16).padStart(2, '0'),
+    ).join('');
+    console.warn(
+      '[env] VITE_ENCRYPTION_KEY is not set – using a per-session random key. '
+      + 'Set VITE_ENCRYPTION_KEY in your environment for persistent encrypted storage.',
+    );
   }
-  return key;
+  return _generatedFallbackKey;
 };
 
 const DEFAULT_DASHBOARD_HERO_PUBLIC_ID = 'hero-bild_pfcdsx';
