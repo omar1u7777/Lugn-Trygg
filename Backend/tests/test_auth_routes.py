@@ -132,7 +132,7 @@ class TestConsent:
 
     def test_get_consent_success(self, client, auth_headers, mock_auth_service, mock_db):
         """Test getting user consent - GET /api/auth/consent/<user_id>"""
-        response = client.get('/api/auth/consent/test-user-id', headers=auth_headers)
+        response = client.get('/api/auth/consent/testuserid1234567890', headers=auth_headers)
         
         assert response.status_code in [200, 404, 401, 500, 503]
 
@@ -312,7 +312,7 @@ class TestAuthRoutesTargeted:
 
         assert response.status_code == 200
         payload = response.get_json()
-        assert payload['data']['access_token'] == 'new-access-token'
+        assert payload['data']['accessToken'] == 'new-access-token'
         assert 'access_token=new-access-token' in response.headers.get('Set-Cookie', '')
 
     def test_google_login_uses_fallback_verifier(self, client, mock_db, mocker):
@@ -335,6 +335,6 @@ class TestAuthRoutesTargeted:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['data']['user']['login_method'] == 'google'
-        assert data['data']['access_token'] == 'google-access-token'
+        assert data['data']['user']['loginMethod'] == 'google'
+        assert data['data']['accessToken'] == 'google-access-token'
 

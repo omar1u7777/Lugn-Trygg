@@ -135,6 +135,7 @@ const PredictionCard = React.memo(({ prediction }: { prediction: PredictionData 
     </div>
   </div>
 ));
+PredictionCard.displayName = 'PredictionCard';
 
 const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
   const getIcon = () => {
@@ -179,6 +180,7 @@ const InsightCard = React.memo(({ insight }: { insight: InsightData }) => {
     </div>
   );
 });
+InsightCard.displayName = 'InsightCard';
 
 const TrendSummary = React.memo(({ trends }: { trends: TrendData }) => (
   <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6">
@@ -205,6 +207,7 @@ const TrendSummary = React.memo(({ trends }: { trends: TrendData }) => (
     </div>
   </div>
 ));
+TrendSummary.displayName = 'TrendSummary';
 
 const CrisisAlert = React.memo(({ crisisRisk }: { crisisRisk: NonNullable<PredictiveData['crisis_risk']> }) => {
   if (crisisRisk.risk_level === 'low') return null;
@@ -246,6 +249,7 @@ const CrisisAlert = React.memo(({ crisisRisk }: { crisisRisk: NonNullable<Predic
     </div>
   );
 });
+CrisisAlert.displayName = 'CrisisAlert';
 
 // Main component with performance optimizations
 const PredictiveAnalytics: React.FC = React.memo(() => {

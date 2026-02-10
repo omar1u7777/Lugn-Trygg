@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react"
 import { Link, useSearchParams } from "react-router-dom";
-import { Alert, Input, Card, Button } from "../ui/tailwind";
+import { Alert, Input, Card, Button, Typography } from "../ui/tailwind";
 import { EyeIcon, EyeSlashIcon, ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
-import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";import { logger } from '../../utils/logger';
+import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
+import { useAccessibility } from "../../hooks/useAccessibility";
+import { logger } from '../../utils/logger';
 
 
 const RegisterForm: React.FC = () => {
@@ -16,6 +18,7 @@ const RegisterForm: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string }>({});
   
   // ✅ Använd custom hooks
   const { 
@@ -24,6 +27,8 @@ const RegisterForm: React.FC = () => {
     togglePassword, 
     toggleConfirmPassword 
   } = useMultiplePasswordToggle();
+
+  const { announceToScreenReader } = useAccessibility();
 
   // Check for referral code in URL
   useEffect(() => {
@@ -51,15 +56,33 @@ const RegisterForm: React.FC = () => {
     logger.debug('🔐 REGISTER - Form submitted', { email, name, hasReferralCode: !!referralCode });
     setError("");
     setSuccess("");
+    setValidationErrors({});
+
+    // Validate name
+    if (!name.trim()) {
+      setValidationErrors(prev => ({ ...prev, name: "Namn är obligatoriskt." }));
+      announceToScreenReader("Formuläret innehåller fel. Korrigera och försök igen.", "assertive");
+      return;
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email)) {
+      setValidationErrors(prev => ({ ...prev, email: "Ange en giltig e-postadress." }));
+      announceToScreenReader("Formuläret innehåller fel. Korrigera och försök igen.", "assertive");
+      return;
+    }
 
     if (password !== confirmPassword) {
-      setError("Lösenorden matchar inte.");
+      setValidationErrors(prev => ({ ...prev, confirmPassword: "Lösenorden matchar inte." }));
+      announceToScreenReader("Lösenorden matchar inte.", "assertive");
       return;
     }
 
     const passwordError = validatePassword(password);
     if (passwordError) {
-      setError(passwordError);
+      setValidationErrors(prev => ({ ...prev, password: passwordError }));
+      announceToScreenReader(passwordError, "assertive");
       return;
     }
 
@@ -70,9 +93,12 @@ const RegisterForm: React.FC = () => {
       
       // Check if referral was successful
       if (response.referral?.success) {
-        setSuccess(`Registrering lyckades! ${response.referral.message} Du kan nu logga in.`);
+        const msg = `Registrering lyckades! ${response.referral.message} Du kan nu logga in.`;
+        setSuccess(msg);
+        announceToScreenReader(msg, "polite");
       } else {
         setSuccess("Registrering lyckades! Du kan nu logga in.");
+        announceToScreenReader("Registrering lyckades! Du kan nu logga in.", "polite");
       }
       
       setEmail("");
@@ -86,6 +112,7 @@ const RegisterForm: React.FC = () => {
         ? String(err.response.data.error)
         : err instanceof Error ? err.message : 'Registration failed';
       setError(errorMessage);
+      announceToScreenReader(`Registrering misslyckades: ${errorMessage}`, "assertive");
     } finally {
       setLoading(false);
     }
@@ -93,21 +120,22 @@ const RegisterForm: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 bg-gradient-to-b from-[#fff7f0] to-[#fffaf5]"
+      className="min-h-screen flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] dark:from-gray-900 dark:to-gray-800"
       role="main"
       aria-labelledby="register-title"
     >
-      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg p-4 sm:p-6 md:p-8 shadow-[0_20px_60px_rgba(47,42,36,0.08)] border border-[#f2e4d4]">
+      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg p-4 sm:p-6 md:p-8 shadow-[0_20px_60px_rgba(47,42,36,0.08)] border border-[#f2e4d4] dark:border-gray-700">
         <header>
-          <h1
+          <Typography
             id="register-title"
-            className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 flex items-center justify-center gap-2 sm:gap-3 text-[#2f2a24]"
+            variant="h4"
+            className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 flex items-center justify-center gap-2 sm:gap-3 text-[#2f2a24] dark:text-gray-100"
           >
             <span className="text-2xl" aria-hidden="true">
               👤
             </span>
             Skapa konto
-          </h1>
+          </Typography>
         </header>
 
         {error && (
@@ -140,7 +168,7 @@ const RegisterForm: React.FC = () => {
           <div>
             <label
               htmlFor="name"
-              className="flex items-center gap-2 mb-2 text-sm font-medium"
+              className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-900 dark:text-gray-100"
             >
               <span className="text-primary" aria-hidden="true">
                 👤
@@ -155,15 +183,18 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange ditt namn"
               required
               disabled={loading}
-              aria-describedby={error ? "register-error" : undefined}
-              aria-invalid={!!error}
+              aria-describedby={validationErrors.name ? "name-error" : undefined}
+              aria-invalid={!!validationErrors.name}
             />
+            {validationErrors.name && (
+              <p id="name-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.name}</p>
+            )}
           </div>
 
           <div>
             <label
               htmlFor="email"
-              className="flex items-center gap-2 mb-2 text-sm font-medium"
+              className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-900 dark:text-gray-100"
             >
               <span className="text-primary" aria-hidden="true">
                 📧
@@ -178,9 +209,12 @@ const RegisterForm: React.FC = () => {
               placeholder="Ange din e-postadress"
               required
               disabled={loading}
-              aria-describedby={error ? "register-error" : undefined}
-              aria-invalid={!!error}
+              aria-describedby={validationErrors.email ? "email-error" : undefined}
+              aria-invalid={!!validationErrors.email}
             />
+            {validationErrors.email && (
+              <p id="email-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.email}</p>
+            )}
           </div>
 
           {/* Referral Code Input */}
@@ -209,7 +243,7 @@ const RegisterForm: React.FC = () => {
           <div>
             <label
               htmlFor="password"
-              className="flex items-center gap-2 mb-2 text-sm font-medium"
+              className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-900 dark:text-gray-100"
             >
               <span className="text-primary" aria-hidden="true">
                 🔒
@@ -226,8 +260,8 @@ const RegisterForm: React.FC = () => {
                 required
                 disabled={loading}
                 className="pr-12"
-                aria-describedby={error ? "register-error" : "password-help"}
-                aria-invalid={!!error}
+                aria-describedby={validationErrors.password ? "password-error" : "password-help"}
+                aria-invalid={!!validationErrors.password}
               />
               <button
                 type="button"
@@ -244,12 +278,15 @@ const RegisterForm: React.FC = () => {
             <p id="password-help" className="text-xs text-gray-600 dark:text-gray-400 mt-2">
               Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
             </p>
+            {validationErrors.password && (
+              <p id="password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.password}</p>
+            )}
           </div>
 
           <div>
             <label
               htmlFor="confirmPassword"
-              className="flex items-center gap-2 mb-2 text-sm font-medium"
+              className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-900 dark:text-gray-100"
             >
               <span className="text-primary" aria-hidden="true">
                 🔒
@@ -266,8 +303,8 @@ const RegisterForm: React.FC = () => {
                 required
                 disabled={loading}
                 className="pr-12"
-                aria-describedby={error ? "register-error" : undefined}
-                aria-invalid={!!error}
+                aria-describedby={validationErrors.confirmPassword ? "confirm-password-error" : undefined}
+                aria-invalid={!!validationErrors.confirmPassword}
               />
               <button
                 type="button"
@@ -281,6 +318,9 @@ const RegisterForm: React.FC = () => {
                 {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
               </button>
             </div>
+            {validationErrors.confirmPassword && (
+              <p id="confirm-password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.confirmPassword}</p>
+            )}
           </div>
 
           <Button

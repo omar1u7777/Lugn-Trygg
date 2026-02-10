@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import MoodLogger from '../MoodLogger';
@@ -124,12 +124,21 @@ vi.mock('../UsageLimitBanner', () => ({
 
 // ── Helper ──
 
+const routerFutureFlags = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 function renderMoodLogger(props: Partial<React.ComponentProps<typeof MoodLogger>> = {}) {
-  return render(
-    <BrowserRouter>
-      <MoodLogger {...props} />
-    </BrowserRouter>,
-  );
+  let result: ReturnType<typeof render>;
+  act(() => {
+    result = render(
+      <BrowserRouter future={routerFutureFlags}>
+        <MoodLogger {...props} />
+      </BrowserRouter>,
+    );
+  });
+  return result!;
 }
 
 // ── Tests ──

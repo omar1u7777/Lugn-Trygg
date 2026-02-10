@@ -1,20 +1,13 @@
 /**
- * TEMPORARY DISABLED - Chart components causing React hooks error on Vercel
- * TODO: Fix React/Recharts bundling issue and re-enable
- * Error: "Cannot read properties of undefined (reading 'useState')"
- * 
- * This wrapper is DISABLED to unblock production deployment.
- * Charts will be replaced with placeholder messages until fixed.
+ * Lazy-loaded chart wrappers.
+ * AnalyticsCharts is re-enabled (no longer uses React hooks internally that conflict).
+ * Other chart components remain placeholders until their bundling issues are resolved.
  */
+import React, { lazy, Suspense } from 'react';
 import { ChartBarIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
-// TEMPORARILY DISABLED - Chart imports causing bundling issues
-// const AnalyticsCharts = lazy(() => import('../Analytics/AnalyticsCharts'));
-// const PredictiveAnalytics = lazy(() => import('../AI/PredictiveAnalytics'));
-// const HealthDataCharts = lazy(() => import('../Integrations/HealthDataCharts'));
-// const MoodChart = lazy(() => import('../Dashboard/MoodChart'));
-// const MemoryChart = lazy(() => import('../Dashboard/MemoryChart'));
-// const PerformanceMonitor = lazy(() => import('../Performance/PerformanceMonitor'));
+const AnalyticsChartsLazy = lazy(() => import('../Analytics/AnalyticsCharts'));
+const PredictiveAnalyticsLazy = lazy(() => import('../AI/PredictiveAnalytics'));
 
 function ChartPlaceholder({ title }: { title: string }) {
   return (
@@ -36,12 +29,47 @@ function ChartPlaceholder({ title }: { title: string }) {
   );
 }
 
-export function LazyAnalyticsCharts() {
-  return <ChartPlaceholder title="Analytics Charts" />;
+export function LazyAnalyticsCharts(props: {
+  dailyPredictions?: number[];
+  confidenceInterval?: { lower: number; upper: number };
+  className?: string;
+}) {
+  const { dailyPredictions, confidenceInterval } = props;
+
+  // Fall back to placeholder when no data is passed
+  if (!dailyPredictions || dailyPredictions.length === 0) {
+    return <ChartPlaceholder title="Analytics Charts" />;
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-72">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        </div>
+      }
+    >
+      <AnalyticsChartsLazy
+        dailyPredictions={dailyPredictions}
+        confidenceInterval={confidenceInterval ?? { lower: 0, upper: 10 }}
+        className={props.className}
+      />
+    </Suspense>
+  );
 }
 
 export function LazyPredictiveAnalytics() {
-  return <ChartPlaceholder title="Predictive Analytics" />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-72">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        </div>
+      }
+    >
+      <PredictiveAnalyticsLazy />
+    </Suspense>
+  );
 }
 
 export function LazyHealthDataCharts() {
