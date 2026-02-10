@@ -9,7 +9,7 @@ const AuthEntryLayout: React.FC = () => {
       <Container maxWidth="xl" centered>
         <main className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 items-center">
           {/* Info/Branding Section */}
-          <section className="hidden lg:flex flex-col justify-between h-full rounded-3xl bg-white/90 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-800 shadow-xl p-4 md:p-8 transition-all sticky top-8 max-h-[90vh] overflow-auto">
+          <section className="hidden lg:flex flex-col justify-between h-full rounded-3xl bg-white/90 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-slate-800 shadow-xl p-4 md:p-8 transition-all">
             <header>
               <p className="text-xs md:text-sm uppercase tracking-widest text-primary-500 mb-3 md:mb-4">Lugn &amp; Trygg</p>
               <h1 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white leading-tight">

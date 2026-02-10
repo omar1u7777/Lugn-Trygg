@@ -116,9 +116,10 @@ def isolate_audit_env(monkeypatch):
     # Set encryption key
     test_key = Fernet.generate_key().decode()
     monkeypatch.setenv('HIPAA_ENCRYPTION_KEY', test_key)
-    # Replace db
+    # Replace db — code uses _db = db at module level, so patch both
     fake_db = FakeDB()
     monkeypatch.setattr(audit_mod, 'db', fake_db)
+    monkeypatch.setattr(audit_mod, '_db', fake_db)
     yield
 
 
@@ -393,7 +394,7 @@ def test_send_bulk_notifications_success(monkeypatch):
     class FakeBatchResponse:
         success_count = 3
         failure_count = 1
-    monkeypatch.setattr(push_mod.messaging, 'send_multicast', lambda msg: FakeBatchResponse())
+    monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', lambda msg: FakeBatchResponse())
     
     tokens = ['t1', 't2', 't3', 't4']
     result = service.send_bulk_notifications(tokens, 'Hello', 'World', {'k': 'v'})
@@ -407,7 +408,7 @@ def test_send_bulk_notifications_large_batch(monkeypatch):
     class FakeBatchResponse:
         success_count = 500
         failure_count = 0
-    monkeypatch.setattr(push_mod.messaging, 'send_multicast', lambda msg: FakeBatchResponse())
+    monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', lambda msg: FakeBatchResponse())
     
     # Send 1200 tokens (should split into 3 batches of 500, 500, 200)
     tokens = [f't{i}' for i in range(1200)]
@@ -420,7 +421,7 @@ def test_send_bulk_notifications_exception(monkeypatch):
     service = PushNotificationService()
     def raise_exc(msg):
         raise Exception('bulk fail')
-    monkeypatch.setattr(push_mod.messaging, 'send_multicast', raise_exc)
+    monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', raise_exc)
     
     result = service.send_bulk_notifications(['t1'], 'Title', 'Body')
     assert result['success'] is False

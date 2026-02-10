@@ -65,7 +65,7 @@ const ProtectedAppShell: React.FC = () => {
         <main
           id="main-content"
           tabIndex={-1}
-          className="pt-20 pb-24 lg:pb-8 lg:ml-64 px-4 sm:px-6 lg:px-8 min-h-screen focus:outline-none"
+          className="pt-20 pb-24 lg:pb-8 lg:ml-64 px-4 sm:px-6 lg:px-8 focus:outline-none"
           dir={i18n.dir()}
         >
           <div className="max-w-6xl mx-auto">

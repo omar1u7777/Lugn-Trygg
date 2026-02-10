@@ -28,19 +28,19 @@ const Navigation: React.FC = () => {
   const isPremium = plan.tier === 'premium' || plan.tier === 'enterprise';
   const planBadgeLabel = plan.tier === 'enterprise' ? 'Enterprise' : 'Premium';
 
-  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0]';
+  const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
   return (
     <nav
       id="navigation"
       role="navigation"
       aria-label="Huvudnavigation"
-      className="flex justify-between items-center bg-[#fff7f0]/95 px-3 md:px-6 py-3 w-full fixed top-0 left-0 z-[100] shadow-sm border-b border-[#f2e4d4] backdrop-blur-md"
+      className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-6 py-3 w-full fixed top-0 left-0 z-[100] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
     >
       {/* Logo */}
       <Link
         to={isLoggedIn ? "/dashboard" : "/"}
-        className={`text-[#2f2a24] font-bold text-lg md:text-xl flex items-center gap-2 hover:text-[#2c8374] transition-all duration-200 group lg:hidden ${focusRing}`}
+        className={`text-[#2f2a24] dark:text-white font-bold text-lg md:text-xl flex items-center gap-2 hover:text-[#2c8374] transition-all duration-200 group lg:hidden ${focusRing}`}
       >
         <span className="text-xl md:text-2xl group-hover:scale-110 transition-transform">🧘</span>
         <span className="text-[#2c8374] font-semibold hidden sm:inline">
@@ -53,7 +53,7 @@ const Navigation: React.FC = () => {
         {isLoggedIn ? (
           <>
             {/* Separator */}
-            <div className="hidden md:block w-px h-7 bg-[#e8dcd0] mx-1"></div>
+            <div className="hidden md:block w-px h-7 bg-[#e8dcd0] dark:bg-slate-700 mx-1"></div>
 
             {/* Användarnamn och Premium-badge - endast stora skärmar */}
             <div className="hidden xl:flex items-center gap-2 px-2">
@@ -63,7 +63,7 @@ const Navigation: React.FC = () => {
                   {planBadgeLabel}
                 </span>
               )}
-              <span className="text-[#6d645d] text-sm">
+              <span className="text-[#6d645d] dark:text-gray-400 text-sm">
                 Hej, {extractDisplayName(user?.email || '')}
               </span>
             </div>
@@ -83,7 +83,7 @@ const Navigation: React.FC = () => {
             {/* Tema-knapp */}
             <button
               onClick={toggleTheme}
-              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] hover:bg-[#e8dcd0] text-[#6d645d] hover:text-[#2f2a24] rounded-xl transition-all duration-200 ${focusRing}`}
+              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
               aria-label={isDarkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
               title={isDarkMode ? 'Ljust läge' : 'Mörkt läge'}
             >
@@ -110,7 +110,7 @@ const Navigation: React.FC = () => {
               to="/login"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm ${focusRing} ${isActive('/login')
                 ? 'bg-[#2c8374] text-white'
-                : 'text-[#6d645d] hover:text-[#2f2a24] hover:bg-[#f2e4d4]'
+                : 'text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white hover:bg-[#f2e4d4] dark:hover:bg-slate-800'
                 }`}
               aria-current={isActive('/login') ? 'page' : undefined}
             >
@@ -122,7 +122,7 @@ const Navigation: React.FC = () => {
               to="/register"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm ${focusRing} ${isActive('/register')
                 ? 'bg-[#2c8374] text-white'
-                : 'text-[#6d645d] hover:text-[#2f2a24] hover:bg-[#f2e4d4]'
+                : 'text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white hover:bg-[#f2e4d4] dark:hover:bg-slate-800'
                 }`}
               aria-current={isActive('/register') ? 'page' : undefined}
             >
@@ -133,7 +133,7 @@ const Navigation: React.FC = () => {
             {/* Tema */}
             <button
               onClick={toggleTheme}
-              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] hover:bg-[#e8dcd0] text-[#6d645d] hover:text-[#2f2a24] rounded-xl transition-all duration-200 ${focusRing}`}
+              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
               aria-label={isDarkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
             >
               <span className="text-base">{isDarkMode ? '☀️' : '🌙'}</span>
