@@ -315,49 +315,57 @@ describe('📝 Register Form Integration', () => {
     test('should validate password length', async () => {
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Test' } });
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'Short1!' } }); // Too short
       fireEvent.change(confirmPasswordInput, { target: { value: 'Short1!' } });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent(/minst 8 tecken/i);
+        const passwordError = document.getElementById('password-error');
+        expect(passwordError).toBeInTheDocument();
+        expect(passwordError).toHaveTextContent(/minst 8 tecken/i);
       });
     });
 
     test('should validate password complexity', async () => {
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Test' } });
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'weakpassword' } }); // No uppercase, no number, no special char
       fireEvent.change(confirmPasswordInput, { target: { value: 'weakpassword' } });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent(/stor bokstav|liten bokstav|siffra/i);
+        const passwordError = document.getElementById('password-error');
+        expect(passwordError).toBeInTheDocument();
+        expect(passwordError).toHaveTextContent(/stor bokstav/i);
       });
     });
 
     test('should validate password match', async () => {
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Test' } });
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'StrongPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'DifferentPass123!' } });
@@ -371,11 +379,13 @@ describe('📝 Register Form Integration', () => {
     test('should accept strong password', async () => {
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Test' } });
       fireEvent.change(emailInput, { target: { value: 'new@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'StrongPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'StrongPass123!' } });
@@ -385,7 +395,7 @@ describe('📝 Register Form Integration', () => {
         expect(mockAPI.registerUser).toHaveBeenCalledWith(
           'new@example.com',
           'StrongPass123!',
-          '',
+          'Test',
           ''
         );
       });
@@ -456,11 +466,13 @@ describe('📝 Register Form Integration', () => {
 
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Success User' } });
       fireEvent.change(emailInput, { target: { value: 'success@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'SuccessPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'SuccessPass123!' } });
@@ -478,11 +490,13 @@ describe('📝 Register Form Integration', () => {
 
       renderWithRouter(<RegisterForm />);
 
+      const nameInput = screen.getByLabelText(/namn/i);
       const emailInput = screen.getByLabelText(/e-post/i);
       const passwordInput = document.getElementById('password')!;
       const confirmPasswordInput = document.getElementById('confirmPassword')!;
       const submitButton = screen.getByRole('button', { name: /skapa konto/i });
 
+      fireEvent.change(nameInput, { target: { value: 'Existing User' } });
       fireEvent.change(emailInput, { target: { value: 'existing@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'ExistingPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'ExistingPass123!' } });
