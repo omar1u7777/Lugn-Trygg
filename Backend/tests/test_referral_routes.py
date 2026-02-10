@@ -1,913 +1,850 @@
 """
-Comprehensive tests for referral routes - targeting 90%+ coverage
-Tests: referral generation, invitations, completion, rewards, leaderboard
+Comprehensive tests for referral routes.
+Blueprint registered at: /api/v1/referral
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
-import json
+from unittest.mock import MagicMock, patch
 
+
+# ---------------------------------------------------------------------------
+# Helper to build a Firestore-doc-like mock
+# ---------------------------------------------------------------------------
+
+def _mock_doc(exists=True, data=None):
+    """Return a mock Firestore document snapshot."""
+    doc = MagicMock()
+    doc.exists = exists
+    doc.to_dict = MagicMock(return_value=data or {})
+    return doc
+
+
+# =========================================================================
+# POST /api/v1/referral/generate
+# =========================================================================
 
 class TestReferralGeneration:
-    """Tests for /generate endpoint"""
-    
-    @patch('src.routes.referral_routes.db')
+    """Tests for POST /api/v1/referral/generate"""
+
     def test_generate_new_referral(self, mock_db, client):
-        """Test generating referral code for new user"""
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = False
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/generate',
-            json={"user_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert "referralCode" in data["data"]
-        assert "userId" in data["data"]
-        assert data["data"]["totalReferrals"] == 0
-        assert data["data"]["successfulReferrals"] == 0
-        assert mock_document.set.called
-    
-    @patch('src.routes.referral_routes.db')
+        """New user -> creates referral doc, returns code with zero counters."""
+        col = mock_db.collection("referrals")
+        doc_ref = col.document.return_value
+        doc_ref.get.return_value = _mock_doc(exists=False)
+
+        resp = client.post("/api/v1/referral/generate", json={})
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert "referralCode" in body["data"]
+        assert body["data"]["userId"] == "test-user-id"
+        assert body["data"]["totalReferrals"] == 0
+        assert body["data"]["successfulReferrals"] == 0
+        assert body["data"]["pendingReferrals"] == 0
+        assert body["data"]["rewardsEarned"] == 0
+        doc_ref.set.assert_called_once()
+
     def test_generate_existing_referral(self, mock_db, client):
-        """Test getting existing referral code"""
-        existing_data = {
-            "user_id": "test123",
+        """Existing referral -> returns stored data, does NOT create new doc."""
+        existing = {
+            "user_id": "test-user-id",
             "referral_code": "TEST1234",
             "total_referrals": 5,
             "successful_referrals": 3,
-            "rewards_earned": 4
+            "pending_referrals": 1,
+            "rewards_earned": 4,
+            "created_at": "2024-01-01T00:00:00+00:00",
         }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = existing_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/generate',
-            json={"user_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["referralCode"] == "TEST1234"
-        assert data["data"]["totalReferrals"] == 5
-        assert not mock_document.set.called
-    
-    def test_generate_missing_user_id(self, client):
-        """Test generate without user_id"""
-        response = client.post('/api/referral/generate',
-            json={},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_generate_empty_user_id(self, client):
-        """Test generate with empty user_id"""
-        response = client.post('/api/referral/generate',
-            json={"user_id": "  "},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_generate_database_error(self, mock_db, client):
-        """Test generate when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.post('/api/referral/generate',
-            json={"user_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_generate_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/generate')
-        assert response.status_code == 204
+        col = mock_db.collection("referrals")
+        doc_ref = col.document.return_value
+        doc_ref.get.return_value = _mock_doc(exists=True, data=existing)
 
+        resp = client.post("/api/v1/referral/generate", json={})
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["referralCode"] == "TEST1234"
+        assert body["data"]["totalReferrals"] == 5
+        assert body["data"]["successfulReferrals"] == 3
+        doc_ref.set.assert_not_called()
+
+    def test_generate_database_error(self, mock_db, client):
+        """DB failure -> 500 with REFERRAL_ERROR."""
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.post("/api/v1/referral/generate", json={})
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "REFERRAL_ERROR"
+
+    def test_generate_options_request(self, client):
+        """OPTIONS preflight -> 204 (before_request handler)."""
+        resp = client.options("/api/v1/referral/generate")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# GET /api/v1/referral/stats
+# =========================================================================
 
 class TestReferralStats:
-    """Tests for /stats endpoint"""
-    
-    @patch('src.routes.referral_routes.db')
+    """Tests for GET /api/v1/referral/stats"""
+
     def test_get_stats_existing_user(self, mock_db, client):
-        """Test getting stats for existing user"""
-        existing_data = {
-            "user_id": "test123",
+        existing = {
+            "user_id": "test-user-id",
             "referral_code": "TEST1234",
             "total_referrals": 10,
             "successful_referrals": 7,
-            "rewards_earned": 10
+            "pending_referrals": 2,
+            "rewards_earned": 10,
+            "created_at": "2024-01-01T00:00:00+00:00",
+            "last_referral_at": "2024-06-01T00:00:00+00:00",
         }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = existing_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.get('/api/referral/stats?user_id=test123')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["totalReferrals"] == 10
-        assert data["data"]["successfulReferrals"] == 7
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_stats_new_user(self, mock_db, client):
-        """Test getting stats creates new referral for new user"""
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = False
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.get('/api/referral/stats?user_id=newuser')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert "referralCode" in data["data"]
-        assert data["data"]["totalReferrals"] == 0
-        assert mock_document.set.called
-    
-    def test_get_stats_missing_user_id(self, client):
-        """Test stats without user_id"""
-        response = client.get('/api/referral/stats')
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_get_stats_empty_user_id(self, client):
-        """Test stats with empty user_id"""
-        response = client.get('/api/referral/stats?user_id=  ')
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_stats_database_error(self, mock_db, client):
-        """Test stats when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.get('/api/referral/stats?user_id=test123')
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_get_stats_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/stats')
-        assert response.status_code == 204
+        col = mock_db.collection("referrals")
+        doc_ref = col.document.return_value
+        doc_ref.get.return_value = _mock_doc(exists=True, data=existing)
 
+        resp = client.get("/api/v1/referral/stats")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["totalReferrals"] == 10
+        assert body["data"]["successfulReferrals"] == 7
+        assert body["data"]["rewardsEarned"] == 10
+
+    def test_get_stats_new_user_creates_referral(self, mock_db, client):
+        """When no referral doc exists, one is created with zero counters."""
+        col = mock_db.collection("referrals")
+        doc_ref = col.document.return_value
+        doc_ref.get.return_value = _mock_doc(exists=False)
+
+        resp = client.get("/api/v1/referral/stats")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["totalReferrals"] == 0
+        assert "referralCode" in body["data"]
+        doc_ref.set.assert_called_once()
+
+    def test_get_stats_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.get("/api/v1/referral/stats")
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "STATS_ERROR"
+
+    def test_get_stats_options_request(self, client):
+        resp = client.options("/api/v1/referral/stats")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# POST /api/v1/referral/invite
+# =========================================================================
 
 class TestSendInvitation:
-    """Tests for /invite endpoint"""
-    
-    @patch('src.services.email_service.email_service.send_referral_invitation')
-    @patch('src.routes.referral_routes.db')
-    def test_send_invitation_success(self, mock_db, mock_email, client):
-        """Test sending invitation successfully"""
-        referral_data = {
-            "user_id": "test123",
-            "referral_code": "TEST1234",
-            "total_referrals": 5,
-            "pending_referrals": 1
-        }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = referral_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        mock_email.return_value = {"success": True, "message": "Email sent"}
-        
-        response = client.post('/api/referral/invite',
-            json={
-                "user_id": "test123",
-                "email": "friend@example.com",
-                "referrer_name": "Test User"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["emailSent"] == True
-        assert mock_document.update.called
-    
-    def test_send_invitation_missing_fields(self, client):
-        """Test invitation without required fields"""
-        response = client.post('/api/referral/invite',
-            json={"user_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_send_invitation_empty_email(self, client):
-        """Test invitation with empty email"""
-        response = client.post('/api/referral/invite',
-            json={
-                "user_id": "test123",
-                "email": "  "
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_send_invitation_no_referral_code(self, mock_db, client):
-        """Test invitation when user has no referral code"""
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = False
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/invite',
-            json={
-                "user_id": "test123",
-                "email": "friend@example.com"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 404
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.services.email_service.email_service.send_referral_invitation')
-    @patch('src.routes.referral_routes.db')
-    def test_send_invitation_email_failure(self, mock_db, mock_email, client):
-        """Test invitation when email fails"""
-        referral_data = {
-            "user_id": "test123",
-            "referral_code": "TEST1234",
-            "total_referrals": 5,
-            "pending_referrals": 1
-        }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = referral_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        mock_email.return_value = {"success": False, "message": "Email service unavailable"}
-        
-        response = client.post('/api/referral/invite',
-            json={
-                "user_id": "test123",
-                "email": "friend@example.com"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["emailSent"] == False
-    
-    @patch('src.routes.referral_routes.db')
-    def test_send_invitation_database_error(self, mock_db, client):
-        """Test invitation when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.post('/api/referral/invite',
-            json={
-                "user_id": "test123",
-                "email": "friend@example.com"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_send_invitation_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/invite')
-        assert response.status_code == 204
+    """Tests for POST /api/v1/referral/invite"""
 
+    @patch("src.routes.referral_routes.email_service")
+    def test_send_invitation_success(self, mock_email_svc, mock_db, client):
+        referral_data = {
+            "referral_code": "TEST1234",
+            "total_referrals": 5,
+            "pending_referrals": 1,
+        }
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        mock_email_svc.send_referral_invitation.return_value = {
+            "success": True,
+            "message": "Email sent",
+        }
+
+        resp = client.post(
+            "/api/v1/referral/invite",
+            json={"email": "friend@example.com", "referrer_name": "Test User"},
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["emailSent"] is True
+
+    def test_send_invitation_missing_email(self, client):
+        """No email field -> 400."""
+        resp = client.post("/api/v1/referral/invite", json={})
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "BAD_REQUEST"
+
+    def test_send_invitation_empty_email(self, client):
+        """Whitespace-only email -> sanitized to '' -> 400."""
+        resp = client.post("/api/v1/referral/invite", json={"email": "   "})
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+
+    def test_send_invitation_no_referral_code(self, mock_db, client):
+        """User has no referral doc -> 404."""
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(exists=False)
+
+        resp = client.post(
+            "/api/v1/referral/invite", json={"email": "friend@example.com"}
+        )
+
+        assert resp.status_code == 404
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "NOT_FOUND"
+
+    def test_send_invitation_doc_exists_but_no_code(self, mock_db, client):
+        """Referral doc exists but referral_code is missing -> 404."""
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data={"user_id": "test-user-id"}
+        )
+
+        resp = client.post(
+            "/api/v1/referral/invite", json={"email": "friend@example.com"}
+        )
+
+        assert resp.status_code == 404
+
+    @patch("src.routes.referral_routes.email_service")
+    def test_send_invitation_email_failure(self, mock_email_svc, mock_db, client):
+        """Email service fails -> still 200 but emailSent=False."""
+        referral_data = {
+            "referral_code": "TEST1234",
+            "total_referrals": 5,
+            "pending_referrals": 1,
+        }
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        mock_email_svc.send_referral_invitation.return_value = {
+            "success": False,
+            "message": "Email service unavailable",
+        }
+
+        resp = client.post(
+            "/api/v1/referral/invite", json={"email": "friend@example.com"}
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["emailSent"] is False
+
+    def test_send_invitation_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.post(
+            "/api/v1/referral/invite", json={"email": "friend@example.com"}
+        )
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+
+    def test_send_invitation_options_request(self, client):
+        resp = client.options("/api/v1/referral/invite")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# POST /api/v1/referral/complete
+# =========================================================================
 
 class TestCompleteReferral:
-    """Tests for /complete endpoint"""
-    
-    @patch('src.services.push_notification_service.push_notification_service')
-    @patch('src.services.email_service.email_service')
-    @patch('src.routes.referral_routes.db')
-    def test_complete_referral_bronze_tier(self, mock_db, mock_email, mock_push, client):
-        """Test completing referral at Bronze tier (< 5 referrals)"""
+    """Tests for POST /api/v1/referral/complete"""
+
+    def test_complete_missing_fields(self, client):
+        """Missing invitee_id -> 400."""
+        resp = client.post(
+            "/api/v1/referral/complete", json={"referrer_id": "ref123"}
+        )
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "BAD_REQUEST"
+
+    def test_complete_missing_both_ids(self, client):
+        """Empty body -> 400."""
+        resp = client.post("/api/v1/referral/complete", json={})
+
+        assert resp.status_code == 400
+
+    def test_complete_referrer_not_found(self, mock_db, client):
+        """Referrer doc doesn't exist -> 404."""
+        # Default mock_db returns exists=False for all docs
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "unknown", "invitee_id": "inv456"},
+        )
+
+        assert resp.status_code == 404
+        body = resp.get_json()
+        assert body["success"] is False
+
+    @patch("src.routes.referral_routes.push_notification_service")
+    @patch("src.routes.referral_routes.email_service")
+    def test_complete_referral_bronze_tier(
+        self, mock_email, mock_push, mock_db, client
+    ):
+        """3rd referral (Bronze tier, < 5) -> rewardsEarned = 3."""
         referral_data = {
             "user_id": "referrer123",
             "referral_code": "REF1234",
             "successful_referrals": 2,
             "pending_referrals": 1,
-            "rewards_earned": 2
+            "rewards_earned": 2,
         }
-        
         referrer_info = {
-            "email": "referrer@example.com",
-            "name": "Referrer User",
-            "fcm_token": "token123"
+            "email": "ref@example.com",
+            "name": "Referrer",
+            "fcm_token": "tok123",
         }
-        
-        # Mock referral document
-        mock_collection = Mock()
-        mock_referral_doc = Mock()
-        mock_get_referral = Mock()
-        mock_get_referral.exists = True
-        mock_get_referral.to_dict.return_value = referral_data
-        
-        # Mock user document
-        mock_user_doc = Mock()
-        mock_get_user = Mock()
-        mock_get_user.exists = True
-        mock_get_user.to_dict.return_value = referrer_info
-        
-        def collection_side_effect(collection_name):
-            if collection_name == "referrals":
-                mock_referral_doc.get.return_value = mock_get_referral
-                return Mock(document=Mock(return_value=mock_referral_doc))
-            elif collection_name == "users":
-                mock_user_doc.get.return_value = mock_get_user
-                return Mock(document=Mock(return_value=mock_user_doc))
-            else:
-                return Mock(document=Mock(return_value=Mock()))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/referral/complete',
+
+        referrals_col = mock_db.collection("referrals")
+        referrals_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        users_col = mock_db.collection("users")
+        users_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referrer_info
+        )
+
+        resp = client.post(
+            "/api/v1/referral/complete",
             json={
                 "referrer_id": "referrer123",
-                "invitee_id": "invitee456",
+                "invitee_id": "inv456",
                 "invitee_name": "New User",
-                "invitee_email": "new@example.com"
+                "invitee_email": "new@example.com",
             },
-            content_type='application/json'
         )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["successfulReferrals"] == 3
-        assert data["data"]["rewardsEarned"] == 3  # 3 referrals = 3 weeks (Bronze tier)
-    
-    @patch('src.services.push_notification_service.push_notification_service')
-    @patch('src.services.email_service.email_service')
-    @patch('src.routes.referral_routes.db')
-    def test_complete_referral_silver_tier(self, mock_db, mock_email, mock_push, client):
-        """Test completing referral reaching Silver tier (5 referrals)"""
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["successfulReferrals"] == 3
+        # 3 base + 0 bonus(3//10*2) + 0 tier = 3
+        assert body["data"]["rewardsEarned"] == 3
+
+    @patch("src.routes.referral_routes.push_notification_service")
+    @patch("src.routes.referral_routes.email_service")
+    def test_complete_referral_silver_tier(
+        self, mock_email, mock_push, mock_db, client
+    ):
+        """5th referral -> Silver tier bonus (+4 weeks)."""
         referral_data = {
-            "user_id": "referrer123",
-            "referral_code": "REF1234",
             "successful_referrals": 4,
             "pending_referrals": 1,
-            "rewards_earned": 4
+            "rewards_earned": 4,
         }
-        
         referrer_info = {
-            "email": "referrer@example.com",
-            "name": "Referrer User",
-            "fcm_token": "token123"
+            "email": "r@example.com",
+            "name": "R",
+            "fcm_token": "t",
         }
-        
-        mock_collection = Mock()
-        mock_referral_doc = Mock()
-        mock_get_referral = Mock()
-        mock_get_referral.exists = True
-        mock_get_referral.to_dict.return_value = referral_data
-        
-        mock_user_doc = Mock()
-        mock_get_user = Mock()
-        mock_get_user.exists = True
-        mock_get_user.to_dict.return_value = referrer_info
-        
-        def collection_side_effect(collection_name):
-            if collection_name == "referrals":
-                mock_referral_doc.get.return_value = mock_get_referral
-                return Mock(document=Mock(return_value=mock_referral_doc))
-            elif collection_name == "users":
-                mock_user_doc.get.return_value = mock_get_user
-                return Mock(document=Mock(return_value=mock_user_doc))
-            else:
-                return Mock(document=Mock(return_value=Mock()))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/referral/complete',
-            json={
-                "referrer_id": "referrer123",
-                "invitee_id": "invitee456",
-                "invitee_name": "New User"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["successfulReferrals"] == 5
-        # 5 referrals + 4 weeks Silver bonus = 9 weeks
-        assert data["data"]["rewardsEarned"] == 9
-    
-    def test_complete_referral_missing_fields(self, client):
-        """Test complete without required fields"""
-        response = client.post('/api/referral/complete',
-            json={"referrer_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_complete_referral_referrer_not_found(self, mock_db, client):
-        """Test complete when referrer doesn't exist"""
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = False
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/complete',
-            json={
-                "referrer_id": "unknown",
-                "invitee_id": "invitee456"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 404
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_complete_referral_database_error(self, mock_db, client):
-        """Test complete when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.post('/api/referral/complete',
-            json={
-                "referrer_id": "referrer123",
-                "invitee_id": "invitee456"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_complete_referral_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/complete')
-        assert response.status_code == 204
 
+        referrals_col = mock_db.collection("referrals")
+        referrals_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        users_col = mock_db.collection("users")
+        users_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referrer_info
+        )
+
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={
+                "referrer_id": "referrer123",
+                "invitee_id": "inv456",
+                "invitee_name": "New User",
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["successfulReferrals"] == 5
+        # 5 base + 0 bonus + 4 silver = 9
+        assert body["data"]["rewardsEarned"] == 9
+
+    @patch("src.routes.referral_routes.push_notification_service")
+    @patch("src.routes.referral_routes.email_service")
+    def test_complete_referral_gold_tier(
+        self, mock_email, mock_push, mock_db, client
+    ):
+        """15th referral -> Gold tier bonus (+12 weeks)."""
+        referral_data = {
+            "successful_referrals": 14,
+            "pending_referrals": 1,
+            "rewards_earned": 14,
+        }
+        referrer_info = {"email": "r@example.com", "name": "R", "fcm_token": "t"}
+
+        referrals_col = mock_db.collection("referrals")
+        referrals_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+        users_col = mock_db.collection("users")
+        users_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referrer_info
+        )
+
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "ref", "invitee_id": "inv"},
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["successfulReferrals"] == 15
+        # 15 base + 2 bonus(15//10*2) + 12 gold = 29
+        assert body["data"]["rewardsEarned"] == 29
+
+    @patch("src.routes.referral_routes.push_notification_service")
+    @patch("src.routes.referral_routes.email_service")
+    def test_complete_referral_platinum_tier(
+        self, mock_email, mock_push, mock_db, client
+    ):
+        """30th referral -> Platinum tier bonus (+24 weeks)."""
+        referral_data = {
+            "successful_referrals": 29,
+            "pending_referrals": 1,
+            "rewards_earned": 29,
+        }
+        referrer_info = {"email": "r@example.com", "name": "R", "fcm_token": "t"}
+
+        referrals_col = mock_db.collection("referrals")
+        referrals_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+        users_col = mock_db.collection("users")
+        users_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referrer_info
+        )
+
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "ref", "invitee_id": "inv"},
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["successfulReferrals"] == 30
+        # 30 base + 6 bonus(30//10*2) + 24 platinum = 60
+        assert body["data"]["rewardsEarned"] == 60
+
+    @patch("src.routes.referral_routes.push_notification_service")
+    @patch("src.routes.referral_routes.email_service")
+    def test_complete_referral_no_fcm_token(
+        self, mock_email, mock_push, mock_db, client
+    ):
+        """Referrer has no fcm_token -> push not sent, still succeeds."""
+        referral_data = {
+            "successful_referrals": 0,
+            "pending_referrals": 1,
+            "rewards_earned": 0,
+        }
+        referrer_info = {"email": "r@example.com", "name": "R"}
+
+        referrals_col = mock_db.collection("referrals")
+        referrals_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+        users_col = mock_db.collection("users")
+        users_col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referrer_info
+        )
+
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "ref", "invitee_id": "inv"},
+        )
+
+        assert resp.status_code == 200
+        mock_push.send_referral_success_notification.assert_not_called()
+
+    def test_complete_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "ref", "invitee_id": "inv"},
+        )
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "COMPLETE_ERROR"
+
+    def test_complete_options_request(self, client):
+        resp = client.options("/api/v1/referral/complete")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# GET /api/v1/referral/leaderboard  (NO auth required)
+# =========================================================================
 
 class TestLeaderboard:
-    """Tests for /leaderboard endpoint"""
-    
-    @patch('src.routes.referral_routes.db')
+    """Tests for GET /api/v1/referral/leaderboard"""
+
     def test_get_leaderboard_success(self, mock_db, client):
-        """Test getting leaderboard"""
-        # Mock referrals
-        referral1 = Mock()
-        referral1.to_dict.return_value = {
+        doc1 = MagicMock()
+        doc1.to_dict.return_value = {
             "user_id": "user1",
             "successful_referrals": 50,
-            "rewards_earned": 100
+            "rewards_earned": 100,
         }
-        referral2 = Mock()
-        referral2.to_dict.return_value = {
+        doc2 = MagicMock()
+        doc2.to_dict.return_value = {
             "user_id": "user2",
             "successful_referrals": 20,
-            "rewards_earned": 40
+            "rewards_earned": 40,
         }
-        
-        # Mock users
-        user1 = Mock()
-        user1.exists = True
-        user1.to_dict.return_value = {"name": "Top Referrer"}
-        user2 = Mock()
-        user2.exists = True
-        user2.to_dict.return_value = {"name": "Good Referrer"}
-        
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_query.limit.return_value.get.return_value = [referral1, referral2]
-        mock_collection.order_by.return_value = mock_query
-        
-        def collection_side_effect(collection_name):
-            if collection_name == "referrals":
-                return mock_collection
-            elif collection_name == "users":
-                def document_side_effect(user_id):
-                    if user_id == "user1":
-                        return Mock(get=Mock(return_value=user1))
-                    elif user_id == "user2":
-                        return Mock(get=Mock(return_value=user2))
-                return Mock(document=Mock(side_effect=document_side_effect))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/referral/leaderboard')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert len(data["data"]["leaderboard"]) == 2
-        assert data["data"]["leaderboard"][0]["tier"] == "Platinum"  # 50 referrals
-        assert data["data"]["leaderboard"][1]["tier"] == "Gold"     # 20 referrals
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_leaderboard_with_limit(self, mock_db, client):
-        """Test leaderboard with custom limit"""
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_query.limit.return_value.get.return_value = []
-        mock_collection.order_by.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
-        
-        response = client.get('/api/referral/leaderboard?limit=5')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        mock_query.limit.assert_called_with(5)
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_leaderboard_max_limit(self, mock_db, client):
-        """Test leaderboard limits to 100 max"""
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_query.limit.return_value.get.return_value = []
-        mock_collection.order_by.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
-        
-        response = client.get('/api/referral/leaderboard?limit=200')
-        
-        assert response.status_code == 200
-        mock_query.limit.assert_called_with(100)  # Should cap at 100
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_leaderboard_database_error(self, mock_db, client):
-        """Test leaderboard when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.get('/api/referral/leaderboard')
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_get_leaderboard_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/leaderboard')
-        assert response.status_code == 204
 
+        # Chain: order_by() -> limit() -> get()
+        referrals_col = mock_db.collection("referrals")
+        mock_query = MagicMock()
+        mock_query.limit.return_value.get.return_value = [doc1, doc2]
+        referrals_col.order_by.return_value = mock_query
+
+        # User lookups
+        users_col = mock_db.collection("users")
+
+        def _user_doc(uid):
+            m = MagicMock()
+            if uid == "user1":
+                m.get.return_value = _mock_doc(
+                    exists=True, data={"name": "Top Referrer"}
+                )
+            elif uid == "user2":
+                m.get.return_value = _mock_doc(
+                    exists=True, data={"name": "Good Referrer"}
+                )
+            else:
+                m.get.return_value = _mock_doc(exists=False)
+            return m
+
+        users_col.document = MagicMock(side_effect=_user_doc)
+
+        resp = client.get("/api/v1/referral/leaderboard")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        lb = body["data"]["leaderboard"]
+        assert len(lb) == 2
+        assert lb[0]["tier"] == "Platinum"  # 50 referrals
+        assert lb[0]["name"] == "Top Referrer"
+        assert lb[1]["tier"] == "Gold"  # 20 referrals
+        assert lb[1]["name"] == "Good Referrer"
+        assert body["data"]["totalCount"] == 2
+
+    def test_get_leaderboard_with_limit(self, mock_db, client):
+        referrals_col = mock_db.collection("referrals")
+        mock_query = MagicMock()
+        mock_query.limit.return_value.get.return_value = []
+        referrals_col.order_by.return_value = mock_query
+
+        resp = client.get("/api/v1/referral/leaderboard?limit=5")
+
+        assert resp.status_code == 200
+        mock_query.limit.assert_called_with(5)
+
+    def test_get_leaderboard_caps_at_100(self, mock_db, client):
+        referrals_col = mock_db.collection("referrals")
+        mock_query = MagicMock()
+        mock_query.limit.return_value.get.return_value = []
+        referrals_col.order_by.return_value = mock_query
+
+        resp = client.get("/api/v1/referral/leaderboard?limit=200")
+
+        assert resp.status_code == 200
+        mock_query.limit.assert_called_with(100)
+
+    def test_get_leaderboard_empty(self, mock_db, client):
+        referrals_col = mock_db.collection("referrals")
+        mock_query = MagicMock()
+        mock_query.limit.return_value.get.return_value = []
+        referrals_col.order_by.return_value = mock_query
+
+        resp = client.get("/api/v1/referral/leaderboard")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["leaderboard"] == []
+        assert body["data"]["totalCount"] == 0
+
+    def test_get_leaderboard_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.get("/api/v1/referral/leaderboard")
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "LEADERBOARD_ERROR"
+
+    def test_get_leaderboard_options_request(self, client):
+        resp = client.options("/api/v1/referral/leaderboard")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# GET /api/v1/referral/history
+# =========================================================================
 
 class TestReferralHistory:
-    """Tests for /history endpoint"""
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_history_success(self, mock_db, client):
-        """Test getting referral history"""
-        history1 = Mock()
-        history1.to_dict.return_value = {
-            "invitee_name": "User One",
-            "invitee_email": "user1@example.com",
-            "completed_at": "2024-01-01T10:00:00Z",
-            "rewards_granted": 1
-        }
-        history2 = Mock()
-        history2.to_dict.return_value = {
-            "invitee_name": "User Two",
-            "invitee_email": "user2@example.com",
-            "completed_at": "2024-01-02T10:00:00Z",
-            "rewards_granted": 1
-        }
-        
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_query.get.return_value = [history1, history2]
-        mock_collection.where.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
-        
-        response = client.get('/api/referral/history?user_id=newuser')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert len(data["data"]["history"]) == 2
-        assert data["data"]["totalCount"] == 2
-        assert data["data"]["history"][0]["inviteeName"] == "User Two"
-        assert data["data"]["history"][1]["inviteeName"] == "User One"
-    
-    def test_get_history_missing_user_id(self, client):
-        """Test history without user_id"""
-        response = client.get('/api/referral/history')
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_history_no_referrals(self, mock_db, client):
-        """Test history when user has no referrals"""
-        mock_collection = Mock()
-        mock_query = Mock()
-        mock_query.get.return_value = []
-        mock_collection.where.return_value = mock_query
-        mock_db.collection.return_value = mock_collection
-        
-        response = client.get('/api/referral/history?user_id=newuser')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert len(data["data"]["history"]) == 0
-    
-    @patch('src.routes.referral_routes.db')
-    def test_get_history_database_error(self, mock_db, client):
-        """Test history when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.get('/api/referral/history?user_id=test123')
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_get_history_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/history')
-        assert response.status_code == 204
+    """Tests for GET /api/v1/referral/history"""
 
+    def test_get_history_success(self, mock_db, client):
+        h1 = MagicMock()
+        h1.to_dict.return_value = {
+            "invitee_name": "User One",
+            "invitee_email": "u1@example.com",
+            "completed_at": "2024-01-01T10:00:00Z",
+            "rewards_granted": 1,
+        }
+        h2 = MagicMock()
+        h2.to_dict.return_value = {
+            "invitee_name": "User Two",
+            "invitee_email": "u2@example.com",
+            "completed_at": "2024-01-02T10:00:00Z",
+            "rewards_granted": 1,
+        }
+
+        col = mock_db.collection("referral_history")
+        col.where.return_value.get.return_value = [h1, h2]
+
+        resp = client.get("/api/v1/referral/history")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["totalCount"] == 2
+        # Sorted by completedAt descending
+        assert body["data"]["history"][0]["inviteeName"] == "User Two"
+        assert body["data"]["history"][1]["inviteeName"] == "User One"
+
+    def test_get_history_no_referrals(self, mock_db, client):
+        col = mock_db.collection("referral_history")
+        col.where.return_value.get.return_value = []
+
+        resp = client.get("/api/v1/referral/history")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["history"] == []
+        assert body["data"]["totalCount"] == 0
+
+    def test_get_history_with_user_id_param(self, mock_db, client):
+        """user_id query param overrides g.user_id."""
+        col = mock_db.collection("referral_history")
+        col.where.return_value.get.return_value = []
+
+        resp = client.get("/api/v1/referral/history?user_id=otheruser")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+
+    def test_get_history_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.get("/api/v1/referral/history")
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "HISTORY_ERROR"
+
+    def test_get_history_options_request(self, client):
+        resp = client.options("/api/v1/referral/history")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# GET /api/v1/referral/rewards/catalog  (NO auth required)
+# =========================================================================
 
 class TestRewardsCatalog:
-    """Tests for /rewards/catalog endpoint"""
-    
+    """Tests for GET /api/v1/referral/rewards/catalog"""
+
     def test_get_rewards_catalog(self, client):
-        """Test getting rewards catalog"""
-        response = client.get('/api/referral/rewards/catalog')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert "rewards" in data["data"]
-        assert len(data["data"]["rewards"]) > 0
-        
-        # Check structure of first reward
-        reward = data["data"]["rewards"][0]
+        resp = client.get("/api/v1/referral/rewards/catalog")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        rewards = body["data"]["rewards"]
+        assert len(rewards) == 8
+
+        # Spot-check structure
+        reward = rewards[0]
         assert "id" in reward
         assert "name" in reward
         assert "cost" in reward
         assert "description" in reward
-    
-    def test_get_rewards_catalog_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/rewards/catalog')
-        assert response.status_code == 204
+        assert "emoji" in reward
+        assert "type" in reward
 
+    def test_get_rewards_catalog_options_request(self, client):
+        resp = client.options("/api/v1/referral/rewards/catalog")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# POST /api/v1/referral/rewards/redeem
+# =========================================================================
 
 class TestRedeemReward:
-    """Tests for /rewards/redeem endpoint"""
-    
-    @patch('src.routes.referral_routes.db')
-    def test_redeem_reward_success(self, mock_db, client):
-        """Test redeeming a reward successfully"""
-        referral_data = {
-            "user_id": "test123",
-            "rewards_earned": 10
-        }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = referral_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/rewards/redeem',
-            json={
-                "user_id": "test123",
-                "reward_id": "premium_1month"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] == True
-        assert data["data"]["newBalance"] == 6  # 10 - 4 (cost of 1 month)
-        assert mock_document.update.called
-    
-    @patch('src.routes.referral_routes.db')
-    def test_redeem_reward_insufficient_balance(self, mock_db, client):
-        """Test redeeming when user doesn't have enough rewards"""
-        referral_data = {
-            "user_id": "test123",
-            "rewards_earned": 2
-        }
-        
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = True
-        mock_get.to_dict.return_value = referral_data
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/rewards/redeem',
-            json={
-                "user_id": "test123",
-                "reward_id": "premium_1month"  # costs 4 weeks
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert data["error"] == "INSUFFICIENT_BALANCE"
-        assert "Insufficient rewards" in data["message"]
-        assert data["details"]["available"] == 2
-        assert data["details"]["required"] == 4
-    
-    def test_redeem_reward_invalid_reward_id(self, client):
-        """Test redeeming with invalid reward_id"""
-        with patch('src.routes.referral_routes.db') as mock_db:
-            referral_data = {
-                "user_id": "test123",
-                "rewards_earned": 10
-            }
-            
-            mock_collection = Mock()
-            mock_document = Mock()
-            mock_get = Mock()
-            mock_get.exists = True
-            mock_get.to_dict.return_value = referral_data
-            
-            mock_db.collection.return_value = mock_collection
-            mock_collection.document.return_value = mock_document
-            mock_document.get.return_value = mock_get
-            
-            response = client.post('/api/referral/rewards/redeem',
-                json={
-                    "user_id": "test123",
-                    "reward_id": "invalid_reward"
-                },
-                content_type='application/json'
-            )
-            
-            assert response.status_code == 400
-            data = response.get_json()
-            assert data["error"] == "BAD_REQUEST"
-            assert "Invalid reward_id" in data["message"]
-    
-    def test_redeem_reward_missing_fields(self, client):
-        """Test redeem without required fields"""
-        response = client.post('/api/referral/rewards/redeem',
-            json={"user_id": "test123"},
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_redeem_reward_no_referral_data(self, mock_db, client):
-        """Test redeem when user has no referral data"""
-        mock_collection = Mock()
-        mock_document = Mock()
-        mock_get = Mock()
-        mock_get.exists = False
-        
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.get.return_value = mock_get
-        
-        response = client.post('/api/referral/rewards/redeem',
-            json={
-                "user_id": "test123",
-                "reward_id": "premium_1week"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 404
-        data = response.get_json()
-        assert "error" in data
-    
-    @patch('src.routes.referral_routes.db')
-    def test_redeem_reward_database_error(self, mock_db, client):
-        """Test redeem when database fails"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.post('/api/referral/rewards/redeem',
-            json={
-                "user_id": "test123",
-                "reward_id": "premium_1week"
-            },
-            content_type='application/json'
-        )
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
-    
-    def test_redeem_reward_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/referral/rewards/redeem')
-        assert response.status_code == 204
+    """Tests for POST /api/v1/referral/rewards/redeem"""
 
+    def test_redeem_reward_success(self, mock_db, client):
+        referral_data = {"user_id": "test-user-id", "rewards_earned": 10}
+
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        resp = client.post(
+            "/api/v1/referral/rewards/redeem",
+            json={"reward_id": "premium_1month"},
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["newBalance"] == 6  # 10 - 4 (premium_1month cost)
+        assert body["data"]["rewardId"] == "premium_1month"
+
+    def test_redeem_reward_insufficient_balance(self, mock_db, client):
+        referral_data = {"rewards_earned": 2}
+
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        resp = client.post(
+            "/api/v1/referral/rewards/redeem",
+            json={"reward_id": "premium_1month"},  # costs 4
+        )
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "INSUFFICIENT_BALANCE"
+        assert body["details"]["available"] == 2
+        assert body["details"]["required"] == 4
+
+    def test_redeem_reward_invalid_reward_id(self, mock_db, client):
+        referral_data = {"rewards_earned": 10}
+
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(
+            exists=True, data=referral_data
+        )
+
+        resp = client.post(
+            "/api/v1/referral/rewards/redeem",
+            json={"reward_id": "nonexistent_reward"},
+        )
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "BAD_REQUEST"
+
+    def test_redeem_reward_missing_reward_id(self, client):
+        """No reward_id in body -> 400."""
+        resp = client.post("/api/v1/referral/rewards/redeem", json={})
+
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "BAD_REQUEST"
+
+    def test_redeem_reward_no_referral_data(self, mock_db, client):
+        """User has never generated referral -> 404."""
+        col = mock_db.collection("referrals")
+        col.document.return_value.get.return_value = _mock_doc(exists=False)
+
+        resp = client.post(
+            "/api/v1/referral/rewards/redeem",
+            json={"reward_id": "premium_1week"},
+        )
+
+        assert resp.status_code == 404
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "NOT_FOUND"
+
+    def test_redeem_reward_database_error(self, mock_db, client):
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.post(
+            "/api/v1/referral/rewards/redeem",
+            json={"reward_id": "premium_1week"},
+        )
+
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+
+    def test_redeem_reward_options_request(self, client):
+        resp = client.options("/api/v1/referral/rewards/redeem")
+        assert resp.status_code == 204
+
+
+# =========================================================================
+# Helper function tests
+# =========================================================================
 
 class TestHelperFunctions:
-    """Tests for helper functions"""
-    
-    def test_generate_referral_code(self):
-        """Test referral code generation"""
+    """Tests for module-level helper functions."""
+
+    def test_generate_referral_code_format(self):
         from src.routes.referral_routes import generate_referral_code
-        
+
         code = generate_referral_code("test1234")
-        
+
         assert len(code) == 8
-        assert code[:4] == "TEST"  # First 4 chars uppercased
-        assert code[4:].isupper()  # Last 4 chars are uppercase
-        assert code[4:].isalpha()  # Last 4 chars are letters
-    
-    def test_generate_referral_code_unique(self):
-        """Test that referral codes are unique"""
+        assert code[:4] == "TEST"  # first 4 of user_id uppercased
+        assert code[4:].isalpha()
+        assert code[4:].isupper()
+
+    def test_generate_referral_code_randomness(self):
         from src.routes.referral_routes import generate_referral_code
-        
-        codes = [generate_referral_code("user123") for _ in range(10)]
-        
-        # At least some should be unique (random component)
-        assert len(set(codes)) > 1
+
+        codes = {generate_referral_code("user123") for _ in range(20)}
+        # Random suffix -> at least some unique codes
+        assert len(codes) > 1

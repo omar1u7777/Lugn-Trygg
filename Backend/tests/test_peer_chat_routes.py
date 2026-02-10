@@ -1,12 +1,14 @@
 """Peer chat blueprint coverage for rooms, joining, and messaging."""
 
-import uuid
 from unittest.mock import MagicMock
 
 
 def test_get_rooms_includes_member_counts(client, mocker, mock_db):
-    mocker.patch('src.routes.peer_chat_routes._get_db', return_value=mock_db)
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
+
+    # The route queries peer_chat_presence per room via .where().where().stream()
     presence_collection = mock_db.collection('peer_chat_presence')
+    presence_collection.where.return_value = presence_collection
     presence_collection.stream.return_value = [MagicMock(), MagicMock()]
 
     response = client.get('/api/peer-chat/rooms')
@@ -14,20 +16,30 @@ def test_get_rooms_includes_member_counts(client, mocker, mock_db):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload['success'] is True
-    assert len(payload['rooms']) >= 1
-    assert all('member_count' in room for room in payload['rooms'])
+    rooms = payload['data']['rooms']
+    assert len(rooms) >= 1
+    assert all('memberCount' in room for room in rooms)
 
 
-def test_join_room_creates_presence_and_returns_history(client, mocker, mock_db):
-    mocker.patch('src.routes.peer_chat_routes._get_db', return_value=mock_db)
+def test_join_room_creates_presence_and_returns_session(client, mocker, mock_db):
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
     mocker.patch('src.routes.peer_chat_routes._generate_anonymous_name', return_value='AnonFriend')
     mocker.patch('src.routes.peer_chat_routes._generate_avatar', return_value='🌟')
-    mocker.patch('src.routes.peer_chat_routes.uuid.uuid4', return_value=uuid.UUID('11111111-2222-3333-4444-555555555555'))
 
+    import uuid as _uuid
+    fixed_uuid = _uuid.UUID('11111111-2222-3333-4444-555555555555')
+    mocker.patch('src.routes.peer_chat_routes.uuid.uuid4', return_value=fixed_uuid)
+
+    # Messages collection – route queries .where().order_by().limit().stream()
     messages_collection = mock_db.collection('peer_chat_messages')
+    messages_collection.where.return_value = messages_collection
+    messages_collection.order_by.return_value = messages_collection
+    messages_collection.limit.return_value = messages_collection
     messages_collection.stream.return_value = [
-        MagicMock(id='msg-1', to_dict=lambda: {'message': 'Hej', 'timestamp': '2025-01-01T00:00:00Z'})
+        MagicMock(id='msg-1', to_dict=lambda: {'message': 'Hej', 'timestamp': '2025-01-01T00:00:00Z'}),
     ]
+
+    # Presence document written on join
     presence_collection = mock_db.collection('peer_chat_presence')
     presence_doc = MagicMock()
     presence_collection.document.return_value = presence_doc
@@ -37,7 +49,7 @@ def test_join_room_creates_presence_and_returns_history(client, mocker, mock_db)
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
-    assert data['data']['session_id'].startswith('11111111')
+    assert data['data']['sessionId'].startswith('11111111')
     presence_doc.set.assert_called_once()
 
 
@@ -52,32 +64,41 @@ def test_send_message_requires_session_id(client):
 
 
 def test_send_message_rejects_unknown_session(client, mocker, mock_db):
-    mocker.patch('src.routes.peer_chat_routes._get_db', return_value=mock_db)
-    mocker.patch('src.routes.peer_chat_routes._moderate_message', return_value=(True, ''))
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
+
     presence_collection = mock_db.collection('peer_chat_presence')
-    presence_doc = MagicMock()
-    presence_doc.get.return_value = MagicMock(exists=False)
-    presence_collection.document.return_value = presence_doc
+    presence_doc_ref = MagicMock()
+    presence_doc_ref.get.return_value = MagicMock(exists=False)
+    presence_collection.document.return_value = presence_doc_ref
 
     response = client.post(
         '/api/peer-chat/room/anxiety/send',
         json={'session_id': 'missing', 'message': 'Hej'},
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
     assert 'Invalid session' in response.get_json()['message']
 
 
 def test_send_message_persists_payload(client, mocker, mock_db):
-    mocker.patch('src.routes.peer_chat_routes._get_db', return_value=mock_db)
-    mocker.patch('src.routes.peer_chat_routes._moderate_message', return_value=(True, ''))
-    mocker.patch('src.routes.peer_chat_routes.uuid.uuid4', return_value=uuid.UUID('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'))
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
 
+    import uuid as _uuid
+    mocker.patch(
+        'src.routes.peer_chat_routes.uuid.uuid4',
+        return_value=_uuid.UUID('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+    )
+
+    # Presence doc exists with identity data
     presence_collection = mock_db.collection('peer_chat_presence')
-    presence_doc = MagicMock()
-    presence_doc.get.return_value = MagicMock(exists=True, to_dict=lambda: {'anonymous_name': 'Anon', 'avatar': '🌟'})
-    presence_collection.document.return_value = presence_doc
+    presence_doc_ref = MagicMock()
+    presence_doc_ref.get.return_value = MagicMock(
+        exists=True,
+        to_dict=lambda: {'anonymous_name': 'Anon', 'avatar': '🌟'},
+    )
+    presence_collection.document.return_value = presence_doc_ref
 
+    # Messages collection – route writes the new message doc
     messages_collection = mock_db.collection('peer_chat_messages')
     message_doc = MagicMock()
     messages_collection.document.return_value = message_doc

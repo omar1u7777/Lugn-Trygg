@@ -20,7 +20,7 @@ class TestOAuthServiceInit:
         assert hasattr(service, 'fitbit_config')
         assert hasattr(service, 'samsung_config')
         assert hasattr(service, 'withings_config')
-        assert hasattr(service, 'oauth_states')
+        assert hasattr(service, '_memory_states')
     
     def test_init_google_fit_config_structure(self):
         """Test Google Fit configuration structure"""
@@ -66,9 +66,9 @@ class TestOAuthServiceInit:
         assert 'account.withings.com' in config['auth_url']
     
     def test_init_oauth_states_empty(self):
-        """Test that oauth_states starts empty"""
+        """Test that _memory_states starts empty"""
         service = OAuthService()
-        assert service.oauth_states == {}
+        assert service._memory_states == {}
 
 
 class TestGetAuthorizationUrl:
@@ -145,10 +145,10 @@ class TestGetAuthorizationUrl:
         result = service.get_authorization_url('google_fit', 'user123')
         state = result['state']
         
-        assert state in service.oauth_states
-        assert service.oauth_states[state]['user_id'] == 'user123'
-        assert service.oauth_states[state]['provider'] == 'google_fit'
-        assert 'created_at' in service.oauth_states[state]
+        assert service._get_state(state) is not None
+        assert service._get_state(state)['user_id'] == 'user123'
+        assert service._get_state(state)['provider'] == 'google_fit'
+        assert 'created_at' in service._get_state(state)
     
     def test_get_authorization_url_unsupported_provider(self, service):
         """Test error handling for unsupported provider"""
@@ -166,19 +166,6 @@ class TestGetAuthorizationUrl:
 
 
 class TestExchangeCodeForToken:
-    def test_exchange_code_for_token_unsupported_provider(self, service):
-        """Test error handling for unsupported provider (line 145 coverage)"""
-        # Setup state with a provider that is not supported by config
-        unsupported_provider = 'not_supported'
-        state = 'unsupported_state'
-        service.oauth_states[state] = {
-            'user_id': 'user999',
-            'provider': unsupported_provider,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
-        # Call with the same unsupported provider
-        with pytest.raises(ValueError, match="Unsupported provider"):
-            service.exchange_code_for_token(unsupported_provider, 'code', state)
     """Test exchange_code_for_token method"""
     
     @pytest.fixture
@@ -196,16 +183,30 @@ class TestExchangeCodeForToken:
         
         return service
     
+    def test_exchange_code_for_token_unsupported_provider(self, service):
+        """Test error handling for unsupported provider (line 145 coverage)"""
+        # Setup state with a provider that is not supported by config
+        unsupported_provider = 'not_supported'
+        state = 'unsupported_state'
+        service._set_state(state, {
+            'user_id': 'user999',
+            'provider': unsupported_provider,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        })
+        # Call with the same unsupported provider
+        with pytest.raises(ValueError, match="Unsupported provider"):
+            service.exchange_code_for_token(unsupported_provider, 'code', state)
+    
     @patch('src.services.oauth_service.requests.post')
     def test_exchange_code_for_token_success(self, mock_post, service):
         """Test successful token exchange"""
         # Setup state
         state = 'test_state_123'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user123',
             'provider': 'google_fit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         # Mock successful response
         mock_response = Mock()
@@ -227,7 +228,7 @@ class TestExchangeCodeForToken:
         assert 'obtained_at' in result
         
         # State should be cleaned up
-        assert state not in service.oauth_states
+        assert service._get_state(state) is None
     
     def test_exchange_code_for_token_invalid_state(self, service):
         """Test error handling for invalid state"""
@@ -237,11 +238,11 @@ class TestExchangeCodeForToken:
     def test_exchange_code_for_token_provider_mismatch(self, service):
         """Test error handling for provider mismatch"""
         state = 'test_state_456'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user123',
             'provider': 'fitbit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         with pytest.raises(ValueError, match="Provider mismatch"):
             service.exchange_code_for_token('google_fit', 'code', state)
@@ -250,11 +251,11 @@ class TestExchangeCodeForToken:
     def test_exchange_code_for_token_api_error(self, mock_post, service):
         """Test error handling for API errors"""
         state = 'test_state_789'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user123',
             'provider': 'google_fit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         mock_response = Mock()
         mock_response.status_code = 400
@@ -268,11 +269,11 @@ class TestExchangeCodeForToken:
     def test_exchange_code_for_token_fitbit(self, mock_post, service):
         """Test token exchange for Fitbit"""
         state = 'fitbit_state'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user456',
             'provider': 'fitbit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         mock_response = Mock()
         mock_response.status_code = 200
@@ -530,8 +531,8 @@ class TestSingletonInstance:
     def test_singleton_instance_is_ready(self):
         """Test that singleton instance is properly initialized"""
         assert hasattr(oauth_service, 'google_fit_config')
-        assert hasattr(oauth_service, 'oauth_states')
-        assert oauth_service.oauth_states == {}
+        assert hasattr(oauth_service, '_memory_states')
+        assert oauth_service._memory_states == {}
 
 
 class TestEdgeCases:
@@ -548,7 +549,7 @@ class TestEdgeCases:
         
         # Should still work, empty string is a valid user_id
         assert 'authorization_url' in result
-        assert service.oauth_states[result['state']]['user_id'] == ''
+        assert service._get_state(result['state'])['user_id'] == ''
     
     def test_multiple_states_can_coexist(self, service):
         """Test that multiple OAuth states can exist simultaneously"""
@@ -556,18 +557,18 @@ class TestEdgeCases:
         result2 = service.get_authorization_url('fitbit', 'user2')
         result3 = service.get_authorization_url('samsung', 'user3')
         
-        assert len(service.oauth_states) == 3
+        assert len(service._memory_states) == 3
         assert result1['state'] != result2['state'] != result3['state']
     
     @patch('src.services.oauth_service.requests.post')
     def test_token_exchange_cleans_up_state_on_success(self, mock_post, service):
         """Test that state is cleaned up after successful token exchange"""
         state = 'cleanup_test'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user123',
             'provider': 'google_fit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         mock_response = Mock()
         mock_response.status_code = 200
@@ -576,17 +577,17 @@ class TestEdgeCases:
         
         service.exchange_code_for_token('google_fit', 'code', state)
         
-        assert state not in service.oauth_states
+        assert service._get_state(state) is None
     
     @patch('src.services.oauth_service.requests.post')
     def test_token_exchange_preserves_state_on_error(self, mock_post, service):
         """Test that state is preserved when token exchange fails"""
         state = 'error_test'
-        service.oauth_states[state] = {
+        service._set_state(state, {
             'user_id': 'user123',
             'provider': 'google_fit',
             'created_at': datetime.now(timezone.utc).isoformat()
-        }
+        })
         
         mock_response = Mock()
         mock_response.status_code = 400
@@ -597,4 +598,4 @@ class TestEdgeCases:
             service.exchange_code_for_token('google_fit', 'code', state)
         
         # State should still exist after error
-        assert state in service.oauth_states
+        assert service._get_state(state) is not None

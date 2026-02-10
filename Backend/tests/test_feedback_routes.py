@@ -1,681 +1,699 @@
 """
 Comprehensive tests for feedback_routes.py
-Tests feedback submission, listing, and statistics
+Tests feedback submission, listing, statistics, and user feedback history.
 
-NOTE: Uses client fixture from conftest.py which properly mocks Firebase
+NOTE: Uses client fixture from conftest.py which properly mocks Firebase.
+Blueprint registered at /api/v1/feedback in main.py.
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 
-# Removed local client fixture - use the one from conftest.py instead
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+BASE = "/api/v1/feedback"
+
+# Must be 20-128 alphanumeric chars to satisfy USER_ID_PATTERN
+VALID_USER_ID = "a" * 20
 
 
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 @pytest.fixture
 def mock_email():
-    """Mock EmailService"""
-    with patch('src.routes.feedback_routes.email_service') as mock:
+    """Mock EmailService used inside feedback_routes."""
+    with patch("src.routes.feedback_routes.email_service") as mock:
         yield mock
 
 
+@pytest.fixture
+def mock_field_filter(mocker):
+    """Mock FieldFilter so that google.cloud.firestore imports succeed."""
+    mocker.patch(
+        "google.cloud.firestore.FieldFilter",
+        side_effect=lambda *args, **kwargs: MagicMock(),
+    )
+
+
+def _make_admin_user_mock():
+    """Return a mock user doc that passes the admin check."""
+    doc = MagicMock()
+    doc.exists = True
+    doc.to_dict.return_value = {
+        "role": "admin",
+        "email": "admin@example.com",
+        "name": "Admin User",
+        "feedback_submissions": 0,
+    }
+    return doc
+
+
+def _make_regular_user_mock(extra=None):
+    """Return a mock user doc for a non-admin user."""
+    data = {
+        "email": "user@example.com",
+        "name": "Test User",
+        "feedback_submissions": 5,
+    }
+    if extra:
+        data.update(extra)
+    doc = MagicMock()
+    doc.exists = True
+    doc.to_dict.return_value = data
+    return doc
+
+
+# ===================================================================
+# /submit  (POST - public, no jwt_required)
+# ===================================================================
 class TestSubmitFeedback:
-    """Tests for POST /submit - Submit feedback"""
+    """Tests for POST /api/v1/feedback/submit"""
 
     def test_submit_feedback_success(self, mock_db, mock_email, client):
-        """Test successful feedback submission"""
-        # Mock feedback document
-        mock_feedback_ref = Mock()
+        """Successful submission stores feedback and returns feedbackId."""
+        mock_feedback_ref = MagicMock()
         mock_feedback_ref.id = "feedback123"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        # Mock user document
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "name": "Test User",
-            "feedback_submissions": 5
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 5,
-                                  "category": "feature",
-                                  "message": "Great app!",
-                                  "allow_contact": True
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["success"] is True
-        assert data["data"]["feedbackId"] == "feedback123"
-        assert "message" in data
-        
-        # Verify feedback was created
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={
+                "user_id": VALID_USER_ID,
+                "rating": 5,
+                "category": "feature",
+                "message": "Great app!",
+                "allow_contact": True,
+            },
+            content_type="application/json",
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["feedbackId"] == "feedback123"
+
+        # Verify feedback document was stored
         mock_feedback_ref.set.assert_called_once()
-        feedback_data = mock_feedback_ref.set.call_args[0][0]
-        assert feedback_data["user_id"] == "test123"
-        assert feedback_data["rating"] == 5
-        assert feedback_data["category"] == "feature"
-        assert feedback_data["message"] == "Great app!"
-        assert feedback_data["status"] == "pending"
+        stored = mock_feedback_ref.set.call_args[0][0]
+        assert stored["user_id"] == VALID_USER_ID
+        assert stored["rating"] == 5
+        assert stored["status"] == "pending"
 
     def test_submit_feedback_with_feature_request(self, mock_db, mock_email, client):
-        """Test feedback with feature request"""
-        mock_feedback_ref = Mock()
-        mock_feedback_ref.id = "feedback_feature"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "name": "User",
-            "feedback_submissions": 0
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+        mock_feedback_ref = MagicMock()
+        mock_feedback_ref.id = "fb_feat"
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 4,
-                                  "category": "feature",
-                                  "feature_request": "Add dark mode please"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        feedback_data = mock_feedback_ref.set.call_args[0][0]
-        assert feedback_data["feature_request"] == "Add dark mode please"
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={
+                "user_id": VALID_USER_ID,
+                "rating": 4,
+                "category": "feature",
+                "feature_request": "Add dark mode please",
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        stored = mock_feedback_ref.set.call_args[0][0]
+        assert stored["feature_request"] == "Add dark mode please"
 
     def test_submit_feedback_with_bug_report(self, mock_db, mock_email, client):
-        """Test feedback with bug report"""
-        mock_feedback_ref = Mock()
-        mock_feedback_ref.id = "feedback_bug"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "feedback_submissions": 0
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+        mock_feedback_ref = MagicMock()
+        mock_feedback_ref.id = "fb_bug"
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 3,
-                                  "category": "bug",
-                                  "bug_report": "App crashes on startup"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        feedback_data = mock_feedback_ref.set.call_args[0][0]
-        assert feedback_data["bug_report"] == "App crashes on startup"
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={
+                "user_id": VALID_USER_ID,
+                "rating": 3,
+                "category": "bug",
+                "bug_report": "App crashes on startup",
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        stored = mock_feedback_ref.set.call_args[0][0]
+        assert stored["bug_report"] == "App crashes on startup"
 
     def test_submit_feedback_missing_user_id(self, client):
-        """Test submit without user_id"""
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "rating": 5,
-                                  "message": "Great!"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "user_id" in data["message"].lower()
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"rating": 5, "message": "Great!"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
+        assert "user_id" in body["message"].lower()
 
-    def test_submit_feedback_invalid_rating(self, client):
-        """Test submit with invalid rating"""
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 6,
-                                  "message": "Test"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "rating" in data["message"].lower()
+    def test_submit_feedback_invalid_user_id_format(self, client):
+        """user_id shorter than 20 chars should be rejected."""
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": "short", "rating": 5, "message": "Hi"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert body["success"] is False
 
-    def test_submit_feedback_rating_too_low(self, client):
-        """Test submit with rating below 1"""
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 0,
-                                  "message": "Bad"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 400
+    def test_submit_feedback_invalid_rating_too_high(self, client):
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 6, "message": "Test"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert "rating" in body["message"].lower()
+
+    def test_submit_feedback_invalid_rating_too_low(self, client):
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 0, "message": "Bad"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
 
     def test_submit_feedback_no_content(self, client):
-        """Test submit without message/feature/bug"""
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 3
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "feedback" in data["message"].lower()
+        """Missing message, feature_request, and bug_report -> 400."""
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 3},
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+        body = resp.get_json()
+        assert "feedback" in body["message"].lower()
 
-    def test_submit_feedback_email_confirmation(self, mock_db, mock_email, client):
-        """Test that confirmation email is sent when allowed"""
-        mock_feedback_ref = Mock()
+    def test_submit_feedback_email_confirmation_sent(self, mock_db, mock_email, client):
+        """Confirmation email sent when allow_contact is True and user has email."""
+        mock_feedback_ref = MagicMock()
         mock_feedback_ref.id = "fb_email"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "name": "Test User",
-            "feedback_submissions": 0
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
-            if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 5,
-                                  "message": "Great!",
-                                  "allow_contact": True
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        
-        # Verify confirmation email was sent
-        mock_email.send_feedback_confirmation.assert_called_once()
-        assert mock_email.send_feedback_confirmation.call_args[1]["to_email"] == "user@example.com"
 
-    def test_submit_feedback_admin_notification(self, mock_db, mock_email, client):
-        """Test that admin notification is always sent"""
-        mock_feedback_ref = Mock()
-        mock_feedback_ref.id = "fb_admin"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "name": "User",
-            "feedback_submissions": 0
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 3,
-                                  "message": "Feedback"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        
-        # Verify admin email was sent
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={
+                "user_id": VALID_USER_ID,
+                "rating": 5,
+                "message": "Great!",
+                "allow_contact": True,
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        mock_email.send_feedback_confirmation.assert_called_once()
+        assert (
+            mock_email.send_feedback_confirmation.call_args[1]["to_email"]
+            == "user@example.com"
+        )
+
+    def test_submit_feedback_admin_notification_sent(self, mock_db, mock_email, client):
+        """Admin notification email is always sent."""
+        mock_feedback_ref = MagicMock()
+        mock_feedback_ref.id = "fb_admin"
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
+            if name == "feedback":
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={
+                "user_id": VALID_USER_ID,
+                "rating": 3,
+                "message": "Feedback",
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
         mock_email.send_feedback_admin_notification.assert_called_once()
 
-    def test_submit_feedback_email_failure_doesnt_break(self, mock_db, mock_email, client):
-        """Test that email failure doesn't break feedback submission"""
-        mock_feedback_ref = Mock()
+    def test_submit_feedback_email_failure_does_not_break(
+        self, mock_db, mock_email, client
+    ):
+        """Email errors are swallowed - submission still succeeds."""
+        mock_feedback_ref = MagicMock()
         mock_feedback_ref.id = "fb_fail"
-        mock_db.collection.return_value.document.return_value = mock_feedback_ref
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "feedback_submissions": 0
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock()
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        # Make email service fail
-        mock_email.send_feedback_admin_notification.side_effect = Exception("Email error")
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 4,
-                                  "message": "Test"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        # Should still succeed
-        assert response.status_code == 200
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
 
-    def test_submit_feedback_options_request(self, client):
-        """Test OPTIONS request for CORS"""
-        response = client.options('/api/feedback/submit')
-        
-        assert response.status_code == 204
+        mock_db.collection.side_effect = col
+        mock_email.send_feedback_admin_notification.side_effect = Exception("SMTP down")
 
-    def test_submit_feedback_database_error(self, mock_db, client):
-        """Test feedback with database error"""
-        mock_db.collection.side_effect = Exception("Database error")
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 5,
-                                  "message": "Test"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 500
-        data = response.get_json()
-        assert "error" in data
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 4, "message": "Test"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
 
     def test_submit_feedback_updates_user_stats(self, mock_db, mock_email, client):
-        """Test that user feedback count is incremented"""
-        mock_feedback_ref = Mock()
+        """User's feedback_submissions counter is incremented."""
+        mock_feedback_ref = MagicMock()
         mock_feedback_ref.id = "fb_stats"
-        
-        mock_user_doc = Mock()
-        mock_user_doc.exists = True
-        mock_user_doc.to_dict.return_value = {
-            "email": "user@example.com",
-            "feedback_submissions": 10
-        }
-        mock_user_ref = Mock()
-        mock_user_ref.get.return_value = mock_user_doc
-        
-        def collection_side_effect(name):
+
+        mock_user_ref = MagicMock()
+        mock_user_ref.get.return_value = _make_regular_user_mock(
+            {"feedback_submissions": 10}
+        )
+
+        def col(name):
             if name == "feedback":
-                return Mock(document=Mock(return_value=mock_feedback_ref))
-            elif name == "users":
-                return Mock(document=Mock(return_value=mock_user_ref))
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.post('/api/feedback/submit',
-                              json={
-                                  "user_id": "test123",
-                                  "rating": 5,
-                                  "message": "Test"
-                              },
-                              headers={"Content-Type": "application/json"})
-        
-        assert response.status_code == 200
-        
-        # Verify user was updated with new count
+                c = MagicMock()
+                c.document.return_value = mock_feedback_ref
+                return c
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = mock_user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 5, "message": "Test"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
         mock_user_ref.update.assert_called_once()
         update_data = mock_user_ref.update.call_args[0][0]
         assert update_data["feedback_submissions"] == 11
 
+    def test_submit_feedback_options_request(self, client):
+        """OPTIONS preflight returns 204 (handled by before_request)."""
+        resp = client.options(f"{BASE}/submit")
+        assert resp.status_code == 204
 
+    def test_submit_feedback_database_error(self, mock_db, client):
+        """Database error -> 500 with error envelope."""
+        mock_db.collection.side_effect = Exception("Database error")
+
+        resp = client.post(
+            f"{BASE}/submit",
+            json={"user_id": VALID_USER_ID, "rating": 5, "message": "Test"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 500
+        body = resp.get_json()
+        assert body["success"] is False
+
+
+# ===================================================================
+# /list  (GET - admin only, jwt_required)
+# ===================================================================
 class TestListFeedback:
-    """Tests for GET /list - List all feedback (admin)"""
+    """Tests for GET /api/v1/feedback/list (admin only)"""
 
-    def test_list_feedback_all(self, mock_db, client):
-        """Test listing all feedback"""
-        # Mock feedback documents
-        mock_doc1 = Mock()
-        mock_doc1.id = "fb1"
-        mock_doc1.to_dict.return_value = {
+    def _setup_admin_and_feedback(self, mock_db, feedback_docs):
+        """Helper: mock admin user check + feedback collection query chain."""
+        admin_doc = _make_admin_user_mock()
+
+        # Build fluent query chain: collection -> order_by -> [where] -> limit -> stream
+        mock_fb_col = MagicMock()
+        chain = MagicMock()
+        chain.limit.return_value = chain
+        chain.where.return_value = chain
+        chain.stream.return_value = feedback_docs
+        mock_fb_col.order_by.return_value = chain
+
+        admin_ref = MagicMock()
+        admin_ref.get.return_value = admin_doc
+
+        def col(name):
+            if name == "feedback":
+                return mock_fb_col
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = admin_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+    def test_list_feedback_success(self, mock_db, mock_field_filter, client):
+        doc1 = MagicMock(id="fb1")
+        doc1.to_dict.return_value = {
             "user_id": "user1",
             "rating": 5,
             "category": "feature",
-            "message": "Great!"
+            "message": "Great!",
+            "status": "pending",
         }
-        
-        mock_doc2 = Mock()
-        mock_doc2.id = "fb2"
-        mock_doc2.to_dict.return_value = {
+        doc2 = MagicMock(id="fb2")
+        doc2.to_dict.return_value = {
             "user_id": "user2",
             "rating": 3,
             "category": "bug",
-            "message": "Issue found"
-        }
-        
-        # Setup the full mock chain for feedback collection
-        mock_collection = Mock()
-        mock_order_by = Mock()
-        mock_limit = Mock()
-        mock_limit.stream.return_value = [mock_doc1, mock_doc2]
-        mock_order_by.limit.return_value = mock_limit
-        mock_collection.order_by.return_value = mock_order_by
-        
-        # Mock collection to return our specific mock for "feedback"
-        def collection_side_effect(name):
-            if name == "feedback":
-                return mock_collection
-            # Return default mock for other collections
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/list')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 2
-        assert len(data["data"]["feedback"]) == 2
-        assert data["data"]["feedback"][0]["id"] == "fb1"
-        assert data["data"]["feedback"][1]["id"] == "fb2"
-
-    def test_list_feedback_by_status(self, mock_db, client):
-        """Test filtering by status"""
-        mock_doc = Mock()
-        mock_doc.id = "fb_pending"
-        mock_doc.to_dict.return_value = {
+            "message": "Issue",
             "status": "pending",
-            "rating": 4
         }
-        
-        # Setup the full mock chain
-        mock_collection = Mock()
-        mock_order_by = Mock()
-        mock_where = Mock()
-        mock_limit = Mock()
-        mock_limit.stream.return_value = [mock_doc]
-        mock_where.limit.return_value = mock_limit
-        mock_order_by.where.return_value = mock_where
-        mock_collection.order_by.return_value = mock_order_by
-        
-        def collection_side_effect(name):
-            if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/list?status=pending')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 1
+        self._setup_admin_and_feedback(mock_db, [doc1, doc2])
 
-    def test_list_feedback_by_category(self, mock_db, client):
-        """Test filtering by category"""
-        mock_doc = Mock()
-        mock_doc.id = "fb_bug"
-        mock_doc.to_dict.return_value = {
-            "category": "bug",
-            "rating": 2
-        }
-        
-        # Setup the full mock chain
-        mock_collection = Mock()
-        mock_order_by = Mock()
-        mock_where = Mock()
-        mock_limit = Mock()
-        mock_limit.stream.return_value = [mock_doc]
-        mock_where.limit.return_value = mock_limit
-        mock_order_by.where.return_value = mock_where
-        mock_collection.order_by.return_value = mock_order_by
-        
-        def collection_side_effect(name):
-            if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/list?category=bug')
-        
-        assert response.status_code == 200
+        resp = client.get(f"{BASE}/list")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["count"] == 2
+        assert len(body["data"]["feedback"]) == 2
+        assert body["data"]["feedback"][0]["id"] == "fb1"
 
-    def test_list_feedback_with_limit(self, mock_db, client):
-        """Test custom limit"""
-        mock_docs = [Mock(id=f"fb{i}", to_dict=Mock(return_value={"rating": 5})) for i in range(10)]
-        
-        # Setup the full mock chain
-        mock_collection = Mock()
-        mock_order_by = Mock()
-        mock_limit = Mock()
-        mock_limit.stream.return_value = mock_docs
-        mock_order_by.limit.return_value = mock_limit
-        mock_collection.order_by.return_value = mock_order_by
-        
-        def collection_side_effect(name):
-            if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/list?limit=10')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 10
+    def test_list_feedback_empty(self, mock_db, mock_field_filter, client):
+        self._setup_admin_and_feedback(mock_db, [])
 
-    def test_list_feedback_empty(self, mock_db, client):
-        """Test listing when no feedback exists"""
-        # Setup the full mock chain
-        mock_collection = Mock()
-        mock_order_by = Mock()
-        mock_limit = Mock()
-        mock_limit.stream.return_value = []
-        mock_order_by.limit.return_value = mock_limit
-        mock_collection.order_by.return_value = mock_order_by
-        
-        def collection_side_effect(name):
-            if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/list')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 0
-        assert data["data"]["feedback"] == []
+        resp = client.get(f"{BASE}/list")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["count"] == 0
+        assert body["data"]["feedback"] == []
+
+    def test_list_feedback_filter_by_status(self, mock_db, mock_field_filter, client):
+        doc = MagicMock(id="fb_pending")
+        doc.to_dict.return_value = {"status": "pending", "rating": 4}
+        self._setup_admin_and_feedback(mock_db, [doc])
+
+        resp = client.get(f"{BASE}/list?status=pending")
+        assert resp.status_code == 200
+        assert resp.get_json()["data"]["count"] == 1
+
+    def test_list_feedback_filter_by_category(self, mock_db, mock_field_filter, client):
+        doc = MagicMock(id="fb_bug")
+        doc.to_dict.return_value = {"category": "bug", "rating": 2}
+        self._setup_admin_and_feedback(mock_db, [doc])
+
+        resp = client.get(f"{BASE}/list?category=bug")
+        assert resp.status_code == 200
+
+    def test_list_feedback_with_limit(self, mock_db, mock_field_filter, client):
+        docs = [MagicMock(id=f"fb{i}") for i in range(10)]
+        for d in docs:
+            d.to_dict.return_value = {"rating": 5}
+        self._setup_admin_and_feedback(mock_db, docs)
+
+        resp = client.get(f"{BASE}/list?limit=10")
+        assert resp.status_code == 200
+        assert resp.get_json()["data"]["count"] == 10
+
+    def test_list_feedback_non_admin_forbidden(self, mock_db, mock_field_filter, client):
+        """Non-admin user gets 403."""
+        user_doc = MagicMock()
+        user_doc.exists = True
+        user_doc.to_dict.return_value = {"role": "user"}
+
+        user_ref = MagicMock()
+        user_ref.get.return_value = user_doc
+
+        def col(name):
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.get(f"{BASE}/list")
+        assert resp.status_code == 403
+        assert resp.get_json()["success"] is False
+
+    def test_list_feedback_user_not_found(self, mock_db, mock_field_filter, client):
+        """User doc not found -> 404."""
+        user_doc = MagicMock()
+        user_doc.exists = False
+
+        user_ref = MagicMock()
+        user_ref.get.return_value = user_doc
+
+        def col(name):
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.get(f"{BASE}/list")
+        assert resp.status_code == 404
 
     def test_list_feedback_database_error(self, mock_db, client):
-        """Test list with database error"""
         mock_db.collection.side_effect = Exception("DB error")
-        
-        response = client.get('/api/feedback/list')
-        
-        assert response.status_code == 500
+        resp = client.get(f"{BASE}/list")
+        assert resp.status_code == 500
+
+    def test_list_feedback_options(self, client):
+        resp = client.options(f"{BASE}/list")
+        assert resp.status_code == 204
 
 
+# ===================================================================
+# /stats  (GET - admin only, jwt_required)
+# ===================================================================
 class TestFeedbackStats:
-    """Tests for GET /stats - Get feedback statistics"""
+    """Tests for GET /api/v1/feedback/stats (admin only)"""
 
-    def test_feedback_stats_success(self, mock_db, client):
-        """Test getting feedback stats"""
-        # Mock feedback documents with various ratings and categories
-        mock_doc1 = Mock()
-        mock_doc1.to_dict.return_value = {
-            "rating": 5,
-            "category": "feature"
-        }
-        
-        mock_doc2 = Mock()
-        mock_doc2.to_dict.return_value = {
-            "rating": 4,
-            "category": "bug"
-        }
-        
-        mock_doc3 = Mock()
-        mock_doc3.to_dict.return_value = {
-            "rating": 5,
-            "category": "feature"
-        }
-        
-        # Setup mock collection for feedback
-        mock_collection = Mock()
-        mock_collection.stream.return_value = [mock_doc1, mock_doc2, mock_doc3]
-        
-        def collection_side_effect(name):
+    def _setup_admin_and_stats(self, mock_db, feedback_docs):
+        """Mock admin user + feedback collection (where -> stream)."""
+        admin_doc = _make_admin_user_mock()
+        admin_ref = MagicMock()
+        admin_ref.get.return_value = admin_doc
+
+        fb_col = MagicMock()
+        chain = MagicMock()
+        chain.stream.return_value = feedback_docs
+        fb_col.where.return_value = chain
+
+        def col(name):
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = admin_ref
+                return c
             if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/stats')
-        
-        # May return 200 or 500 depending on mock setup
-        assert response.status_code in [200, 500]
-        if response.status_code == 200:
-            data = response.get_json()
-            assert "totalFeedback" in data["data"]
+                return fb_col
+            return MagicMock()
 
-    def test_feedback_stats_empty(self, mock_db, client):
-        """Test stats with no feedback"""
-        mock_db.collection.return_value.stream.return_value = []
-        
-        response = client.get('/api/feedback/stats')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["totalFeedback"] == 0
-        assert data["data"]["averageRating"] == 0
-        assert data["data"]["categories"] == {}
+        mock_db.collection.side_effect = col
+
+    def test_feedback_stats_success(self, mock_db, mock_field_filter, client):
+        docs = []
+        for rating, cat in [(5, "feature"), (4, "bug"), (5, "feature")]:
+            d = MagicMock()
+            d.to_dict.return_value = {"rating": rating, "category": cat}
+            docs.append(d)
+
+        self._setup_admin_and_stats(mock_db, docs)
+
+        resp = client.get(f"{BASE}/stats")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["totalFeedback"] == 3
+        assert body["data"]["averageRating"] == round((5 + 4 + 5) / 3, 2)
+        assert body["data"]["categories"]["feature"] == 2
+        assert body["data"]["categories"]["bug"] == 1
+
+    def test_feedback_stats_empty(self, mock_db, mock_field_filter, client):
+        self._setup_admin_and_stats(mock_db, [])
+
+        resp = client.get(f"{BASE}/stats")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["totalFeedback"] == 0
+        assert body["data"]["averageRating"] == 0
+        assert body["data"]["categories"] == {}
+
+    def test_feedback_stats_custom_days(self, mock_db, mock_field_filter, client):
+        self._setup_admin_and_stats(mock_db, [])
+        resp = client.get(f"{BASE}/stats?days=7")
+        assert resp.status_code == 200
+        assert resp.get_json()["data"]["dateRangeDays"] == 7
+
+    def test_feedback_stats_non_admin_forbidden(
+        self, mock_db, mock_field_filter, client
+    ):
+        user_doc = MagicMock()
+        user_doc.exists = True
+        user_doc.to_dict.return_value = {"role": "user"}
+        user_ref = MagicMock()
+        user_ref.get.return_value = user_doc
+
+        def col(name):
+            if name == "users":
+                c = MagicMock()
+                c.document.return_value = user_ref
+                return c
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.get(f"{BASE}/stats")
+        assert resp.status_code == 403
 
     def test_feedback_stats_database_error(self, mock_db, client):
-        """Test stats with database error"""
         mock_db.collection.side_effect = Exception("DB error")
-        
-        response = client.get('/api/feedback/stats')
-        
-        assert response.status_code == 500
+        resp = client.get(f"{BASE}/stats")
+        assert resp.status_code == 500
+
+    def test_feedback_stats_options(self, client):
+        resp = client.options(f"{BASE}/stats")
+        assert resp.status_code == 204
 
 
+# ===================================================================
+# /my-feedback  (GET - jwt_required, uses g.user_id)
+# ===================================================================
 class TestGetUserFeedback:
-    """Tests for GET /my-feedback - Get user's feedback history"""
+    """Tests for GET /api/v1/feedback/my-feedback"""
 
-    @patch('src.routes.feedback_routes.db')
-    def test_get_user_feedback_success(self, mock_db, client):
-        """Test getting user's feedback"""
-        mock_doc1 = Mock()
-        mock_doc1.id = "fb1"
-        mock_doc1.to_dict.return_value = {
-            "user_id": "test123",
+    def test_get_user_feedback_success(self, mock_db, mock_field_filter, client):
+        doc1 = MagicMock(id="fb1")
+        doc1.to_dict.return_value = {
+            "user_id": "test-user-id",
             "rating": 5,
-            "message": "Great!"
+            "message": "Great!",
+            "created_at": "2026-01-02T00:00:00",
         }
-        
-        mock_doc2 = Mock()
-        mock_doc2.id = "fb2"
-        mock_doc2.to_dict.return_value = {
-            "user_id": "test123",
+        doc2 = MagicMock(id="fb2")
+        doc2.to_dict.return_value = {
+            "user_id": "test-user-id",
             "rating": 4,
-            "message": "Good"
+            "message": "Good",
+            "created_at": "2026-01-01T00:00:00",
         }
-        
-        # Setup the full mock chain
-        mock_collection = Mock()
-        mock_where = Mock()
-        mock_where.stream.return_value = [mock_doc1, mock_doc2]
-        mock_collection.where.return_value = mock_where
-        
-        def collection_side_effect(name):
+
+        fb_col = MagicMock()
+        chain = MagicMock()
+        chain.stream.return_value = [doc1, doc2]
+        fb_col.where.return_value = chain
+
+        def col(name):
             if name == "feedback":
-                return mock_collection
-            return Mock()
-        
-        mock_db.collection.side_effect = collection_side_effect
-        
-        response = client.get('/api/feedback/my-feedback?user_id=test123')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 2
-        assert len(data["data"]["feedback"]) == 2
+                return fb_col
+            return MagicMock()
 
-    def test_get_user_feedback_missing_user_id(self, client):
-        """Test without user_id"""
-        response = client.get('/api/feedback/my-feedback')
-        
-        assert response.status_code == 400
-        data = response.get_json()
-        assert "user_id" in data["message"].lower()
+        mock_db.collection.side_effect = col
 
-    def test_get_user_feedback_no_feedback(self, mock_db, client):
-        """Test when user has no feedback"""
-        mock_query = Mock()
-        mock_where = Mock()
-        mock_order = Mock()
-        mock_order.stream.return_value = []
-        mock_where.order_by.return_value = mock_order
-        mock_query.where.return_value = mock_where
-        mock_db.collection.return_value = mock_query
-        
-        response = client.get('/api/feedback/my-feedback?user_id=newuser')
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["data"]["count"] == 0
-        assert data["data"]["feedback"] == []
+        resp = client.get(f"{BASE}/my-feedback")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["data"]["count"] == 2
+        assert len(body["data"]["feedback"]) == 2
+
+    def test_get_user_feedback_empty(self, mock_db, mock_field_filter, client):
+        fb_col = MagicMock()
+        chain = MagicMock()
+        chain.stream.return_value = []
+        fb_col.where.return_value = chain
+
+        def col(name):
+            if name == "feedback":
+                return fb_col
+            return MagicMock()
+
+        mock_db.collection.side_effect = col
+
+        resp = client.get(f"{BASE}/my-feedback")
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["count"] == 0
+        assert body["data"]["feedback"] == []
 
     def test_get_user_feedback_database_error(self, mock_db, client):
-        """Test with database error"""
         mock_db.collection.side_effect = Exception("DB error")
-        
-        response = client.get('/api/feedback/my-feedback?user_id=test123')
-        
-        assert response.status_code == 500
+        resp = client.get(f"{BASE}/my-feedback")
+        assert resp.status_code == 500
+
+    def test_get_user_feedback_options(self, client):
+        resp = client.options(f"{BASE}/my-feedback")
+        assert resp.status_code == 204
