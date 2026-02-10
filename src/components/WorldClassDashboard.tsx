@@ -37,9 +37,6 @@ import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
 import { formatNumber } from '../utils/intlFormatters';
 
-// Styles
-import '../styles/world-class-design.css';
-
 interface WorldClassDashboardProps {
   userId?: string;
 }

@@ -18,7 +18,6 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { analytics } from '../services/analytics';
 import { getMoods, getWeeklyAnalysis } from '../api/api';
 import useAuth from '../hooks/useAuth';
-import '../styles/world-class-design.css';
 import { Button, Alert, Card } from './ui/tailwind';
 import { colors } from '../theme/tokens';
 import { logger } from '../utils/logger';
