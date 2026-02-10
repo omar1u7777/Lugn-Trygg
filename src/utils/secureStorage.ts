@@ -14,12 +14,20 @@
 
 import { getEncryptionKey } from '../config/env';
 import AES from 'crypto-js/aes';
-import Utf8 from 'crypto-js/enc-utf8';import { logger } from './logger';
+import Utf8 from 'crypto-js/enc-utf8';
+import { logger } from './logger';
 
 
 // Cache for crypto key to avoid regenerating on every operation
 let cachedCryptoKey: CryptoKey | null = null;
-const FALLBACK_SECRET = getEncryptionKey();
+// Lazy – evaluated on first use so that module loading never throws
+let _fallbackSecret: string | null = null;
+const getFallbackSecret = (): string => {
+  if (!_fallbackSecret) {
+    _fallbackSecret = getEncryptionKey();
+  }
+  return _fallbackSecret;
+};
 let hasLoggedFallbackWarning = false;
 
 /**
@@ -118,7 +126,7 @@ async function decrypt(encryptedData: string): Promise<string> {
  */
 function fallbackEncrypt(data: string): string {
   try {
-    return AES.encrypt(data, FALLBACK_SECRET).toString();
+    return AES.encrypt(data, getFallbackSecret()).toString();
   } catch (error) {
     logger.error('❌ Fallback encryption failed:', error);
     throw new Error('Failed to encrypt fallback data');
@@ -127,7 +135,7 @@ function fallbackEncrypt(data: string): string {
 
 function fallbackDecrypt(payload: string): string {
   try {
-    const bytes = AES.decrypt(payload, FALLBACK_SECRET);
+    const bytes = AES.decrypt(payload, getFallbackSecret());
     const decrypted = bytes.toString(Utf8);
     if (!decrypted) {
       throw new Error('Empty fallback payload');
