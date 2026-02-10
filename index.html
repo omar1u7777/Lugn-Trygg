@@ -19,7 +19,6 @@
     :root {
       color-scheme: light;
       font-family: "Manrope", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background-color: #fff7f0;
     }
 
     *, *::before, *::after {
@@ -29,9 +28,19 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: linear-gradient(180deg, #fff7f0 0%, #fffaf5 100%);
+      /* Background is set by Tailwind (@layer base in index.css).
+         Only provide a fallback for the split-second before CSS loads. */
+      background-color: #fff7f0;
       color: #2f2a24;
       font-family: "Manrope", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    /* Dark mode fallback before Tailwind loads */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #0f172a;
+        color: #e2e8f0;
+      }
     }
 
     #root {
@@ -40,6 +49,22 @@
 
     html.no-initial-loader #initial-loader {
       display: none !important;
+    }
+
+    #initial-loader {
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #initial-loader {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      }
+      #initial-loader h1 {
+        color: #5eead4 !important;
+      }
+      #initial-loader p {
+        color: #94a3b8 !important;
+      }
     }
 
     .loader-card,
@@ -76,7 +101,7 @@
       width: 48px;
       height: 48px;
       border: 3px solid #d1fae5;
-      border-top-color: #1abc9c;
+      border-top-color: #2c8374;
       border-radius: 50%;
       animation: loaderSpin 1s linear infinite;
     }
@@ -175,6 +200,48 @@
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       }
     }
+
+    /* Dark mode for initial loader and hero */
+    @media (prefers-color-scheme: dark) {
+      .loader-card,
+      #lighthouse-lcp-hero .loader-card {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 40%, #1e293b 100%);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+      }
+
+      .loader-spinner,
+      #lighthouse-lcp-hero .loader-spinner {
+        border-color: #1e293b;
+        border-top-color: #2c8374;
+      }
+
+      .inline-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #0f172a 100%);
+        color: #e2e8f0;
+      }
+
+      .inline-hero__eyebrow {
+        background: rgba(44, 131, 116, 0.2);
+        color: #5eead4;
+      }
+
+      .inline-hero__text {
+        color: #94a3b8;
+      }
+
+      .inline-hero__stat {
+        background: rgba(30, 41, 59, 0.8);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      }
+
+      .inline-hero__stat-value {
+        color: #5eead4;
+      }
+
+      .inline-hero__stat-label {
+        color: #94a3b8;
+      }
+    }
   </style>
   <script>
     (function() {
@@ -211,9 +278,9 @@
 
   <!--  Root-element där React-applikationen renderas -->
   <!--  Initial loading state for fast FCP/LCP - rendered outside React root so it paints before hydration -->
-  <div id="initial-loader" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);font-family:system-ui,-apple-system,sans-serif;transition:opacity 240ms ease;z-index:2147482000;padding:32px;">
+  <div id="initial-loader" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;transition:opacity 240ms ease;z-index:2147482000;padding:32px;">
     <div class="loader-card" aria-hidden="true"></div>
-    <h1 style="margin-top:8px;font-size:1.75rem;font-weight:700;color:#1abc9c;letter-spacing:-0.025em;">Lugn & Trygg</h1>
+    <h1 style="margin-top:8px;font-size:1.75rem;font-weight:700;color:#2c8374;letter-spacing:-0.025em;">Lugn & Trygg</h1>
     <p style="margin-top:8px;color:#6b7280;font-size:0.9375rem;">Laddar din mentala hälsokompanjon...</p>
     <div class="loader-spinner" aria-hidden="true"></div>
   </div>

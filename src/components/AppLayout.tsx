@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { useAccessibility } from '../hooks/useAccessibility';
 import SkipLinks from './Accessibility/SkipLinks';
 import { accessibilityAuditor } from '../utils/accessibilityAudit';
-import OfflineIndicator from './OfflineIndicator';import { logger } from '../utils/logger';
+import OfflineIndicator from './OfflineIndicator';
+import { logger } from '../utils/logger';
 
 
 interface AppLayoutProps {
@@ -37,33 +38,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   }, [title, announceToScreenReader]);
 
   return (
-    <div >
+    <div>
       {/* Skip Links for Keyboard Navigation */}
       {showSkipLinks && <SkipLinks />}
 
       {/* Offline Indicator */}
       <OfflineIndicator variant="snackbar" position="top" />
 
-      {/* Main Content Container */}
-      <main
-        id="main-content"
-        role="main"
-        className="min-h-screen"
-      >
-        {children}
-      </main>
+      {/* Content rendered directly - ProtectedAppShell provides its own <main> */}
+      {children}
 
       {/* Screen Reader Status Announcements */}
       <div
         aria-live="polite"
         aria-atomic="true"
-        style={{
-          position: 'absolute',
-          left: '-10000px',
-          width: '1px',
-          height: '1px',
-          overflow: 'hidden',
-        }}
+        className="sr-only"
         id="sr-status"
       />
     </div>

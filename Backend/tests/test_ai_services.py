@@ -146,7 +146,7 @@ class TestAIServices:
         assert result["ai_generated"] is False
         assert len(result["insights"]) > 0
 
-    @patch('src.utils.ai_services.os.getenv')
+    @patch('src.services.ai_service.os.getenv')
     @patch('openai.OpenAI')
     def test_therapeutic_conversation_generation(self, mock_openai_class, mock_getenv, ai_service, mock_openai_client):
         """Test therapeutic conversation generation"""

@@ -82,7 +82,7 @@ const BottomNav: React.FC = memo(() => {
 
   return (
     <nav 
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-[#f2e4d4] dark:border-slate-700 safe-area-pb"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#fff7f0]/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-[#f2e4d4] dark:border-slate-700"
       aria-label="Mobilnavigation"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
