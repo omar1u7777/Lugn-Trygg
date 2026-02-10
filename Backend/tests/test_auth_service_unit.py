@@ -90,6 +90,7 @@ class FakeAuditService:
 def isolate_env(monkeypatch):
     fake_db = FakeDB()
     monkeypatch.setattr(auth_mod, 'db', fake_db)
+    monkeypatch.setattr(auth_mod, '_db', fake_db)
     monkeypatch.setattr(auth_mod, 'AuditService', lambda: FakeAuditService())
     monkeypatch.setattr(auth_mod, 'convert_email_to_punycode', lambda e: e)
     yield
@@ -153,6 +154,7 @@ def test_login_user_invalid_credentials(monkeypatch):
 def test_refresh_token_success(monkeypatch):
     # Use Firebase-style UID (28 characters)
     test_uid = 'abcdefghijklmnopqrstuvwxyz12'
+    # auth_service.py uses module-level _db = db, so we must access _db
     fake_db = auth_mod._db
     
     # Create a valid refresh token for the test user

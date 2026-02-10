@@ -66,7 +66,7 @@ const Sidebar: React.FC = memo(() => {
             group relative
             ${active
               ? 'bg-[#2c8374] text-white shadow-md shadow-[#2c8374]/20'
-              : 'text-[#6d645d] hover:bg-[#fff7f0] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white'
+              : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white'
             }
           `}
           aria-current={active ? 'page' : undefined}
@@ -128,7 +128,7 @@ const Sidebar: React.FC = memo(() => {
                 flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
                 ${active
                   ? 'bg-[#2c8374] text-white shadow-md'
-                  : 'text-[#6d645d] hover:bg-[#fff7f0] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800'
+                  : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800'
                 }
               `}
               aria-current={active ? 'page' : undefined}

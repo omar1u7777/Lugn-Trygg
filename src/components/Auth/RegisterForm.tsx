@@ -120,8 +120,7 @@ const RegisterForm: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-12 bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] dark:from-gray-900 dark:to-gray-800"
-      role="main"
+      className="w-full"
       aria-labelledby="register-title"
     >
       <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg p-4 sm:p-6 md:p-8 shadow-[0_20px_60px_rgba(47,42,36,0.08)] border border-[#f2e4d4] dark:border-gray-700">

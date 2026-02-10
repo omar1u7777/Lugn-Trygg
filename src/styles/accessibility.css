@@ -2,9 +2,9 @@
 
 /* ===== FOCUS MANAGEMENT ===== */
 
-/* Enhanced focus indicators */
+/* Enhanced focus indicators - uses app's primary teal color */
 *:focus-visible {
-  outline: 3px solid #1976d2;
+  outline: 3px solid #2c8374;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -27,7 +27,7 @@
   position: absolute;
   top: -40px;
   left: 6px;
-  background: #1976d2;
+  background: #2c8374;
   color: white;
   padding: 8px 16px;
   text-decoration: none;
@@ -228,7 +228,7 @@ textarea:focus-within {
 thead th {
   font-weight: 600;
   background-color: #f5f5f5;
-  border-bottom: 2px solid #1976d2;
+  border-bottom: 2px solid #2c8374;
 }
 
 /* Table navigation */
@@ -367,7 +367,7 @@ thead th {
 .content-section h4 {
   margin-top: 1.5rem;
   margin-bottom: 1rem;
-  color: #1976d2;
+  color: #2c8374;
 }
 
 /* Consistent spacing */
@@ -445,7 +445,7 @@ button:active,
 .keyboard-navigation input:focus,
 .keyboard-navigation select:focus,
 .keyboard-navigation textarea:focus {
-  outline: 3px solid #1976d2;
+  outline: 3px solid #2c8374;
   outline-offset: 2px;
 }
 
@@ -491,7 +491,7 @@ button:active,
 .progress-step::before {
   content: counter(step-counter);
   counter-increment: step-counter;
-  background: #1976d2;
+  background: #2c8374;
   color: white;
   width: 24px;
   height: 24px;

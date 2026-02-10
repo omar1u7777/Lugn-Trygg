@@ -103,8 +103,9 @@ class TestFetchGoogleFitData:
         assert isinstance(result['sleep_hours'], float)
         assert isinstance(result['calories'], int)
     
+    @patch('src.services.health_data_service.requests.get')
     @patch('src.services.health_data_service.requests.post')
-    def test_fetch_google_fit_data_steps_only(self, mock_post, service, date_range):
+    def test_fetch_google_fit_data_steps_only(self, mock_post, mock_get, service, date_range):
         """Test fetching only steps data"""
         start_date, end_date = date_range
         
@@ -121,6 +122,10 @@ class TestFetchGoogleFitData:
         }
         
         mock_post.return_value = steps_response
+        # GET endpoints (heart_rate, sleep) return non-200 to skip those metrics
+        get_response = Mock()
+        get_response.status_code = 500
+        mock_get.return_value = get_response
         
         result = service.fetch_google_fit_data('test_token', start_date, end_date)
         
@@ -156,9 +161,9 @@ class TestFetchGoogleFitData:
             }]
         }
         
-        # Heart rate fails
+        # Heart rate / sleep fail with non-401 status (401 raises TokenExpiredError)
         hr_response = Mock()
-        hr_response.status_code = 401
+        hr_response.status_code = 500
         
         mock_post.return_value = steps_response
         mock_get.return_value = hr_response
@@ -367,8 +372,8 @@ class TestFetchSamsungHealthData:
         assert 'sleep_hours' in result
         assert result['steps'] == 21500
         assert result['heart_rate'] == pytest.approx(71.67, 0.1)
-        # Total: 54000000 ms / 60000 = 900 minutes = 15 hours
-        assert result['sleep_hours'] == 900.0
+        # Total: 54000000 ms / 3600000 = 15 hours
+        assert result['sleep_hours'] == 15.0
     
     @patch('src.services.health_data_service.requests.get')
     def test_fetch_samsung_health_data_empty_response(self, mock_get, service, date_range):
@@ -654,8 +659,9 @@ class TestEdgeCases:
         start = end - timedelta(days=7)
         return start, end
     
+    @patch('src.services.health_data_service.requests.get')
     @patch('src.services.health_data_service.requests.post')
-    def test_fetch_google_fit_data_with_zero_duration(self, mock_post, service):
+    def test_fetch_google_fit_data_with_zero_duration(self, mock_post, mock_get, service):
         """Test Google Fit with zero duration date range"""
         same_date = datetime.now()
         
@@ -663,6 +669,11 @@ class TestEdgeCases:
         mock_response.status_code = 200
         mock_response.json.return_value = {'bucket': []}
         mock_post.return_value = mock_response
+        # GET endpoints (heart_rate, sleep) return empty 200
+        get_response = Mock()
+        get_response.status_code = 200
+        get_response.json.return_value = {'point': [], 'session': []}
+        mock_get.return_value = get_response
         
         result = service.fetch_google_fit_data('test_token', same_date, same_date)
         
