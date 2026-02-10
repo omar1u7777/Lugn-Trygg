@@ -1,10 +1,12 @@
-/* These @tailwind directives are required because this file uses @layer base
- * and @layer components. PostCSS/Tailwind processes each CSS file independently,
- * so @layer blocks need their matching @tailwind directives in the same file.
- * The duplicate output is handled by the browser (identical rules are harmless). */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * IMPORTANT: No @tailwind directives here! They live in index.css only.
+ * Having @tailwind base in TWO files caused the @tailwindcss/forms reset
+ * to be emitted AFTER utilities from index.css, overriding all input/button
+ * border-radius, padding, and border styling.
+ *
+ * @apply directives work because PostCSS/Tailwind processes all CSS files.
+ * Styles here are written WITHOUT @layer so they don't need @tailwind.
+ */
 
 /*
  * Z-INDEX SYSTEM - Lugn & Trygg
@@ -28,24 +30,21 @@
  */
 
 /* Custom base styles for Lugn & Trygg */
-@layer base {
-  html {
-    @apply scroll-smooth;
-  }
+html {
+  @apply scroll-smooth;
+}
 
-  body {
-    @apply antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+body {
+  @apply antialiased;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
 
-  #root {
-    @apply min-h-screen flex flex-col;
-  }
+#root {
+  @apply min-h-screen flex flex-col;
 }
 
 /* Custom component styles */
-@layer components {
-  .btn {
+.btn {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-transparent cursor-pointer transition-all duration-200 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
@@ -124,10 +123,8 @@
   .badge-locked {
     @apply bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400;
   }
-}
 
 /* Custom utility classes */
-@layer utilities {
   .text-balance {
     text-wrap: balance;
   }
@@ -151,7 +148,6 @@
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-}
 
 /* Keyframe animations */
 @keyframes fadeIn {
