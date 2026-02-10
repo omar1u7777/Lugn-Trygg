@@ -153,7 +153,7 @@ def test_login_user_invalid_credentials(monkeypatch):
 def test_refresh_token_success(monkeypatch):
     # Use Firebase-style UID (28 characters)
     test_uid = 'abcdefghijklmnopqrstuvwxyz12'
-    fake_db = auth_mod.db
+    fake_db = auth_mod._db
     
     # Create a valid refresh token for the test user
     valid_refresh = AuthService.generate_refresh_token(test_uid)
