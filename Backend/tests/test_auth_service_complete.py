@@ -100,7 +100,7 @@ class TestLoginUser:
 class TestRefreshToken:
     """Test refresh_token method"""
     
-    @patch('src.services.auth_service.db')
+    @patch('src.services.auth_service._db')
     def test_refresh_token_success(self, mock_db):
         """Test successful token refresh"""
         from src.services.auth_service import AuthService
@@ -122,7 +122,7 @@ class TestRefreshToken:
         assert error is None
         assert new_token is not None
     
-    @patch('src.services.auth_service.db')
+    @patch('src.services.auth_service._db')
     def test_refresh_token_not_found(self, mock_db):
         """Test refresh with non-existent token"""
         from src.services.auth_service import AuthService

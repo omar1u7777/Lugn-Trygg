@@ -276,8 +276,8 @@ def test_login_user(client, mock_firebase_auth, mock_firestore, test_user):
         data = response.get_json()
         assert "Login successful" in data["message"]
         assert "data" in data
-        assert "access_token" in data["data"]
-        assert "refresh_token" in data["data"]
+        assert "accessToken" in data["data"]
+        assert "refreshToken" in data["data"]
 
 # 🔹 Testa token-uppdatering
 def test_refresh_token(client, mock_firebase_auth, mock_firestore, login_data):
