@@ -44,7 +44,7 @@
       ]
     },
     {
-      "source": "/(sw\.js|service-worker\.js)",
+      "source": "/(sw\\.js|service-worker\\.js)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "source": "/(robots\.txt|sitemap\.xml)",
+      "source": "/(robots\\.txt|sitemap\\.xml)",
       "headers": [
         {
           "key": "Cache-Control",
