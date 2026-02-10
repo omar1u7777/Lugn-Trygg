@@ -12,8 +12,8 @@ def test_get_privacy_settings_returns_defaults(client, auth_headers, mock_auth_s
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['settings']['encryptLocalStorage'] is True
-    assert payload['settings']['dataRetentionDays'] == 365
+    assert payload['data']['settings']['encryptLocalStorage'] is True
+    assert payload['data']['settings']['dataRetentionDays'] == 365
 
 
 def test_update_privacy_settings_filters_allowed_keys(client, auth_headers, mock_auth_service, mock_db):
@@ -57,7 +57,7 @@ def test_delete_user_data_requires_confirmation(client, auth_headers, mock_auth_
     response = client.delete('/api/privacy/delete/test-user-id', headers=auth_headers)
 
     assert response.status_code == 400
-    assert response.get_json()['error'] == 'Confirmation required'
+    assert response.get_json()['message'] == 'Confirmation required'
 
 
 def test_delete_user_data_executes_full_cleanup(client, auth_headers, mock_auth_service, mock_db, mocker):
@@ -72,6 +72,6 @@ def test_delete_user_data_executes_full_cleanup(client, auth_headers, mock_auth_
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['summary']['user_id'] == 'test-user-id'
+    assert payload['data']['summary']['user_id'] == 'test-user-id'
     assert payload['message'].startswith('All your data')
     mock_db.collection('users').document('test-user-id').delete.assert_called_once()
