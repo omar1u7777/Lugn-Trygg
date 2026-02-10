@@ -17,7 +17,6 @@ import {
 import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
-import '../styles/world-class-design.css';
 
 import { logger } from '../utils/logger';
 

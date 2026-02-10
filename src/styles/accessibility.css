@@ -2,25 +2,10 @@
 
 /* ===== FOCUS MANAGEMENT ===== */
 
-/* Enhanced focus indicators - uses app's primary teal color */
-*:focus-visible {
-  outline: 3px solid #2c8374;
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* High contrast focus for better visibility */
-@media (prefers-contrast: high) {
-  *:focus-visible {
-    outline: 4px solid #fff;
-    outline-offset: 3px;
-  }
-}
-
-/* Remove default focus for mouse users, keep for keyboard */
-*:focus:not(:focus-visible) {
-  outline: none;
-}
+/*
+ * Focus-visible and :focus:not(:focus-visible) are handled
+ * in index.css @layer base to avoid overriding Tailwind utilities.
+ */
 
 /* Skip links - always visible when focused */
 .skip-link {
@@ -64,9 +49,7 @@
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-  /* Ensure sufficient contrast for buttons */
-  button,
-  [role="button"],
+  /* Ensure sufficient contrast for legacy buttons */
   .btn-contained {
     background-color: #000 !important;
     color: #fff !important;
@@ -100,36 +83,10 @@
 
 /* ===== TEXT RESIZING ===== */
 
-/* Support for larger text */
-@media (min-resolution: 120dpi) {
-  body {
-    font-size: 1.1em;
-  }
-
-  h1 {
-    font-size: 2.5rem;
-  }
-
-  h2 {
-    font-size: 2.2rem;
-  }
-
-  h3 {
-    font-size: 1.9rem;
-  }
-
-  h4 {
-    font-size: 1.7rem;
-  }
-
-  h5 {
-    font-size: 1.5rem;
-  }
-
-  h6 {
-    font-size: 1.3rem;
-  }
-}
+/*
+ * Font size scaling for high-DPI screens removed.
+ * Tailwind's responsive typography handles this via config.
+ */
 
 /* ===== SCREEN READER ONLY CONTENT ===== */
 
@@ -171,12 +128,12 @@
 
 /* ===== FORM ACCESSIBILITY ===== */
 
-/* Enhanced form field focus */
+/* Enhanced form field focus — uses app teal color */
 input[type="text"]:focus-within,
 input[type="email"]:focus-within,
 input[type="password"]:focus-within,
 textarea:focus-within {
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
+  box-shadow: 0 0 0 3px rgba(44, 131, 116, 0.3);
 }
 
 /* Error states */
@@ -278,19 +235,12 @@ thead th {
 
 /* ===== RESPONSIVE DESIGN ===== */
 
-/* Ensure minimum touch targets */
+/* Touch targets are handled via Tailwind utilities (min-h-[44px]).
+ * Only apply to legacy interactive elements. */
 @media (pointer: coarse) {
-  button,
-  [role="button"],
-  input[type="submit"],
-  input[type="button"] {
+  .touch-target {
     min-height: 44px;
     min-width: 44px;
-  }
-
-  a {
-    min-height: 44px;
-    display: inline-block;
   }
 }
 
@@ -376,20 +326,20 @@ thead th {
   line-height: 1.6;
 }
 
-/* Clear button states */
-button,
-[role="button"] {
+/* Clear button states — scoped to .content-section only */
+.content-section button,
+.content-section [role="button"] {
   transition: all 0.2s ease;
 }
 
-button:hover,
-[role="button"]:hover {
+.content-section button:hover,
+.content-section [role="button"]:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-button:active,
-[role="button"]:active {
+.content-section button:active,
+.content-section [role="button"]:active {
   transform: translateY(0);
 }
 

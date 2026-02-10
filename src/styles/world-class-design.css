@@ -120,19 +120,18 @@
 }
 
 /* ===== DARK MODE OVERRIDES ===== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-neutral-50: #0f172a;
-    --color-neutral-100: #1e293b;
-    --color-neutral-200: #334155;
-    --color-neutral-300: #475569;
-    --color-neutral-400: #64748b;
-    --color-neutral-500: #94a3b8;
-    --color-neutral-600: #cbd5e1;
-    --color-neutral-700: #e2e8f0;
-    --color-neutral-800: #f1f5f9;
-    --color-neutral-900: #f8fafc;
-  }
+/* Uses 'class' strategy to match Tailwind's darkMode: 'class' */
+.dark {
+  --color-neutral-50: #0f172a;
+  --color-neutral-100: #1e293b;
+  --color-neutral-200: #334155;
+  --color-neutral-300: #475569;
+  --color-neutral-400: #64748b;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-600: #cbd5e1;
+  --color-neutral-700: #e2e8f0;
+  --color-neutral-800: #f1f5f9;
+  --color-neutral-900: #f8fafc;
 }
 
 /* ===== TYPOGRAPHY SYSTEM ===== */
