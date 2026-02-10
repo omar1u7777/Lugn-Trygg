@@ -12,7 +12,6 @@ import { logMood } from '../api/api';
 import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import '../styles/world-class-design.css';
 import { logger } from '../utils/logger';
 
 

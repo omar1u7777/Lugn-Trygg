@@ -43,54 +43,10 @@ body {
   @apply min-h-screen flex flex-col;
 }
 
-/* Custom component styles */
-.btn {
-    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-transparent cursor-pointer transition-all duration-200 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-primary {
-    @apply bg-primary-500 text-white border-primary-500 hover:bg-primary-600 focus:ring-primary-500;
-  }
-
-  .btn-secondary {
-    @apply bg-secondary-500 text-white border-secondary-500 hover:bg-secondary-600 focus:ring-secondary-500;
-  }
-
-  .btn-outline {
-    @apply bg-transparent text-primary-600 border-primary-600 hover:bg-primary-600 hover:text-white focus:ring-primary-500;
-  }
-
-  .btn-ghost {
-    @apply bg-transparent text-slate-600 border-transparent hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-500;
-  }
-
-  .card {
-    @apply bg-white dark:bg-slate-800 rounded-xl shadow-soft border border-slate-200 dark:border-slate-700 overflow-hidden transition-shadow duration-200 hover:shadow-medium;
-  }
-
-  .card-header {
-    @apply px-6 py-4 border-b border-slate-200 dark:border-slate-700;
-  }
-
-  .card-body {
-    @apply px-6 py-6;
-  }
-
-  .card-footer {
-    @apply px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700;
-  }
-
-  .form-input {
-    @apply w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
-  }
-
-  .form-label {
-    @apply block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1;
-  }
-
-  .form-error {
-    @apply mt-1 text-sm text-red-600 dark:text-red-400;
-  }
+/*
+ * Component class definitions moved to index.css @layer components.
+ * (.btn, .card, .form-input etc. are defined there with correct layer ordering.)
+ */
 
   .mood-positive {
     @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800;
@@ -124,14 +80,7 @@ body {
     @apply bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400;
   }
 
-/* Custom utility classes */
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .container-custom {
-    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
+/* Animation classes */
 
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
@@ -186,15 +135,7 @@ body {
   }
 }
 
-/* Focus styles for accessibility */
-.focus-ring:focus {
-  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
-}
-
-/* Screen reader only content */
-.sr-only {
-  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
-}
+/* Focus/sr-only moved to index.css @layer base/components */
 
 /* Legacy CSS for gradual migration - keeping existing styles */
 
@@ -654,8 +595,8 @@ body {
     font-size: 18px;
   }
 
-  /* Touch-friendly buttons */
-  button, .dashboard-btn, .auth-button {
+  /* Touch-friendly buttons (legacy selectors only) */
+  .dashboard-btn, .auth-button {
     min-height: 44px;
     min-width: 44px;
   }
