@@ -1,3 +1,7 @@
+/* These @tailwind directives are required because this file uses @layer base
+ * and @layer components. PostCSS/Tailwind processes each CSS file independently,
+ * so @layer blocks need their matching @tailwind directives in the same file.
+ * The duplicate output is handled by the browser (identical rules are harmless). */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
