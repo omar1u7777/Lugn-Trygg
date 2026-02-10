@@ -216,7 +216,7 @@ def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock
 
 def test_log_mood_options_request(client):
     """Test OPTIONS request for CORS on /log endpoint"""
-    response = client.options("/api/mood/log")
+    response = client.options("/api/v1/mood/log")
     assert response.status_code == 204
 
 

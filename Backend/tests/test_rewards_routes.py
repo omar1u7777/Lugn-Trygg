@@ -23,7 +23,7 @@ def test_get_user_rewards_computes_level(client, mocker, auth_headers):
     assert response.status_code == 200
     rewards = response.get_json()['data']['rewards']
     assert rewards['level'] >= 2
-    assert rewards['needed_xp'] > 0
+    assert rewards['neededXp'] > 0
 
 
 def test_add_user_xp_updates_store(client, mocker, mock_db, auth_headers):
@@ -37,9 +37,9 @@ def test_add_user_xp_updates_store(client, mocker, mock_db, auth_headers):
     )
 
     assert response.status_code == 200
-    mock_db.collection('user_rewards').document('user-123').update.assert_called_once()
-    payload = response.get_json()
-    assert payload['new_xp'] == 150
+    mock_db.collection('user_rewards').document('test-user-id').update.assert_called_once()
+    payload = response.get_json()['data']
+    assert payload['newXp'] == 150
 
 
 def test_claim_reward_requires_enough_xp(client, mocker, auth_headers):
@@ -74,4 +74,4 @@ def test_claim_reward_success_updates_badges(client, mocker, mock_db, auth_heade
 
     assert response.status_code == 200
     assert response.get_json()['success'] is True
-    mock_db.collection('user_rewards').document('user-123').update.assert_called_once()
+    mock_db.collection('user_rewards').document('test-user-id').update.assert_called_once()

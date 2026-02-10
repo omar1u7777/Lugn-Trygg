@@ -168,9 +168,11 @@ export default defineConfig({
           if (id.includes("node_modules/firebase")) {
             return "firebase";
           }
-          if (id.includes("node_modules/@headlessui") || id.includes("node_modules/@heroicons")) {
-            return "ui-components";
-          }
+          // @headlessui and @heroicons are NOT separated into their own chunk
+          // because they rely on React.forwardRef; isolating them causes
+          // a runtime error where React is undefined in the chunk scope.
+          // Rollup will automatically co-locate them with the components
+          // that import them, or create a shared chunk if needed.
           if (
             id.includes("node_modules/recharts") ||
             id.includes("node_modules/chart.js") ||

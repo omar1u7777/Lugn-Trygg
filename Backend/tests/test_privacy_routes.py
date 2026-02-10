@@ -50,14 +50,14 @@ def test_export_user_data_streams_json_file(client, auth_headers, mock_auth_serv
     assert response.status_code == 200
     assert response.mimetype == 'application/json'
     export_payload = json.loads(response.data.decode('utf-8'))
-    assert export_payload['export_metadata']['user_id'] == 'test-user-id'
+    assert export_payload['exportMetadata']['userId'] == 'test-user-id'
 
 
 def test_delete_user_data_requires_confirmation(client, auth_headers, mock_auth_service):
     response = client.delete('/api/privacy/delete/test-user-id', headers=auth_headers)
 
     assert response.status_code == 400
-    assert response.get_json()['message'] == 'Confirmation required'
+    assert 'Confirmation required' in response.get_json()['message']
 
 
 def test_delete_user_data_executes_full_cleanup(client, auth_headers, mock_auth_service, mock_db, mocker):
@@ -72,6 +72,6 @@ def test_delete_user_data_executes_full_cleanup(client, auth_headers, mock_auth_
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['data']['summary']['user_id'] == 'test-user-id'
+    assert payload['data']['summary']['userId'] == 'test-user-id'
     assert payload['message'].startswith('All your data')
     mock_db.collection('users').document('test-user-id').delete.assert_called_once()
