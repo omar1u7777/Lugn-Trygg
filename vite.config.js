@@ -42,6 +42,10 @@ const hmrHost = process.env.VITE_DEV_HMR_HOST || (devHost === "0.0.0.0" ? "local
 const hmrPort = Number(process.env.VITE_DEV_HMR_PORT) || devPort;
 const hmrProtocol = https ? "wss" : "ws";
 
+// Vercel handles compression itself; the plugin produces broken output
+// paths on CI (dist//vercel/path0/…) so we only enable it locally.
+const isVercel = !!process.env.VERCEL;
+
 const plugins = [
   react({
     jsxRuntime: "automatic",
@@ -50,18 +54,22 @@ const plugins = [
       plugins: [],
     },
   }),
-  viteCompression({
-    algorithm: "brotliCompress",
-    ext: ".br",
-    filter: (file) => /\.(js|css|svg|html|json)$/i.test(file),
-    threshold: 1024,
-  }),
-  viteCompression({
-    algorithm: "gzip",
-    ext: ".gz",
-    filter: (file) => /\.(js|css|svg|html|json)$/i.test(file),
-    threshold: 1024,
-  }),
+  ...(!isVercel
+    ? [
+        viteCompression({
+          algorithm: "brotliCompress",
+          ext: ".br",
+          filter: (file) => /\.(js|css|svg|html|json)$/i.test(file),
+          threshold: 1024,
+        }),
+        viteCompression({
+          algorithm: "gzip",
+          ext: ".gz",
+          filter: (file) => /\.(js|css|svg|html|json)$/i.test(file),
+          threshold: 1024,
+        }),
+      ]
+    : []),
 ];
 
 if (enableAnalyzer) {
