@@ -172,7 +172,10 @@ def audit_log(
     user_agent: str | None = None,
 ) -> None:
     """Global audit logging function."""
-    get_audit_service().log_event(event_type, user_id, details, ip_address, user_agent)
+    try:
+        get_audit_service().log_event(event_type, user_id, details, ip_address, user_agent)
+    except Exception as e:
+        logger.warning(f"Audit logging failed (non-fatal): {e}")
 
 
 def log_admin_action(

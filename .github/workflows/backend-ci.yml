@@ -46,6 +46,7 @@ jobs:
           FIREBASE_API_KEY: ci-test-firebase-api-key
           FIREBASE_PROJECT_ID: ci-test-project
           FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
+          HIPAA_ENCRYPTION_KEY: yTOVpH-x9W3qRUbzBJ4pLBYCKMu5kkC-asbcsfuHvmo=
           FIREBASE_CREDENTIALS: '{"type":"service_account","project_id":"ci-test","private_key_id":"key","private_key":"-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBALRiMLAHudeSA/x3hB2f+2NRkJzz0OGHQ/k+Eaz6TOFCnfVo+0a\ntest\n-----END RSA PRIVATE KEY-----\n","client_email":"ci@ci-test.iam.gserviceaccount.com","client_id":"123","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
         run: pytest --cov=src --cov-report=xml --cov-report=term-missing -v
 
