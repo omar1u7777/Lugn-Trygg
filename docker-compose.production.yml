@@ -48,7 +48,7 @@ services:
     container_name: lugn-trygg-frontend-prod
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:8080"
       - "443:443"
     depends_on:
       backend:
@@ -57,7 +57,7 @@ services:
       - NODE_ENV=production
       - VITE_BACKEND_URL=http://backend:5001
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -78,11 +78,9 @@ services:
     image: redis:7-alpine
     container_name: lugn-trygg-redis-prod
     restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3

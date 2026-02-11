@@ -136,13 +136,22 @@ def _get_cors_origins_list():
 def is_origin_allowed(origin: str) -> bool:
     """Check if the origin is allowed"""
     cors_origins_list = _get_cors_origins_list()
-    return (
-        origin in cors_origins_list or 
-        any(origin.endswith('.vercel.app') for o in cors_origins_list if '*' in o) or
-        origin.startswith('http://localhost:') or
-        origin.startswith('http://127.0.0.1:') or
-        origin.startswith('http://192.168.')  # Local network
-    )
+    is_production = os.getenv('FLASK_ENV') == 'production'
+
+    if origin in cors_origins_list:
+        return True
+
+    if any(origin.endswith('.vercel.app') for o in cors_origins_list if '*' in o):
+        return True
+
+    # Only allow localhost/LAN origins in non-production environments
+    if not is_production:
+        if (origin.startswith('http://localhost:') or
+                origin.startswith('http://127.0.0.1:') or
+                origin.startswith('http://192.168.')):
+            return True
+
+    return False
 
 # CORS handlers defined here but will be registered AFTER security_headers middleware
 # to ensure CORS headers are set LAST and not overwritten
@@ -171,13 +180,7 @@ def _add_cors_to_response(response):
     """Add CORS headers to ALL responses (runs LAST in after_request chain)"""
     origin = request.headers.get('Origin', '')
     
-    # Check if origin is allowed (more permissive for localhost)
-    origin_allowed = (
-        origin.startswith('http://localhost:') or 
-        origin.startswith('http://127.0.0.1:') or 
-        origin.startswith('http://192.168.') or
-        is_origin_allowed(origin)
-    )
+    origin_allowed = is_origin_allowed(origin)
     
     if origin_allowed:
         response.headers['Access-Control-Allow-Origin'] = origin
@@ -654,8 +657,8 @@ try:
         response = Response('', status=204)
         origin = request.headers.get('Origin', '')
         
-        # Allow all localhost origins + configured production origins
-        if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:') or origin.startswith('http://192.168.') or is_origin_allowed(origin):
+        # Allow origins based on environment (localhost only in non-production)
+        if is_origin_allowed(origin):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
