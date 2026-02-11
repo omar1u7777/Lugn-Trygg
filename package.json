@@ -87,5 +87,8 @@
     "vite-plugin-pwa": "^1.1.0",
     "vitest": "^1.0.4",
     "workbox-window": "^7.3.0"
+  },
+  "overrides": {
+    "undici": "^7.21.0"
   }
 }
