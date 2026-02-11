@@ -73,6 +73,7 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-frontend.sarif'
+          trivyignores: '.trivyignore'
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4
