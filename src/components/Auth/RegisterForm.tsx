@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { Link, useSearchParams } from "react-router-dom";
-import { Alert, Input, Card, Button, Typography } from "../ui/tailwind";
+import { Alert, Input, Button, Typography } from "../ui/tailwind";
 import { EyeIcon, EyeSlashIcon, ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
 import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
@@ -123,7 +123,6 @@ const RegisterForm: React.FC = () => {
       className="w-full"
       aria-labelledby="register-title"
     >
-      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg p-4 sm:p-6 md:p-8 shadow-[0_20px_60px_rgba(47,42,36,0.08)] border border-[#f2e4d4] dark:border-gray-700">
         <header>
           <Typography
             id="register-title"
@@ -356,7 +355,6 @@ const RegisterForm: React.FC = () => {
             </Link>
           </p>
         </div>
-      </Card>
     </div>
   );
 };
