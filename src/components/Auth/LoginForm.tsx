@@ -7,7 +7,6 @@ import { API_ENDPOINTS } from "../../api/constants";
 import { useAuth } from "../../contexts/AuthContext";
 import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
 import ForgotPassword from "./ForgotPassword";
-import { Card } from "../ui/tailwind/Card";
 import { Input } from "../ui/tailwind/Input";
 import { Button } from "../ui/tailwind/Button";
 import { Alert } from "../ui/tailwind/Feedback";
@@ -162,7 +161,6 @@ const LoginForm = () => {
       className="w-full"
       aria-labelledby="login-title"
     >
-      <Card className="w-full max-w-[95%] sm:max-w-md md:max-w-lg shadow-[0_20px_60px_rgba(47,42,36,0.08)] p-4 sm:p-6 md:p-8 border border-[#f2e4d4] dark:border-gray-700">
         <div className="text-center mb-6 sm:mb-8">
           <Typography
             id="login-title"
@@ -318,7 +316,6 @@ const LoginForm = () => {
             Glömt lösenord?
           </button>
         </div>
-      </Card>
 
       {/* Forgot Password Modal */}
       {showForgotPassword && (
