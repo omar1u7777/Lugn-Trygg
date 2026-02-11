@@ -393,7 +393,7 @@ test.describe('🔗 API Integration Tests', () => {
         }
       }, endpoint);
 
-      console.log(`🚫 No auth test for ${endpoint.path}:`, noAuthTest);
+      console.log(`🚫 No auth test for ${endpoint.path}: status=${noAuthTest.status}`);
       expect(noAuthTest.isUnauthorized || noAuthTest.status === 401 || noAuthTest.status === 403).toBe(true);
 
       // Test with auth

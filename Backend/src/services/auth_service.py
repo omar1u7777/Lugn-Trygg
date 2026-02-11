@@ -173,8 +173,9 @@ class AuthService:
             if signin_response.status_code != 200:
                 error_data = signin_response.json()
                 error_message = error_data.get("error", {}).get("message", "UNKNOWN_ERROR")
-                logger.warning(f"Firebase login failed: {error_message}")
-                raise Exception(f"Firebase auth failed: {error_message}")
+                sanitized_error = str(error_message).replace('\n', '').replace('\r', '')[:200]
+                logger.warning("Firebase login failed: %s", sanitized_error)
+                raise Exception(f"Firebase auth failed: {sanitized_error}")
 
             signin_data = signin_response.json()
             user_uid = signin_data.get("localId")
@@ -197,7 +198,7 @@ class AuthService:
             }, merge=True)
 
             user = User(uid=str(user_uid), email=str(user_email))
-            logger.info(f"✅ Login successful for user: {user_uid}")
+            logger.info("Login successful for user: %s", str(user_uid).replace('\n', '').replace('\r', '')[:100])
 
             # Audit log
             AuthService._audit_log("USER_LOGIN", str(user_uid), {"email": email})

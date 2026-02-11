@@ -45,8 +45,7 @@ def _sanitize_string(v: Any) -> str:
         v = str(v)
     # Remove HTML tags and sanitize
     cleaned = bleach.clean(v, tags=[], strip=True)
-    # Remove potential script injections
-    cleaned = re.sub(r'<script[^>]*>.*?</script>', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    # Remove potential script injections (bleach already handled HTML tags above)
     cleaned = re.sub(r'javascript:', '', cleaned, flags=re.IGNORECASE)
     # Trim whitespace
     return cleaned.strip()

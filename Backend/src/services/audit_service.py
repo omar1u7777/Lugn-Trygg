@@ -59,13 +59,13 @@ class AuditService:
             doc_ref = _db.collection("audit_logs").document()
             doc_ref.set(audit_entry)
 
-            logger.info(f"Audit log created: {event_type} for user {user_id}")
+            logger.info("Audit log created: %s for user %s", str(event_type).replace('\n', '').replace('\r', '')[:50], str(user_id).replace('\n', '').replace('\r', '')[:50])
 
             # Apply retention policy (delete logs older than 7 years for HIPAA)
             self._apply_retention_policy()
 
         except Exception as e:
-            logger.error(f"Failed to log audit event: {str(e)}")
+            logger.error("Failed to log audit event: %s", str(e).replace('\n', '').replace('\r', '')[:200])
 
     def _apply_retention_policy(self) -> None:
         """Apply retention policy - delete audit logs older than 7 years (HIPAA requirement)"""

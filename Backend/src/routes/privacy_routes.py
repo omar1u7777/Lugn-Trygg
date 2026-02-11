@@ -279,7 +279,7 @@ def export_user_data(user_id: str):
         export_date = datetime.now(UTC).strftime('%Y-%m-%d')
         filename = f"lugn-trygg-data-{export_date}.json"
 
-        logger.info(f"✅ Data export completed for user {user_id[:8]} - {len(json_data)} bytes")
+        logger.info("Data export completed for user %s - %d bytes", str(user_id)[:8], len(json_data))
         audit_log('data_exported', user_id, {'size_bytes': len(json_data)})
 
         # Return file for download
