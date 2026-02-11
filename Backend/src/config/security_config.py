@@ -68,7 +68,7 @@ CORS_MAX_AGE = 86400  # 24 hours
 
 # Content Security Policy
 CSP_DEFAULT_SRC = ["'self'"]
-CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"]
+CSP_SCRIPT_SRC = ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"]
 CSP_STYLE_SRC = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
 CSP_FONT_SRC = ["'self'", "https://fonts.gstatic.com"]
 CSP_IMG_SRC = ["'self'", "data:", "https:"]
