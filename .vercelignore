@@ -126,10 +126,9 @@ docker-compose*.yml
 .prettierrc
 .eslintrc*
 babel.config.*
-postcss.config.*
-tailwind.config.*
+# postcss.config.* - REMOVED: Tailwind needs this for PostCSS processing
+# tailwind.config.* - REMOVED: Tailwind needs this for content scanning and theme
 # vite.config.* - REMOVED: Vercel needs this!
-tsconfig*.json
 jest.config.*
 vitest.config.*
 playwright.config.*
