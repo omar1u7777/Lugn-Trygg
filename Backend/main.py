@@ -136,7 +136,7 @@ def _get_cors_origins_list():
 def is_origin_allowed(origin: str) -> bool:
     """Check if the origin is allowed"""
     cors_origins_list = _get_cors_origins_list()
-    is_production = os.getenv('FLASK_ENV') == 'production'
+    is_production = os.getenv('FLASK_ENV', 'production') == 'production'
 
     if origin in cors_origins_list:
         return True
