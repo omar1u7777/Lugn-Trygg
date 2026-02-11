@@ -3,6 +3,8 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 
@@ -86,6 +88,14 @@ if (enableAnalyzer) {
 
 export default defineConfig({
   plugins,
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        autoprefixer(),
+      ],
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
