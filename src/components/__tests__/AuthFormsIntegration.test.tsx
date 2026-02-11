@@ -23,9 +23,9 @@ const mockAPI = vi.hoisted(() => ({
 }));
 
 const firebaseAuthModuleMocks = vi.hoisted(() => ({
-  GoogleAuthProvider: vi.fn(() => ({
-    setCustomParameters: vi.fn(),
-  })),
+  GoogleAuthProvider: vi.fn(function () {
+    return { setCustomParameters: vi.fn() };
+  }),
   signInWithPopup: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
 }));
