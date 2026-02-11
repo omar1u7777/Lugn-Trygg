@@ -1,0 +1,3 @@
+# Backend is scanned separately in backend-ci.yml
+# Avoid duplicate alerts from frontend Trivy scan
+Backend/requirements.txt
