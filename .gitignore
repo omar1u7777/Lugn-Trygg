@@ -5,6 +5,9 @@
 # Internal development files
 AGENTS.md
 
+# Test output files (may contain sensitive debug info)
+test_*.txt
+
 # Visual Studio IDE cache
 .vs/
 
