@@ -76,12 +76,12 @@ def parse_iso_timestamp(timestamp_str: str | None, default_to_now: bool = True) 
         return parsed_dt
 
     except (ValueError, AttributeError, TypeError) as e:
-        logger.warning(f"Failed to parse timestamp '{timestamp_str}': {str(e)}")
+        logger.warning("Failed to parse timestamp: %s", str(e).replace('\n', '').replace('\r', '')[:200])
         if default_to_now:
             logger.info("Using current UTC time as fallback")
             return datetime.now(UTC)
         else:
-            raise ValueError(f"Invalid timestamp format: {timestamp_str}") from e
+            raise ValueError("Invalid timestamp format") from e
 
 
 def format_iso_timestamp(dt: datetime | str, include_timezone: bool = True) -> str:

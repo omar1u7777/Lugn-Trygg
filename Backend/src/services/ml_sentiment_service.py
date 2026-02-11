@@ -339,8 +339,8 @@ class MLSentimentService:
     def _preprocess(text: str) -> str:
         """Lowercase, strip excess whitespace, remove URLs / emails."""
         text = text.lower().strip()
-        text = re.sub(r"https?://\S+", "", text)
-        text = re.sub(r"\S+@\S+", "", text)
+        text = re.sub(r"https?://[^\s]+", "", text)
+        text = re.sub(r"[^\s@]+@[^\s@]+", "", text)
         text = re.sub(r"\s+", " ", text)
         return text.strip()
 

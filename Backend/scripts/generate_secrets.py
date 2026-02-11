@@ -113,7 +113,8 @@ SESSION_COOKIE_SAMESITE=Lax
     # Write to .env.production
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     production_path = os.path.join(backend_dir, '.env.production')
-    with open(production_path, 'w', encoding='utf-8') as f:
+    fd = os.open(production_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(env_production)
     
     print(f"\n✓ Created {production_path}")
@@ -168,10 +169,11 @@ SENTRY_ENVIRONMENT=development
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     backup_path = os.path.join(backup_dir, f'secrets_{timestamp}.txt')
     
-    with open(backup_path, 'w', encoding='utf-8') as f:
+    fd = os.open(backup_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(f"""# Secrets Backup - {datetime.now().isoformat()}
-# Store this file in a secure password manager!
-# Delete after importing to password manager.
+# SECURITY WARNING: Delete this file after importing to a password manager!
+# This file contains sensitive secrets in plaintext.
 
 JWT_SECRET_KEY={jwt_secret}
 JWT_REFRESH_SECRET_KEY={jwt_refresh_secret}
@@ -179,7 +181,8 @@ FLASK_SECRET_KEY={flask_secret}
 ENCRYPTION_KEY={encryption_key}
 """)
     
-    print(f"✓ Created secrets backup at {backup_path}")
+    print(f"\u2713 Created secrets backup at {backup_path}")
+    print("\u26a0\ufe0f  WARNING: Delete the backup file after importing secrets to a password manager!")
     
     print("\n" + "="*70)
     print("🎉 Production secrets generated successfully!")

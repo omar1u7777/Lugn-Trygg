@@ -44,7 +44,7 @@ class APIResponse:
         if meta:
             response["meta"] = meta
 
-        logger.debug(f"API Success Response: {status_code} - {message}")
+        logger.debug("API Success Response: %d - %s", status_code, str(message).replace('\n', '').replace('\r', '')[:100])
         return jsonify(response), status_code
 
     @staticmethod
@@ -75,7 +75,7 @@ class APIResponse:
         if details:
             response["details"] = details
 
-        logger.warning(f"API Error Response: {status_code} - {error_code} - {message}")
+        logger.warning("API Error Response: %d - %s - %s", status_code, str(error_code).replace('\n', '').replace('\r', '')[:50], str(message).replace('\n', '').replace('\r', '')[:100])
         return jsonify(response), status_code
 
     @staticmethod

@@ -902,7 +902,11 @@ def change_email():
         if not new_email or not password:
             return APIResponse.bad_request('New email and current password are required')
 
-        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', new_email):
+        # Safe email validation without polynomial regex
+        if len(new_email) > 254 or '@' not in new_email:
+            return APIResponse.bad_request('Invalid email format')
+        local_part, _, domain_part = new_email.partition('@')
+        if not local_part or not domain_part or '.' not in domain_part or ' ' in new_email:
             return APIResponse.bad_request('Invalid email format')
 
         # Verify user identity and current password (reauth to prevent token-only hijack)

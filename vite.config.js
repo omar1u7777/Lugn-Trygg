@@ -31,7 +31,7 @@ const resolveDevHttpsConfig = () => {
   try {
     const cert = fs.readFileSync(certPath);
     const key = fs.readFileSync(keyPath);
-    console.info(`[Vite] HTTPS enabled for dev server using ${certPath}`);
+    console.info(`[Vite] HTTPS enabled for dev server`);
     return { cert, key };
   } catch (error) {
     console.warn("[Vite] HTTPS requested but certificates not found. Continuing with HTTP.", error?.message || error);

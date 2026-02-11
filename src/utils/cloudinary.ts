@@ -118,7 +118,12 @@ export const getPlaceholderImage = (width: number, height: number, text = 'Lugn 
  * Check if image URL is from Cloudinary
  */
 export const isCloudinaryUrl = (url: string): boolean => {
-  return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'res.cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com');
+  } catch {
+    return false;
+  }
 };
 
 /**
