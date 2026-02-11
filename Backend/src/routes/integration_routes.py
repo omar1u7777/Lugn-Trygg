@@ -248,7 +248,7 @@ def oauth_callback(provider):
         logger.info("OAuth flow complete: redirecting to frontend for provider %s", provider_clean)
         return redirect(f"{frontend_url}/integrations?success=true&provider={provider_clean}")
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error in OAuth callback")
         default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
         frontend_url = request.args.get('frontend_url', default_frontend)

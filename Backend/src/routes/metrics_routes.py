@@ -230,7 +230,7 @@ def prometheus_metrics():
         metrics_output = generate_latest()
         return Response(metrics_output, mimetype=PROM_CONTENT_TYPE)
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error generating metrics")
         return Response("# Error generating metrics\n", status=500)
 
@@ -265,7 +265,7 @@ def business_metrics():
 
         return Response('\n'.join(metrics_lines), mimetype=PROM_CONTENT_TYPE)
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error generating business metrics")
         return Response("# Error generating business metrics\n", status=500)
 
