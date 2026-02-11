@@ -54,7 +54,8 @@ class TestOAuthServiceInit:
         
         assert 'client_id' in config
         assert 'auth_url' in config
-        assert 'us.account.samsung.com' in config['auth_url']
+        from urllib.parse import urlparse
+        assert urlparse(config['auth_url']).hostname == 'us.account.samsung.com'
     
     def test_init_withings_config_structure(self):
         """Test Withings configuration structure"""
@@ -63,7 +64,8 @@ class TestOAuthServiceInit:
         
         assert 'client_id' in config
         assert 'auth_url' in config
-        assert 'account.withings.com' in config['auth_url']
+        from urllib.parse import urlparse
+        assert urlparse(config['auth_url']).hostname == 'account.withings.com'
     
     def test_init_oauth_states_empty(self):
         """Test that _memory_states starts empty"""
@@ -124,7 +126,8 @@ class TestGetAuthorizationUrl:
         
         assert 'authorization_url' in result
         assert result['provider'] == 'samsung'
-        assert 'samsung.com' in result['authorization_url']
+        from urllib.parse import urlparse
+        assert 'samsung.com' in urlparse(result['authorization_url']).hostname
         assert 'scope=samsung.shealth.read' in result['authorization_url']
     
     def test_get_authorization_url_withings(self, service):
@@ -137,7 +140,8 @@ class TestGetAuthorizationUrl:
         
         assert 'authorization_url' in result
         assert result['provider'] == 'withings'
-        assert 'withings.com' in result['authorization_url']
+        from urllib.parse import urlparse
+        assert 'withings.com' in urlparse(result['authorization_url']).hostname
         assert 'scope=user.metrics' in result['authorization_url']
     
     def test_get_authorization_url_stores_state(self, service):

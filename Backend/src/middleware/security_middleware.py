@@ -349,7 +349,7 @@ def validate_input(schema_class: Any) -> Callable:
                     kwargs['validated_data'] = validated_data
                 return f(*args, **kwargs)
             except Exception as e:
-                logger.warning(f"Input validation failed: {e}")
-                return jsonify({"error": "Invalid input", "details": str(e)}), 400
+                logger.warning("Input validation failed: %s", str(e))
+                return jsonify({"error": "Invalid input", "details": "Validation failed. Check your request data."}), 400
         return decorated_function
     return decorator

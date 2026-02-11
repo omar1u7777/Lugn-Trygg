@@ -113,7 +113,7 @@ class TestSendReferralInvitation:
             to_email='user@example.com',
             referrer_name='Test User',
             referral_code='CODE123',
-            referral_link='https://example.com'
+            referral_link='https://test.example.invalid/ref'
         )
         
         call_args = service.client.Emails.send.call_args[0][0]
@@ -121,7 +121,7 @@ class TestSendReferralInvitation:
         
         assert 'Test User' in html
         assert 'CODE123' in html
-        assert 'https://example.com' in html
+        assert 'https://test.example.invalid/ref' in html
         assert '1 vecka gratis premium' in html
     
     def test_send_referral_invitation_plain_text(self, service):
@@ -133,7 +133,7 @@ class TestSendReferralInvitation:
             to_email='user@example.com',
             referrer_name='Test User',
             referral_code='CODE123',
-            referral_link='https://example.com'
+            referral_link='https://test.example.invalid/ref'
         )
         
         call_args = service.client.Emails.send.call_args[0][0]
@@ -141,7 +141,7 @@ class TestSendReferralInvitation:
         
         assert 'Test User' in text
         assert 'CODE123' in text
-        assert 'https://example.com' in text
+        assert 'https://test.example.invalid/ref' in text
 
 
 class TestSendReferralSuccessNotification:

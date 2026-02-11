@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 import requests
 from flask import Blueprint, g, redirect, request
@@ -26,6 +27,33 @@ DEVICE_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,40}$')
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_redirect_url(url: str, default: str) -> str:
+    """Validate redirect URL against a strict allowlist of hostnames."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname or ''
+        scheme = parsed.scheme
+        if scheme not in ('http', 'https'):
+            return default
+        allowed_hosts = [
+            'localhost',
+            'lugn-trygg.vercel.app',
+        ]
+        # Check exact match or Vercel preview deployments (*.vercel.app)
+        if hostname in allowed_hosts:
+            return url
+        if hostname.endswith('.vercel.app') and hostname.count('.') == 2:
+            return url
+        # Check env-configured frontend
+        default_parsed = urlparse(default)
+        if hostname == default_parsed.hostname:
+            return url
+        return default
+    except Exception:
+        return default
+
 
 integration_bp = Blueprint('integration', __name__)
 
@@ -214,26 +242,19 @@ def oauth_callback(provider):
         # Redirect to frontend success page - validate frontend_url
         default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
         frontend_url = request.args.get('frontend_url', default_frontend)
-        # Only allow known frontend URLs
-        allowed_frontends = [
-            default_frontend,
-            'https://lugn-trygg.vercel.app',
-        ]
-        # Also allow Vercel preview deployments
-        if frontend_url not in allowed_frontends and not frontend_url.endswith('.vercel.app'):
-            frontend_url = default_frontend
+        # Only allow known frontend URLs using strict validation
+        frontend_url = _validate_redirect_url(frontend_url, default_frontend)
 
-        logger.info(f"✅ OAuth flow COMPLETE: Redirecting to {frontend_url}/integrations?success=true&provider={provider_clean}")
+        logger.info("OAuth flow complete: redirecting to frontend for provider %s", provider_clean)
         return redirect(f"{frontend_url}/integrations?success=true&provider={provider_clean}")
 
     except Exception as e:
-        logger.exception(f"Error in OAuth callback for {provider}: {e}")
+        logger.exception("Error in OAuth callback")
         default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
         frontend_url = request.args.get('frontend_url', default_frontend)
-        allowed_frontends = [default_frontend, 'https://lugn-trygg.vercel.app']
-        if frontend_url not in allowed_frontends and not frontend_url.endswith('.vercel.app'):
-            frontend_url = default_frontend
-        return redirect(f"{frontend_url}/integrations?error=oauth_failed&provider={provider}")
+        frontend_url = _validate_redirect_url(frontend_url, default_frontend)
+        provider_clean = re.sub(r'[^a-zA-Z0-9_-]', '', str(provider))[:50]
+        return redirect(f"{frontend_url}/integrations?error=oauth_failed&provider={provider_clean}")
 
 @integration_bp.route("/oauth/<provider>/disconnect", methods=["POST", "OPTIONS"])
 @rate_limit_by_endpoint

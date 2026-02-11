@@ -396,7 +396,7 @@ class CrisisInterventionService:
         Returns:
             CrisisAssessment with risk level and intervention recommendations
         """
-        logger.info(f"Assessing crisis risk for user {user_context.get('user_id', 'unknown')}")
+        logger.info("Assessing crisis risk for user %s", str(user_context.get('user_id', 'unknown')).replace('\n', '').replace('\r', '')[:50])
 
         active_indicators = []
         total_risk_score = 0.0

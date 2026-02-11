@@ -550,8 +550,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     // Calculate reading speed and provide feedback
     const totalWords = neuroscienceArticleSections.reduce((total, section) => {
-      // Rough word count estimation
-      const textContent = section.content.replace(/<[^>]*>/g, '');
+      // Create a temporary DOM element for safe HTML text extraction
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = section.content;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
       return total + textContent.split(/\s+/).length;
     }, 0);
 
