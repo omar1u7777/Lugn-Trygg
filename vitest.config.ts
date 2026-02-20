@@ -11,6 +11,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
+    teardownTimeout: 30000,
     // Exclude E2E tests from Vitest (they use Playwright)
     exclude: [
       "**/node_modules/**",
