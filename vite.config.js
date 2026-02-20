@@ -160,7 +160,7 @@ export default defineConfig({
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         manualChunks: (id) => {
-          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
             return "react-core";
           }
           if (
@@ -191,14 +191,10 @@ export default defineConfig({
           ) {
             return "animations";
           }
-          if (
-            id.includes("node_modules/amplitude-js") ||
-            id.includes("node_modules/@sentry") ||
-            id.includes("node_modules/web-vitals") ||
-            id.includes("node_modules/@vercel/analytics")
-          ) {
-            return "analytics";
-          }
+          // NOTE: amplitude-js, @sentry/react, web-vitals and @vercel/analytics are NOT
+          // forced into a manual chunk — @sentry/react imports React internals and
+          // isolating it triggers the same "Cannot set properties of undefined
+          // (setting 'AsyncMode')" / TDZ crash as recharts. Rollup splits naturally.
           if (
             id.includes("node_modules/lodash") ||
             id.includes("node_modules/date-fns") ||
