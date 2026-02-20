@@ -473,7 +473,6 @@ export function initializeAnalytics() {
 
   try {
     // Initialize in order
-    initializeAmplitude();
     initializeSentry();
     initializeFirebaseAnalytics();
 
