@@ -174,7 +174,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       // Level formula: matches backend _calculate_level(xp) = floor(sqrt(xp/100)) + 1
       const currentLevel = Math.floor(Math.sqrt(totalXp / 100)) + 1;
       const xpForCurrentLevel = ((currentLevel - 1) ** 2) * 100;
-      const xpForNextLevel = (currentLevel ** 2) * 100;
+      const _xpForNextLevel = (currentLevel ** 2) * 100;
       const xpInLevel = totalXp - xpForCurrentLevel;
 
       // Achievements Data

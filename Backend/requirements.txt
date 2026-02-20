@@ -46,7 +46,7 @@ joblib==1.4.2
 pyttsx3==2.90
 SpeechRecognition==3.8.1
 sounddevice==0.4.5
-soundfile==0.11.0
+soundfile>=0.12.1
 
 # PyAudio requires platform-specific wheels and fails to build on Python 3.12+.
 # Install it manually when needed (e.g., via pipwin or prebuilt wheels).
