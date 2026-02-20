@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../api/api";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
-import { tokenStorage } from "../utils/secureStorage";
+import { tokenStorage, secureStorage } from "../utils/secureStorage";
 import { logger } from '../utils/logger';
 
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
@@ -11,17 +11,7 @@ export const AuthContext = createContext<AuthContextProps | undefined>(undefined
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
    const [token, setTokenState] = useState<string | null>(null);
-   const [user, setUserState] = useState<User | null>(() => {
-      try {
-        const savedUser = localStorage.getItem("user");
-        return savedUser ? JSON.parse(savedUser) : null;
-      } catch (error) {
-        if ((import.meta as any).env?.DEV) {
-          logger.warn("Failed to parse user data from localStorage:", error);
-        }
-        return null;
-      }
-    });
+   const [user, setUserState] = useState<User | null>(null);
    // Internal UI state for initialization and modals
    const [uiState, setUiState] = useState<{
      isInitialized: boolean;
@@ -57,8 +47,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         // Load token from secure storage
         const storedToken = await tokenStorage.getAccessToken();
-        const savedUser = localStorage.getItem("user");
-        const userData = savedUser ? JSON.parse(savedUser) : null;
+        const savedUserJson = await secureStorage.getItem('user');
+        const userData = savedUserJson ? JSON.parse(savedUserJson) : null;
         
         if (storedToken && userData) {
           // Valid session exists - restore it BEFORE marking as initialized
@@ -107,7 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       setUserState(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
+      await secureStorage.setItem('user', JSON.stringify(userData));
 
       logger.debug('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
 
@@ -134,7 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Clear secure storage
       tokenStorage.clearTokens();
       // Keep consent_given in localStorage, only clear auth-related items
-      localStorage.removeItem("user");
+      secureStorage.removeItem('user');
       navigate("/login");
     }
   }, [navigate]);

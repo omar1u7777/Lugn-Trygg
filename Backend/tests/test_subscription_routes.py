@@ -3,11 +3,13 @@ Comprehensive tests for subscription_routes.py
 Tests Stripe integration, subscription management, and payment flows.
 
 Uses conftest.py fixtures: client, mock_db, auth_headers.
-The conftest patches AuthService.jwt_required so that g.user_id = 'test-user-id'.
+The conftest patches AuthService.jwt_required so that g.user_id = 'testuser1234567890ab'.
 """
 import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
+
+TEST_USER_ID = "testuser1234567890ab"
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +85,7 @@ class TestCreateCheckoutSession:
     def test_create_session_premium_success(
         self, mock_db, mock_stripe, mock_stripe_available, client
     ):
-        """Successful premium checkout — user_id comes from JWT (test-user-id)."""
+        """Successful premium checkout — user_id comes from JWT."""
         mock_session = Mock()
         mock_session.id = "cs_test_123"
         mock_session.url = "https://checkout.stripe.com/test"
@@ -105,7 +107,7 @@ class TestCreateCheckoutSession:
         call_args = mock_stripe.checkout.Session.create.call_args[1]
         assert call_args["mode"] == "subscription"
         assert call_args["customer_email"] == "test@example.com"
-        assert call_args["metadata"]["user_id"] == "test-user-id"
+        assert call_args["metadata"]["user_id"] == TEST_USER_ID
         assert call_args["metadata"]["plan"] == "premium"
 
     def test_create_session_enterprise_success(
@@ -130,7 +132,7 @@ class TestCreateCheckoutSession:
 
         call_args = mock_stripe.checkout.Session.create.call_args[1]
         assert call_args["metadata"]["plan"] == "enterprise"
-        assert call_args["metadata"]["user_id"] == "test-user-id"
+        assert call_args["metadata"]["user_id"] == TEST_USER_ID
 
     def test_create_session_missing_email(
         self, mock_stripe_available, client
@@ -230,7 +232,7 @@ class TestGetSubscriptionStatus:
     """Tests for GET /api/subscription/status/<user_id>
 
     The route enforces current_user_id == user_id, so the URL must use
-    'test-user-id' (the value the conftest JWT mock injects).
+    TEST_USER_ID (the value the conftest JWT mock injects).
     """
 
     def test_get_status_active_subscription(self, mock_db, client):
@@ -244,7 +246,7 @@ class TestGetSubscriptionStatus:
         })
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/status/test-user-id')
+        response = client.get(f'/api/subscription/status/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -262,7 +264,7 @@ class TestGetSubscriptionStatus:
         })
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/status/test-user-id')
+        response = client.get(f'/api/subscription/status/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -274,7 +276,7 @@ class TestGetSubscriptionStatus:
         ref = _user_doc_ref(exists=True, data={})
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/status/test-user-id')
+        response = client.get(f'/api/subscription/status/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -286,7 +288,7 @@ class TestGetSubscriptionStatus:
         ref = _user_doc_ref(exists=False)
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/status/test-user-id')
+        response = client.get(f'/api/subscription/status/{TEST_USER_ID}')
 
         assert response.status_code == 404
         data = response.get_json()
@@ -306,7 +308,7 @@ class TestGetSubscriptionStatus:
         """Database error → 500."""
         mock_db.collection.side_effect = Exception("Database error")
 
-        response = client.get('/api/subscription/status/test-user-id')
+        response = client.get(f'/api/subscription/status/{TEST_USER_ID}')
 
         assert response.status_code == 500
         data = response.get_json()
@@ -335,7 +337,7 @@ class TestStripeWebhook:
                     "customer": "cus_test123",
                     "subscription": "sub_test123",
                     "metadata": {
-                        "user_id": "test-user-id",
+                        "user_id": TEST_USER_ID,
                         "plan": "premium",
                     },
                 }
@@ -372,7 +374,7 @@ class TestStripeWebhook:
             "data": {
                 "object": {
                     "metadata": {
-                        "user_id": "test-user-id",
+                        "user_id": TEST_USER_ID,
                         "type": "cbt_module",
                         "module": "anxiety_management",
                     }
@@ -441,7 +443,7 @@ class TestStripeWebhook:
         }
 
         mock_user_doc = Mock()
-        mock_user_doc.id = "test-user-id"
+        mock_user_doc.id = TEST_USER_ID
 
         mock_update = Mock()
         mock_user_doc_ref = Mock()
@@ -536,7 +538,7 @@ class TestPurchaseCBTModule:
         assert call_args["mode"] == "payment"
         assert call_args["metadata"]["module"] == "anxiety_management"
         assert call_args["metadata"]["type"] == "cbt_module"
-        assert call_args["metadata"]["user_id"] == "test-user-id"
+        assert call_args["metadata"]["user_id"] == TEST_USER_ID
 
     def test_purchase_module_missing_fields(
         self, mock_stripe_available, client
@@ -626,7 +628,7 @@ class TestGetAvailablePlans:
 class TestGetUserPurchases:
     """Tests for GET /api/subscription/purchases/<user_id>
 
-    Route enforces current_user_id == user_id → URL must use 'test-user-id'.
+    Route enforces current_user_id == user_id → URL must use TEST_USER_ID.
     """
 
     def test_get_purchases_with_items(self, mock_db, client):
@@ -636,7 +638,7 @@ class TestGetUserPurchases:
         })
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/purchases/test-user-id')
+        response = client.get(f'/api/subscription/purchases/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -650,7 +652,7 @@ class TestGetUserPurchases:
         ref = _user_doc_ref(exists=True, data={"purchases": []})
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/purchases/test-user-id')
+        response = client.get(f'/api/subscription/purchases/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -661,7 +663,7 @@ class TestGetUserPurchases:
         ref = _user_doc_ref(exists=True, data={})
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/purchases/test-user-id')
+        response = client.get(f'/api/subscription/purchases/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -672,7 +674,7 @@ class TestGetUserPurchases:
         ref = _user_doc_ref(exists=False)
         _make_users_collection(mock_db, ref)
 
-        response = client.get('/api/subscription/purchases/test-user-id')
+        response = client.get(f'/api/subscription/purchases/{TEST_USER_ID}')
 
         assert response.status_code == 404
 
@@ -685,7 +687,7 @@ class TestGetUserPurchases:
         """Database error → 500."""
         mock_db.collection.side_effect = Exception("DB error")
 
-        response = client.get('/api/subscription/purchases/test-user-id')
+        response = client.get(f'/api/subscription/purchases/{TEST_USER_ID}')
 
         assert response.status_code == 500
 
@@ -697,7 +699,7 @@ class TestGetUserPurchases:
 class TestCancelSubscription:
     """Tests for POST /api/subscription/cancel/<user_id>
 
-    Route enforces current_user_id == user_id → URL must use 'test-user-id'.
+    Route enforces current_user_id == user_id → URL must use TEST_USER_ID.
     """
 
     def test_cancel_subscription_success(
@@ -714,7 +716,7 @@ class TestCancelSubscription:
 
         mock_stripe.Subscription.modify.return_value = Mock()
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 200
         data = response.get_json()
@@ -738,7 +740,7 @@ class TestCancelSubscription:
         })
         _make_users_collection(mock_db, ref)
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 400
         data = response.get_json()
@@ -754,7 +756,7 @@ class TestCancelSubscription:
         ref = _user_doc_ref(exists=False)
         _make_users_collection(mock_db, ref)
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 404
 
@@ -768,7 +770,7 @@ class TestCancelSubscription:
         })
         _make_users_collection(mock_db, ref)
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 400
         data = response.get_json()
@@ -778,7 +780,7 @@ class TestCancelSubscription:
         self, mock_stripe_unavailable, client
     ):
         """Stripe unavailable → 503."""
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
         assert response.status_code == 503
 
     def test_cancel_subscription_stripe_error(
@@ -795,7 +797,7 @@ class TestCancelSubscription:
 
         mock_stripe.Subscription.modify.side_effect = Exception("Subscription not found")
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 400
 
@@ -810,6 +812,6 @@ class TestCancelSubscription:
         """Database error → 500."""
         mock_db.collection.side_effect = Exception("DB error")
 
-        response = client.post('/api/subscription/cancel/test-user-id')
+        response = client.post(f'/api/subscription/cancel/{TEST_USER_ID}')
 
         assert response.status_code == 500

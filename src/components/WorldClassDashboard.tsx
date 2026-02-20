@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   HeartIcon,
   ChatBubbleLeftRightIcon,
@@ -85,6 +86,7 @@ const RecommendationsSkeleton = () => (
  * - NO MUI - Pure Tailwind CSS
  */
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
+  const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -184,7 +186,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     });
 
     if (!loading) {
-      announceToScreenReader('Dashboard laddad', 'polite');
+      announceToScreenReader(t('worldDashboard.dashboardLoaded'), 'polite');
     }
   }, [user?.user_id, loading, announceToScreenReader]);
 
@@ -238,10 +240,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     return (
       <div className="world-class-dashboard p-4 sm:p-6 lg:p-8">
         <Alert variant="error" className="mb-4">
-          <strong>Kunde inte ladda dashboard:</strong> {error.message}
+          <strong>{t('worldDashboard.loadError')}:</strong> {error.message}
         </Alert>
         <Button onClick={handleRefresh} variant="primary">
-          Försök igen
+          {t('worldDashboard.tryAgain')}
         </Button>
       </div>
     );
@@ -265,10 +267,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             onClick={handleCloseFeature}
             variant="secondary"
             className="min-h-[44px]"
-            aria-label="Tillbaka till översikt"
+            aria-label={t('worldDashboard.backToDashboard')}
           >
             <span className="mr-2" aria-hidden="true">←</span>
-            Tillbaka till Dashboard
+            {t('worldDashboard.backToDashboard')}
           </Button>
         </div>
 
@@ -276,7 +278,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         {activeView === 'mood-list' && <MoodList onClose={handleCloseFeature} />}
         {activeView === 'chat' && <WorldClassAIChat onClose={handleCloseFeature} />}
         {activeView === 'analytics' && (
-          <Suspense fallback={<FeatureViewFallback label="Laddar analyser..." />}>
+          <Suspense fallback={<FeatureViewFallback label={t('worldDashboard.loadingAnalysis')} />}>
             <WorldClassAnalyticsView onClose={handleCloseFeature} />
           </Suspense>
         )}
@@ -286,8 +288,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           ) : (
             <PremiumGate
               feature="gamification"
-              title="Gamification är en Premium-funktion"
-              description="Lås upp achievements, badges och belöningar genom att uppgradera till Premium."
+              title={t('worldDashboard.gamificationTitle')}
+              description={t('worldDashboard.gamificationDesc')}
             />
           )
         )}
@@ -305,7 +307,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl"
             role="dialog"
             aria-modal="true"
-            aria-label="Wellnessmål"
+            aria-label={t('worldDashboard.wellnessGoalsLabel')}
           >
             <WellnessGoalsOnboarding
               userId={resolvedUserId}
@@ -344,10 +346,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             <div className="text-center mb-6">
               <span className="text-4xl mb-4 block">🧘‍♀️</span>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Hur mår du idag?
+                {t('worldDashboard.howAreYou')}
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Ta en stund att checka in med dig själv
+                {t('worldDashboard.takeAMoment')}
               </p>
             </div>
             <MoodLogger />
@@ -378,20 +380,20 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                  Dina Wellness-Mål
+                  {t('worldDashboard.wellnessGoals')}
                 </h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {safeDashboardStats.wellnessGoals.map((goal, index) => (
+                {safeDashboardStats.wellnessGoals.map((goal) => (
                   <div
-                    key={index}
+                    key={goal}
                     className="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800"
                   >
                     <span className="text-xl">
-                      {goal === 'Hantera stress' ? '🧘' :
-                        goal === 'Bättre sömn' ? '😴' :
-                          goal === 'Ökad fokusering' ? '🎯' :
-                            goal === 'Mental klarhet' ? '🧠' : '✨'}
+                      {goal === t('worldDashboard.goals.stress') ? '🧘' :
+                        goal === t('worldDashboard.goals.sleep') ? '😴' :
+                          goal === t('worldDashboard.goals.focus') ? '🎯' :
+                            goal === t('worldDashboard.goals.clarity') ? '🧠' : '✨'}
                     </span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {goal}
@@ -400,7 +402,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 ))}
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                💡 Rekommendationer baserat på dina mål visas nedan
+                {t('worldDashboard.goalRecommendations')}
               </p>
             </div>
           </Card>
@@ -427,7 +429,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <div className="flex items-center gap-3 mb-6">
                 <span className="text-2xl sm:text-3xl" aria-hidden="true">💡</span>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                  Personliga Rekommendationer
+                  {t('worldDashboard.personalRecommendations')}
                 </h2>
               </div>
 
@@ -445,7 +447,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
               {!loading && !hasWellnessGoals && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Lägg till wellness-mål för att låsa upp skräddarsydda rekommendationer.
+                  {t('worldDashboard.addGoalsForRecs')}
                 </p>
               )}
             </div>
@@ -468,10 +470,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
               <div>
                 <h5 className="text-lg sm:text-xl font-bold text-white">
-                  Veckoprogress
+                  {t('worldDashboard.weeklyProgress')}
                 </h5>
                 <p className="text-sm text-white/70">
-                  {formattedWeeklyProgress} av {formattedWeeklyGoal} humör-inlägg denna vecka
+                  {t('worldDashboard.weeklyProgressText', { current: formattedWeeklyProgress, goal: formattedWeeklyGoal })}
                 </p>
               </div>
             </div>
@@ -485,7 +487,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   aria-valuenow={safeDashboardStats.weeklyProgress}
                   aria-valuemin={0}
                   aria-valuemax={safeDashboardStats.weeklyGoal}
-                  aria-label={`Veckoprogress: ${safeDashboardStats.weeklyProgress} av ${safeDashboardStats.weeklyGoal}`}
+                  aria-label={t('worldDashboard.weeklyProgressLabel', { current: safeDashboardStats.weeklyProgress, goal: safeDashboardStats.weeklyGoal })}
                 />
               </div>
             </div>
@@ -493,11 +495,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             {safeDashboardStats.weeklyProgress >= safeDashboardStats.weeklyGoal ? (
               <Alert variant="success" className="bg-white/10 border-white/20 text-white">
                 <span className="mr-2" aria-hidden="true">🎉</span>
-                <strong>Grattis! Du har nått ditt veckomål!</strong>
+                <strong>{t('worldDashboard.weeklyGoalReached')}</strong>
               </Alert>
             ) : (
               <p className="text-sm text-white/70">
-                {formattedRemainingEntries} inlägg kvar till nästa achievement
+                {t('worldDashboard.entriesLeft', { count: formattedRemainingEntries })}
               </p>
             )}
           </div>
@@ -507,7 +509,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         <DashboardActivity
           activities={activities}
           isLoading={loading}
-          emptyStateMessage="Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!"
+          emptyStateMessage={t('worldDashboard.noActivityYet')}
         />
       </div>
     </div>

@@ -7,6 +7,7 @@ from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.subscription_service import SubscriptionService
 from src.utils.response_utils import APIResponse
 
 ALLOWED_LOCALES = {'sv', 'en', 'no'}
@@ -20,6 +21,26 @@ def _get_db():
         return db
     except Exception:
         return None
+
+
+def _check_premium_access(user_id: str):
+    """Check if user has premium access for AI features. Returns error response or None."""
+    try:
+        db_handle = _get_db()
+        if db_handle:
+            user_doc = db_handle.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict() if user_doc.exists else {}
+            plan_ctx = SubscriptionService.get_plan_context(user_data)
+            if not plan_ctx.get('is_premium') and not plan_ctx.get('is_trial'):
+                return APIResponse.error(
+                    "AI stories and forecasts require a premium subscription",
+                    "PREMIUM_REQUIRED",
+                    403,
+                    {"requiredPlan": "premium"}
+                )
+    except Exception as e:
+        logger.warning("Failed to check premium access: %s", e)
+    return None
 
 # 🔹 Generate Personalized Therapeutic Story
 @ai_bp.route("/story", methods=["POST", "OPTIONS"])
@@ -47,6 +68,11 @@ def generate_therapeutic_story():
         locale = data.get("locale", "sv")
         if locale not in ALLOWED_LOCALES:
             locale = "sv"  # Fallback to Swedish
+
+        # Check premium access for AI features
+        premium_error = _check_premium_access(user_id)
+        if premium_error:
+            return premium_error
 
         # Get user's mood history from database
         mood_ref = db_handle.collection("users").document(user_id).collection("moods")
@@ -116,7 +142,7 @@ def generate_therapeutic_story():
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid berättelsegenerering: {e}")
-        return APIResponse.error("Failed to generate therapeutic story", "STORY_GENERATION_ERROR", 500, str(e))
+        return APIResponse.error("Failed to generate therapeutic story", "STORY_GENERATION_ERROR", 500)
 
 # 🔹 Predictive Mood Forecasting (POST version for AI endpoint)
 @ai_bp.route("/forecast", methods=["POST", "OPTIONS"])
@@ -149,6 +175,11 @@ def generate_ai_mood_forecast():
         days_ahead = max(1, min(days_ahead, 30))  # Clamp 1-30
 
         use_sklearn = data.get("use_sklearn", True)  # Default to sklearn model
+
+        # Check premium access for AI features
+        premium_error = _check_premium_access(user_id)
+        if premium_error:
+            return premium_error
 
         # Get user's mood history from database
         mood_ref = db_handle.collection("users").document(user_id).collection("moods")
@@ -230,7 +261,7 @@ def generate_ai_mood_forecast():
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid prognosgenerering: {e}")
-        return APIResponse.error("Failed to generate mood forecast", "FORECAST_GENERATION_ERROR", 500, str(e))
+        return APIResponse.error("Failed to generate mood forecast", "FORECAST_GENERATION_ERROR", 500)
 
 # 🔹 Get User's Story History
 @ai_bp.route("/stories", methods=["GET", "OPTIONS"])
@@ -272,7 +303,7 @@ def get_story_history():
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av berättelsehistorik: {e}")
-        return APIResponse.error("Failed to retrieve story history", "STORY_HISTORY_ERROR", 500, str(e))
+        return APIResponse.error("Failed to retrieve story history", "STORY_HISTORY_ERROR", 500)
 
 # 🔹 Get User's Forecast History
 @ai_bp.route("/forecasts", methods=["GET", "OPTIONS"])
@@ -313,4 +344,4 @@ def get_forecast_history():
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av prognoshistorik: {e}")
-        return APIResponse.error("Failed to retrieve forecast history", "FORECAST_HISTORY_ERROR", 500, str(e))
+        return APIResponse.error("Failed to retrieve forecast history", "FORECAST_HISTORY_ERROR", 500)

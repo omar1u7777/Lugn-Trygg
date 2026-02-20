@@ -5,12 +5,14 @@ import {
   FaceSmileIcon,
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   FaceSmileIcon as FaceSmileIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   UserCircleIcon as UserCircleIconSolid,
+  Squares2X2Icon as Squares2X2IconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {
@@ -24,8 +26,8 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
+  { path: '/wellness', label: 'Mer', icon: Squares2X2Icon, iconActive: Squares2X2IconSolid },
   { path: '/profile', label: 'Profil', icon: UserCircleIcon, iconActive: UserCircleIconSolid },
-  // Hidden for v1.0: wellness - will be revealed progressively
 ];
 
 /**

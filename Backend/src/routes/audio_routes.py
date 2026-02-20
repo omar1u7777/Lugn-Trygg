@@ -6,6 +6,7 @@ Uses external royalty-free audio sources
 
 from flask import Blueprint, request
 
+from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
@@ -220,6 +221,7 @@ AUDIO_LIBRARY = {
 
 @audio_bp.route('/categories', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def get_categories():
     """Get all audio categories with basic info (without tracks)"""
     if request.method == 'OPTIONS':
@@ -246,6 +248,7 @@ def get_categories():
 
 @audio_bp.route('/category/<category_id>', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def get_category_tracks(category_id: str):
     """Get all tracks for a specific category"""
     if request.method == 'OPTIONS':
@@ -289,6 +292,7 @@ def get_category_tracks(category_id: str):
 @audio_bp.route('/all', methods=['GET', 'OPTIONS'])
 @audio_bp.route('/library', methods=['GET', 'OPTIONS'])  # Alias for frontend compatibility
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def get_all_audio():
     """Get complete audio library (all categories with all tracks)"""
     if request.method == 'OPTIONS':
@@ -329,6 +333,7 @@ def get_all_audio():
 
 @audio_bp.route('/track/<track_id>', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def get_track(track_id: str):
     """Get a specific track by ID"""
     if request.method == 'OPTIONS':
@@ -367,6 +372,7 @@ def get_track(track_id: str):
 
 @audio_bp.route('/search', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def search_tracks():
     """Search tracks by title or description"""
     if request.method == 'OPTIONS':

@@ -465,6 +465,45 @@ def log_mood() -> Response | tuple[Response, int]:
 
             # PERFORMANCE: Invalidate cache so next GET returns fresh data
             invalidate_mood_cache(user_id)
+
+            # CRISIS DETECTION: Check for crisis indicators after mood is saved
+            try:
+                from ..services.crisis_intervention import crisis_intervention_service
+                crisis_text = note or mood_text or transcript or ''
+                crisis_context = {
+                    'user_id': user_id,
+                    'mood_history': [{'sentiment_score': final_score}],
+                    'recent_text_content': crisis_text,
+                    'consecutive_low_mood_days': 0,
+                    'mood_score_drop_last_week': 0,
+                }
+                # Only flag if score is very low or text indicates crisis
+                if final_score <= 3 or crisis_text:
+                    assessment = crisis_intervention_service.assess_crisis_risk(crisis_context)
+                    if assessment.overall_risk_level in ('critical', 'high'):
+                        logger.warning(
+                            "🚨 CRISIS DETECTED via mood log: user=%s risk=%s score=%.2f",
+                            user_id, assessment.overall_risk_level, assessment.risk_score
+                        )
+                        # Persist alert for care team review
+                        db.collection('crisis_alerts').add({
+                            'user_id': user_id,
+                            'risk_level': assessment.overall_risk_level,
+                            'risk_score': assessment.risk_score,
+                            'source': 'mood_log',
+                            'mood_score': final_score,
+                            'text_snippet': crisis_text[:200] if crisis_text else '',
+                            'created_at': datetime.now(UTC).isoformat(),
+                            'resolved': False,
+                        })
+                        audit_log('CRISIS_DETECTED', user_id, {
+                            'source': 'mood_log',
+                            'risk_level': assessment.overall_risk_level,
+                            'risk_score': assessment.risk_score,
+                        })
+            except Exception as crisis_err:
+                logger.warning(f"Crisis detection failed (non-blocking): {crisis_err}")
+
         except Exception as db_error:
             logger.error(f"❌ Failed to save mood to database: {str(db_error)}", exc_info=True)
             # Continue with response even if database save fails

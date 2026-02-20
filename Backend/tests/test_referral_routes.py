@@ -5,6 +5,8 @@ Blueprint registered at: /api/v1/referral
 import pytest
 from unittest.mock import MagicMock, patch
 
+TEST_USER_ID = "testuser1234567890ab"
+
 
 # ---------------------------------------------------------------------------
 # Helper to build a Firestore-doc-like mock
@@ -37,7 +39,7 @@ class TestReferralGeneration:
         body = resp.get_json()
         assert body["success"] is True
         assert "referralCode" in body["data"]
-        assert body["data"]["userId"] == "test-user-id"
+        assert body["data"]["userId"] == TEST_USER_ID
         assert body["data"]["totalReferrals"] == 0
         assert body["data"]["successfulReferrals"] == 0
         assert body["data"]["pendingReferrals"] == 0
@@ -47,7 +49,7 @@ class TestReferralGeneration:
     def test_generate_existing_referral(self, mock_db, client):
         """Existing referral -> returns stored data, does NOT create new doc."""
         existing = {
-            "user_id": "test-user-id",
+            "user_id": TEST_USER_ID,
             "referral_code": "TEST1234",
             "total_referrals": 5,
             "successful_referrals": 3,
@@ -95,7 +97,7 @@ class TestReferralStats:
 
     def test_get_stats_existing_user(self, mock_db, client):
         existing = {
-            "user_id": "test-user-id",
+            "user_id": TEST_USER_ID,
             "referral_code": "TEST1234",
             "total_referrals": 10,
             "successful_referrals": 7,
@@ -216,7 +218,7 @@ class TestSendInvitation:
         """Referral doc exists but referral_code is missing -> 404."""
         col = mock_db.collection("referrals")
         col.document.return_value.get.return_value = _mock_doc(
-            exists=True, data={"user_id": "test-user-id"}
+            exists=True, data={"user_id": TEST_USER_ID}
         )
 
         resp = client.post(

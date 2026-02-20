@@ -5,8 +5,8 @@ import multiprocessing
 bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"
 
 # Worker configuration - optimized for 10k users with performance improvements
-# Formula: (2 x $num_cores) + 1 for balanced performance (reduced from 4x for stability)
-workers = max(2, multiprocessing.cpu_count() * 2 + 1)  # Usually 9-17 workers for stability
+# Formula: (2 x $num_cores) + 1, capped at 9 to avoid OS resource exhaustion
+workers = min(max(2, multiprocessing.cpu_count() * 2 + 1), 9)
 worker_class = "gevent"  # Async worker for high concurrency
 threads = 2  # Reduced threads per worker for better memory management
 worker_connections = 5000  # Reduced from 10k for stability, still supports high concurrency
@@ -24,9 +24,6 @@ max_requests_jitter = 50  # Add randomness to avoid all workers restarting at on
 preload_app = True  # Load app before forking workers (faster startup)
 reuse_port = True  # Enable SO_REUSEPORT for better load distribution
 backlog = 2048  # Increased backlog for high concurrency
-
-# Server optimization
-preload_app = True  # Load app before forking workers (faster startup)
 
 # Logging configuration
 accesslog = "-"  # Log to stdout

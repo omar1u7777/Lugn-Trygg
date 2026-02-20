@@ -9,7 +9,7 @@ Endpoints under test:
 
 Key facts (verified against ai_routes.py + main.py + conftest.py):
 - Blueprint registered at url_prefix='/api/v1/ai'
-- user_id always comes from g.user_id (set to 'test-user-id' by conftest)
+- user_id always comes from g.user_id (set to 'testuser1234567890ab' by conftest)
 - AI service import path: src.services.ai_service.ai_services
 - Database accessed via module-level `db` (from src.firebase_config) through _get_db()
 - OPTIONS intercepted by before_request handler -> 204
@@ -50,7 +50,14 @@ def _mock_user_subcollections(mock_db, *, moods_stream=None, extra_sub=None):
             return extra_col
         return Mock()
 
+    premium_user_snapshot = Mock()
+    premium_user_snapshot.exists = True
+    premium_user_snapshot.to_dict.return_value = {
+        "subscription": {"plan": "premium", "status": "active"}
+    }
+
     user_doc = Mock()
+    user_doc.get.return_value = premium_user_snapshot
     user_doc.collection = Mock(side_effect=_sub_router)
 
     users_col = Mock()

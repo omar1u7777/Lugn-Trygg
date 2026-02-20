@@ -109,7 +109,7 @@ sys.modules['Backend.src.firebase_config'] = mock_firebase_config
 def mock_jwt_required(f):
     def wrapper(*args, **kwargs):
         from flask import g
-        g.user_id = 'test-user-id'
+        g.user_id = 'testuser1234567890ab'
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
@@ -189,7 +189,7 @@ def auth_headers():
 
     # Create a proper JWT token with correct signature
     payload = {
-        "sub": "test-user-id",
+        "sub": "testuser1234567890ab",
         "exp": datetime.now(UTC) + timedelta(hours=1)
     }
 
@@ -203,13 +203,13 @@ def auth_headers():
 def mock_auth_service(mocker):
     """Mockar AuthService för alla tester som behöver autentisering."""
     # Mock JWT verification for AuthService
-    mocker.patch('src.services.auth_service.AuthService.verify_token', return_value=("test-user-id", None))
+    mocker.patch('src.services.auth_service.AuthService.verify_token', return_value=("testuser1234567890ab", None))
 
     # Mock jwt_required decorator to set g.user_id - patch at the module level
     def jwt_required_decorator(f):
         def wrapper(*args, **kwargs):
             from flask import g
-            g.user_id = 'test-user-id'
+            g.user_id = 'testuser1234567890ab'
             return f(*args, **kwargs)
         wrapper.__name__ = f.__name__
         return wrapper
@@ -219,7 +219,7 @@ def mock_auth_service(mocker):
     original_jwt_required = auth_service.AuthService.jwt_required
     auth_service.AuthService.jwt_required = staticmethod(lambda f: jwt_required_decorator(f))
 
-    yield {"user_id": "test-user-id", "email": "test@example.com"}
+    yield {"user_id": "testuser1234567890ab", "email": "test@example.com"}
 
     # Restore original method after test
     auth_service.AuthService.jwt_required = original_jwt_required

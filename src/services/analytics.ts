@@ -6,15 +6,47 @@
 
 import { logger } from '../utils/logger';
 
-// Temporarily disable Sentry to fix React import issues
-// import * as Sentry from '@sentry/react';
-const Sentry = {
-  init: (_options?: Record<string, unknown>) => {},
-  setUser: (_user?: { id?: string; email?: string; username?: string }) => {},
-  captureException: (_error?: Error, _context?: Record<string, unknown>) => {},
-  captureMessage: (_message?: string, _level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug') => {},
-  addBreadcrumb: (_breadcrumb?: Record<string, unknown>) => {},
+// Sentry for production error tracking
+// Only initialized when VITE_SENTRY_DSN is set — no-ops gracefully otherwise
+let Sentry: {
+  init: (options?: Record<string, unknown>) => void;
+  setUser: (user?: { id?: string; email?: string; username?: string }) => void;
+  captureException: (error?: Error, context?: Record<string, unknown>) => void;
+  captureMessage: (message?: string, level?: 'fatal' | 'error' | 'warning' | 'info' | 'debug') => void;
+  addBreadcrumb: (breadcrumb?: Record<string, unknown>) => void;
 };
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
+
+if (SENTRY_DSN) {
+  // Dynamic import to avoid bundling Sentry when not configured
+  import('@sentry/react').then((SentryModule) => {
+    Sentry = SentryModule;
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      environment: import.meta.env.MODE || 'production',
+      tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: import.meta.env.PROD ? 1.0 : 0,
+      enabled: import.meta.env.PROD,
+    });
+    logger.debug('✅ Sentry initialized for error tracking');
+  }).catch((err) => {
+    logger.warn('⚠️ Failed to load Sentry SDK:', err);
+  });
+} else {
+  // No DSN configured — use silent no-ops (safe for development)
+  Sentry = {
+    init: () => {},
+    setUser: () => {},
+    captureException: () => {},
+    captureMessage: () => {},
+    addBreadcrumb: () => {},
+  };
+  if (import.meta.env.DEV) {
+    logger.debug('ℹ️ Sentry not configured (VITE_SENTRY_DSN not set) — error tracking disabled');
+  }
+}
 
 // Types for analytics
 interface UserProperties {

@@ -13,6 +13,7 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { analytics } from '../services/analytics';
@@ -55,6 +56,7 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isPremium, plan } = useSubscription();
+  const { t } = useTranslation();
   
   // History limit for free users
   const historyDays = isPremium ? -1 : plan.limits.historyDays; // 7 days for free
@@ -94,8 +96,8 @@ useEffect(() => {
       setLoading(true);
 
       const [moodsData, _weeklyAnalysisData] = await Promise.all([
-        getMoods(user.user_id).catch(() => []),
-        getWeeklyAnalysis(user.user_id).catch(() => ({})),
+        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
       ]);
       
       // REAL SUBSCRIPTION LIMIT: Filter moods for free users (7 days only)
@@ -192,8 +194,8 @@ useEffect(() => {
       insights.push({
         id: 'start-tracking',
         type: 'pattern' as const,
-        title: 'Börja spåra ditt humör',
-        description: 'Logga ditt humör regelbundet för att få bättre insikter om dina mönster.',
+        title: t('worldAnalytics.insights.startTracking'),
+        description: t('worldAnalytics.insights.startTrackingDesc'),
         severity: 'medium' as const,
       });
     }
@@ -202,8 +204,8 @@ useEffect(() => {
       insights.push({
         id: 'positive-trend',
         type: 'improvement' as const,
-        title: 'Positiv trend!',
-        description: 'Ditt genomsnittliga humör är högt. Fortsätt med det du gör!',
+        title: t('worldAnalytics.insights.positiveTrend'),
+        description: t('worldAnalytics.insights.positiveTrendDesc'),
         severity: 'low' as const,
       });
     }
@@ -212,8 +214,8 @@ useEffect(() => {
       insights.push({
         id: 'concerning-trend',
         type: 'concern' as const,
-        title: 'Nedåtgående trend',
-        description: 'Ditt humör har sjunkit de senaste dagarna. Överväg att prata med någon.',
+        title: t('worldAnalytics.insights.downwardTrend'),
+        description: t('worldAnalytics.insights.downwardTrendDesc'),
         severity: 'high' as const,
       });
     }
@@ -222,8 +224,8 @@ useEffect(() => {
       insights.push({
         id: 'low-mood-support',
         type: 'concern' as const,
-        title: 'Behöver du stöd?',
-        description: 'Ditt humör är lågt. Du är inte ensam - överväg professionell hjälp.',
+        title: t('worldAnalytics.insights.needSupport'),
+        description: t('worldAnalytics.insights.needSupportDesc'),
         severity: 'high' as const,
       });
     }
@@ -233,20 +235,20 @@ useEffect(() => {
 
   const calculateMoodDistribution = (moods: MoodData[]) => {
     const distribution: { [key: string]: number } = {
-      'Mycket dåligt (1-2)': 0,
-      'Dåligt (3-4)': 0,
-      'Neutralt (5-6)': 0,
-      'Bra (7-8)': 0,
-      'Mycket bra (9-10)': 0,
+      [t('worldAnalytics.moodDistribution.veryBad')]: 0,
+      [t('worldAnalytics.moodDistribution.bad')]: 0,
+      [t('worldAnalytics.moodDistribution.neutral')]: 0,
+      [t('worldAnalytics.moodDistribution.good')]: 0,
+      [t('worldAnalytics.moodDistribution.veryGood')]: 0,
     };
 
     moods.forEach((mood: MoodData) => {
       const score = mood.score || 0;
-      if (score <= 2) distribution['Mycket dåligt (1-2)'] = (distribution['Mycket dåligt (1-2)'] || 0) + 1;
-      else if (score <= 4) distribution['Dåligt (3-4)'] = (distribution['Dåligt (3-4)'] || 0) + 1;
-      else if (score <= 6) distribution['Neutralt (5-6)'] = (distribution['Neutralt (5-6)'] || 0) + 1;
-      else if (score <= 8) distribution['Bra (7-8)'] = (distribution['Bra (7-8)'] || 0) + 1;
-      else distribution['Mycket bra (9-10)'] = (distribution['Mycket bra (9-10)'] || 0) + 1;
+      if (score <= 2) distribution[t('worldAnalytics.moodDistribution.veryBad')] = (distribution[t('worldAnalytics.moodDistribution.veryBad')] || 0) + 1;
+      else if (score <= 4) distribution[t('worldAnalytics.moodDistribution.bad')] = (distribution[t('worldAnalytics.moodDistribution.bad')] || 0) + 1;
+      else if (score <= 6) distribution[t('worldAnalytics.moodDistribution.neutral')] = (distribution[t('worldAnalytics.moodDistribution.neutral')] || 0) + 1;
+      else if (score <= 8) distribution[t('worldAnalytics.moodDistribution.good')] = (distribution[t('worldAnalytics.moodDistribution.good')] || 0) + 1;
+      else distribution[t('worldAnalytics.moodDistribution.veryGood')] = (distribution[t('worldAnalytics.moodDistribution.veryGood')] || 0) + 1;
     });
 
     return distribution;
@@ -295,7 +297,7 @@ useEffect(() => {
     return (
       <div className="world-class-app p-8 text-center">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 world-class-body">
-          Analyserar dina data...
+          {t('worldAnalytics.analyzing')}
         </h3>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
           <div className="bg-primary-600 h-full animate-pulse" style={{ width: '100%' }} />
@@ -316,16 +318,16 @@ useEffect(() => {
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white world-class-heading-2">
-              📊 Dina Insikter & Analys
+              {t('worldAnalytics.title')}
             </h2>
             <div className="flex gap-2">
               <Button onClick={loadAnalyticsData} variant="outline" size="sm">
                 <ArrowPathIcon className="w-4 h-4 mr-2" />
-                Uppdatera
+                {t('worldAnalytics.refresh')}
               </Button>
               <Button variant="outline" size="sm">
                 <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-                Exportera
+                {t('worldAnalytics.export')}
               </Button>
               <button
                 onClick={onClose}
@@ -344,15 +346,15 @@ useEffect(() => {
                 <div className="flex items-center gap-3">
                   <LockClosedIcon className="w-6 h-6" />
                   <div>
-                    <p className="font-bold">Gratis: Endast senaste {historyDays} dagars historik</p>
-                    <p className="text-sm opacity-90">Uppgradera till Premium för obegränsad historik och djupare insikter</p>
+                    <p className="font-bold">{t('worldAnalytics.freeTierBanner', { days: historyDays })}</p>
+                    <p className="text-sm opacity-90">{t('worldAnalytics.upgradeMessage')}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => navigate('/upgrade')}
                   className="px-4 py-2 bg-white text-amber-600 font-bold rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  Uppgradera
+                  {t('worldAnalytics.upgrade')}
                 </button>
               </div>
             </div>
@@ -364,17 +366,17 @@ useEffect(() => {
               <LightBulbIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5" />
               <div>
                 <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                  🔍 Fullständig Ärlighet & Transparens
+                  {t('worldAnalytics.transparencyTitle')}
                 </h4>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                  Denna analys visar <strong>exakt dina råa data</strong> utan filtrering, manipulation eller optimering.
-                  {!isPremium && <strong> (Begränsat till {historyDays} dagar för gratisanvändare)</strong>}
+                  {t('worldAnalytics.transparencyDesc')}
+                  {!isPremium && <strong> {t('worldAnalytics.freeTierNote', { days: historyDays })}</strong>}
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                  <p>• <strong>Genomsnitt:</strong> Enkel aritmetisk medelvärde av alla dina humör-poäng</p>
-                  <p>• <strong>Trender:</strong> Jämförelse mellan senaste 7 dagar vs föregående 7 dagar</p>
-                  <p>• <strong>Insikter:</strong> Automatiskt genererade baserat på enkla matematiska trösklar</p>
-                  <p>• <strong>Inga filter:</strong> Alla dagar med/utan loggningar visas exakt som de är</p>
+                  <p>• <strong>{t('worldAnalytics.methodAverage')}:</strong> {t('worldAnalytics.methodAverageDesc')}</p>
+                  <p>• <strong>{t('worldAnalytics.methodTrends')}:</strong> {t('worldAnalytics.methodTrendsDesc')}</p>
+                  <p>• <strong>{t('worldAnalytics.methodInsights')}:</strong> {t('worldAnalytics.methodInsightsDesc')}</p>
+                  <p>• <strong>{t('worldAnalytics.methodNoFilter')}:</strong> {t('worldAnalytics.methodNoFilterDesc')}</p>
                 </div>
               </div>
             </div>
@@ -387,10 +389,10 @@ useEffect(() => {
                 {data.averageMood}/10
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 world-class-analytics-label">
-                Genomsnittligt humör
+                {t('worldAnalytics.avgMood')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                ({data.totalMoods > 0 ? 'baserat på alla dina loggningar' : 'inga loggningar än'})
+                ({data.totalMoods > 0 ? t('worldAnalytics.basedOnAll') : t('worldAnalytics.noLogsYet')})
               </p>
             </Card>
 
@@ -399,10 +401,10 @@ useEffect(() => {
                 {data.totalMoods}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 world-class-analytics-label">
-                Totala loggningar
+                {t('worldAnalytics.totalLogs')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                exakt antal inlägg
+                {t('worldAnalytics.exactCount')}
               </p>
             </Card>
 
@@ -411,10 +413,10 @@ useEffect(() => {
                 {data.streakDays}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 world-class-analytics-label">
-                Dagar i rad
+                {t('worldAnalytics.daysInRow')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                dagar med minst 1 loggning
+                {t('worldAnalytics.daysWithLog')}
               </p>
             </Card>
 
@@ -423,10 +425,10 @@ useEffect(() => {
                 {data.insights.length}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 world-class-analytics-label">
-                Automatiska insikter
+                {t('worldAnalytics.autoInsights')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                baserat på enkla regler
+                {t('worldAnalytics.basedOnRules')}
               </p>
             </Card>
           </div>
@@ -435,19 +437,19 @@ useEffect(() => {
           {data.insights.length > 0 && (
             <div className="mb-8">
               <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-                🤖 Automatiska Insikter (100% Ärliga Regler)
+                {t('worldAnalytics.insightsTitle')}
               </h3>
 
               {/* Transparency about insight generation */}
               <Alert variant="info" className="mb-4">
                 <div className="text-sm">
-                  <p className="font-semibold mb-2">🔍 Hur insikterna genereras:</p>
+                  <p className="font-semibold mb-2">{t('worldAnalytics.insightsHow')}</p>
                   <div className="space-y-1 text-xs">
-                    <p>• <strong>"Börja spåra ditt humör":</strong> Visas om du har {'<'} 3 loggningar totalt</p>
-                    <p>• <strong>"Positiv trend":</strong> Visas om genomsnittligt humör {'>'}= 7.0</p>
-                    <p>• <strong>"Nedåtgående trend":</strong> Visas om trenden är nedåtgående</p>
-                    <p>• <strong>"Behöver du stöd":</strong> Visas om genomsnittligt humör {'<='} 4.0</p>
-                    <p className="font-medium mt-2">Dessa är enkla, automatiska regler - ingen AI eller komplex analys.</p>
+                    <p>{t('worldAnalytics.insightRule1')}</p>
+                    <p>{t('worldAnalytics.insightRule2')}</p>
+                    <p>{t('worldAnalytics.insightRule3')}</p>
+                    <p>{t('worldAnalytics.insightRule4')}</p>
+                    <p className="font-medium mt-2">{t('worldAnalytics.simpleRules')}</p>
                   </div>
                 </div>
               </Alert>
@@ -468,7 +470,7 @@ useEffect(() => {
                           {insight.description}
                         </p>
                         <p className="text-xs opacity-75 mt-1">
-                          Automatiskt genererad baserat på dina data
+                          {t('worldAnalytics.autoGenerated')}
                         </p>
                       </div>
                     </div>
@@ -481,13 +483,12 @@ useEffect(() => {
           {/* Mood Distribution */}
           <div className="mb-8">
             <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-              📈 Humörfördelning (Exakt Räknat)
+              {t('worldAnalytics.distributionTitle')}
             </h3>
 
             <Alert variant="info" className="mb-4">
               <p className="text-sm">
-                <strong>100% ärlig fördelning:</strong> Varje humör-poäng från dina loggningar räknas exakt en gång.
-                Inga approximationer, ingen rounding, ingen manipulation.
+                {t('worldAnalytics.distributionDesc')}
               </p>
             </Alert>
 
@@ -501,7 +502,7 @@ useEffect(() => {
                     {range}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                    exakt antal loggningar
+                    {t('worldAnalytics.exactLogs')}
                   </p>
                 </Card>
               ))}
@@ -511,21 +512,20 @@ useEffect(() => {
           {/* Weekly Progress */}
           <div className="mb-8">
             <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-              📅 Veckoöversikt (Exakt Räknat)
+              {t('worldAnalytics.weeklyTitle')}
             </h3>
 
             <Card className="p-6">
               <Alert variant="info" className="mb-4">
                 <p className="text-sm">
-                  <strong>Ärlig vecko-spårning:</strong> Visar exakt antal dagar denna vecka där du loggade minst ett humör.
-                  Inga "bonuspoäng", inga "extrakrediter" - bara dina faktiska loggningar.
+                  {t('worldAnalytics.weeklyDesc')}
                 </p>
               </Alert>
 
               <div className="mb-4">
                 <div className="flex justify-between mb-2">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    {data.weeklyProgress} / {data.weeklyGoal} dagar med loggningar
+                    {t('worldAnalytics.weeklyProgress', { current: data.weeklyProgress, goal: data.weeklyGoal })}
                   </p>
                   <p className="text-sm font-semibold text-primary-600 dark:text-primary-400">
                     {Math.min(
@@ -546,13 +546,13 @@ useEffect(() => {
                   />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Procent beräknat som: (dina loggningsdagar / ditt mål) × 100
+                  {t('worldAnalytics.percentCalc')}
                 </p>
               </div>
 
               <div className="grid grid-cols-7 gap-2">
-                {data.weeklyData.map((day, index) => (
-                  <div key={index} className="text-center">
+                {data.weeklyData.map((day) => (
+                  <div key={day.day} className="text-center">
                     <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                       {day.day}
                     </p>
@@ -562,7 +562,7 @@ useEffect(() => {
                           ? 'bg-primary-600'
                           : 'bg-gray-200 dark:bg-gray-700 opacity-30'
                       }`}
-                      title={day.count > 0 ? `${day.count} loggning(ar) denna dag` : 'Inga loggningar denna dag'}
+                      title={day.count > 0 ? t('worldAnalytics.logsThisDay', { count: day.count }) : t('worldAnalytics.noLogsThisDay')}
                     >
                       {day.count > 0 && (
                         <span className="text-xs text-white font-bold mb-1">
@@ -571,7 +571,7 @@ useEffect(() => {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      {day.count > 0 ? `${day.count} st` : '0 st'}
+                      {day.count > 0 ? t('worldAnalytics.countSt', { count: day.count }) : t('worldAnalytics.zeroSt')}
                     </p>
                   </div>
                 ))}
@@ -582,7 +582,7 @@ useEffect(() => {
           {/* Trend Analysis */}
           <div className="mb-8">
             <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-              📊 Trendanalys (100% Ärlig)
+              {t('worldAnalytics.trendTitle')}
             </h3>
 
             <Card className="p-6">
@@ -593,12 +593,12 @@ useEffect(() => {
 
                 <div>
                   <h4 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {data.moodTrend === 'up' && 'Uppåtgående trend'}
-                    {data.moodTrend === 'down' && 'Nedåtgående trend'}
-                    {data.moodTrend === 'stable' && 'Stabil trend'}
+                    {data.moodTrend === 'up' && t('worldAnalytics.trendUp')}
+                    {data.moodTrend === 'down' && t('worldAnalytics.trendDown')}
+                    {data.moodTrend === 'stable' && t('worldAnalytics.trendStable')}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Exakt beräkning: Senaste 7 dagar vs föregående 7 dagar
+                    {t('worldAnalytics.trendCalc')}
                   </p>
                 </div>
               </div>
@@ -606,16 +606,16 @@ useEffect(() => {
               {/* Transparent Calculation Explanation */}
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4">
                 <h5 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm">
-                  🔢 Hur trenden beräknas (fullständigt ärligt):
+                  {t('worldAnalytics.trendHowTitle')}
                 </h5>
                 <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                  <p>• Tar <strong>exakt 7 dagar bakåt</strong> från idag = "senaste veckan"</p>
-                  <p>• Tar <strong>dag 8-14 bakåt</strong> från idag = "föregående vecka"</p>
-                  <p>• Räknar enkelt genomsnitt för varje period</p>
-                  <p>• Om senaste veckan {'>'} föregående vecka + 0.5 poäng = uppåtgående</p>
-                  <p>• Om senaste veckan {'<'} föregående vecka - 0.5 poäng = nedåtgående</p>
-                  <p>• Annars = stabil</p>
-                  <p className="font-medium mt-2">Inga filter, ingen smoothing, ingen manipulation.</p>
+                  <p>{t('worldAnalytics.trendStep1')}</p>
+                  <p>{t('worldAnalytics.trendStep2')}</p>
+                  <p>{t('worldAnalytics.trendStep3')}</p>
+                  <p>{t('worldAnalytics.trendStep4')}</p>
+                  <p>{t('worldAnalytics.trendStep5')}</p>
+                  <p>{t('worldAnalytics.trendStep6')}</p>
+                  <p className="font-medium mt-2">{t('worldAnalytics.noFilterNote')}</p>
                 </div>
               </div>
 
@@ -623,12 +623,10 @@ useEffect(() => {
                 <Alert variant="warning" className="mt-4">
                   <div>
                     <p className="text-sm mb-2">
-                      <strong>Ärlig observation:</strong> Dina senaste 7 dagar visar lägre humör än veckan innan.
-                      Detta är inte en diagnos - bara dina faktiska data.
+                      {t('worldAnalytics.trendDownWarning')}
                     </p>
                     <p className="text-sm">
-                      Om du känner dig nedstämd, överväg att prata med en vän, familjemedlem eller professionell hjälpare.
-                      Du är inte ensam i detta.
+                      {t('worldAnalytics.trendDownAdvice')}
                     </p>
                   </div>
                 </Alert>
@@ -637,8 +635,7 @@ useEffect(() => {
               {data.moodTrend === 'up' && (
                 <Alert variant="success" className="mt-4">
                   <p className="text-sm">
-                    <strong>Ärlig observation:</strong> Dina senaste 7 dagar visar högre humör än veckan innan.
-                    Detta är baserat på dina faktiska loggningar - grattis till förbättringen!
+                    {t('worldAnalytics.trendUpNote')}
                   </p>
                 </Alert>
               )}
@@ -648,27 +645,27 @@ useEffect(() => {
           {/* Recommendations */}
           <div>
             <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 world-class-heading-3">
-              💡 Rekommendationer
+              {t('worldAnalytics.recommendationsTitle')}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="p-6 bg-primary-500 text-white">
                 <SparklesIcon className="w-8 h-8 mb-4" />
                 <h4 className="text-xl font-semibold mb-2">
-                  Fortsätt spåra regelbundet
+                  {t('worldAnalytics.recTrackTitle')}
                 </h4>
                 <p className="text-sm">
-                  Daglig humörspårning hjälper dig förstå dina mönster och förbättrar dina insikter över tid.
+                  {t('worldAnalytics.recTrackDesc')}
                 </p>
               </Card>
 
               <Card className="p-6 bg-secondary-500 text-white">
                 <HeartIcon className="w-8 h-8 mb-4" />
                 <h4 className="text-xl font-semibold mb-2">
-                  Fokusera på välbefinnande
+                  {t('worldAnalytics.recWellnessTitle')}
                 </h4>
                 <p className="text-sm">
-                  Överväg mindfulness, motion eller andra aktiviteter som förbättrar ditt humör.
+                  {t('worldAnalytics.recWellnessDesc')}
                 </p>
               </Card>
             </div>

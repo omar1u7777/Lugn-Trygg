@@ -292,6 +292,10 @@ def add_user_xp():
         if xp_amount <= 0:
             return APIResponse.bad_request("XP amount must be positive")
 
+        # Cap XP per call to prevent abuse (max 100 XP per action)
+        MAX_XP_PER_ACTION = 100
+        xp_amount = min(xp_amount, MAX_XP_PER_ACTION)
+
         db = _get_db()
         rewards_data = _get_user_rewards(user_id)
 
@@ -310,6 +314,15 @@ def add_user_xp():
                 'last_xp_earned': datetime.now(UTC).isoformat(),
                 'last_xp_reason': reason
             })
+
+            # Sync XP and level to users collection for leaderboard queries
+            try:
+                db.collection('users').document(user_id).set({  # type: ignore
+                    'total_xp': new_xp,
+                    'level': new_level
+                }, merge=True)
+            except Exception:
+                pass  # Non-critical — leaderboard also queries user_rewards directly
 
         audit_log("XP_ADDED", user_id, {"amount": xp_amount, "reason": reason, "levelUp": level_up})
 

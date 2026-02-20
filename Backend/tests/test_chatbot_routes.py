@@ -3,7 +3,7 @@ Comprehensive tests for chatbot routes - targeting 90%+ coverage
 Tests: chat endpoint, history, pattern analysis, exercises
 
 URL prefix: /api/v1/chatbot (registered in main.py)
-Auth: @AuthService.jwt_required sets g.user_id = 'test-user-id' via conftest
+Auth: @AuthService.jwt_required sets g.user_id = 'testuser1234567890ab' via conftest
 Response envelope:
   Success: {"success": true, "data": {...}, "message": "..."}
   Error:   {"success": false, "error": "ERROR_CODE", "message": "...", "details": ...}
@@ -402,7 +402,7 @@ class TestChatHistory:
     """Tests for GET /api/v1/chatbot/history
 
     Note: user_id is read exclusively from g.user_id (set by jwt_required).
-    There is no query param or body user_id - conftest provides 'test-user-id'.
+    There is no query param or body user_id - conftest provides 'testuser1234567890ab'.
     """
 
     @patch('src.routes.chatbot_routes.db')
@@ -519,7 +519,7 @@ class TestPatternAnalysis:
         }
 
         users_col = mock_db.collection("users")
-        user_doc = users_col.document("test-user-id")
+        user_doc = users_col.document("testuser1234567890ab")
         moods_sub = user_doc.collection("moods")
         moods_sub.order_by.return_value.limit.return_value.stream.return_value = [
             mock_mood1,
@@ -545,7 +545,7 @@ class TestPatternAnalysis:
     def test_analyze_patterns_ai_failure_uses_fallback(self, mock_db, client):
         """Test fallback when AI analysis fails"""
         users_col = mock_db.collection("users")
-        user_doc = users_col.document("test-user-id")
+        user_doc = users_col.document("testuser1234567890ab")
         moods_sub = user_doc.collection("moods")
         moods_sub.order_by.return_value.limit.return_value.stream.return_value = []
 
@@ -776,7 +776,7 @@ class TestExercises:
         mock_subcollection.document.return_value = mock_exercise_doc
 
         response = client.post(
-            f"{BASE}/exercise/test-user-id/exercise_123/complete"
+            f"{BASE}/exercise/testuser1234567890ab/exercise_123/complete"
         )
 
         assert response.status_code == 200
@@ -805,7 +805,7 @@ class TestExercises:
         mock_db.collection.side_effect = Exception("Database error")
 
         response = client.post(
-            f"{BASE}/exercise/test-user-id/exercise_123/complete"
+            f"{BASE}/exercise/testuser1234567890ab/exercise_123/complete"
         )
 
         assert response.status_code == 500
@@ -815,7 +815,7 @@ class TestExercises:
     def test_complete_exercise_options_request(self, client):
         """Test OPTIONS request for complete endpoint"""
         response = client.options(
-            f"{BASE}/exercise/test-user-id/exercise_123/complete"
+            f"{BASE}/exercise/testuser1234567890ab/exercise_123/complete"
         )
         assert response.status_code == 204
 

@@ -63,6 +63,8 @@ const CategoryPill: React.FC<{
 }> = ({ active, label, icon, onClick }) => (
   <button
     onClick={onClick}
+    aria-label={label}
+    aria-pressed={active}
     className={`
       flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
       ${active
@@ -154,6 +156,7 @@ const WellnessHub: React.FC = () => {
   const [meditationStartTime, setMeditationStartTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const meditationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const completeMeditationRef = useRef<() => Promise<void>>();
 
   // UI State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
@@ -228,7 +231,7 @@ const WellnessHub: React.FC = () => {
     if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
     meditationTimerRef.current = setInterval(() => {
       setMeditationTimeLeft(prev => {
-        if (prev <= 1) { completeMeditation(); return 0; }
+        if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -259,6 +262,9 @@ const WellnessHub: React.FC = () => {
     stopMeditation();
   };
 
+  // Keep ref current so interval callback always calls latest completeMeditation
+  completeMeditationRef.current = completeMeditation;
+
   const stopMeditation = () => {
     if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
     setIsMeditationActive(false);
@@ -273,7 +279,7 @@ const WellnessHub: React.FC = () => {
       setIsPaused(false);
       meditationTimerRef.current = setInterval(() => {
         setMeditationTimeLeft(prev => {
-          if (prev <= 1) { completeMeditation(); return 0; }
+          if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
           return prev - 1;
         });
       }, 1000);
@@ -421,7 +427,7 @@ const WellnessHub: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Spelar nu</h3>
-                <button onClick={stopMeditation} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                <button onClick={stopMeditation} aria-label="Avsluta meditation" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
                   <StopIcon className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
@@ -442,6 +448,7 @@ const WellnessHub: React.FC = () => {
               <div className="flex justify-center gap-6">
                 <button
                   onClick={togglePause}
+                  aria-label={isPaused ? 'Fortsätt meditation' : 'Pausa meditation'}
                   className="w-16 h-16 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-lg shadow-primary-500/40 hover:scale-105 transition-transform"
                 >
                   {isPaused ? <PlayIcon className="w-8 h-8 ml-1" /> : <PauseIcon className="w-8 h-8" />}
@@ -457,6 +464,7 @@ const WellnessHub: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => setShowGoalsModal(false)}
+                aria-label="Stäng"
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
               >
                 <XMarkIcon className="w-6 h-6 text-gray-500" />

@@ -133,8 +133,12 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       around: 'justify-around',
     };
 
-    // Convert spacing to gap class
-    const gapClass = `gap-${spacing}`;
+    // Static gap class mapping (dynamic `gap-${n}` gets purged by Tailwind)
+    const gapClasses: Record<number, string> = {
+      0: 'gap-0', 1: 'gap-1', 2: 'gap-2', 3: 'gap-3', 4: 'gap-4',
+      5: 'gap-5', 6: 'gap-6', 8: 'gap-8', 10: 'gap-10', 12: 'gap-12',
+    };
+    const gapClass = gapClasses[spacing] || 'gap-4';
 
     return (
       <div
@@ -185,20 +189,42 @@ export const Grid = React.forwardRef<HTMLDivElement, GridProps>(
     xs, sm, md, lg, xl, // eslint-disable-line @typescript-eslint/no-unused-vars
     ...props 
   }, ref) => {
+    // Static class mappings (dynamic `grid-cols-${n}` gets purged by Tailwind)
+    const colsMap: Record<number, string> = {
+      1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4',
+      5: 'grid-cols-5', 6: 'grid-cols-6', 12: 'grid-cols-12',
+    };
+    const gapMap: Record<number, string> = {
+      0: 'gap-0', 1: 'gap-1', 2: 'gap-2', 3: 'gap-3', 4: 'gap-4',
+      5: 'gap-5', 6: 'gap-6', 8: 'gap-8', 10: 'gap-10', 12: 'gap-12',
+    };
+    const smColsMap: Record<number, string> = {
+      1: 'sm:grid-cols-1', 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-4',
+    };
+    const mdColsMap: Record<number, string> = {
+      1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4',
+    };
+    const lgColsMap: Record<number, string> = {
+      1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4',
+    };
+    const xlColsMap: Record<number, string> = {
+      1: 'xl:grid-cols-1', 2: 'xl:grid-cols-2', 3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4',
+    };
+
     let gridCols = '';
     
     if (typeof cols === 'number') {
-      gridCols = `grid-cols-${cols}`;
+      gridCols = colsMap[cols] || 'grid-cols-1';
     } else {
       gridCols = [
-        cols.sm && `sm:grid-cols-${cols.sm}`,
-        cols.md && `md:grid-cols-${cols.md}`,
-        cols.lg && `lg:grid-cols-${cols.lg}`,
-        cols.xl && `xl:grid-cols-${cols.xl}`,
+        cols.sm && smColsMap[cols.sm],
+        cols.md && mdColsMap[cols.md],
+        cols.lg && lgColsMap[cols.lg],
+        cols.xl && xlColsMap[cols.xl],
       ].filter(Boolean).join(' ');
     }
 
-    const gapClass = `gap-${gap}`;
+    const gapClass = gapMap[gap] || 'gap-4';
 
     return (
       <div

@@ -266,7 +266,7 @@ class TestDeleteAccount:
 
     def test_delete_account(self, client, auth_headers, mock_auth_service, mock_db):
         """Test account deletion"""
-        response = client.delete('/api/auth/delete-account/test-user-id',
+        response = client.delete('/api/auth/delete-account/testuser1234567890ab',
                                 headers=auth_headers)
         
         assert response.status_code in [200, 400, 401, 403, 404, 500, 503]
@@ -301,7 +301,7 @@ class TestAuthRoutesTargeted:
 
     def test_refresh_token_returns_new_cookie(self, client, mocker):
         """Refresh endpoint should decode token and issue new cookie"""
-        mocker.patch('jwt.decode', return_value={'sub': 'test-user-id'})
+        mocker.patch('jwt.decode', return_value={'sub': 'testuser1234567890ab'})
         mocker.patch('src.services.auth_service.AuthService.generate_access_token', return_value='new-access-token')
 
         response = client.post(

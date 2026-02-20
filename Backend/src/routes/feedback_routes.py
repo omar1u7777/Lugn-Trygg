@@ -41,6 +41,7 @@ def _to_camel_case_feedback(feedback_data: dict) -> dict:
 
 @feedback_bp.route("/submit", methods=["POST", "OPTIONS"])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def submit_feedback():
     """Submit user feedback"""
     logger.info("📝 FEEDBACK - SUBMIT endpoint called")
