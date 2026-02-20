@@ -40,19 +40,26 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        run: npm run test -- --coverage
+        run: npm run test -- --run --coverage --pool=threads --maxWorkers=2
         env:
+          NODE_OPTIONS: --max-old-space-size=6144
           VITE_ENCRYPTION_KEY: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+          VITE_FIREBASE_API_KEY: ci-test-api-key
+          VITE_FIREBASE_AUTH_DOMAIN: ci-test.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: ci-test-project
+          VITE_FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
 
       - name: Production build
         run: npm run build
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
-        if: always()
+        if: ${{ always() && secrets.CODECOV_TOKEN != '' }}
+        continue-on-error: true
         with:
           files: ./coverage/coverage-final.json
           flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
   security:

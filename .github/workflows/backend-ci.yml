@@ -55,10 +55,12 @@ jobs:
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
-        if: always()
+        if: ${{ always() && secrets.CODECOV_TOKEN != '' }}
+        continue-on-error: true
         with:
           files: ./Backend/coverage.xml
           flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
   security:
