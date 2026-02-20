@@ -13,10 +13,11 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from webauthn import (
     generate_authentication_options,
     generate_registration_options,
+    options_to_json,
     verify_authentication_response,
     verify_registration_response,
 )
-from webauthn.helpers import base64url_to_bytes, bytes_to_base64url, options_to_json_dict
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.structs import UserVerificationRequirement
 
 from ..firebase_config import (
@@ -490,7 +491,7 @@ class AuthService:
             })
 
             # Convert to dict for JSON response
-            options_dict = options_to_json_dict(registration_options)
+            options_dict = json.loads(options_to_json(registration_options))
             return options_dict
 
         except Exception as e:
@@ -587,7 +588,7 @@ class AuthService:
             })
 
             # Convert to dict for JSON response
-            options_dict = options_to_json_dict(auth_options)
+            options_dict = json.loads(options_to_json(auth_options))
             return options_dict
 
         except Exception as e:
