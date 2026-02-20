@@ -197,6 +197,11 @@ def stripe_webhook():
                 logger.error(f"❌ Invalid webhook payload: {e}")
                 return APIResponse.error("Invalid payload", "PAYLOAD_ERROR", 400)
         elif not STRIPE_WEBHOOK_SECRET:
+            # In production, never accept unverified webhooks
+            flask_env = os.getenv('FLASK_ENV', 'development')
+            if flask_env == 'production':
+                logger.error("❌ STRIPE_WEBHOOK_SECRET not configured in production — rejecting webhook")
+                return APIResponse.error("Webhook verification not configured", "CONFIG_ERROR", 503)
             # Development fallback - log warning but allow
             import json
             event = json.loads(payload)

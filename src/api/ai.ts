@@ -497,7 +497,9 @@ export const generateTherapeuticStory = async (
       API_ENDPOINTS.AI.GENERATE_STORY,
       { locale: locale || 'sv' }
     );
-    return response.data;
+    // Unwrap APIResponse { success, data, message } wrapper
+    const raw = response.data as unknown as Record<string, unknown>;
+    return (raw.data as TherapeuticStory) || (raw as unknown as TherapeuticStory);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -516,7 +518,9 @@ export const getStoryHistory = async (): Promise<StoryHistoryResponse> => {
     const response = await api.get<StoryHistoryResponse>(
       API_ENDPOINTS.AI.GET_STORIES
     );
-    return response.data;
+    // Unwrap APIResponse { success, data, message } wrapper
+    const raw = response.data as unknown as Record<string, unknown>;
+    return (raw.data as StoryHistoryResponse) || (raw as unknown as StoryHistoryResponse);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -541,7 +545,9 @@ export const generateMoodForecast = async (
       API_ENDPOINTS.AI.GENERATE_FORECAST,
       { daysAhead, useSklearn }
     );
-    return response.data;
+    // Unwrap APIResponse { success, data, message } wrapper
+    const raw = response.data as unknown as Record<string, unknown>;
+    return (raw.data as MoodForecast) || (raw as unknown as MoodForecast);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -560,7 +566,9 @@ export const getForecastHistory = async (): Promise<ForecastHistoryResponse> => 
     const response = await api.get<ForecastHistoryResponse>(
       API_ENDPOINTS.AI.GET_FORECASTS
     );
-    return response.data;
+    // Unwrap APIResponse { success, data, message } wrapper
+    const raw = response.data as unknown as Record<string, unknown>;
+    return (raw.data as ForecastHistoryResponse) || (raw as unknown as ForecastHistoryResponse);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;

@@ -1,0 +1,23 @@
+# Development dependencies - NOT for production
+-r requirements.txt
+
+# Testing
+pytest==8.3.4
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+pytest-asyncio==0.24.0
+coverage==7.6.8
+
+# Code Quality
+flake8==7.1.1
+black==24.10.0
+pylint==3.3.2
+mypy==1.13.0
+ruff==0.8.3
+pre-commit==4.0.1
+bandit==1.8.2
+safety==3.2.11
+
+# Development Tools
+ipython==8.30.0
+ipdb==0.13.13

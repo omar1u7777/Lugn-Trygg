@@ -68,6 +68,14 @@ class ConfirmPasswordResetRequest:
 
 logger = logging.getLogger(__name__)
 
+def _mask_email(email: str) -> str:
+    """Mask email for safe logging: user@example.com -> u***@example.com"""
+    if not email or '@' not in email:
+        return '***'
+    local, domain = email.rsplit('@', 1)
+    masked_local = local[0] + '***' if local else '***'
+    return f"{masked_local}@{domain}"
+
 class AuthService:
     @staticmethod
     @handle_service_errors
@@ -110,7 +118,7 @@ class AuthService:
         logger.info(f"✅ User registered with UID: {firebase_user.uid}")
 
         # Audit log
-        AuthService._audit_log("USER_REGISTER", str(firebase_user.uid), {"email": email})
+        AuthService._audit_log("USER_REGISTER", str(firebase_user.uid), {"email": _mask_email(email)})
 
         return user
 
@@ -139,28 +147,28 @@ class AuthService:
         Returns:
             Tuple of (user, error, access_token, refresh_token)
         """
-        logger.info(f"🔐 DEBUG: Starting login attempt for email: {email}")
+        logger.info(f"🔐 Starting login attempt for email: {_mask_email(email)}")
         try:
             # Check for account lockout
             is_locked, lockout_message = AuthService.check_account_lockout(email)
             if is_locked:
-                logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
-                logger.info(f"🔐 DEBUG: Account lockout detected for {email}")
+                logger.warning(f"🚫 Login attempt blocked for locked account: {_mask_email(email)}")
+                logger.info(f"🔐 Account lockout detected for {_mask_email(email)}")
 
                 # Record security event for locked account access attempt
                 tamper_detection_service.record_event(
                     event_type='LOCKED_ACCOUNT_ACCESS',
-                    message=f'Login attempt on locked account: {email}',
+                    message=f'Login attempt on locked account: {_mask_email(email)}',
                     severity='high',
                     metadata={
-                        'email': email,
+                        'email_masked': _mask_email(email),
                         'ip': request.remote_addr if request else 'unknown',
                         'lockout_message': lockout_message
                     }
                 )
 
                 return None, lockout_message, None, None
-            logger.info(f"🔐 DEBUG: No account lockout for {email}")
+            logger.info(f"🔐 No account lockout for {_mask_email(email)}")
 
             # Sign in using Firebase REST API (Admin SDK doesn't support password auth)
             firebase_signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
@@ -201,7 +209,7 @@ class AuthService:
             logger.info("Login successful for user: %s", str(user_uid).replace('\n', '').replace('\r', '')[:100])
 
             # Audit log
-            AuthService._audit_log("USER_LOGIN", str(user_uid), {"email": email})
+            AuthService._audit_log("USER_LOGIN", str(user_uid), {"email": _mask_email(email)})
 
             return user, None, access_token, refresh_token
 
@@ -212,16 +220,16 @@ class AuthService:
             # Record security event for failed login
             tamper_detection_service.record_event(
                 event_type='FAILED_LOGIN',
-                message=f'Failed login attempt for: {email}',
+                message=f'Failed login attempt for: {_mask_email(email)}',
                 severity='low',
                 metadata={
-                    'email': email,
+                    'email_masked': _mask_email(email),
                     'ip': request.remote_addr if request else 'unknown',
                     'error': str(e)[:100]
                 }
             )
 
-            logger.exception(f"🔥 Login failed for {email}: {str(e)}")
+            logger.exception(f"🔥 Login failed for {_mask_email(email)}")
             return None, "Invalid email or password", None, None
 
     @staticmethod
@@ -245,15 +253,15 @@ class AuthService:
             if email:
                 is_locked, lockout_message = AuthService.check_account_lockout(email)
                 if is_locked:
-                    logger.warning(f"🚫 Login attempt blocked for locked account: {email}")
+                    logger.warning(f"🚫 Login attempt blocked for locked account: {_mask_email(email)}")
 
                     # Record security event for locked account access attempt
                     tamper_detection_service.record_event(
                         event_type='LOCKED_ACCOUNT_ACCESS',
-                        message=f'ID token login attempt on locked account: {email}',
+                        message=f'ID token login attempt on locked account: {_mask_email(email)}',
                         severity='high',
                         metadata={
-                            'email': email,
+                            'email_masked': _mask_email(email),
                             'ip': request.remote_addr if request else 'unknown',
                             'lockout_message': lockout_message
                         }
@@ -289,7 +297,7 @@ class AuthService:
             logger.info(f"✅ Login successful for user with UID: {user_record.uid}")
 
             # Audit log
-            AuthService._audit_log("USER_LOGIN", str(user_record.uid), {"email": str(user_record.email)})
+            AuthService._audit_log("USER_LOGIN", str(user_record.uid), {"email": _mask_email(str(user_record.email))})
 
             return user, None, access_token, refresh_token
 
@@ -698,7 +706,7 @@ class AuthService:
             return False, None
 
         except Exception as e:
-            logger.error(f"Error checking account lockout for {email}: {str(e)}")
+            logger.error(f"Error checking account lockout for {_mask_email(email)}: {str(e)}")
             return False, None
 
     @staticmethod
@@ -746,10 +754,10 @@ class AuthService:
                     "created_at": current_time
                 })
 
-            logger.warning(f"Failed login attempt recorded for {email}, count: {attempt_count}")
+            logger.warning(f"Failed login attempt recorded for {_mask_email(email)}, count: {attempt_count}")
 
         except Exception as e:
-            logger.error(f"Error recording failed attempt for {email}: {str(e)}")
+            logger.error(f"Error recording failed attempt for {_mask_email(email)}: {str(e)}")
 
     @staticmethod
     def reset_failed_attempts(email: str):
@@ -757,9 +765,9 @@ class AuthService:
         try:
             doc_ref = _db.collection("failed_login_attempts").document(email)
             doc_ref.delete()
-            logger.info(f"Failed attempts reset for {email}")
+            logger.info(f"Failed attempts reset for {_mask_email(email)}")
         except Exception as e:
-            logger.error(f"Error resetting failed attempts for {email}: {str(e)}")
+            logger.error(f"Error resetting failed attempts for {_mask_email(email)}: {str(e)}")
 
     # Password Reset Token Methods
     @staticmethod

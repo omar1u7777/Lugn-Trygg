@@ -208,7 +208,7 @@ class TestWebAuthn:
         
         mock_db.collection.return_value.document.return_value.set.return_value = None
         
-        result = AuthService.generate_webauthn_challenge('test-user-id')
+        result = AuthService.generate_webauthn_challenge('testuser1234567890ab')
         
         assert result is not None
         assert 'challenge' in result
@@ -282,7 +282,7 @@ class TestLogout:
         
         mock_db.collection.return_value.document.return_value.delete.return_value = None
         
-        message, error = AuthService.logout('test-user-id')
+        message, error = AuthService.logout('testuser1234567890ab')
         
         assert message is not None or error is None
 

@@ -190,6 +190,34 @@ def chat_with_ai():
                 'timestamp': timestamp
             })
 
+            # CRISIS INTERVENTION: Proactively run the crisis service
+            try:
+                from ..services.crisis_intervention import crisis_intervention_service
+                crisis_context = {
+                    'user_id': user_id,
+                    'mood_history': [],
+                    'recent_text_content': user_message,
+                    'consecutive_low_mood_days': 0,
+                    'mood_score_drop_last_week': 0,
+                }
+                assessment = crisis_intervention_service.assess_crisis_risk(crisis_context)
+                if assessment.overall_risk_level in ('critical', 'high'):
+                    logger.warning(
+                        "🚨 CRISIS CONFIRMED via AI chat: user=%s risk=%s score=%.2f",
+                        user_id, assessment.overall_risk_level, assessment.risk_score
+                    )
+                    db.collection('crisis_alerts').add({
+                        'user_id': user_id,
+                        'risk_level': assessment.overall_risk_level,
+                        'risk_score': assessment.risk_score,
+                        'source': 'ai_chat',
+                        'text_snippet': user_message[:200],
+                        'created_at': datetime.now(UTC).isoformat(),
+                        'resolved': False,
+                    })
+            except Exception as crisis_err:
+                logger.warning(f"Crisis intervention check failed (non-blocking): {crisis_err}")
+
         logger.info(f"✅ Chatt-konversation sparad för användare {user_id}")
 
         # AUTO-AWARD XP for chatbot conversation

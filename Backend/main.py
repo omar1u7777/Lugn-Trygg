@@ -114,6 +114,7 @@ else:
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
     app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     app.config['TESTING'] = os.getenv('FLASK_TESTING', 'False').lower() == 'true'
+    app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', str(16 * 1024 * 1024)))  # 16MB default
     logger.warning("⚠️ Using legacy configuration (consider migrating to pydantic-settings)")
 
 # Flask-JWT-Extended: JWTManager not initialized here — we use custom AuthService.jwt_required
@@ -141,8 +142,17 @@ def is_origin_allowed(origin: str) -> bool:
     if origin in cors_origins_list:
         return True
 
-    if any(origin.endswith('.vercel.app') for o in cors_origins_list if '*' in o):
-        return True
+    # Only allow specific Vercel preview deployments matching our project
+    for allowed in cors_origins_list:
+        if '*' in allowed:
+            # Convert wildcard pattern to suffix match (e.g. https://*.vercel.app)
+            suffix = allowed.split('*')[-1]  # e.g. '.vercel.app'
+            prefix = allowed.split('*')[0]   # e.g. 'https://'
+            if origin.startswith(prefix) and origin.endswith(suffix):
+                # Extra safety: only allow lugn-trygg project deployments
+                domain = origin.replace(prefix, '').replace(suffix, '')
+                if 'lugn-trygg' in domain.lower() or 'lugntrygg' in domain.lower():
+                    return True
 
     # Only allow localhost/LAN origins in non-production environments
     if not is_production:
@@ -610,6 +620,31 @@ try:
             'api_version': 'v1',
             'environment': settings.flask_env if USE_PYDANTIC_SETTINGS else os.getenv('FLASK_ENV', 'development'),
         }
+
+        # Check Firebase connectivity
+        try:
+            from src.firebase_config import db as health_db
+            if health_db:
+                # Quick collection list to verify connectivity
+                health_db.collection('users').limit(1).get()
+                health_data['firebase'] = 'connected'
+            else:
+                health_data['firebase'] = 'unavailable'
+                health_data['status'] = 'degraded'
+        except Exception:
+            health_data['firebase'] = 'error'
+            health_data['status'] = 'degraded'
+
+        # Check Redis connectivity
+        try:
+            from src.redis_config import redis_client
+            if redis_client:
+                redis_client.ping()
+                health_data['redis'] = 'connected'
+            else:
+                health_data['redis'] = 'unavailable'
+        except Exception:
+            health_data['redis'] = 'unavailable'
         
         # Add correlation IDs if available
         if hasattr(g, 'request_id'):
@@ -694,6 +729,50 @@ try:
             'message': 'Too many requests. Please try again later.',
             'retry_after': error.description
         }), 429
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            'error': 'Bad Request',
+            'message': 'The request was invalid or malformed'
+        }), 400
+
+    @app.errorhandler(401)
+    def unauthorized(error):
+        return jsonify({
+            'error': 'Unauthorized',
+            'message': 'Authentication is required'
+        }), 401
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return jsonify({
+            'error': 'Forbidden',
+            'message': 'You do not have permission to access this resource'
+        }), 403
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return jsonify({
+            'error': 'Method Not Allowed',
+            'message': f'The {request.method} method is not allowed for this endpoint'
+        }), 405
+
+    @app.errorhandler(413)
+    def payload_too_large(error):
+        return jsonify({
+            'error': 'Payload Too Large',
+            'message': 'The request body exceeds the maximum allowed size'
+        }), 413
+
+    @app.errorhandler(Exception)
+    def handle_unhandled_exception(error):
+        """Catch-all for unhandled exceptions — always return JSON, never HTML."""
+        logger.exception(f"Unhandled exception: {type(error).__name__}")
+        return jsonify({
+            'error': 'Internal Server Error',
+            'message': 'An unexpected error occurred'
+        }), 500
 
     # Start background services
     if not app.config['TESTING']:

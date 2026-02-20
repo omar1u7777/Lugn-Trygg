@@ -467,14 +467,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     loadRecommendations(goalsToUse, announceToScreenReader);
   }, [wellnessGoals, fetchedWellnessGoals, loadRecommendations, announceToScreenReader]);
 
-  // Cleanup timers
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (articleReadingTimer) {
         clearInterval(articleReadingTimer);
       }
+      if (meditationTimer) {
+        clearInterval(meditationTimer);
+      }
     };
-  }, [articleReadingTimer]); // relaxationTimer and pomodoroTimer are managed by hooks
+  }, [articleReadingTimer, meditationTimer]); // relaxationTimer and pomodoroTimer are managed by hooks
 
   // startBreathingExercise and stopBreathingExercise are now provided by the useBreathingExercise hook
 
@@ -1387,9 +1390,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aktuella mål:</p>
             <div className="flex flex-wrap gap-2">
-              {fetchedWellnessGoals.map((goal, index) => (
+              {fetchedWellnessGoals.map((goal) => (
                 <span
-                  key={index}
+                  key={goal}
                   className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
                 >
                   {goal === 'Hantera stress' ? '🧘' :
@@ -1403,9 +1406,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         )}
 
         <div className="flex flex-wrap gap-2">
-          {userPreferences.map((pref, index) => (
+          {userPreferences.map((pref) => (
             <span
-              key={index}
+              key={pref}
               className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800"
             >
               {pref}
@@ -1521,9 +1524,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {recommendation.tags.slice(0, 3).map((tag, index) => (
+                    {recommendation.tags.slice(0, 3).map((tag) => (
                       <span
-                        key={index}
+                        key={tag}
                         className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
                       >
                         {tag}
@@ -2254,7 +2257,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           const userAnswer = quizAnswers[index];
                           const isCorrect = userAnswer === question.correct;
                           return (
-                            <div key={index} className={`p - 3 rounded - lg ${isCorrect
+                            <div key={question.question} className={`p - 3 rounded - lg ${isCorrect
                               ? 'bg-green-100 dark:bg-green-900/30'
                               : 'bg-red-100 dark:bg-red-900/30'
                               } `}>
@@ -2479,8 +2482,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         📊 Senaste Sessioner
                       </h4>
                       <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {pomodoroHistory.slice(0, 5).map((session, index) => (
-                          <div key={index} className="flex justify-between text-xs">
+                        {pomodoroHistory.slice(0, 5).map((session) => (
+                          <div key={session.date} className="flex justify-between text-xs">
                             <span className="text-gray-600 dark:text-gray-400">
                               {session.type === 'work' ? '🍅' : '☕'} Session {session.sessionNumber}
                             </span>
@@ -2987,8 +2990,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <div className="text-xs text-gray-600 dark:text-gray-400">
                             {sessionHistory.length > 0 ? (
                               <div className="space-y-1">
-                                {sessionHistory.slice(-3).map((session: any, index: number) => (
-                                  <div key={index} className="flex justify-between">
+                                {sessionHistory.slice(-3).map((session: any) => (
+                                  <div key={session.date} className="flex justify-between">
                                     <span>{new Date(session.date).toLocaleDateString()}</span>
                                     <span>{session.duration}min</span>
                                   </div>
@@ -3170,9 +3173,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 <div className="mb-4">
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Relaterade Ämnen</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedRecommendation.tags.map((tag, index) => (
+                    {selectedRecommendation.tags.map((tag) => (
                       <span
-                        key={index}
+                        key={tag}
                         className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm"
                       >
                         {tag}

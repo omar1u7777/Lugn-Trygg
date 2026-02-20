@@ -65,6 +65,7 @@ const InsightsHub: React.FC = () => {
   });
   const [aiPrediction, setAiPrediction] = useState<AIPrediction | null>(null);
   const [loading, setLoading] = useState(true);
+  const [moodData, setMoodData] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchInsightsData = async () => {
@@ -79,6 +80,7 @@ const InsightsHub: React.FC = () => {
         logger.debug('Fetching moods and analysis...');
         // Fetch mood data
         const moods = await getMoods(user.user_id);
+        setMoodData(moods);
         const totalDataPoints = moods.length;
 
         // Calculate average mood score
@@ -334,7 +336,7 @@ const InsightsHub: React.FC = () => {
           <TabPanel value={activeTab} index={0}>
             {user?.user_id ? (
               <div className="animate-fade-in">
-                <DailyInsights userId={user.user_id} moodData={[]} />
+                <DailyInsights userId={user.user_id} moodData={moodData} />
               </div>
             ) : (
               <div className="text-center py-20">

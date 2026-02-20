@@ -10,8 +10,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY yarn.lock* ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (devDependencies needed for build)
+RUN npm ci && npm cache clean --force
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -21,7 +21,8 @@ COPY . .
 
 # Set environment variables for build
 ENV NODE_ENV=production
-ENV VITE_BACKEND_URL=https://api.lugntrygg.se
+ARG VITE_BACKEND_URL=https://api.lugntrygg.se
+ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
 
 # Build the application
 RUN npm run build

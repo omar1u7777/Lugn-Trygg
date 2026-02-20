@@ -175,14 +175,17 @@ const ProfileHub: React.FC = () => {
   };
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newSettings = { ...settings, [setting]: event.target.checked };
-    setSettings(newSettings);
-    // Persist to backend
-    updateUserPreferences(newSettings).catch((err) => {
-      logger.error('Failed to save setting', err);
-      showSnackbar('Kunde inte spara inställning', 'error');
-      // Revert on failure
-      setSettings(settings);
+    const checked = event.target.checked;
+    setSettings(prev => {
+      const newSettings = { ...prev, [setting]: checked };
+      // Persist to backend
+      updateUserPreferences(newSettings).catch((err) => {
+        logger.error('Failed to save setting', err);
+        showSnackbar('Kunde inte spara inställning', 'error');
+        // Revert only this specific setting on failure
+        setSettings(p => ({ ...p, [setting]: !checked }));
+      });
+      return newSettings;
     });
   };
 
@@ -406,8 +409,8 @@ const ProfileHub: React.FC = () => {
           { label: 'AI-samtal', value: profileStats.totalConversations, icon: ChatBubbleLeftIcon, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
           { label: 'Minnen', value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
           { label: 'Dagar aktiv', value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
-        ].map((stat, index) => (
-          <div key={index} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+        ].map((stat) => (
+          <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6`}>
               <stat.icon className="w-6 h-6" />
             </div>
@@ -491,7 +494,7 @@ const ProfileHub: React.FC = () => {
                     <span className="font-medium text-gray-900 dark:text-white">{plan.limits.historyDays} dagar</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
-                    <div className="bg-amber-500 h-2 rounded-full" style={{ width: '30%' }} />
+                    <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${plan.limits.historyDays === -1 ? 100 : Math.min(100, 100)}%` }} />
                   </div>
                 </div>
               </div>

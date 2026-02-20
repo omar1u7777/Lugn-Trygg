@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production --ignore-scripts
+# Install production dependencies only (for final image layer caching)
+RUN npm ci --omit=dev --ignore-scripts
 
 # Stage 2: Builder
 FROM node:22-alpine AS builder

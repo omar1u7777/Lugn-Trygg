@@ -18,6 +18,7 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
 
+import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/logger';
 
 
@@ -95,6 +96,7 @@ const BentoCard: React.FC<{
 
 // Rarity Badge Component
 const RarityBadge: React.FC<{ rarity: Achievement['rarity'] }> = ({ rarity }) => {
+  const { t } = useTranslation();
   const colors = {
     common: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
     rare: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300',
@@ -103,10 +105,10 @@ const RarityBadge: React.FC<{ rarity: Achievement['rarity'] }> = ({ rarity }) =>
   };
 
   const labels = {
-    common: 'Vanlig',
-    rare: 'Sällsynt',
-    epic: 'Episk',
-    legendary: 'Legendarisk'
+    common: t('gamification.rarity.common'),
+    rare: t('gamification.rarity.rare'),
+    epic: t('gamification.rarity.epic'),
+    legendary: t('gamification.rarity.legendary')
   };
 
   return (
@@ -123,6 +125,7 @@ const RarityBadge: React.FC<{ rarity: Achievement['rarity'] }> = ({ rarity }) =>
 const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose }) => {
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const [stats, setStats] = useState<UserStats>({
     level: 1, xp: 0, xpToNext: 100, streakDays: 0, totalMoods: 0, totalChats: 0, achievementsUnlocked: 0, totalAchievements: 0,
@@ -137,9 +140,9 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
     try {
       setLoading(true);
       const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
-        getMoods(user.user_id).catch(() => []),
-        getWeeklyAnalysis(user.user_id).catch(() => ({})),
-        getChatHistory(user.user_id).catch(() => ({ conversation: [] })),
+        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
+        getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
       ]);
 
       const totalMoods = Array.isArray(moodsData) ? moodsData.length : 0;
@@ -168,33 +171,36 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       const streakBonus = streakDays * 5;
       const chatXp = totalChats * 15;
       const totalXp = moodXp + streakBonus + chatXp;
-      const currentLevel = Math.floor(totalXp / 100) + 1;
-      const xpInLevel = totalXp % 100;
+      // Level formula: matches backend _calculate_level(xp) = floor(sqrt(xp/100)) + 1
+      const currentLevel = Math.floor(Math.sqrt(totalXp / 100)) + 1;
+      const xpForCurrentLevel = ((currentLevel - 1) ** 2) * 100;
+      const xpForNextLevel = (currentLevel ** 2) * 100;
+      const xpInLevel = totalXp - xpForCurrentLevel;
 
       // Achievements Data
       const realAchievements: Achievement[] = [
         {
-          id: 'first-mood', title: 'Första steget', description: 'Logga ditt första humör',
+          id: 'first-mood', title: t('gamification.achievements.firstStep.title'), description: t('gamification.achievements.firstStep.description'),
           icon: <HeartIcon />, unlocked: totalMoods >= 1, progress: Math.min(totalMoods, 1), maxProgress: 1, rarity: 'common', category: 'mood',
         },
         {
-          id: 'week-streak', title: 'Veckovinnare', description: 'Logga humör 7 dagar i rad',
+          id: 'week-streak', title: t('gamification.achievements.weekWinner.title'), description: t('gamification.achievements.weekWinner.description'),
           icon: <FireIconSolid />, unlocked: streakDays >= 7, progress: Math.min(streakDays, 7), maxProgress: 7, rarity: 'rare', category: 'streak',
         },
         {
-          id: 'mood-explorer', title: 'Humörutforskare', description: 'Logga 10 humör totalt',
+          id: 'mood-explorer', title: t('gamification.achievements.moodExplorer.title'), description: t('gamification.achievements.moodExplorer.description'),
           icon: <SparklesIcon />, unlocked: totalMoods >= 10, progress: Math.min(totalMoods, 10), maxProgress: 10, rarity: 'rare', category: 'mood',
         },
         {
-          id: 'conversation-starter', title: 'Samtalsinitiatör', description: 'Ha 10 AI-samtal',
+          id: 'conversation-starter', title: t('gamification.achievements.conversationStarter.title'), description: t('gamification.achievements.conversationStarter.description'),
           icon: <ChartBarIcon />, unlocked: totalChats >= 10, progress: Math.min(totalChats, 10), maxProgress: 10, rarity: 'common', category: 'growth',
         },
         {
-          id: 'consistency-king', title: 'Konsekvenskung', description: 'Logga humör 30 dagar i rad',
+          id: 'consistency-king', title: t('gamification.achievements.consistencyKing.title'), description: t('gamification.achievements.consistencyKing.description'),
           icon: <StarIconSolid />, unlocked: streakDays >= 30, progress: Math.min(streakDays, 30), maxProgress: 30, rarity: 'legendary', category: 'streak',
         },
         {
-          id: 'mood-master', title: 'Humörmästare', description: 'Logga 50 humör totalt',
+          id: 'mood-master', title: t('gamification.achievements.moodMaster.title'), description: t('gamification.achievements.moodMaster.description'),
           icon: <ArrowTrendingUpIcon />, unlocked: totalMoods >= 50, progress: Math.min(totalMoods, 50), maxProgress: 50, rarity: 'epic', category: 'mood',
         },
       ];
@@ -205,7 +211,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         level: currentLevel, xp: xpInLevel, xpToNext: 100, streakDays, totalMoods, totalChats, achievementsUnlocked: unlockedCount, totalAchievements: realAchievements.length,
       });
       setAchievements(realAchievements);
-      announceToScreenReader(`${unlockedCount} achievements upplåsta`, 'polite');
+      announceToScreenReader(t('gamification.achievementsUnlocked', { count: unlockedCount }), 'polite');
 
     } catch (error) {
       logger.error('❌ Failed to load gamification data:', error);
@@ -236,13 +242,13 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         <header className="flex justify-between items-center mb-10">
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2 font-display">
-              Min Resa 🏆
+              {t('gamification.myJourney')}
             </h2>
             <p className="text-gray-500 dark:text-gray-400">
-              Fira dina framsteg och din personliga utveckling.
+              {t('gamification.celebrateProgress')}
             </p>
           </div>
-          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700" aria-label="Stäng">
+          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700" aria-label={t('common.close')}>
             <XMarkIcon className="w-6 h-6 text-gray-500" />
           </button>
         </header>
@@ -257,10 +263,15 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               <div className="relative z-10 flex items-start justify-between">
                 <div>
                   <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold mb-4 border border-white/20 uppercase tracking-widest">
-                    Nivå {stats.level}
+                    {t('gamification.level', { level: stats.level })}
                   </span>
-                  <h3 className="text-4xl sm:text-5xl font-bold mb-2">Mental Mästare</h3>
-                  <p className="text-indigo-100 text-lg max-w-md">Fortsätt din resa mot inre lugn. Du gör fantastiska framsteg!</p>
+                  <h3 className="text-4xl sm:text-5xl font-bold mb-2">{
+                    stats.level >= 10 ? t('gamification.levelNames.master') :
+                    stats.level >= 7 ? t('gamification.levelNames.expert') :
+                    stats.level >= 4 ? t('gamification.levelNames.wanderer') :
+                    t('gamification.levelNames.beginner')
+                  }</h3>
+                  <p className="text-indigo-100 text-lg max-w-md">{t('gamification.continueJourney')}</p>
                 </div>
                 <div className="hidden sm:flex w-24 h-24 bg-white/20 backdrop-blur-md rounded-3xl items-center justify-center border border-white/20 shadow-inner">
                   <StarIconSolid className="w-12 h-12 text-yellow-300 drop-shadow-lg" />
@@ -269,8 +280,8 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
               <div className="relative z-10 mt-8 sm:mt-0">
                 <div className="flex justify-between text-sm font-medium mb-2 opacity-90">
-                  <span>XP: {stats.xp} / {stats.xpToNext}</span>
-                  <span>{Math.round((stats.xp / stats.xpToNext) * 100)}% till nivå {stats.level + 1}</span>
+                  <span>{t('gamification.xpProgress', { current: stats.xp, next: stats.xpToNext })}</span>
+                  <span>{t('gamification.percentToLevel', { percent: Math.round((stats.xp / stats.xpToNext) * 100), level: stats.level + 1 })}</span>
                 </div>
                 <div className="h-4 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
                   <div
@@ -287,15 +298,15 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           {/* Quick Stats Bento */}
           <div className="grid grid-rows-2 gap-6 h-full">
             <BentoCard
-              title={`${stats.streakDays} Dagar`}
-              subtitle="Nuvarande Streak"
+              title={t('gamification.daysCount', { count: stats.streakDays })}
+              subtitle={t('gamification.currentStreak')}
               icon={<FireIconSolid />}
               accentColor="bg-orange-500"
               className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/30"
             />
             <BentoCard
               title={`${stats.achievementsUnlocked}/${stats.totalAchievements}`}
-              subtitle="Upplåsta Achievements"
+              subtitle={t('gamification.unlockedAchievements')}
               icon={<TrophyIcon />}
               accentColor="bg-yellow-500"
               className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-100 dark:border-yellow-800/30"
@@ -306,10 +317,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         {/* Stats Details */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
-            { label: 'Humör incheckningar', value: stats.totalMoods, icon: <HeartIcon className="text-pink-500" />, bg: 'bg-pink-50' },
-            { label: 'AI Samtal', value: stats.totalChats, icon: <UserGroupIcon className="text-blue-500" />, bg: 'bg-blue-50' },
-            { label: 'Totala XP', value: (stats.level - 1) * 100 + stats.xp, icon: <SparklesIcon className="text-purple-500" />, bg: 'bg-purple-50' },
-            { label: 'Ranking', value: 'Topp 10%', icon: <ArrowTrendingUpIcon className="text-green-500" />, bg: 'bg-green-50' }
+            { label: t('gamification.moodCheckins'), value: stats.totalMoods, icon: <HeartIcon className="text-pink-500" />, bg: 'bg-pink-50' },
+            { label: t('gamification.aiConversations'), value: stats.totalChats, icon: <UserGroupIcon className="text-blue-500" />, bg: 'bg-blue-50' },
+            { label: t('gamification.totalXP'), value: (stats.level - 1) * 100 + stats.xp, icon: <SparklesIcon className="text-purple-500" />, bg: 'bg-purple-50' },
+            { label: t('gamification.ranking'), value: t('gamification.level', { level: stats.level }), icon: <ArrowTrendingUpIcon className="text-green-500" />, bg: 'bg-green-50' }
           ].map((stat, i) => (
             <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-sm flex flex-col items-center text-center hover:scale-[1.02] transition-transform">
               <div className={`mb-3 p-3 rounded-2xl ${stat.bg} dark:bg-opacity-10`}>
@@ -325,7 +336,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
         <section className="mb-12">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <TrophyIcon className="w-6 h-6 text-yellow-500" />
-            Dina Utmärkelser
+            {t('gamification.yourAwards')}
           </h3>
 
           {unlockedList.length > 0 ? (
@@ -344,7 +355,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{ach.description}</p>
                     <div className="flex items-center gap-2 text-xs font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full w-fit">
                       <CheckCircleIcon className="w-4 h-4" />
-                      Upplåst
+                      {t('gamification.unlocked')}
                     </div>
                   </div>
                 </div>
@@ -352,7 +363,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
             </div>
           ) : (
             <div className="p-8 text-center bg-gray-50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-gray-200 dark:border-gray-700">
-              <p className="text-gray-500">Du har inga utmärkelser än. Fortsätt din resa!</p>
+              <p className="text-gray-500">{t('gamification.noAwardsYet')}</p>
             </div>
           )}
         </section>
@@ -362,7 +373,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           <section>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2 opacity-80">
               <LockClosedIcon className="w-6 h-6 text-gray-400" />
-              Kommande Utmaningar
+              {t('gamification.upcomingChallenges')}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

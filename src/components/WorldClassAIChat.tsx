@@ -100,7 +100,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ me
 // ----------------------------------------------------------------------
 
 const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
-  useTranslation();
+  const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan } = useSubscription();
@@ -122,7 +122,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   useEffect(() => {
     analytics.page('World Class AI Chat', { component: 'WorldClassAIChat' });
     loadChatHistory();
-    announceToScreenReader('Välkommen till din fristad. Jag lyssnar.', 'polite');
+    announceToScreenReader(t('aiChat.welcomeMessage'), 'polite');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -151,7 +151,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !user?.user_id) return;
     if (!canSendMore) {
-      setLimitError('Gräns uppnådd');
+      setLimitError(t('aiChat.limitReached'));
       return;
     }
 
@@ -182,14 +182,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
       setMessages(prev => [...prev, aiMsg]);
       clearDashboardCache();
-      announceToScreenReader('Nytt svar från AI', 'polite');
+      announceToScreenReader(t('aiChat.newResponse'), 'polite');
 
     } catch (error: any) {
       if (error?.response?.status === 429) {
-        setLimitError('Daglig gräns uppnådd');
+        setLimitError(t('aiChat.dailyLimitReached'));
       } else {
         setMessages(prev => [...prev, {
-          id: `err-${Date.now()}`, role: 'assistant', content: 'Förlåt, jag tappade tråden. Försök igen.', timestamp: new Date()
+          id: `err-${Date.now()}`, role: 'assistant', content: t('aiChat.errorFallback'), timestamp: new Date()
         }]);
       }
     } finally {
@@ -198,9 +198,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   };
 
   const quickSuggestions = [
-    { text: 'Jag känner mig stressad', icon: <HeartIcon className="w-4 h-4" /> },
-    { text: 'Behöver motivation', icon: <LightBulbIcon className="w-4 h-4" /> },
-    { text: 'Svårt att sova', icon: <SparklesIcon className="w-4 h-4" /> },
+    { text: t('aiChat.suggestions.stressed'), icon: <HeartIcon className="w-4 h-4" /> },
+    { text: t('aiChat.suggestions.motivation'), icon: <LightBulbIcon className="w-4 h-4" /> },
+    { text: t('aiChat.suggestions.sleep'), icon: <SparklesIcon className="w-4 h-4" /> },
   ];
 
   return (
@@ -219,9 +219,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-display">Din Fristad</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-display">{t('aiChat.sanctuary')}</h1>
               <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider">
-                {isTyping ? 'Tänker...' : 'Alltid här för dig'}
+                {isTyping ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
               </p>
             </div>
           </div>
@@ -229,10 +229,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           <div className="flex items-center gap-2">
             {hasChatLimit && (
               <div className="hidden sm:flex px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
-                {remainingMessages > 0 ? `${remainingMessages} meddelanden kvar` : 'Gräns uppnådd'}
+                {remainingMessages > 0 ? t('aiChat.messagesLeft', { count: remainingMessages }) : t('aiChat.limitReached')}
               </div>
             )}
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <button onClick={onClose} aria-label={t('common.close')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
               <XMarkIcon className="w-6 h-6 text-gray-500" />
             </button>
           </div>
@@ -243,16 +243,16 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           {loading ? (
             <div className="flex items-center justify-center h-full flex-col gap-4">
               <div className="w-12 h-12 border-4 border-teal-100 border-t-teal-500 rounded-full animate-spin" />
-              <p className="text-gray-400 animate-pulse">Öppnar din fristad...</p>
+              <p className="text-gray-400 animate-pulse">{t('aiChat.opening')}</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto animate-fade-in-up">
               <div className="w-20 h-20 bg-gradient-to-tr from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-slate-800 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm rotate-3">
                 <ChatBubbleLeftRightIcon className="w-10 h-10 text-teal-600 dark:text-teal-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Välkommen hem.</h2>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t('aiChat.welcomeHome')}</h2>
               <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
-                Här inne dömer ingen. Jag finns här för att lyssna, stötta och hjälpa dig sortera tankarna. Vad tänker du på just nu?
+                {t('aiChat.welcomeText')}
               </p>
 
               <div className="flex flex-wrap gap-3 justify-center">
@@ -260,6 +260,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   <button
                     key={i}
                     onClick={() => setInputMessage(s.text)}
+                    aria-label={s.text}
                     className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all transform hover:-translate-y-0.5 text-sm text-gray-600 dark:text-gray-300"
                   >
                     {s.icon} {s.text}
@@ -304,7 +305,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              placeholder="Skriv ditt meddelande..."
+              placeholder={t('aiChat.inputPlaceholder')}
+              aria-label={t('aiChat.inputPlaceholder')}
               disabled={!canSendMore || isTyping}
               className="w-full pl-6 pr-14 py-4 bg-white dark:bg-slate-800 border-0 rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[3.5rem] max-h-32"
             />
@@ -313,6 +315,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || !canSendMore || isTyping}
+                aria-label={t('aiChat.send', 'Skicka meddelande')}
                 className="p-3 bg-gray-900 hover:bg-black dark:bg-teal-600 dark:hover:bg-teal-500 text-white rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
               >
                 {canSendMore ? <PaperAirplaneIcon className="w-5 h-5 -rotate-90 translate-x-[1px]" /> : <LockClosedIcon className="w-5 h-5" />}
@@ -322,7 +325,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
           <div className="text-center mt-3">
             <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
-              Lugn & Trygg AI • Privat & Säker
+              {t('aiChat.footer')}
             </span>
           </div>
         </div>

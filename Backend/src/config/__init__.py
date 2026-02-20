@@ -66,7 +66,7 @@ ACCESS_TOKEN_EXPIRES = timedelta(
     minutes=cast(int, get_env_variable("JWT_EXPIRATION_MINUTES", 15, cast_type=int))
 )
 REFRESH_TOKEN_EXPIRES = timedelta(
-    days=cast(int, get_env_variable("JWT_REFRESH_EXPIRATION_DAYS", 360, cast_type=int))
+    days=cast(int, get_env_variable("JWT_REFRESH_EXPIRATION_DAYS", 30, cast_type=int))
 )
 
 FIREBASE_WEB_API_KEY = get_env_variable("FIREBASE_WEB_API_KEY", required=True, hide_value=True)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { cn } from '../../../utils/cn';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -28,8 +28,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
+    const reactId = useId();
     const hasError = !!error;
-    const inputId = props.id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const inputId = props.id || reactId;
     const errorId = `${inputId}-error`;
     const helperId = `${inputId}-helper`;
     
@@ -41,11 +42,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label 
             htmlFor={inputId}
-            className="block text-sm font-medium text-[#2f2a24] dark:text-gray-300 mb-1.5"
+            className="block text-sm font-medium text-calm-800 dark:text-gray-300 mb-1.5"
           >
             {label}
             {props.required && (
-              <span className="text-[#c08a5d] ml-1" aria-label="obligatoriskt fält">
+              <span className="text-secondary-500 ml-1" aria-label="obligatoriskt fält">
                 *
               </span>
             )}
@@ -54,7 +55,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a89f97]">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-calm-400">
               {leftIcon}
             </div>
           )}
@@ -65,13 +66,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             disabled={disabled}
             className={cn(
-              'w-full rounded-xl border px-4 py-3 text-[#2f2a24] dark:text-gray-100 transition-all duration-200',
+              'w-full rounded-xl border px-4 py-3 text-calm-800 dark:text-gray-100 transition-all duration-200',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0',
-              'placeholder:text-[#a89f97] dark:placeholder:text-gray-500',
-              'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[#f2e4d4] dark:disabled:bg-gray-800',
+              'placeholder:text-calm-400 dark:placeholder:text-gray-500',
+              'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-calm-200 dark:disabled:bg-gray-800',
               hasError
-                ? 'border-[#ffb3ba] bg-[#fff5f5] dark:bg-error-900/10 focus-visible:border-[#ffb3ba] focus-visible:ring-[#ffb3ba]/30'
-                : 'border-[#e8dcd0] dark:border-gray-600 bg-white dark:bg-gray-800 focus-visible:border-[#2c8374] focus-visible:ring-[#2c8374]/20',
+                ? 'border-error-200 bg-error-50 dark:bg-error-900/10 focus-visible:border-error-200 focus-visible:ring-error-200/30'
+                : 'border-calm-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus-visible:border-primary-500 focus-visible:ring-primary-500/20',
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
               className
@@ -86,7 +87,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
           
           {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a89f97]">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-calm-400">
               {rightIcon}
             </div>
           )}
@@ -133,8 +134,9 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
+    const reactId = useId();
     const hasError = !!error;
-    const textareaId = props.id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const textareaId = props.id || reactId;
     const errorId = `${textareaId}-error`;
     const helperId = `${textareaId}-helper`;
 

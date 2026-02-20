@@ -1,12 +1,13 @@
 """
 Security Configuration - Security settings and policies
 
-Centralized security configuration for the entire application including:
-- Password policies
-- Rate limiting settings
-- Encryption settings
-- CORS policies
-- Security headers
+DEPRECATION NOTICE: This module is scheduled for consolidation into settings.py.
+The canonical source of truth for JWT, lockout, and CORS settings is config/__init__.py
+(and settings.py for Pydantic-based configuration). Constants here should NOT be imported
+directly in production code — use `from ..config import <CONSTANT>` instead.
+
+Unique settings (password policy, session config, input validation, compliance flags)
+will be migrated to the Pydantic Settings class in a future release.
 """
 
 import os
@@ -19,22 +20,22 @@ PASSWORD_REQUIRE_LOWERCASE = os.getenv('PASSWORD_REQUIRE_LOWERCASE', 'true').low
 PASSWORD_REQUIRE_DIGITS = os.getenv('PASSWORD_REQUIRE_DIGITS', 'true').lower() == 'true'
 PASSWORD_REQUIRE_SPECIAL_CHARS = os.getenv('PASSWORD_REQUIRE_SPECIAL_CHARS', 'true').lower() == 'true'
 
-# Account Security Settings
+# Account Security Settings — values MUST match config/__init__.py
 MAX_FAILED_LOGIN_ATTEMPTS = int(os.getenv('MAX_FAILED_LOGIN_ATTEMPTS', '5'))
-LOCKOUT_DURATION_MINUTES_FIRST = int(os.getenv('LOCKOUT_DURATION_MINUTES_FIRST', '15'))
-LOCKOUT_DURATION_MINUTES_SECOND = int(os.getenv('LOCKOUT_DURATION_MINUTES_SECOND', '60'))
-LOCKOUT_DURATION_MINUTES_THIRD = int(os.getenv('LOCKOUT_DURATION_MINUTES_THIRD', '1440'))  # 24 hours
+LOCKOUT_DURATION_MINUTES_FIRST = int(os.getenv('LOCKOUT_DURATION_MINUTES_FIRST', '5'))
+LOCKOUT_DURATION_MINUTES_SECOND = int(os.getenv('LOCKOUT_DURATION_MINUTES_SECOND', '15'))
+LOCKOUT_DURATION_MINUTES_THIRD = int(os.getenv('LOCKOUT_DURATION_MINUTES_THIRD', '60'))
 
 # Session Security Settings
 SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '480'))  # 8 hours
 SESSION_RENEWAL_THRESHOLD_MINUTES = int(os.getenv('SESSION_RENEWAL_THRESHOLD_MINUTES', '60'))
 ABSOLUTE_SESSION_TIMEOUT_HOURS = int(os.getenv('ABSOLUTE_SESSION_TIMEOUT_HOURS', '24'))
 
-# JWT Security Settings
+# JWT Security Settings — values MUST match config/__init__.py
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
 JWT_REFRESH_SECRET_KEY = os.getenv('JWT_REFRESH_SECRET_KEY')
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_MINUTES', '15'))
-JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', '30'))
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('JWT_EXPIRATION_MINUTES', '15'))
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_EXPIRATION_DAYS', '30'))
 
 # Rate Limiting Settings
 RATE_LIMIT_REQUESTS_PER_HOUR = int(os.getenv('RATE_LIMIT_REQUESTS_PER_HOUR', '1000'))

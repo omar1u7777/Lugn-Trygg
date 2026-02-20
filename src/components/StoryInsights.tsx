@@ -54,9 +54,9 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
 
       // Load real data from backend APIs
       const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
-        getMoods(user.user_id).catch(() => []),
-        getWeeklyAnalysis(user.user_id).catch(() => ({})),
-        getChatHistory(user.user_id).catch(() => ({ conversation: [] })),
+        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
+        getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
       ]);
 
       // Calculate insights based on real data
@@ -215,7 +215,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
           navigator.share({
             title: 'Min prestation på Lugn & Trygg',
             text: insight.title || 'Kolla min prestation!',
-          }).catch(() => { /* user cancelled */ });
+          }).catch((error) => { console.error('Share failed or was cancelled:', error); });
         }
         break;
       case 'Prova nu':

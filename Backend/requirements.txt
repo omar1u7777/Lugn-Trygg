@@ -1,46 +1,46 @@
 # Core Flask Dependencies
 Flask==3.0.3
-Flask-Limiter>=3.0.0
-Flask-Babel>=3.0.0
+Flask-Limiter==3.8.0
+Flask-Babel==4.0.0
 Werkzeug==3.1.5
 
 # JWT Authentication
-PyJWT>=2.0.0
-flask-jwt-extended>=4.6.0
+PyJWT==2.9.0
+flask-jwt-extended==4.7.1
 
 # Firebase
-firebase-admin>=6.0.1
+firebase-admin==6.5.0
 
 # Environment & Configuration
 python-dotenv==1.0.0
 
 # HTTP & Requests
-requests>=2.31.0
+requests==2.32.3
 
 # Security & Encryption
 bcrypt==4.0.1
-pycryptodome>=3.0.0
-cryptography>=41.0.0
-bleach>=6.0.0
+pycryptodome==3.21.0
+cryptography==43.0.3
+bleach==6.2.0
 
 # Caching & Rate Limiting
-redis>=4.0.0
-hiredis>=2.0.0
+redis==5.2.1
+hiredis==3.1.1
 
 # AI & ML - OpenAI
-openai>=1.0.0
+openai==1.58.1
 
 # AI & ML - Google Cloud
-google-cloud-speech>=2.0.0
-google-cloud-language>=2.0.0
-google-cloud-storage>=2.0.0
-google-cloud-aiplatform>=1.0.0
+google-cloud-speech==2.28.1
+google-cloud-language==2.15.0
+google-cloud-storage==2.19.0
+google-cloud-aiplatform==1.74.0
 
 # ML & Data Science
-scikit-learn>=1.0.0
-numpy>=1.21.0
-pandas>=1.3.0
-joblib>=1.1.0
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+joblib==1.4.2
 
 # Voice & Audio Processing
 pyttsx3==2.90
@@ -52,92 +52,66 @@ soundfile==0.11.0
 # Install it manually when needed (e.g., via pipwin or prebuilt wheels).
 
 # Natural Language Processing
-transformers>=4.0.0
-librosa>=0.9.2
+transformers==4.47.1
+librosa==0.10.2.post1
 torch>=2.0.0
 
 # Payment Processing
-stripe>=5.0.0
+stripe==11.3.0
 
 # Database & Storage
-google-cloud-firestore>=2.0.0
+google-cloud-firestore==2.19.0
 
 # Email Services
-sendgrid>=6.0.0
+sendgrid==6.11.0
 resend==0.8.0
 
 # Data Validation
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-email-validator>=2.0.0
-marshmallow>=3.0.0
+pydantic==2.10.3
+pydantic-settings==2.7.0
+email-validator==2.2.0
+marshmallow==3.23.2
 
 # CSRF Protection - Temporarily disabled for API testing
 # Flask-WTF>=1.0.0
 
 # API Documentation
 apispec==6.6.1
-flasgger>=0.9.5
+flasgger==0.9.7.1
 
 # Monitoring & Logging
-prometheus-client>=0.14.0
-sentry-sdk[flask]>=1.9.0
-structlog>=23.2.0
-python-json-logger>=2.0.7
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-flask>=0.42b0
-
-# Background Tasks
-celery>=5.2.0
-kombu>=5.2.0
-
-# Testing
-pytest>=7.0.0
-pytest-cov>=3.0.0
-pytest-mock>=3.10.0
-pytest-asyncio>=0.18.0
-unittest2>=1.1.0
-coverage>=6.0.0
-
-# Code Quality
-flake8>=4.0.0
-black>=23.12.0
-pylint>=2.12.0
-mypy>=1.7.0
-ruff>=0.1.6
-pre-commit>=3.5.0
-bandit>=1.7.5
-safety>=2.3.5
+prometheus-client==0.21.1
+sentry-sdk[flask]==1.40.6
+structlog==24.4.0
+python-json-logger==2.0.7
+opentelemetry-api==1.28.2
+opentelemetry-sdk==1.28.2
+opentelemetry-instrumentation-flask==0.49b2
 
 # Health Data Integration
-oauthlib>=3.2.0
-requests-oauthlib>=1.3.0
+oauthlib==3.2.2
+requests-oauthlib==2.0.0
 
 # Utilities
-Pillow>=9.0.0
-python-dateutil>=2.8.0
-pytz>=2021.3
+Pillow==10.4.0
+python-dateutil==2.9.0.post0
+pytz==2024.2
 
 # Two-Factor Authentication
-pyotp>=2.6.0
-qrcode[pil]>=7.3.1
-webauthn>=1.0.0
+pyotp==2.9.0
+qrcode[pil]==8.0
+webauthn==2.2.0
 
 # System Monitoring
-psutil>=5.9.0
+psutil==6.1.1
 
 # Task Scheduling
-schedule>=1.0.0
+schedule==1.2.2
 
 # Production Server
-gunicorn>=20.1.0
-gevent>=21.12.0
-waitress>=2.1.0
+gunicorn==22.0.0
+gevent==24.11.1
+waitress==3.0.2
 
 # API Documentation (extended)
-flask-apispec>=0.11.0
-
-# Development Tools
-ipython>=8.0.0
-ipdb>=0.13.0
+flask-apispec==0.11.4
