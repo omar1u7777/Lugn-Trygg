@@ -76,11 +76,11 @@ const RewardsHub: React.FC = () => {
     try {
       // Fetch all data in parallel
       const [moods, userRewardsData, catalogData, journalResult, referralResult] = await Promise.all([
-        getMoods(user.user_id).catch(() => []),
-        getUserRewards().catch(() => null),
-        getRewardCatalog().catch(() => []),
-        getJournalEntries(user.user_id, 1000).catch(() => []),
-        getReferralStats(user.user_id).catch(() => ({ successful_referrals: 0 })),
+        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+        getUserRewards().catch((error) => { console.error('Failed to fetch user rewards:', error); return null; }),
+        getRewardCatalog().catch((error) => { console.error('Failed to fetch reward catalog:', error); return []; }),
+        getJournalEntries(user.user_id, 1000).catch((error) => { console.error('Failed to fetch journal entries:', error); return []; }),
+        getReferralStats(user.user_id).catch((error) => { console.error('Failed to fetch referral stats:', error); return { successful_referrals: 0 }; }),
       ]);
 
       setRewards(catalogData);
@@ -109,13 +109,13 @@ const RewardsHub: React.FC = () => {
         journal_count: journalCount,
         referral_count: referralCount,
         meditation_count: 0 // No meditation tracking backend yet
-      }).catch(() => ({ newAchievements: [] }));
+      }).catch((error) => { console.error('Failed to check achievements:', error); return { newAchievements: [] }; });
 
       // Show notification if new achievements earned
       if (achievementCheck.newAchievements?.length > 0) {
         setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.newAchievements.map((a: any) => a.title).join(', ')}`);
         // Refresh user rewards after earning achievements
-        const updatedRewards = await getUserRewards().catch(() => null);
+        const updatedRewards = await getUserRewards().catch((error) => { console.error('Failed to refresh user rewards:', error); return null; });
         setUserRewards(updatedRewards);
       }
 
@@ -265,7 +265,7 @@ const RewardsHub: React.FC = () => {
           <div className="p-4 sm:p-6">
             <SparklesIcon aria-hidden="true" className="w-8 h-8 sm:w-10 sm:h-10 text-success-600 mb-2 sm:mb-3" />
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">
-              Level {Math.floor(stats.totalPoints / 200) + 1}
+              Level {Math.floor(Math.sqrt(stats.totalPoints / 100)) + 1}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">
               Nuvarande nivå
@@ -273,7 +273,7 @@ const RewardsHub: React.FC = () => {
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
                 className="bg-success-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${(stats.totalPoints % 200) / 2}%` }}
+                style={{ width: `${Math.min(((stats.totalPoints - ((Math.floor(Math.sqrt(stats.totalPoints / 100))) ** 2) * 100) / (((Math.floor(Math.sqrt(stats.totalPoints / 100)) + 1) ** 2) * 100 - ((Math.floor(Math.sqrt(stats.totalPoints / 100))) ** 2) * 100)) * 100, 100)}%` }}
                 role="progressbar"
                 aria-valuenow={(stats.totalPoints % 200) / 2}
                 aria-valuemin={0}

@@ -91,8 +91,8 @@ def get_xp_leaderboard():
         if timeframe not in ['all', 'weekly', 'monthly']:
             timeframe = 'all'
 
-        # Query users collection sorted by XP
-        query = db.collection('users').order_by('total_xp', direction='DESCENDING').limit(limit)
+        # Query user_rewards collection sorted by XP (this is where XP is actually stored)
+        query = db.collection('user_rewards').order_by('xp', direction='DESCENDING').limit(limit)
         docs = query.stream()
 
         leaderboard = []
@@ -102,18 +102,29 @@ def get_xp_leaderboard():
             user_data = doc.to_dict()
 
             # Only include users with XP > 0
-            xp = user_data.get('total_xp', 0)
+            xp = user_data.get('xp', 0)
             if xp <= 0:
                 continue
 
+            # Get display name from users collection
+            user_id = doc.id
+            display_name = 'Anonymous'
+            try:
+                user_doc = db.collection('users').document(user_id).get()
+                if user_doc.exists:
+                    u = user_doc.to_dict() or {}
+                    display_name = _anonymize_username(u.get('display_name') or u.get('email', ''))
+            except Exception:
+                pass
+
             leaderboard.append({
                 'rank': rank,
-                'userId': doc.id,
-                'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
+                'userId': user_id,
+                'displayName': display_name,
                 'xp': xp,
                 'level': user_data.get('level', 1),
                 'badgeCount': len(user_data.get('badges', [])),
-                'avatar': user_data.get('avatar_emoji', '🌟')
+                'avatar': '🌟'
             })
             rank += 1
 
@@ -235,31 +246,35 @@ def get_user_rank(user_id: str):
         return APIResponse.bad_request('Invalid user ID format')
 
     try:
-        # Get user data
+        # Get user data from both users and user_rewards collections
         user_doc = db.collection('users').document(user_id_clean).get()
+        rewards_doc = db.collection('user_rewards').document(user_id_clean).get()
 
-        if not user_doc.exists:
+        if not user_doc.exists and not rewards_doc.exists:
             return APIResponse.not_found('User not found')
 
-        user_data = user_doc.to_dict()
-        user_xp = user_data.get('total_xp', 0)
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        rewards_data = rewards_doc.to_dict() if rewards_doc.exists else {}
+
+        # XP comes from user_rewards, streaks/moods from users
+        user_xp = rewards_data.get('xp', 0)
         user_streak = user_data.get('current_streak', 0)
         user_moods = user_data.get('mood_count', 0)
 
-        # Calculate XP rank (count users with more XP)
-        xp_rank_query = db.collection('users').where('total_xp', '>', user_xp).stream()
+        # Calculate XP rank from user_rewards collection
+        xp_rank_query = db.collection('user_rewards').where('xp', '>', user_xp).stream()
         xp_rank = len(list(xp_rank_query)) + 1
 
-        # Calculate streak rank
+        # Calculate streak rank from users collection
         streak_rank_query = db.collection('users').where('current_streak', '>', user_streak).stream()
         streak_rank = len(list(streak_rank_query)) + 1
 
-        # Calculate mood count rank
+        # Calculate mood count rank from users collection
         mood_rank_query = db.collection('users').where('mood_count', '>', user_moods).stream()
         mood_rank = len(list(mood_rank_query)) + 1
 
         # Get total user count for percentile
-        total_users = len(list(db.collection('users').stream()))
+        total_users = len(list(db.collection('users').select([]).stream()))
 
         return APIResponse.success(
             data={

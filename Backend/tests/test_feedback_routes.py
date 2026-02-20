@@ -638,14 +638,14 @@ class TestGetUserFeedback:
     def test_get_user_feedback_success(self, mock_db, mock_field_filter, client):
         doc1 = MagicMock(id="fb1")
         doc1.to_dict.return_value = {
-            "user_id": "test-user-id",
+            "user_id": "testuser1234567890ab",
             "rating": 5,
             "message": "Great!",
             "created_at": "2026-01-02T00:00:00",
         }
         doc2 = MagicMock(id="fb2")
         doc2.to_dict.return_value = {
-            "user_id": "test-user-id",
+            "user_id": "testuser1234567890ab",
             "rating": 4,
             "message": "Good",
             "created_at": "2026-01-01T00:00:00",

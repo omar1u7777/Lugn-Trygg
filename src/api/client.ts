@@ -42,6 +42,7 @@ if (typeof import.meta !== "undefined" && import.meta.hot) {
 // Create Axios instance for API calls
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000, // 15 second timeout to prevent hung requests
   withCredentials: true, // Ensures cookies are sent for session handling
   headers: { [CONTENT_TYPE_HEADER]: CONTENT_TYPE_JSON },
 });

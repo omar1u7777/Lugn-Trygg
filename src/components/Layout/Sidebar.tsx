@@ -7,12 +7,22 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
   SparklesIcon,
+  HeartIcon,
+  BookOpenIcon,
+  ChartBarIcon,
+  TrophyIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   FaceSmileIcon as FaceSmileIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   UserCircleIcon as UserCircleIconSolid,
+  HeartIcon as HeartIconSolid,
+  BookOpenIcon as BookOpenIconSolid,
+  ChartBarIcon as ChartBarIconSolid,
+  TrophyIcon as TrophyIconSolid,
+  UserGroupIcon as UserGroupIconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {
@@ -27,7 +37,11 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
-  // Hidden for v1.0: wellness, sounds, journal, insights, rewards - will be revealed progressively
+  { path: '/wellness', label: 'Välmående', icon: HeartIcon, iconActive: HeartIconSolid, premium: true },
+  { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, iconActive: BookOpenIconSolid, premium: true },
+  { path: '/insights', label: 'Insikter', icon: ChartBarIcon, iconActive: ChartBarIconSolid, premium: true },
+  { path: '/rewards', label: 'Belöningar', icon: TrophyIcon, iconActive: TrophyIconSolid, premium: true },
+  { path: '/social', label: 'Gemenskap', icon: UserGroupIcon, iconActive: UserGroupIconSolid, premium: true },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [

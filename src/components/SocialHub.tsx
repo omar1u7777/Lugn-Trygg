@@ -41,7 +41,7 @@ interface SocialStats {
 }
 
 const SocialHub: React.FC = () => {
-  const { t: _t } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [socialStats, setSocialStats] = useState<SocialStats>({
@@ -112,10 +112,10 @@ const SocialHub: React.FC = () => {
           <UserGroupIcon aria-hidden="true" className="w-10 h-10 sm:w-12 sm:h-12 text-primary-600" />
         </div>
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3 world-class-heading-1">
-          🤝 Gemenskap
+          {t('social.title')}
         </h1>
         <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 world-class-body-large px-4">
-          Anslut till communityn, dela prestationer och väx tillsammans
+          {t('social.subtitle')}
         </p>
       </div>
 
@@ -132,7 +132,7 @@ const SocialHub: React.FC = () => {
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Aktiva community-medlemmar
+              {t('social.communityMembers')}
             </p>
           </div>
         </Card>
@@ -148,7 +148,7 @@ const SocialHub: React.FC = () => {
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Dina humörloggningar
+              {t('social.moodLogs')}
             </p>
           </div>
         </Card>
@@ -164,7 +164,7 @@ const SocialHub: React.FC = () => {
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Lyckade referrals
+              {t('social.referrals')}
             </p>
           </div>
         </Card>
@@ -180,7 +180,7 @@ const SocialHub: React.FC = () => {
               )}
             </p>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Din topplista-ranking
+              {t('social.leaderboardRank')}
             </p>
           </div>
         </Card>
@@ -191,10 +191,10 @@ const SocialHub: React.FC = () => {
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex overflow-x-auto" role="tablist" aria-label="Social features">
             {[
-              { icon: <ChatBubbleLeftRightIcon className="w-5 h-5" />, label: 'Stödchatt', index: 0 },
-              { icon: <TrophyIcon className="w-5 h-5" />, label: 'Grupputmaningar', index: 1 },
-              { icon: <ChartBarIcon className="w-5 h-5" />, label: 'Topplista', index: 2 },
-              { icon: <ShareIcon className="w-5 h-5" />, label: 'Dela prestationer', index: 3 },
+              { icon: <ChatBubbleLeftRightIcon className="w-5 h-5" />, label: t('social.tabs.supportChat'), index: 0 },
+              { icon: <TrophyIcon className="w-5 h-5" />, label: t('social.tabs.challenges'), index: 1 },
+              { icon: <ChartBarIcon className="w-5 h-5" />, label: t('social.tabs.leaderboard'), index: 2 },
+              { icon: <ShareIcon className="w-5 h-5" />, label: t('social.tabs.shareAchievements'), index: 3 },
             ].map((tab) => (
               <button
                 key={tab.index}
@@ -226,7 +226,7 @@ const SocialHub: React.FC = () => {
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att få tillgång till stödchatt
+                  {t('social.loginRequired.supportChat')}
                 </p>
               </div>
             )}
@@ -239,7 +239,7 @@ const SocialHub: React.FC = () => {
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att gå med i utmaningar
+                  {t('social.loginRequired.challenges')}
                 </p>
               </div>
             )}
@@ -252,7 +252,7 @@ const SocialHub: React.FC = () => {
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att se topplistan
+                  {t('social.loginRequired.leaderboard')}
                 </p>
               </div>
             )}
@@ -265,11 +265,10 @@ const SocialHub: React.FC = () => {
                 <div className="mb-6">
                   <div className="text-6xl mb-4">🏆</div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    Dela Dina Prestationer
+                    {t('social.shareTitle')}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    Baserat på din aktivitet har du uppnått imponerande milstolpar!
-                    Välj vad du vill dela med communityn.
+                    {t('social.shareDesc')}
                   </p>
                 </div>
 
@@ -283,7 +282,7 @@ const SocialHub: React.FC = () => {
                           <p className="font-semibold text-gray-900 dark:text-white">
                             {socialStats.moodLogs} Mood Logs
                           </p>
-                          <p className="text-sm text-gray-500">Konsekvent spårning</p>
+                          <p className="text-sm text-gray-500">{t('social.consistentTracking')}</p>
                         </div>
                       </div>
                     </Card>
@@ -297,7 +296,7 @@ const SocialHub: React.FC = () => {
                           <p className="font-semibold text-gray-900 dark:text-white">
                             {socialStats.referrals} Referrals
                           </p>
-                          <p className="text-sm text-gray-500">Hjälpt andra hitta appen</p>
+                          <p className="text-sm text-gray-500">{t('social.helpedOthers')}</p>
                         </div>
                       </div>
                     </Card>
@@ -311,7 +310,7 @@ const SocialHub: React.FC = () => {
                           <p className="font-semibold text-gray-900 dark:text-white">
                             #{socialStats.leaderboardRank} Ranking
                           </p>
-                          <p className="text-sm text-gray-500">I community topplistan</p>
+                          <p className="text-sm text-gray-500">{t('social.inLeaderboard')}</p>
                         </div>
                       </div>
                     </Card>
@@ -322,22 +321,22 @@ const SocialHub: React.FC = () => {
                       <span className="text-3xl">⭐</span>
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          Aktiv Medlem
+                          {t('social.activeMember')}
                         </p>
-                        <p className="text-sm text-gray-500">En del av {socialStats.communityMembers} användare</p>
+                        <p className="text-sm text-gray-500">{t('social.partOfUsers', { count: socialStats.communityMembers })}</p>
                       </div>
                     </div>
                   </Card>
                 </div>
 
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  💡 Klicka på en prestation för att dela den med vänner
+                  {t('social.clickToShare')}
                 </p>
               </div>
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att dela prestationer
+                  {t('social.loginRequired.shareAchievements')}
                 </p>
               </div>
             )}
@@ -350,17 +349,17 @@ const SocialHub: React.FC = () => {
         <Card className="world-class-dashboard-card">
           <div className="p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 world-class-heading-3">
-              Community-riktlinjer
+              {t('social.guidelines.title')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="flex gap-3 sm:gap-4">
                 <div className="text-3xl sm:text-4xl" role="img" aria-label="Supportive emoji">🤗</div>
                 <div>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    Var stöttande
+                    {t('social.guidelines.supportive')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Uppmuntra och lyfta community-medlemmar
+                    {t('social.guidelines.supportiveDesc')}
                   </p>
                 </div>
               </div>
@@ -369,10 +368,10 @@ const SocialHub: React.FC = () => {
                 <div className="text-3xl sm:text-4xl" role="img" aria-label="Respectful emoji">🤝</div>
                 <div>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    Var respektfull
+                    {t('social.guidelines.respectful')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Behandla alla med vänlighet och respekt
+                    {t('social.guidelines.respectfulDesc')}
                   </p>
                 </div>
               </div>
@@ -381,10 +380,10 @@ const SocialHub: React.FC = () => {
                 <div className="text-3xl sm:text-4xl" role="img" aria-label="Privacy emoji">🔒</div>
                 <div>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    Skydda integritet
+                    {t('social.guidelines.privacy')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Dela aldrig personlig information
+                    {t('social.guidelines.privacyDesc')}
                   </p>
                 </div>
               </div>
@@ -393,10 +392,10 @@ const SocialHub: React.FC = () => {
                 <div className="text-3xl sm:text-4xl" role="img" aria-label="Warning emoji">⚠️</div>
                 <div>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2">
-                    Rapportera problem
+                    {t('social.guidelines.report')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Flagga olämpligt innehåll omedelbart
+                    {t('social.guidelines.reportDesc')}
                   </p>
                 </div>
               </div>
@@ -408,36 +407,36 @@ const SocialHub: React.FC = () => {
       {/* Benefits */}
       <div className="mt-6 sm:mt-8 text-center">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 sm:mb-8 world-class-heading-2">
-          Varför ansluta till communityn?
+          {t('social.whyJoin')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           <div className="p-4 sm:p-6">
             <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Strong emoji">💪</div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Motivation & stöd
+              {t('social.benefits.motivation')}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Bli uppmuntrad av andra på samma resa
+              {t('social.benefits.motivationDesc')}
             </p>
           </div>
 
           <div className="p-4 sm:p-6">
             <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Target emoji">🎯</div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Ansvarighet
+              {t('social.benefits.accountability')}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Håll dig engagerad med grupputmaningar
+              {t('social.benefits.accountabilityDesc')}
             </p>
           </div>
 
           <div className="p-4 sm:p-6">
             <div className="text-5xl sm:text-6xl mb-3 sm:mb-4" role="img" aria-label="Star emoji">🌟</div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Delad framgång
+              {t('social.benefits.sharedSuccess')}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Fira prestationer tillsammans
+              {t('social.benefits.sharedSuccessDesc')}
             </p>
           </div>
         </div>

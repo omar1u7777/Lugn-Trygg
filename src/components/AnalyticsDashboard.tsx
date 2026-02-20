@@ -98,9 +98,9 @@ const AnalyticsDashboard: React.FC = () => {
             Tillgängliga Funktioner i Huvudanalytik
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
+            {features.map((feature) => (
               <div
-                key={index}
+                key={feature.title}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
               >
                 <div className={`bg-gradient-to-r ${feature.color} p-6 flex items-center justify-center`}>

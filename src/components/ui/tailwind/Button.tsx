@@ -46,12 +46,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
-      primary: 'bg-[#2c8374] text-white hover:bg-[#1e5f54] focus-visible:ring-[#2c8374] shadow-md hover:shadow-lg active:scale-[0.98]',
-      secondary: 'bg-[#f2e4d4] text-[#2f2a24] hover:bg-[#e8dcd0] focus-visible:ring-[#c08a5d] active:scale-[0.98]',
-      success: 'bg-[#a8e6cf] text-[#1e5f54] hover:bg-[#8fd9bc] focus-visible:ring-[#a8e6cf] active:scale-[0.98]',
-      error: 'bg-[#ffb3ba] text-[#8b3a3a] hover:bg-[#ff9aa2] focus-visible:ring-[#ffb3ba] active:scale-[0.98]',
-      outline: 'border-2 border-[#2c8374] text-[#2c8374] hover:bg-[#2c8374]/10 focus-visible:ring-[#2c8374] active:scale-[0.98]',
-      ghost: 'text-[#6d645d] hover:bg-[#f2e4d4] focus-visible:ring-[#c08a5d] active:scale-[0.98]',
+      primary: 'bg-primary-500 text-white hover:bg-primary-600 focus-visible:ring-primary-500 shadow-md hover:shadow-lg active:scale-[0.98]',
+      secondary: 'bg-calm-200 text-calm-800 hover:bg-calm-300 focus-visible:ring-secondary-500 active:scale-[0.98]',
+      success: 'bg-success-300 text-primary-600 hover:bg-success-400 focus-visible:ring-success-300 active:scale-[0.98]',
+      error: 'bg-error-200 text-error-800 hover:bg-error-300 focus-visible:ring-error-200 active:scale-[0.98]',
+      outline: 'border-2 border-primary-500 text-primary-500 hover:bg-primary-500/10 focus-visible:ring-primary-500 active:scale-[0.98]',
+      ghost: 'text-calm-600 hover:bg-calm-200 focus-visible:ring-secondary-500 active:scale-[0.98]',
     };
     
     const sizes = {

@@ -1,7 +1,7 @@
 """Tests for memory routes (voice memories/audio recordings).
 
 Route: /api/v1/memory (blueprint prefix registered in main.py)
-Auth:  @AuthService.jwt_required → sets g.user_id = 'test-user-id' (via conftest)
+Auth:  @AuthService.jwt_required → sets g.user_id = 'testuser1234567890ab' (via conftest)
 DB:    from src.firebase_config import db  (shared mock in conftest)
 Store: from firebase_admin import storage  (must patch src.routes.memory_routes.storage)
 """
@@ -16,10 +16,10 @@ from unittest.mock import MagicMock, Mock, patch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # The user_id set by conftest's mock jwt_required
-TEST_USER_ID = 'test-user-id'
+TEST_USER_ID = 'testuser1234567890ab'
 
 # A user_id that passes _validate_user_id (^[a-zA-Z0-9]{20,128}$)
-VALID_USER_ID = 'abcdefghij1234567890'
+VALID_USER_ID = TEST_USER_ID
 
 # A memory_id that passes _validate_memory_id (^[a-zA-Z0-9_-]{10,100}$)
 VALID_MEMORY_ID = 'mem_test_1234567890'
@@ -133,8 +133,9 @@ class TestMemoryUpload:
         body = response.get_json()
         assert 'File too large' in body['message']
 
-    def test_upload_invalid_user_id(self, client):
-        """g.user_id = 'test-user-id' fails the alphanumeric regex → 400."""
+    def test_upload_invalid_user_id(self, client, mocker):
+        """Invalid user_id according to validation should return 400."""
+        mocker.patch('src.routes.memory_routes._validate_user_id', return_value=False)
         data = {'audio': (io.BytesIO(b'audio'), 'test.mp3')}
         response = client.post(
             f'{BASE}/upload',
@@ -285,7 +286,7 @@ class TestMemoryList:
         """user_id in URL ≠ g.user_id → 403."""
         mocker.patch('src.routes.memory_routes._validate_user_id', return_value=True)
         mocker.patch('src.routes.memory_routes.audit_log')
-        response = client.get(f'{BASE}/list/{VALID_USER_ID}')
+        response = client.get(f'{BASE}/list/anothervaliduser1234567890')
         assert response.status_code == 403
         body = response.get_json()
         assert 'only view your own memories' in body['message']

@@ -260,11 +260,6 @@ export const tokenStorage = {
    */
   async getAccessToken(): Promise<string | null> {
     const token = await secureStorage.getItem('token');
-    logger.debug('🔐 SECURE STORAGE - getAccessToken:', { 
-      hasToken: !!token, 
-      tokenLength: token?.length,
-      tokenPreview: token ? token.substring(0, 20) + '...' : 'null'
-    });
     return token;
   },
 

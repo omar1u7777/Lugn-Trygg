@@ -268,7 +268,27 @@ export const refreshAccessToken = async (): Promise<string | null> => {
     const newFirebaseToken = await getFirebaseToken();
 
     if (!newFirebaseToken) {
-      logger.warn("Firebase token refresh failed");
+      // Fallback: try using stored refresh token when Firebase user is unavailable
+      // (e.g., after page refresh before Firebase Auth re-initializes)
+      const storedRefreshToken = await tokenStorage.getRefreshToken();
+      if (storedRefreshToken) {
+        try {
+          const fallbackResponse = await api.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
+            refresh_token: storedRefreshToken
+          });
+          const fallbackData = fallbackResponse.data?.data || fallbackResponse.data;
+          if (fallbackData?.accessToken && typeof fallbackData.accessToken === 'string') {
+            await tokenStorage.setAccessToken(fallbackData.accessToken);
+            if (fallbackData.refreshToken && typeof fallbackData.refreshToken === 'string') {
+              await tokenStorage.setRefreshToken(fallbackData.refreshToken);
+            }
+            return fallbackData.accessToken;
+          }
+        } catch {
+          logger.warn("Stored refresh token also failed");
+        }
+      }
+      logger.warn("Firebase token refresh failed and no stored token available");
       return null;
     }
 

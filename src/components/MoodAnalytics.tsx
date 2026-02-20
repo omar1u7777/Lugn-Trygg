@@ -716,8 +716,8 @@ const MoodAnalytics: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {forecast.risk_factors.map((risk, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                  {forecast.risk_factors.map((risk) => (
+                    <div key={risk} className="flex items-center gap-2">
                       {getRiskIcon(risk)}
                       <p className="text-sm text-gray-700 dark:text-gray-300">
                         {t(`analytics.risks.${risk}`)}
@@ -740,8 +740,8 @@ const MoodAnalytics: React.FC = () => {
               </div>
 
               <ul className="space-y-2 list-disc list-inside">
-                {forecast.recommendations.map((rec, index) => (
-                  <li key={index} className="text-sm text-gray-700 dark:text-gray-300">
+                {forecast.recommendations.map((rec) => (
+                  <li key={rec} className="text-sm text-gray-700 dark:text-gray-300">
                     {rec}
                   </li>
                 ))}

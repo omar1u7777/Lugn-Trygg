@@ -136,37 +136,66 @@ class SubscriptionService:
         today = cls._today()
         usage_ref = cls._get_usage_ref(user_id)
 
-        try:
-            snapshot = usage_ref.get()
-            data = snapshot.to_dict() if snapshot and snapshot.exists else None
-        except Exception as exc:  # pragma: no cover - logging only
-            logger.warning("Failed to fetch quota doc: %s", exc)
-            data = None
+        # Use a Firestore transaction to prevent TOCTOU race condition
+        from google.cloud.firestore import transactional as _transactional
 
-        if not data or data.get("date") != today:
-            data = {
-                "date": today,
-                "mood_logs": 0,
-                "chat_messages": 0,
+        @_transactional
+        def _consume_in_transaction(transaction: Any) -> dict[str, Any]:
+            snapshot = usage_ref.get(transaction=transaction)
+            data = snapshot.to_dict() if snapshot and snapshot.exists else None
+
+            if not data or data.get("date") != today:
+                data = {
+                    "date": today,
+                    "mood_logs": 0,
+                    "chat_messages": 0,
+                }
+
+            current_value = int(data.get(usage_type, 0))
+            if current_value >= limit_value:
+                raise SubscriptionLimitError(usage_type, limit_value)
+
+            data[usage_type] = current_value + 1
+            transaction.set(usage_ref, data)
+
+            return {
+                "date": data.get("date", today),
+                "mood_logs": int(data.get("mood_logs", 0)),
+                "chat_messages": int(data.get("chat_messages", 0)),
+                "limit": limit_value,
             }
 
-        current_value = int(data.get(usage_type, 0))
-        if current_value >= limit_value:
-            raise SubscriptionLimitError(usage_type, limit_value)
-
-        data[usage_type] = current_value + 1
-
         try:
-            usage_ref.set(data, merge=False)
-        except Exception as exc:  # pragma: no cover - logging only
-            logger.warning("Failed to persist quota doc: %s", exc)
-
-        return {
-            "date": data.get("date", today),
-            "mood_logs": int(data.get("mood_logs", 0)),
-            "chat_messages": int(data.get("chat_messages", 0)),
-            "limit": limit_value,
-        }
+            if db is None:
+                raise RuntimeError("Firestore database client is not initialized")
+            transaction = db.transaction()
+            return _consume_in_transaction(transaction)
+        except SubscriptionLimitError:
+            raise
+        except Exception as exc:
+            logger.warning("Transaction failed for quota consumption: %s", exc)
+            # Fallback to non-transactional for resilience
+            try:
+                snapshot = usage_ref.get()
+                data = snapshot.to_dict() if snapshot and snapshot.exists else None
+                if not data or data.get("date") != today:
+                    data = {"date": today, "mood_logs": 0, "chat_messages": 0}
+                current_value = int(data.get(usage_type, 0))
+                if current_value >= limit_value:
+                    raise SubscriptionLimitError(usage_type, limit_value)
+                data[usage_type] = current_value + 1
+                usage_ref.set(data, merge=False)
+                return {
+                    "date": data.get("date", today),
+                    "mood_logs": int(data.get("mood_logs", 0)),
+                    "chat_messages": int(data.get("chat_messages", 0)),
+                    "limit": limit_value,
+                }
+            except SubscriptionLimitError:
+                raise
+            except Exception as fallback_exc:
+                logger.warning("Fallback quota write failed: %s", fallback_exc)
+                return {"date": today, "mood_logs": 0, "chat_messages": 0, "limit": limit_value}
 
     @classmethod
     def build_status_payload(cls, user_id: str, user_data: dict[str, Any] | None) -> dict[str, Any]:
