@@ -202,10 +202,10 @@ def login_user(validated_data):
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict() if user_doc.exists else {}
 
-            # Update last_login timestamp
-            db.collection('users').document(user.uid).update({
+            # Update last_login timestamp (set with merge=True to handle missing docs)
+            db.collection('users').document(user.uid).set({
                 'last_login': datetime.now(UTC).isoformat()
-            })
+            }, merge=True)
 
         except Exception as db_error:
             logger.error(f"Failed to fetch/update user data during login: {str(db_error)}")
