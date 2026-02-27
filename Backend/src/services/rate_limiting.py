@@ -433,19 +433,13 @@ def rate_limit_by_endpoint(f):
             # Record successful request
             rate_limiter.record_request(endpoint, user_id)
 
-            # Add rate limit headers to successful response
-            response = f(*args, **kwargs)
-            if hasattr(response, 'headers'):
-                response.headers['X-RateLimit-Limit'] = str(limit_info.get('limit', 100))
-                response.headers['X-RateLimit-Remaining'] = str(limit_info.get('remaining', 0))
-                response.headers['X-RateLimit-Reset'] = str(limit_info.get('reset', 0))
-
-            return response
-
         except Exception as e:
-            logger.error(f"Rate limiting error: {e}")
-            # Allow request if rate limiting fails
-            return f(*args, **kwargs)
+            # Only log rate-limiting infrastructure errors, don't block the request
+            logger.debug(f"Rate limiting check error (non-blocking): {e}")
+
+        # Always call the actual route handler — outside the try/except
+        # so route errors propagate normally to Flask error handlers
+        return f(*args, **kwargs)
 
     return decorated_function
 

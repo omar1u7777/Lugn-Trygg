@@ -287,7 +287,7 @@ def get_challenges():
 
     except Exception as e:
         logger.error(f"Failed to get challenges: {e}")
-        return APIResponse.error(str(e))
+        return APIResponse.error("Failed to retrieve challenges", "CHALLENGES_ERROR", 500)
 
 
 @challenges_bp.route('/<challenge_id>', methods=['GET', 'OPTIONS'])
@@ -323,7 +323,7 @@ def get_challenge(challenge_id: str):
 
     except Exception as e:
         logger.error(f"Failed to get challenge {challenge_id}: {e}")
-        return APIResponse.error(str(e))
+        return APIResponse.error("Failed to retrieve challenge", "CHALLENGES_ERROR", 500)
 
 
 @challenges_bp.route('/<challenge_id>/join', methods=['POST'])
@@ -444,7 +444,8 @@ def join_challenge(challenge_id: str):
         })
 
     except Exception as e:
-        return APIResponse.error(str(e))
+        logger.exception("Failed to join challenge: %s", e)
+        return APIResponse.error("Failed to join challenge", "JOIN_ERROR", 500)
 
 
 @challenges_bp.route('/<challenge_id>/leave', methods=['POST'])
@@ -500,7 +501,8 @@ def leave_challenge(challenge_id: str):
         return APIResponse.success({'message': 'Successfully left challenge'})
 
     except Exception as e:
-        return APIResponse.error(str(e))
+        logger.exception("Failed to leave challenge: %s", e)
+        return APIResponse.error("Failed to leave challenge", "LEAVE_ERROR", 500)
 
 
 @challenges_bp.route('/<challenge_id>/contribute', methods=['POST'])
@@ -620,7 +622,8 @@ def contribute_to_challenge(challenge_id: str):
         return APIResponse.not_found('Challenge not found')
 
     except Exception as e:
-        return APIResponse.error(str(e))
+        logger.exception("Failed to contribute to challenge: %s", e)
+        return APIResponse.error("Failed to contribute to challenge", "CONTRIBUTE_ERROR", 500)
 
 
 @challenges_bp.route('/user/<user_id>', methods=['GET', 'OPTIONS'])
@@ -667,7 +670,8 @@ def get_user_challenges(user_id: str):
         return APIResponse.success({'challenges': user_challenges})
 
     except Exception as e:
-        return APIResponse.error(str(e))
+        logger.exception("Failed to get user challenges: %s", e)
+        return APIResponse.error("Failed to retrieve user challenges", "CHALLENGES_ERROR", 500)
 
 
 @challenges_bp.route('/maintenance/cleanup', methods=['POST'])
@@ -683,4 +687,4 @@ def run_challenges_cleanup():
         return APIResponse.success({'message': 'Cleanup completed'})
     except Exception as e:
         logger.error(f"Challenges maintenance cleanup failed: {e}")
-        return APIResponse.error(str(e))
+        return APIResponse.error("Cleanup failed", "MAINTENANCE_ERROR", 500)

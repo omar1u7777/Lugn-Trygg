@@ -292,8 +292,8 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
         if db_handle is None:
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
-        data = request.get_json()
-        new_status = data.get('status')
+        data = request.get_json(force=True, silent=True)
+        new_status = data.get('status') if data else None
 
         if new_status not in ['active', 'suspended', 'banned']:
             return APIResponse.bad_request('Invalid status')
@@ -398,7 +398,7 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
         if db_handle is None:
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True) or {}
         action = data.get('action')  # 'dismiss', 'remove_content', 'warn_user', 'ban_user'
         raw_notes = data.get('notes', '')
         # Sanitize notes to prevent stored XSS

@@ -1126,8 +1126,9 @@ Långsiktiga välbefinnande-strategier:
             volatility = np.std(scores_array[-14:])  # Recent volatility
 
             # Seasonal patterns (weekly)
+            weekly_patterns = {}
             if len(scores_array) >= 14:
-                self._analyze_weekly_patterns(scores_array, dates)
+                weekly_patterns = self._analyze_weekly_patterns(scores_array, dates)
 
             # Predict future values
             future_predictions = []
@@ -1179,6 +1180,7 @@ Långsiktiga välbefinnande-strategier:
                     "momentum": float(momentum[-1])
                 },
                 "risk_factors": risk_factors,
+                "weekly_patterns": weekly_patterns,
                 "recommendations": recommendations,
                 "confidence": float(confidence),
                 "data_points_used": len(scores_array)
@@ -1970,9 +1972,9 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                     "model_info": "insufficient_data"
                 }
 
-            # Prepare training data
-            X = np.array(features[:-7])  # Features for training (exclude last week)
-            y = np.array(scores[7:])    # Target: next day's score
+            # Prepare training data — 1-day-ahead prediction
+            X = np.array(features[:-1])  # Features for training (all but last)
+            y = np.array(scores[1:])     # Target: next day's score (1-day shift)
 
             if len(X) < 7:
                 return {
@@ -2016,7 +2018,6 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 }
 
             # Generate forecast
-            features[-1]
             forecast_scores = []
 
             for day in range(days_ahead):

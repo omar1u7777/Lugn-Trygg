@@ -308,6 +308,23 @@ try:
 
     # Block malformed paths before any other middleware runs
     app.before_request(_block_invalid_paths)
+
+    # Guard: Return 503 early if Firestore db is None for data endpoints
+    def _check_db_available():
+        """Return 503 if Firebase Firestore is not initialized for data-dependent routes."""
+        if request.method == 'OPTIONS':
+            return None  # Always allow preflight
+        if request.path.startswith('/api/') and not request.path.startswith('/api/docs') and request.path != '/api/health':
+            try:
+                from src.firebase_config import db as _check_db
+                if _check_db is None:
+                    logger.error("Database unavailable — Firestore not initialized")
+                    return jsonify({"success": False, "error": "SERVICE_UNAVAILABLE", "message": "Database temporarily unavailable"}), 503
+            except Exception:
+                return jsonify({"success": False, "error": "SERVICE_UNAVAILABLE", "message": "Database temporarily unavailable"}), 503
+        return None
+
+    app.before_request(_check_db_available)
     
     # CRITICAL: Register CORS handlers AFTER all other middleware
     # This ensures CORS headers are the LAST thing set on responses

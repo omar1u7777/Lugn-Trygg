@@ -114,31 +114,71 @@ def get_journal_entries(user_id):
         except (ValueError, TypeError):
             limit = 50
 
-        # Get journal entries from Firestore
-        try:
-            from google.cloud.firestore import FieldFilter
-            journal_ref = db.collection('journal_entries').where(
-                filter=FieldFilter('user_id', '==', user_id)
-            ).order_by('created_at', direction='DESCENDING').limit(limit)
-            journal_docs = journal_ref.stream()
-        except TypeError:
-            # Fallback for test environments
-            journal_ref = db.collection('journal_entries').where(
-                'user_id', '==', user_id
-            ).order_by('created_at', direction='DESCENDING').limit(limit)
-            journal_docs = journal_ref.stream()
+        def _format_timestamp(ts: Any) -> str | None:
+            if ts is None:
+                return None
+            if hasattr(ts, 'isoformat'):
+                return ts.isoformat()
+            if isinstance(ts, str):
+                return ts
+            return str(ts)
 
+        # Get journal entries from Firestore
+        # The ordered query requires a composite index (user_id + created_at).
+        # If the index isn't deployed yet, fall back to unordered query + Python sort.
         entries = []
-        for doc in journal_docs:
-            data = doc.to_dict()
-            entries.append({
-                'id': doc.id,
-                'content': data.get('content', ''),
-                'mood': data.get('mood'),
-                'tags': data.get('tags', []),
-                'createdAt': data.get('created_at').isoformat() if data.get('created_at') else None,
-                'updatedAt': data.get('updated_at').isoformat() if data.get('updated_at') else None
-            })
+        try:
+            try:
+                from google.cloud.firestore import FieldFilter
+                journal_ref = db.collection('journal_entries').where(
+                    filter=FieldFilter('user_id', '==', user_id)
+                ).order_by('created_at', direction='DESCENDING').limit(limit)
+            except (TypeError, ImportError):
+                journal_ref = db.collection('journal_entries').where(
+                    'user_id', '==', user_id
+                ).order_by('created_at', direction='DESCENDING').limit(limit)
+
+            for doc in journal_ref.stream():
+                data = doc.to_dict()
+                entries.append({
+                    'id': doc.id,
+                    'content': data.get('content', ''),
+                    'mood': data.get('mood'),
+                    'tags': data.get('tags', []),
+                    'createdAt': _format_timestamp(data.get('created_at')),
+                    'updatedAt': _format_timestamp(data.get('updated_at')),
+                })
+
+        except Exception as index_err:
+            # Composite index may not be deployed — fall back to unordered query
+            logger.warning(f"Ordered journal query failed ({type(index_err).__name__}), falling back to unordered query")
+            try:
+                try:
+                    from google.cloud.firestore import FieldFilter
+                    fallback_ref = db.collection('journal_entries').where(
+                        filter=FieldFilter('user_id', '==', user_id)
+                    ).limit(limit)
+                except (TypeError, ImportError):
+                    fallback_ref = db.collection('journal_entries').where(
+                        'user_id', '==', user_id
+                    ).limit(limit)
+
+                for doc in fallback_ref.stream():
+                    data = doc.to_dict()
+                    entries.append({
+                        'id': doc.id,
+                        'content': data.get('content', ''),
+                        'mood': data.get('mood'),
+                        'tags': data.get('tags', []),
+                        'createdAt': _format_timestamp(data.get('created_at')),
+                        'updatedAt': _format_timestamp(data.get('updated_at')),
+                    })
+                # Sort in Python since Firestore couldn't order
+                entries.sort(key=lambda e: e.get('createdAt') or '', reverse=True)
+            except Exception as fallback_err:
+                logger.error(f"Fallback journal query also failed: {type(fallback_err).__name__}: {fallback_err}")
+                # Return empty list instead of 500
+                entries = []
 
         return APIResponse.success(
             data={'entries': entries},
@@ -146,7 +186,7 @@ def get_journal_entries(user_id):
         )
 
     except Exception as e:
-        logger.error(f"Failed to get journal entries: {str(e)}")
+        logger.error(f"Failed to get journal entries for user {user_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return APIResponse.error('Failed to load journal entries')
 
 @journal_bp.route('/<user_id>/journal', methods=['POST'])
@@ -180,7 +220,7 @@ def save_journal_entry(user_id):
             logger.error(f"Firebase query failed: {str(e)}")
             return APIResponse.error('Service temporarily unavailable', status_code=503)
 
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data or not data.get('content'):
             return APIResponse.bad_request('Content is required')
 
@@ -283,7 +323,7 @@ def update_journal_entry(user_id, entry_id):
             logger.error(f"Firebase query failed: {str(e)}")
             return APIResponse.error('Service temporarily unavailable', status_code=503)
 
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data:
             return APIResponse.bad_request('No data provided')
 

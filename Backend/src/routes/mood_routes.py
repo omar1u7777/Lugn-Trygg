@@ -123,6 +123,13 @@ def cached_mood_data(ttl: int = MOOD_CACHE_TTL) -> Callable[[Callable], Callable
             if isinstance(result, tuple) and len(result) == 2:
                 response_data, status_code = result
 
+                # Extract dict from Flask Response objects (e.g. from APIResponse.success())
+                if hasattr(response_data, 'get_json'):
+                    try:
+                        response_data = response_data.get_json()
+                    except Exception:
+                        return result
+
                 if status_code == 200 and isinstance(response_data, dict):
                     # Store in memory cache
                     _mood_cache[cache_key] = (response_data, time.time())
@@ -289,8 +296,8 @@ def log_mood() -> Response | tuple[Response, int]:
             else:
                 voice_data = data.get('voice_data')
         else:
-            data = request.get_json()
-            voice_data = data.get('voice_data')
+            data = request.get_json(force=True, silent=True)
+            voice_data = data.get('voice_data') if data else None
             audio_file = None
 
         if not data and not audio_file:
@@ -381,8 +388,24 @@ def log_mood() -> Response | tuple[Response, int]:
                     "method": "error_fallback"
                 }
 
-        # Determine the final mood text
-        final_mood_text = mood_text or transcript or 'neutral'
+        # Determine the final mood text - use mood_text, transcript, or derive from score
+        final_mood_text = mood_text or transcript
+        if not final_mood_text and user_score is not None:
+            # Map user score (1-10) to Swedish mood label
+            if user_score >= 9:
+                final_mood_text = 'Super'
+            elif user_score >= 7:
+                final_mood_text = 'Glad'
+            elif user_score >= 5:
+                final_mood_text = 'Bra'
+            elif user_score >= 4:
+                final_mood_text = 'Neutral'
+            elif user_score >= 2:
+                final_mood_text = 'Orolig'
+            else:
+                final_mood_text = 'Ledsen'
+        if not final_mood_text:
+            final_mood_text = 'neutral'
 
         # If we have voice analysis but no transcript, try to get mood from voice analysis
         if not mood_text and not transcript and voice_analysis:
@@ -778,7 +801,7 @@ def update_mood(mood_id: str) -> Response | tuple[Response, int]:
             return APIResponse.not_found('Mood entry not found')
 
         # Get update data
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data:
             return APIResponse.bad_request('No update data provided')
 
@@ -798,7 +821,8 @@ def update_mood(mood_id: str) -> Response | tuple[Response, int]:
         if 'mood_text' in update_data and update_data['mood_text'].strip():
             sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(update_data['mood_text'])
             update_data['sentiment'] = sentiment_analysis.get('sentiment', 'NEUTRAL')
-            update_data['score'] = sentiment_analysis.get('score', 0)
+            # Store AI sentiment score separately — never overwrite user's 1-10 'score'
+            update_data['sentiment_score'] = sentiment_analysis.get('score', 0)
             update_data['emotions_detected'] = sentiment_analysis.get('emotions', [])
             update_data['sentiment_analysis'] = sentiment_analysis
 
@@ -981,19 +1005,33 @@ def get_weekly_analysis() -> Response | tuple[Response, int]:
             return APIResponse.unauthorized('User ID missing from context')
 
         # Get moods from last 7 days
-        datetime.now(UTC) - timedelta(days=7)
+        seven_days_ago = datetime.now(UTC) - timedelta(days=7)
         mood_ref = db.collection('users').document(user_id).collection('moods')
 
         try:
-            # Query moods from last 7 days
+            # Query moods from last 7 days — filter by timestamp
             mood_docs = list(
-                mood_ref.order_by('timestamp', direction='DESCENDING')
+                mood_ref.where('timestamp', '>=', seven_days_ago.isoformat())
+                .order_by('timestamp', direction='DESCENDING')
                 .limit(50)
                 .stream()
             )
-        except Exception as query_error:
-            logger.warning(f"⚠️ Weekly analysis query failed: {query_error}")
-            mood_docs = []
+        except Exception:
+            # Fallback if composite index doesn't exist
+            try:
+                mood_docs = list(
+                    mood_ref.order_by('timestamp', direction='DESCENDING')
+                    .limit(50)
+                    .stream()
+                )
+                # Manual date filter
+                mood_docs = [
+                    doc for doc in mood_docs
+                    if (doc.to_dict() or {}).get('timestamp', '') >= seven_days_ago.isoformat()
+                ]
+            except Exception as query_error:
+                logger.warning(f"⚠️ Weekly analysis query failed: {query_error}")
+                mood_docs = []
 
         if not mood_docs:
             return APIResponse.success({
@@ -1031,7 +1069,7 @@ def get_weekly_analysis() -> Response | tuple[Response, int]:
         total_moods = len(moods_data)
         average_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
 
-        # Calculate trend
+        # Calculate trend (scores are 1-10 scale; 0.75 is a meaningful threshold)
         trend = 'stable'
         if len(sentiment_scores) >= 4:
             recent_half = sentiment_scores[:len(sentiment_scores)//2]
@@ -1039,9 +1077,9 @@ def get_weekly_analysis() -> Response | tuple[Response, int]:
             recent_avg = sum(recent_half) / len(recent_half)
             older_avg = sum(older_half) / len(older_half)
 
-            if recent_avg > older_avg + 0.15:
+            if recent_avg > older_avg + 0.75:
                 trend = 'improving'
-            elif recent_avg < older_avg - 0.15:
+            elif recent_avg < older_avg - 0.75:
                 trend = 'declining'
 
         # Generate insights based on data
@@ -1194,22 +1232,25 @@ def predictive_mood_forecast() -> Response | tuple[Response, int]:
 
 def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str,
                              positive_count: int, negative_count: int, neutral_count: int) -> str:
-    """Generate AI-style insights based on mood data"""
+    """Generate AI-style insights based on mood data.
+    
+    NOTE: average_sentiment uses the 1-10 mood score scale (not -1/+1 AI sentiment).
+    """
 
     if total_moods == 0:
         return "Start logging your mood daily to get personal insights about your patterns and wellbeing."
 
     insights = []
 
-    # Overall mood assessment
-    if average_sentiment > 0.3:
-        insights.append(f"Fantastic! Your average mood this week has been very positive ({round(average_sentiment * 10, 1)}/10).")
-    elif average_sentiment > 0:
-        insights.append(f"Your average mood has been slightly positive ({round(average_sentiment * 10 + 5, 1)}/10).")
-    elif average_sentiment > -0.3:
-        insights.append(f"Your mood has been relatively neutral this week ({round(average_sentiment * 10 + 5, 1)}/10).")
+    # Overall mood assessment — scores are on a 1-10 scale
+    if average_sentiment >= 7.5:
+        insights.append(f"Fantastic! Your average mood this week has been very positive ({round(average_sentiment, 1)}/10).")
+    elif average_sentiment >= 5.5:
+        insights.append(f"Your average mood has been good ({round(average_sentiment, 1)}/10).")
+    elif average_sentiment >= 4.0:
+        insights.append(f"Your mood has been relatively neutral this week ({round(average_sentiment, 1)}/10).")
     else:
-        insights.append("Your week seems to have been challenging. Remember that it's okay to ask for support.")
+        insights.append(f"Your week seems to have been challenging ({round(average_sentiment, 1)}/10). Remember that it's okay to ask for support.")
 
     # Trend insights
     if trend == 'improving':

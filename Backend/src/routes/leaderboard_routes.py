@@ -320,16 +320,25 @@ def get_weekly_winners():
         last_week_end = last_week_start + timedelta(days=6)
 
         # For now, just return current top performers
-        # In production, you'd track weekly stats separately
-        xp_query = db.collection('users').order_by('total_xp', direction='DESCENDING').limit(3)
+        # Query user_rewards collection (where XP is actually stored), not users.total_xp
+        xp_query = db.collection('user_rewards').order_by('xp', direction='DESCENDING').limit(3)
         xp_winners = []
 
         for doc in xp_query.stream():
             user_data = doc.to_dict()
-            if user_data.get('total_xp', 0) > 0:
+            if user_data.get('xp', 0) > 0:
+                # Get display name from users collection
+                display_name = 'Anonymous'
+                try:
+                    user_doc = db.collection('users').document(doc.id).get()
+                    if user_doc.exists:
+                        u = user_doc.to_dict() or {}
+                        display_name = _anonymize_username(u.get('display_name') or u.get('email', ''))
+                except Exception:
+                    pass
                 xp_winners.append({
-                    'displayName': _anonymize_username(user_data.get('display_name') or user_data.get('email', '')),
-                    'xp': user_data.get('total_xp', 0),
+                    'displayName': display_name,
+                    'xp': user_data.get('xp', 0),
                     'avatar': user_data.get('avatar_emoji', '🏆')
                 })
 

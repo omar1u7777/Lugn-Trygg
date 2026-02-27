@@ -1,0 +1,41 @@
+2026-02-20 22:22:58,768 - src.config - INFO - 🔹 Laddad miljövariabel: PORT = 5001
+2026-02-20 22:22:58,769 - src.config - INFO - 🔹 Laddad miljövariabel: FLASK_DEBUG = False
+2026-02-20 22:22:58,769 - src.config - INFO - 🔹 Laddad miljövariabel: JWT_SECRET_KEY = ***
+2026-02-20 22:22:58,769 - src.config - INFO - 🔹 Laddad miljövariabel: JWT_REFRESH_SECRET_KEY = ***
+2026-02-20 22:22:58,770 - src.config - INFO - 🔹 Laddad miljövariabel: JWT_EXPIRATION_MINUTES = 60
+2026-02-20 22:22:58,771 - src.config - INFO - 🔹 Laddad miljövariabel: JWT_REFRESH_EXPIRATION_DAYS = 30
+2026-02-20 22:22:58,771 - src.config - INFO - 🔹 Laddad miljövariabel: FIREBASE_WEB_API_KEY = ***
+2026-02-20 22:22:58,772 - src.config - INFO - 🔹 Laddad miljövariabel: FIREBASE_API_KEY = ***
+2026-02-20 22:22:58,772 - src.config - INFO - 🔹 Laddad miljövariabel: FIREBASE_PROJECT_ID = lugn-trygg-53d75
+2026-02-20 22:22:58,772 - src.config - INFO - 🔹 Laddad miljövariabel: FIREBASE_STORAGE_BUCKET = lugn-trygg-53d75
+2026-02-20 22:22:58,772 - src.config - INFO - 🔹 Laddad miljövariabel: FIREBASE_CREDENTIALS = serviceAccountKey.json
+2026-02-20 22:22:58,774 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_SECRET_KEY = ***
+2026-02-20 22:22:58,774 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_PUBLISHABLE_KEY = ***
+2026-02-20 22:22:58,774 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_PRICE_PREMIUM = price_premium
+2026-02-20 22:22:58,774 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_PRICE_PREMIUM_YEARLY = price_premium_yearly
+2026-02-20 22:22:58,775 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_PRICE_ENTERPRISE = price_enterprise
+2026-02-20 22:22:58,775 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_PRICE_CBT_MODULE = price_cbt_module
+2026-02-20 22:22:58,775 - src.config - INFO - 🔹 Laddad miljövariabel: STRIPE_WEBHOOK_SECRET = ***
+2026-02-20 22:22:58,776 - src.config - INFO - 🔹 Laddad miljövariabel: ENCRYPTION_KEY = ***
+2026-02-20 22:22:58,776 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_HOST = localhost
+2026-02-20 22:22:58,776 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_PORT = 6379
+2026-02-20 22:22:58,776 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_PASSWORD = ***
+2026-02-20 22:22:58,776 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_DB = 0
+2026-02-20 22:22:58,777 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_SSL = False
+2026-02-20 22:22:58,777 - src.config - INFO - 🔹 Laddad miljövariabel: REDIS_MAX_CONNECTIONS = 20
+2026-02-20 22:22:58,777 - src.config - INFO - 🔹 Laddad miljövariabel: CACHE_DEFAULT_TIMEOUT = 300
+2026-02-20 22:22:58,777 - src.config - INFO - 🔹 Laddad miljövariabel: CACHE_API_RESPONSE_TIMEOUT = 600
+2026-02-20 22:22:58,777 - src.config - INFO - 🔹 Laddad miljövariabel: CACHE_USER_DATA_TIMEOUT = 1800
+2026-02-20 22:22:58,778 - src.config - INFO - 🔹 Laddad miljövariabel: GOOGLE_CLIENT_ID = ***
+2026-02-20 22:22:58,778 - src.config - INFO - 🔹 Laddad miljövariabel: CORS_ALLOWED_ORIGINS = http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://localhost:3002,http://192.168.10.154:3001,http://192.168.10.154:3002,http://172.21.112.1:3001,http://172.28.16.1:3002,http://localhost:54112,http://frontend:3000,http://localhost:4173,http://192.168.10.154:4173,http://172.22.80.1:4173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.10.154:8081,https://lugn-trygg.vercel.app,https://lugn-trygg.firebaseapp.com,https://lugn-trygg-git-main-omaralhaeks-projects.vercel.app,https://*.vercel.app,https://lugn-trygg-dpy1vtzs4-omaralhaeks-projects.vercel.app
+2026-02-20 22:22:58,778 - src.config - INFO - 🔹 Laddad miljövariabel: WEBAUTHN_RP_NAME = Lugn & Trygg
+2026-02-20 22:22:58,779 - src.config - INFO - 🔹 Laddad miljövariabel: WEBAUTHN_ORIGIN = http://localhost:3000
+2026-02-20 22:22:58,779 - src.config - INFO - 🔹 Laddad miljövariabel: MAX_FAILED_LOGIN_ATTEMPTS = 5
+2026-02-20 22:22:58,780 - src.config - INFO - 🔹 Laddad miljövariabel: LOCKOUT_DURATION_MINUTES_FIRST = 5
+2026-02-20 22:22:58,780 - src.config - INFO - 🔹 Laddad miljövariabel: LOCKOUT_DURATION_MINUTES_SECOND = 15
+2026-02-20 22:22:58,780 - src.config - INFO - 🔹 Laddad miljövariabel: LOCKOUT_DURATION_MINUTES_THIRD = 60
+2026-02-20 22:22:58,780 - src.config - INFO - ✅ Backend körs på port: 5001, Debug-läge: False
+2026-02-20 22:22:58,780 - src.config - INFO - ✅ Firebase-konfiguration laddad från: C:\Projekt\Lugn-Trygg-main_klar\Backend\serviceAccountKey.json
+2026-02-20 22:22:58,781 - src.config - INFO - ✅ JWT-token expiration: 1:00:00, Refresh expiration: 30 days, 0:00:00
+2026-02-20 22:22:58,781 - src.config - INFO - ✅ Tillåtna CORS-origins: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://192.168.10.154:3001', 'http://192.168.10.154:3002', 'http://172.21.112.1:3001', 'http://172.28.16.1:3002', 'http://localhost:54112', 'http://frontend:3000', 'http://localhost:4173', 'http://192.168.10.154:4173', 'http://172.22.80.1:4173', 'http://localhost:8081', 'http://127.0.0.1:8081', 'http://192.168.10.154:8081', 'https://lugn-trygg.vercel.app', 'https://lugn-trygg.firebaseapp.com', 'https://lugn-trygg-git-main-omaralhaeks-projects.vercel.app', 'https://*.vercel.app', 'https://lugn-trygg-dpy1vtzs4-omaralhaeks-projects.vercel.app']
+2026-02-20 22:22:58,781 - src.config - INFO - ✅ Backend är korrekt konfigurerad men inga hemligheter visas i loggen.

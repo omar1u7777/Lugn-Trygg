@@ -199,13 +199,20 @@ class ConsentService:
             user_data = user_doc.to_dict()
             consents = user_data.get('consents', {})
 
-            # Add metadata for each consent type
+            # Add metadata for each consent type — use already-fetched data, no N+1 reads
             result = {}
             for consent_type, metadata in self.required_consents.items():
-                consents.get(consent_type, {})
+                consent_record = consents.get(consent_type, {})
+                granted = consent_record.get('granted', False)
+                withdrawn = consent_record.get('withdrawn', False)
                 result[consent_type] = {
                     **metadata,
-                    'status': self.check_consent(user_id, consent_type)
+                    'status': {
+                        'has_consent': granted and not withdrawn,
+                        'granted_at': consent_record.get('granted_at'),
+                        'version': consent_record.get('version'),
+                        'withdrawn': withdrawn,
+                    }
                 }
 
             return result

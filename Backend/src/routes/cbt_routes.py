@@ -326,7 +326,7 @@ def update_progress():
     logger.info(f"📝 Updating CBT progress for user {user_id}")
 
     try:
-        data = request.get_json()
+        data = request.get_json(force=True, silent=True)
         if not data:
             return APIResponse.error(
                 message="Request body required",
