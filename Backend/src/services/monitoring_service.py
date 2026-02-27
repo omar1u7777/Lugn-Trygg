@@ -199,7 +199,8 @@ class MonitoringService:
 
             # Store in Redis for processing
             if self.redis_client:
-                f"events:{event_type}:{int(time.time())}"
+                event_key = f"events:{event_type}:{int(time.time())}"
+                self.redis_client.setex(event_key, 86400, json.dumps(event_data))
                 self.redis_client.lpush("analytics_events", json.dumps(event_data))
                 self.redis_client.expire("analytics_events", 86400)  # 24 hours
 

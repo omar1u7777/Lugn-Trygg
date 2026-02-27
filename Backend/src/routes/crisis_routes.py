@@ -82,7 +82,7 @@ def assess_crisis_risk():
             'created_at': datetime.now(UTC)
         }
 
-        db.collection('crisis_assessments').document(user_id).set(assessment_data)  # type: ignore
+        db.collection('crisis_assessments').add(assessment_data)  # type: ignore
 
         # Audit log
         audit_log(
@@ -152,18 +152,28 @@ def get_safety_plan():
 
         user_data = user_doc.to_dict()
 
-        # Get recent mood data
-        mood_query = db.collection('moods')\
-            .where('userId', '==', user_id)\
+        # Get recent mood data from user subcollection
+        mood_query = db.collection('users').document(user_id).collection('moods')\
             .order_by('timestamp', direction='DESCENDING')\
             .limit(30)  # type: ignore
 
-        [doc.to_dict() for doc in mood_query.stream()]
+        mood_data_list = [doc.to_dict() for doc in mood_query.stream()]
 
-        # Build context for safety plan
+        # Build context for safety plan — extract triggers from mood data
+        common_triggers = []
+        for m in mood_data_list:
+            triggers = m.get('triggers', [])
+            if isinstance(triggers, list):
+                common_triggers.extend(triggers)
+        # Deduplicate, keep top 5
+        seen = {}
+        for t in common_triggers:
+            seen[t] = seen.get(t, 0) + 1
+        top_triggers = sorted(seen, key=seen.get, reverse=True)[:5]
+
         user_context = {
             'user_id': user_id,
-            'mood_patterns': {'common_triggers': []},  # Would extract from mood data
+            'mood_patterns': {'common_triggers': top_triggers},
             'effective_coping_strategies': user_data.get('preferred_coping_strategies', []),
             'emergency_contacts': user_data.get('emergency_contacts', [])
         }

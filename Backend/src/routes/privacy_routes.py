@@ -142,17 +142,20 @@ def update_privacy_settings(user_id: str):
             if k in allowed_keys
         }
 
-        # Update in Firestore
-        db.collection('users').document(user_id).update({
-            'privacy_settings': validated_settings,
-            'updated_at': datetime.now(UTC)
-        })
+        # Update in Firestore — merge with existing settings, don't overwrite
+        update_fields = {f'privacy_settings.{k}': v for k, v in validated_settings.items()}
+        update_fields['updated_at'] = datetime.now(UTC)
+        db.collection('users').document(user_id).update(update_fields)
+
+        # Re-read merged settings so we return the full object
+        updated_doc = db.collection('users').document(user_id).get()
+        merged_settings = (updated_doc.to_dict() or {}).get('privacy_settings', validated_settings)
 
         logger.info(f"✅ Privacy settings updated for user {user_id[:8]}")
         audit_log('privacy_settings_updated', user_id, validated_settings)
 
         return APIResponse.success({
-            'settings': validated_settings
+            'settings': merged_settings
         }, "Privacy settings updated")
 
     except Exception as e:
@@ -201,9 +204,12 @@ def export_user_data(user_id: str):
         export_data['moods'] = moods
         logger.info(f"  ✓ {len(moods)} mood entries collected")
 
-        # 3. Memories/Journal Entries
-        memories_ref = db.collection('users').document(user_id).collection('memories')
-        memories = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in memories_ref.stream()]
+        # 3. Memories — stored as top-level 'memories' collection
+        if FieldFilter is not None:
+            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            memories_query = db.collection('memories').where('user_id', '==', user_id)
+        memories = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in memories_query.stream()]
         export_data['memories'] = memories
         logger.info(f"  ✓ {len(memories)} memories collected")
 
@@ -243,9 +249,12 @@ def export_user_data(user_id: str):
         export_data['aiConversations'] = ai_conversations
         logger.info(f"  ✓ {len(ai_conversations)} AI conversations collected")
 
-        # 9. Journal Entries
-        journal_ref = db.collection('users').document(user_id).collection('journal_entries')
-        journal_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in journal_ref.stream()]
+        # 9. Journal Entries — stored as top-level 'journal_entries' collection
+        if FieldFilter is not None:
+            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            journal_query = db.collection('journal_entries').where('user_id', '==', user_id)
+        journal_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in journal_query.stream()]
         export_data['journalEntries'] = journal_entries
         logger.info(f"  ✓ {len(journal_entries)} journal entries collected")
 
@@ -266,6 +275,58 @@ def export_user_data(user_id: str):
         if subscription_doc.exists:
             export_data['subscription'] = subscription_doc.to_dict() or {}
             logger.info("  ✓ Subscription data collected")
+
+        # 13. CBT Progress
+        cbt_doc = db.collection('cbt_progress').document(user_id).get()
+        if cbt_doc.exists:
+            export_data['cbtProgress'] = cbt_doc.to_dict() or {}
+            logger.info("  ✓ CBT progress collected")
+
+        # 14. Crisis Assessments
+        if FieldFilter is not None:
+            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            crisis_query = db.collection('crisis_assessments').where('user_id', '==', user_id)
+        crisis_assessments = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in crisis_query.stream()]
+        export_data['crisisAssessments'] = crisis_assessments
+        logger.info(f"  ✓ {len(crisis_assessments)} crisis assessments collected")
+
+        # 15. Safety Plans
+        safety_doc = db.collection('safety_plans').document(user_id).get()
+        if safety_doc.exists:
+            export_data['safetyPlan'] = safety_doc.to_dict() or {}
+            logger.info("  ✓ Safety plan collected")
+
+        # 16. Sync History
+        if FieldFilter is not None:
+            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            sync_query = db.collection('sync_history').where('user_id', '==', user_id)
+        sync_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in sync_query.stream()]
+        export_data['syncHistory'] = sync_entries
+        logger.info(f"  ✓ {len(sync_entries)} sync history entries collected")
+
+        # 17. Peer Chat Messages
+        if FieldFilter is not None:
+            peer_msgs_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', user_id))
+        else:
+            peer_msgs_query = db.collection('peer_chat_messages')
+        # Peer chat messages are keyed by session_id, not user_id — collect via presence
+        if FieldFilter is not None:
+            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            presence_query = db.collection('peer_chat_presence').where('user_id', '==', user_id)
+        user_sessions = [doc.id for doc in presence_query.stream()]
+        peer_messages = []
+        for sid in user_sessions:
+            if FieldFilter is not None:
+                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
+            else:
+                msg_query = db.collection('peer_chat_messages').where('session_id', '==', sid)
+            for doc in msg_query.stream():
+                peer_messages.append({**(doc.to_dict() or {}), 'id': doc.id})
+        export_data['peerChatMessages'] = peer_messages
+        logger.info(f"  ✓ {len(peer_messages)} peer chat messages collected")
 
         # Create JSON file
         json_data = json.dumps(export_data, indent=2, default=str, ensure_ascii=False)
@@ -337,9 +398,15 @@ def delete_user_data(user_id: str):
         })
         logger.info(f"  ✓ Deleted {deleted_moods} mood entries")
 
-        # 2. Delete Memories
-        memories_ref = db.collection('users').document(user_id).collection('memories')
-        deleted_memories = _delete_collection(memories_ref, batch_size=50)
+        # 2. Delete Memories — stored as top-level 'memories' collection
+        if FieldFilter is not None:
+            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            memories_query = db.collection('memories').where('user_id', '==', user_id)
+        memory_docs = list(memories_query.stream())
+        for doc in memory_docs:
+            doc.reference.delete()
+        deleted_memories = len(memory_docs)
         deletion_summary['deletedCollections'].append({
             'collection': 'memories',
             'count': deleted_memories
@@ -401,9 +468,15 @@ def delete_user_data(user_id: str):
         })
         logger.info(f"  ✓ Deleted {deleted_ai_conversations} AI conversations")
 
-        # 8. Delete Journal Entries
-        journal_ref = db.collection('users').document(user_id).collection('journal_entries')
-        deleted_journal = _delete_collection(journal_ref, batch_size=50)
+        # 8. Delete Journal Entries — stored as top-level 'journal_entries' collection
+        if FieldFilter is not None:
+            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            journal_query = db.collection('journal_entries').where('user_id', '==', user_id)
+        journal_docs = list(journal_query.stream())
+        for doc in journal_docs:
+            doc.reference.delete()
+        deleted_journal = len(journal_docs)
         deletion_summary['deletedCollections'].append({
             'collection': 'journal_entries',
             'count': deleted_journal
@@ -438,7 +511,82 @@ def delete_user_data(user_id: str):
             })
             logger.info("  ✓ Deleted subscription")
 
-        # 12. Delete User Profile (LAST)
+        # 12. Delete CBT Progress
+        cbt_doc = db.collection('cbt_progress').document(user_id)
+        if cbt_doc.get().exists:
+            cbt_doc.delete()
+            deletion_summary['deletedCollections'].append({
+                'collection': 'cbt_progress',
+                'count': 1
+            })
+            logger.info("  ✓ Deleted CBT progress")
+
+        # 13. Delete Crisis Assessments
+        if FieldFilter is not None:
+            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            crisis_query = db.collection('crisis_assessments').where('user_id', '==', user_id)
+        crisis_docs = list(crisis_query.stream())
+        for doc in crisis_docs:
+            doc.reference.delete()
+        if crisis_docs:
+            deletion_summary['deletedCollections'].append({
+                'collection': 'crisis_assessments',
+                'count': len(crisis_docs)
+            })
+            logger.info(f"  ✓ Deleted {len(crisis_docs)} crisis assessments")
+
+        # 14. Delete Safety Plans
+        safety_doc = db.collection('safety_plans').document(user_id)
+        if safety_doc.get().exists:
+            safety_doc.delete()
+            deletion_summary['deletedCollections'].append({
+                'collection': 'safety_plans',
+                'count': 1
+            })
+            logger.info("  ✓ Deleted safety plan")
+
+        # 15. Delete Sync History
+        if FieldFilter is not None:
+            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            sync_query = db.collection('sync_history').where('user_id', '==', user_id)
+        sync_docs = list(sync_query.stream())
+        for doc in sync_docs:
+            doc.reference.delete()
+        if sync_docs:
+            deletion_summary['deletedCollections'].append({
+                'collection': 'sync_history',
+                'count': len(sync_docs)
+            })
+            logger.info(f"  ✓ Deleted {len(sync_docs)} sync history entries")
+
+        # 16. Delete Peer Chat Data (presence + messages)
+        if FieldFilter is not None:
+            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
+        else:
+            presence_query = db.collection('peer_chat_presence').where('user_id', '==', user_id)
+        presence_docs = list(presence_query.stream())
+        user_sessions = [doc.id for doc in presence_docs]
+        peer_msg_count = 0
+        for sid in user_sessions:
+            if FieldFilter is not None:
+                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
+            else:
+                msg_query = db.collection('peer_chat_messages').where('session_id', '==', sid)
+            for doc in msg_query.stream():
+                doc.reference.delete()
+                peer_msg_count += 1
+        for doc in presence_docs:
+            doc.reference.delete()
+        if presence_docs or peer_msg_count:
+            deletion_summary['deletedCollections'].append({
+                'collection': 'peer_chat',
+                'count': len(presence_docs) + peer_msg_count
+            })
+            logger.info(f"  ✓ Deleted {len(presence_docs)} sessions + {peer_msg_count} peer chat messages")
+
+        # 17. Delete User Profile (LAST)
         db.collection('users').document(user_id).delete()
         logger.info("  ✓ Deleted user profile")
 

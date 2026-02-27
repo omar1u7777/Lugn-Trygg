@@ -164,7 +164,7 @@ class BreachNotificationService:
     def _schedule_notifications(self, breach_record: dict[str, Any]):
         """Schedule breach notifications according to HIPAA requirements"""
         breach_id = breach_record['breach_id']
-        breach_record['assessment'].get('severity', 'LOW')
+        severity = breach_record['assessment'].get('severity', 'LOW')
         affected_users = breach_record['assessment'].get('affected_users', 0)
 
         notifications = []

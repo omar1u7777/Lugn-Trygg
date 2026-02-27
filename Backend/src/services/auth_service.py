@@ -95,12 +95,32 @@ class AuthService:
             ValidationError: If email or password is invalid
             ServiceError: If registration fails
         """
+        from firebase_admin import auth as firebase_auth_module
+        from ..utils.error_handling import ServiceError as _ServiceError
+
         # Validate required fields
         if not email or not password:
             raise ValidationError("Email and password are required")
 
         # Create user in Firebase Authentication
-        firebase_user = _auth.create_user(email=email, password=password)
+        try:
+            firebase_user = _auth.create_user(email=email, password=password)
+        except firebase_auth_module.EmailAlreadyExistsError:
+            raise _ServiceError(
+                "En användare med denna e-postadress finns redan",
+                "EMAIL_ALREADY_EXISTS"
+            )
+        except firebase_auth_module.InvalidDynamicLinkDomainError:
+            raise _ServiceError(
+                "Ogiltig e-postadress",
+                "INVALID_EMAIL"
+            )
+        except Exception as firebase_error:
+            logger.error(f"Firebase create_user failed: {type(firebase_error).__name__}: {firebase_error}")
+            raise _ServiceError(
+                f"Registrering misslyckades: {str(firebase_error)}",
+                "FIREBASE_ERROR"
+            )
 
         # Convert email to Punycode
         punycode_email = convert_email_to_punycode(email)
@@ -375,15 +395,20 @@ class AuthService:
         """Generate JWT access token"""
         return jwt.encode({
             "sub": user_id,
-            "exp": datetime.now(UTC) + ACCESS_TOKEN_EXPIRES
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + ACCESS_TOKEN_EXPIRES,
+            "type": "access"
         }, JWT_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
     def generate_refresh_token(user_id: str) -> str:
-        """Generate JWT refresh token"""
+        """Generate JWT refresh token with unique jti for single-use enforcement"""
         return jwt.encode({
             "sub": user_id,
-            "exp": datetime.now(UTC) + REFRESH_TOKEN_EXPIRES
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + REFRESH_TOKEN_EXPIRES,
+            "jti": secrets.token_hex(16),
+            "type": "refresh"
         }, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
@@ -399,7 +424,7 @@ class AuthService:
             return "Logout successful", None
         except Exception as e:
             logger.exception(f"🔥 Error during logout: {str(e)}")
-            return None, f"Internal error during logout: {str(e)}"
+            return None, "Internal error during logout"
 
     @staticmethod
     def verify_token(token: str) -> tuple[str | None, str | None]:
@@ -677,8 +702,9 @@ class AuthService:
     def check_account_lockout(email: str) -> tuple[bool, str | None]:
         """Check if account is currently locked out"""
         try:
-            # Get failed attempts document
-            doc_ref = _db.collection("failed_login_attempts").document(email)
+            # Get failed attempts document (keyed by email hash)
+            email_hash = hashlib.sha256(email.lower().encode()).hexdigest()
+            doc_ref = _db.collection("failed_login_attempts").document(email_hash)
             doc = doc_ref.get()
 
             if not doc.exists:
@@ -714,7 +740,10 @@ class AuthService:
     def record_failed_attempt(email: str):
         """Record a failed login attempt"""
         try:
-            doc_ref = _db.collection("failed_login_attempts").document(email)
+            # Hash email to create a safe Firestore document ID
+            # (raw emails contain dots/@ which can cause issues)
+            email_hash = hashlib.sha256(email.lower().encode()).hexdigest()
+            doc_ref = _db.collection("failed_login_attempts").document(email_hash)
             doc = doc_ref.get()
 
             current_time = datetime.now(UTC).isoformat()
@@ -748,7 +777,7 @@ class AuthService:
                 })
             else:
                 doc_ref.set({
-                    "email": email,
+                    "email_hash": email_hash,
                     "attempt_count": 1,
                     "last_attempt": current_time,
                     "lockout_until": None,
@@ -764,7 +793,8 @@ class AuthService:
     def reset_failed_attempts(email: str):
         """Reset failed attempts after successful login"""
         try:
-            doc_ref = _db.collection("failed_login_attempts").document(email)
+            email_hash = hashlib.sha256(email.lower().encode()).hexdigest()
+            doc_ref = _db.collection("failed_login_attempts").document(email_hash)
             doc_ref.delete()
             logger.info(f"Failed attempts reset for {_mask_email(email)}")
         except Exception as e:

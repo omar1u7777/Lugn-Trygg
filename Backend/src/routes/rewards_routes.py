@@ -3,6 +3,7 @@ Rewards Routes - User Rewards and Achievements API
 Real implementation for gamification rewards system
 """
 
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -18,6 +19,7 @@ from ..utils.response_utils import APIResponse
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 rewards_bp = Blueprint("rewards", __name__)
+logger = logging.getLogger(__name__)
 
 # Reward definitions
 REWARD_CATALOG = {
@@ -220,7 +222,8 @@ def get_reward_catalog():
             "rewards": list(purchasable.values())
         }, "Reward catalog retrieved")
     except Exception as e:
-        return APIResponse.error(str(e), "CATALOG_ERROR", 500)
+        logger.exception("Failed to get reward catalog: %s", e)
+        return APIResponse.error("Failed to retrieve reward catalog", "CATALOG_ERROR", 500)
 
 
 @rewards_bp.route('/achievements', methods=['GET'])
@@ -233,7 +236,8 @@ def get_achievements():
             "achievements": list(ACHIEVEMENTS.values())
         }, "Achievements retrieved")
     except Exception as e:
-        return APIResponse.error(str(e), "ACHIEVEMENTS_ERROR", 500)
+        logger.exception("Failed to get achievements: %s", e)
+        return APIResponse.error("Failed to retrieve achievements", "ACHIEVEMENTS_ERROR", 500)
 
 
 @rewards_bp.route('/profile', methods=['GET'])
@@ -272,7 +276,8 @@ def get_user_rewards():
             }
         }, "User rewards retrieved")
     except Exception as e:
-        return APIResponse.error(str(e), "REWARDS_ERROR", 500)
+        logger.exception("Failed to get user rewards: %s", e)
+        return APIResponse.error("Failed to retrieve user rewards", "REWARDS_ERROR", 500)
 
 
 @rewards_bp.route('/add-xp', methods=['POST'])
@@ -335,7 +340,8 @@ def add_user_xp():
         }, "XP added successfully")
 
     except Exception as e:
-        return APIResponse.error(str(e), "XP_ERROR", 500)
+        logger.exception("Failed to add XP: %s", e)
+        return APIResponse.error("Failed to add XP", "XP_ERROR", 500)
 
 
 @rewards_bp.route('/claim', methods=['POST'])
@@ -441,7 +447,8 @@ def claim_reward():
         }, "Reward claimed successfully")
 
     except Exception as e:
-        return APIResponse.error(str(e), "CLAIM_ERROR", 500)
+        logger.exception("Failed to claim reward: %s", e)
+        return APIResponse.error("Failed to claim reward", "CLAIM_ERROR", 500)
 
 
 @rewards_bp.route('/check-achievements', methods=['POST'])
@@ -520,7 +527,8 @@ def check_achievements():
         }, "Achievements checked")
 
     except Exception as e:
-        return APIResponse.error(str(e), "ACHIEVEMENTS_ERROR", 500)
+        logger.exception("Failed to check achievements: %s", e)
+        return APIResponse.error("Failed to check achievements", "ACHIEVEMENTS_ERROR", 500)
 
 
 @rewards_bp.route('/badges', methods=['GET'])
@@ -565,4 +573,5 @@ def get_user_badges():
         }, "User badges retrieved")
 
     except Exception as e:
-        return APIResponse.error(str(e), "BADGES_ERROR", 500)
+        logger.exception("Failed to get badges: %s", e)
+        return APIResponse.error("Failed to retrieve badges", "BADGES_ERROR", 500)

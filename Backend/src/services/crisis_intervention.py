@@ -407,8 +407,10 @@ class CrisisInterventionService:
                 active_indicators.append(indicator)
                 total_risk_score += indicator.risk_weight
 
-        # Normalize risk score
-        risk_score = min(1.0, total_risk_score / len(active_indicators)) if active_indicators else 0.0
+        # Normalize risk score — use capped sum, not average
+        # Averaging penalizes users with more indicators (counterintuitive)
+        max_possible = sum(ind.risk_weight for ind in self.crisis_indicators.values()) or 1.0
+        risk_score = min(1.0, total_risk_score / max_possible) if active_indicators else 0.0
 
         # Determine risk level
         risk_level = self._calculate_risk_level(risk_score)
