@@ -267,7 +267,13 @@ def leave_room(room_id: str):
             return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
 
         if db is not None:
-            db.collection('peer_chat_presence').document(session_id).delete()
+            # Verify session belongs to the authenticated user before deletion
+            presence_doc = db.collection('peer_chat_presence').document(session_id).get()
+            if presence_doc.exists:
+                presence_data = presence_doc.to_dict() or {}
+                if presence_data.get('user_id') != g.user_id:
+                    return APIResponse.forbidden("Session does not belong to you")
+                db.collection('peer_chat_presence').document(session_id).delete()
 
         logger.info(f"🚪 Session {session_id[:8]} left room {room_id}")
 
@@ -364,12 +370,16 @@ def send_message(room_id: str):
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
 
-        # Verify session exists
+        # Verify session exists AND belongs to authenticated user
         presence_doc = db.collection('peer_chat_presence').document(session_id).get()
         if not presence_doc.exists:
             return APIResponse.forbidden("Invalid session. Please rejoin the room.")
 
         presence_data = presence_doc.to_dict() or {}
+        if presence_data.get('user_id') != g.user_id:
+            logger.warning(f"⚠️ Session impersonation attempt: user {g.user_id[:8]} tried session {session_id[:8]}")
+            return APIResponse.forbidden("Session does not belong to you")
+
         anonymous_name = presence_data.get('anonymous_name', anonymous_name)
         avatar = presence_data.get('avatar', avatar)
 
@@ -430,23 +440,29 @@ def like_message(message_id: str):
         msg_data = msg_doc.to_dict() or {}
         liked_by = msg_data.get('liked_by', [])
 
-        if session_id in liked_by:
-            # Unlike
-            liked_by.remove(session_id)
-            action = 'unliked'
-        else:
-            # Like
-            liked_by.append(session_id)
-            action = 'liked'
+        # Use Firestore ArrayUnion/ArrayRemove for atomic like/unlike
+        from google.cloud.firestore_v1 import ArrayUnion, ArrayRemove, Increment
 
-        msg_ref.update({
-            'likes': len(liked_by),
-            'liked_by': liked_by
-        })
+        if session_id in liked_by:
+            # Atomic unlike
+            msg_ref.update({
+                'liked_by': ArrayRemove([session_id]),
+                'likes': Increment(-1)
+            })
+            action = 'unliked'
+            new_count = max(0, msg_data.get('likes', 0) - 1)
+        else:
+            # Atomic like
+            msg_ref.update({
+                'liked_by': ArrayUnion([session_id]),
+                'likes': Increment(1)
+            })
+            action = 'liked'
+            new_count = msg_data.get('likes', 0) + 1
 
         return APIResponse.success({
             'action': action,
-            'likes': len(liked_by)
+            'likes': new_count
         }, "Liked" if action == 'liked' else "Unliked")
 
     except Exception as e:

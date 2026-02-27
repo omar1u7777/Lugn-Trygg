@@ -2,6 +2,18 @@
 import idna
 
 
+def mask_email(email: str) -> str:
+    """Mask email for safe logging and audit trails: user@example.com -> u***@example.com
+    
+    GDPR compliant: prevents raw PII from being stored in audit logs.
+    """
+    if not email or '@' not in email:
+        return '***'
+    local, domain = email.rsplit('@', 1)
+    masked_local = local[0] + '***' if local else '***'
+    return f"{masked_local}@{domain}"
+
+
 def convert_email_to_punycode(email: str) -> str:
     """
     Konverterar domänen i en e-postadress till Punycode-format.

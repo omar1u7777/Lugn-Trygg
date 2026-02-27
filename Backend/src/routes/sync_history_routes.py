@@ -57,16 +57,16 @@ def get_sync_history():
         # Calculate date cutoff
         cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
-        # Query sync history from Firestore - use simple query without ordering or limit
-        # to avoid index requirements. We'll filter/limit in Python.
+        # Query sync history from Firestore — filter by user_id at query level
         sync_ref = db.collection('sync_history')  # type: ignore
 
-        # Simple query - just filter by user_id (single field = no index needed)
-        # Get all docs and filter in Python to avoid compound index requirements
-        all_docs = list(sync_ref.stream())
-
-        # Filter for this user
-        user_docs = [doc for doc in all_docs if doc.to_dict().get('user_id') == user_id]
+        # Proper Firestore query filtering by user_id
+        user_docs = list(
+            sync_ref.where('user_id', '==', user_id)
+            .order_by('timestamp', direction='DESCENDING')
+            .limit(limit)
+            .stream()
+        )
 
         history = []
         for doc in user_docs:
@@ -209,8 +209,11 @@ def get_sync_stats():
         cutoff = datetime.now(UTC) - timedelta(days=30)
 
         sync_ref = db.collection('sync_history')  # type: ignore
-        all_docs = list(sync_ref.stream())
-        user_docs = [doc for doc in all_docs if doc.to_dict().get('user_id') == user_id]
+        user_docs = list(
+            sync_ref.where('user_id', '==', user_id)
+            .order_by('timestamp', direction='DESCENDING')
+            .stream()
+        )
 
         # Aggregate stats
         total = 0

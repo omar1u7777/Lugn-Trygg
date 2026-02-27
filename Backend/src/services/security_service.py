@@ -37,11 +37,13 @@ class SecurityService:
         self._encryption_key = ENCRYPTION_KEY.encode() if ENCRYPTION_KEY else None
         if not self._encryption_key:
             logger.critical("⚠️ ENCRYPTION_KEY not set! Generating random key — encrypted data will NOT survive restarts!")
-            self._encryption_key = secrets.token_bytes(32)
+            from cryptography.fernet import Fernet as _FernetCls
+            self._encryption_key = _FernetCls.generate_key()
         self._hipaa_key = HIPAA_ENCRYPTION_KEY.encode() if HIPAA_ENCRYPTION_KEY else None
         if not self._hipaa_key:
             logger.warning("⚠️ HIPAA_ENCRYPTION_KEY not set — using random key")
-            self._hipaa_key = secrets.token_bytes(32)
+            from cryptography.fernet import Fernet as _FernetCls
+            self._hipaa_key = _FernetCls.generate_key()
         self._rate_limit_store: dict[str, list] = {}  # In-memory rate limit tracking
 
     @handle_service_errors
@@ -225,7 +227,11 @@ class SecurityService:
     @handle_service_errors
     def validate_request_origin(self, request, allowed_origins: list[str]) -> bool:
         """Validate request origin for CORS and CSRF protection"""
-        origin = request.headers.get('Origin') or request.headers.get('Referer', '').split('/')[2]
+        origin = request.headers.get('Origin')
+        if not origin:
+            referer = request.headers.get('Referer', '')
+            parts = referer.split('/')
+            origin = parts[2] if len(parts) > 2 else None
 
         if not origin:
             return False

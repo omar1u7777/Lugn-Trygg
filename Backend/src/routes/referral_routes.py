@@ -16,6 +16,7 @@ from ..services.auth_service import AuthService
 from ..services.email_service import email_service
 from ..services.push_notification_service import push_notification_service
 from ..services.rate_limiting import rate_limit_by_endpoint
+from ..utils import mask_email as _mask_email
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 
@@ -236,8 +237,8 @@ def send_invitation():
             referral_link=referral_link
         )
 
-        audit_log('REFERRAL_INVITATION_SENT', user_id, {'invitee_email': email})
-        logger.info(f"Referral invitation sent from {user_id} to {email}")
+        audit_log('REFERRAL_INVITATION_SENT', user_id, {'invitee_email': _mask_email(email)})
+        logger.info(f"Referral invitation sent from {user_id} to {_mask_email(email)}")
 
         return APIResponse.success({
             "message": "Invitation sent successfully",

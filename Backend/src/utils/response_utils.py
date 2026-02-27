@@ -6,11 +6,15 @@ All responses follow a standardized JSON structure for better frontend integrati
 """
 
 import logging
+import os
 from typing import Any
 
 from flask import jsonify
 
 logger = logging.getLogger(__name__)
+
+# Only include error details in debug mode to prevent information disclosure
+_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "yes")
 
 
 class APIResponse:
@@ -72,7 +76,8 @@ class APIResponse:
             "message": message
         }
 
-        if details:
+        # Only expose internal details in debug mode to prevent information disclosure
+        if details and _DEBUG:
             response["details"] = details
 
         logger.warning("API Error Response: %d - %s - %s", status_code, str(error_code).replace('\n', '').replace('\r', '')[:50], str(message).replace('\n', '').replace('\r', '')[:100])

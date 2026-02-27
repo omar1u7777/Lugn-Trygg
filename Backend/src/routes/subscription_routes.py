@@ -131,7 +131,7 @@ def create_checkout_session():
 
     except Exception as e:
         logger.error(f"❌ Error during checkout session creation: {e}")
-        return APIResponse.error(f"Payment error: {str(e)}", "PAYMENT_ERROR", 400)
+        return APIResponse.error("Payment processing failed", "PAYMENT_ERROR", 400)
 
 
 @subscription_bp.route("/status/<user_id>", methods=["GET"])
@@ -378,7 +378,7 @@ def purchase_cbt_module():
 
     except Exception as e:
         logger.error(f"❌ Error during CBT module purchase: {e}")
-        return APIResponse.error(f"Payment error: {str(e)}", "PAYMENT_ERROR", 400)
+        return APIResponse.error("Payment processing failed", "PAYMENT_ERROR", 400)
 
 
 @subscription_bp.route("/plans", methods=["GET"])

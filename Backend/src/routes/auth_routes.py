@@ -23,6 +23,16 @@ from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import input_sanitizer
 from ..utils.response_utils import APIResponse
 from ..utils.timestamp_utils import parse_iso_timestamp
+from ..utils import mask_email as _shared_mask_email
+
+
+def _mask_email(email: str) -> str:
+    """Mask email for safe logging: user@example.com -> u***@example.com"""
+    if not email or '@' not in email:
+        return '***'
+    local, domain = email.rsplit('@', 1)
+    masked_local = local[0] + '***' if local else '***'
+    return f"{masked_local}@{domain}"
 
 # 2026-Compliant: Try new config, fallback to old
 try:
@@ -32,6 +42,8 @@ try:
     FIREBASE_WEB_API_KEY = settings.firebase_web_api_key
 except ImportError:
     from ..config import FIREBASE_WEB_API_KEY, JWT_REFRESH_SECRET_KEY
+
+from ..config import COOKIE_SECURE
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +88,19 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
         name = validated_data.name.strip()
         referral_code = (validated_data.referral_code or '').strip()
 
-        logger.info(f"Validated registration data for: {email}")
+        logger.info(f"Validated registration data for: {_mask_email(email)}")
 
         # Delegate to AuthService for Firebase-backed registration
         user, error = AuthService.register_user(email, password)
         if error:
-            status_code = 409 if 'redan' in error.lower() or 'exists' in error.lower() else 400
+            # Determine correct HTTP status code based on error content
+            error_lower = error.lower()
+            if 'redan' in error_lower or 'exists' in error_lower or 'already' in error_lower:
+                status_code = 409
+            elif 'ogiltig' in error_lower or 'invalid' in error_lower:
+                status_code = 422
+            else:
+                status_code = 500
             return APIResponse.error(error, "REGISTRATION_ERROR", status_code)
 
         if not user:
@@ -106,7 +125,9 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
                 'language': 'sv',
                 'login_method': 'email'
             }
-            db.collection('users').document(user.uid).set(user_data)
+            # merge=True so we enrich the doc created by AuthService.register_user
+            # rather than overwriting it (preserves email_punycode etc.)
+            db.collection('users').document(user.uid).set(user_data, merge=True)
             logger.info(f"User data stored in Firestore for user {user.uid}")
 
         except Exception as db_error:
@@ -114,7 +135,7 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
             # Don't fail registration if Firestore fails, but log it
             # In production, you might want to retry or handle this differently
 
-        audit_log('user_registered', user.uid, {'email': email, 'name': name, 'referral_code': referral_code or 'none'})
+        audit_log('user_registered', user.uid, {'email': _mask_email(email), 'name': name, 'referral_code': referral_code or 'none'})
 
         # Process referral code if provided
         referral_success = False
@@ -185,11 +206,11 @@ def login_user(validated_data):
 
         email = validated_data.email.strip().lower()
         password = validated_data.password
-        logger.info(f"👤 AUTH - Login attempt for email: {email}")
+        logger.info(f"👤 AUTH - Login attempt for email: {_mask_email(email)}")
 
         user, error, access_token, refresh_token = AuthService.login_user(email, password)
         if error or not user:
-            audit_log('login_failed', 'unknown', {'reason': error or 'invalid_credentials', 'email': email})
+            audit_log('login_failed', 'unknown', {'reason': error or 'invalid_credentials', 'email': _mask_email(email)})
             return APIResponse.unauthorized(error or 'Invalid email or password')
 
         # Fetch user data from Firestore and update last_login
@@ -238,7 +259,7 @@ def login_user(validated_data):
                 'access_token',
                 access_token,
                 httponly=True,
-                secure=True,
+                secure=COOKIE_SECURE,
                 samesite='Strict',
                 max_age=24*60*60
             )
@@ -282,7 +303,7 @@ def verify_2fa():
             if not user_doc.exists:
                 return APIResponse.not_found('User not found')
             user_data = user_doc.to_dict() or {}
-            totp_secret = user_data.get('totp_secret')
+            totp_secret = user_data.get('two_factor_secret') or user_data.get('totp_secret')
             if not totp_secret:
                 return APIResponse.bad_request('TOTP not configured for this account')
             import pyotp
@@ -317,7 +338,7 @@ def verify_2fa():
             'access_token',
             access_token_verified,
             httponly=True,
-            secure=True,
+            secure=COOKIE_SECURE,
             samesite='Strict',
             max_age=24*60*60
         )
@@ -439,7 +460,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
             existing_ref.update(update_data)
             # Update google_id mapping
             db.collection('user_google_ids').document(google_id).set({'uid': existing_uid})
-            logger.info(f"Merged Google login with existing user account: {email}")
+            logger.info(f"Merged Google login with existing user account: {_mask_email(email)}")
             return user_data, user_id, False
 
     # Check google_id mapping
@@ -482,7 +503,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
     email_ref.set({'uid': firebase_uid})
     google_ref.set({'uid': firebase_uid})
     user_id = firebase_uid
-    logger.info(f"Created new Google OAuth user: {email}")
+    logger.info(f"Created new Google OAuth user: {_mask_email(email)}")
     return user_data, user_id, True  # True = new user
 
 @auth_bp.route('/google-login', methods=['POST', 'OPTIONS'])
@@ -526,7 +547,7 @@ def google_login(validated_data=None):
                 logger.error("Token missing required user information")
                 return APIResponse.unauthorized('Invalid token - missing user information')
 
-            logger.info(f"Firebase token verified successfully for user: {email}")
+            logger.info(f"Firebase token verified successfully for user: {_mask_email(email)}")
 
         except Exception as e:
             logger.error(f"Firebase token verification failed: {str(e)}")
@@ -547,19 +568,30 @@ def google_login(validated_data=None):
             )
 
             if is_new:
-                audit_log('user_registered_google', user_id, {'email': email, 'name': name})
+                audit_log('user_registered_google', user_id, {'email': _mask_email(email), 'name': name})
 
         except Exception as e:
             logger.error(f"Firebase transaction failed: {str(e)}")
             return APIResponse.error('Authentication service error', 'AUTH_SERVICE_ERROR', 503, str(e))
 
-        # Create JWT token (use AuthService to generate a token compatible with AuthService.verify_token)
+        # Create JWT tokens (access + refresh, same as email/password login)
         access_token = AuthService.generate_access_token(user_id)
+        refresh_token = AuthService.generate_refresh_token(user_id)
 
-        audit_log('google_login_successful', user_id, {'email': email})
+        # Store refresh token in Firestore
+        try:
+            db.collection("refresh_tokens").document(user_id).set({
+                "jwt_refresh_token": refresh_token,
+                "created_at": datetime.now(UTC).isoformat()
+            }, merge=True)
+        except Exception as rt_err:
+            logger.warning(f"Failed to store refresh token for Google user {user_id}: {rt_err}")
+
+        audit_log('google_login_successful', user_id, {'email': _mask_email(email)})
 
         response_data = {
             'accessToken': access_token,
+            'refreshToken': refresh_token,
             'userId': user_id,
             'user': {
                 'id': user_id,
@@ -575,7 +607,7 @@ def google_login(validated_data=None):
             'access_token',
             access_token,
             httponly=True,
-            secure=True,
+            secure=COOKIE_SECURE,
             samesite='Strict',
             max_age=24*60*60
         )
@@ -607,7 +639,7 @@ def logout():
 
         response_tuple = APIResponse.success(None, 'Logged out successfully')
         response = make_response(response_tuple[0], response_tuple[1])
-        response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
+        response.set_cookie('access_token', '', expires=0, httponly=True, secure=COOKIE_SECURE, samesite='Strict')
         return response
 
     except Exception as e:
@@ -660,7 +692,7 @@ def reset_password(validated_data):
                 email_result = email_service.send_password_reset_email(email, reset_token, reset_link)
 
                 if email_result['success']:
-                    audit_log('password_reset_email_sent', user_id, {'email': email})
+                    audit_log('password_reset_email_sent', user_id, {'email': _mask_email(email)})
                 else:
                     logger.error(f"Failed to send password reset email: {email_result.get('error', 'Unknown error')}")
                     # Still return success for security - don't reveal email sending failure
@@ -670,7 +702,7 @@ def reset_password(validated_data):
                 # Still return success for security
 
         # Always return success for security (don't reveal if email exists)
-        audit_log('password_reset_requested', 'unknown', {'email': email, 'user_exists': user_exists})
+        audit_log('password_reset_requested', 'unknown', {'email': _mask_email(email), 'user_exists': user_exists})
 
         return APIResponse.success(None, "If an account with this email exists, a password reset link has been sent.")
 
@@ -826,42 +858,98 @@ def get_consent(user_id):
 @auth_bp.route('/refresh', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 def refresh_token():
-    """Refresh access token using refresh token"""
+    """Refresh access token using refresh token or Firebase ID token (with token rotation)"""
     if request.method == 'OPTIONS':
         return '', 204
 
     try:
-        data = request.get_json() or {}
-        refresh_token_value = data.get('refresh_token') if data else None
+        data = request.get_json(force=True, silent=True) or {}
 
-        if not refresh_token_value:
-            return APIResponse.bad_request('Refresh token required')
+        # Support two refresh paths:
+        # 1. Firebase ID token (from frontend when Firebase Auth is available)
+        # 2. JWT refresh token (when Firebase is unavailable, e.g. after page reload)
+        id_token_value = data.get('id_token')
+        refresh_token_value = data.get('refresh_token')
 
-        # Verify the refresh token and get user identity
-        import jwt
-        try:
-            decoded = jwt.decode(refresh_token_value, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
-            user_id = decoded.get('sub')
+        user_id = None
 
-            if not user_id:
+        if id_token_value:
+            # Path 1: Verify Firebase ID token and issue new JWT pair
+            try:
+                from ..firebase_config import firebase_admin_auth
+                if firebase_admin_auth is not None:
+                    decoded_fb = firebase_admin_auth.verify_id_token(id_token_value)
+                else:
+                    from firebase_admin import auth as fb_auth
+                    decoded_fb = fb_auth.verify_id_token(id_token_value)
+                user_id = decoded_fb.get('uid')
+                if not user_id:
+                    return APIResponse.unauthorized('Invalid Firebase token')
+            except Exception as fb_err:
+                logger.warning(f"Firebase ID token verification failed during refresh: {fb_err}")
+                return APIResponse.unauthorized('Invalid Firebase token')
+
+        elif refresh_token_value:
+            # Path 2: Verify JWT refresh token with rotation
+            import jwt
+            try:
+                decoded = jwt.decode(refresh_token_value, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
+                user_id = decoded.get('sub')
+                token_jti = decoded.get('jti')
+
+                if not user_id:
+                    return APIResponse.unauthorized('Invalid refresh token')
+
+                # Verify the refresh token matches what's stored in Firestore
+                # This prevents replay attacks with old refresh tokens
+                from ..firebase_config import db
+                if db is not None and token_jti:
+                    stored_doc = db.collection("refresh_tokens").document(user_id).get()
+                    if stored_doc.exists:
+                        stored_data = stored_doc.to_dict() or {}
+                        stored_token = stored_data.get("jwt_refresh_token")
+                        if stored_token:
+                            try:
+                                stored_decoded = jwt.decode(stored_token, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
+                                if stored_decoded.get('jti') != token_jti:
+                                    logger.warning(f"Refresh token jti mismatch for user {user_id} — possible token reuse")
+                                    # Invalidate all tokens for this user (potential theft)
+                                    db.collection("refresh_tokens").document(user_id).delete()
+                                    return APIResponse.unauthorized('Refresh token has been revoked')
+                            except jwt.InvalidTokenError:
+                                pass  # Stored token invalid, proceed with refresh anyway
+
+            except jwt.ExpiredSignatureError:
+                logger.warning("Refresh token has expired")
+                return APIResponse.unauthorized('Refresh token has expired')
+            except jwt.InvalidTokenError:
+                logger.warning("Invalid refresh token")
+                return APIResponse.unauthorized('Invalid refresh token')
+            except Exception as e:
+                logger.error(f"Refresh token validation failed: {str(e)}")
                 return APIResponse.unauthorized('Invalid refresh token')
 
-        except jwt.ExpiredSignatureError:
-            logger.warning("Refresh token has expired")
-            return APIResponse.unauthorized('Refresh token has expired')
-        except jwt.InvalidTokenError:
-            logger.warning("Invalid refresh token")
-            return APIResponse.unauthorized('Invalid refresh token')
-        except Exception as e:
-            logger.error(f"Refresh token validation failed: {str(e)}")
-            return APIResponse.unauthorized('Invalid refresh token')
+        else:
+            return APIResponse.bad_request('Refresh token or Firebase ID token required')
 
-        # Create new access token using AuthService so the token can be verified by our verify_token
+        # Token rotation: issue new access AND refresh tokens
         access_token = AuthService.generate_access_token(user_id)
+        new_refresh_token = AuthService.generate_refresh_token(user_id)
+
+        # Store the new refresh token, replacing the old one
+        from ..firebase_config import db
+        if db is not None:
+            db.collection("refresh_tokens").document(user_id).set({
+                "jwt_refresh_token": new_refresh_token,
+                "created_at": datetime.now(UTC).isoformat()
+            }, merge=True)
 
         audit_log('token_refreshed', user_id, {})
 
-        response_data = {'accessToken': access_token}
+        response_data = {
+            'accessToken': access_token,
+            'refreshToken': new_refresh_token
+        }
         response_tuple = APIResponse.success(response_data, 'Token refreshed successfully')
         response = make_response(response_tuple[0], response_tuple[1])
 
@@ -869,7 +957,7 @@ def refresh_token():
             'access_token',
             access_token,
             httponly=True,
-            secure=True,
+            secure=COOKIE_SECURE,
             samesite='Strict',
             max_age=24*60*60
         )
@@ -1144,7 +1232,7 @@ def verify_2fa_setup():
                         'temp_2fa_method': None,
                         'temp_2fa_created_at': None
                     })
-                return APIResponse.bad_request('2FA setup expired. Please start over.')
+                    return APIResponse.bad_request('2FA setup expired. Please start over.')
 
             # Verify the code
             totp = pyotp.TOTP(temp_secret)
@@ -1351,7 +1439,7 @@ def delete_account(user_id):
             response = make_response(response_tuple[0], response_tuple[1])
 
             # Clear the access token cookie
-            response.set_cookie('access_token', '', expires=0, httponly=True, secure=True, samesite='Strict')
+            response.set_cookie('access_token', '', expires=0, httponly=True, secure=COOKIE_SECURE, samesite='Strict')
 
             return response
 

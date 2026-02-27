@@ -461,13 +461,18 @@ class BackupService:
         for doc in docs:
             doc_id = None
             try:
-                doc_id = doc.pop('_id')
+                doc_copy = doc.copy()  # Don't mutate source — allows safe retry
+                doc_id = doc_copy.pop('_id', None)
                 # Remove backup metadata
-                doc.pop('_backup_timestamp', None)
+                doc_copy.pop('_backup_timestamp', None)
+
+                if not doc_id:
+                    logger.warning(f"Skipping document without _id in {collection}")
+                    continue
 
                 # Restore document
                 doc_ref = self.db.collection(collection).document(doc_id)
-                doc_ref.set(doc)
+                doc_ref.set(doc_copy)
                 restored_count += 1
 
             except Exception as e:

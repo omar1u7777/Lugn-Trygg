@@ -69,13 +69,14 @@ def save_user_goals(user_id: str):
         logger.info(f"💾 Saving {len(validated_goals)} goals for user {user_id[:8]}")
 
         # Save to Firestore (always camelCase: wellnessGoals)
+        # Use set(merge=True) so this works even if user doc doesn't exist yet
         user_ref = db.collection('users').document(user_id)
-        user_ref.update({
+        user_ref.set({
             'wellnessGoals': validated_goals,
             'onboarding_completed': True,
             'onboarding_completed_at': datetime.now(UTC),
             'updated_at': datetime.now(UTC)
-        })
+        }, merge=True)
 
         logger.info(f"✅ Goals saved successfully for user {user_id[:8]}: {validated_goals}")
 
@@ -234,13 +235,14 @@ def skip_onboarding(user_id: str):
         logger.info(f"⏭️  User {user_id[:8]} skipped onboarding")
 
         # Mark as completed but without goals
+        # Use set(merge=True) so this works even if user doc doesn't exist yet
         user_ref = db.collection('users').document(user_id)
-        user_ref.update({
+        user_ref.set({
             'onboarding_completed': True,
             'onboarding_skipped': True,
             'onboarding_completed_at': datetime.now(UTC),
             'updated_at': datetime.now(UTC)
-        })
+        }, merge=True)
 
         # Track analytics
         audit_log('onboarding_skipped', user_id, {
