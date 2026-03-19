@@ -1233,7 +1233,7 @@ def predictive_mood_forecast() -> Response | tuple[Response, int]:
 def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend: str,
                              positive_count: int, negative_count: int, neutral_count: int) -> str:
     """Generate AI-style insights based on mood data.
-    
+
     NOTE: average_sentiment uses the 1-10 mood score scale (not -1/+1 AI sentiment).
     """
 

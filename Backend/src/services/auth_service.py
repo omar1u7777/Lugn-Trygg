@@ -98,6 +98,7 @@ class AuthService:
             ServiceError: If registration fails
         """
         from firebase_admin import auth as firebase_auth_module
+
         from ..utils.error_handling import ServiceError as _ServiceError
 
         # Validate required fields
@@ -107,22 +108,22 @@ class AuthService:
         # Create user in Firebase Authentication
         try:
             firebase_user = _auth.create_user(email=email, password=password)
-        except firebase_auth_module.EmailAlreadyExistsError:
+        except firebase_auth_module.EmailAlreadyExistsError as err:
             raise _ServiceError(
                 "En användare med denna e-postadress finns redan",
                 "EMAIL_ALREADY_EXISTS"
-            )
-        except firebase_auth_module.InvalidDynamicLinkDomainError:
+            ) from err
+        except firebase_auth_module.InvalidDynamicLinkDomainError as err:
             raise _ServiceError(
                 "Ogiltig e-postadress",
                 "INVALID_EMAIL"
-            )
+            ) from err
         except Exception as firebase_error:
             logger.error(f"Firebase create_user failed: {type(firebase_error).__name__}: {firebase_error}")
             raise _ServiceError(
                 f"Registrering misslyckades: {str(firebase_error)}",
                 "FIREBASE_ERROR"
-            )
+            ) from firebase_error
 
         # Convert email to Punycode and persist profile atomically with rollback
         punycode_email = convert_email_to_punycode(email)
@@ -155,7 +156,7 @@ class AuthService:
             raise _ServiceError(
                 "Registrering misslyckades vid datalagring. Inga partiella konton skapades.",
                 "REGISTRATION_ATOMICITY_ERROR",
-            )
+            ) from firestore_error
 
         user = User(uid=str(firebase_user.uid), email=str(email))
         logger.info(f"✅ User registered with UID: {firebase_user.uid}")

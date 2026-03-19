@@ -23,7 +23,6 @@ from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import input_sanitizer
 from ..utils.response_utils import APIResponse
 from ..utils.timestamp_utils import parse_iso_timestamp
-from ..utils import mask_email as _shared_mask_email
 
 
 def _mask_email(email: str) -> str:

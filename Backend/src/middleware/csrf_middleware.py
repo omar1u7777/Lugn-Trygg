@@ -5,10 +5,8 @@ import hashlib
 import hmac
 import secrets
 import time
-from collections.abc import Callable
 
 from flask import jsonify, request
-
 
 CSRF_COOKIE_NAME = "csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
