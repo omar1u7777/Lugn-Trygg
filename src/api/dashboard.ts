@@ -158,6 +158,10 @@ export const getWellnessGoals = async () => {
  * @throws Error if wellness goals save fails
  */
 export const setWellnessGoals = async (goals: string[]) => {
+  if (!Array.isArray(goals) || goals.length === 0) {
+    throw new Error('wellnessGoals must be a non-empty list');
+  }
+
   logger.debug('setWellnessGoals called', { goals });
   try {
     const response = await api.post(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`, {

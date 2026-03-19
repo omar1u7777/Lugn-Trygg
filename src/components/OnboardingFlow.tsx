@@ -8,8 +8,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { trackEvent } from '../services/analytics';
 import { CheckIcon } from '@heroicons/react/24/outline';
 import { saveOnboardingGoals, skipOnboarding } from '../api/onboarding';
+import { MAX_WELLNESS_GOALS, WELLNESS_GOAL_VALUES } from '../constants/wellnessGoals';
 import OptimizedImage from './ui/OptimizedImage';
-import { getOnboardingHeroImageId } from '../config/env';import { logger } from '../utils/logger';
+import { getOnboardingHeroImageId } from '../config/env';
+import { logger } from '../utils/logger';
 
 
 interface OnboardingStep {
@@ -25,18 +27,6 @@ interface OnboardingFlowProps {
   userId: string;
 }
 
-// Must match Backend ALLOWED_GOALS in onboarding_routes.py
-const WELLNESS_GOALS = [
-  'Hantera stress',
-  'Bättre sömn',
-  'Ökad fokusering',
-  'Mental klarhet',
-  'Ångesthantering',
-  'Självkänsla',
-  'Relationsstöd',
-  'Arbetsbalans'
-];
-
 // Helper function to create goal selection step content dynamically
 const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: string) => void) => (
   <div className="space-y-4" role="region" aria-label="Goal Selection Step" tabIndex={0}>
@@ -44,7 +34,7 @@ const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: 
       Välj dina wellness-mål:
     </h3>
     <div className="space-y-2">
-      {WELLNESS_GOALS.map((goal) => (
+      {WELLNESS_GOAL_VALUES.map((goal) => (
         <button
           key={goal}
           onClick={() => toggleGoal(goal)}
@@ -62,7 +52,7 @@ const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: 
       ))}
     </div>
     <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-      <span className="text-info-500">ℹ️</span> Du kan välja ett eller flera mål
+      <span className="text-info-500">ℹ️</span> Du kan välja upp till {MAX_WELLNESS_GOALS} mål
     </p>
   </div>
 );
@@ -127,7 +117,22 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
 
   const toggleGoal = (goal: string) => {
     setSelectedGoals((prev) => {
-      const newGoals = prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal];
+      const isRemoving = prev.includes(goal);
+      if (isRemoving) {
+        const newGoals = prev.filter((g) => g !== goal);
+        logger.debug('🎯 Goals updated:', newGoals);
+        return newGoals;
+      }
+
+      if (prev.length >= MAX_WELLNESS_GOALS) {
+        logger.debug('🎯 Max wellness goals reached, ignoring selection', {
+          maxGoals: MAX_WELLNESS_GOALS,
+          attemptedGoal: goal,
+        });
+        return prev;
+      }
+
+      const newGoals = [...prev, goal];
       logger.debug('🎯 Goals updated:', newGoals);
       return newGoals;
     });
@@ -138,7 +143,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
     // Step 2 (goal selection) requires at least one goal selected
     if (activeStep === 1) {
       const canProceed = selectedGoals.length > 0;
-      logger.debug('🎯 Can proceed from step 2?', canProceed, 'Selected goals:', selectedGoals.length);
+      logger.debug('🎯 Can proceed from step 2?', {
+        canProceed,
+        selectedGoalsCount: selectedGoals.length,
+      });
       return canProceed;
     }
     return true;
@@ -361,7 +369,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                       <span>Sparar...</span>
                     </>
                   ) : activeStep === 1 ? (
-                    <span>Nästa {selectedGoals.length > 0 ? `(${selectedGoals.length} mål valda)` : '(Välj minst 1 mål)'}</span>
+                    <span>
+                      Nästa {selectedGoals.length > 0 ? `(${selectedGoals.length}/${MAX_WELLNESS_GOALS} mål valda)` : '(Välj minst 1 mål)'}
+                    </span>
                   ) : (
                     <span>{activeStep === ONBOARDING_STEPS.length - 1 ? 'Starta' : 'Nästa'}</span>
                   )}

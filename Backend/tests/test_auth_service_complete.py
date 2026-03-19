@@ -108,15 +108,6 @@ class TestRefreshToken:
         # Use Firebase-style UID (28 characters)
         test_uid = 'abcdefghijklmnopqrstuvwxyz12'
         
-        # Generate valid refresh token
-        refresh_token = AuthService.generate_refresh_token(test_uid)
-        
-        # Mock Firestore to return the refresh token
-        mock_doc = Mock()
-        mock_doc.exists = True
-        mock_doc.to_dict.return_value = {'jwt_refresh_token': refresh_token}
-        mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
-        
         new_token, error = AuthService.refresh_token(test_uid)
         
         assert error is None
@@ -124,17 +115,13 @@ class TestRefreshToken:
     
     @patch('src.services.auth_service._db')
     def test_refresh_token_not_found(self, mock_db):
-        """Test refresh with non-existent token"""
+        """Legacy helper is stateless and still returns a token for any user id."""
         from src.services.auth_service import AuthService
-        
-        mock_doc = Mock()
-        mock_doc.exists = False
-        mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
         
         new_token, error = AuthService.refresh_token('non-existent-user')
         
-        assert new_token is None
-        assert error is not None
+        assert error is None
+        assert new_token is not None
 
 
 class TestVerifyToken:

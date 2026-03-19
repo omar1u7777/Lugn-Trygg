@@ -248,43 +248,49 @@ export const secureStorage = {
  * Token Storage - High-level API for auth tokens
  */
 export const tokenStorage = {
+  _accessToken: null as string | null,
+
   /**
-   * Store access token securely
+   * Store access token in-memory only (never persisted)
    */
   async setAccessToken(token: string): Promise<void> {
-    await secureStorage.setItem('token', token);
+    this._accessToken = token;
   },
 
   /**
-   * Get access token
+   * Get in-memory access token
    */
   async getAccessToken(): Promise<string | null> {
-    const token = await secureStorage.getItem('token');
-    return token;
+    return this._accessToken;
   },
 
   /**
-   * Store refresh token securely
+   * Refresh token is now httpOnly cookie-only and never stored in JS-accessible storage.
    */
-  async setRefreshToken(token: string): Promise<void> {
-    await secureStorage.setItem('refresh_token', token);
+  async setRefreshToken(_token: string): Promise<void> {
+    logger.debug('Ignored setRefreshToken call: refresh tokens are cookie-managed.');
   },
 
   /**
-   * Get refresh token
+   * Refresh token cannot be read from JS when stored in httpOnly cookies.
    */
   async getRefreshToken(): Promise<string | null> {
-    return await secureStorage.getItem('refresh_token');
+    return null;
   },
 
   /**
    * Clear all tokens
    */
   clearTokens(): void {
-    secureStorage.removeItem('token');
-    secureStorage.removeItem('refresh_token');
+    this._accessToken = null;
   }
 };
+
+// Clean up legacy persisted tokens from previous versions.
+if (typeof window !== 'undefined') {
+  localStorage.removeItem('secure_token');
+  localStorage.removeItem('secure_refresh_token');
+}
 
 /**
  * Fallback to plain localStorage if Web Crypto is not available

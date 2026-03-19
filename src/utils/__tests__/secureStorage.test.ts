@@ -90,10 +90,10 @@ describe('tokenStorage', () => {
     expect(token).toBe('access-123');
   });
 
-  it('stores and retrieves refresh token', async () => {
+  it('does not expose refresh token to JavaScript', async () => {
     await tokenStorage.setRefreshToken('refresh-abc');
     const token = await tokenStorage.getRefreshToken();
-    expect(token).toBe('refresh-abc');
+    expect(token).toBeNull();
   });
 
   it('clearTokens removes both tokens', async () => {
