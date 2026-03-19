@@ -69,51 +69,51 @@ def mock_firestore(mocker):
     return mock_db
 
 
-def test_log_mood_json(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_log_mood_json(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar loggning av humör via JSON."""
 
     response = client.post("/api/mood/log", json={
         "mood_text": "Jag känner mig glad idag!",
         "timestamp": "2024-01-15T10:00:00Z"
-    }, headers=auth_headers)
+    }, headers=auth_csrf_headers)
     assert response.status_code == 201
     assert "success" in response.get_json()
 
-def test_get_moods(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_get_moods(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar hämtning av humörloggar."""
     # Correct endpoint is /api/mood (no trailing slash)
-    response = client.get("/api/mood", headers=auth_headers)
+    response = client.get("/api/mood", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "moods" in data
 
-def test_get_moods_no_data(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_get_moods_no_data(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar hämtning när inga humörloggar finns."""
     mock_firestore.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = []
-    response = client.get("/api/mood", headers=auth_headers)
+    response = client.get("/api/mood", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "moods" in data  # Should return empty moods array instead of message
 
-def test_log_mood_invalid_mood(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_log_mood_invalid_mood(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar loggning med ogiltigt humör."""
     response = client.post("/api/mood/log", json={
         "mood_text": "Jag känner mig glad idag!",
         "timestamp": "2024-01-15T10:00:00Z"
-    }, headers=auth_headers)
+    }, headers=auth_csrf_headers)
     assert response.status_code == 201  # Should succeed with valid data
     assert "success" in response.get_json()
 
-def test_get_moods_missing_user_id(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_get_moods_missing_user_id(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar hämtning utan användar-ID."""
     # User ID comes from JWT token (g.user_id), not query param
-    response = client.get("/api/mood", headers=auth_headers)
+    response = client.get("/api/mood", headers=auth_csrf_headers)
     assert response.status_code == 200  # Should return moods for authenticated user
     data = response.get_json()
     assert "moods" in data
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
-def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar grundläggande veckoanalys."""
     # Mock AI services to return test response instead of making OpenAI calls
     mock_ai = Mock()
@@ -124,7 +124,7 @@ def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_headers, moc
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
-    response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_headers)
+    response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "insights" in data["data"]
@@ -132,7 +132,7 @@ def test_weekly_analysis_basic(client, mock_firestore, mocker, auth_headers, moc
     assert "Test insights" in data["data"]["insights"] or "AI-tjänst" in data["data"]["insights"]
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
-def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar cachad veckoanalys."""
     # Mock AI services
     mock_ai = Mock()
@@ -143,14 +143,14 @@ def test_weekly_analysis_cached(client, mock_firestore, mocker, auth_headers, mo
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
-    response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_headers)
+    response = client.get("/api/mood/weekly-analysis?user_id=test-user-id&locale=sv", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     # Accept either the test response or fallback response due to OpenAI quota issues
     assert "Cached insights" in data["data"]["insights"] or "AI-tjänst" in data["data"]["insights"]
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
-def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar veckoanalys på olika språk."""
     # Mock AI services for different locales
     mock_ai = Mock()
@@ -162,13 +162,13 @@ def test_weekly_analysis_multilingual(client, mock_firestore, mocker, auth_heade
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
     for locale in ['sv', 'en', 'no']:
-        response = client.get(f"/api/mood/weekly-analysis?user_id=test-user-id&locale={locale}", headers=auth_headers)
+        response = client.get(f"/api/mood/weekly-analysis?user_id=test-user-id&locale={locale}", headers=auth_csrf_headers)
         assert response.status_code == 200
         data = response.get_json()
         assert "insights" in data["data"]
 
 @pytest.mark.skip(reason="Route /api/mood/recommendations does not exist - feature not implemented")
-def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_recommendations_basic(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar grundläggande rekommendationer."""
     # Mock AI services
     mock_ai = Mock()
@@ -180,7 +180,7 @@ def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, moc
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
 
-    response = client.get("/api/mood/recommendations?user_id=test-user-id", headers=auth_headers)
+    response = client.get("/api/mood/recommendations?user_id=test-user-id", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "recommendations" in data["data"]
@@ -188,7 +188,7 @@ def test_recommendations_basic(client, mock_firestore, mocker, auth_headers, moc
     assert "Test recommendations" in data["data"]["recommendations"] or "AI-tjänst" in data["data"]["recommendations"]
 
 @pytest.mark.skip(reason="Route /api/mood/analyze-voice does not exist - feature not implemented")
-def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_voice_analysis_basic(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Testar grundläggande röstanalys."""
     # Mock AI services
     mock_ai = Mock()
@@ -207,7 +207,7 @@ def test_voice_analysis_basic(client, mock_firestore, mocker, auth_headers, mock
         "user_id": "test-user-id",
         "audio_data": "base64_audio_data",
         "transcript": "Jag är glad!"
-    }, headers=auth_headers)
+    }, headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "primary_emotion" in data["data"]  # Should return the analysis directly
@@ -227,7 +227,7 @@ def test_analyze_voice_options_request(client):
     assert response.status_code == 204
 
 
-def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test mood logging triggers sentiment analysis"""
     mock_ai = Mock()
     mock_ai.analyze_sentiment.return_value = {
@@ -241,7 +241,7 @@ def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_h
     response = client.post("/api/mood/log", json={
         "mood_text": "Idag var en fantastisk dag!",
         "timestamp": "2024-01-15T10:00:00Z"
-    }, headers=auth_headers)
+    }, headers=auth_csrf_headers)
     
     assert response.status_code == 201
     data = response.get_json()
@@ -251,7 +251,7 @@ def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_h
     mock_ai.analyze_sentiment.assert_called_once_with("Idag var en fantastisk dag!")
 
 
-def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test mood logging with empty text but voice data"""
     mock_ai = Mock()
     mock_ai.analyze_voice_emotion.return_value = {
@@ -269,21 +269,21 @@ def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_hea
         "mood_text": "",
         "voice_data": f"data:audio/wav;base64,{audio_b64}",
         "timestamp": "2024-01-15T10:00:00Z"
-    }, headers=auth_headers)
+    }, headers=auth_csrf_headers)
     
     assert response.status_code == 201
 
 
-def test_get_moods_with_multiple_entries(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_get_moods_with_multiple_entries(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test retrieving multiple mood entries"""
-    response = client.get("/api/mood", headers=auth_headers)
+    response = client.get("/api/mood", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "moods" in data
 
 
 @pytest.mark.skip(reason="Route /api/mood/weekly-analysis does not exist - feature not implemented")
-def test_weekly_analysis_different_locales(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_weekly_analysis_different_locales(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test weekly analysis supports multiple languages"""
     mock_ai = Mock()
     mock_ai.generate_weekly_insights.return_value = {
@@ -293,15 +293,15 @@ def test_weekly_analysis_different_locales(client, mock_firestore, mocker, auth_
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
     
     # Test Swedish locale
-    response = client.get("/api/mood/weekly-analysis?locale=sv", headers=auth_headers)
+    response = client.get("/api/mood/weekly-analysis?locale=sv", headers=auth_csrf_headers)
     assert response.status_code == 200
     
     # Test English locale
-    response = client.get("/api/mood/weekly-analysis?locale=en", headers=auth_headers)
+    response = client.get("/api/mood/weekly-analysis?locale=en", headers=auth_csrf_headers)
     assert response.status_code == 200
 
 
-def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test mood logging with multipart/form-data (audio upload)"""
     mock_ai = Mock()
     mock_ai.analyze_voice_emotion.return_value = {
@@ -315,7 +315,7 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_h
     audio_data = BytesIO(b'fake audio content')
     
     response = client.post("/api/mood/log",
-        headers=auth_headers,
+        headers=auth_csrf_headers,
         content_type='multipart/form-data',
         data={
             'audio': (audio_data, 'test.wav'),
@@ -331,7 +331,7 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_h
 
 
 @pytest.mark.skip(reason="Route /api/mood/recommendations does not exist - feature not implemented")
-def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_headers, mock_auth_service):
+def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_csrf_headers, mock_auth_service):
     """Test recommendations are generated based on mood data"""
     mock_ai = Mock()
     mock_ai.generate_personalized_recommendations.return_value = {
@@ -341,7 +341,7 @@ def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_hea
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
     
-    response = client.get("/api/mood/recommendations", headers=auth_headers)
+    response = client.get("/api/mood/recommendations", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert "recommendations" in data["data"]
@@ -358,7 +358,7 @@ def _build_users_collection_with_moods(mood_doc):
     return users_collection, moods_collection
 
 
-def test_get_specific_mood_returns_payload(client, mocker, auth_headers, mock_auth_service):
+def test_get_specific_mood_returns_payload(client, mocker, auth_csrf_headers, mock_auth_service):
     """Ensure GET /api/mood/<id> surfaces stored mood entry"""
     mood_doc = MagicMock()
     mood_doc.exists = True
@@ -370,7 +370,7 @@ def test_get_specific_mood_returns_payload(client, mocker, auth_headers, mock_au
     mock_db.collection.side_effect = lambda name: users_collection if name == 'users' else MagicMock()
     mocker.patch('src.routes.mood_routes.db', mock_db)
 
-    response = client.get('/api/mood/mock-mood-id-123456', headers=auth_headers)
+    response = client.get('/api/mood/mock-mood-id-123456', headers=auth_csrf_headers)
 
     assert response.status_code == 200
     payload = response.get_json()
@@ -378,7 +378,7 @@ def test_get_specific_mood_returns_payload(client, mocker, auth_headers, mock_au
     assert payload['data']['mood']['mood_text'] == 'glad'
 
 
-def test_update_mood_recalculates_sentiment(client, mocker, auth_headers, mock_auth_service):
+def test_update_mood_recalculates_sentiment(client, mocker, auth_csrf_headers, mock_auth_service):
     """PUT /api/mood/<id> should re-run sentiment analysis when mood_text changes"""
     mood_doc = MagicMock()
     mood_doc.exists = True
@@ -409,7 +409,7 @@ def test_update_mood_recalculates_sentiment(client, mocker, auth_headers, mock_a
     response = client.put(
         '/api/mood/mock-mood-id-456789',
         json={'mood_text': 'Ny energi', 'timestamp': '2025-01-02T08:00:00Z'},
-        headers=auth_headers
+        headers=auth_csrf_headers
     )
 
     assert response.status_code == 200
@@ -419,7 +419,7 @@ def test_update_mood_recalculates_sentiment(client, mocker, auth_headers, mock_a
     mock_ai_services.analyze_sentiment.assert_called_once_with('Ny energi')
 
 
-def test_mood_streaks_reports_consecutive_days(client, mocker, auth_headers, mock_auth_service):
+def test_mood_streaks_reports_consecutive_days(client, mocker, auth_csrf_headers, mock_auth_service):
     """GET /api/mood/streaks should calculate streaks from stored timestamps"""
     now = datetime.now(timezone.utc)
     timestamps = [
@@ -448,7 +448,7 @@ def test_mood_streaks_reports_consecutive_days(client, mocker, auth_headers, moc
     mock_db.collection.side_effect = lambda name: users_collection if name == 'users' else MagicMock()
     mocker.patch('src.routes.mood_routes.db', mock_db)
 
-    response = client.get('/api/mood/streaks', headers=auth_headers)
+    response = client.get('/api/mood/streaks', headers=auth_csrf_headers)
 
     assert response.status_code == 200
     data = response.get_json()

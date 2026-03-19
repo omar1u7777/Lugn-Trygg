@@ -21,11 +21,28 @@ except ImportError:
         class Emails:
             @staticmethod
             def send(data):
-                logging.info(f"📧 Mock email sent to {data.get('to', 'unknown')}: {data.get('subject', 'no subject')}")
+                to_raw = data.get('to', 'unknown')
+                if isinstance(to_raw, list) and to_raw:
+                    to_display = str(to_raw[0])
+                else:
+                    to_display = str(to_raw)
+                if '@' in to_display:
+                    local, domain = to_display.rsplit('@', 1)
+                    to_display = f"{local[:1]}***@{domain}"
+                logging.info(f"📧 Mock email sent to {to_display}: {data.get('subject', 'no subject')}")
                 return {"id": "mock-email-id"}
     resend = MockResend()  # type: ignore
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_email(email: str) -> str:
+    """Mask e-mail for privacy-safe logging."""
+    if not email or '@' not in email:
+        return '***'
+    local, domain = email.rsplit('@', 1)
+    masked_local = f"{local[0]}***" if local else '***'
+    return f"{masked_local}@{domain}"
 
 class EmailService:
     """Service for sending emails via Resend"""
@@ -187,7 +204,7 @@ Lugn & Trygg - Mental hälsa & välmående
                     }
                 raise  # Re-raise if it's a different error
 
-            logger.info(f"✅ Referral email sent to {to_email} (id: {response.get('id', 'N/A')})")
+            logger.info(f"✅ Referral email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
 
             return {
                 "success": True,
@@ -196,7 +213,7 @@ Lugn & Trygg - Mental hälsa & välmående
             }
 
         except Exception as e:
-            logger.exception(f"❌ Failed to send referral email to {to_email}: {e}")
+            logger.exception(f"❌ Failed to send referral email to {_mask_email(to_email)}: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -285,7 +302,7 @@ Lugn & Trygg - Mental hälsa & välmående
                 "html": html_content
             })
 
-            logger.info(f"✅ Success notification sent to {to_email} (id: {response.get('id', 'N/A')})")
+            logger.info(f"✅ Success notification sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
 
             return {"success": True, "email_id": response.get("id")}
 
@@ -788,7 +805,7 @@ Lugn & Trygg - Mental hälsa & välmående
                     }
                 raise  # Re-raise if it's a different error
 
-            logger.info(f"✅ Password reset email sent to {to_email} (id: {response.get('id', 'N/A')})")
+            logger.info(f"✅ Password reset email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
 
             return {
                 "success": True,
@@ -797,7 +814,7 @@ Lugn & Trygg - Mental hälsa & välmående
             }
 
         except Exception as e:
-            logger.exception(f"❌ Failed to send password reset email to {to_email}: {e}")
+            logger.exception(f"❌ Failed to send password reset email to {_mask_email(to_email)}: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -806,7 +823,7 @@ Lugn & Trygg - Mental hälsa & välmående
     def _send_email(self, to_email: str, subject: str, html_content: str, plain_content: str | None = None) -> bool:
         """Helper method to send email via Resend"""
         if not self.enabled:
-            logger.warning(f"Resend not configured, skipping email to {to_email}")
+            logger.warning(f"Resend not configured, skipping email to {_mask_email(to_email)}")
             return False
 
         try:
@@ -823,7 +840,7 @@ Lugn & Trygg - Mental hälsa & välmående
             # CRITICAL FIX: Graceful degradation if API key is invalid
             try:
                 response = self.client.Emails.send(email_data)  # type: ignore
-                logger.info(f"✅ Email sent to {to_email} (id: {response.get('id', 'N/A')})")
+                logger.info(f"✅ Email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
                 return True
             except Exception as send_error:
                 error_str = str(send_error).lower()
@@ -835,7 +852,7 @@ Lugn & Trygg - Mental hälsa & välmående
                 raise
 
         except Exception as e:
-            logger.exception(f"❌ Failed to send email to {to_email}: {e}")
+            logger.exception(f"❌ Failed to send email to {_mask_email(to_email)}: {e}")
             return False
 
 # Singleton instance

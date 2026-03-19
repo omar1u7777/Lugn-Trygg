@@ -6,7 +6,7 @@ import { logger } from "../utils/logger";
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
 const BEARER_PREFIX = "Bearer ";
-const CSRF_HEADER = "X-CSRFToken";
+const CSRF_HEADER = "X-CSRF-Token";
 const CONTENT_TYPE_HEADER = "Content-Type";
 const CONTENT_TYPE_JSON = "application/json";
 const RETRY_AFTER_HEADER = "retry-after";
@@ -376,10 +376,10 @@ api.interceptors.request.use(
     }
 
     // Add CSRF token for state-changing operations
-    // Skip CSRF for auth endpoints (refresh, login) to prevent circular dependency
+    // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks.
     // when the CSRF fetch itself needs a valid token
     const method = config.method?.toUpperCase();
-    const isAuthEndpoint = config.url?.includes('/auth/refresh') || config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
+    const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
     if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
       try {
         const { getCsrfToken } = await getAuth();

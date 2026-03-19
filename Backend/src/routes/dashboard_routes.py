@@ -8,9 +8,11 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from flask import Blueprint, g, request
+from flask import Blueprint, current_app, g, make_response, request
 
 from ..firebase_config import db
+from ..middleware.csrf_middleware import CSRF_COOKIE_NAME, CSRF_TTL_SECONDS
+from ..config import COOKIE_SECURE
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
@@ -28,19 +30,33 @@ logger = logging.getLogger(__name__)
 @rate_limit_by_endpoint
 def get_csrf_token():
     """
-    Generate a CSRF token for the frontend.
-    Note: For stateless JWT auth, CSRF is less critical but we provide it for compatibility.
+    Generate and persist CSRF token for double-submit cookie validation.
     """
     if request.method == 'OPTIONS':
         return '', 204
 
-    import secrets
-    token = secrets.token_urlsafe(32)
+    csrf_middleware = current_app.extensions.get('csrf_middleware')
+    if csrf_middleware is not None:
+        token = csrf_middleware.generate_token()
+    else:
+        import secrets
+        token = secrets.token_urlsafe(32)
 
-    return APIResponse.success(
+    response_tuple = APIResponse.success(
         data={'csrfToken': token},
         message='CSRF token generated'
     )
+    response = make_response(response_tuple[0], response_tuple[1])
+    response.set_cookie(
+        CSRF_COOKIE_NAME,
+        token,
+        httponly=False,
+        secure=COOKIE_SECURE,
+        samesite='Strict',
+        max_age=CSRF_TTL_SECONDS,
+        path='/',
+    )
+    return response
 
 
 def _get_score_from_mood_text(mood_text: str) -> str:

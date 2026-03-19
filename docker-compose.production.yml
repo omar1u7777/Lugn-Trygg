@@ -18,11 +18,12 @@ services:
       - FLASK_DEBUG=False
       - PORT=5001
       - HOST=0.0.0.0
+      - FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase_credentials.json
     env_file:
       - ./Backend/.env.production
     volumes:
       - ./Backend/logs:/app/logs
-      - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:?Set FIREBASE_CREDENTIALS_HOST_PATH}:/run/secrets/firebase_credentials.json:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
       interval: 30s

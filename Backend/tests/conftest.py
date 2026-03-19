@@ -199,6 +199,71 @@ def auth_headers():
 
     return {"Authorization": f"Bearer {token}"}
 
+
+@pytest.fixture(scope='function')
+def csrf_headers(client):
+    """Fetch a CSRF token and return headers for state-changing requests."""
+    response = client.get('/api/dashboard/csrf-token')
+    assert response.status_code == 200
+    body = response.get_json() or {}
+    token = ((body.get('data') or {}).get('csrfToken'))
+    assert token
+    return {"X-CSRF-Token": token}
+
+
+@pytest.fixture(scope='function')
+def auth_csrf_headers(auth_headers, csrf_headers):
+    """Combined auth+CSRF headers for protected state-changing endpoints."""
+    return {**auth_headers, **csrf_headers}
+
+
+_LEGACY_CSRF_MODULES = {
+    'test_ai_helpers_routes.py',
+    'test_ai_routes.py',
+    'test_challenges_routes.py',
+    'test_chatbot_routes.py',
+    'test_crisis_routes.py',
+    'test_edge_cases_security.py',
+    'test_feedback_routes.py',
+    'test_integration_flows.py',
+    'test_integration_routes.py',
+    'test_journal_routes.py',
+    'test_main_app.py',
+    'test_memory_routes.py',
+    'test_middleware_validation.py',
+    'test_mood_routes.py',
+    'test_peer_chat_routes.py',
+    'test_privacy_routes.py',
+    'test_referral_routes.py',
+    'test_rewards_routes.py',
+    'test_subscription_routes.py',
+    'test_sync_history_routes.py',
+    'test_voice_routes.py',
+    'test_webhook_security.py',
+}
+
+
+@pytest.fixture(autouse=True)
+def _auto_attach_csrf_for_legacy_modules(request):
+    """Attach CSRF header automatically for selected legacy modules during migration."""
+    file_name = os.path.basename(str(request.node.fspath))
+    if file_name not in _LEGACY_CSRF_MODULES:
+        yield
+        return
+
+    client = request.getfixturevalue('client')
+    csrf = request.getfixturevalue('csrf_headers')
+
+    previous_header = client.environ_base.get('HTTP_X_CSRF_TOKEN')
+    client.environ_base['HTTP_X_CSRF_TOKEN'] = csrf['X-CSRF-Token']
+    try:
+        yield
+    finally:
+        if previous_header is None:
+            client.environ_base.pop('HTTP_X_CSRF_TOKEN', None)
+        else:
+            client.environ_base['HTTP_X_CSRF_TOKEN'] = previous_header
+
 @pytest.fixture(scope='function')
 def mock_auth_service(mocker):
     """Mockar AuthService för alla tester som behöver autentisering."""
@@ -251,6 +316,26 @@ def _reset_shared_mock_db():
     # Post-test cleanup: reset again to be safe
     db.reset_mock()
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter_state():
+    """Reset in-memory rate limiter counters to prevent test cross-contamination."""
+    try:
+        from src.services.rate_limiting import rate_limiter
+        if hasattr(rate_limiter, '_memory_store'):
+            rate_limiter._memory_store.clear()
+    except Exception:
+        pass
+
+    yield
+
+    try:
+        from src.services.rate_limiting import rate_limiter
+        if hasattr(rate_limiter, '_memory_store'):
+            rate_limiter._memory_store.clear()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope='function')

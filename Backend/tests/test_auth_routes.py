@@ -105,12 +105,12 @@ class TestLogin:
 class TestLogout:
     """Tests for POST /api/auth/logout"""
 
-    def test_logout_success(self, client, auth_headers, mock_auth_service, mocker):
+    def test_logout_success(self, client, auth_csrf_headers, mock_auth_service, mocker):
         """Test successful logout"""
         mocker.patch('src.services.auth_service.AuthService.logout', 
                     return_value=("Logged out", None))
         
-        response = client.post('/api/auth/logout', headers=auth_headers)
+        response = client.post('/api/auth/logout', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 401, 500, 503]
 
@@ -118,7 +118,7 @@ class TestLogout:
 class TestConsent:
     """Tests for consent endpoints"""
 
-    def test_save_consent_success(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_save_consent_success(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test saving user consent - POST /api/auth/consent"""
         response = client.post('/api/auth/consent',
                               json={
@@ -126,7 +126,7 @@ class TestConsent:
                                   "version": "1.0",
                                   "accepted": True
                               },
-                              headers={**auth_headers, "Content-Type": "application/json"})
+                              headers={**auth_csrf_headers, "Content-Type": "application/json"})
         
         assert response.status_code in [200, 201, 400, 401, 500, 503]
 
@@ -140,12 +140,17 @@ class TestConsent:
 class TestRefreshToken:
     """Tests for POST /api/auth/refresh"""
 
-    def test_refresh_token_success(self, client, auth_headers, mock_auth_service, mocker):
+    def test_refresh_token_success(self, client, csrf_headers, mock_auth_service, mocker):
         """Test token refresh"""
-        mocker.patch('src.services.auth_service.AuthService.refresh_token',
-                    return_value=("new_access_token", None))
+        mocker.patch('src.services.auth_service.AuthService.rotate_refresh_token',
+                    return_value=({
+                        "user_id": "testuser1234567890ab",
+                        "access_token": "new_access_token",
+                        "refresh_token": "new_refresh_token",
+                    }, None))
+        client.set_cookie('refresh_token', 'refresh-token-value')
         
-        response = client.post('/api/auth/refresh', headers=auth_headers)
+        response = client.post('/api/auth/refresh', headers=csrf_headers)
         
         assert response.status_code in [200, 400, 401, 500, 503]
 
@@ -198,25 +203,25 @@ class TestPasswordReset:
 class Test2FA:
     """Tests for 2FA endpoints"""
 
-    def test_setup_2fa(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_setup_2fa(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test POST /api/auth/setup-2fa"""
-        response = client.post('/api/auth/setup-2fa', headers=auth_headers)
+        response = client.post('/api/auth/setup-2fa', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
-    def test_verify_2fa(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_verify_2fa(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test POST /api/auth/verify-2fa"""
         response = client.post('/api/auth/verify-2fa',
                               json={"code": "123456", "email": "test@example.com"},
-                              headers={**auth_headers, "Content-Type": "application/json"})
+                              headers={**auth_csrf_headers, "Content-Type": "application/json"})
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
-    def test_verify_2fa_setup(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_verify_2fa_setup(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test POST /api/auth/verify-2fa-setup"""
         response = client.post('/api/auth/verify-2fa-setup',
                               json={"code": "123456"},
-                              headers={**auth_headers, "Content-Type": "application/json"})
+                              headers={**auth_csrf_headers, "Content-Type": "application/json"})
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
@@ -224,14 +229,14 @@ class Test2FA:
 class TestChangeEmail:
     """Tests for POST /api/auth/change-email"""
 
-    def test_change_email(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_change_email(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test email change"""
         response = client.post('/api/auth/change-email',
                               json={
                                   "new_email": "new@example.com",
                                   "password": "Test123!@#"
                               },
-                              headers={**auth_headers, "Content-Type": "application/json"})
+                              headers={**auth_csrf_headers, "Content-Type": "application/json"})
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
@@ -239,14 +244,14 @@ class TestChangeEmail:
 class TestChangePassword:
     """Tests for POST /api/auth/change-password"""
 
-    def test_change_password(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_change_password(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test password change"""
         response = client.post('/api/auth/change-password',
                               json={
                                   "current_password": "OldPass123!@#",
                                   "new_password": "NewPass123!@#"
                               },
-                              headers={**auth_headers, "Content-Type": "application/json"})
+                              headers={**auth_csrf_headers, "Content-Type": "application/json"})
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
@@ -264,10 +269,10 @@ class TestExportData:
 class TestDeleteAccount:
     """Tests for DELETE /api/auth/delete-account/<user_id>"""
 
-    def test_delete_account(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_delete_account(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test account deletion"""
         response = client.delete('/api/auth/delete-account/testuser1234567890ab',
-                                headers=auth_headers)
+                                headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 401, 403, 404, 500, 503]
 
@@ -301,19 +306,26 @@ class TestAuthRoutesTargeted:
 
     def test_refresh_token_returns_new_cookie(self, client, mocker):
         """Refresh endpoint should decode token and issue new cookie"""
-        mocker.patch('jwt.decode', return_value={'sub': 'testuser1234567890ab'})
-        mocker.patch('src.services.auth_service.AuthService.generate_access_token', return_value='new-access-token')
+        mocker.patch('src.services.auth_service.AuthService.rotate_refresh_token', return_value=({
+            'user_id': 'testuser1234567890ab',
+            'access_token': 'new-access-token',
+            'refresh_token': 'rotated-refresh-token',
+        }, None))
+        client.set_cookie('refresh_token', 'refresh-token-value')
+
+        csrf_resp = client.get('/api/dashboard/csrf-token')
+        csrf_token = csrf_resp.get_json()['data']['csrfToken']
 
         response = client.post(
             '/api/auth/refresh',
-            json={'refresh_token': 'refresh-token-value'},
-            headers={"Content-Type": "application/json"}
+            json={},
+            headers={"Content-Type": "application/json", "X-CSRF-Token": csrf_token}
         )
 
         assert response.status_code == 200
         payload = response.get_json()
         assert payload['data']['accessToken'] == 'new-access-token'
-        assert 'access_token=new-access-token' in response.headers.get('Set-Cookie', '')
+        assert 'refresh_token=rotated-refresh-token' in response.headers.get('Set-Cookie', '')
 
     def test_google_login_uses_fallback_verifier(self, client, mock_db, mocker):
         """When firebase_admin_auth is missing, fallback verifier should run"""
