@@ -142,14 +142,8 @@ const LoginForm = () => {
       const idToken = await user.getIdToken();
       const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
 
-      // Backend returns APIResponse wrapper: { success, data: { accessToken, refreshToken, userId, user } }
+      // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
       const data = response.data?.data || response.data;
-
-      // Store refresh token for token rotation (same as email/password login)
-      if (data.refreshToken) {
-        const { tokenStorage } = await import('@/utils/secureStorage');
-        await tokenStorage.setRefreshToken(data.refreshToken);
-      }
 
       login(data.accessToken, user.email ?? '', data.userId);
       announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");

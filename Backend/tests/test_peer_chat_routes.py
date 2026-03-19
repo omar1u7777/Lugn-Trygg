@@ -94,7 +94,11 @@ def test_send_message_persists_payload(client, mocker, mock_db):
     presence_doc_ref = MagicMock()
     presence_doc_ref.get.return_value = MagicMock(
         exists=True,
-        to_dict=lambda: {'anonymous_name': 'Anon', 'avatar': '🌟'},
+        to_dict=lambda: {
+            'anonymous_name': 'Anon',
+            'avatar': '🌟',
+            'user_id': 'testuser1234567890ab',
+        },
     )
     presence_collection.document.return_value = presence_doc_ref
 

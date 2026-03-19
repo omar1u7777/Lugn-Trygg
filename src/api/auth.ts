@@ -19,7 +19,6 @@ interface Referral {
 
 interface LoginResponse {
   accessToken: string;
-  refreshToken?: string;
   user: User;
   userId: string;
 }
@@ -152,14 +151,11 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
   try {
     const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
 
-    // Backend returns: { success: true, message: "...", data: { accessToken, refreshToken, user, userId } }
+    // Backend returns: { success: true, message: "...", data: { accessToken, user, userId } }
     const responseData = response.data?.data || response.data;
     const validatedData = validateLoginResponse(responseData);
 
     await tokenStorage.setAccessToken(validatedData.accessToken);
-    if (validatedData.refreshToken) {
-      await tokenStorage.setRefreshToken(validatedData.refreshToken);
-    }
 
     // Fetch CSRF token after successful login
     try {
@@ -242,78 +238,17 @@ export const logoutUser = async (): Promise<void> => {
 };
 
 /**
- * Retrieves a fresh Firebase ID token
- * @returns Promise resolving to Firebase ID token or null if unavailable
- */
-const getFirebaseToken = async (): Promise<string | null> => {
-  try {
-    const firebaseModule = await import("../firebase-config").catch(() => null);
-    if (!firebaseModule) {
-      logger.warn("Firebase module not available");
-      return null;
-    }
-
-    const { auth } = firebaseModule;
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
-      logger.warn("No Firebase user found");
-      return null;
-    }
-
-    const token = await currentUser.getIdToken(true);
-    logger.debug("Firebase token refreshed successfully");
-    return token;
-  } catch (error) {
-    logger.error("Firebase token refresh failed", { error });
-    return null;
-  }
-};
-
-/**
- * Refreshes the access token using Firebase authentication
+ * Refreshes the access token using backend-managed refresh cookie.
  * @returns Promise resolving to new access token or null if refresh fails
  */
 export const refreshAccessToken = async (): Promise<string | null> => {
   try {
-    const newFirebaseToken = await getFirebaseToken();
-
-    if (!newFirebaseToken) {
-      // Fallback: try using stored refresh token when Firebase user is unavailable
-      // (e.g., after page refresh before Firebase Auth re-initializes)
-      const storedRefreshToken = await tokenStorage.getRefreshToken();
-      if (storedRefreshToken) {
-        try {
-          const fallbackResponse = await api.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
-            refresh_token: storedRefreshToken
-          });
-          const fallbackData = fallbackResponse.data?.data || fallbackResponse.data;
-          if (fallbackData?.accessToken && typeof fallbackData.accessToken === 'string') {
-            await tokenStorage.setAccessToken(fallbackData.accessToken);
-            if (fallbackData.refreshToken && typeof fallbackData.refreshToken === 'string') {
-              await tokenStorage.setRefreshToken(fallbackData.refreshToken);
-            }
-            return fallbackData.accessToken;
-          }
-        } catch {
-          logger.warn("Stored refresh token also failed");
-        }
-      }
-      logger.warn("Firebase token refresh failed and no stored token available");
-      return null;
-    }
-
-    const response = await api.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {
-      id_token: newFirebaseToken
-    });
+    const response = await api.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {});
 
     const responseData = response.data?.data || response.data;
 
     if (responseData?.accessToken && typeof responseData.accessToken === 'string') {
       await tokenStorage.setAccessToken(responseData.accessToken);
-      if (responseData.refreshToken && typeof responseData.refreshToken === 'string') {
-        await tokenStorage.setRefreshToken(responseData.refreshToken);
-      }
       return responseData.accessToken;
     } else {
       logger.warn("Invalid refresh token response, logging out");

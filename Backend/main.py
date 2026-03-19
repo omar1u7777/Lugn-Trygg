@@ -238,6 +238,7 @@ try:
 
     # Middleware
     from src.middleware.security_headers import init_security_headers
+    from src.middleware.csrf_middleware import init_csrf_middleware
     from src.middleware.validation import init_validation_middleware
     from src.utils.input_sanitization import sanitize_request
     # sql_injection_protection removed - not used in main.py (Firestore is NoSQL)
@@ -297,6 +298,23 @@ try:
     # Initialize middleware (MUST be before CORS handlers so CORS runs LAST)
     init_security_headers(app)
     init_validation_middleware(app)
+
+    csrf_secret = settings.jwt_secret_key if USE_PYDANTIC_SETTINGS else os.getenv('JWT_SECRET_KEY')
+    if not csrf_secret:
+        logger.critical("CSRF secret source missing (JWT secret unavailable). Refusing startup.")
+        raise RuntimeError("Missing CSRF secret source")
+
+    csrf_exempt_paths = {
+        '/api/v1/auth/login',
+        '/api/v1/auth/register',
+        '/api/v1/auth/google-login',
+        '/api/v1/auth/reset-password',
+        '/api/v1/auth/confirm-password-reset',
+        '/api/v1/dashboard/csrf-token',
+    }
+    csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
+    app.extensions['csrf_middleware'] = csrf_middleware
+    logger.info("✅ CSRF middleware registered with strict double-submit validation")
     
     # 2026-Compliant: Setup correlation IDs for distributed tracing
     try:

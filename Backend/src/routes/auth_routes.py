@@ -38,12 +38,11 @@ def _mask_email(email: str) -> str:
 try:
     from ..config.settings import get_settings
     settings = get_settings()
-    JWT_REFRESH_SECRET_KEY = settings.jwt_refresh_secret_key
     FIREBASE_WEB_API_KEY = settings.firebase_web_api_key
 except ImportError:
-    from ..config import FIREBASE_WEB_API_KEY, JWT_REFRESH_SECRET_KEY
+    from ..config import FIREBASE_WEB_API_KEY
 
-from ..config import COOKIE_SECURE
+from ..config import COOKIE_SECURE, REFRESH_TOKEN_EXPIRES
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,33 @@ logger = logging.getLogger(__name__)
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 auth_bp = Blueprint('auth', __name__)
+
+REFRESH_COOKIE_NAME = 'refresh_token'
+REFRESH_COOKIE_PATH = '/'
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite='Strict',
+        max_age=int(REFRESH_TOKEN_EXPIRES.total_seconds()),
+        path=REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        '',
+        expires=0,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite='Strict',
+        path=REFRESH_COOKIE_PATH,
+    )
 
 
 def _verify_current_password(email: str, password: str) -> bool:
@@ -91,7 +117,16 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
         logger.info(f"Validated registration data for: {_mask_email(email)}")
 
         # Delegate to AuthService for Firebase-backed registration
-        user, error = AuthService.register_user(email, password)
+        user_profile = {
+            'name': name,
+            'referral_code': referral_code or None,
+            'is_active': True,
+            'two_factor_enabled': False,
+            'biometric_enabled': False,
+            'language': 'sv',
+            'login_method': 'email',
+        }
+        user, error = AuthService.register_user(email, password, profile_data=user_profile)
         if error:
             # Determine correct HTTP status code based on error content
             error_lower = error.lower()
@@ -106,34 +141,6 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
         if not user:
             logger.error("Registration failed - user object is None")
             return APIResponse.error("Registration failed - user object is None", "INTERNAL_ERROR", 500)
-
-        # Store user data in Firestore
-        try:
-            from ..firebase_config import db
-            if db is None:
-                logger.error("Database unavailable during user registration")
-                return APIResponse.error("Registration failed - database unavailable", "SERVICE_UNAVAILABLE", 500)
-
-            user_data = {
-                'email': email,
-                'name': name,
-                'referral_code': referral_code or None,
-                'created_at': datetime.now(UTC).isoformat(),
-                'is_active': True,
-                'two_factor_enabled': False,
-                'biometric_enabled': False,
-                'language': 'sv',
-                'login_method': 'email'
-            }
-            # merge=True so we enrich the doc created by AuthService.register_user
-            # rather than overwriting it (preserves email_punycode etc.)
-            db.collection('users').document(user.uid).set(user_data, merge=True)
-            logger.info(f"User data stored in Firestore for user {user.uid}")
-
-        except Exception as db_error:
-            logger.error(f"Failed to store user data in Firestore: {str(db_error)}")
-            # Don't fail registration if Firestore fails, but log it
-            # In production, you might want to retry or handle this differently
 
         audit_log('user_registered', user.uid, {'email': _mask_email(email), 'name': name, 'referral_code': referral_code or 'none'})
 
@@ -234,7 +241,6 @@ def login_user(validated_data):
 
         response_data = {
             'accessToken': access_token,
-            'refreshToken': refresh_token,
             'userId': user.uid,
             'user': {
                 'id': user.uid,
@@ -254,15 +260,8 @@ def login_user(validated_data):
         # Since APIResponse.success returns a tuple, we need to handle the cookie setting
         response_data_json, status_code = response
         response = make_response(response_data_json, status_code)
-        if access_token:
-            response.set_cookie(
-                'access_token',
-                access_token,
-                httponly=True,
-                secure=COOKIE_SECURE,
-                samesite='Strict',
-                max_age=24*60*60
-            )
+        if refresh_token:
+            _set_refresh_cookie(response, refresh_token)
 
         return response
 
@@ -333,15 +332,6 @@ def verify_2fa():
         }
         response_tuple = APIResponse.success(response_data, '2FA verification successful')
         response = make_response(response_tuple[0], response_tuple[1])
-
-        response.set_cookie(
-            'access_token',
-            access_token_verified,
-            httponly=True,
-            secure=COOKIE_SECURE,
-            samesite='Strict',
-            max_age=24*60*60
-        )
 
         return response
 
@@ -574,24 +564,13 @@ def google_login(validated_data=None):
             logger.error(f"Firebase transaction failed: {str(e)}")
             return APIResponse.error('Authentication service error', 'AUTH_SERVICE_ERROR', 503, str(e))
 
-        # Create JWT tokens (access + refresh, same as email/password login)
-        access_token = AuthService.generate_access_token(user_id)
-        refresh_token = AuthService.generate_refresh_token(user_id)
-
-        # Store refresh token in Firestore
-        try:
-            db.collection("refresh_tokens").document(user_id).set({
-                "jwt_refresh_token": refresh_token,
-                "created_at": datetime.now(UTC).isoformat()
-            }, merge=True)
-        except Exception as rt_err:
-            logger.warning(f"Failed to store refresh token for Google user {user_id}: {rt_err}")
+        # Create JWT tokens (access + refresh, single-source backend session model)
+        access_token, refresh_token = AuthService.issue_session_tokens(user_id)
 
         audit_log('google_login_successful', user_id, {'email': _mask_email(email)})
 
         response_data = {
             'accessToken': access_token,
-            'refreshToken': refresh_token,
             'userId': user_id,
             'user': {
                 'id': user_id,
@@ -602,15 +581,7 @@ def google_login(validated_data=None):
         }
         response_tuple = APIResponse.success(response_data, 'Google-inloggning lyckades!')
         response = make_response(response_tuple[0], response_tuple[1])
-
-        response.set_cookie(
-            'access_token',
-            access_token,
-            httponly=True,
-            secure=COOKIE_SECURE,
-            samesite='Strict',
-            max_age=24*60*60
-        )
+        _set_refresh_cookie(response, refresh_token)
 
         return response
 
@@ -628,9 +599,10 @@ def logout():
 
     try:
         user_id = g.user_id
+        refresh_token_cookie = request.cookies.get(REFRESH_COOKIE_NAME)
 
         # Remove refresh token from database
-        success, error = AuthService.logout(user_id)
+        success, error = AuthService.logout(user_id, refresh_token=refresh_token_cookie)
         if error:
             logger.warning(f"Logout cleanup failed for user {user_id}: {error}")
             # Continue with logout even if cleanup fails
@@ -639,7 +611,7 @@ def logout():
 
         response_tuple = APIResponse.success(None, 'Logged out successfully')
         response = make_response(response_tuple[0], response_tuple[1])
-        response.set_cookie('access_token', '', expires=0, httponly=True, secure=COOKIE_SECURE, samesite='Strict')
+        _clear_refresh_cookie(response)
         return response
 
     except Exception as e:
@@ -858,109 +830,35 @@ def get_consent(user_id):
 @auth_bp.route('/refresh', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 def refresh_token():
-    """Refresh access token using refresh token or Firebase ID token (with token rotation)"""
+    """Refresh access token using backend-managed rotating refresh cookie."""
     if request.method == 'OPTIONS':
         return '', 204
 
     try:
-        data = request.get_json(force=True, silent=True) or {}
+        refresh_token_cookie = request.cookies.get(REFRESH_COOKIE_NAME)
+        if not refresh_token_cookie:
+            return APIResponse.unauthorized('Refresh token missing')
 
-        # Support two refresh paths:
-        # 1. Firebase ID token (from frontend when Firebase Auth is available)
-        # 2. JWT refresh token (when Firebase is unavailable, e.g. after page reload)
-        id_token_value = data.get('id_token')
-        refresh_token_value = data.get('refresh_token')
+        rotated, error = AuthService.rotate_refresh_token(refresh_token_cookie)
+        if error or not rotated:
+            logger.warning(f"Refresh rotation denied: {error}")
+            response_tuple = APIResponse.unauthorized(error or 'Invalid refresh token')
+            response = make_response(response_tuple[0], response_tuple[1])
+            _clear_refresh_cookie(response)
+            return response
 
-        user_id = None
+        access_token = rotated['access_token']
+        new_refresh_token = rotated['refresh_token']
+        user_id = rotated['user_id']
 
-        if id_token_value:
-            # Path 1: Verify Firebase ID token and issue new JWT pair
-            try:
-                from ..firebase_config import firebase_admin_auth
-                if firebase_admin_auth is not None:
-                    decoded_fb = firebase_admin_auth.verify_id_token(id_token_value)
-                else:
-                    from firebase_admin import auth as fb_auth
-                    decoded_fb = fb_auth.verify_id_token(id_token_value)
-                user_id = decoded_fb.get('uid')
-                if not user_id:
-                    return APIResponse.unauthorized('Invalid Firebase token')
-            except Exception as fb_err:
-                logger.warning(f"Firebase ID token verification failed during refresh: {fb_err}")
-                return APIResponse.unauthorized('Invalid Firebase token')
-
-        elif refresh_token_value:
-            # Path 2: Verify JWT refresh token with rotation
-            import jwt
-            try:
-                decoded = jwt.decode(refresh_token_value, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
-                user_id = decoded.get('sub')
-                token_jti = decoded.get('jti')
-
-                if not user_id:
-                    return APIResponse.unauthorized('Invalid refresh token')
-
-                # Verify the refresh token matches what's stored in Firestore
-                # This prevents replay attacks with old refresh tokens
-                from ..firebase_config import db
-                if db is not None and token_jti:
-                    stored_doc = db.collection("refresh_tokens").document(user_id).get()
-                    if stored_doc.exists:
-                        stored_data = stored_doc.to_dict() or {}
-                        stored_token = stored_data.get("jwt_refresh_token")
-                        if stored_token:
-                            try:
-                                stored_decoded = jwt.decode(stored_token, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
-                                if stored_decoded.get('jti') != token_jti:
-                                    logger.warning(f"Refresh token jti mismatch for user {user_id} — possible token reuse")
-                                    # Invalidate all tokens for this user (potential theft)
-                                    db.collection("refresh_tokens").document(user_id).delete()
-                                    return APIResponse.unauthorized('Refresh token has been revoked')
-                            except jwt.InvalidTokenError:
-                                pass  # Stored token invalid, proceed with refresh anyway
-
-            except jwt.ExpiredSignatureError:
-                logger.warning("Refresh token has expired")
-                return APIResponse.unauthorized('Refresh token has expired')
-            except jwt.InvalidTokenError:
-                logger.warning("Invalid refresh token")
-                return APIResponse.unauthorized('Invalid refresh token')
-            except Exception as e:
-                logger.error(f"Refresh token validation failed: {str(e)}")
-                return APIResponse.unauthorized('Invalid refresh token')
-
-        else:
-            return APIResponse.bad_request('Refresh token or Firebase ID token required')
-
-        # Token rotation: issue new access AND refresh tokens
-        access_token = AuthService.generate_access_token(user_id)
-        new_refresh_token = AuthService.generate_refresh_token(user_id)
-
-        # Store the new refresh token, replacing the old one
-        from ..firebase_config import db
-        if db is not None:
-            db.collection("refresh_tokens").document(user_id).set({
-                "jwt_refresh_token": new_refresh_token,
-                "created_at": datetime.now(UTC).isoformat()
-            }, merge=True)
-
-        audit_log('token_refreshed', user_id, {})
+        audit_log('token_refreshed', user_id, {'rotation': 'ok'})
 
         response_data = {
             'accessToken': access_token,
-            'refreshToken': new_refresh_token
         }
         response_tuple = APIResponse.success(response_data, 'Token refreshed successfully')
         response = make_response(response_tuple[0], response_tuple[1])
-
-        response.set_cookie(
-            'access_token',
-            access_token,
-            httponly=True,
-            secure=COOKIE_SECURE,
-            samesite='Strict',
-            max_age=24*60*60
-        )
+        _set_refresh_cookie(response, new_refresh_token)
 
         return response
 
@@ -1085,9 +983,16 @@ def change_password(validated_data):
                 return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
             auth.update_user(user_id, password=new_password)
 
-            audit_log('password_changed', user_id, {})
+            # Security hardening: revoke all refresh sessions on password change.
+            revoked, revoke_error = AuthService.revoke_all_sessions(user_id, reason='password_changed')
+            if revoke_error or not revoked:
+                logger.warning("Failed to revoke all sessions after password change for %s: %s", user_id, revoke_error)
 
-            return APIResponse.success(None, 'Password updated successfully')
+            audit_log('password_changed', user_id, {})
+            response_tuple = APIResponse.success(None, 'Password updated successfully. Please log in again.')
+            response = make_response(response_tuple[0], response_tuple[1])
+            _clear_refresh_cookie(response)
+            return response
 
         except Exception as e:
             logger.error(f"Password update failed: {str(e)}")
@@ -1438,8 +1343,8 @@ def delete_account(user_id):
             )
             response = make_response(response_tuple[0], response_tuple[1])
 
-            # Clear the access token cookie
-            response.set_cookie('access_token', '', expires=0, httponly=True, secure=COOKIE_SECURE, samesite='Strict')
+            # Clear the refresh cookie to terminate backend-managed session continuity.
+            _clear_refresh_cookie(response)
 
             return response
 
