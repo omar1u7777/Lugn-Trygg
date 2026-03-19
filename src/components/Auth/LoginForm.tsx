@@ -144,6 +144,7 @@ const LoginForm = () => {
 
       // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
       const data = response.data?.data || response.data;
+
       login(data.accessToken, user.email ?? '', data.userId);
       announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {

@@ -142,7 +142,7 @@ class AdvancedRateLimiter:
 
     def get_endpoint_category(self, endpoint: str) -> str:
         """Categorize endpoint for rate limiting"""
-        endpoint = endpoint.lower()
+        endpoint = self._normalize_endpoint(endpoint)
 
         if any(keyword in endpoint for keyword in ['auth', 'login', 'register', 'password']):
             return 'auth'
@@ -163,16 +163,108 @@ class AdvancedRateLimiter:
 
         return 'default'
 
+    def _normalize_endpoint(self, endpoint: str) -> str:
+        """Normalize endpoint names and paths to a comparable route token string."""
+        normalized = (endpoint or '').strip().lower()
+        if not normalized:
+            return ''
+
+        if normalized.startswith('/api/v1/'):
+            normalized = normalized[len('/api/v1/'):]
+        elif normalized.startswith('/api/'):
+            normalized = normalized[len('/api/'):]
+        elif normalized.startswith('/'):
+            normalized = normalized[1:]
+        else:
+            normalized = normalized.replace('.', '/')
+
+        return normalized.strip('/')
+
+    def _resolve_endpoint_key(self, category: str, endpoint: str) -> str | None:
+        """Resolve a category-specific action key from a normalized endpoint."""
+        normalized = self._normalize_endpoint(endpoint)
+        segments = [segment for segment in normalized.split('/') if segment]
+        if not segments:
+            return None
+
+        last = segments[-1].replace('-', '_')
+        second_last = segments[-2].replace('-', '_') if len(segments) > 1 else ''
+
+        if category == 'auth':
+            if 'google' in normalized and 'login' in normalized:
+                return 'google_oauth'
+            if 'reset-password' in normalized or 'confirm-password-reset' in normalized:
+                return 'reset_password'
+            if 'register' in normalized:
+                return 'register'
+            if 'login' in normalized:
+                return 'login'
+
+        if category == 'mood':
+            if 'weekly-analysis' in normalized:
+                return 'weekly_analysis'
+            if 'analyze' in normalized:
+                return 'analyze'
+            if 'log' in normalized:
+                return 'log'
+            return 'get'
+
+        if category == 'ai':
+            if 'history' in normalized:
+                return 'history'
+            if 'chat' in normalized:
+                return 'chat'
+            if 'forecast' in normalized:
+                return 'forecast'
+            if 'analyze' in normalized:
+                return 'analyze'
+            if 'story' in normalized:
+                return 'story'
+
+        if category == 'memory':
+            if 'upload' in normalized:
+                return 'upload'
+            if 'list' in normalized:
+                return 'list'
+            return 'get'
+
+        if category == 'integration':
+            if 'webhook' in normalized:
+                return 'webhook'
+            if 'callback' in normalized:
+                return 'callback'
+            if 'sync' in normalized:
+                return 'sync'
+
+        if category == 'subscription':
+            if 'webhook' in normalized:
+                return 'webhook'
+            if 'create' in normalized and 'session' in normalized:
+                return 'create_session'
+            if 'status' in normalized:
+                return 'status'
+
+        for candidate in (last, second_last):
+            if candidate:
+                return candidate
+
+        return None
+
     def get_rate_limit(self, endpoint: str, user_id: str | None = None) -> str:
         """Get appropriate rate limit for endpoint and user"""
-        category = self.get_endpoint_category(endpoint)
+        normalized_endpoint = self._normalize_endpoint(endpoint)
+        category = self.get_endpoint_category(normalized_endpoint)
         user_tier = self.get_user_tier(user_id) if user_id else 'free'
 
         # Get base limit for endpoint
         category_limits = self.rate_limits.get(category, {})
-        endpoint_key = endpoint.split('/')[-1]  # Get last part of endpoint
+        endpoint_key = self._resolve_endpoint_key(category, normalized_endpoint)
 
-        base_limit = category_limits.get(endpoint_key) or category_limits.get('all') or '100 per hour'
+        base_limit = (
+            category_limits.get(endpoint_key or '')
+            or category_limits.get('all')
+            or '100 per hour'
+        )
 
         # Apply user tier multiplier
         if user_tier != 'free':
@@ -391,7 +483,7 @@ def rate_limit_by_endpoint(f):
     def decorated_function(*args, **kwargs):
         try:
             # Get current endpoint
-            endpoint = request.endpoint or request.path
+            endpoint = request.path or request.endpoint or ''
 
             # Get user ID from JWT if available
             user_id = getattr(g, 'user_id', None)

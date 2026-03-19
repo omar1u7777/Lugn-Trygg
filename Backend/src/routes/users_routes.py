@@ -10,6 +10,7 @@ from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
+from ..utils.wellness_goals import extract_and_validate_wellness_goals
 
 users_bp = Blueprint('users', __name__)
 logger = logging.getLogger(__name__)
@@ -277,14 +278,11 @@ def set_wellness_goals():
 
     try:
         data = request.get_json(silent=True)
-        if not data or 'wellnessGoals' not in data:
-            logger.warning("Missing wellnessGoals in request body or empty body")
-            return APIResponse.bad_request("Request body must contain wellnessGoals as a non-empty list")
-
-        goals = data.get('wellnessGoals')
-        if not isinstance(goals, list) or len(goals) == 0:
-            logger.warning(f"Invalid wellnessGoals value: {goals}")
-            return APIResponse.bad_request("wellnessGoals must be a non-empty list")
+        try:
+            goals = extract_and_validate_wellness_goals(data, field_name='wellnessGoals')
+        except ValueError as validation_error:
+            logger.warning(f"Invalid wellnessGoals payload: {validation_error}")
+            return APIResponse.bad_request(str(validation_error))
 
         logger.info(f"📝 Received wellness goals data: {goals}")
 

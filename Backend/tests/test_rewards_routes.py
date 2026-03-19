@@ -12,13 +12,13 @@ def test_get_reward_catalog_filters_purchasable(client):
     assert all(item['cost'] > 0 for item in payload['data']['rewards'])
 
 
-def test_get_user_rewards_computes_level(client, mocker, auth_headers):
+def test_get_user_rewards_computes_level(client, mocker, auth_csrf_headers):
     mocker.patch(
         'src.routes.rewards_routes._get_user_rewards',
         return_value={'xp': 450, 'badges': [], 'achievements': [], 'claimed_rewards': []},
     )
 
-    response = client.get('/api/rewards/profile', headers=auth_headers)
+    response = client.get('/api/rewards/profile', headers=auth_csrf_headers)
 
     assert response.status_code == 200
     rewards = response.get_json()['data']['rewards']
@@ -26,14 +26,14 @@ def test_get_user_rewards_computes_level(client, mocker, auth_headers):
     assert rewards['neededXp'] > 0
 
 
-def test_add_user_xp_updates_store(client, mocker, mock_db, auth_headers):
+def test_add_user_xp_updates_store(client, mocker, mock_db, auth_csrf_headers):
     mocker.patch('src.routes.rewards_routes._get_db', return_value=mock_db)
     mocker.patch('src.routes.rewards_routes._get_user_rewards', return_value={'xp': 100})
 
     response = client.post(
         '/api/rewards/add-xp',
         json={'amount': 50, 'reason': 'test'},
-        headers=auth_headers
+        headers=auth_csrf_headers
     )
 
     assert response.status_code == 200
@@ -42,7 +42,7 @@ def test_add_user_xp_updates_store(client, mocker, mock_db, auth_headers):
     assert payload['newXp'] == 150
 
 
-def test_claim_reward_requires_enough_xp(client, mocker, auth_headers):
+def test_claim_reward_requires_enough_xp(client, mocker, auth_csrf_headers):
     mocker.patch('src.routes.rewards_routes._get_db', return_value=MagicMock())
     mocker.patch(
         'src.routes.rewards_routes._get_user_rewards',
@@ -52,14 +52,14 @@ def test_claim_reward_requires_enough_xp(client, mocker, auth_headers):
     response = client.post(
         '/api/rewards/claim',
         json={'reward_id': 'premium_week'},
-        headers=auth_headers
+        headers=auth_csrf_headers
     )
 
     assert response.status_code == 400
     assert 'Not enough XP' in response.get_json()['message']
 
 
-def test_claim_reward_success_updates_badges(client, mocker, mock_db, auth_headers):
+def test_claim_reward_success_updates_badges(client, mocker, mock_db, auth_csrf_headers):
     mocker.patch('src.routes.rewards_routes._get_db', return_value=mock_db)
     mocker.patch(
         'src.routes.rewards_routes._get_user_rewards',
@@ -69,7 +69,7 @@ def test_claim_reward_success_updates_badges(client, mocker, mock_db, auth_heade
     response = client.post(
         '/api/rewards/claim',
         json={'reward_id': 'custom_theme'},
-        headers=auth_headers
+        headers=auth_csrf_headers
     )
 
     assert response.status_code == 200

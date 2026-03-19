@@ -13,21 +13,13 @@ from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
+from src.utils.wellness_goals import ALLOWED_WELLNESS_GOALS, extract_and_validate_wellness_goals
 
 onboarding_bp = Blueprint('onboarding', __name__)
 logger = logging.getLogger(__name__)
 
-# Allowed wellness goals
-ALLOWED_GOALS: list[str] = [
-    'Hantera stress',
-    'Bättre sömn',
-    'Ökad fokusering',
-    'Mental klarhet',
-    'Ångesthantering',
-    'Självkänsla',
-    'Relationsstöd',
-    'Arbetsbalans'
-]
+# Allowed wellness goals (shared across backend routes)
+ALLOWED_GOALS: list[str] = list(ALLOWED_WELLNESS_GOALS)
 
 
 @onboarding_bp.route('/goals/<user_id>', methods=['OPTIONS'])
@@ -51,17 +43,11 @@ def save_user_goals(user_id: str):
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized to modify other users' goals")
 
-        data = request.get_json(silent=True) or {}
-        goals = data.get('goals', [])
-
-        if not goals or not isinstance(goals, list):
-            return APIResponse.bad_request("Goals array is required", "GOALS_REQUIRED")
-
-        # Validate goals against allowed list
-        validated_goals = [goal for goal in goals if goal in ALLOWED_GOALS]
-
-        if not validated_goals:
-            return APIResponse.bad_request("No valid goals provided", "NO_VALID_GOALS")
+        data = request.get_json(silent=True)
+        try:
+            validated_goals = extract_and_validate_wellness_goals(data, field_name='goals')
+        except ValueError as validation_error:
+            return APIResponse.bad_request(str(validation_error))
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
@@ -146,14 +132,11 @@ def update_user_goals(user_id: str):
         if current_user_id != user_id:
             return APIResponse.forbidden("Not authorized to modify other users' goals")
 
-        data = request.get_json(silent=True) or {}
-        goals = data.get('goals', [])
-
-        if not isinstance(goals, list):
-            return APIResponse.bad_request("Goals must be an array", "INVALID_FORMAT")
-
-        # Validate goals against allowed list
-        validated_goals = [goal for goal in goals if goal in ALLOWED_GOALS]
+        data = request.get_json(silent=True)
+        try:
+            validated_goals = extract_and_validate_wellness_goals(data, field_name='goals')
+        except ValueError as validation_error:
+            return APIResponse.bad_request(str(validation_error))
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)

@@ -2,7 +2,7 @@
 Comprehensive tests for subscription_routes.py
 Tests Stripe integration, subscription management, and payment flows.
 
-Uses conftest.py fixtures: client, mock_db, auth_headers.
+Uses conftest.py fixtures: client, mock_db, auth_csrf_headers.
 The conftest patches AuthService.jwt_required so that g.user_id = 'testuser1234567890ab'.
 """
 import pytest
