@@ -91,6 +91,7 @@ def create_mock_transaction(*args, **kwargs):
 
 mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
 mock_db.transaction = MagicMock(side_effect=create_mock_transaction)
+_shared_mock_db = mock_db
 
 
 def _ensure_shared_mock_db() -> MagicMock:
@@ -102,7 +103,7 @@ def _ensure_shared_mock_db() -> MagicMock:
 
     db_obj = getattr(firebase_module, 'db', None)
     if not hasattr(db_obj, 'reset_mock'):
-        db_obj = MagicMock()
+        db_obj = _shared_mock_db
 
     # Keep default behavior stable between tests
     db_obj.collection = MagicMock(side_effect=lambda name: create_mock_collection())
@@ -113,6 +114,15 @@ def _ensure_shared_mock_db() -> MagicMock:
     backend_firebase_module = sys.modules.get('Backend.src.firebase_config')
     if backend_firebase_module is not None:
         backend_firebase_module.db = db_obj
+
+    # Keep already-imported route/service modules wired to the same shared db object.
+    for module_name, module in list(sys.modules.items()):
+        if module is None:
+            continue
+        if not module_name.startswith(('src.routes.', 'src.services.', 'src.repositories.')):
+            continue
+        if hasattr(module, 'db'):
+            module.db = db_obj
 
     return db_obj
 
