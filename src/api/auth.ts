@@ -62,7 +62,9 @@ class CsrfTokenManager {
 
     try {
       const response = await api.get(API_ENDPOINTS.AUTH.CSRF_TOKEN);
-      const token = response.data.csrfToken as string;
+      // Backend wraps response: { success: true, data: { csrfToken: "..." } }
+      const responseData = response.data?.data || response.data;
+      const token = (responseData?.csrfToken || responseData?.csrf_token) as string;
       if (!token) {
         throw new AuthError("Invalid CSRF token response");
       }
@@ -186,10 +188,19 @@ export const registerUser = async (
   email: string,
   password: string,
   name?: string,
-  referralCode?: string
+  referralCode?: string,
+  acceptTerms: boolean = true,
+  acceptPrivacy: boolean = true
 ): Promise<RegisterResponse> => {
   try {
-    const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, { email, password, name, referralCode });
+    const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, {
+      email,
+      password,
+      name,
+      referral_code: referralCode || undefined,
+      accept_terms: acceptTerms,
+      accept_privacy: acceptPrivacy,
+    });
     // Backend returns: { success: true, message: "...", data: { user: {...}, referral?: {...} } }
     const responseData = response.data?.data || response.data;
 
@@ -382,7 +393,8 @@ export const setup2FA = async (): Promise<Record<string, unknown>> => {
     const response = await api.post(API_ENDPOINTS.AUTH.SETUP_2FA, {
       method: "totp"
     });
-    return response.data;
+    // Extract nested data from APIResponse wrapper { success, data, message }
+    return response.data?.data || response.data;
   } catch (error: unknown) {
     throw createAuthError(error, "2FA setup failed");
   }
