@@ -441,7 +441,7 @@ def like_message(message_id: str):
         liked_by = msg_data.get('liked_by', [])
 
         # Use Firestore ArrayUnion/ArrayRemove for atomic like/unlike
-        from google.cloud.firestore_v1 import ArrayUnion, ArrayRemove, Increment
+        from google.cloud.firestore_v1 import ArrayRemove, ArrayUnion, Increment
 
         if session_id in liked_by:
             # Atomic unlike

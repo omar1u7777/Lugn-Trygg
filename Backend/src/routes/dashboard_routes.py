@@ -10,9 +10,9 @@ from typing import Any
 
 from flask import Blueprint, current_app, g, make_response, request
 
+from ..config import COOKIE_SECURE
 from ..firebase_config import db
 from ..middleware.csrf_middleware import CSRF_COOKIE_NAME, CSRF_TTL_SECONDS
-from ..config import COOKIE_SECURE
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
