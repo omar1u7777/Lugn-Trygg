@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     firebase_api_key: str = Field(..., alias="FIREBASE_API_KEY")
     firebase_project_id: str = Field(..., alias="FIREBASE_PROJECT_ID")
     firebase_storage_bucket: str = Field(..., alias="FIREBASE_STORAGE_BUCKET")
-    firebase_credentials: str = Field(default="serviceAccountKey.json", alias="FIREBASE_CREDENTIALS")
+    firebase_credentials: str | None = Field(default=None, alias="FIREBASE_CREDENTIALS")
     firebase_credentials_path: str | None = Field(default=None, alias="FIREBASE_CREDENTIALS_PATH")
 
     # Stripe Configuration
@@ -102,10 +102,16 @@ class Settings(BaseSettings):
 
     @field_validator("firebase_credentials", mode="before")
     @classmethod
-    def validate_firebase_credentials(cls, v: Any) -> str:
+    def validate_firebase_credentials(cls, v: Any) -> str | None:
         """Validate and process Firebase credentials"""
+        if v is None:
+            return None
+
         if isinstance(v, str):
             v = v.strip()
+
+        if not v:
+            return None
 
         # Handle JSON string from environment variable
         if isinstance(v, str) and v.startswith("{"):
@@ -120,7 +126,7 @@ class Settings(BaseSettings):
                     "Check that the value is a valid service account payload."
                 ) from exc
 
-        return str(v) if v else "serviceAccountKey.json"
+        return str(v)
 
     @field_validator("cors_allowed_origins", mode="after")
     @classmethod
@@ -133,6 +139,11 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_settings(self) -> Settings:
         """Additional validation for production environment"""
+        if not self.firebase_credentials and not self.firebase_credentials_path:
+            raise ValueError(
+                "Either FIREBASE_CREDENTIALS_PATH or FIREBASE_CREDENTIALS must be set."
+            )
+
         if self.flask_env == "production":
             if not self.webauthn_rp_id or self.webauthn_rp_id == "localhost":
                 raise ValueError("WEBAUTHN_RP_ID is required for production environment")
@@ -153,6 +164,11 @@ class Settings(BaseSettings):
     @property
     def firebase_credentials_path_resolved(self) -> Path:
         """Get resolved path to Firebase credentials file"""
+        if not self.firebase_credentials:
+            raise FileNotFoundError(
+                "FIREBASE credentials are not configured. Set FIREBASE_CREDENTIALS_PATH or FIREBASE_CREDENTIALS."
+            )
+
         creds_path = Path(self.firebase_credentials)
 
         if creds_path.is_absolute():

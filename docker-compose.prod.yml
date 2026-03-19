@@ -42,12 +42,12 @@ services:
       FLASK_ENV: production
       PORT: 5001
       REDIS_URL: redis://redis:6379/0
-      FIREBASE_CREDENTIALS_PATH: /app/serviceAccountKey.json
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase_credentials.json
     env_file:
       - Backend/.env
     volumes:
       - backend_uploads:/app/uploads
-      - ./Backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - ${FIREBASE_CREDENTIALS_HOST_PATH:?Set FIREBASE_CREDENTIALS_HOST_PATH}:/run/secrets/firebase_credentials.json:ro
     depends_on:
       redis:
         condition: service_healthy

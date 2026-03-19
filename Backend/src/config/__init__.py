@@ -76,14 +76,19 @@ FIREBASE_API_KEY = get_env_variable("FIREBASE_API_KEY", required=True, hide_valu
 FIREBASE_PROJECT_ID = get_env_variable("FIREBASE_PROJECT_ID", required=True)
 FIREBASE_STORAGE_BUCKET = get_env_variable("FIREBASE_STORAGE_BUCKET", required=True)
 
-FIREBASE_CREDENTIALS_RAW = get_env_variable(
-    "FIREBASE_CREDENTIALS", "serviceAccountKey.json", required=True
-)
-FIREBASE_CREDENTIALS_RAW = str(FIREBASE_CREDENTIALS_RAW).strip()
+FIREBASE_CREDENTIALS_RAW = str(
+    get_env_variable("FIREBASE_CREDENTIALS", "", required=False)
+).strip()
 
 FIREBASE_CREDENTIALS_PATH_OVERRIDE = os.getenv("FIREBASE_CREDENTIALS_PATH")
 if FIREBASE_CREDENTIALS_PATH_OVERRIDE:
     FIREBASE_CREDENTIALS_RAW = FIREBASE_CREDENTIALS_PATH_OVERRIDE.strip()
+
+if not FIREBASE_CREDENTIALS_RAW:
+    raise ValueError(
+        "FIREBASE_CREDENTIALS_PATH or FIREBASE_CREDENTIALS must be set. "
+        "Refusing to start without explicit Firebase credentials source."
+    )
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 

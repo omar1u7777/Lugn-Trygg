@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    const hasInitializedRef = useRef(false);
    const navigate = useNavigate();
 
-  // ✅ Retrieve and validate token & user data on startup - FIXED: Proper loading state
+  // Restore user profile and try cookie-based refresh to recover in-memory access token.
   useEffect(() => {
     // Prevent multiple initialization attempts
     if (hasInitializedRef.current) {
@@ -45,21 +45,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const initializeAuth = async () => {
       try {
-        // Load token from secure storage
-        const storedToken = await tokenStorage.getAccessToken();
         const savedUserJson = await secureStorage.getItem('user');
         const userData = savedUserJson ? JSON.parse(savedUserJson) : null;
-        
-        if (storedToken && userData) {
-          // Valid session exists - restore it BEFORE marking as initialized
-          if ((import.meta as any).env?.DEV) {
-            logger.debug("✅ Token & user loaded from secure storage:", userData);
-          }
-          setTokenState(storedToken);
+
+        if (userData) {
           setUserState(userData);
+
+          const { refreshAccessToken } = await import('../api/auth');
+          const refreshedToken = await refreshAccessToken();
+
+          if (refreshedToken) {
+            setTokenState(refreshedToken);
+          } else {
+            // Cookie session no longer valid; clear stale local user profile.
+            setUserState(null);
+            await secureStorage.removeItem('user');
+          }
+
+          if ((import.meta as any).env?.DEV) {
+            logger.debug('✅ Auth initialization completed', { restoredUser: !!refreshedToken });
+          }
         }
       } catch (error) {
-        logger.error("❌ Failed to load token from secure storage:", error);
+        logger.error('❌ Failed to initialize auth state:', error);
       } finally {
         // Mark as initialized AFTER state has been set
         setTimeout(() => setIsInitialized(true), 0);

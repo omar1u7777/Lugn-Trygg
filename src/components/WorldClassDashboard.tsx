@@ -33,6 +33,7 @@ import { UsageLimitBanner } from './UsageLimitBanner';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
@@ -390,10 +391,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                     className="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800"
                   >
                     <span className="text-xl">
-                      {goal === t('worldDashboard.goals.stress') ? '🧘' :
-                        goal === t('worldDashboard.goals.sleep') ? '😴' :
-                          goal === t('worldDashboard.goals.focus') ? '🎯' :
-                            goal === t('worldDashboard.goals.clarity') ? '🧠' : '✨'}
+                      {getWellnessGoalIcon(goal)}
                     </span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {goal}

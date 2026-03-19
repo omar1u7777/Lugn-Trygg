@@ -59,7 +59,7 @@ class TestIntegrationRoutes:
         token_doc = mock_db.collection('oauth_tokens').document('testuserid123456789012_google_fit')
         token_doc.set.assert_called_once()
 
-    def test_oauth_status_connected(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_oauth_status_connected(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         token_doc = mock_db.collection('oauth_tokens').document('test-user-id_google_fit')
         token_doc.get.return_value = MagicMock(
             exists=True,
@@ -70,27 +70,27 @@ class TestIntegrationRoutes:
             }
         )
 
-        response = client.get('/api/integration/oauth/google_fit/status', headers=auth_headers)
+        response = client.get('/api/integration/oauth/google_fit/status', headers=auth_csrf_headers)
 
         assert response.status_code == 200
         data = response.get_json()
         assert data['data']['connected'] is True
         assert data['data']['provider'] == 'google_fit'
 
-    def test_toggle_auto_sync_persists_settings(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_toggle_auto_sync_persists_settings(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         integrations_doc = mock_db.collection('integrations').document('test-user-id')
         integrations_doc.get.return_value = MagicMock(exists=True, to_dict=lambda: {})
 
         response = client.post(
             '/api/integration/oauth/google_fit/auto-sync',
             json={'enabled': True, 'frequency': 'daily'},
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
 
         assert response.status_code == 200
         integrations_doc.set.assert_called()
 
-    def test_update_alert_settings(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_update_alert_settings(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         integrations_doc = mock_db.collection('integrations').document('test-user-id')
         integrations_doc.get.return_value = MagicMock(exists=True, to_dict=lambda: {})
 
@@ -102,7 +102,7 @@ class TestIntegrationRoutes:
         response = client.post(
             '/api/integration/health/alert-settings',
             json=payload,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
 
         assert response.status_code == 200
@@ -111,7 +111,7 @@ class TestIntegrationRoutes:
         assert data['data']['settings']['emailAlerts'] is True
         integrations_doc.set.assert_called()
 
-    def test_check_health_alerts_triggers_warning(self, client, auth_headers, mock_auth_service, mock_db, mocker):
+    def test_check_health_alerts_triggers_warning(self, client, auth_csrf_headers, mock_auth_service, mock_db, mocker):
         from types import SimpleNamespace
 
         integrations_doc = mock_db.collection('integrations').document('test-user-id')
@@ -134,7 +134,7 @@ class TestIntegrationRoutes:
                 'provider': 'fitbit',
                 'health_data': {'steps': 1500, 'heart_rate': 90, 'sleep_hours': 5}
             },
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
 
         assert response.status_code == 200

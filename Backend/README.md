@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 1. Copy `.env.example` to `.env`.
 2. Provide Firebase credentials — **one of**:
-   - Set `FIREBASE_CREDENTIALS_PATH` to the path of your `serviceAccountKey.json`
+    - Set `FIREBASE_CREDENTIALS_PATH` to an absolute path outside the repository
    - Set `FIREBASE_CREDENTIALS` to the raw JSON string (single line)
 3. Fill in required secrets:
 
@@ -65,7 +65,7 @@ pip install -r requirements.txt
 | `OPENAI_API_KEY` | AI | OpenAI API key |
 | `RESEND_API_KEY` | Email | Resend email service key |
 
-> **Never** commit `.env`, `serviceAccountKey.json`, or any credentials.
+> **Never** commit `.env`, service-account JSON files, or any credentials.
 
 ---
 
@@ -185,6 +185,44 @@ pytest -k test_login               # Run specific test
 - Use fixtures from `tests/conftest.py` for shared setup
 - See `tests/test_auth_routes.py` for the canonical mock pattern
 
+### Formal Live Firebase Auth Validation (Staging)
+
+Use this opt-in flow when you need evidence beyond mocked tests.
+
+Required environment variables:
+
+- `LIVE_FIREBASE_E2E=1`
+- `LIVE_BASE_URL=https://<staging-backend-domain>`
+- `LIVE_FIREBASE_EMAIL=<dedicated-test-account-email>`
+- `LIVE_FIREBASE_PASSWORD=<dedicated-test-account-password>`
+
+Run formal validation gate:
+
+```bash
+python scripts/run_live_auth_validation.py
+```
+
+Direct pytest invocation:
+
+```bash
+pytest live_tests/test_auth_live_firebase_e2e.py -m "live and e2e" -q
+```
+
+CI gate (manual/scheduled):
+
+- Workflow: `.github/workflows/live-auth-validation.yml`
+- Required GitHub secrets: `LIVE_BASE_URL`, `LIVE_FIREBASE_EMAIL`, `LIVE_FIREBASE_PASSWORD`
+- Evidence artifacts: `live-auth-validation-report.json`, `live-auth-validation.junit.xml`
+
+Pass criteria:
+
+- login succeeds against live Firebase
+- refresh token cookie is set with expected security attributes
+- `POST /api/v1/auth/refresh` fails with missing CSRF header and succeeds with valid CSRF header
+- refresh token rotates on refresh
+- logout with valid auth+CSRF succeeds
+- refresh is denied after logout
+
 ---
 
 ## Production Deployment
@@ -205,7 +243,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ### Environment Checklist
 
 - [ ] `FLASK_ENV=production`, `FLASK_DEBUG=0`
-- [ ] Firebase credentials via mounted file or `FIREBASE_CREDENTIALS` env var
+- [ ] Firebase credentials via external mounted file (`FIREBASE_CREDENTIALS_HOST_PATH`) or `FIREBASE_CREDENTIALS` env var
 - [ ] `REDIS_URL` set for production rate limiting
 - [ ] `STRIPE_WEBHOOK_SECRET` set for secure webhook verification
 - [ ] `CORS_ALLOWED_ORIGINS` restricted to production domains

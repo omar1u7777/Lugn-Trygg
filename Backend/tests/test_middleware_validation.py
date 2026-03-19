@@ -191,7 +191,7 @@ class TestValidationErrorFormats:
 class TestValidationWithRealRequests:
     """Test validation with real Flask requests"""
     
-    def test_mood_log_validation(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_log_validation(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test mood logging with validation"""
         # Valid mood data
         valid_data = {
@@ -202,13 +202,13 @@ class TestValidationWithRealRequests:
         response = client.post(
             '/api/mood/log',
             json=valid_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should validate and process
         assert response.status_code in [200, 201, 400, 404]
     
-    def test_mood_log_invalid_mood_value(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_log_invalid_mood_value(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test mood logging with invalid value"""
         invalid_data = {
             'mood': 'not_a_number',
@@ -218,14 +218,14 @@ class TestValidationWithRealRequests:
         response = client.post(
             '/api/mood/log',
             json=invalid_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # API accepts any mood value (flexible validation)
         # So 201 is valid alongside 400/404/422
         assert response.status_code in [201, 400, 404, 422]
     
-    def test_chatbot_message_validation(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_chatbot_message_validation(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test chatbot message validation"""
         valid_data = {
             'message': 'Hello, I need help'
@@ -234,18 +234,18 @@ class TestValidationWithRealRequests:
         response = client.post(
             '/api/chatbot/message',
             json=valid_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should validate (may return 429 if free plan usage limit reached)
         assert response.status_code in [200, 400, 404, 429]
     
-    def test_empty_request_body(self, client, auth_headers, mock_auth_service):
+    def test_empty_request_body(self, client, auth_csrf_headers, mock_auth_service):
         """Test validation with empty request body"""
         response = client.post(
             '/api/mood/log',
             json={},
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should return validation error for missing fields
@@ -276,7 +276,7 @@ class TestSecurityHeadersMiddleware:
 class TestInputSanitizationMiddleware:
     """Test input sanitization in middleware"""
     
-    def test_xss_prevention_in_mood_note(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_xss_prevention_in_mood_note(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test XSS prevention in mood notes"""
         xss_data = {
             'mood': 5,
@@ -286,13 +286,13 @@ class TestInputSanitizationMiddleware:
         response = client.post(
             '/api/mood/log',
             json=xss_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should sanitize or accept (sanitization happens in backend)
         assert response.status_code in [200, 201, 400, 404]
     
-    def test_sql_injection_prevention(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_sql_injection_prevention(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test SQL injection prevention"""
         sql_data = {
             'mood': 5,
@@ -302,17 +302,17 @@ class TestInputSanitizationMiddleware:
         response = client.post(
             '/api/mood/log',
             json=sql_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should sanitize or accept (using NoSQL so SQL injection not applicable)
         assert response.status_code in [200, 201, 400, 404]
     
-    def test_path_traversal_prevention(self, client, auth_headers, mock_auth_service):
+    def test_path_traversal_prevention(self, client, auth_csrf_headers, mock_auth_service):
         """Test path traversal prevention"""
         response = client.get(
             '/api/memory/../../etc/passwd',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Should not allow path traversal
@@ -362,12 +362,12 @@ class TestErrorHandlingMiddleware:
         # Reset mock
         mock_db.collection.side_effect = None
     
-    def test_json_decode_error(self, client, auth_headers):
+    def test_json_decode_error(self, client, auth_csrf_headers):
         """Test handling malformed JSON"""
         response = client.post(
             '/api/mood/log',
             data='{"invalid json}',
-            headers=auth_headers,
+            headers=auth_csrf_headers,
             content_type='application/json'
         )
         

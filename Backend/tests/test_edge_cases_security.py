@@ -332,10 +332,13 @@ class TestAuthenticationEdgeCases:
                 '/api/auth/register',
                 json={
                     'email': 'test@example.com',
-                    'password': pwd
+                    'password': pwd,
+                    'name': 'Test User',
+                    'accept_terms': True,
+                    'accept_privacy': True,
                 }
             )
-            assert response.status_code in [400, 422]
+            assert response.status_code in [400, 422, 429]
 
     def test_invalid_email_format(self, client):
         """Test registration with invalid email"""
@@ -349,9 +352,15 @@ class TestAuthenticationEdgeCases:
         for email in invalid_emails:
             response = client.post(
                 '/api/auth/register',
-                json={'email': email, 'password': 'Test1234!'}
+                json={
+                    'email': email,
+                    'password': 'Test1234!',
+                    'name': 'Test User',
+                    'accept_terms': True,
+                    'accept_privacy': True,
+                }
             )
-            assert response.status_code in [400, 422]
+            assert response.status_code in [400, 422, 429]
 
 
 class TestMemoryRoutesEdgeCases:

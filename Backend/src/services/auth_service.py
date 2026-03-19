@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 import logging
 import secrets
@@ -52,6 +53,7 @@ from ..config import (
     WEBAUTHN_RP_NAME,
 )
 from ..models.user import User
+from ..repositories import AuthRepository
 from ..services.audit_service import AuditService
 from ..utils.error_handling import (
     ValidationError,
@@ -80,7 +82,7 @@ def _mask_email(email: str) -> str:
 class AuthService:
     @staticmethod
     @handle_service_errors
-    def register_user(email: str, password: str) -> User:
+    def register_user(email: str, password: str, profile_data: dict[str, Any] | None = None) -> User:
         """
         Register a new user in Firebase Authentication
 
@@ -122,18 +124,38 @@ class AuthService:
                 "FIREBASE_ERROR"
             )
 
-        # Convert email to Punycode
+        # Convert email to Punycode and persist profile atomically with rollback
         punycode_email = convert_email_to_punycode(email)
-
-        # Save user data in Firestore
         user_data = {
             "email": email,
             "email_punycode": punycode_email,
             "created_at": datetime.now(UTC).isoformat(),
-            "last_login": None
+            "last_login": None,
         }
+        if profile_data:
+            user_data.update(profile_data)
 
-        _db.collection("users").document(firebase_user.uid).set(user_data)
+        try:
+            repo = AuthRepository()
+            repo.create_user_profile(str(firebase_user.uid), user_data)
+        except Exception as firestore_error:
+            logger.error(
+                "Firestore profile creation failed during registration, rolling back Firebase user %s: %s",
+                str(firebase_user.uid),
+                str(firestore_error),
+            )
+            try:
+                _auth.delete_user(firebase_user.uid)
+            except Exception as rollback_error:
+                logger.critical(
+                    "Registration rollback failed for Firebase user %s: %s",
+                    str(firebase_user.uid),
+                    str(rollback_error),
+                )
+            raise _ServiceError(
+                "Registrering misslyckades vid datalagring. Inga partiella konton skapades.",
+                "REGISTRATION_ATOMICITY_ERROR",
+            )
 
         user = User(uid=str(firebase_user.uid), email=str(email))
         logger.info(f"✅ User registered with UID: {firebase_user.uid}")
@@ -217,14 +239,12 @@ class AuthService:
             AuthService.reset_failed_attempts(email)
 
             # Generate tokens
-            access_token = AuthService.generate_access_token(user_uid)
-            refresh_token = AuthService.generate_refresh_token(user_uid)
+            access_token, refresh_token = AuthService.issue_session_tokens(user_uid)
 
-            # Store refresh token
-            _db.collection("refresh_tokens").document(user_uid).set({
-                "jwt_refresh_token": refresh_token,
-                "created_at": datetime.now(UTC).isoformat()
-            }, merge=True)
+            try:
+                AuthRepository().update_last_login(user_uid)
+            except Exception:
+                logger.warning("Failed to update last_login for user %s", user_uid)
 
             user = User(uid=str(user_uid), email=str(user_email))
             logger.info("Login successful for user: %s", str(user_uid).replace('\n', '').replace('\r', '')[:100])
@@ -302,17 +322,13 @@ class AuthService:
             if email:
                 AuthService.reset_failed_attempts(email)
 
-            # Generate JWT access token
-            access_token = AuthService.generate_access_token(user_id)
+            # Generate JWT access + refresh token session pair
+            access_token, refresh_token = AuthService.issue_session_tokens(user_id)
 
-            # Generate JWT refresh token
-            refresh_token = AuthService.generate_refresh_token(user_id)
-
-            # Save refresh token in Firestore
-            _db.collection("refresh_tokens").document(user_id).set({
-                "jwt_refresh_token": refresh_token,
-                "created_at": datetime.now(UTC).isoformat()
-            }, merge=True)
+            try:
+                AuthRepository().update_last_login(user_id)
+            except Exception:
+                logger.warning("Failed to update last_login for user %s", user_id)
 
             user = User(uid=str(user_record.uid), email=str(user_record.email))
             logger.info(f"✅ Login successful for user with UID: {user_record.uid}")
@@ -345,42 +361,8 @@ class AuthService:
 
     @staticmethod
     def refresh_token(user_id: str) -> tuple[str | None, str | None]:
-        """Renew access token using our own JWT refresh token"""
+        """Legacy helper kept for compatibility. Prefer rotate_refresh_token()."""
         try:
-            # Get our JWT refresh token from Firestore
-            refresh_doc = _db.collection("refresh_tokens").document(user_id).get()
-            if not refresh_doc.exists:
-                logger.warning(f"⛔ No refresh token found for UID: {user_id}")
-                return None, "Invalid refresh token"
-
-            refresh_data = refresh_doc.to_dict()
-            if not refresh_data:
-                logger.warning(f"⛔ Empty refresh token data for UID: {user_id}")
-                return None, "Invalid refresh token"
-
-            jwt_refresh_token = refresh_data.get("jwt_refresh_token")
-
-            if not jwt_refresh_token:
-                logger.warning(f"⛔ No JWT refresh token found for UID: {user_id}")
-                return None, "Invalid refresh token"
-
-            # Verify our JWT refresh token
-            try:
-                payload = jwt.decode(jwt_refresh_token, JWT_REFRESH_SECRET_KEY, algorithms=["HS256"])
-                token_user_id = payload.get("sub")
-
-                if token_user_id != user_id:
-                    logger.warning(f"⛔ Refresh token user_id mismatch: expected {user_id}, got {token_user_id}")
-                    return None, "Invalid refresh token"
-
-            except jwt.ExpiredSignatureError:
-                logger.warning("⛔ Refresh token has expired")
-                return None, "Refresh token has expired"
-            except jwt.InvalidTokenError as e:
-                logger.warning(f"⛔ Invalid refresh token: {str(e)}")
-                return None, "Invalid refresh token"
-
-            # Generate a new JWT access token
             new_access_token = AuthService.generate_access_token(user_id)
 
             logger.info(f"✅ Access token renewed for user: {user_id}")
@@ -412,10 +394,138 @@ class AuthService:
         }, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
-    def logout(user_id: str) -> tuple[str | None, str | None]:
+    def _decode_refresh_token(refresh_token: str, verify_exp: bool = True) -> dict[str, Any]:
+        return jwt.decode(
+            refresh_token,
+            JWT_REFRESH_SECRET_KEY,
+            algorithms=["HS256"],
+            options={"verify_exp": verify_exp},
+        )
+
+    @staticmethod
+    def _refresh_expiry_from_payload(payload: dict[str, Any]) -> datetime:
+        exp = payload.get("exp")
+        if isinstance(exp, (int, float)):
+            return datetime.fromtimestamp(exp, UTC)
+        if isinstance(exp, datetime):
+            return exp.astimezone(UTC)
+        raise ValueError("Refresh token saknar giltig exp-claim")
+
+    @staticmethod
+    def issue_session_tokens(user_id: str) -> tuple[str, str]:
+        """Issue access + refresh token and persist hashed refresh session."""
+        refresh_token = AuthService.generate_refresh_token(user_id)
+        payload = AuthService._decode_refresh_token(refresh_token, verify_exp=False)
+        jti = str(payload.get("jti", ""))
+        if not jti:
+            raise ValueError("Refresh token saknar jti")
+
+        expires_at = AuthService._refresh_expiry_from_payload(payload)
+        AuthRepository().store_refresh_session(user_id, jti, refresh_token, expires_at)
+        access_token = AuthService.generate_access_token(user_id)
+        return access_token, refresh_token
+
+    @staticmethod
+    def _validate_refresh_session(refresh_token: str) -> tuple[str | None, str | None, dict[str, Any] | None, str | None]:
+        """Validate refresh token against JWT claims, blacklist and stored hashed session."""
+        try:
+            payload = AuthService._decode_refresh_token(refresh_token)
+        except jwt.ExpiredSignatureError:
+            return None, None, None, "Refresh token has expired"
+        except jwt.InvalidTokenError:
+            return None, None, None, "Invalid refresh token"
+
+        user_id = str(payload.get("sub", "")).strip()
+        jti = str(payload.get("jti", "")).strip()
+        if not user_id or not jti:
+            return None, None, None, "Invalid refresh token"
+
+        repo = AuthRepository()
+        if repo.is_refresh_jti_blacklisted(jti):
+            return None, None, None, "Refresh token has been revoked"
+
+        session = repo.get_refresh_session(user_id, jti)
+        if not session:
+            return None, None, None, "Refresh token session not found"
+
+        if bool(session.get("revoked")):
+            return None, None, None, "Refresh token has been revoked"
+
+        expected_hash = str(session.get("token_hash", ""))
+        actual_hash = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+        if not expected_hash or not hmac.compare_digest(expected_hash, actual_hash):
+            try:
+                expires_at = AuthService._refresh_expiry_from_payload(payload)
+                repo.blacklist_refresh_jti(user_id, jti, expires_at, "token_hash_mismatch")
+                repo.revoke_all_user_sessions(user_id, "token_hash_mismatch")
+            except Exception:
+                logger.warning("Failed to apply defensive revocation for user %s", user_id)
+            return None, None, None, "Refresh token has been revoked"
+
+        return user_id, jti, payload, None
+
+    @staticmethod
+    def rotate_refresh_token(refresh_token: str) -> tuple[dict[str, str] | None, str | None]:
+        """Rotate refresh token and return a new access+refresh pair."""
+        try:
+            user_id, old_jti, old_payload, error = AuthService._validate_refresh_session(refresh_token)
+            if error or not user_id or not old_jti or not old_payload:
+                return None, error or "Invalid refresh token"
+
+            repo = AuthRepository()
+            old_expiry = AuthService._refresh_expiry_from_payload(old_payload)
+            repo.blacklist_refresh_jti(user_id, old_jti, old_expiry, "rotated")
+            repo.revoke_refresh_session(user_id, old_jti, "rotated")
+
+            new_access_token, new_refresh_token = AuthService.issue_session_tokens(user_id)
+            return {
+                "user_id": user_id,
+                "access_token": new_access_token,
+                "refresh_token": new_refresh_token,
+            }, None
+        except Exception as e:
+            logger.exception("Refresh rotation failed: %s", str(e))
+            return None, "Internal error during token refresh"
+
+    @staticmethod
+    def revoke_refresh_token(refresh_token: str, reason: str = "logout") -> tuple[bool, str | None]:
+        """Revoke a specific refresh token and blacklist its jti."""
+        try:
+            user_id, jti, payload, error = AuthService._validate_refresh_session(refresh_token)
+            if error or not user_id or not jti or not payload:
+                return False, error or "Invalid refresh token"
+
+            repo = AuthRepository()
+            expiry = AuthService._refresh_expiry_from_payload(payload)
+            repo.blacklist_refresh_jti(user_id, jti, expiry, reason)
+            repo.revoke_refresh_session(user_id, jti, reason)
+            return True, None
+        except Exception as e:
+            logger.exception("Refresh token revocation failed: %s", str(e))
+            return False, "Internal error during token revocation"
+
+    @staticmethod
+    def revoke_all_sessions(user_id: str, reason: str = "security_event") -> tuple[bool, str | None]:
+        """Revoke all active refresh sessions for a user."""
+        try:
+            AuthRepository().revoke_all_user_sessions(user_id, reason)
+            return True, None
+        except Exception as e:
+            logger.exception("Failed to revoke all sessions for user %s: %s", user_id, str(e))
+            return False, "Internal error during session revocation"
+
+    @staticmethod
+    def logout(user_id: str, refresh_token: str | None = None) -> tuple[str | None, str | None]:
         """Remove refresh token on logout"""
         try:
-            _db.collection("refresh_tokens").document(user_id).delete()
+            if refresh_token:
+                _, revoke_error = AuthService.revoke_refresh_token(refresh_token, reason="logout")
+                if revoke_error:
+                    logger.warning("Targeted refresh token revoke failed for user %s: %s", user_id, revoke_error)
+                    AuthRepository().revoke_all_user_sessions(user_id, "logout_fallback")
+            else:
+                AuthRepository().revoke_all_user_sessions(user_id, "logout")
+
             logger.info(f"✅ User with UID: {user_id} has been logged out successfully.")
 
             # Audit log

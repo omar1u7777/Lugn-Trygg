@@ -24,6 +24,7 @@ import {
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { Recommendation, RecommendationsProps } from '../types/recommendation';
 import { RECOMMENDATIONS_POOL, muscleGroups, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
+import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { useBreathingExercise } from '../hooks/useBreathingExercise';
 import { useKBTExercise } from '../hooks/useKBTExercise';
 import { usePMR } from '../hooks/usePMR';
@@ -1395,10 +1396,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   key={goal}
                   className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
                 >
-                  {goal === 'Hantera stress' ? '🧘' :
-                    goal === 'Bättre sömn' ? '😴' :
-                      goal === 'Ökad fokusering' ? '🎯' :
-                        goal === 'Mental klarhet' ? '🧠' : '✨'} {goal}
+                  {getWellnessGoalIcon(goal)} {goal}
                 </span>
               ))}
             </div>

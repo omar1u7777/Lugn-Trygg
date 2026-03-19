@@ -277,7 +277,8 @@ def test_login_user(client, mock_firebase_auth, mock_firestore, test_user):
         assert "Login successful" in data["message"]
         assert "data" in data
         assert "accessToken" in data["data"]
-        assert "refreshToken" in data["data"]
+        assert "refreshToken" not in data["data"]
+        assert 'refresh_token=' in response.headers.get('Set-Cookie', '')
 
 # 🔹 Testa token-uppdatering
 def test_refresh_token(client, mock_firebase_auth, mock_firestore, login_data):
@@ -302,7 +303,16 @@ def test_store_mood(client, mock_firebase_auth, mock_firestore, login_data):
 def test_logout(client, mock_firebase_auth, mock_firestore, login_data):
     """Testar utloggning med ett giltigt access-token."""
     access_token = login_data["data"]["access_token"]
-    response = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {access_token}"})
+    csrf_response = client.get('/api/dashboard/csrf-token')
+    csrf_token = csrf_response.get_json()["data"]["csrfToken"]
+
+    response = client.post(
+        "/api/auth/logout",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "X-CSRF-Token": csrf_token,
+        },
+    )
     assert response.status_code == 200, f"Fel statuskod: {response.status_code}"
     assert "Logged out successfully" in response.get_json()["message"]
 

@@ -3,7 +3,7 @@
 import base64
 
 
-def test_transcribe_audio_succeeds(client, auth_headers, mock_auth_service, mocker):
+def test_transcribe_audio_succeeds(client, auth_csrf_headers, mock_auth_service, mocker):
     mocker.patch('src.routes.voice_routes.transcribe_audio_google', return_value='Hej världen')
     mocker.patch('src.routes.voice_routes.audit_log')  # Mock audit_log
     audio_payload = base64.b64encode(b'test-bytes').decode('utf-8')
@@ -11,7 +11,7 @@ def test_transcribe_audio_succeeds(client, auth_headers, mock_auth_service, mock
     response = client.post(
         '/api/voice/transcribe',
         json={'audio_data': audio_payload, 'language': 'sv-SE'},
-        headers=auth_headers,
+        headers=auth_csrf_headers,
     )
 
     assert response.status_code == 200
@@ -22,11 +22,11 @@ def test_transcribe_audio_succeeds(client, auth_headers, mock_auth_service, mock
     assert data['data']['language'] == 'sv-SE'
 
 
-def test_transcribe_audio_handles_invalid_base64(client, auth_headers, mock_auth_service):
+def test_transcribe_audio_handles_invalid_base64(client, auth_csrf_headers, mock_auth_service):
     response = client.post(
         '/api/voice/transcribe',
         json={'audio_data': '!!!notbase64!!!'},
-        headers=auth_headers,
+        headers=auth_csrf_headers,
     )
 
     assert response.status_code == 400
@@ -35,7 +35,7 @@ def test_transcribe_audio_handles_invalid_base64(client, auth_headers, mock_auth
     assert 'Invalid base64 audio data' in data['message']
 
 
-def test_analyze_voice_emotion_combines_audio_and_text(client, auth_headers, mock_auth_service, mocker):
+def test_analyze_voice_emotion_combines_audio_and_text(client, auth_csrf_headers, mock_auth_service, mocker):
     mocker.patch('src.routes.voice_routes.analyze_audio_features', return_value={
         'energy_level': 'high',
         'pace': 'fast',
@@ -56,7 +56,7 @@ def test_analyze_voice_emotion_combines_audio_and_text(client, auth_headers, moc
         'transcript': 'Jag känner mig glad'
     }
 
-    response = client.post('/api/voice/analyze-emotion', json=payload, headers=auth_headers)
+    response = client.post('/api/voice/analyze-emotion', json=payload, headers=auth_csrf_headers)
 
     assert response.status_code == 200
     body = response.get_json()
