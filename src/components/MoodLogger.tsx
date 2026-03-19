@@ -82,9 +82,10 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       const moodText = moodObj?.label || 'Neutral';
       const trimmedNote = note.trim();
 
-      // Log mood to backend with text and score
+      // Log mood to backend with text, score and mood_text label
       await logMood(user.user_id, {
         score: selectedMood,
+        mood_text: moodText,
         note: trimmedNote || `Känner mig ${moodText.toLowerCase()}`,
       });
 
@@ -158,15 +159,8 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             moodText = moodText || 'Humör';
           }
           
-          // Fallback to translating score to mood label if no text
-          if (!moodText) {
-            const score = typeof mood.score === 'number' ? mood.score : 0;
-            if (score >= 8) moodText = 'Glad';
-            else if (score >= 6) moodText = 'Bra';
-            else if (score >= 4) moodText = 'Neutral';
-            else if (score >= 2) moodText = 'Orolig';
-            else moodText = 'Ledsen';
-          }
+          // Derive proper label from score when text is generic 'neutral' or missing
+          // This fixes legacy moods that were stored with 'neutral' regardless of score
 
           // Get score - handle different possible field names
           let score = 0;
@@ -178,6 +172,15 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           }
           // Clamp to 0-10 range
           score = Math.max(0, Math.min(10, score));
+
+          if (!moodText || moodText.toLowerCase() === 'neutral') {
+            if (score >= 9) moodText = 'Super';
+            else if (score >= 7) moodText = 'Glad';
+            else if (score >= 5) moodText = 'Bra';
+            else if (score >= 4) moodText = 'Neutral';
+            else if (score >= 2) moodText = 'Orolig';
+            else moodText = 'Ledsen';
+          }
 
           return {
             id: mood.id || mood.docId,

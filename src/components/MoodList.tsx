@@ -518,15 +518,17 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
           <div className="overflow-y-auto pr-2" style={inline ? {} : { flex: 1 }}>
             <div className="space-y-4">
               {filteredMoods.map((mood, index) => {
-                // Get the best available mood text, handle encrypted data
+                // Get the best available mood text, handle encrypted data and generic 'neutral'
                 let displayMood = mood.mood_text || 'neutral';
                 
                 // Check if mood text is encrypted (starts with U2FsdGVk)
-                if (displayMood.startsWith('U2FsdGVk')) {
-                  // Fallback to score-based label if encrypted
+                // Also fix legacy moods that were stored with generic 'neutral' regardless of score
+                if (displayMood.startsWith('U2FsdGVk') || displayMood.toLowerCase() === 'neutral') {
+                  // Derive label from score
                   const s = mood.score ?? 5;
-                  if (s >= 8) displayMood = 'Glad';
-                  else if (s >= 6) displayMood = 'Bra';
+                  if (s >= 9) displayMood = 'Super';
+                  else if (s >= 7) displayMood = 'Glad';
+                  else if (s >= 5) displayMood = 'Bra';
                   else if (s >= 4) displayMood = 'Neutral';
                   else if (s >= 2) displayMood = 'Orolig';
                   else displayMood = 'Ledsen';

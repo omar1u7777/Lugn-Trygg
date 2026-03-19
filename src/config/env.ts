@@ -40,72 +40,57 @@ declare global {
   }
 }
 
-// Store import.meta.env reference during Vite build
-// This avoids the parse-time syntax error in Jest
-let viteEnv: Partial<Record<SupportedEnvKeys, string>> | null = null;
-
-const getViteEnv = (): Partial<Record<SupportedEnvKeys, string>> => {
-  if (viteEnv !== null) {
-    return viteEnv;
-  }
-
-  const env: Partial<Record<SupportedEnvKeys, string>> = {};
+// Helper: read a single key from import.meta.env.
+// Uses explicit property access so Vite's source transform can detect each
+// reference.  The previous dynamic-iteration approach (metaEnv[key]) was
+// unreliable because Vite's dev-server transform sometimes failed to
+// recognise the access, returning undefined for every key.
+const readViteKey = (key: SupportedEnvKeys): string | undefined => {
   try {
-    // This gets executed only at runtime in Vite environment
-    // In Jest, this entire code path is skipped due to NODE_ENV check below
-    // The import.meta syntax is only evaluated by Vite's transform, not Babel
-    if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
-      // Use Function constructor to avoid syntax parsing in Jest
-       
-      const getMetaEnv = new Function('return typeof import !== "undefined" ? import.meta?.env : {}');
-      const metaEnv = getMetaEnv() || {};
-      
-      (Object.keys(DEFAULTS) as SupportedEnvKeys[]).forEach((key) => {
-        if (metaEnv[key]) {
-          env[key] = metaEnv[key];
-        }
-      });
+    // In test environments import.meta.env is unavailable.
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+      return undefined;
     }
-  } catch (e) {
-    // Safely fail in any environment
+    // Explicit map so Vite statically replaces each reference:
+    switch (key) {
+      case 'VITE_BACKEND_URL':                   return import.meta.env.VITE_BACKEND_URL;
+      case 'VITE_FIREBASE_API_KEY':              return import.meta.env.VITE_FIREBASE_API_KEY;
+      case 'VITE_FIREBASE_AUTH_DOMAIN':          return import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+      case 'VITE_FIREBASE_PROJECT_ID':           return import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      case 'VITE_FIREBASE_STORAGE_BUCKET':       return import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
+      case 'VITE_FIREBASE_MESSAGING_SENDER_ID':  return import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID;
+      case 'VITE_FIREBASE_APP_ID':               return import.meta.env.VITE_FIREBASE_APP_ID;
+      case 'VITE_FIREBASE_MEASUREMENT_ID':       return import.meta.env.VITE_FIREBASE_MEASUREMENT_ID;
+      case 'VITE_FIREBASE_VAPID_KEY':            return import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      case 'VITE_ENCRYPTION_KEY':                return import.meta.env.VITE_ENCRYPTION_KEY;
+      case 'VITE_DASHBOARD_HERO_PUBLIC_ID':      return import.meta.env.VITE_DASHBOARD_HERO_PUBLIC_ID;
+      case 'VITE_WELLNESS_HERO_PUBLIC_ID':       return import.meta.env.VITE_WELLNESS_HERO_PUBLIC_ID;
+      case 'VITE_JOURNAL_HERO_PUBLIC_ID':        return import.meta.env.VITE_JOURNAL_HERO_PUBLIC_ID;
+      case 'VITE_ONBOARDING_HERO_PUBLIC_ID':     return import.meta.env.VITE_ONBOARDING_HERO_PUBLIC_ID;
+      default:                                   return undefined;
+    }
+  } catch {
+    return undefined;
   }
-
-  viteEnv = env;
-  return env;
 };
 
-const runtimeEnv: Partial<Record<SupportedEnvKeys, string>> = (() => {
-  // First priority: window.__APP_ENV__ (for SSR/production)
-  if (typeof window !== 'undefined' && window.__APP_ENV__) {
-    return window.__APP_ENV__;
-  }
-
-  // Second priority: import.meta.env (for Vite development)
-  if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
-    const vite = getViteEnv();
-    if (Object.keys(vite).length > 0) {
-      return vite;
-    }
-  }
-
-  // Third priority: process.env (for Node.js/tests)
-  if (typeof process !== 'undefined' && process.env) {
-    const env: Partial<Record<SupportedEnvKeys, string>> = {};
-    (Object.keys(DEFAULTS) as SupportedEnvKeys[]).forEach((key) => {
-      const value = process.env[key];
-      if (value) {
-        env[key] = value;
-      }
-    });
-    return env;
-  }
-
-  return {};
-})();
-
 export const getEnvValue = (key: SupportedEnvKeys): string | undefined => {
-  const value = runtimeEnv[key];
-  return value ?? DEFAULTS[key];
+  // 1. window.__APP_ENV__ (runtime injection for SSR / production)
+  if (typeof window !== 'undefined' && window.__APP_ENV__?.[key]) {
+    return window.__APP_ENV__[key];
+  }
+
+  // 2. import.meta.env (Vite dev & build – explicit per-key access)
+  const viteVal = readViteKey(key);
+  if (viteVal) return viteVal;
+
+  // 3. process.env (Node / tests)
+  if (typeof process !== 'undefined' && process.env?.[key]) {
+    return process.env[key];
+  }
+
+  // 4. Coded defaults (e.g. VITE_BACKEND_URL → localhost:5001)
+  return DEFAULTS[key];
 };
 
 // ✅ Validation: Ensure critical environment variables are set
@@ -186,7 +171,8 @@ let _generatedFallbackKey: string | null = null;
 
 export const getEncryptionKey = (): string => {
   const key = getEnvValue('VITE_ENCRYPTION_KEY');
-  if (key && key !== 'your-encryption-key-here') {
+  // Reject common placeholder patterns
+  if (key && key !== 'your-encryption-key-here' && !key.startsWith('your-')) {
     return key;
   }
 
