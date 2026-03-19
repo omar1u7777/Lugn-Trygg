@@ -18,7 +18,9 @@ const RegisterForm: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string }>({});
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string; terms?: string }>({});
   
   // ✅ Använd custom hooks
   const { 
@@ -86,10 +88,16 @@ const RegisterForm: React.FC = () => {
       return;
     }
 
+    if (!acceptTerms || !acceptPrivacy) {
+      setValidationErrors(prev => ({ ...prev, terms: "Du måste acceptera villkoren och integritetspolicyn." }));
+      announceToScreenReader("Du måste acceptera villkoren och integritetspolicyn.", "assertive");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await registerUser(email, password, name, referralCode);
+      const response = await registerUser(email, password, name, referralCode, acceptTerms, acceptPrivacy);
       
       // Check if referral was successful
       if (response.referral?.success) {
@@ -318,6 +326,45 @@ const RegisterForm: React.FC = () => {
             </div>
             {validationErrors.confirmPassword && (
               <p id="confirm-password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          {/* Terms & Privacy checkboxes */}
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                disabled={loading}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                aria-describedby={validationErrors.terms ? "terms-error" : undefined}
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Jag accepterar{" "}
+                <Link to="/terms" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
+                  användarvillkoren
+                </Link>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptPrivacy}
+                onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                disabled={loading}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                aria-describedby={validationErrors.terms ? "terms-error" : undefined}
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Jag accepterar{" "}
+                <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
+                  integritetspolicyn
+                </Link>
+              </span>
+            </label>
+            {validationErrors.terms && (
+              <p id="terms-error" className="text-sm text-error-600 dark:text-error-400">{validationErrors.terms}</p>
             )}
           </div>
 

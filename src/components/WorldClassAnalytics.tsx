@@ -95,7 +95,7 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      const [moodsData, _weeklyAnalysisData] = await Promise.all([
+      let [moodsData, _weeklyAnalysisData] = await Promise.all([
         getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
       ]);
