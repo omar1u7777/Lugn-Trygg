@@ -1,0 +1,109 @@
+name: Live Auth Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: GitHub environment for protected secrets
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      base_url:
+        description: Optional backend base URL override
+        required: false
+        type: string
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  live-auth-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment || 'staging' }}
+    defaults:
+      run:
+        working-directory: ./Backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Resolve base URL
+        env:
+          BASE_URL_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || '' }}
+          BASE_URL_SECRET: ${{ secrets.LIVE_BASE_URL }}
+        run: |
+          if [ -n "$BASE_URL_INPUT" ]; then
+            echo "LIVE_BASE_URL=$BASE_URL_INPUT" >> "$GITHUB_ENV"
+          else
+            echo "LIVE_BASE_URL=$BASE_URL_SECRET" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run live Firebase auth gate
+        env:
+          LIVE_FIREBASE_E2E: '1'
+          LIVE_FIREBASE_EMAIL: ${{ secrets.LIVE_FIREBASE_EMAIL }}
+          LIVE_FIREBASE_PASSWORD: ${{ secrets.LIVE_FIREBASE_PASSWORD }}
+          LIVE_AUTH_REPORT_PATH: reports/live-auth-validation-report.json
+          LIVE_AUTH_JUNIT_PATH: reports/live-auth-validation.junit.xml
+        run: python scripts/run_live_auth_validation.py
+
+      - name: Upload live auth evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-auth-validation-artifacts
+          path: |
+            Backend/reports/live-auth-validation-report.json
+            Backend/reports/live-auth-validation.junit.xml
+          retention-days: 30
+
+      - name: Publish validation summary
+        if: always()
+        run: |
+          STEP_SUMMARY="$GITHUB_STEP_SUMMARY"
+          if [ ! -f reports/live-auth-validation-report.json ]; then
+            echo "## Live auth validation" >> "$STEP_SUMMARY"
+            echo "- Report file not generated" >> "$STEP_SUMMARY"
+            exit 0
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path("reports/live-auth-validation-report.json").read_text(encoding="utf-8"))
+          lines = [
+              "## Live auth validation",
+              f"- Status: {report.get('status', 'unknown')}",
+              f"- Exit code: {report.get('exit_code')}",
+              f"- Base URL: {report.get('base_url', 'missing')}",
+              f"- Git SHA: {report.get('git_sha', 'missing')}",
+              "",
+              "### Checks",
+          ]
+
+          for check in report.get("checks", []):
+              lines.append(f"- {check.get('name', 'unknown')}: {check.get('status', 'unknown')} ({check.get('details', '')})")
+
+          summary_path = Path(os.environ["STEP_SUMMARY"])
+          summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
