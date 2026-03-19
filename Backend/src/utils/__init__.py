@@ -4,7 +4,7 @@ import idna
 
 def mask_email(email: str) -> str:
     """Mask email for safe logging and audit trails: user@example.com -> u***@example.com
-    
+
     GDPR compliant: prevents raw PII from being stored in audit logs.
     """
     if not email or '@' not in email:

@@ -307,10 +307,6 @@ def export_user_data(user_id: str):
         logger.info(f"  ✓ {len(sync_entries)} sync history entries collected")
 
         # 17. Peer Chat Messages
-        if FieldFilter is not None:
-            peer_msgs_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', user_id))
-        else:
-            peer_msgs_query = db.collection('peer_chat_messages')
         # Peer chat messages are keyed by session_id, not user_id — collect via presence
         if FieldFilter is not None:
             presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
