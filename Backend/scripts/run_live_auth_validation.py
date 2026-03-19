@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -71,14 +72,28 @@ def _check_environment() -> tuple[bool, list[str]]:
 def _check_backend_reachable(base_url: str) -> tuple[bool, str]:
     _print_step("check", f"probing backend health at {base_url}")
     urls = [f"{base_url}/api/health", f"{base_url}/api/v1/health"]
-    for url in urls:
-        try:
-            response = requests.get(url, timeout=10)
-            if response.status_code < 500:
-                _print_step("ok", f"backend reachable via {url} (status {response.status_code})")
-                return True, url
-        except requests.RequestException:
-            continue
+    attempts = 6
+
+    for attempt in range(1, attempts + 1):
+        for url in urls:
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code < 500:
+                    _print_step("ok", f"backend reachable via {url} (status {response.status_code})")
+                    return True, url
+                _print_step(
+                    "retry",
+                    f"health probe attempt {attempt}/{attempts} got {response.status_code} for {url}",
+                )
+            except requests.RequestException as exc:
+                _print_step(
+                    "retry",
+                    f"health probe attempt {attempt}/{attempts} failed for {url}: {type(exc).__name__}",
+                )
+
+        if attempt < attempts:
+            sleep_seconds = min(5 * attempt, 20)
+            time.sleep(sleep_seconds)
 
     _print_step("fail", "backend health probe failed on both /api/health and /api/v1/health")
     return False, "unreachable"
