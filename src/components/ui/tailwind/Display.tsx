@@ -173,10 +173,35 @@ Skeleton.displayName = 'Skeleton';
 interface DividerProps extends React.HTMLAttributes<HTMLDivElement> {
   orientation?: 'horizontal' | 'vertical';
   variant?: 'solid' | 'dashed';
+  children?: React.ReactNode;
 }
 
 export const Divider = React.forwardRef<HTMLDivElement, DividerProps>(
-  ({ className, orientation = 'horizontal', variant = 'solid', ...props }, ref) => {
+  ({ className, orientation = 'horizontal', variant = 'solid', children, ...props }, ref) => {
+    if (children) {
+      return (
+        <div
+          ref={ref}
+          className={cn('flex items-center gap-4', className)}
+          {...props}
+        >
+          <div
+            className={cn(
+              'flex-1 bg-gray-300 dark:bg-gray-600',
+              orientation === 'horizontal' ? 'h-px' : 'w-px'
+            )}
+          />
+          {children}
+          <div
+            className={cn(
+              'flex-1 bg-gray-300 dark:bg-gray-600',
+              orientation === 'horizontal' ? 'h-px' : 'w-px'
+            )}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         ref={ref}
