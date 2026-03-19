@@ -219,10 +219,11 @@ def _block_invalid_paths():
     return None
 
 # Rate limiting - optimized for 10k concurrent users during load testing
+_testing_mode = os.getenv("TESTING", "").lower() == "true"
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["5000 per day", "1000 per hour", "300 per minute"],
+    default_limits=[] if _testing_mode else ["5000 per day", "1000 per hour", "300 per minute"],
     storage_uri=os.getenv("REDIS_URL", "memory://")
 )
 
