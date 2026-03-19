@@ -57,16 +57,16 @@ def mock_sync_db(mock_db):
 class TestListSyncHistory:
     """Tests for GET /api/sync-history/list"""
 
-    def test_list_history(self, client, auth_headers, mock_sync_db):
-        resp = client.get(f"{BASE}/list", headers=auth_headers)
+    def test_list_history(self, client, auth_csrf_headers, mock_sync_db):
+        resp = client.get(f"{BASE}/list", headers=auth_csrf_headers)
         assert resp.status_code == 200
 
-    def test_list_with_provider_filter(self, client, auth_headers, mock_sync_db):
-        resp = client.get(f"{BASE}/list?provider=google_fit", headers=auth_headers)
+    def test_list_with_provider_filter(self, client, auth_csrf_headers, mock_sync_db):
+        resp = client.get(f"{BASE}/list?provider=google_fit", headers=auth_csrf_headers)
         assert resp.status_code == 200
 
-    def test_list_with_days(self, client, auth_headers, mock_sync_db):
-        resp = client.get(f"{BASE}/list?days=30", headers=auth_headers)
+    def test_list_with_days(self, client, auth_csrf_headers, mock_sync_db):
+        resp = client.get(f"{BASE}/list?days=30", headers=auth_csrf_headers)
         assert resp.status_code == 200
 
     def test_list_no_auth(self, client, mock_sync_db):
@@ -77,7 +77,7 @@ class TestListSyncHistory:
 class TestLogSync:
     """Tests for POST /api/sync-history/log"""
 
-    def test_log_sync_success(self, client, auth_headers, mock_sync_db):
+    def test_log_sync_success(self, client, auth_csrf_headers, mock_sync_db):
         resp = client.post(
             f"{BASE}/log",
             json={
@@ -86,31 +86,31 @@ class TestLogSync:
                 "data_types": ["steps"],
                 "record_count": 100,
             },
-            headers=auth_headers,
+            headers=auth_csrf_headers,
         )
         assert resp.status_code in (200, 201)
 
-    def test_log_sync_missing_provider(self, client, auth_headers, mock_sync_db):
+    def test_log_sync_missing_provider(self, client, auth_csrf_headers, mock_sync_db):
         resp = client.post(
             f"{BASE}/log",
             json={"status": "success"},
-            headers=auth_headers,
+            headers=auth_csrf_headers,
         )
         assert resp.status_code == 400
 
-    def test_log_sync_missing_status(self, client, auth_headers, mock_sync_db):
+    def test_log_sync_missing_status(self, client, auth_csrf_headers, mock_sync_db):
         resp = client.post(
             f"{BASE}/log",
             json={"provider": "fitbit"},
-            headers=auth_headers,
+            headers=auth_csrf_headers,
         )
         assert resp.status_code == 400
 
-    def test_log_sync_invalid_status(self, client, auth_headers, mock_sync_db):
+    def test_log_sync_invalid_status(self, client, auth_csrf_headers, mock_sync_db):
         resp = client.post(
             f"{BASE}/log",
             json={"provider": "fitbit", "status": "unknown_status"},
-            headers=auth_headers,
+            headers=auth_csrf_headers,
         )
         assert resp.status_code in (400, 200)
 
@@ -118,19 +118,19 @@ class TestLogSync:
 class TestSyncStats:
     """Tests for GET /api/sync-history/stats"""
 
-    def test_stats(self, client, auth_headers, mock_sync_db):
-        resp = client.get(f"{BASE}/stats", headers=auth_headers)
+    def test_stats(self, client, auth_csrf_headers, mock_sync_db):
+        resp = client.get(f"{BASE}/stats", headers=auth_csrf_headers)
         assert resp.status_code == 200
 
 
 class TestRetrySync:
     """Tests for POST /api/sync-history/retry/<sync_id>"""
 
-    def test_retry_failed_sync(self, client, auth_headers, mock_sync_db):
-        resp = client.post(f"{BASE}/retry/sync-456", headers=auth_headers)
+    def test_retry_failed_sync(self, client, auth_csrf_headers, mock_sync_db):
+        resp = client.post(f"{BASE}/retry/sync-456", headers=auth_csrf_headers)
         assert resp.status_code in (200, 201)
 
-    def test_retry_nonexistent_sync(self, client, auth_headers, mock_db):
+    def test_retry_nonexistent_sync(self, client, auth_csrf_headers, mock_db):
         mock_db.collection("sync_history").document.return_value.get.return_value = MagicMock(exists=False)
-        resp = client.post(f"{BASE}/retry/nonexistent", headers=auth_headers)
+        resp = client.post(f"{BASE}/retry/nonexistent", headers=auth_csrf_headers)
         assert resp.status_code in (404, 500)

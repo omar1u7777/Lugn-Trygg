@@ -2,6 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
 import { setWellnessGoals, getDashboardSummary } from '../../api/api';
+import { MAX_WELLNESS_GOALS, WELLNESS_GOAL_OPTIONS } from '../../constants/wellnessGoals';
 import { analytics } from '../../services/analytics';
 import { logger } from '../../utils/logger';
 
@@ -11,17 +12,6 @@ interface WellnessGoalsOnboardingProps {
   onSkip?: () => void;
   initialGoals?: string[];
 }
-
-const WELLNESS_GOAL_OPTIONS = [
-  { id: 'Hantera stress', label: 'Hantera stress', icon: '🍃', description: 'Tekniker för lugn och balans' },
-  { id: 'Bättre sömn', label: 'Bättre sömn', icon: '😴', description: 'Sov djupare och vakna utvilad' },
-  { id: 'Ökad fokusering', label: 'Ökad fokus', icon: '🎯', description: 'Skärp din koncentration' },
-  { id: 'Mental klarhet', label: 'Mental klarhet', icon: '✨', description: 'Rensa tankarna' },
-  { id: 'Mindfulness', label: 'Mindfulness', icon: '🧘', description: 'Bli mer närvarande' },
-  { id: 'Ångesthantering', label: 'Ångesthantering', icon: '🛡️', description: 'Verktyg för trygghet' },
-  { id: 'Emotionell balans', label: 'Emotionell balans', icon: '⚖️', description: 'Förstå dina känslor' },
-  { id: 'Energi', label: 'Mer energi', icon: '⚡', description: 'Hitta din drivkraft' },
-];
 
 const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
   userId,
@@ -43,7 +33,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
       if (prev.includes(goalId)) {
         return prev.filter(g => g !== goalId);
       } else {
-        if (prev.length < 3) {
+        if (prev.length < MAX_WELLNESS_GOALS) {
           return [...prev, goalId];
         }
         return prev;
@@ -62,7 +52,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
 
     try {
       if (userId) {
-        await setWellnessGoals(userId, selectedGoals);
+        await setWellnessGoals(selectedGoals);
         // Refresh dashboard data
         await getDashboardSummary(userId, true);
 
@@ -91,7 +81,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
           Vad vill du fokusera på?
         </h2>
         <p className="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
-          Välj upp till 3 mål så anpassar vi din upplevelse för just dina behov.
+          Välj upp till {MAX_WELLNESS_GOALS} mål så anpassar vi din upplevelse för just dina behov.
         </p>
       </div>
 
@@ -155,7 +145,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
               : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:scale-105 hover:shadow-xl hover:shadow-primary-500/40'}
           `}
         >
-          {loading ? 'Sparar...' : `Fortsätt (${selectedGoals.length}/3)`}
+          {loading ? 'Sparar...' : `Fortsätt (${selectedGoals.length}/${MAX_WELLNESS_GOALS})`}
         </button>
       </div>
     </div>

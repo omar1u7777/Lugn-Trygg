@@ -154,23 +154,17 @@ def test_login_user_invalid_credentials(monkeypatch):
 def test_refresh_token_success(monkeypatch):
     # Use Firebase-style UID (28 characters)
     test_uid = 'abcdefghijklmnopqrstuvwxyz12'
-    # auth_service.py uses module-level _db = db, so we must access _db
-    fake_db = auth_mod._db
-    
-    # Create a valid refresh token for the test user
-    valid_refresh = AuthService.generate_refresh_token(test_uid)
-    fake_db.collection('refresh_tokens').document(test_uid).set({'jwt_refresh_token': valid_refresh})
-
+    # Legacy helper now simply issues a fresh access token for user_id.
     new_access, err = AuthService.refresh_token(test_uid)
     assert err is None
     assert new_access is not None
 
 
 def test_refresh_token_missing(monkeypatch):
+    # Legacy helper is stateless and does not depend on a stored refresh session.
     new_access, err = AuthService.refresh_token('no-such')
-    assert new_access is None
-    # Error can be various messages
-    assert err is not None
+    assert err is None
+    assert new_access is not None
 
 
 def test_generate_and_verify_token_roundtrip():
@@ -269,27 +263,18 @@ def test_login_user_fallback_on_requests_exception(monkeypatch):
 
 
 def test_refresh_token_invalid_response(monkeypatch):
-    fake_db = auth_mod.db
-    fake_db.collection('refresh_tokens').document('uid-123').set({'jwt_refresh_token': 'rt-abc'})
-    
-    # Mock verify_token to fail
-    def mock_verify(token):
-        return None, 'Invalid token'
-    monkeypatch.setattr(AuthService, 'verify_token', staticmethod(mock_verify))
-
+    # Ensure refresh_token delegates to generate_access_token.
+    monkeypatch.setattr(AuthService, 'generate_access_token', staticmethod(lambda _uid: 'generated-token'))
     new_access, err = AuthService.refresh_token('uid-123')
-    assert new_access is None
-    assert err is not None
+    assert err is None
+    assert new_access == 'generated-token'
 
 
 def test_refresh_token_exception(monkeypatch):
-    fake_db = auth_mod.db
-    fake_db.collection('refresh_tokens').document('uid-123').set({'jwt_refresh_token': 'rt-abc'})
-    
-    # Make verify_token raise exception
-    def mock_verify(token):
+    # Error path: token generator failure bubbles through refresh helper.
+    def mock_generate_access(_token):
         raise Exception('boom')
-    monkeypatch.setattr(AuthService, 'verify_token', staticmethod(mock_verify))
+    monkeypatch.setattr(AuthService, 'generate_access_token', staticmethod(mock_generate_access))
 
     new_access, err = AuthService.refresh_token('uid-123')
     assert new_access is None

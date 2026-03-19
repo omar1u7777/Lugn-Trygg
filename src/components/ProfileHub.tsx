@@ -283,9 +283,9 @@ const ProfileHub: React.FC = () => {
     try {
       const setupData = await setup2FA();
       setTwoFactorSetup({
-        qrCode: setupData.qr_code,
+        qrCode: setupData.qrCode || setupData.qr_code,
         secret: setupData.secret,
-        provisioningUri: setupData.provisioning_uri
+        provisioningUri: setupData.provisioningUri || setupData.provisioning_uri
       });
       setEnable2FAModal(true);
     } catch (error: any) {

@@ -6,7 +6,7 @@ import { logger } from "../utils/logger";
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
 const BEARER_PREFIX = "Bearer ";
-const CSRF_HEADER = "X-CSRFToken";
+const CSRF_HEADER = "X-CSRF-Token";
 const CONTENT_TYPE_HEADER = "Content-Type";
 const CONTENT_TYPE_JSON = "application/json";
 const RETRY_AFTER_HEADER = "retry-after";
@@ -55,6 +55,17 @@ export default api;
 
 // Prevent infinite loop during token refresh
 let isRefreshing = false;
+// Queue of requests waiting for a token refresh to complete
+let refreshSubscribers: Array<(token: string | null) => void> = [];
+
+const onRefreshed = (token: string | null) => {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+};
+
+const subscribeTokenRefresh = (cb: (token: string | null) => void) => {
+  refreshSubscribers.push(cb);
+};
 
 // Cache for dynamic imports to improve performance
 let analyticsModule: ReturnType<typeof import('../services/analytics.lazy')> | null = null;
@@ -207,8 +218,23 @@ const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): 
 };
 
 const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Promise<AxiosResponse> => {
+  // If already refreshing, queue this request to retry after refresh completes
   if (isRefreshing) {
-    throw error;
+    return new Promise<AxiosResponse>((resolve, reject) => {
+      subscribeTokenRefresh(async (token: string | null) => {
+        if (token) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${token}`;
+          try {
+            resolve(await api(originalRequest));
+          } catch (retryError) {
+            reject(retryError);
+          }
+        } else {
+          reject(error);
+        }
+      });
+    });
   }
 
   isRefreshing = true;
@@ -224,15 +250,19 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
       originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
       logger.info("Token refreshed successfully");
       isRefreshing = false;
+      onRefreshed(newAccessToken);
       return api(originalRequest);
     }
   } catch (refreshError) {
     logger.error("Automatic token refresh failed:", refreshError);
     logger.warn("Token refresh failed, logging out user");
     isRefreshing = false;
+    onRefreshed(null);
     const { logoutUser } = await getAuth();
     logoutUser();
   }
+  isRefreshing = false;
+  onRefreshed(null);
   throw error;
 };
 
@@ -293,10 +323,10 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
   throw error;
 };
 
-// Retry logic for transient errors
+// Retry logic for transient errors (NOT 500 — server bugs won't self-resolve)
 const shouldRetry = (error: AxiosError): boolean => {
   const status = error.response?.status;
-  return !!(status && [408, 429, 500, 502, 503, 504].includes(status));
+  return !!(status && [408, 429, 502, 503, 504].includes(status));
 };
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -346,8 +376,11 @@ api.interceptors.request.use(
     }
 
     // Add CSRF token for state-changing operations
+    // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks.
+    // when the CSRF fetch itself needs a valid token
     const method = config.method?.toUpperCase();
-    if (method && STATE_CHANGING_METHODS.includes(method)) {
+    const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
+    if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
       try {
         const { getCsrfToken } = await getAuth();
         const csrf = await getCsrfToken();

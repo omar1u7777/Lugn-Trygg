@@ -12,7 +12,7 @@ import json
 class TestMoodLoggingIntegration:
     """Complete mood logging workflow tests"""
     
-    def test_mood_logging_complete_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_logging_complete_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test complete mood entry creation flow via POST /api/mood/log"""
         mood_data = {
             'mood': 7,
@@ -22,45 +22,45 @@ class TestMoodLoggingIntegration:
         response = client.post(
             '/api/mood/log',
             json=mood_data,
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Accept various responses: 201 created, 200 OK, 400 validation, 500/503 server error
         assert response.status_code in [200, 201, 400, 500, 503]
     
-    def test_mood_retrieval_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_retrieval_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test retrieving mood list via GET /api/mood"""
         response = client.get(
             '/api/mood',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Accept 200 success or 500/503 error
         assert response.status_code in [200, 500, 503]
     
-    def test_mood_recent_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_recent_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test recent moods via GET /api/mood/recent"""
         response = client.get(
             '/api/mood/recent',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         assert response.status_code in [200, 500, 503]
     
-    def test_mood_today_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_today_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test today's mood via GET /api/mood/today"""
         response = client.get(
             '/api/mood/today',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         assert response.status_code in [200, 500, 503]
     
-    def test_mood_streaks_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_mood_streaks_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test mood streaks via GET /api/mood/streaks"""
         response = client.get(
             '/api/mood/streaks',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         assert response.status_code in [200, 500, 503]
@@ -86,12 +86,12 @@ class TestAuthenticationFlowIntegration:
         
         assert login_response.status_code in [200, 400, 401, 500, 503]
     
-    def test_token_refresh_flow(self, client, auth_headers, mock_auth_service, mocker):
+    def test_token_refresh_flow(self, client, auth_csrf_headers, mock_auth_service, mocker):
         """Test token refresh via POST /api/auth/refresh"""
         mocker.patch('src.services.auth_service.AuthService.refresh_token',
                     return_value=("new_token", None))
         
-        response = client.post('/api/auth/refresh', headers=auth_headers)
+        response = client.post('/api/auth/refresh', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 401, 500, 503]
 
@@ -99,14 +99,14 @@ class TestAuthenticationFlowIntegration:
 class TestMemoryIntegration:
     """Memory/audio upload integration tests"""
     
-    def test_memory_list_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_memory_list_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test listing memories via GET /api/memory"""
-        response = client.get('/api/memory', headers=auth_headers)
+        response = client.get('/api/memory', headers=auth_csrf_headers)
         
         # Accept 200, 404 (endpoint not at this path), 500/503 error
         assert response.status_code in [200, 404, 500, 503]
     
-    def test_memory_upload_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_memory_upload_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test memory upload via POST /api/memory/upload"""
         import io
         
@@ -118,7 +118,7 @@ class TestMemoryIntegration:
         response = client.post(
             '/api/memory/upload',
             data=data,
-            headers=auth_headers,
+            headers=auth_csrf_headers,
             content_type='multipart/form-data'
         )
         
@@ -129,20 +129,20 @@ class TestMemoryIntegration:
 class TestChatbotIntegration:
     """Chatbot integration tests"""
     
-    def test_chatbot_message_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_chatbot_message_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test chatbot interaction via POST /api/chat/message"""
         response = client.post(
             '/api/chat/message',
             json={'message': 'Hello!'},
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Endpoint may block free plans (429), be missing (404), 405 method not allowed, or fail (500/503)
         assert response.status_code in [200, 201, 400, 404, 405, 429, 500, 503]
     
-    def test_chatbot_history_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_chatbot_history_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test chatbot history via GET /api/chat/history"""
-        response = client.get('/api/chat/history', headers=auth_headers)
+        response = client.get('/api/chat/history', headers=auth_csrf_headers)
         
         # Endpoint may not exist (404), 405 method not allowed, or fail (500/503)
         assert response.status_code in [200, 404, 405, 500, 503]
@@ -151,12 +151,12 @@ class TestChatbotIntegration:
 class TestHealthDataIntegration:
     """Health data integration tests"""
     
-    def test_health_data_sync_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_health_data_sync_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test health data sync via POST /api/sync/health"""
         response = client.post(
             '/api/sync/health',
             json={'steps': 5000, 'heart_rate': 72},
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         # Endpoint may not exist (404), 405 method not allowed, or fail (500/503)
@@ -166,16 +166,16 @@ class TestHealthDataIntegration:
 class TestReferralIntegration:
     """Referral system integration tests"""
     
-    def test_referral_code_generation(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_referral_code_generation(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test generating referral code via POST /api/referral/generate"""
-        response = client.post('/api/referral/generate', headers=auth_headers)
+        response = client.post('/api/referral/generate', headers=auth_csrf_headers)
         
         # Endpoint may not exist (404) or fail (500/503)
         assert response.status_code in [200, 201, 400, 404, 500, 503]
     
-    def test_referral_stats_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_referral_stats_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test getting referral stats via GET /api/referral/stats"""
-        response = client.get('/api/referral/stats', headers=auth_headers)
+        response = client.get('/api/referral/stats', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 401, 404, 500, 503]
 
@@ -183,18 +183,18 @@ class TestReferralIntegration:
 class TestErrorRecoveryFlows:
     """Error handling and recovery tests"""
     
-    def test_invalid_json_handling(self, client, auth_headers, mock_auth_service):
+    def test_invalid_json_handling(self, client, auth_csrf_headers, mock_auth_service):
         """Test API handles invalid JSON gracefully"""
         response = client.post(
             '/api/mood/log',
             data='not valid json',
-            headers={**auth_headers, 'Content-Type': 'application/json'}
+            headers={**auth_csrf_headers, 'Content-Type': 'application/json'}
         )
         
         # Should return 400 for invalid JSON
         assert response.status_code in [400, 500]
     
-    def test_missing_required_fields(self, client, auth_headers, mock_auth_service):
+    def test_missing_required_fields(self, client, auth_csrf_headers, mock_auth_service):
         """Test API handles missing fields"""
         response = client.post(
             '/api/auth/login',
@@ -215,18 +215,18 @@ class TestErrorRecoveryFlows:
 class TestPerformanceMetrics:
     """Basic performance validation tests"""
     
-    def test_pagination_parameters(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_pagination_parameters(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test pagination in list endpoints"""
         response = client.get(
             '/api/mood?limit=10&offset=0',
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         assert response.status_code in [200, 500, 503]
     
-    def test_api_response_format(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_api_response_format(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test API responses follow expected format"""
-        response = client.get('/api/mood', headers=auth_headers)
+        response = client.get('/api/mood', headers=auth_csrf_headers)
         
         if response.status_code == 200:
             data = response.get_json()
@@ -237,15 +237,15 @@ class TestPerformanceMetrics:
 class TestDashboardIntegration:
     """Dashboard data integration tests"""
     
-    def test_dashboard_data_flow(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_dashboard_data_flow(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test dashboard data via GET /api/dashboard"""
-        response = client.get('/api/dashboard', headers=auth_headers)
+        response = client.get('/api/dashboard', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 404, 500, 503]
     
-    def test_dashboard_stats(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_dashboard_stats(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test dashboard stats via GET /api/dashboard/stats"""
-        response = client.get('/api/dashboard/stats', headers=auth_headers)
+        response = client.get('/api/dashboard/stats', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 400, 404, 500, 503]
 
@@ -253,18 +253,18 @@ class TestDashboardIntegration:
 class TestUserProfileIntegration:
     """User profile integration tests"""
     
-    def test_profile_retrieval(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_profile_retrieval(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test profile data via GET /api/users/profile"""
-        response = client.get('/api/users/profile', headers=auth_headers)
+        response = client.get('/api/users/profile', headers=auth_csrf_headers)
         
         assert response.status_code in [200, 404, 500, 503]
     
-    def test_preferences_update(self, client, auth_headers, mock_auth_service, mock_db):
+    def test_preferences_update(self, client, auth_csrf_headers, mock_auth_service, mock_db):
         """Test preferences update via PUT /api/users/preferences"""
         response = client.put(
             '/api/users/preferences',
             json={'notifications': True, 'theme': 'dark'},
-            headers=auth_headers
+            headers=auth_csrf_headers
         )
         
         assert response.status_code in [200, 400, 404, 500, 503]

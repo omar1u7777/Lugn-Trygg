@@ -107,9 +107,12 @@ export default defineConfig({
     strictPort: false,
     host: devHost === "0.0.0.0" ? true : devHost,
     https,
+    headers: {
+      // Allow Google sign-in popup to communicate with the opener window
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    },
     hmr: {
       host: hmrHost,
-      port: hmrPort,
       protocol: hmrProtocol,
     },
     allowedHosts,

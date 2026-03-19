@@ -6,6 +6,7 @@ using environment variables and credentials.
 """
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -191,8 +192,6 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
         cred_path_raw = path_override.strip()
 
     if cred_path_raw.startswith("{"):
-        import json
-
         try:
             creds_json = json.loads(cred_path_raw)
             cred = credentials.Certificate(creds_json)
@@ -209,7 +208,18 @@ def initialize_firebase(force_reinitialize: bool = False) -> bool:
         if not os.path.exists(cred_path):
             raise FileNotFoundError(f"Firebase credentials-filen saknas: {cred_path}")
 
-        cred = credentials.Certificate(cred_path)
+        # Load via utf-8-sig so BOM-prefixed JSON files don't crash startup.
+        try:
+            with open(cred_path, "rb") as cred_file:
+                raw_cred_bytes = cred_file.read()
+
+            if raw_cred_bytes.startswith(b"\xef\xbb\xbf"):
+                logger.warning("⚠️ Firebase credentials file has UTF-8 BOM; decoding with utf-8-sig")
+
+            creds_json = json.loads(raw_cred_bytes.decode("utf-8-sig"))
+            cred = credentials.Certificate(creds_json)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Invalid Firebase credentials file JSON: {exc}") from exc
 
     options: dict[str, Any] = {}
 
