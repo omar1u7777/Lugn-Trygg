@@ -92,6 +92,30 @@ def create_mock_transaction(*args, **kwargs):
 mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
 mock_db.transaction = MagicMock(side_effect=create_mock_transaction)
 
+
+def _ensure_shared_mock_db() -> MagicMock:
+    """Return a resettable shared Firestore mock, even if tests patched db to a non-mock object."""
+    firebase_module = sys.modules.get('src.firebase_config')
+    if firebase_module is None:
+        firebase_module = MagicMock()
+        sys.modules['src.firebase_config'] = firebase_module
+
+    db_obj = getattr(firebase_module, 'db', None)
+    if not hasattr(db_obj, 'reset_mock'):
+        db_obj = MagicMock()
+
+    # Keep default behavior stable between tests
+    db_obj.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+    db_obj.transaction = MagicMock(side_effect=create_mock_transaction)
+
+    firebase_module.db = db_obj
+
+    backend_firebase_module = sys.modules.get('Backend.src.firebase_config')
+    if backend_firebase_module is not None:
+        backend_firebase_module.db = db_obj
+
+    return db_obj
+
 # Patch firebase_config BEFORE importing main
 mock_firebase_config = MagicMock()
 mock_firebase_config.db = mock_db
@@ -308,7 +332,7 @@ def _reset_shared_mock_db():
     would poison the shared object for all subsequent tests since route modules
     hold a direct reference to it via 'from src.firebase_config import db'.
     """
-    db = sys.modules['src.firebase_config'].db
+    db = _ensure_shared_mock_db()
     db.reset_mock()
     # Restore the default side_effect so db.collection('x') returns a proper mock chain
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
@@ -341,7 +365,7 @@ def _reset_rate_limiter_state():
 @pytest.fixture(scope='function')
 def mock_db():
     """Returnerar den globala mockade Firestore db för modifiering i tester."""
-    db = sys.modules['src.firebase_config'].db
+    db = _ensure_shared_mock_db()
 
     # Reset mock between tests
     db.reset_mock()
