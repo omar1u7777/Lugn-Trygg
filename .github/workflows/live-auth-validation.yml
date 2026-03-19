@@ -78,10 +78,9 @@ jobs:
       - name: Publish validation summary
         if: always()
         run: |
-          STEP_SUMMARY="$GITHUB_STEP_SUMMARY"
           if [ ! -f reports/live-auth-validation-report.json ]; then
-            echo "## Live auth validation" >> "$STEP_SUMMARY"
-            echo "- Report file not generated" >> "$STEP_SUMMARY"
+            echo "## Live auth validation" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Report file not generated" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -104,6 +103,6 @@ jobs:
           for check in report.get("checks", []):
               lines.append(f"- {check.get('name', 'unknown')}: {check.get('status', 'unknown')} ({check.get('details', '')})")
 
-          summary_path = Path(os.environ["STEP_SUMMARY"])
+          summary_path = Path(os.environ["GITHUB_STEP_SUMMARY"])
           summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
