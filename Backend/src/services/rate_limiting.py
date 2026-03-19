@@ -8,7 +8,7 @@ import os
 import time
 from functools import wraps
 
-from flask import g, jsonify, request
+from flask import current_app, g, jsonify, request
 from flask_limiter.util import get_remote_address
 from redis import Redis
 
@@ -483,7 +483,14 @@ def rate_limit_by_endpoint(f):
     def decorated_function(*args, **kwargs):
         # Keep tests deterministic: route tests should validate handler logic,
         # not global request counters leaking across test cases.
-        if os.getenv('TESTING', '').lower() == 'true':
+        is_test_mode = os.getenv('TESTING', '').lower() == 'true' or os.getenv('PYTEST_CURRENT_TEST') is not None
+        if not is_test_mode:
+            try:
+                is_test_mode = bool(getattr(current_app, 'testing', False))
+            except RuntimeError:
+                is_test_mode = False
+
+        if is_test_mode:
             return f(*args, **kwargs)
 
         try:
