@@ -4,7 +4,6 @@ Real implementation with Firebase Firestore for message storage
 """
 
 import logging
-from google.cloud.firestore import FieldFilter
 import re
 import secrets
 import uuid
@@ -12,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from flask import Blueprint, g, request
+from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log

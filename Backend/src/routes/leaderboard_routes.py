@@ -4,11 +4,11 @@ Uses Firebase Firestore for user rankings based on XP, streaks, and achievements
 """
 
 import logging
-from google.cloud.firestore import FieldFilter
 import re
 from datetime import UTC, datetime
 
 from flask import Blueprint, request
+from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
 from src.services.auth_service import AuthService

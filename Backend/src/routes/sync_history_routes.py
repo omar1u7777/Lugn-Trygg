@@ -3,10 +3,10 @@ Sync History Routes - Real sync tracking for health integrations
 Tracks sync operations with Firebase Firestore
 """
 import logging
-from google.cloud.firestore import FieldFilter
 from datetime import UTC, datetime, timedelta
 
-from flask import Blueprint, g, request
+from flask import Blueprint, g, make_response, request
+from google.cloud.firestore import FieldFilter
 
 from ..firebase_config import db
 from ..services.audit_service import audit_log

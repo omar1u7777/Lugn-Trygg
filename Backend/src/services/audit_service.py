@@ -1,10 +1,10 @@
 import logging
-from google.cloud.firestore import FieldFilter
 import os
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from cryptography.fernet import Fernet
+from google.cloud.firestore import FieldFilter
 
 from ..firebase_config import db
 

@@ -25,8 +25,8 @@ from ..config import (
 HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')
 
 from ..utils.error_handling import handle_service_errors
-from .tamper_detection_service import tamper_detection_service
 from . import IAuditService
+from .tamper_detection_service import tamper_detection_service
 
 logger = logging.getLogger(__name__)
 

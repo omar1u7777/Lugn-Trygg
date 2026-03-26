@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, g, request
+from flask import Blueprint, g, make_response, request
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log

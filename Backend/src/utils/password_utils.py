@@ -118,8 +118,8 @@ def check_password_strength(password: str) -> dict:
 
 # Test function - only runs when file is executed directly
 if __name__ == "__main__":
-    import os
     import logging
+    import os
 
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
