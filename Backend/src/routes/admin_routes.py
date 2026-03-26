@@ -18,7 +18,6 @@ from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.tamper_detection_service import tamper_detection_service
-from src.services.tamper_detection_service import tamper_detection_service
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.performance_monitor import performance_monitor
 from src.utils.response_utils import APIResponse
@@ -74,7 +73,7 @@ def require_admin(f: Callable) -> Callable:
             user_data = user_doc.to_dict() or {}
             if user_data.get('role') != 'admin':
                 logger.warning("Non-admin user attempted admin access: %s", _mask_identifier(user_id))
-                
+
                 # Trigga tamper_detection för försök att nå admin utan behörighet
                 client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
                 tamper_detection_service.record_event(
@@ -83,7 +82,7 @@ def require_admin(f: Callable) -> Callable:
                     message='Försök att nå admin-gränssnitt utan behörighet',
                     metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
                 )
-                
+
                 # Trigga tamper_detection för försök att nå admin utan behörighet
                 client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
                 tamper_detection_service.record_event(
@@ -96,7 +95,7 @@ def require_admin(f: Callable) -> Callable:
 
         except Exception:
             logger.exception("Admin check failed")
-            
+
             client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
             tamper_detection_service.record_event(
                 event_type='unauthorized_admin_access',
@@ -104,7 +103,7 @@ def require_admin(f: Callable) -> Callable:
                 message='Access denied to admin endpoint',
                 metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
             )
-            
+
             client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
             tamper_detection_service.record_event(
                 event_type='unauthorized_admin_access',

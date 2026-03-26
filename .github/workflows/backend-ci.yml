@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
@@ -60,11 +63,12 @@ jobs:
         with:
           name: backend-coverage
           path: Backend/coverage.xml
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: always()
+        if: always() && secrets.CODECOV_TOKEN != ''
         continue-on-error: true
         with:
           files: ./Backend/coverage.xml
@@ -104,7 +108,7 @@ jobs:
           retention-days: 30
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'fs'
           scan-ref: './Backend'

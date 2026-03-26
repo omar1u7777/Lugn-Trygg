@@ -5,7 +5,6 @@ Generates comprehensive API documentation with examples and validation
 
 import json
 import logging
-
 from importlib import metadata as importlib_metadata
 
 import marshmallow
@@ -31,11 +30,11 @@ except AttributeError:
 
 if needs_version:
     try:
-        setattr(marshmallow, "__version__", importlib_metadata.version("marshmallow"))
+        marshmallow.__version__ = importlib_metadata.version("marshmallow")
     except importlib_metadata.PackageNotFoundError:
         # As an absolute fallback, provide a placeholder version string so
         # flask-apispec can continue importing without crashing.
-        setattr(marshmallow, "__version__", "0")
+        marshmallow.__version__ = "0"
 
 try:
     from flask_apispec import FlaskApiSpec

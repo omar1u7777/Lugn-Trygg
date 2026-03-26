@@ -10,7 +10,6 @@ import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-
 logger = logging.getLogger(__name__)
 
 

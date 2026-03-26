@@ -8,7 +8,6 @@ using environment variables and credentials.
 import asyncio
 import json
 import logging
-from google.cloud.firestore import FieldFilter
 import os
 import time
 from functools import wraps

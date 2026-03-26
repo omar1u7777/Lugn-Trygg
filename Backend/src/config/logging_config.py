@@ -14,9 +14,10 @@ import logging
 import logging.config
 import os
 import sys
+from collections.abc import Mapping, MutableMapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, cast
+from typing import Any, cast
 
 # Module logger
 logger = logging.getLogger(__name__)
