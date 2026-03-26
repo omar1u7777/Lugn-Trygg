@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+import os
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from ..config.subscription_config import load_subscription_plans
@@ -32,6 +33,51 @@ class SubscriptionLimitError(Exception):
 
 class SubscriptionService:
     PREMIUM_TIERS = ("premium", "enterprise")
+    _GLOBAL_TRIAL_START_CACHE: datetime | None = None
+
+    @staticmethod
+    def _parse_bool_env(var_name: str, default: bool = False) -> bool:
+        value = os.getenv(var_name, "").strip().lower()
+        if not value:
+            return default
+        return value in {"1", "true", "yes", "on"}
+
+    @classmethod
+    def _global_trial_window(cls) -> tuple[datetime, datetime] | None:
+        """Return active global trial window config if enabled."""
+        if not cls._parse_bool_env("GLOBAL_FREE_PREMIUM_ENABLED", default=False):
+            return None
+
+        days_raw = os.getenv("GLOBAL_FREE_PREMIUM_DAYS", "14").strip()
+        try:
+            trial_days = max(1, int(days_raw))
+        except ValueError:
+            logger.warning("Invalid GLOBAL_FREE_PREMIUM_DAYS '%s', defaulting to 14", days_raw)
+            trial_days = 14
+
+        start_raw = os.getenv("GLOBAL_FREE_PREMIUM_START", "").strip()
+        if start_raw:
+            try:
+                start_dt = datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
+                if start_dt.tzinfo is None:
+                    start_dt = start_dt.replace(tzinfo=UTC)
+                else:
+                    start_dt = start_dt.astimezone(UTC)
+            except ValueError:
+                logger.warning("Invalid GLOBAL_FREE_PREMIUM_START '%s'; disabling global trial", start_raw)
+                return None
+        else:
+            # If no explicit start is provided, start countdown from first active process request.
+            if cls._GLOBAL_TRIAL_START_CACHE is None:
+                cls._GLOBAL_TRIAL_START_CACHE = datetime.now(UTC)
+                logger.info(
+                    "GLOBAL_FREE_PREMIUM_START missing; starting global trial from %s",
+                    cls._GLOBAL_TRIAL_START_CACHE.isoformat(),
+                )
+            start_dt = cls._GLOBAL_TRIAL_START_CACHE
+
+        end_dt = start_dt + timedelta(days=trial_days)
+        return start_dt, end_dt
 
     @staticmethod
     def _today() -> str:
@@ -69,6 +115,31 @@ class SubscriptionService:
         plan_meta = plans.get(plan_key, plans.get("free", {}))
         status = subscription.get("status", "free")
 
+        trial_active = False
+        trial_end_iso: str | None = None
+        trial_window = cls._global_trial_window()
+        if plan_key == "free" and trial_window is not None:
+            start_dt, end_dt = trial_window
+            now = datetime.now(UTC)
+            if start_dt <= now < end_dt:
+                trial_active = True
+                trial_end_iso = end_dt.isoformat()
+                plan_key = "premium"
+                status = "global_trial"
+                plan_meta = plans.get("premium", plan_meta)
+
+        subscription_payload = dict(subscription)
+        if trial_active:
+            subscription_payload.update(
+                {
+                    "status": "global_trial",
+                    "plan": "premium",
+                    "global_trial": True,
+                    "trial_ends_at": trial_end_iso,
+                    "expires_at": trial_end_iso,
+                }
+            )
+
         return {
             "plan": plan_key,
             "status": status,
@@ -79,11 +150,12 @@ class SubscriptionService:
             "currency": plan_meta.get("currency"),
             "interval": plan_meta.get("interval"),
             "is_premium": cls.is_premium_plan(plan_key),
-            "is_trial": plan_key == "trial" or status == "trial",
-            "expires_at": subscription.get("end_date") or subscription.get("expires_at"),
-            "trial_ends_at": subscription.get("trial_end_date")
+            "is_trial": plan_key == "trial" or status == "trial" or trial_active,
+            "expires_at": trial_end_iso or subscription.get("end_date") or subscription.get("expires_at"),
+            "trial_ends_at": trial_end_iso
+            or subscription.get("trial_end_date")
             or subscription.get("trial_ends_at"),
-            "subscription": subscription,
+            "subscription": subscription_payload,
         }
 
     @classmethod
