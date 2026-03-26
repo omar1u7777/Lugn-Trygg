@@ -1,5 +1,4 @@
 import logging
-from google.cloud.firestore import FieldFilter
 import os
 import re
 from datetime import UTC, datetime, timedelta
@@ -7,6 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 from flask import Blueprint, g, redirect, request
+from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log

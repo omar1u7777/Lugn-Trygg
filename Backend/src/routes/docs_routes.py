@@ -6,7 +6,7 @@ Provides interactive API documentation and testing interface
 import logging
 import os
 
-from flask import Blueprint, g, jsonify, render_template_string, request
+from flask import Blueprint, g, jsonify, make_response, render_template_string, request
 
 from src.docs.swagger_config import get_openapi_spec, get_openapi_yaml
 from src.services.rate_limiting import rate_limit_by_endpoint

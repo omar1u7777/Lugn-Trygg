@@ -8,7 +8,7 @@ import os
 from datetime import UTC, datetime
 
 import psutil
-from flask import Blueprint, g, request
+from flask import Blueprint, g, make_response, request
 
 from src.firebase_config import db
 from src.services.auth_service import AuthService

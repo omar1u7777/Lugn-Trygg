@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-from google.cloud.firestore import FieldFilter
 import os
 import re
 import time
@@ -19,6 +18,7 @@ from functools import wraps
 from typing import Any
 
 from flask import Blueprint, Response, current_app, g, jsonify, request
+from google.cloud.firestore import FieldFilter
 
 # Absolute imports (project standard)
 from src.firebase_config import db

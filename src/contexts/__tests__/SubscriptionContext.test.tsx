@@ -4,9 +4,16 @@
  */
 
 import React from 'react';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const MOCK_AUTH_STATE = {
+  user: { user_id: 'test-user', email: 'test@test.com' },
+  token: 'test-token',
+  isLoggedIn: true,
+  loading: false,
+};
 
 // Mock API calls
 vi.mock('../../api/subscription', () => ({
@@ -19,12 +26,7 @@ vi.mock('../../api/subscription', () => ({
 }));
 
 vi.mock('../AuthContext', () => ({
-  useAuth: () => ({
-    user: { user_id: 'test-user', email: 'test@test.com' },
-    token: 'test-token',
-    isLoggedIn: true,
-    loading: false,
-  }),
+  useAuth: () => MOCK_AUTH_STATE,
   AuthContext: React.createContext({}),
 }));
 
@@ -65,7 +67,7 @@ describe('SubscriptionContext', () => {
     const { result } = renderHook(() => useSubscription(), { wrapper });
 
     // Should have the expected shape
-    expect(result.current).toHaveProperty('currentPlan');
+    expect(result.current).toHaveProperty('plan');
     expect(result.current).toHaveProperty('canLogMood');
     expect(result.current).toHaveProperty('canSendMessage');
     expect(typeof result.current.canLogMood).toBe('function');
@@ -78,7 +80,7 @@ describe('SubscriptionContext', () => {
     );
 
     const { result } = renderHook(() => useSubscription(), { wrapper });
-    expect(result.current.currentPlan.tier).toBe('free');
-    expect(result.current.currentPlan.isPremium).toBe(false);
+    expect(result.current.plan.tier).toBe('free');
+    expect(result.current.isPremium).toBe(false);
   });
 });
