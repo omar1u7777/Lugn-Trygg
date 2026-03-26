@@ -260,6 +260,7 @@ workbox-*.js.map
 # Service Worker
 sw.js
 sw.js.map
+!public/sw.js
 .vercel
 api_keys/
 
