@@ -325,6 +325,8 @@ try:
         '/api/v1/auth/login',
         '/api/v1/auth/register',
         '/api/v1/auth/google-login',
+        '/api/v1/auth/refresh',
+        '/api/v1/auth/logout',
         '/api/v1/auth/reset-password',
         '/api/v1/auth/confirm-password-reset',
         '/api/v1/dashboard/csrf-token',
