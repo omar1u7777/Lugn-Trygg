@@ -324,19 +324,19 @@ const WorldClassMoodLogger: React.FC<WorldClassMoodLoggerProps> = ({ onClose }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl">
         {/* Close Button */}
         <button
           onClick={onClose}
           aria-label={t('common.close')}
-          className="absolute top-6 right-6 z-10 p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-slate-800"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-slate-800"
         >
           <XMarkIcon className="w-6 h-6" />
         </button>
 
         {/* Content */}
-        <div className="p-8 sm:p-12">
+        <div className="p-5 sm:p-8 lg:p-12">
           {renderStep()}
         </div>
       </div>

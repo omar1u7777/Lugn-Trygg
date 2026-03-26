@@ -200,8 +200,8 @@
 
 @media (min-width: 1024px) {
   .touch-target {
-    min-height: 40px; /* Can be slightly smaller on desktop */
-    min-width: 40px;
+    min-height: 44px;
+    min-width: 44px;
     padding: 0.625rem 1rem;
   }
 }
@@ -226,7 +226,7 @@
 @media (min-width: 1024px) {
   .btn-mobile {
     padding: 0.625rem 1rem;
-    min-height: 40px;
+    min-height: 44px;
     border-radius: 8px;
   }
 }

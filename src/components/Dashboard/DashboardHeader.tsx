@@ -95,7 +95,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
           {/* Visual Anchor Section - The "Breathing" Card */}
           <div className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-            <div className="glass-panel dark:glass-panel-dark p-6 rounded-[2rem] flex items-center gap-6 min-w-[300px] max-w-sm">
+            <div className="glass-panel dark:glass-panel-dark p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm">
               <BreathingOrb />
               <div>
                 <h3 className="font-serif text-lg text-neutral-900 dark:text-white mb-1">Dagens Fokus</h3>

@@ -72,7 +72,7 @@ const Navigation: React.FC = () => {
             {!isPremium && !subscriptionLoading && (
               <Link
                 to="/upgrade"
-                className={`hidden md:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm shadow-md hover:shadow-lg ${focusRing}`}
+                className={`hidden lg:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm shadow-md hover:shadow-lg min-h-[44px] ${focusRing}`}
                 aria-label="Uppgradera till premium"
               >
                 <SparklesIcon className="w-4 h-4" />
@@ -83,7 +83,7 @@ const Navigation: React.FC = () => {
             {/* Tema-knapp */}
             <button
               onClick={toggleTheme}
-              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
+              className={`flex items-center justify-center w-10 h-10 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
               aria-label={isDarkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
               title={isDarkMode ? 'Ljust läge' : 'Mörkt läge'}
             >
@@ -96,7 +96,7 @@ const Navigation: React.FC = () => {
             {/* Logga ut-knapp */}
             <button
               onClick={logout}
-              className={`flex items-center gap-1.5 bg-[#c08a5d] hover:bg-[#8f6a4a] text-white px-2.5 md:px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm ${focusRing}`}
+              className={`flex items-center gap-1.5 bg-[#c08a5d] hover:bg-[#8f6a4a] text-white px-2.5 md:px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm min-h-[44px] ${focusRing}`}
               title="Logga ut"
             >
               <span className="text-base">🚪</span>
@@ -133,7 +133,7 @@ const Navigation: React.FC = () => {
             {/* Tema */}
             <button
               onClick={toggleTheme}
-              className={`flex items-center justify-center w-9 h-9 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
+              className={`flex items-center justify-center w-10 h-10 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 text-[#6d645d] dark:text-gray-400 hover:text-[#2f2a24] dark:hover:text-white rounded-xl transition-all duration-200 ${focusRing}`}
               aria-label={isDarkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
             >
               <span className="text-base">{isDarkMode ? '☀️' : '🌙'}</span>

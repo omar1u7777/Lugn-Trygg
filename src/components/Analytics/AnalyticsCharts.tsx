@@ -81,7 +81,7 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
         <CardTitle className="text-lg">Humörprognos</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-72 w-full">
+        <div className="h-48 sm:h-56 md:h-64 lg:h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
