@@ -23,10 +23,6 @@ mood_stats_bp = Blueprint('mood_stats', __name__)
 # OPTIONS Handler (CORS preflight)
 # ============================================================================
 
-@mood_stats_bp.route('/statistics', methods=['OPTIONS'])
-def mood_stats_options():
-    """Handle CORS preflight for statistics endpoint"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 # ============================================================================

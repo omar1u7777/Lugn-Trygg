@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from google.cloud.firestore import FieldFilter
 import os
 import re
 import time
@@ -638,14 +639,14 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
         # Apply date filters only if provided
         if start_date:
             start_datetime = datetime.fromisoformat(f"{start_date}T00:00:00")
-            mood_ref = mood_ref.where('timestamp', '>=', start_datetime.isoformat())
+            mood_ref = mood_ref.where(filter=FieldFilter('timestamp', '>=', start_datetime.isoformat()))
         if end_date:
             end_datetime = datetime.fromisoformat(f"{end_date}T23:59:59")
-            mood_ref = mood_ref.where('timestamp', '<=', end_datetime.isoformat())
+            mood_ref = mood_ref.where(filter=FieldFilter('timestamp', '<=', end_datetime.isoformat()))
 
         # Apply sentiment filter only if provided
         if sentiment_filter:
-            mood_ref = mood_ref.where('sentiment', '==', sentiment_filter)
+            mood_ref = mood_ref.where(filter=FieldFilter('sentiment', '==', sentiment_filter))
 
         # Order by timestamp descending and limit results
         query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
@@ -666,7 +667,7 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
 
     except Exception as e:
         logger.error(f"❌ Failed to get moods: {str(e)}", exc_info=True)
-        return {'error': 'Failed to retrieve moods'}, 500
+        return APIResponse.error('Failed to retrieve moods')
 
 @mood_bp.route('/<mood_id>', methods=['GET'])
 @AuthService.jwt_required
@@ -755,7 +756,7 @@ def get_recent_moods() -> Response | tuple[Response, int]:
         seven_days_ago_str = seven_days_ago.isoformat()
 
         mood_ref = db.collection('users').document(user_id).collection('moods')
-        query = mood_ref.where('timestamp', '>=', seven_days_ago_str).order_by('timestamp', direction='DESCENDING')
+        query = mood_ref.where(filter=FieldFilter('timestamp', '>=', seven_days_ago_str)).order_by('timestamp', direction='DESCENDING')
 
         mood_docs = list(query.stream())
 
@@ -862,7 +863,7 @@ def get_today_mood() -> Response | tuple[Response, int]:
         end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=UTC)
 
         mood_ref = db.collection('users').document(user_id).collection('moods')
-        query = mood_ref.where('timestamp', '>=', start_of_day.isoformat()).where('timestamp', '<=', end_of_day.isoformat())
+        query = mood_ref.where(filter=FieldFilter('timestamp', '>=', start_of_day.isoformat())).where(filter=FieldFilter('timestamp', '<=', end_of_day.isoformat()))
 
         mood_docs = list(query.stream())
 
@@ -1011,7 +1012,7 @@ def get_weekly_analysis() -> Response | tuple[Response, int]:
         try:
             # Query moods from last 7 days — filter by timestamp
             mood_docs = list(
-                mood_ref.where('timestamp', '>=', seven_days_ago.isoformat())
+                mood_ref.where(filter=FieldFilter('timestamp', '>=', seven_days_ago.isoformat()))
                 .order_by('timestamp', direction='DESCENDING')
                 .limit(50)
                 .stream()

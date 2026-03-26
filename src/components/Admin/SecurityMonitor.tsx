@@ -7,7 +7,8 @@ import {
   getSecurityMetrics,
   type ApiKeyRotationStatus,
   type TamperEvent,
-  type SecurityMetrics
+  type SecurityMetrics,
+  type TamperSummary
 } from '../../api/security';
 import {
   ShieldCheckIcon,
@@ -31,7 +32,7 @@ const SecurityMonitor: React.FC = () => {
 
   const [keyRotationStatus, setKeyRotationStatus] = useState<ApiKeyRotationStatus | null>(null);
   const [tamperEvents, setTamperEvents] = useState<TamperEvent[]>([]);
-  const [tamperSummary, setTamperSummary] = useState<any>(null);
+  const [tamperSummary, setTamperSummary] = useState<TamperSummary | null>(null);
   const [activeAlerts, setActiveAlerts] = useState<TamperEvent[]>([]);
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics | null>(null);
 
@@ -52,9 +53,9 @@ const SecurityMonitor: React.FC = () => {
       setSecurityMetrics(metrics);
 
       logger.info('Security data loaded successfully');
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to load security data:', err);
-      setError(err.message || 'Kunde inte ladda säkerhetsdata');
+      setError(err instanceof Error ? err.message : 'Kunde inte ladda säkerhetsdata');
     } finally {
       setLoading(false);
       setRefreshing(false);

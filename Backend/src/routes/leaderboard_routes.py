@@ -4,6 +4,7 @@ Uses Firebase Firestore for user rankings based on XP, streaks, and achievements
 """
 
 import logging
+from google.cloud.firestore import FieldFilter
 import re
 from datetime import UTC, datetime
 
@@ -63,19 +64,8 @@ def _anonymize_username(email_or_name: str) -> str:
 # OPTIONS Handlers (CORS preflight)
 # ============================================================================
 
-@leaderboard_bp.route('/xp', methods=['OPTIONS'])
-@leaderboard_bp.route('/streaks', methods=['OPTIONS'])
-@leaderboard_bp.route('/moods', methods=['OPTIONS'])
-@leaderboard_bp.route('/weekly-winners', methods=['OPTIONS'])
-def leaderboard_options():
-    """Handle CORS preflight for leaderboard endpoints"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
-@leaderboard_bp.route('/user/<user_id>/rank', methods=['OPTIONS'])
-def user_rank_options(user_id):
-    """Handle CORS preflight for user rank endpoint"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @leaderboard_bp.route('/xp', methods=['GET'])
@@ -262,15 +252,15 @@ def get_user_rank(user_id: str):
         user_moods = user_data.get('mood_count', 0)
 
         # Calculate XP rank from user_rewards collection
-        xp_rank_query = db.collection('user_rewards').where('xp', '>', user_xp).stream()
+        xp_rank_query = db.collection('user_rewards').where(filter=FieldFilter('xp', '>', user_xp)).stream()
         xp_rank = len(list(xp_rank_query)) + 1
 
         # Calculate streak rank from users collection
-        streak_rank_query = db.collection('users').where('current_streak', '>', user_streak).stream()
+        streak_rank_query = db.collection('users').where(filter=FieldFilter('current_streak', '>', user_streak)).stream()
         streak_rank = len(list(streak_rank_query)) + 1
 
         # Calculate mood count rank from users collection
-        mood_rank_query = db.collection('users').where('mood_count', '>', user_moods).stream()
+        mood_rank_query = db.collection('users').where(filter=FieldFilter('mood_count', '>', user_moods)).stream()
         mood_rank = len(list(mood_rank_query)) + 1
 
         # Get total user count for percentile

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
 import { API_ENDPOINTS } from '../../api/constants';
@@ -19,13 +19,7 @@ const ReferralHistory: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user?.user_id) {
-            fetchHistory();
-        }
-    }, [user]);
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         if (!user?.user_id) return;
 
         try {
@@ -40,7 +34,13 @@ const ReferralHistory: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.user_id]);
+
+    useEffect(() => {
+        if (user?.user_id) {
+            void fetchHistory();
+        }
+    }, [fetchHistory, user?.user_id]);
 
     const formatDate = (isoDate: string): string => {
         const date = new Date(isoDate);

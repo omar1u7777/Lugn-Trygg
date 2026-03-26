@@ -87,6 +87,15 @@ const renderWithRouter = (component: React.ReactElement) => {
   );
 };
 
+const acceptRequiredConsents = () => {
+  const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+  checkboxes.forEach((checkbox) => {
+    if (!checkbox.checked) {
+      fireEvent.click(checkbox);
+    }
+  });
+};
+
 describe('🔐 Login Form Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -389,6 +398,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'new@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'StrongPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'StrongPass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -396,7 +406,9 @@ describe('📝 Register Form Integration', () => {
           'new@example.com',
           'StrongPass123!',
           'Test',
-          ''
+          '',
+          true,
+          true
         );
       });
     });
@@ -416,6 +428,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'newuser@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'SecurePass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'SecurePass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -423,7 +436,9 @@ describe('📝 Register Form Integration', () => {
           'newuser@example.com',
           'SecurePass123!',
           'Test User',
-          ''
+          '',
+          true,
+          true
         );
       });
     });
@@ -443,6 +458,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'referred@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'RefPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'RefPass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -450,7 +466,9 @@ describe('📝 Register Form Integration', () => {
           'referred@example.com',
           'RefPass123!',
           'Referred User',
-          'FRIEND2025'
+          'FRIEND2025',
+          true,
+          true
         );
       });
 
@@ -476,6 +494,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'success@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'SuccessPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'SuccessPass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -500,6 +519,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'existing@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'ExistingPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'ExistingPass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -520,6 +540,7 @@ describe('📝 Register Form Integration', () => {
       fireEvent.change(emailInput, { target: { value: 'clear@example.com' } });
       fireEvent.change(passwordInput, { target: { value: 'ClearPass123!' } });
       fireEvent.change(confirmPasswordInput, { target: { value: 'ClearPass123!' } });
+      acceptRequiredConsents();
       fireEvent.click(submitButton);
 
       await waitFor(() => {

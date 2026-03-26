@@ -41,7 +41,7 @@ class TestValidationMiddleware:
                 assert status_code == 400
                 data = response.get_json()
                 assert 'error' in data
-                assert data['message'] in ('Validation failed', 'One or more fields failed validation')
+                assert data['message'] in ('Validation failed', 'One or more fields failed validation', 'Ett eller flera falt kunde inte valideras')
     
     def test_validate_request_json_success(self, client, mock_auth_service):
         """Test successful JSON validation"""

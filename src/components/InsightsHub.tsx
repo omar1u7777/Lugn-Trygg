@@ -45,6 +45,11 @@ interface AIPrediction {
   suggestedActivity: string;
 }
 
+interface MoodEntry {
+  score?: number;
+  timestamp?: string;
+}
+
 // Helper to get trend narrative
 const getTrendNarrative = (stats: InsightsStats) => {
   if (stats.totalDataPoints >= 30) return "Vi har tillräckligt med data för att visa tydliga mönster.";
@@ -65,7 +70,7 @@ const InsightsHub: React.FC = () => {
   });
   const [aiPrediction, setAiPrediction] = useState<AIPrediction | null>(null);
   const [loading, setLoading] = useState(true);
-  const [moodData, setMoodData] = useState<any[]>([]);
+  const [moodData, setMoodData] = useState<MoodEntry[]>([]);
 
   useEffect(() => {
     const fetchInsightsData = async () => {
@@ -79,13 +84,14 @@ const InsightsHub: React.FC = () => {
       try {
         logger.debug('Fetching moods and analysis...');
         // Fetch mood data
-        const moods = await getMoods(user.user_id);
+        const moodsRaw = await getMoods(user.user_id);
+        const moods = Array.isArray(moodsRaw) ? (moodsRaw as MoodEntry[]) : [];
         setMoodData(moods);
         const totalDataPoints = moods.length;
 
         // Calculate average mood score
         const averageMoodScore = moods.length > 0
-          ? moods.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / moods.length
+          ? moods.reduce((sum: number, mood) => sum + (mood.score || 0), 0) / moods.length
           : 0;
 
         // Fetch weekly analysis to get trends
@@ -109,17 +115,17 @@ const InsightsHub: React.FC = () => {
           const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-          const lastWeekMoods = moods.filter((m: any) => new Date(m.timestamp) >= oneWeekAgo);
-          const previousWeekMoods = moods.filter((m: any) => {
-            const date = new Date(m.timestamp);
+          const lastWeekMoods = moods.filter((m) => new Date(m.timestamp ?? '') >= oneWeekAgo);
+          const previousWeekMoods = moods.filter((m) => {
+            const date = new Date(m.timestamp ?? '');
             return date >= twoWeeksAgo && date < oneWeekAgo;
           });
 
           const lastWeekAvg = lastWeekMoods.length > 0
-            ? lastWeekMoods.reduce((sum: number, m: any) => sum + (m.score || 0), 0) / lastWeekMoods.length
+            ? lastWeekMoods.reduce((sum: number, m) => sum + (m.score || 0), 0) / lastWeekMoods.length
             : averageMoodScore;
           const prevWeekAvg = previousWeekMoods.length > 0
-            ? previousWeekMoods.reduce((sum: number, m: any) => sum + (m.score || 0), 0) / previousWeekMoods.length
+            ? previousWeekMoods.reduce((sum: number, m) => sum + (m.score || 0), 0) / previousWeekMoods.length
             : averageMoodScore;
 
           const trendPercentage = prevWeekAvg > 0
@@ -130,8 +136,8 @@ const InsightsHub: React.FC = () => {
 
           // Analyze best time of day
           const moodsByHour: { [key: number]: number[] } = {};
-          moods.forEach((m: any) => {
-            const hour = new Date(m.timestamp).getHours();
+          moods.forEach((m) => {
+            const hour = new Date(m.timestamp ?? '').getHours();
             if (!moodsByHour[hour]) moodsByHour[hour] = [];
             moodsByHour[hour].push(m.score || 5);
           });

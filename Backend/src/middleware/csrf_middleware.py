@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 
@@ -12,6 +13,9 @@ CSRF_COOKIE_NAME = "csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
 CSRF_HEADER_NAME_LEGACY = "X-CSRFToken"
 CSRF_TTL_SECONDS = 60 * 60 * 2
+CSRF_MAX_TOKEN_LENGTH = 1024
+
+logger = logging.getLogger(__name__)
 
 
 class CSRFMiddleware:
@@ -27,15 +31,29 @@ class CSRFMiddleware:
         raw = f"{payload}:{sig}"
         return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8")
 
+    @staticmethod
+    def _safe_b64decode(token: str) -> str:
+        """Decode URL-safe base64 token with strict length and padding handling."""
+        if not token or len(token) > CSRF_MAX_TOKEN_LENGTH:
+            raise ValueError("invalid token length")
+
+        token_bytes = token.encode("utf-8")
+        padding = (-len(token_bytes)) % 4
+        token_bytes += b"=" * padding
+        return base64.urlsafe_b64decode(token_bytes).decode("utf-8")
+
     def validate_token(self, token: str) -> bool:
         try:
-            decoded = base64.urlsafe_b64decode(token.encode("utf-8")).decode("utf-8")
+            decoded = self._safe_b64decode(token)
             nonce, ts_raw, sig = decoded.split(":", 2)
             if not nonce or not ts_raw or not sig:
                 return False
 
             ts = int(ts_raw)
-            if int(time.time()) - ts > CSRF_TTL_SECONDS:
+            now = int(time.time())
+            if ts > now + 60:  # allow slight clock skew only
+                return False
+            if now - ts > CSRF_TTL_SECONDS:
                 return False
 
             payload = f"{nonce}:{ts_raw}"
@@ -59,13 +77,14 @@ class CSRFMiddleware:
         header_token = request.headers.get(CSRF_HEADER_NAME, "") or request.headers.get(CSRF_HEADER_NAME_LEGACY, "")
 
         if not cookie_token or not header_token:
-            return jsonify({"error": "CSRF token missing"}), 403
+            return jsonify({"error": "CSRF-token saknas"}), 403
 
-        if cookie_token != header_token:
-            return jsonify({"error": "CSRF token mismatch"}), 403
+        if not hmac.compare_digest(cookie_token, header_token):
+            return jsonify({"error": "CSRF-token matchar inte"}), 403
 
         if not self.validate_token(header_token):
-            return jsonify({"error": "CSRF token invalid or expired"}), 403
+            logger.warning("Ogiltig eller utgången CSRF-token för path: %s", path)
+            return jsonify({"error": "CSRF-token är ogiltig eller har löpt ut"}), 403
 
         return None
 

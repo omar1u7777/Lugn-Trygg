@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
@@ -19,6 +19,28 @@ interface RecentMood {
   mood: string;
   score: number;
   timestamp: Date;
+}
+
+type TimestampLike = Date | string | number | { toDate?: () => Date } | null | undefined;
+
+interface MoodApiEntry {
+  id?: string;
+  docId?: string;
+  timestamp?: TimestampLike;
+  mood_text?: string;
+  mood?: string;
+  note?: string;
+  score?: number;
+  sentiment_score?: number;
+}
+
+interface ApiErrorLike {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+    };
+  };
 }
 
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
@@ -111,17 +133,15 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       setSelectedMood(null);
       setNote('');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to log mood:', error);
+      const apiError = error as ApiErrorLike;
       const quotaExceeded = Boolean(
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        (error as any).response?.status === 429
+        apiError.response?.status === 429
       );
 
       if (quotaExceeded) {
-        const serverMessage = (error as any)?.response?.data?.error as string | undefined;
+        const serverMessage = apiError.response?.data?.error;
         const friendlyMessage = serverMessage || 'Du har nått din dagliga gräns för humörloggningar.';
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'assertive');
@@ -134,15 +154,19 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
     }
   };
 
-  const loadRecentMoods = async () => {
+  const loadRecentMoods = useCallback(async () => {
     if (!user?.user_id) return;
 
     try {
       const moodsResponse = await getMoods(user.user_id);
       const normalized: RecentMood[] = (moodsResponse || [])
-        .map((mood: any) => {
+        .map((mood: MoodApiEntry) => {
           const rawTimestamp = mood?.timestamp;
-          const timestamp = rawTimestamp?.toDate
+          const timestamp =
+            rawTimestamp &&
+            typeof rawTimestamp === 'object' &&
+            'toDate' in rawTimestamp &&
+            typeof rawTimestamp.toDate === 'function'
             ? rawTimestamp.toDate()
             : new Date(rawTimestamp || Date.now());
 
@@ -196,13 +220,13 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
     } catch (error) {
       logger.error('Failed to load recent moods:', error);
     }
-  };
+  }, [user?.user_id]);
 
   useEffect(() => {
     if (user?.user_id) {
-      loadRecentMoods();
+      void loadRecentMoods();
     }
-  }, [user?.user_id]);
+  }, [loadRecentMoods, user?.user_id]);
 
   return (
     <div className="max-w-2xl mx-auto p-6">

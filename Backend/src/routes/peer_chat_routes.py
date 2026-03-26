@@ -4,6 +4,7 @@ Real implementation with Firebase Firestore for message storage
 """
 
 import logging
+from google.cloud.firestore import FieldFilter
 import re
 import secrets
 import uuid
@@ -23,18 +24,6 @@ peer_chat_bp = Blueprint("peer_chat", __name__, url_prefix="/api/v1/peer-chat")
 logger = logging.getLogger(__name__)
 
 
-@peer_chat_bp.route('/rooms', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/join', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/leave', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/messages', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/send', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/typing', methods=['OPTIONS'])
-@peer_chat_bp.route('/room/<room_id>/presence', methods=['OPTIONS'])
-@peer_chat_bp.route('/message/<message_id>/like', methods=['OPTIONS'])
-@peer_chat_bp.route('/message/<message_id>/report', methods=['OPTIONS'])
-def handle_options(room_id: str | None = None, message_id: str | None = None):
-    """Handle CORS preflight requests."""
-    return APIResponse.success()
 
 
 # Chat room definitions
@@ -174,11 +163,11 @@ def get_rooms():
             if db is not None:
                 try:
                     five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
-                    active_docs = db.collection('peer_chat_presence').where(
+                    active_docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
                         'room_id', '==', room_id
-                    ).where(
+                    )).where(filter=FieldFilter(
                         'last_seen', '>=', five_min_ago.isoformat()
-                    ).stream()
+                    )).stream()
                     member_count = len(list(active_docs))
                 except Exception:
                     # Compound query may fail if composite index doesn't exist
@@ -227,9 +216,9 @@ def join_room(room_id: str):
         # Get recent messages (last 50)
         messages = []
         if db is not None:
-            docs = db.collection('peer_chat_messages').where(
+            docs = db.collection('peer_chat_messages').where(filter=FieldFilter(
                 'room_id', '==', room_id
-            ).order_by('timestamp', direction='DESCENDING').limit(50).stream()
+            )).order_by('timestamp', direction='DESCENDING').limit(50).stream()
 
             for doc in docs:
                 msg_data = doc.to_dict() or {}
@@ -313,9 +302,9 @@ def get_messages(room_id: str):
                     pass  # Ignore if session doesn't exist
 
             # Query messages
-            query = db.collection('peer_chat_messages').where(
+            query = db.collection('peer_chat_messages').where(filter=FieldFilter(
                 'room_id', '==', room_id
-            ).order_by('timestamp', direction='DESCENDING').limit(limit)
+            )).order_by('timestamp', direction='DESCENDING').limit(limit)
 
             docs = query.stream()
 
@@ -566,11 +555,11 @@ def get_room_presence(room_id: str):
 
         if db is not None:
             five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
-            docs = db.collection('peer_chat_presence').where(
+            docs = db.collection('peer_chat_presence').where(filter=FieldFilter(
                 'room_id', '==', room_id
-            ).where(
+            )).where(filter=FieldFilter(
                 'last_seen', '>=', five_min_ago.isoformat()
-            ).stream()
+            )).stream()
 
             for doc in docs:
                 user_data = doc.to_dict() or {}

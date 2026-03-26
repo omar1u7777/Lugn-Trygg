@@ -8,7 +8,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from flask import g, jsonify, request
+from flask import Response, g, jsonify, make_response, request
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class ValidationMiddleware:
 
     def handle_validation_error(self, error: ValidationError):
         """Handle Pydantic validation errors"""
-        logger.warning(f"Validation error: {error}")
+        logger.warning("Valideringsfel i request: %d fel", len(error.errors()))
 
         # Format validation errors for client
         errors = {}
@@ -40,10 +40,10 @@ class ValidationMiddleware:
 
         response = {
             'success': False,
-            'error': 'Validation failed',
+            'error': 'Validering misslyckades',
             'error_code': 'VALIDATION_ERROR',
             'details': errors,
-            'message': 'One or more fields failed validation'
+            'message': 'Ett eller flera falt kunde inte valideras'
         }
 
         return jsonify(response), 400
@@ -56,39 +56,28 @@ def validate_request(schema_class: type, source: str = 'json') -> Callable:
         schema_class: Pydantic model class
         source: Data source ('json', 'form', 'args', 'files')
     """
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # CRITICAL FIX: Return 204 with proper CORS headers for OPTIONS preflight requests
-            # Don't call the decorated function as it may require validated_data argument
+        def decorated_function(*args: Any, **kwargs: Any):
+            # Short-circuit preflight; global CORS middleware should set headers.
             if request.method == 'OPTIONS':
-                from flask import Response
-                response = Response('', status=204)
-                origin = request.headers.get('Origin', '')
-                # Allow all localhost and common origins for preflight
-                if origin.startswith('http://localhost:') or origin.startswith('http://127.0.0.1:') or origin.startswith('http://192.168.'):
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
-                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token'
-                    response.headers['Access-Control-Allow-Credentials'] = 'true'
-                    response.headers['Access-Control-Max-Age'] = '86400'
-                return response
+                return make_response('', 204)
 
             try:
                 # Get data based on source
                 if source == 'json':
                     try:
-                        data = request.get_json()
+                        data = request.get_json(silent=False)
                         if data is None:
                             # Handle empty request body
                             data = {}
-                    except Exception as json_error:
-                        logger.warning(f"JSON parsing failed: {json_error}")
+                    except Exception:
+                        logger.warning("JSON-parsning misslyckades for %s", request.path)
                         response = {
                             'success': False,
-                            'error': 'Invalid JSON',
+                            'error': 'Ogiltig JSON',
                             'error_code': 'JSON_PARSE_ERROR',
-                            'message': 'Request body contains invalid JSON'
+                            'message': 'Request body innehaller ogiltig JSON'
                         }
                         return jsonify(response), 400
                 elif source == 'form':
@@ -98,7 +87,13 @@ def validate_request(schema_class: type, source: str = 'json') -> Callable:
                 elif source == 'files':
                     data: dict[str, Any] = dict(request.files.to_dict())
                 else:
-                    data: dict[str, Any] = {}
+                    logger.warning("Okand request-kalla for validering: %s", source)
+                    return jsonify({
+                        'success': False,
+                        'error': 'Ogiltig valideringskonfiguration',
+                        'error_code': 'VALIDATION_SOURCE_ERROR',
+                        'message': 'Intern konfigurationsavvikelse upptacktes'
+                    }), 500
 
                 # Handle file uploads with form data
                 if source == 'files' and request.form:
@@ -120,17 +115,17 @@ def validate_request(schema_class: type, source: str = 'json') -> Callable:
 
                 return f(*args, **kwargs)
 
-            except ValidationError as e:
-                logger.warning(f"Request validation failed: {e}")
+            except ValidationError:
+                logger.warning("Request-validering misslyckades for %s", request.path)
                 # Re-raise to be handled by error handler
-                raise e
-            except Exception as e:
-                logger.error(f"Unexpected validation error: {e}")
+                raise
+            except Exception:
+                logger.exception("Ovantat valideringsfel i request for %s", request.path)
                 response = {
                     'success': False,
-                    'error': 'Validation error',
+                    'error': 'Valideringsfel',
                     'error_code': 'VALIDATION_ERROR',
-                    'message': 'Failed to validate request data'
+                    'message': 'Kunde inte validera inkommande data'
                 }
                 return jsonify(response), 400
 
@@ -144,16 +139,25 @@ def validate_response(schema_class: type) -> Callable:
     Args:
         schema_class: Pydantic model class for response
     """
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def decorated_function(*args, **kwargs):
+        def decorated_function(*args: Any, **kwargs: Any):
             result = f(*args, **kwargs)
+
+            if isinstance(result, Response):
+                return result
 
             # If result is already a response tuple, return as-is
             if isinstance(result, tuple):
-                response_data, status_code = result
+                if len(result) == 2:
+                    response_data, status_code = result
+                    response_headers = None
+                elif len(result) == 3:
+                    response_data, status_code, response_headers = result
+                else:
+                    return result
             else:
-                response_data, status_code = result, 200
+                response_data, status_code, response_headers = result, 200, None
 
             try:
                 # Validate response data
@@ -168,19 +172,21 @@ def validate_response(schema_class: type) -> Callable:
                     # Convert back to dict for JSON response
                     response_data = validated_response.dict() if hasattr(validated_response, 'dict') else validated_response.model_dump()
 
+                if response_headers is not None:
+                    return response_data, status_code, response_headers
                 return response_data, status_code
 
-            except ValidationError as e:
-                logger.error(f"Response validation failed: {e}")
+            except ValidationError:
+                logger.error("Responsvalidering misslyckades for endpoint %s", request.path)
                 error_response = {
                     'success': False,
-                    'error': 'Response validation error',
+                    'error': 'Responsvalideringsfel',
                     'error_code': 'RESPONSE_VALIDATION_ERROR',
-                    'message': 'Server response failed validation'
+                    'message': 'Serversvaret kunde inte valideras'
                 }
                 return jsonify(error_response), 500
-            except Exception as e:
-                logger.error(f"Unexpected response validation error: {e}")
+            except Exception:
+                logger.exception("Ovantat fel i responsvalidering for %s", request.path)
                 return result
 
         return decorated_function
@@ -193,23 +199,32 @@ def validate_query_params(schema_class: type) -> Callable:
     Args:
         schema_class: Pydantic model class for query params
     """
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def decorated_function(*args, **kwargs):
+        def decorated_function(*args: Any, **kwargs: Any):
             try:
                 # Get query parameters
                 query_data: dict[str, Any] = dict(request.args.to_dict())
 
                 # Convert string values to appropriate types
-                for key, value in list(query_data.items()):                    # Only process string values
+                for key, value in list(query_data.items()):
+                    # Only process string values
                     if not isinstance(value, str):
-                        continue                    # Try to convert to int/float/bool
-                    if value.isdigit():
-                        query_data[key] = int(value)
-                    elif value.replace('.', '').isdigit() and '.' in value:
-                        query_data[key] = float(value)
-                    elif value.lower() in ('true', 'false'):
-                        query_data[key] = value.lower() == 'true'
+                        continue
+
+                    lower_value = value.lower()
+                    if lower_value in ('true', 'false'):
+                        query_data[key] = lower_value == 'true'
+                        continue
+
+                    try:
+                        if '.' in value:
+                            query_data[key] = float(value)
+                        else:
+                            query_data[key] = int(value)
+                    except ValueError:
+                        # Keep original string if it is not numeric.
+                        continue
 
                 # Validate with Pydantic
                 if hasattr(schema_class, 'model_validate'):
@@ -223,9 +238,9 @@ def validate_query_params(schema_class: type) -> Callable:
 
                 return f(*args, **kwargs)
 
-            except ValidationError as e:
-                logger.warning(f"Query parameter validation failed: {e}")
-                raise e
+            except ValidationError:
+                logger.warning("Validering av query-parametrar misslyckades for %s", request.path)
+                raise
 
         return decorated_function
     return decorator
@@ -234,9 +249,9 @@ def sanitize_request_data() -> Callable:
     """
     Decorator to automatically sanitize string inputs in request data
     """
-    def decorator(f):
+    def decorator(f: Callable) -> Callable:
         @wraps(f)
-        def decorated_function(*args, **kwargs):
+        def decorated_function(*args: Any, **kwargs: Any):
             try:
                 if request.is_json:
                     json_data = request.get_json(silent=True)
@@ -245,7 +260,7 @@ def sanitize_request_data() -> Callable:
                         from src.schemas.base import sanitize_input
                         sanitized_data = sanitize_input(json_data)
                         # Replace request data (this is a bit of a hack but works)
-                        request._cached_json = (sanitized_data, request._cached_json[1] if request._cached_json else None)
+                        request._cached_json = (sanitized_data, sanitized_data)
 
                 elif request.form:
                     # Sanitize form data
@@ -257,8 +272,8 @@ def sanitize_request_data() -> Callable:
 
                 return f(*args, **kwargs)
 
-            except Exception as e:
-                logger.warning(f"Request sanitization failed: {e}")
+            except Exception:
+                logger.warning("Request-sanering misslyckades for %s", request.path)
                 # Continue with original request if sanitization fails
                 return f(*args, **kwargs)
 

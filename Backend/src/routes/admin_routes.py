@@ -10,13 +10,15 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from flask import Blueprint, Response, g, jsonify, request
+from flask import Blueprint, Response, g, make_response, request
 from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.tamper_detection_service import tamper_detection_service
+from src.services.tamper_detection_service import tamper_detection_service
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.performance_monitor import performance_monitor
 from src.utils.response_utils import APIResponse
@@ -26,6 +28,20 @@ logger = logging.getLogger(__name__)
 
 # Validate ID format: Firebase UID/document ID
 ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,128}$')
+
+
+def _preflight_response() -> Response:
+    """Return typed empty response for OPTIONS requests."""
+    return make_response('', 204)
+
+
+def _mask_identifier(value: str | None) -> str:
+    """Mask user identifiers in logs to reduce PII exposure."""
+    if not value:
+        return 'anonymous'
+    if len(value) <= 6:
+        return '***'
+    return f"{value[:3]}***{value[-2:]}"
 
 
 def _get_db() -> Any:
@@ -57,11 +73,45 @@ def require_admin(f: Callable) -> Callable:
 
             user_data = user_doc.to_dict() or {}
             if user_data.get('role') != 'admin':
-                logger.warning(f"Non-admin user {user_id} attempted admin access")
+                logger.warning("Non-admin user attempted admin access: %s", _mask_identifier(user_id))
+                
+                # Trigga tamper_detection för försök att nå admin utan behörighet
+                client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+                tamper_detection_service.record_event(
+                    event_type='unauthorized_admin_access',
+                    severity='CRITICAL',
+                    message='Försök att nå admin-gränssnitt utan behörighet',
+                    metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
+                )
+                
+                # Trigga tamper_detection för försök att nå admin utan behörighet
+                client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+                tamper_detection_service.record_event(
+                    event_type='unauthorized_admin_access',
+                    severity='CRITICAL',
+                    message='Försök att nå admin-gränssnitt utan behörighet',
+                    metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
+                )
                 return APIResponse.forbidden('Admin access required')
 
-        except Exception as e:
-            logger.error(f"Admin check failed: {e}")
+        except Exception:
+            logger.exception("Admin check failed")
+            
+            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+            tamper_detection_service.record_event(
+                event_type='unauthorized_admin_access',
+                severity='CRITICAL',
+                message='Access denied to admin endpoint',
+                metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
+            )
+            
+            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+            tamper_detection_service.record_event(
+                event_type='unauthorized_admin_access',
+                severity='CRITICAL',
+                message='Access denied to admin endpoint',
+                metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
+            )
             return APIResponse.forbidden('Access denied')
 
         return f(*args, **kwargs)
@@ -74,7 +124,7 @@ def require_admin(f: Callable) -> Callable:
 @require_admin
 def get_performance_metrics() -> Response | tuple[Response, int]:
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         metrics = performance_monitor.get_metrics() if hasattr(performance_monitor, 'get_metrics') else {
             "endpoints": {},
@@ -83,9 +133,9 @@ def get_performance_metrics() -> Response | tuple[Response, int]:
             "slowRequestsCount": 0
         }
         return APIResponse.success(metrics, "Performance metrics retrieved")
-    except Exception as e:
-        logger.exception(f"Failed to get performance metrics: {e}")
-        return APIResponse.error("Failed to get performance metrics", "INTERNAL_ERROR", 500, str(e))
+    except Exception:
+        logger.exception("Failed to get performance metrics")
+        return APIResponse.error("Failed to get performance metrics", "INTERNAL_ERROR", 500)
 
 
 @admin_bp.route('/stats', methods=['GET', 'OPTIONS'])
@@ -103,12 +153,12 @@ def get_admin_stats() -> Response | tuple[Response, int]:
         engagement: Engagement metrics
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         db_handle = _get_db()
         if db_handle is None:
-            return jsonify({'error': 'Database unavailable'}), 503
+            return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
         now = datetime.now(UTC)
         last_24h = now - timedelta(hours=24)
@@ -125,14 +175,14 @@ def get_admin_stats() -> Response | tuple[Response, int]:
             recent_moods = moods_ref.where(filter=FieldFilter('timestamp', '>=', last_7d)).stream()
         except TypeError:
             # Fallback for test environments
-            recent_moods = moods_ref.where('timestamp', '>=', last_7d).stream()
-        active_user_ids = {doc.to_dict().get('user_id') for doc in recent_moods}
+            recent_moods = moods_ref.where(filter=FieldFilter('timestamp', '>=', last_7d)).stream()
+        active_user_ids = {doc.to_dict().get('user_id') for doc in recent_moods if doc.to_dict().get('user_id')}
 
         # New users (last 30 days)
         try:
             new_users = users_ref.where(filter=FieldFilter('created_at', '>=', last_30d)).stream()
         except TypeError:
-            new_users = users_ref.where('created_at', '>=', last_30d).stream()
+            new_users = users_ref.where(filter=FieldFilter('created_at', '>=', last_30d)).stream()
         new_user_count = len(list(new_users))
 
         # Mood statistics
@@ -153,7 +203,7 @@ def get_admin_stats() -> Response | tuple[Response, int]:
         try:
             premium_users = users_ref.where(filter=FieldFilter('subscription.status', '==', 'active')).stream()
         except TypeError:
-            premium_users = users_ref.where('subscription.status', '==', 'active').stream()
+            premium_users = users_ref.where(filter=FieldFilter('subscription.status', '==', 'active')).stream()
         premium_count = len(list(premium_users))
 
         stats = {
@@ -180,12 +230,12 @@ def get_admin_stats() -> Response | tuple[Response, int]:
             'generatedAt': now.isoformat()
         }
 
-        logger.info("📊 Admin stats generated successfully")
+        logger.info("Admin stats generated successfully")
         return APIResponse.success(stats, "Admin statistics retrieved")
 
-    except Exception as e:
-        logger.exception(f"Failed to get admin stats: {e}")
-        return APIResponse.error('Failed to get statistics', 'INTERNAL_ERROR', 500, str(e))
+    except Exception:
+        logger.exception("Failed to get admin stats")
+        return APIResponse.error('Failed to get statistics', 'INTERNAL_ERROR', 500)
 
 
 @admin_bp.route('/users', methods=['GET', 'OPTIONS'])
@@ -203,15 +253,22 @@ def get_admin_users() -> Response | tuple[Response, int]:
         status: Filter by status (active, inactive, suspended)
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         db_handle = _get_db()
         if db_handle is None:
-            return jsonify({'error': 'Database unavailable'}), 503
+            return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
-        page = int(request.args.get('page', 1))
-        limit = min(int(request.args.get('limit', 20)), 100)
+        try:
+            page = int(request.args.get('page', 1))
+            limit = int(request.args.get('limit', 20))
+        except (TypeError, ValueError):
+            return APIResponse.bad_request('Invalid pagination parameters')
+
+        if page < 1:
+            page = 1
+        limit = max(1, min(limit, 100))
         raw_search = request.args.get('search', '')
         # Sanitize search input to prevent XSS
         search = input_sanitizer.sanitize(raw_search, content_type='text', max_length=100).lower() if raw_search else ''
@@ -266,9 +323,9 @@ def get_admin_users() -> Response | tuple[Response, int]:
             'pages': (total + limit - 1) // limit
         }, f"Retrieved {len(users)} users")
 
-    except Exception as e:
-        logger.exception(f"Failed to get admin users: {e}")
-        return APIResponse.error('Failed to get users', 'INTERNAL_ERROR', 500, str(e))
+    except Exception:
+        logger.exception("Failed to get admin users")
+        return APIResponse.error('Failed to get users', 'INTERNAL_ERROR', 500)
 
 
 @admin_bp.route('/users/<user_id>/status', methods=['PUT', 'OPTIONS'])
@@ -280,7 +337,7 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
     Update user status (suspend, activate, etc.)
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         # Validate user_id format
@@ -310,7 +367,12 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
             'status_updated_by': g.user_id
         })
 
-        logger.info(f"👮 Admin {g.user_id} updated user {user_id} status to {new_status}")
+        logger.info(
+            "Admin %s updated user %s status to %s",
+            _mask_identifier(getattr(g, 'user_id', None)),
+            _mask_identifier(user_id),
+            new_status,
+        )
 
         # Audit log
         audit_log('admin_update_user_status', g.user_id, {
@@ -323,9 +385,9 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
             'newStatus': new_status
         }, f"User status updated to {new_status}")
 
-    except Exception as e:
-        logger.exception(f"Failed to update user status: {e}")
-        return APIResponse.error('Failed to update user', 'INTERNAL_ERROR', 500, str(e))
+    except Exception:
+        logger.exception("Failed to update user status")
+        return APIResponse.error('Failed to update user', 'INTERNAL_ERROR', 500)
 
 
 @admin_bp.route('/reports', methods=['GET', 'OPTIONS'])
@@ -337,20 +399,23 @@ def get_content_reports() -> Response | tuple[Response, int]:
     Get reported content for moderation
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         db_handle = _get_db()
         if db_handle is None:
-            return jsonify({'error': 'Database unavailable'}), 503
+            return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
 
         status = request.args.get('status', 'pending')
+        allowed_statuses = {'pending', 'resolved', 'dismissed'}
+        if status not in allowed_statuses:
+            return APIResponse.bad_request('Invalid report status')
 
         reports_ref = db_handle.collection('content_reports')
         try:
             query = reports_ref.where(filter=FieldFilter('status', '==', status))
         except TypeError:
-            query = reports_ref.where('status', '==', status)
+            query = reports_ref.where(filter=FieldFilter('status', '==', status))
         query = query.order_by('created_at', direction='DESCENDING')
         query = query.limit(50)
 
@@ -372,9 +437,9 @@ def get_content_reports() -> Response | tuple[Response, int]:
             'total': len(reports)
         }, f"Retrieved {len(reports)} reports")
 
-    except Exception as e:
-        logger.exception(f"Failed to get reports: {e}")
-        return APIResponse.error('Failed to get reports', 'INTERNAL_ERROR', 500, str(e))
+    except Exception:
+        logger.exception("Failed to get reports")
+        return APIResponse.error('Failed to get reports', 'INTERNAL_ERROR', 500)
 
 
 @admin_bp.route('/reports/<report_id>/resolve', methods=['POST', 'OPTIONS'])
@@ -386,7 +451,7 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
     Resolve a content report
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         # Validate report_id format
@@ -414,6 +479,8 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
             return APIResponse.bad_request('Invalid content_type')
         if content_id and not isinstance(content_id, str):
             return APIResponse.bad_request('Invalid content_id')
+        if content_id and not ID_PATTERN.match(content_id):
+            return APIResponse.bad_request('Invalid content_id format')
 
         report_ref = db_handle.collection('content_reports').document(report_id)
         report_doc = report_ref.get()
@@ -450,7 +517,12 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
                         'banned_by': g.user_id
                     })
 
-        logger.info(f"👮 Admin {g.user_id} resolved report {report_id} with action: {action}")
+        logger.info(
+            "Admin %s resolved report %s with action %s",
+            _mask_identifier(getattr(g, 'user_id', None)),
+            _mask_identifier(report_id),
+            action,
+        )
 
         audit_log('admin_resolve_report', g.user_id, {
             'report_id': report_id,
@@ -464,9 +536,9 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
             'action': action
         }, f"Report resolved with action: {action}")
 
-    except Exception as e:
-        logger.exception(f"Failed to resolve report: {e}")
-        return APIResponse.error('Failed to resolve report', 'INTERNAL_ERROR', 500, str(e))
+    except Exception:
+        logger.exception("Failed to resolve report")
+        return APIResponse.error('Failed to resolve report', 'INTERNAL_ERROR', 500)
 
 
 @admin_bp.route('/system/health', methods=['GET', 'OPTIONS'])
@@ -478,7 +550,7 @@ def get_system_health() -> Response | tuple[Response, int]:
     Get system health status (admin only)
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         db_handle = _get_db()
@@ -504,6 +576,6 @@ def get_system_health() -> Response | tuple[Response, int]:
 
         return APIResponse.success(health_data, "System health check completed")
 
-    except Exception as e:
-        logger.exception(f"Health check failed: {e}")
-        return APIResponse.error('System health check failed', 'HEALTH_CHECK_FAILED', 500, str(e))
+    except Exception:
+        logger.exception("Health check failed")
+        return APIResponse.error('System health check failed', 'HEALTH_CHECK_FAILED', 500)

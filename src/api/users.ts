@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { getApiErrorMessage } from "./errorUtils";
 
 // ============================================================================
 // Types
@@ -15,7 +16,7 @@ export interface UserProfile {
   email: string;
   language: string;
   timezone: string;
-  preferences: Record<string, any>;
+  preferences: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -24,7 +25,7 @@ export interface UserProfile {
  * User preferences interface
  */
 export interface UserPreferences {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -86,9 +87,8 @@ export const getUserProfile = async (): Promise<UserProfile> => {
     const data = response.data?.data || response.data;
     return data.profile || data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
-    logger.error("Get user profile error:", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to get user profile");
+    logger.error("Get user profile error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to get user profile"));
   }
 };
 
@@ -109,9 +109,8 @@ export const updateUserPreferences = async (preferences: UserPreferences): Promi
     const data = response.data?.data || response.data;
     return data.preferences || data;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
-    logger.error("Update user preferences error:", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to update user preferences");
+    logger.error("Update user preferences error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to update user preferences"));
   }
 };
 
@@ -134,9 +133,8 @@ export const updateNotificationPreferences = async (preferences: NotificationPre
     );
     logger.debug('Notification preferences updated successfully');
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
-    logger.error("Update notification preferences error:", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to update notification preferences");
+    logger.error("Update notification preferences error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to update notification preferences"));
   }
 };
 
@@ -155,8 +153,7 @@ export const setNotificationSchedule = async (schedule: NotificationSchedule): P
     );
     logger.debug('Notification schedule set successfully');
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
-    logger.error("Set notification schedule error:", apiError);
-    throw new Error(apiError.response?.data?.error || "Failed to set notification schedule");
+    logger.error("Set notification schedule error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to set notification schedule"));
   }
 };

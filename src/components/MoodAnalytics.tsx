@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense, useCallback } from 'react'
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
@@ -89,7 +89,7 @@ const loadJSPDF = (): Promise<JSPDFConstructor> => {
     script.addEventListener('error', handleError, { once: true });
     document.body.appendChild(script);
 
-    if ((import.meta as any).env?.DEV) {
+    if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
       logger.warn('jsPDF CDN script injected dynamically.');
     }
   });
@@ -142,15 +142,7 @@ const MoodAnalytics: React.FC = () => {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [daysAhead, setDaysAhead] = useState(7);
 
-  useEffect(() => {
-    logger.debug('📊 MOOD ANALYTICS - Component mounted', { userId: user?.user_id, daysAhead });
-    if (user) {
-      loadForecast();
-      loadStatistics();
-    }
-  }, [daysAhead, user]);
-
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     logger.debug('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
     if (!user?.user_id) {
       logger.warn('⚠️ MOOD ANALYTICS - No user ID');
@@ -165,9 +157,9 @@ const MoodAnalytics: React.FC = () => {
       logger.error('❌ MOOD ANALYTICS - Failed to load statistics:', err);
       // Don't show error, just use null statistics
     }
-  };
+  }, [user?.user_id]);
 
-  const loadForecast = async () => {
+  const loadForecast = useCallback(async () => {
     logger.debug('🔮 MOOD ANALYTICS - Loading forecast', { daysAhead });
     try {
       setLoading(true);
@@ -186,7 +178,15 @@ const MoodAnalytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [daysAhead, t]);
+
+  useEffect(() => {
+    logger.debug('📊 MOOD ANALYTICS - Component mounted', { userId: user?.user_id, daysAhead });
+    if (user) {
+      void loadForecast();
+      void loadStatistics();
+    }
+  }, [daysAhead, loadForecast, loadStatistics, user]);
 
   const exportToPDF = () => {
     if (!forecast) {

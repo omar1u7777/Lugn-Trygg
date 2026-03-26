@@ -274,7 +274,7 @@ def test_login_user(client, mock_firebase_auth, mock_firestore, test_user):
     assert response.status_code in [200, 401], f"Fel statuskod: {response.status_code}"
     if response.status_code == 200:
         data = response.get_json()
-        assert "Login successful" in data["message"]
+        assert "Inloggning lyckades" in data["message"]
         assert "data" in data
         assert "accessToken" in data["data"]
         assert "refreshToken" not in data["data"]

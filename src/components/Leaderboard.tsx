@@ -3,7 +3,7 @@
  * Real community rankings using Firebase data
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Card } from './ui/tailwind';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,12 @@ import { logger } from '../utils/logger';
 
 type LeaderboardEntry = XPLeaderboardUser | StreakLeaderboardUser | MoodLeaderboardUser;
 
+type AuthUserLike = {
+  user_id?: string;
+  uid?: string;
+  id?: string;
+};
+
 export const Leaderboard: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -37,19 +43,10 @@ export const Leaderboard: React.FC = () => {
     total_users: number;
   } | null>(null);
 
-  const userId = (user as any)?.user_id || (user as any)?.uid || (user as any)?.id || '';
+  const authUser = (user ?? {}) as AuthUserLike;
+  const userId = authUser.user_id || authUser.uid || authUser.id || '';
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (userId) {
-      fetchUserRanking();
-    }
-  }, [userId]);
-
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
       let data: LeaderboardEntry[] = [];
@@ -73,9 +70,13 @@ export const Leaderboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const fetchUserRanking = async () => {
+  const fetchUserRanking = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
+
     try {
       const ranking = await getUserRanking(userId);
       if (ranking) {
@@ -84,7 +85,17 @@ export const Leaderboard: React.FC = () => {
     } catch (error) {
       logger.error('Failed to fetch user ranking:', error);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    void fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  useEffect(() => {
+    if (userId) {
+      void fetchUserRanking();
+    }
+  }, [fetchUserRanking, userId]);
 
   const getRankColor = (rank: number): string => {
     if (rank === 1) return '#FFD700';

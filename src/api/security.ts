@@ -11,7 +11,7 @@ export interface ApiKeyRotationStatus {
   nextRotation?: string;
   status: string;
   keysActive: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -22,7 +22,7 @@ export interface TamperEvent {
   type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   timestamp: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   resolved: boolean;
 }
 
@@ -46,7 +46,7 @@ export interface SecurityMetrics {
   blockedRequests: number;
   activeThreats: number;
   lastUpdated: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

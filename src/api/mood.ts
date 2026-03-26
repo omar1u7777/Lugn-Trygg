@@ -2,6 +2,9 @@ import { api } from "./client";
 import { ApiError } from "./errors";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { getApiErrorMessage } from "./errorUtils";
+
+type GenericObject = Record<string, unknown>;
 
 /**
  * Mood entry data for logging
@@ -22,7 +25,7 @@ export interface WeeklyAnalysisResponse {
   averageSentiment: number;
   trend: 'improving' | 'declining' | 'stable';
   insights: string;
-  recentMemories: any[];
+  recentMemories: GenericObject[];
   positiveCount?: number;
   negativeCount?: number;
   neutralCount?: number;
@@ -34,7 +37,7 @@ export interface WeeklyAnalysisResponse {
   // snake_case aliases for backwards compatibility
   total_moods?: number;
   average_sentiment?: number;
-  recent_memories?: any[];
+  recent_memories?: GenericObject[];
   positive_count?: number;
   negative_count?: number;
   neutral_count?: number;
@@ -92,7 +95,7 @@ export interface MoodStreaksResponse {
  */
 export interface TodayMoodResponse {
   hasMoodToday: boolean;
-  mood?: any;
+  mood?: GenericObject;
   message?: string;
   // snake_case aliases for backwards compatibility
   has_mood_today?: boolean;
@@ -105,14 +108,14 @@ export interface TodayMoodResponse {
  * @returns Promise resolving to mood log response
  * @throws Error if mood logging fails
  */
-export const logMood = async (userId: string, moodData: MoodData): Promise<any> => {
+export const logMood = async (userId: string, moodData: MoodData): Promise<GenericObject> => {
   try {
     // Token added automatically by interceptor
     const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, {
       user_id: userId,
       ...moodData
     });
-    return response.data?.data || response.data;
+    return (response.data?.data || response.data) as GenericObject;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -132,10 +135,9 @@ export const getMoods = async (_userId: string) => {
     // Backend route is /api/mood (GET) - user_id comes from JWT token, not query param
     const response = await api.get(API_ENDPOINTS.MOOD.GET_MOODS);
     const data = response.data?.data || response.data;
-    return data.moods || [];
+    return Array.isArray(data.moods) ? (data.moods as GenericObject[]) : [];
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("API Mood Fetch error:", apiError);
+    logger.error("API Mood Fetch error:", error);
     // Return empty array for graceful degradation
     return [];
   }
@@ -169,8 +171,7 @@ export const getWeeklyAnalysis = async (_userId: string) => {
       confidence: data.confidence ?? 0
     };
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("API Weekly Analysis error:", apiError);
+    logger.error("API Weekly Analysis error:", error);
     // Return fallback data instead of throwing error
     return {
       totalMoods: 0,
@@ -209,8 +210,7 @@ export const getMoodStatistics = async (_userId: string) => {
       recentTrend: data.recentTrend ?? data.recent_trend ?? 'stable'
     };
   } catch (error: unknown) {
-    const apiError = error as any;
-    throw new Error((apiError.response?.data as any)?.error || "An error occurred while fetching statistics.");
+    throw new Error(getApiErrorMessage(error, "An error occurred while fetching statistics."));
   }
 };
 
@@ -225,7 +225,6 @@ export const analyzeText = async (text: string) => {
     const response = await api.post(API_ENDPOINTS.MOOD.ANALYZE_TEXT, { text });
     return response.data?.data || response.data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    throw new Error((apiError.response?.data as any)?.error || "An error occurred during text analysis.");
+    throw new Error(getApiErrorMessage(error, "An error occurred during text analysis."));
   }
 };

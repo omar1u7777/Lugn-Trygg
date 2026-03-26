@@ -4,11 +4,45 @@ Provides real-time error tracking, performance monitoring, and alerting.
 """
 import logging
 import os
-from typing import Literal
+from typing import Any, Literal
 
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+
+
+logger = logging.getLogger(__name__)
+
+
+def _get_env_float(name: str, default: float, *, minimum: float = 0.0, maximum: float = 1.0) -> float:
+    """Read float env value safely and clamp it to an accepted range."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s value '%s', using default %.3f", name, raw, default)
+        return default
+    return max(minimum, min(maximum, value))
+
+
+def _anonymize_ip(ip_address: str) -> str:
+    """Mask IPv4/IPv6 addresses for privacy-safe telemetry."""
+    if not ip_address:
+        return ip_address
+
+    if "." in ip_address:
+        parts = ip_address.split(".")
+        if len(parts) == 4:
+            return ".".join(parts[:2] + ["xxx", "xxx"])
+        return ip_address
+
+    if ":" in ip_address:
+        parts = ip_address.split(":")
+        if len(parts) >= 4:
+            return ":".join(parts[:4] + ["0000"])
+    return ip_address
 
 
 def init_sentry(app=None):
@@ -24,12 +58,12 @@ def init_sentry(app=None):
     sentry_dsn = os.getenv('SENTRY_DSN')
 
     if not sentry_dsn:
-        logging.warning("⚠️  SENTRY_DSN not configured - monitoring disabled")
+        logger.warning("SENTRY_DSN not configured - monitoring disabled")
         return False
 
     environment = os.getenv('SENTRY_ENVIRONMENT', 'production')
-    traces_sample_rate = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1'))
-    profiles_sample_rate = float(os.getenv('SENTRY_PROFILES_SAMPLE_RATE', '0.1'))
+    traces_sample_rate = _get_env_float('SENTRY_TRACES_SAMPLE_RATE', 0.1)
+    profiles_sample_rate = _get_env_float('SENTRY_PROFILES_SAMPLE_RATE', 0.1)
 
     # Configure logging integration
     logging_integration = LoggingIntegration(
@@ -40,9 +74,9 @@ def init_sentry(app=None):
     # CRITICAL FIX: Initialize Sentry with production-ready configuration
     try:
         # Define endpoint-specific sampling rates for 10k users
-        def traces_sampler(context):
+        def traces_sampler(context: dict[str, Any]) -> float:
             """Sample traces based on endpoint for performance optimization"""
-            transaction_name = context.get('transaction_context', {}).get('name', '')
+            transaction_name = str(context.get('transaction_context', {}).get('name', '')).lower()
 
             # Health checks: very low sampling (1%)
             if '/health' in transaction_name:
@@ -96,19 +130,19 @@ def init_sentry(app=None):
             enable_tracing=True,
         )
 
-        logging.info(f"✓ Sentry initialized for {environment} environment")
-        logging.info(f"  - Traces sample rate: {traces_sample_rate*100}%")
-        logging.info(f"  - Profiles sample rate: {profiles_sample_rate*100}%")
-        logging.info("  - Error tracking: ENABLED")
-        logging.info("  - Performance monitoring: ENABLED")
+        logger.info("Sentry initialized for %s environment", environment)
+        logger.info("  - Traces sample rate: %.2f%%", traces_sample_rate * 100)
+        logger.info("  - Profiles sample rate: %.2f%%", profiles_sample_rate * 100)
+        logger.info("  - Error tracking: ENABLED")
+        logger.info("  - Performance monitoring: ENABLED")
 
-    except Exception as e:
-        logging.error(f"❌ Failed to initialize Sentry: {e}")
+    except Exception:
+        logger.exception("Failed to initialize Sentry")
         return False
 
     return True
 
-def before_send_filter(event, hint):
+def before_send_filter(event: dict[str, Any], hint: dict[str, Any] | None):
     """
     Filter events before sending to Sentry.
     Use this to scrub sensitive data and filter out noise.
@@ -121,32 +155,40 @@ def before_send_filter(event, hint):
         Modified event or None to drop the event
     """
     # Filter out health check errors
-    if event.get('request', {}).get('url', '').endswith('/health'):
+    if str(event.get('request', {}).get('url', '')).endswith('/health'):
         return None
 
     # Filter out rate limit errors (expected behavior)
     if 'rate limit' in str(event.get('exception', {})).lower():
         return None
 
+    if event.get('tags', {}).get('http.status_code') == '429':
+        return None
+
     # Scrub sensitive data from request
     if 'request' in event:
-        request = event['request']
+        event_request = event['request']
 
         # Remove authorization headers
-        if 'headers' in request:
-            headers = request['headers']
+        if 'headers' in event_request:
+            headers = event_request['headers']
             if isinstance(headers, dict):
-                headers.pop('Authorization', None)
-                headers.pop('Cookie', None)
-                headers.pop('X-Api-Key', None)
+                for header_name in list(headers.keys()):
+                    normalized = str(header_name).lower()
+                    if normalized in {'authorization', 'cookie', 'x-api-key', 'x-auth-token'}:
+                        headers.pop(header_name, None)
 
         # Remove sensitive query parameters
-        if 'query_string' in request:
+        if 'query_string' in event_request:
             sensitive_params = ['token', 'api_key', 'password', 'secret']
             for param in sensitive_params:
-                if param in str(request['query_string']).lower():
-                    request['query_string'] = '[FILTERED]'
+                if param in str(event_request['query_string']).lower():
+                    event_request['query_string'] = '[FILTERED]'
                     break
+
+        # Do not include raw request body in monitoring payloads.
+        if 'data' in event_request:
+            event_request['data'] = '[FILTERED]'
 
     # Scrub user data for HIPAA compliance
     if 'user' in event:
@@ -156,14 +198,12 @@ def before_send_filter(event, hint):
         filtered_user = {k: v for k, v in user.items() if k in allowed_fields}
         # Anonymize IP address
         if 'ip_address' in filtered_user:
-            ip_parts = filtered_user['ip_address'].split('.')
-            if len(ip_parts) == 4:
-                filtered_user['ip_address'] = f"{ip_parts[0]}.{ip_parts[1]}.xxx.xxx"
+            filtered_user['ip_address'] = _anonymize_ip(str(filtered_user['ip_address']))
         event['user'] = filtered_user
 
     return event
 
-def before_breadcrumb_filter(crumb, hint):
+def before_breadcrumb_filter(crumb: dict[str, Any], hint: dict[str, Any] | None):
     """
     Filter breadcrumbs before adding to event.
 
@@ -182,10 +222,14 @@ def before_breadcrumb_filter(crumb, hint):
     if crumb.get('type') == 'http':
         if 'data' in crumb:
             crumb['data'] = '[FILTERED]'
+        if isinstance(crumb.get('message'), str):
+            message = crumb['message'].lower()
+            if any(token in message for token in ['token=', 'password=', 'api_key=']):
+                crumb['message'] = '[FILTERED]'
 
     return crumb
 
-def capture_exception(exception, context=None):
+def capture_exception(exception: Exception, context: dict[str, Any] | None = None):
     """
     Manually capture an exception with additional context.
 
@@ -209,7 +253,7 @@ def capture_exception(exception, context=None):
 # Type alias for Sentry log levels
 LogLevel = Literal['debug', 'info', 'warning', 'error', 'fatal']
 
-def capture_message(message: str, level: LogLevel = 'info', context=None):
+def capture_message(message: str, level: LogLevel = 'info', context: dict[str, Any] | None = None):
     """
     Capture a message with optional context.
 
@@ -225,7 +269,7 @@ def capture_message(message: str, level: LogLevel = 'info', context=None):
 
         sentry_sdk.capture_message(message, level)
 
-def set_user_context(user_id=None, email=None, username=None):
+def set_user_context(user_id: str | None = None, email: str | None = None, username: str | None = None):
     """
     Set user context for Sentry events.
     Only use non-sensitive identifiers for HIPAA compliance.
@@ -235,13 +279,14 @@ def set_user_context(user_id=None, email=None, username=None):
         email: Hashed email (optional)
         username: Anonymous username (optional)
     """
+    # Keep only anonymized user id to reduce accidental PII exposure.
+    _ = email
+    _ = username
     sentry_sdk.set_user({
         "id": user_id,
-        "email": email,  # Only if hashed/anonymized
-        "username": username,  # Only if anonymized
     })
 
-def add_breadcrumb(message, category='info', level='info', data=None):
+def add_breadcrumb(message: str, category: str = 'info', level: LogLevel = 'info', data: dict[str, Any] | None = None):
     """
     Manually add a breadcrumb for context.
 
@@ -259,7 +304,7 @@ def add_breadcrumb(message, category='info', level='info', data=None):
     )
 
 # Performance monitoring helpers
-def start_transaction(name, op='http.server'):
+def start_transaction(name: str, op: str = 'http.server'):
     """
     Start a performance monitoring transaction.
 
@@ -277,7 +322,7 @@ def start_transaction(name, op='http.server'):
     """
     return sentry_sdk.start_transaction(name=name, op=op)
 
-def start_span(operation, description=None):
+def start_span(operation: str, description: str | None = None):
     """
     Start a performance span within a transaction.
 
@@ -296,7 +341,7 @@ def start_span(operation, description=None):
     return sentry_sdk.start_span(op=operation, description=description)
 
 # Health check function
-def sentry_health_check():
+def sentry_health_check() -> dict[str, Any]:
     """
     Verify Sentry is configured and working.
 

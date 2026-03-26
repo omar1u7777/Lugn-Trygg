@@ -44,16 +44,16 @@ __all__ = [
     'auth_bp',
     'users_bp',
     'onboarding_bp',
-    'privacy_routes',
+    'privacy_bp',
     'consent_bp',
 
     # Core Features
     'mood_bp',
     'mood_stats_bp',
     'memory_bp',
-    'journal_routes',
-    'audio_routes',
-    'voice_routes',
+    'journal_bp',
+    'audio_bp',
+    'voice_bp',
 
     # AI & Chat
     'ai_bp',
@@ -76,8 +76,8 @@ __all__ = [
     'referral_bp',
 
     # Integration & Sync
-    'integration_routes',
-    'sync_history_routes',
+    'integration_bp',
+    'sync_history_bp',
 
     # Notifications & Feedback
     'notifications_bp',

@@ -4,7 +4,7 @@
  * 100% Tailwind Native - No MUI Dependencies
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Button } from './ui/tailwind';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,12 @@ import { trackEvent } from '../services/analytics';
 
 interface DailyInsightsProps {
   userId: string;
-  moodData: any[];
+  moodData: MoodEntry[];
+}
+
+interface MoodEntry {
+  score?: number;
+  timestamp?: string;
 }
 
 interface Insight {
@@ -38,14 +43,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
   const [moodScore, setMoodScore] = useState<number>(0);
   const [trend, setTrend] = useState<'up' | 'down' | 'stable'>('stable');
 
-  useEffect(() => {
-    if (moodData && moodData.length > 0) {
-      analyzeData();
-      trackEvent('daily_insights_viewed', { userId });
-    }
-  }, [moodData, userId]);
-
-  const analyzeData = () => {
+  const analyzeData = useCallback(() => {
     // Calculate average mood score
     const scores = moodData.map((m) => m.score || 0);
     const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -105,7 +103,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
 
     // Pattern insight
     const morningMoods = moodData.filter((m) => {
-      const hour = new Date(m.timestamp).getHours();
+      const hour = m.timestamp ? new Date(m.timestamp).getHours() : -1;
       return hour >= 6 && hour < 12;
     });
 
@@ -142,7 +140,14 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({
     }
 
     setInsights(generatedInsights);
-  };
+  }, [moodData, t, trend]);
+
+  useEffect(() => {
+    if (moodData && moodData.length > 0) {
+      analyzeData();
+      trackEvent('daily_insights_viewed', { userId });
+    }
+  }, [analyzeData, moodData, userId]);
 
   const getTrendIcon = () => {
     switch (trend) {

@@ -6,6 +6,34 @@ import { useTranslation } from "react-i18next";
 import { analytics } from "../services/analytics";
 import { useAccessibility } from "../hooks/useAccessibility";
 import { logger } from '../utils/logger';
+import { getApiErrorMessage } from "../api/errorUtils";
+
+type TimestampLike = string | number | Date | { toDate: () => Date } | null | undefined;
+
+interface MoodEntry {
+  id?: string;
+  mood_text: string;
+  timestamp: TimestampLike;
+  sentiment?: string;
+  score?: number;
+  emotions_detected?: string[];
+  sentiment_analysis?: Record<string, unknown>;
+  voice_analysis?: Record<string, unknown>;
+  ai_analysis?: Record<string, unknown>;
+}
+
+const toDate = (timestamp: TimestampLike): Date => {
+  if (
+    timestamp &&
+    typeof timestamp === 'object' &&
+    'toDate' in timestamp &&
+    typeof (timestamp as { toDate?: unknown }).toDate === 'function'
+  ) {
+    return (timestamp as { toDate: () => Date }).toDate();
+  }
+
+  return new Date(timestamp ?? '');
+};
 
 
 const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClose, inline = false }) => {
@@ -18,17 +46,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   // History limit for free users (7 days)
   const historyDays = isPremium ? -1 : plan.limits.historyDays;
   
-  const [moods, setMoods] = useState<{
-    id?: string;
-    mood_text: string;
-    timestamp: string | any;
-    sentiment?: string;
-    score?: number;
-    emotions_detected?: string[];
-    sentiment_analysis?: any;
-    voice_analysis?: any;
-    ai_analysis?: any;
-  }[]>([]);
+  const [moods, setMoods] = useState<MoodEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'positive' | 'negative' | 'neutral'>('all');
@@ -54,25 +72,26 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       try {
         setLoading(true);
         setError(null);
-        let moodData = await getMoods(user.user_id);
+        const moodDataRaw = await getMoods(user.user_id);
+        let moodData: MoodEntry[] = Array.isArray(moodDataRaw) ? (moodDataRaw as MoodEntry[]) : [];
 
         // REAL SUBSCRIPTION LIMIT: Filter moods for free users (7 days only)
         if (historyDays > 0) {
           const cutoffDate = new Date();
           cutoffDate.setDate(cutoffDate.getDate() - historyDays);
           const originalCount = moodData.length;
-          moodData = moodData.filter((mood: any) => {
-            const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+          moodData = moodData.filter((mood: MoodEntry) => {
+            const moodDate = toDate(mood.timestamp);
             return moodDate >= cutoffDate;
           });
           logger.debug(`📋 MoodList - Filtered moods: ${originalCount} → ${moodData.length} (${historyDays} days limit)`);
         }
 
         // Sort by timestamp, newest first
-        const sortedMoods = (moodData || []).sort((a: any, b: any) => {
-          const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-          const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-          return timeB - timeA;
+        const sortedMoods = (moodData || []).sort((a: MoodEntry, b: MoodEntry) => {
+          const timeA = toDate(a.timestamp);
+          const timeB = toDate(b.timestamp);
+          return timeB.getTime() - timeA.getTime();
         });
 
         setMoods(sortedMoods);
@@ -103,7 +122,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
     const interval = setInterval(fetchMoods, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [historyDays, user]);
 
   // Filter moods based on sentiment, search, and date range
   const filteredMoods = moods.filter(mood => {
@@ -141,10 +160,9 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   });
 
   // Format timestamp to readable format
-  const formatTimestamp = (timestamp: any) => {
+  const formatTimestamp = (timestamp: TimestampLike) => {
     try {
-      // Handle Firestore Timestamp objects
-      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+      const date = toDate(timestamp);
       if (isNaN(date.getTime())) return 'Okänt datum';
 
       // Format as "DD MMM YYYY, HH:MM"
@@ -186,11 +204,11 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       });
 
       announceToScreenReader('Humör raderat framgångsrikt', 'polite');
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to delete mood:', error);
       analytics.track('Mood Delete Failed', {
         moodId,
-        error: error?.response?.data?.error || error?.message || 'Unknown error',
+        error: getApiErrorMessage(error, 'Unknown error'),
         component: 'MoodList',
         userId: user.user_id,
       });

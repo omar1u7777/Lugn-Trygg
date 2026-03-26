@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';import { logger } from '../../utils/logger';
+import { getSyncHistory, retrySyncOperation, type SyncHistoryEntry } from '../../api/sync';
+import { logger } from '../../utils/logger';
 
 
 interface SyncHistoryProps {
@@ -15,11 +16,7 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
   const [dateRange, setDateRange] = useState<'7days' | '30days' | '90days'>('7days');
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSyncHistory();
-  }, [userId, selectedProvider, dateRange]);
-
-  const loadSyncHistory = async () => {
+  const loadSyncHistory = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -37,7 +34,11 @@ const SyncHistory: React.FC<SyncHistoryProps> = ({ userId, providerFilter }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange, selectedProvider]);
+
+  useEffect(() => {
+    void loadSyncHistory();
+  }, [loadSyncHistory, userId]);
 
   const handleRetry = async (syncId: string) => {
     try {

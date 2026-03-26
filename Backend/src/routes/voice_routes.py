@@ -22,22 +22,10 @@ logger = logging.getLogger(__name__)
 # OPTIONS Handlers (CORS Preflight)
 # ============================================================================
 
-@voice_bp.route('/transcribe', methods=['OPTIONS'])
-def transcribe_options():
-    """Handle CORS preflight for transcribe endpoint"""
-    return APIResponse.success()
 
 
-@voice_bp.route('/analyze-emotion', methods=['OPTIONS'])
-def analyze_emotion_options():
-    """Handle CORS preflight for analyze-emotion endpoint"""
-    return APIResponse.success()
 
 
-@voice_bp.route('/status', methods=['OPTIONS'])
-def status_options():
-    """Handle CORS preflight for status endpoint"""
-    return APIResponse.success()
 
 
 # ============================================================================
@@ -121,7 +109,7 @@ def transcribe_audio():
             user_id=user_id,
             details={"error": str(e), "language": language}
         )
-        return APIResponse.error("Voice transcription failed", "TRANSCRIPTION_ERROR", 500, str(e))
+        return APIResponse.error("Voice transcription failed", "TRANSCRIPTION_ERROR", 500)
 
 
 # ============================================================================
@@ -201,7 +189,7 @@ def analyze_voice_emotion():
 
     except Exception as e:
         logger.exception(f"❌ Voice emotion analysis error: {e}")
-        return APIResponse.error("Voice emotion analysis failed", "ANALYSIS_ERROR", 500, str(e))
+        return APIResponse.error("Voice emotion analysis failed", "ANALYSIS_ERROR", 500)
 
 
 # ============================================================================

@@ -15,6 +15,11 @@ from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
 chatbot_bp = Blueprint("chatbot", __name__)
+
+def _preflight_response():
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
 logger = logging.getLogger(__name__)
 
 # Maximum message length to prevent abuse
@@ -64,7 +69,7 @@ def _to_camel_case_message(msg: dict) -> dict:
 @rate_limit_by_endpoint
 def chat_with_ai():
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         logger.info("🔄 Chat endpoint called")
@@ -251,7 +256,7 @@ def chat_with_ai():
 def legacy_chat_message():
     """Legacy alias for /chat used by older integrations and middleware tests."""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     return chat_with_ai()
 
 def generate_enhanced_therapeutic_response(user_message: str, conversation_history: list) -> dict:
@@ -500,7 +505,7 @@ Vad ligger dig varmast på hjärtat just nu? Att utforska dina känslor och tank
 @rate_limit_by_endpoint
 def get_chat_history():
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         user_id = g.user_id
         if not user_id:
@@ -531,7 +536,7 @@ def get_chat_history():
 def analyze_mood_patterns():
     """Analyze user's mood patterns and provide insights"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         user_id = g.user_id
         if not user_id:
@@ -587,7 +592,7 @@ ALLOWED_EXERCISE_TYPES = {'breathing', 'mindfulness', 'cbt_thought_record', 'gra
 def start_exercise():
     """Start a CBT or mindfulness exercise session"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         user_id = g.user_id
         data = request.get_json(force=True, silent=False)
@@ -649,7 +654,7 @@ def start_exercise():
 def complete_exercise(user_id, exercise_id):
     """Mark an exercise as completed"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Verify user owns this exercise
         if g.user_id != user_id:

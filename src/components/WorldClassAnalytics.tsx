@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
@@ -23,10 +23,11 @@ import { Button, Alert, Card } from './ui/tailwind';
 import { colors } from '../theme/tokens';
 import { logger } from '../utils/logger';
 
+type TimestampLike = string | number | Date | { toDate: () => Date } | null | undefined;
 
 interface MoodData {
   score?: number;
-  timestamp?: any; // Can be Firestore timestamp, number, or string
+  timestamp?: TimestampLike;
 }
 
 interface WorldClassAnalyticsProps {
@@ -75,16 +76,95 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  logger.debug('📊 ANALYTICS - Component mounted', { userId: user?.user_id });
-  analytics.page('World Class Analytics', {
-    component: 'WorldClassAnalytics',
-  });
+  const generateInsights = useCallback((moods: MoodData[], avgMood: number, trend: string) => {
+    const insights = [];
 
-  loadAnalyticsData();
-}, [user?.user_id]);
+    if (moods.length < 3) {
+      insights.push({
+        id: 'start-tracking',
+        type: 'pattern' as const,
+        title: t('worldAnalytics.insights.startTracking'),
+        description: t('worldAnalytics.insights.startTrackingDesc'),
+        severity: 'medium' as const,
+      });
+    }
 
-  const loadAnalyticsData = async () => {
+    if (avgMood >= 7) {
+      insights.push({
+        id: 'positive-trend',
+        type: 'improvement' as const,
+        title: t('worldAnalytics.insights.positiveTrend'),
+        description: t('worldAnalytics.insights.positiveTrendDesc'),
+        severity: 'low' as const,
+      });
+    }
+
+    if (trend === 'down') {
+      insights.push({
+        id: 'concerning-trend',
+        type: 'concern' as const,
+        title: t('worldAnalytics.insights.downwardTrend'),
+        description: t('worldAnalytics.insights.downwardTrendDesc'),
+        severity: 'high' as const,
+      });
+    }
+
+    if (avgMood <= 4) {
+      insights.push({
+        id: 'low-mood-support',
+        type: 'concern' as const,
+        title: t('worldAnalytics.insights.needSupport'),
+        description: t('worldAnalytics.insights.needSupportDesc'),
+        severity: 'high' as const,
+      });
+    }
+
+    return insights;
+  }, [t]);
+
+  const calculateMoodDistribution = useCallback((moods: MoodData[]) => {
+    const distribution: { [key: string]: number } = {
+      [t('worldAnalytics.moodDistribution.veryBad')]: 0,
+      [t('worldAnalytics.moodDistribution.bad')]: 0,
+      [t('worldAnalytics.moodDistribution.neutral')]: 0,
+      [t('worldAnalytics.moodDistribution.good')]: 0,
+      [t('worldAnalytics.moodDistribution.veryGood')]: 0,
+    };
+
+    moods.forEach((mood: MoodData) => {
+      const score = mood.score || 0;
+      if (score <= 2) distribution[t('worldAnalytics.moodDistribution.veryBad')] = (distribution[t('worldAnalytics.moodDistribution.veryBad')] || 0) + 1;
+      else if (score <= 4) distribution[t('worldAnalytics.moodDistribution.bad')] = (distribution[t('worldAnalytics.moodDistribution.bad')] || 0) + 1;
+      else if (score <= 6) distribution[t('worldAnalytics.moodDistribution.neutral')] = (distribution[t('worldAnalytics.moodDistribution.neutral')] || 0) + 1;
+      else if (score <= 8) distribution[t('worldAnalytics.moodDistribution.good')] = (distribution[t('worldAnalytics.moodDistribution.good')] || 0) + 1;
+      else distribution[t('worldAnalytics.moodDistribution.veryGood')] = (distribution[t('worldAnalytics.moodDistribution.veryGood')] || 0) + 1;
+    });
+
+    return distribution;
+  }, [t]);
+
+  const generateWeeklyData = useCallback((moods: MoodData[]) => {
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayMoods = moods.filter((mood: MoodData) => {
+        const moodDate = new Date(mood.timestamp);
+        return moodDate.toDateString() === date.toDateString();
+      });
+
+      last7Days.push({
+        day: date.toLocaleDateString('sv-SE', { weekday: 'short' }),
+        mood: dayMoods.length > 0
+          ? dayMoods.reduce((sum: number, mood: MoodData) => sum + (mood.score || 0), 0) / dayMoods.length
+          : 0,
+        count: dayMoods.length,
+      });
+    }
+    return last7Days;
+  }, []);
+
+  const loadAnalyticsData = useCallback(async () => {
   logger.debug('📊 ANALYTICS - Loading data...');
   if (!user?.user_id) {
     logger.warn('⚠️ ANALYTICS - No user ID');
@@ -95,10 +175,12 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      let [moodsData, _weeklyAnalysisData] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+      let moodsData: MoodData[];
+      const [_weeklyAnalysisData, fetchedMoods] = await Promise.all([
         getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
+        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
       ]);
+      moodsData = fetchedMoods as MoodData[];
       
       // REAL SUBSCRIPTION LIMIT: Filter moods for free users (7 days only)
       if (historyDays > 0) {
@@ -185,95 +267,16 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [announceToScreenReader, calculateMoodDistribution, generateInsights, generateWeeklyData, historyDays, user?.user_id]);
 
-  const generateInsights = (moods: MoodData[], avgMood: number, trend: string) => {
-    const insights = [];
-
-    if (moods.length < 3) {
-      insights.push({
-        id: 'start-tracking',
-        type: 'pattern' as const,
-        title: t('worldAnalytics.insights.startTracking'),
-        description: t('worldAnalytics.insights.startTrackingDesc'),
-        severity: 'medium' as const,
-      });
-    }
-
-    if (avgMood >= 7) {
-      insights.push({
-        id: 'positive-trend',
-        type: 'improvement' as const,
-        title: t('worldAnalytics.insights.positiveTrend'),
-        description: t('worldAnalytics.insights.positiveTrendDesc'),
-        severity: 'low' as const,
-      });
-    }
-
-    if (trend === 'down') {
-      insights.push({
-        id: 'concerning-trend',
-        type: 'concern' as const,
-        title: t('worldAnalytics.insights.downwardTrend'),
-        description: t('worldAnalytics.insights.downwardTrendDesc'),
-        severity: 'high' as const,
-      });
-    }
-
-    if (avgMood <= 4) {
-      insights.push({
-        id: 'low-mood-support',
-        type: 'concern' as const,
-        title: t('worldAnalytics.insights.needSupport'),
-        description: t('worldAnalytics.insights.needSupportDesc'),
-        severity: 'high' as const,
-      });
-    }
-
-    return insights;
-  };
-
-  const calculateMoodDistribution = (moods: MoodData[]) => {
-    const distribution: { [key: string]: number } = {
-      [t('worldAnalytics.moodDistribution.veryBad')]: 0,
-      [t('worldAnalytics.moodDistribution.bad')]: 0,
-      [t('worldAnalytics.moodDistribution.neutral')]: 0,
-      [t('worldAnalytics.moodDistribution.good')]: 0,
-      [t('worldAnalytics.moodDistribution.veryGood')]: 0,
-    };
-
-    moods.forEach((mood: MoodData) => {
-      const score = mood.score || 0;
-      if (score <= 2) distribution[t('worldAnalytics.moodDistribution.veryBad')] = (distribution[t('worldAnalytics.moodDistribution.veryBad')] || 0) + 1;
-      else if (score <= 4) distribution[t('worldAnalytics.moodDistribution.bad')] = (distribution[t('worldAnalytics.moodDistribution.bad')] || 0) + 1;
-      else if (score <= 6) distribution[t('worldAnalytics.moodDistribution.neutral')] = (distribution[t('worldAnalytics.moodDistribution.neutral')] || 0) + 1;
-      else if (score <= 8) distribution[t('worldAnalytics.moodDistribution.good')] = (distribution[t('worldAnalytics.moodDistribution.good')] || 0) + 1;
-      else distribution[t('worldAnalytics.moodDistribution.veryGood')] = (distribution[t('worldAnalytics.moodDistribution.veryGood')] || 0) + 1;
+  useEffect(() => {
+    logger.debug('📊 ANALYTICS - Component mounted', { userId: user?.user_id });
+    analytics.page('World Class Analytics', {
+      component: 'WorldClassAnalytics',
     });
 
-    return distribution;
-  };
-
-  const generateWeeklyData = (moods: MoodData[]) => {
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dayMoods = moods.filter((mood: MoodData) => {
-        const moodDate = new Date(mood.timestamp);
-        return moodDate.toDateString() === date.toDateString();
-      });
-
-      last7Days.push({
-        day: date.toLocaleDateString('sv-SE', { weekday: 'short' }),
-        mood: dayMoods.length > 0
-          ? dayMoods.reduce((sum: number, mood: MoodData) => sum + (mood.score || 0), 0) / dayMoods.length
-          : 0,
-        count: dayMoods.length,
-      });
-    }
-    return last7Days;
-  };
+    loadAnalyticsData();
+  }, [loadAnalyticsData, user?.user_id]);
 
   const getSeverityAlertVariant = (severity: string): "info" | "warning" | "error" | "success" => {
     switch (severity) {

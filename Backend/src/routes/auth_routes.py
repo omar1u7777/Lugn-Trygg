@@ -19,6 +19,7 @@ from ..schemas.auth import (
 )
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
+from ..services.tamper_detection_service import tamper_detection_service
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import input_sanitizer
 from ..utils.response_utils import APIResponse
@@ -49,6 +50,12 @@ logger = logging.getLogger(__name__)
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def _preflight_response() -> Response:
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
 
 REFRESH_COOKIE_NAME = 'refresh_token'
 REFRESH_COOKIE_PATH = '/'
@@ -95,14 +102,14 @@ def _verify_current_password(email: str, password: str) -> bool:
 @auth_bp.route('/register', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 @validate_request(RegisterRequest)
-def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Response:
+def register_user(validated_data: RegisterRequest) -> tuple[Response | str, int] | Response:
     """
     Register a new user
 
     2026-Compliant: Type hints with RegisterRequest schema
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         logger.info("Registration request received")
@@ -138,8 +145,8 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
             return APIResponse.error(error, "REGISTRATION_ERROR", status_code)
 
         if not user:
-            logger.error("Registration failed - user object is None")
-            return APIResponse.error("Registration failed - user object is None", "INTERNAL_ERROR", 500)
+            logger.error("Registrering misslyckades")
+            return APIResponse.error("Registrering misslyckades", "INTERNAL_ERROR", 500)
 
         audit_log('user_registered', user.uid, {'email': _mask_email(email), 'name': name, 'referral_code': referral_code or 'none'})
 
@@ -167,7 +174,7 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
                         referral_data, status_code = referral_response
                         if status_code == 200:
                             referral_success = True
-                            referral_message = 'Referral code activated! You and your friend both earned 1 week premium! 🎉'
+                            referral_message = 'Värvningskoden aktiverades! Du och din vän fick båda 1 vecka premium!'
                             logger.info(f"Referral code {referral_code} successfully activated for user {user.uid}")
                         else:
                             error_msg = referral_data.get('error', 'Unknown error') if isinstance(referral_data, dict) else 'Unknown error'
@@ -192,11 +199,11 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
                 'message': referral_message
             }
 
-        return APIResponse.created(response_data, "User registered successfully")
+        return APIResponse.created(response_data, "Användare registrerad")
 
     except Exception as e:
-        logger.error(f"Registration failed: {str(e)}")
-        return APIResponse.error("Registration failed", "INTERNAL_ERROR", 500, str(e))
+        logger.error(f"Registrering misslyckades: {str(e)}")
+        return APIResponse.error("Registrering misslyckades", "INTERNAL_ERROR", 500)
 
 @auth_bp.route('/login', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
@@ -204,7 +211,7 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response, int] | Res
 def login_user(validated_data):
     """Authenticate user with email/password and return JWT token"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     logger.info("🔑 AUTH - LOGIN endpoint called")
 
     try:
@@ -217,14 +224,32 @@ def login_user(validated_data):
         user, error, access_token, refresh_token = AuthService.login_user(email, password)
         if error or not user:
             audit_log('login_failed', 'unknown', {'reason': error or 'invalid_credentials', 'email': _mask_email(email)})
-            return APIResponse.unauthorized(error or 'Invalid email or password')
+            
+            # Trigger Tamper Detection för misslyckad inloggning
+            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+            tamper_detection_service.record_event(
+                event_type='failed_login_attempt',
+                severity='MEDIUM',
+                message='Misslyckat inloggningsförsök.',
+                metadata={'email': _mask_email(email), 'ip': client_ip}
+            )
+            
+            # Trigger Tamper Detection för misslyckad inloggning
+            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
+            tamper_detection_service.record_event(
+                event_type='failed_login_attempt',
+                severity='MEDIUM',
+                message='Misslyckat inloggningsförsök.',
+                metadata={'email': _mask_email(email), 'ip': client_ip}
+            )
+            return APIResponse.unauthorized(error or 'Ogiltig e-postadress eller lösenord')
 
         # Fetch user data from Firestore and update last_login
         try:
             from ..firebase_config import db
             if db is None:
-                logger.error("Database unavailable during login")
-                return APIResponse.error("Login failed - database unavailable", "SERVICE_UNAVAILABLE", 500)
+                logger.error("Databasen är tillfälligt otillgänglig during login")
+                return APIResponse.error("Inloggning misslyckades - databasen är tillfälligt otillgänglig", "SERVICE_UNAVAILABLE", 500)
 
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict() if user_doc.exists else {}
@@ -236,7 +261,7 @@ def login_user(validated_data):
 
         except Exception as db_error:
             logger.error(f"Failed to fetch/update user data during login: {str(db_error)}")
-            return APIResponse.error("Login failed - database error", "INTERNAL_ERROR", 500, str(db_error))
+            return APIResponse.error("Inloggning misslyckades - databasfel", "INTERNAL_ERROR", 500)
 
         response_data = {
             'accessToken': access_token,
@@ -244,18 +269,18 @@ def login_user(validated_data):
             'user': {
                 'id': user.uid,
                 'email': user.email,
-                'name': user_data.get('name', 'Unknown'),
+                'name': user_data.get('name', 'Okänd'),
                 'twoFactorEnabled': user_data.get('two_factor_enabled', False),
                 'biometricEnabled': user_data.get('biometric_enabled', False)
             }
         }
 
         audit_log('login_successful', user.uid, {
-            'email': user.email,
+            'email': _mask_email(user.email),
             'two_factor_required': False
         })
 
-        response = APIResponse.success(response_data, "Login successful")
+        response = APIResponse.success(response_data, "Inloggning lyckades")
         # Since APIResponse.success returns a tuple, we need to handle the cookie setting
         response_data_json, status_code = response
         response = make_response(response_data_json, status_code)
@@ -266,7 +291,7 @@ def login_user(validated_data):
 
     except Exception as e:
         logger.error(f"Login failed: {str(e)}")
-        return APIResponse.error("Login failed", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Login failed", "INTERNAL_ERROR", 500)
 
 @auth_bp.route('/verify-2fa', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -274,7 +299,7 @@ def login_user(validated_data):
 def verify_2fa():
     """Verify two-factor authentication"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         from ..firebase_config import db
@@ -282,7 +307,7 @@ def verify_2fa():
         data = request.get_json() or {}
 
         if not data:
-            return APIResponse.bad_request('Request body required')
+            return APIResponse.bad_request('Begäransdata krävs')
 
         # Sanitize input data
         data = input_sanitizer.sanitize_dict(data, {
@@ -297,6 +322,8 @@ def verify_2fa():
             if not code:
                 return APIResponse.bad_request('Verification code is required')
             # Verify TOTP code against user's stored secret
+            if db is None:
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             user_doc = db.collection('users').document(user_id).get()
             if not user_doc.exists:
                 return APIResponse.not_found('User not found')
@@ -336,7 +363,7 @@ def verify_2fa():
 
     except Exception as e:
         logger.error(f"2FA verification failed: {str(e)}")
-        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
+        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500)
 
 @auth_bp.route('/setup-2fa-biometric', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -344,14 +371,14 @@ def verify_2fa():
 def setup_2fa_biometric():
     """Setup two-factor authentication for user (biometric/sms)"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
         data = request.get_json() or {}
 
         if not data:
-            return APIResponse.bad_request('Request body required')
+            return APIResponse.bad_request('Begäransdata krävs')
 
         method = data.get('method')  # 'biometric' or 'sms'
         setup_data = data.get('setup_data', {})
@@ -359,7 +386,7 @@ def setup_2fa_biometric():
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             user_ref = db.collection('users').document(user_id)
             user_data = user_ref.get().to_dict()
 
@@ -400,18 +427,18 @@ def setup_2fa_biometric():
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return APIResponse.error('Failed to save 2FA settings', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
+            return APIResponse.error('Failed to save 2FA settings', 'TWO_FACTOR_SETUP_ERROR', 500)
 
     except Exception as e:
         logger.error(f"2FA setup failed: {str(e)}")
-        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
+        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500)
 
 def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
     """Find or create Google OAuth user (simplified without transaction)"""
     from ..firebase_config import db
 
     if db is None:
-        raise RuntimeError("Database unavailable")
+        raise RuntimeError("Databasen är tillfälligt otillgänglig")
 
     # Get user by firebase_uid
     user_ref = db.collection('users').document(firebase_uid)
@@ -501,7 +528,7 @@ def create_or_update_google_user_simple(firebase_uid, email, google_id, name):
 def google_login(validated_data=None):
     """Handle Google OAuth login"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         if validated_data is None:
             return APIResponse.bad_request('Invalid request data')
@@ -540,13 +567,13 @@ def google_login(validated_data=None):
 
         except Exception as e:
             logger.error(f"Firebase token verification failed: {str(e)}")
-            return APIResponse.unauthorized('Invalid Firebase token')
+            return APIResponse.unauthorized('Ogiltig Firebase-token')
 
         # Atomic user lookup/creation
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
             # Create or update user (simplified without transaction)
             user_data, user_id, is_new = create_or_update_google_user_simple(
@@ -561,7 +588,7 @@ def google_login(validated_data=None):
 
         except Exception as e:
             logger.error(f"Firebase transaction failed: {str(e)}")
-            return APIResponse.error('Authentication service error', 'AUTH_SERVICE_ERROR', 503, str(e))
+            return APIResponse.error('Authentication service error', 'AUTH_SERVICE_ERROR', 503)
 
         # Create JWT tokens (access + refresh, single-source backend session model)
         access_token, refresh_token = AuthService.issue_session_tokens(user_id)
@@ -586,7 +613,7 @@ def google_login(validated_data=None):
 
     except Exception as e:
         logger.error(f"Google login failed: {str(e)}")
-        return APIResponse.error('Google login failed', 'GOOGLE_LOGIN_ERROR', 500, str(e))
+        return APIResponse.error('Google login failed', 'GOOGLE_LOGIN_ERROR', 500)
 
 @auth_bp.route('/logout', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -594,7 +621,7 @@ def google_login(validated_data=None):
 def logout():
     """Logout user by clearing the cookie"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
@@ -615,7 +642,7 @@ def logout():
 
     except Exception as e:
         logger.error(f"Logout failed: {str(e)}")
-        return APIResponse.error('Logout failed', 'LOGOUT_ERROR', 500, str(e))
+        return APIResponse.error('Logout failed', 'LOGOUT_ERROR', 500)
 
 @auth_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
@@ -623,7 +650,7 @@ def logout():
 def reset_password(validated_data):
     """Initiate password reset"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         email = validated_data.email.strip().lower()
@@ -632,7 +659,7 @@ def reset_password(validated_data):
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             from google.cloud.firestore import FieldFilter
             users_ref = db.collection('users')
             # CRITICAL FIX: Use FieldFilter to avoid positional argument warning
@@ -643,7 +670,7 @@ def reset_password(validated_data):
 
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
-            return APIResponse.error('Service temporarily unavailable', 'SERVICE_UNAVAILABLE', 503, str(e))
+            return APIResponse.error('Tjänsten är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
         # If user exists, generate reset token and send email
         if user_exists:
@@ -679,7 +706,7 @@ def reset_password(validated_data):
 
     except Exception as e:
         logger.error(f"Password reset failed: {str(e)}")
-        return APIResponse.error('Password reset failed', 'PASSWORD_RESET_ERROR', 500, str(e))
+        return APIResponse.error('Password reset failed', 'PASSWORD_RESET_ERROR', 500)
 
 @auth_bp.route('/confirm-password-reset', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
@@ -687,7 +714,7 @@ def reset_password(validated_data):
 def confirm_password_reset(validated_data):
     """Confirm password reset with token"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         token = validated_data.token
@@ -703,7 +730,7 @@ def confirm_password_reset(validated_data):
         try:
             from ..firebase_config import auth
             if auth is None:
-                return APIResponse.error('Authentication service unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Autentiseringstjänsten är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
             auth.update_user(user_id, password=new_password)
 
@@ -717,11 +744,11 @@ def confirm_password_reset(validated_data):
         except Exception as e:
             logger.error(f"Password update failed: {str(e)}")
             audit_log('password_reset_failed', user_id, {'reason': 'password_update_failed'})
-            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500, str(e))
+            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Password reset confirmation failed: {str(e)}")
-        return APIResponse.error('Password reset confirmation failed', 'PASSWORD_RESET_CONFIRMATION_ERROR', 500, str(e))
+        return APIResponse.error('Password reset confirmation failed', 'PASSWORD_RESET_CONFIRMATION_ERROR', 500)
 
 @auth_bp.route('/consent', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -730,7 +757,7 @@ def confirm_password_reset(validated_data):
 def update_consent(validated_data):
     """Update user consent preferences"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         user_id = g.user_id
 
@@ -744,7 +771,7 @@ def update_consent(validated_data):
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             db.collection('users').document(user_id).update({
                 'consent': consent_data
             })
@@ -766,11 +793,11 @@ def update_consent(validated_data):
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return APIResponse.error('Failed to update consent', 'CONSENT_UPDATE_ERROR', 500, str(e))
+            return APIResponse.error('Failed to update consent', 'CONSENT_UPDATE_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Consent update failed: {str(e)}")
-        return APIResponse.error('Consent update failed', 'CONSENT_UPDATE_ERROR', 500, str(e))
+        return APIResponse.error('Consent update failed', 'CONSENT_UPDATE_ERROR', 500)
 
 @auth_bp.route('/consent/<user_id>', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
@@ -778,7 +805,7 @@ def update_consent(validated_data):
 def get_consent(user_id):
     """Get user consent preferences"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Validate and sanitize user_id
         user_id = input_sanitizer.sanitize(user_id)
@@ -789,12 +816,12 @@ def get_consent(user_id):
 
         # Users can only view their own consent
         if current_user_id != user_id:
-            return APIResponse.forbidden('Unauthorized')
+            return APIResponse.forbidden('Obehörig')
 
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             user_doc = db.collection('users').document(user_id).get()
             user_data = user_doc.to_dict()
 
@@ -820,23 +847,23 @@ def get_consent(user_id):
 
         except Exception as e:
             logger.error(f"Firebase query failed: {str(e)}")
-            return APIResponse.error('Failed to retrieve consent', 'CONSENT_RETRIEVAL_ERROR', 500, str(e))
+            return APIResponse.error('Failed to retrieve consent', 'CONSENT_RETRIEVAL_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Consent retrieval failed: {str(e)}")
-        return APIResponse.error('Consent retrieval failed', 'CONSENT_RETRIEVAL_ERROR', 500, str(e))
+        return APIResponse.error('Consent retrieval failed', 'CONSENT_RETRIEVAL_ERROR', 500)
 
 @auth_bp.route('/refresh', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 def refresh_token():
     """Refresh access token using backend-managed rotating refresh cookie."""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         refresh_token_cookie = request.cookies.get(REFRESH_COOKIE_NAME)
         if not refresh_token_cookie:
-            return APIResponse.unauthorized('Refresh token missing')
+            return APIResponse.unauthorized('Refresh-token saknas')
 
         rotated, error = AuthService.rotate_refresh_token(refresh_token_cookie)
         if error or not rotated:
@@ -863,7 +890,7 @@ def refresh_token():
 
     except Exception as e:
         logger.error(f"Token refresh failed: {str(e)}")
-        return APIResponse.error('Token refresh failed', 'TOKEN_REFRESH_ERROR', 500, str(e))
+        return APIResponse.error('Token refresh failed', 'TOKEN_REFRESH_ERROR', 500)
 
 @auth_bp.route('/change-email', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -871,14 +898,14 @@ def refresh_token():
 def change_email():
     """Change user email address"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
         data = request.get_json() or {}
 
         if not data:
-            return APIResponse.bad_request('Request body required')
+            return APIResponse.bad_request('Begäransdata krävs')
 
         new_email = data.get('newEmail', data.get('new_email', '')).strip().lower()
         password = data.get('password', '')
@@ -908,7 +935,7 @@ def change_email():
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             from google.cloud.firestore import FieldFilter
             users_ref = db.collection('users')
             existing_user_query = users_ref.where(filter=FieldFilter('email', '==', new_email)).limit(1)
@@ -919,7 +946,7 @@ def change_email():
 
         except Exception as e:
             logger.error(f"Email uniqueness check failed: {str(e)}")
-            return APIResponse.error('Service temporarily unavailable', 'SERVICE_UNAVAILABLE', 503, str(e))
+            return APIResponse.error('Tjänsten är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
         # Update email in Firebase Auth and Firestore
         try:
@@ -935,20 +962,20 @@ def change_email():
                 'email_updated_at': datetime.now(UTC).isoformat()
             })
 
-            audit_log('email_changed', user_id, {'old_email': user.email, 'new_email': new_email})
+            audit_log('email_changed', user_id, {'old_email': _mask_email(user.email), 'new_email': _mask_email(new_email)})
 
             return APIResponse.success(
                 {'newEmail': new_email},
-                'Email address updated successfully. Please verify your new email.'
+                'E-postadressen uppdaterades. Verifiera din nya adress.'
             )
 
         except Exception as e:
             logger.error(f"Email update failed: {str(e)}")
-            return APIResponse.error('Failed to update email address', 'EMAIL_UPDATE_ERROR', 500, str(e))
+            return APIResponse.error('Failed to update email address', 'EMAIL_UPDATE_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Email change failed: {str(e)}")
-        return APIResponse.error('Email change failed', 'EMAIL_CHANGE_ERROR', 500, str(e))
+        return APIResponse.error('Email change failed', 'EMAIL_CHANGE_ERROR', 500)
 
 @auth_bp.route('/change-password', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -957,7 +984,7 @@ def change_email():
 def change_password(validated_data):
     """Change user password"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
@@ -995,11 +1022,11 @@ def change_password(validated_data):
 
         except Exception as e:
             logger.error(f"Password update failed: {str(e)}")
-            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500, str(e))
+            return APIResponse.error('Failed to update password', 'PASSWORD_UPDATE_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Password change failed: {str(e)}")
-        return APIResponse.error('Password change failed', 'PASSWORD_CHANGE_ERROR', 500, str(e))
+        return APIResponse.error('Password change failed', 'PASSWORD_CHANGE_ERROR', 500)
 
 @auth_bp.route('/setup-2fa', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -1007,14 +1034,14 @@ def change_password(validated_data):
 def setup_2fa():
     """Setup two-factor authentication with TOTP"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
         data = request.get_json() or {}
 
         if not data:
-            return APIResponse.bad_request('Request body required')
+            return APIResponse.bad_request('Begäransdata krävs')
 
         method = data.get('method', 'totp')
 
@@ -1034,7 +1061,7 @@ def setup_2fa():
             # Get user email for TOTP URI
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             user_doc = db.collection('users').document(user_id).get()
             user_data = user_doc.to_dict()
 
@@ -1077,14 +1104,14 @@ def setup_2fa():
 
         except ImportError as e:
             logger.error(f"Missing required packages for 2FA: {str(e)}")
-            return APIResponse.error('2FA setup not available', 'SERVICE_UNAVAILABLE', 503, str(e))
+            return APIResponse.error('2FA setup not available', 'SERVICE_UNAVAILABLE', 503)
         except Exception as e:
             logger.error(f"2FA setup failed: {str(e)}")
-            return APIResponse.error('Failed to setup 2FA', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
+            return APIResponse.error('Failed to setup 2FA', 'TWO_FACTOR_SETUP_ERROR', 500)
 
     except Exception as e:
         logger.error(f"2FA setup failed: {str(e)}")
-        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500, str(e))
+        return APIResponse.error('2FA setup failed', 'TWO_FACTOR_SETUP_ERROR', 500)
 
 @auth_bp.route('/verify-2fa-setup', methods=['POST', 'OPTIONS'])
 @AuthService.jwt_required
@@ -1092,14 +1119,14 @@ def setup_2fa():
 def verify_2fa_setup():
     """Verify and complete 2FA setup"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
         data = request.get_json() or {}
 
         if not data:
-            return APIResponse.bad_request('Request body required')
+            return APIResponse.bad_request('Begäransdata krävs')
 
         code = data.get('code', '').strip()
 
@@ -1109,7 +1136,7 @@ def verify_2fa_setup():
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
             import pyotp
 
             # Get temporary 2FA data
@@ -1167,11 +1194,11 @@ def verify_2fa_setup():
             return APIResponse.error('2FA verification not available', 'SERVICE_UNAVAILABLE', 503)
         except Exception as e:
             logger.error(f"2FA verification failed: {str(e)}")
-            return APIResponse.error('Failed to verify 2FA setup', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
+            return APIResponse.error('Failed to verify 2FA setup', 'TWO_FACTOR_VERIFICATION_ERROR', 500)
 
     except Exception as e:
         logger.error(f"2FA verification failed: {str(e)}")
-        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500, str(e))
+        return APIResponse.error('2FA verification failed', 'TWO_FACTOR_VERIFICATION_ERROR', 500)
 
 @auth_bp.route('/export-data', methods=['GET', 'OPTIONS'])
 @AuthService.jwt_required
@@ -1179,7 +1206,7 @@ def verify_2fa_setup():
 def export_user_data():
     """Export user data in JSON format"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
@@ -1187,7 +1214,7 @@ def export_user_data():
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
             # Collect all user data
             export_data = {
@@ -1262,11 +1289,11 @@ def export_user_data():
 
         except Exception as e:
             logger.error(f"Data export failed: {str(e)}")
-            return APIResponse.error('Failed to export data', 'DATA_EXPORT_ERROR', 500, str(e))
+            return APIResponse.error('Failed to export data', 'DATA_EXPORT_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Data export failed: {str(e)}")
-        return APIResponse.error('Data export failed', 'DATA_EXPORT_ERROR', 500, str(e))
+        return APIResponse.error('Data export failed', 'DATA_EXPORT_ERROR', 500)
 
 @auth_bp.route('/delete-account/<user_id>', methods=['DELETE', 'OPTIONS'])
 @AuthService.jwt_required
@@ -1274,7 +1301,7 @@ def export_user_data():
 def delete_account(user_id):
     """Delete user account and all associated data"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Validate and sanitize user_id
         user_id = input_sanitizer.sanitize(user_id)
@@ -1285,12 +1312,12 @@ def delete_account(user_id):
 
         # Users can only delete their own account
         if current_user_id != user_id:
-            return APIResponse.forbidden('Unauthorized')
+            return APIResponse.forbidden('Obehörig')
 
         try:
             from ..firebase_config import db
             if db is None:
-                return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+                return APIResponse.error('Databasen är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
             # Mark user as inactive (soft delete) and schedule hard deletion
             db.collection('users').document(user_id).update({
@@ -1349,8 +1376,8 @@ def delete_account(user_id):
 
         except Exception as e:
             logger.error(f"Firebase update failed: {str(e)}")
-            return APIResponse.error('Failed to delete account', 'ACCOUNT_DELETION_ERROR', 500, str(e))
+            return APIResponse.error('Failed to delete account', 'ACCOUNT_DELETION_ERROR', 500)
 
     except Exception as e:
         logger.error(f"Account deletion failed: {str(e)}")
-        return APIResponse.error('Account deletion failed', 'ACCOUNT_DELETION_ERROR', 500, str(e))
+        return APIResponse.error('Account deletion failed', 'ACCOUNT_DELETION_ERROR', 500)

@@ -11,7 +11,7 @@ import { API_ENDPOINTS } from './constants';
  */
 export interface SubscriptionStatus {
   plan: 'free' | 'premium' | 'trial' | 'enterprise';
-  status: 'active' | 'canceled' | 'canceling' | 'expired' | 'inactive';
+  status: 'active' | 'canceled' | 'canceling' | 'expired' | 'inactive' | 'past_due' | 'free';
   isPremium: boolean;
   isTrial: boolean;
   expiresAt?: string; // ISO date
@@ -186,12 +186,18 @@ export async function getAvailablePlans(): Promise<SubscriptionPlan[]> {
   }
   // Convert plans object to array
   if (data && typeof data === 'object' && !Array.isArray(data)) {
-    return Object.entries(data)
+    return Object.entries(data as Record<string, unknown>)
       .filter(([key]) => key !== 'message' && key !== 'success')
-      .map(([key, value]: [string, any]) => ({
-        id: key,
-        ...value,
-      }));
+      .map(([key, value]) => {
+        const planData = typeof value === 'object' && value !== null
+          ? (value as Omit<SubscriptionPlan, 'id'>)
+          : ({} as Omit<SubscriptionPlan, 'id'>);
+
+        return {
+          id: key,
+          ...planData,
+        };
+      });
   }
   return [];
 }

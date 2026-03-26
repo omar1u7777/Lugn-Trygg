@@ -1,4 +1,5 @@
 import logging
+from google.cloud.firestore import FieldFilter
 import os
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -74,7 +75,7 @@ class AuditService:
             retention_iso = retention_date.isoformat()
 
             # Query and delete old logs using standard Firestore syntax
-            old_logs = _db.collection("audit_logs").where("timestamp", "<", retention_iso).stream()
+            old_logs = _db.collection("audit_logs").where(filter=FieldFilter("timestamp", "<", retention_iso)).stream()
             for doc in old_logs:
                 doc.reference.delete()
                 logger.info(f"Deleted old audit log: {doc.id}")
@@ -86,7 +87,7 @@ class AuditService:
         """Retrieve audit trail for a user (decrypted)"""
         try:
             # Use standard Firestore where() syntax
-            logs = _db.collection("audit_logs").where("user_id", "==", user_id)\
+            logs = _db.collection("audit_logs").where(filter=FieldFilter("user_id", "==", user_id))\
                     .order_by("timestamp", direction="DESCENDING").limit(limit).stream()
 
             audit_trail = []

@@ -4,14 +4,21 @@ Provides curated audio tracks for relaxation and meditation
 Uses external royalty-free audio sources
 """
 
-from flask import Blueprint, request
+import logging
+from flask import Blueprint, request, make_response, Response
 
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
+logger = logging.getLogger(__name__)
+
 audio_bp = Blueprint("audio", __name__)
+
+def _preflight_response() -> Response:
+    """Return a properly typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
 
 MAX_SEARCH_RESULTS = 50
 MIN_SEARCH_LENGTH = 2
@@ -225,7 +232,7 @@ AUDIO_LIBRARY = {
 def get_categories():
     """Get all audio categories with basic info (without tracks)"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         categories = []
         for _cat_id, cat_data in AUDIO_LIBRARY.items():
@@ -243,7 +250,8 @@ def get_categories():
             f"Retrieved {len(categories)} audio categories"
         )
     except Exception as e:
-        return APIResponse.error("Failed to retrieve audio categories", "AUDIO_CATEGORIES_ERROR", 500, str(e))
+        logger.exception("Error in get_categories")
+        return APIResponse.error("Failed to retrieve audio categories", "AUDIO_CATEGORIES_ERROR", 500)
 
 
 @audio_bp.route('/category/<category_id>', methods=['GET', 'OPTIONS'])
@@ -252,7 +260,7 @@ def get_categories():
 def get_category_tracks(category_id: str):
     """Get all tracks for a specific category"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Sanitize category_id
         category_id = input_sanitizer.sanitize(category_id, content_type='text', max_length=50)
@@ -286,7 +294,8 @@ def get_category_tracks(category_id: str):
             'tracks': tracks_camel
         }, f"Retrieved {len(tracks_camel)} tracks for category {category_id}")
     except Exception as e:
-        return APIResponse.error("Failed to retrieve category tracks", "CATEGORY_TRACKS_ERROR", 500, str(e))
+        logger.exception("Error retrieving category tracks")
+        return APIResponse.error("Failed to retrieve category tracks", "CATEGORY_TRACKS_ERROR", 500)
 
 
 @audio_bp.route('/all', methods=['GET', 'OPTIONS'])
@@ -296,7 +305,7 @@ def get_category_tracks(category_id: str):
 def get_all_audio():
     """Get complete audio library (all categories with all tracks)"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Convert entire library to camelCase
         library_camel = {}
@@ -328,7 +337,8 @@ def get_all_audio():
             f"Retrieved complete audio library with {len(library_camel)} categories"
         )
     except Exception as e:
-        return APIResponse.error("Failed to retrieve audio library", "AUDIO_LIBRARY_ERROR", 500, str(e))
+        logger.exception("Error retrieving complete audio library")
+        return APIResponse.error("Failed to retrieve audio library", "AUDIO_LIBRARY_ERROR", 500)
 
 
 @audio_bp.route('/track/<track_id>', methods=['GET', 'OPTIONS'])
@@ -337,7 +347,7 @@ def get_all_audio():
 def get_track(track_id: str):
     """Get a specific track by ID"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         # Sanitize track_id
         track_id = input_sanitizer.sanitize(track_id, content_type='text', max_length=50)
@@ -367,7 +377,8 @@ def get_track(track_id: str):
 
         return APIResponse.not_found("Track not found", "TRACK_NOT_FOUND")
     except Exception as e:
-        return APIResponse.error("Failed to retrieve track", "TRACK_ERROR", 500, str(e))
+        logger.exception(f"Error retrieving track {track_id}")
+        return APIResponse.error("Failed to retrieve track", "TRACK_ERROR", 500)
 
 
 @audio_bp.route('/search', methods=['GET', 'OPTIONS'])
@@ -376,7 +387,7 @@ def get_track(track_id: str):
 def search_tracks():
     """Search tracks by title or description"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         raw_query = request.args.get('q', '')
         # Sanitize search query
@@ -414,4 +425,5 @@ def search_tracks():
             'count': len(limited)
         }, f"Found {len(limited)} matching tracks")
     except Exception as e:
-        return APIResponse.error("Failed to search audio tracks", "AUDIO_SEARCH_ERROR", 500, str(e))
+        logger.exception("Error searching audio tracks")
+        return APIResponse.error("Failed to search audio tracks", "AUDIO_SEARCH_ERROR", 500)

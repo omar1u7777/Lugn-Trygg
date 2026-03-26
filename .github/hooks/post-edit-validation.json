@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "windows": "py -3 scripts/hooks/post_edit_validate.py",
+        "linux": "python3 scripts/hooks/post_edit_validate.py",
+        "osx": "python3 scripts/hooks/post_edit_validate.py",
+        "timeout": 12
+      }
+    ]
+  }
+}

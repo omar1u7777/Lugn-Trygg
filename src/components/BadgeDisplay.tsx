@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { getMoods } from '../api/api';
@@ -20,11 +20,90 @@ interface Badge {
   maxProgress?: number;
 }
 
+type TimestampLike = Date | string | number | { toDate?: () => Date } | null | undefined;
+
+interface MoodEntry {
+  timestamp: TimestampLike;
+}
+
+const toDate = (timestamp: TimestampLike): Date => {
+  if (
+    timestamp &&
+    typeof timestamp === 'object' &&
+    'toDate' in timestamp &&
+    typeof timestamp.toDate === 'function'
+  ) {
+    return timestamp.toDate();
+  }
+
+  return new Date(timestamp ?? Date.now());
+};
+
 const BadgeDisplay: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const calculateCurrentStreak = useCallback((moods: MoodEntry[]): number => {
+    if (moods.length === 0) return 0;
+
+    const sortedMoods = [...moods].sort((a, b) => {
+      const dateA = toDate(a.timestamp);
+      const dateB = toDate(b.timestamp);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < sortedMoods.length; i++) {
+      const moodDate = toDate(sortedMoods[i].timestamp);
+      moodDate.setHours(0, 0, 0, 0);
+
+      const expectedDate = new Date(today);
+      expectedDate.setDate(today.getDate() - i);
+
+      if (moodDate.getTime() === expectedDate.getTime()) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }, []);
+
+  const calculateLongestStreak = useCallback((moods: MoodEntry[]): number => {
+    if (moods.length === 0) return 0;
+
+    const sortedMoods = [...moods].sort((a, b) => {
+      const dateA = toDate(a.timestamp);
+      const dateB = toDate(b.timestamp);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    let longestStreak = 0;
+    let currentStreak = 1;
+
+    for (let i = 1; i < sortedMoods.length; i++) {
+      const prevDate = toDate(sortedMoods[i - 1].timestamp);
+      const currDate = toDate(sortedMoods[i].timestamp);
+
+      const diffTime = currDate.getTime() - prevDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (diffDays === 1) {
+        currentStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, currentStreak);
+        currentStreak = 1;
+      }
+    }
+
+    return Math.max(longestStreak, currentStreak);
+  }, []);
 
   useEffect(() => {
     const calculateBadges = async () => {
@@ -160,72 +239,7 @@ const BadgeDisplay: React.FC = () => {
     };
 
     calculateBadges();
-  }, [user?.user_id, t]);
-
-  interface MoodEntry {
-    timestamp: any; // Firestore Timestamp or Date
-    [key: string]: any;
-  }
-
-  const calculateCurrentStreak = (moods: MoodEntry[]): number => {
-    if (moods.length === 0) return 0;
-
-    const sortedMoods = moods.sort((a, b) => {
-      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-    let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (let i = 0; i < sortedMoods.length; i++) {
-      const moodDate = sortedMoods[i].timestamp?.toDate ? sortedMoods[i].timestamp.toDate() : new Date(sortedMoods[i].timestamp);
-      moodDate.setHours(0, 0, 0, 0);
-
-      const expectedDate = new Date(today);
-      expectedDate.setDate(today.getDate() - i);
-
-      if (moodDate.getTime() === expectedDate.getTime()) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  };
-
-  const calculateLongestStreak = (moods: MoodEntry[]): number => {
-    if (moods.length === 0) return 0;
-
-    const sortedMoods = moods.sort((a, b) => {
-      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    let longestStreak = 0;
-    let currentStreak = 1;
-
-    for (let i = 1; i < sortedMoods.length; i++) {
-      const prevDate = sortedMoods[i - 1].timestamp?.toDate ? sortedMoods[i - 1].timestamp.toDate() : new Date(sortedMoods[i - 1].timestamp);
-      const currDate = sortedMoods[i].timestamp?.toDate ? sortedMoods[i].timestamp.toDate() : new Date(sortedMoods[i].timestamp);
-
-      const diffTime = currDate.getTime() - prevDate.getTime();
-      const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-      if (diffDays === 1) {
-        currentStreak++;
-      } else {
-        longestStreak = Math.max(longestStreak, currentStreak);
-        currentStreak = 1;
-      }
-    }
-
-    return Math.max(longestStreak, currentStreak);
-  };
+  }, [calculateCurrentStreak, calculateLongestStreak, user?.user_id, t]);
 
   if (loading) {
     return (

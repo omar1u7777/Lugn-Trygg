@@ -23,52 +23,20 @@ SERVER_TIMESTAMP = firestore.SERVER_TIMESTAMP  # type: ignore
 # OPTIONS Handlers (CORS Preflight)
 # ============================================================================
 
-@users_bp.route('/profile', methods=['OPTIONS'])
-def profile_options():
-    """Handle CORS preflight for profile endpoint"""
-    return APIResponse.success()
 
 
-@users_bp.route('/preferences', methods=['OPTIONS'])
-def preferences_options():
-    """Handle CORS preflight for preferences endpoint"""
-    return APIResponse.success()
 
 
-@users_bp.route('/notification-settings', methods=['OPTIONS'])
-def notification_settings_options():
-    """Handle CORS preflight for notification settings"""
-    return APIResponse.success()
 
 
-@users_bp.route('/notification-preferences', methods=['OPTIONS'])
-def notification_preferences_options():
-    """Handle CORS preflight for notification preferences"""
-    return APIResponse.success()
 
 
-@users_bp.route('/notification-schedule', methods=['OPTIONS'])
-def notification_schedule_options():
-    """Handle CORS preflight for notification schedule"""
-    return APIResponse.success()
 
 
-@users_bp.route('/wellness-goals', methods=['OPTIONS'])
-def wellness_goals_options():
-    """Handle CORS preflight for wellness goals"""
-    return APIResponse.success()
 
 
-@users_bp.route('/journal', methods=['OPTIONS'])
-def journal_options():
-    """Handle CORS preflight for journal entries"""
-    return APIResponse.success()
 
 
-@users_bp.route('/meditation-sessions', methods=['OPTIONS'])
-def meditation_sessions_options():
-    """Handle CORS preflight for meditation sessions"""
-    return APIResponse.success()
 
 
 # ============================================================================
@@ -179,7 +147,7 @@ def get_notification_settings():
         return APIResponse.success(defaults, "Notification settings retrieved")
     except Exception as e:
         logger.exception(f"Failed to get notification settings: {e}")
-        return APIResponse.error("Failed to get settings", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get settings", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/notification-preferences', methods=['PUT'])
@@ -201,7 +169,7 @@ def update_notification_preferences():
         return APIResponse.success(data, "Preferences updated")
     except Exception as e:
         logger.exception(f"Failed to update notification preferences: {e}")
-        return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/notification-schedule', methods=['POST'])
@@ -223,7 +191,7 @@ def set_notification_schedule():
         return APIResponse.success(data, "Schedule saved")
     except Exception as e:
         logger.exception(f"Failed to save notification schedule: {e}")
-        return APIResponse.error("Failed to save schedule", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to save schedule", "INTERNAL_ERROR", 500)
 
 
 # ============================================================================
@@ -262,7 +230,7 @@ def get_wellness_goals():
         return APIResponse.success({"wellnessGoals": wellness_goals}, "Wellness goals retrieved")
     except Exception as e:
         logger.exception(f"Failed to get wellness goals: {e}")
-        return APIResponse.error("Failed to get wellness goals", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get wellness goals", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/wellness-goals', methods=['POST'])
@@ -318,7 +286,7 @@ def set_wellness_goals():
         logger.exception(f"❌ Failed to save wellness goals: {e}")
         import traceback
         traceback.print_exc()
-        return APIResponse.error("Failed to save wellness goals", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to save wellness goals", "INTERNAL_ERROR", 500)
 
 
 # ============================================================================
@@ -383,7 +351,7 @@ def save_journal_entry():
 
     except Exception as e:
         logger.exception(f"Failed to save journal entry: {e}")
-        return APIResponse.error("Failed to save journal entry", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to save journal entry", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/journal', methods=['GET'])
@@ -434,7 +402,7 @@ def get_journal_entries():
 
     except Exception as e:
         logger.exception(f"Failed to get journal entries: {e}")
-        return APIResponse.error("Failed to get journal entries", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get journal entries", "INTERNAL_ERROR", 500)
 
 
 # ============================================================================
@@ -496,7 +464,7 @@ def save_meditation_session():
 
     except Exception as e:
         logger.exception(f"Failed to save meditation session: {e}")
-        return APIResponse.error("Failed to save meditation session", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to save meditation session", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/meditation-sessions', methods=['GET'])
@@ -554,5 +522,5 @@ def get_meditation_sessions():
 
     except Exception as e:
         logger.exception(f"Failed to get meditation sessions: {e}")
-        return APIResponse.error("Failed to get meditation sessions", "INTERNAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get meditation sessions", "INTERNAL_ERROR", 500)
 

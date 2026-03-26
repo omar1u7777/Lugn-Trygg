@@ -3,11 +3,18 @@ OpenAPI/Swagger Documentation Configuration for Lugn & Trygg API
 Generates comprehensive API documentation with examples and validation
 """
 
+import json
+import logging
+
 from importlib import metadata as importlib_metadata
 
 import marshmallow
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+
+logger = logging.getLogger(__name__)
+_SCHEMAS_REGISTERED = False
+_PATHS_REGISTERED = False
 
 # ---------------------------------------------------------------------------
 # Compatibility helpers
@@ -24,17 +31,17 @@ except AttributeError:
 
 if needs_version:
     try:
-        marshmallow.__version__ = importlib_metadata.version("marshmallow")
+        setattr(marshmallow, "__version__", importlib_metadata.version("marshmallow"))
     except importlib_metadata.PackageNotFoundError:
         # As an absolute fallback, provide a placeholder version string so
         # flask-apispec can continue importing without crashing.
-        marshmallow.__version__ = "0"
+        setattr(marshmallow, "__version__", "0")
 
 try:
     from flask_apispec import FlaskApiSpec
     FLASK_APISPEC_AVAILABLE = True
 except (ImportError, AttributeError) as e:
-    print(f"Warning: flask-apispec not available: {e}")
+    logger.warning("flask-apispec not available: %s", e)
     FLASK_APISPEC_AVAILABLE = False
     FlaskApiSpec = None
 
@@ -246,6 +253,10 @@ class HealthData(Schema):
 # Register schemas with APISpec
 def register_schemas():
     """Register all schemas with the APISpec instance"""
+    global _SCHEMAS_REGISTERED
+    if _SCHEMAS_REGISTERED:
+        return
+
     schemas = [
         ('ErrorResponse', ErrorResponse),
         ('SuccessResponse', SuccessResponse),
@@ -267,9 +278,14 @@ def register_schemas():
     for name, schema_class in schemas:
         spec.components.schema(name, schema=schema_class)
 
+    _SCHEMAS_REGISTERED = True
+
 
 def _register_paths():
     """Register all API endpoint paths in the OpenAPI spec."""
+    global _PATHS_REGISTERED
+    if _PATHS_REGISTERED:
+        return
 
     # ── Helper for standard JSON response ──
     def _json(desc, example=None):
@@ -1272,25 +1288,36 @@ def _register_paths():
         },
     )
 
+    _PATHS_REGISTERED = True
+
 
 # Register schemas and paths when module loads
 try:
     register_schemas()
 except Exception as e:
-    print(f"Warning: Schema registration error (non-fatal): {e}")
-_register_paths()
+    logger.warning("Schema registration error (non-fatal): %s", e)
+
+try:
+    _register_paths()
+except Exception as e:
+    logger.warning("Path registration error (non-fatal): %s", e)
 
 # Initialize Flask-apispec
 def init_swagger(app):
     """Initialize Swagger documentation for Flask app"""
     if not FLASK_APISPEC_AVAILABLE or FlaskApiSpec is None:
-        print("Warning: Swagger documentation disabled - flask-apispec not available")
+        logger.warning(
+            "Swagger documentation disabled - flask-apispec not available"
+        )
         return None
 
     docs = FlaskApiSpec(app)
 
     # Register schemas
-    register_schemas()
+    try:
+        register_schemas()
+    except Exception as e:
+        logger.warning("Schema registration in init_swagger failed (non-fatal): %s", e)
 
     # Add common responses
     spec.components.response(
@@ -1338,7 +1365,6 @@ def get_openapi_spec():
 
 def get_openapi_json():
     """Get the OpenAPI specification as JSON string"""
-    import json
     return json.dumps(spec.to_dict(), indent=2, ensure_ascii=False)
 
 def get_openapi_yaml():

@@ -3,6 +3,7 @@ Sync History Routes - Real sync tracking for health integrations
 Tracks sync operations with Firebase Firestore
 """
 import logging
+from google.cloud.firestore import FieldFilter
 from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, g, request
@@ -15,17 +16,15 @@ from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 
 sync_history_bp = Blueprint('sync_history', __name__)
+
+def _preflight_response():
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
 logger = logging.getLogger(__name__)
 
 
 # CORS OPTIONS handler for all endpoints
-@sync_history_bp.route("/list", methods=["OPTIONS"])
-@sync_history_bp.route("/log", methods=["OPTIONS"])
-@sync_history_bp.route("/stats", methods=["OPTIONS"])
-@sync_history_bp.route("/retry/<sync_id>", methods=["OPTIONS"])
-def handle_options(sync_id: str = ""):
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
 
 
 @sync_history_bp.route('/list', methods=['GET'])
@@ -44,7 +43,7 @@ def get_sync_history():
         history: List of sync entries with status, timestamp, data types
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         user_id = g.get('user_id')
@@ -62,7 +61,7 @@ def get_sync_history():
 
         # Proper Firestore query filtering by user_id
         user_docs = list(
-            sync_ref.where('user_id', '==', user_id)
+            sync_ref.where(filter=FieldFilter('user_id', '==', user_id))
             .order_by('timestamp', direction='DESCENDING')
             .limit(limit)
             .stream()
@@ -210,7 +209,7 @@ def get_sync_stats():
 
         sync_ref = db.collection('sync_history')  # type: ignore
         user_docs = list(
-            sync_ref.where('user_id', '==', user_id)
+            sync_ref.where(filter=FieldFilter('user_id', '==', user_id))
             .order_by('timestamp', direction='DESCENDING')
             .stream()
         )

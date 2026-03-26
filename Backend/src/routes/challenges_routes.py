@@ -4,6 +4,7 @@ Real implementation for team-based wellness challenges
 """
 
 import logging
+from google.cloud.firestore import FieldFilter
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -266,7 +267,7 @@ def get_challenges():
             _cleanup_firestore_expired(db)
             challenges_ref = db.collection('challenges')
             challenges = []
-            for doc in challenges_ref.where('active', '==', True).stream():
+            for doc in challenges_ref.where(filter=FieldFilter('active', '==', True)).stream():
                 challenge_data = doc.to_dict()
                 challenge_data['id'] = doc.id
                 challenges.append(_to_camel_case_challenge(challenge_data))
@@ -647,7 +648,7 @@ def get_user_challenges(user_id: str):
             _cleanup_firestore_expired(db)
             # Get all challenges where user is a member
             challenges_ref = db.collection('challenges')
-            for doc in challenges_ref.where('active', '==', True).stream():
+            for doc in challenges_ref.where(filter=FieldFilter('active', '==', True)).stream():
                 challenge_data = doc.to_dict()
                 members = challenge_data.get('members', [])
 

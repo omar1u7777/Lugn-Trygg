@@ -7,9 +7,10 @@ import base64
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from functools import wraps
 from typing import Any
 
-from flask import Response, current_app, g, request
+from flask import Response, current_app, g, has_request_context, make_response, request
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class SecurityHeadersMiddleware:
 
     def __init__(self, app=None):
         self.app = app
-        self.nonce = None  # Will be set per request in _generate_nonce
+        self.nonce = None  # Backward compatibility field; request nonce is stored in Flask g.
         self.csp_violations: list[dict] = []
         self.csp_directives = {}  # Will be initialized in init_app
 
@@ -58,26 +59,48 @@ class SecurityHeadersMiddleware:
         # CRITICAL FIX: Generate nonce for each request (must be before CSP header building)
         app.before_request(self._generate_nonce)
 
-        # Initialize CSP directives with nonce
+        # Initialize baseline CSP directives (without request nonce)
         self.csp_directives = self._get_csp_directives()
 
         logger.info("🛡️ Security headers middleware initialized")
 
     def _generate_nonce(self):
         """Generate CSP nonce for each request"""
-        self.nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
-        g.csp_nonce = self.nonce
+        request_nonce = base64.b64encode(os.urandom(16)).decode('utf-8')
+        g.csp_nonce = request_nonce
 
-    def _get_csp_directives(self) -> dict[str, str]:
+    @staticmethod
+    def _anonymize_ip(ip_address: str | None) -> str:
+        """Anonymize client IP for GDPR-safe CSP reporting."""
+        if not ip_address:
+            return "unknown"
+
+        if ":" in ip_address:
+            return ip_address.split(":")[0] + "::"
+
+        parts = ip_address.split(".")
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.x.x"
+
+        return "masked"
+
+    @staticmethod
+    def _get_current_nonce() -> str:
+        """Get request-scoped CSP nonce to avoid cross-request nonce leakage."""
+        if has_request_context() and hasattr(g, "csp_nonce"):
+            return str(g.csp_nonce)
+        return ""
+
+    def _get_csp_directives(self, nonce_value: str | None = None) -> dict[str, str]:
         """Get Content Security Policy directives"""
         # CRITICAL FIX: Build CSP directives dynamically based on nonce and environment
         is_production = os.getenv('FLASK_ENV') == 'production'
-        nonce_value = self.nonce or ''
+        resolved_nonce = nonce_value if nonce_value is not None else self._get_current_nonce()
 
         directives = {
             'default-src': "'self'",
-            'script-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
-            'style-src': f"'self' 'nonce-{nonce_value}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
+            'script-src': f"'self' 'nonce-{resolved_nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
+            'style-src': f"'self' 'nonce-{resolved_nonce}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
             'font-src': "'self' https://fonts.gstatic.com",
             'img-src': "'self' data: https: blob:",
             # CRITICAL FIX: Allow API connections for frontend (including backend API)
@@ -180,7 +203,8 @@ class SecurityHeadersMiddleware:
     def _build_csp_header(self) -> str:
         """Build CSP header string"""
         # CRITICAL FIX: Rebuild directives with current nonce
-        directives_dict = self._get_csp_directives()
+        request_nonce = self._get_current_nonce()
+        directives_dict = self._get_csp_directives(nonce_value=request_nonce)
         directives = []
 
         for directive, value in directives_dict.items():
@@ -191,8 +215,8 @@ class SecurityHeadersMiddleware:
             # CRITICAL FIX: Ensure nonce is properly included in script-src and style-src
             if directive == 'script-src' or directive == 'style-src':
                 # Nonce should already be in the value from _get_csp_directives, but verify
-                if self.nonce and f"'nonce-{self.nonce}'" not in value:
-                    value = f"{value} 'nonce-{self.nonce}'"
+                if request_nonce and f"'nonce-{request_nonce}'" not in value:
+                    value = f"{value} 'nonce-{request_nonce}'"
 
             directives.append(f"{directive} {value}")
 
@@ -206,8 +230,8 @@ class SecurityHeadersMiddleware:
             if violation_data:
                 violation = {
                     'timestamp': datetime.now(UTC),
-                    'user_agent': request.headers.get('User-Agent'),
-                    'ip_address': request.remote_addr,
+                    'user_agent': (request.headers.get('User-Agent') or '')[:256],
+                    'ip_address': self._anonymize_ip(request.remote_addr),
                     'document_uri': violation_data.get('document-uri'),
                     'violated_directive': violation_data.get('violated-directive'),
                     'effective_directive': violation_data.get('effective-directive'),
@@ -254,7 +278,7 @@ class SecurityHeadersMiddleware:
                     if v['timestamp'] > datetime.now(UTC) - timedelta(hours=24)
                 ])
             },
-            'current_nonce': self.nonce,
+            'current_nonce': self._get_current_nonce(),
             'configuration': self.config
         }
 
@@ -335,33 +359,28 @@ def update_csp_directives(updates: dict[str, str]):
 # Flask decorator for additional security
 def require_https(f):
     """Decorator to require HTTPS for a route"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         if not request.is_secure and not current_app.debug:
             return {
-                'error': 'HTTPS required',
-                'message': 'This endpoint requires a secure connection'
+                'error': 'HTTPS krävs',
+                'message': 'Denna endpoint kräver en säker anslutning'
             }, 403
         return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
+
     return decorated_function
 
 def security_headers_required(f):
     """Decorator to ensure security headers are present"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
-        response = f(*args, **kwargs)
-
-        # Check if response has security headers
-        if isinstance(response, tuple):
-            response_data, status_code = response
-            response_obj = current_app.response_class(response_data, status_code)
-        else:
-            response_obj = response
+        response_obj = make_response(f(*args, **kwargs))
 
         # Add security headers if missing
         security_headers_middleware._add_security_headers(response_obj)
 
         return response_obj
-    decorated_function.__name__ = f.__name__
+
     return decorated_function
 
 __all__ = [

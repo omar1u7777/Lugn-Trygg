@@ -18,6 +18,11 @@ IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 docs_bp = Blueprint('docs', __name__)
 
+def _preflight_response():
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
+
 # Swagger UI HTML template
 SWAGGER_UI_HTML = """
 <!DOCTYPE html>
@@ -122,7 +127,7 @@ def api_docs():
               type: string
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     logger.info("Swagger UI documentation accessed")
     csp_nonce = getattr(g, 'csp_nonce', '')
     return render_template_string(SWAGGER_UI_HTML, csp_nonce=csp_nonce)
@@ -146,7 +151,7 @@ def api_docs_redoc():
               type: string
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     logger.info("ReDoc documentation accessed")
     csp_nonce = getattr(g, 'csp_nonce', '')
     return render_template_string(REDOC_UI_HTML, csp_nonce=csp_nonce)
@@ -170,7 +175,7 @@ def openapi_json():
               type: object
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     return jsonify(get_openapi_spec())
 
 @docs_bp.route('/openapi.yaml', methods=['GET', 'OPTIONS'])
@@ -192,7 +197,7 @@ def openapi_yaml():
               type: string
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     response = get_openapi_yaml()
     return response, 200, {'Content-Type': 'application/yaml'}
 
@@ -225,7 +230,7 @@ def docs_health():
                   example: "1.0.0"
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     return jsonify({
         'status': 'healthy',
         'service': 'api-docs',
@@ -261,7 +266,7 @@ def test_auth_page():
         description: Forbidden - Only available in development
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     # SECURITY: Only allow in development environment
     if IS_PRODUCTION:

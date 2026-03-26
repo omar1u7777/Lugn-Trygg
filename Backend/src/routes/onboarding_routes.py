@@ -22,12 +22,6 @@ logger = logging.getLogger(__name__)
 ALLOWED_GOALS: list[str] = list(ALLOWED_WELLNESS_GOALS)
 
 
-@onboarding_bp.route('/goals/<user_id>', methods=['OPTIONS'])
-@onboarding_bp.route('/status/<user_id>', methods=['OPTIONS'])
-@onboarding_bp.route('/skip/<user_id>', methods=['OPTIONS'])
-def handle_options(user_id: str):
-    """Handle CORS preflight requests."""
-    return APIResponse.success()
 
 
 @onboarding_bp.route('/goals/<user_id>', methods=['POST'])

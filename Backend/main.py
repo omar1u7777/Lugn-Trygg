@@ -126,6 +126,22 @@ else:
 # This is a constant and doesn't depend on environment variables
 CORS_ALLOWED_HEADERS = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-CSRFToken, x-csrftoken, x-csrf-token'
 
+
+def _anonymize_ip(ip_address: str) -> str:
+    """Return anonymized IP for logs (GDPR-safe)."""
+    if not ip_address:
+        return "unknown"
+
+    if ":" in ip_address:
+        # IPv6: keep only first block for coarse diagnostics
+        return ip_address.split(":")[0] + "::"
+
+    parts = ip_address.split('.')
+    if len(parts) == 4:
+        return f"{parts[0]}.{parts[1]}.x.x"
+
+    return "masked"
+
 def _get_cors_origins_list():
     """Get CORS origins list - called at runtime to ensure .env is loaded"""
     if USE_PYDANTIC_SETTINGS:
@@ -631,11 +647,16 @@ try:
                     "request_received",
                     method=request.method,
                     path=request.path,
-                    remote_addr=get_remote_address(),
+                    remote_addr=_anonymize_ip(get_remote_address()),
                 )
             except Exception:
                 # Fallback to standard logging
-                logger.info(f"Request: {request.method} {request.path} from {get_remote_address()}")
+                logger.info(
+                    "Request: %s %s from %s",
+                    request.method,
+                    request.path,
+                    _anonymize_ip(get_remote_address()),
+                )
 
         # Sanitize request data only for POST/PUT/PATCH with body
         if request.method in ['POST', 'PUT', 'PATCH'] and request.content_length:
@@ -745,8 +766,8 @@ try:
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({
-            'error': 'Not Found',
-            'message': 'The requested resource was not found',
+            'error': 'Hittades inte',
+            'message': 'Resursen kunde inte hittas',
             'path': request.path
         }), 404
 
@@ -754,51 +775,51 @@ try:
     def internal_error(error):
         logger.error(f"Internal server error: {error}")
         return jsonify({
-            'error': 'Internal Server Error',
-            'message': 'An unexpected error occurred'
+            'error': 'Internt serverfel',
+            'message': 'Ett oväntat fel inträffade'
         }), 500
 
     @app.errorhandler(429)
     def rate_limit_exceeded(error):
         return jsonify({
-            'error': 'Rate Limit Exceeded',
-            'message': 'Too many requests. Please try again later.',
+            'error': 'För många anrop',
+            'message': 'För många förfrågningar. Försök igen senare.',
             'retry_after': error.description
         }), 429
 
     @app.errorhandler(400)
     def bad_request(error):
         return jsonify({
-            'error': 'Bad Request',
-            'message': 'The request was invalid or malformed'
+            'error': 'Ogiltig begäran',
+            'message': 'Begäran var ogiltig eller felaktigt formaterad'
         }), 400
 
     @app.errorhandler(401)
     def unauthorized(error):
         return jsonify({
-            'error': 'Unauthorized',
-            'message': 'Authentication is required'
+            'error': 'Obehörig',
+            'message': 'Autentisering krävs'
         }), 401
 
     @app.errorhandler(403)
     def forbidden(error):
         return jsonify({
-            'error': 'Forbidden',
-            'message': 'You do not have permission to access this resource'
+            'error': 'Förbjuden',
+            'message': 'Du saknar behörighet för denna resurs'
         }), 403
 
     @app.errorhandler(405)
     def method_not_allowed(error):
         return jsonify({
-            'error': 'Method Not Allowed',
-            'message': f'The {request.method} method is not allowed for this endpoint'
+            'error': 'Metod ej tillåten',
+            'message': f'Metoden {request.method} är inte tillåten för denna endpoint'
         }), 405
 
     @app.errorhandler(413)
     def payload_too_large(error):
         return jsonify({
-            'error': 'Payload Too Large',
-            'message': 'The request body exceeds the maximum allowed size'
+            'error': 'För stor begäran',
+            'message': 'Begäran överskrider tillåten storlek'
         }), 413
 
     @app.errorhandler(Exception)
@@ -806,8 +827,8 @@ try:
         """Catch-all for unhandled exceptions — always return JSON, never HTML."""
         logger.exception(f"Unhandled exception: {type(error).__name__}")
         return jsonify({
-            'error': 'Internal Server Error',
-            'message': 'An unexpected error occurred'
+            'error': 'Internt serverfel',
+            'message': 'Ett oväntat fel inträffade'
         }), 500
 
     # Start background services

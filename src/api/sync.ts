@@ -68,7 +68,7 @@ export interface LogSyncRequest {
   recordCount?: number;
   durationSeconds?: number;
   errorMessage?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**

@@ -5,6 +5,31 @@ from typing import Any
 from ..utils.timestamp_utils import parse_iso_timestamp
 
 
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    """Convert common Firestore/string representations to bool safely."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off", ""}:
+            return False
+        return default
+    return bool(value)
+
+
+def _coerce_str(value: Any, default: str = "") -> str:
+    """Convert incoming values to a safe string representation."""
+    if value is None:
+        return default
+    return str(value)
+
+
 @dataclass
 class User:
     uid: str
@@ -14,11 +39,11 @@ class User:
     email_verified: bool = field(default=False)
 
     def update_last_login(self):
-        """🔹 Uppdatera senaste inloggningstid."""
+        """Update timestamp for the latest successful login."""
         self.last_login = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
-        """🔹 Konverterar User-objekt till dictionary (t.ex. för Firestore-lagring)."""
+        """Convert User object to a dictionary for persistence."""
         return {
             "uid": self.uid,
             "email": self.email,
@@ -29,13 +54,12 @@ class User:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "User":
-        """🔹 Skapar en User-instans från en dictionary (t.ex. Firestore-data)."""
-        email_verified_raw = data.get("email_verified", False)
-        email_verified = bool(email_verified_raw) if not isinstance(email_verified_raw, bool) else email_verified_raw
+        """Create a User instance from a dictionary (for example Firestore data)."""
+        email_verified = _coerce_bool(data.get("email_verified", False), default=False)
 
         return User(
-            uid=data["uid"],
-            email=data["email"],
+            uid=_coerce_str(data.get("uid")),
+            email=_coerce_str(data.get("email")),
             created_at=parse_iso_timestamp(data.get("created_at")),
             last_login=parse_iso_timestamp(data.get("last_login")) if data.get("last_login") else None,
             email_verified=email_verified
@@ -75,15 +99,15 @@ class UserProfile:
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "UserProfile":
         return UserProfile(
-            uid=data.get("uid", ""),
-            email=data.get("email", ""),
-            display_name=data.get("display_name"),
-            avatar_url=data.get("avatar_url"),
-            bio=data.get("bio"),
-            language=data.get("language", "sv"),
-            timezone=data.get("timezone", "Europe/Stockholm"),
-            onboarding_completed=data.get("onboarding_completed", False),
-            subscription_tier=data.get("subscription_tier", "free"),
+            uid=_coerce_str(data.get("uid")),
+            email=_coerce_str(data.get("email")),
+            display_name=_coerce_str(data.get("display_name"), default="") or None,
+            avatar_url=_coerce_str(data.get("avatar_url"), default="") or None,
+            bio=_coerce_str(data.get("bio"), default="") or None,
+            language=_coerce_str(data.get("language"), default="sv") or "sv",
+            timezone=_coerce_str(data.get("timezone"), default="Europe/Stockholm") or "Europe/Stockholm",
+            onboarding_completed=_coerce_bool(data.get("onboarding_completed", False), default=False),
+            subscription_tier=_coerce_str(data.get("subscription_tier"), default="free") or "free",
             created_at=parse_iso_timestamp(data.get("created_at")),
             updated_at=parse_iso_timestamp(data.get("updated_at")) if data.get("updated_at") else None,
         )
@@ -122,15 +146,15 @@ class UserPreferences:
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "UserPreferences":
         return UserPreferences(
-            uid=data.get("uid", ""),
-            dark_mode=data.get("dark_mode", False),
-            notifications_enabled=data.get("notifications_enabled", True),
-            email_notifications=data.get("email_notifications", True),
-            push_notifications=data.get("push_notifications", True),
-            daily_reminder_time=data.get("daily_reminder_time", "09:00"),
-            weekly_summary=data.get("weekly_summary", True),
-            data_sharing_analytics=data.get("data_sharing_analytics", False),
-            data_sharing_research=data.get("data_sharing_research", False),
-            mood_reminder_frequency=data.get("mood_reminder_frequency", "daily"),
-            language=data.get("language", "sv"),
+            uid=_coerce_str(data.get("uid")),
+            dark_mode=_coerce_bool(data.get("dark_mode", False), default=False),
+            notifications_enabled=_coerce_bool(data.get("notifications_enabled", True), default=True),
+            email_notifications=_coerce_bool(data.get("email_notifications", True), default=True),
+            push_notifications=_coerce_bool(data.get("push_notifications", True), default=True),
+            daily_reminder_time=_coerce_str(data.get("daily_reminder_time"), default="09:00") or None,
+            weekly_summary=_coerce_bool(data.get("weekly_summary", True), default=True),
+            data_sharing_analytics=_coerce_bool(data.get("data_sharing_analytics", False), default=False),
+            data_sharing_research=_coerce_bool(data.get("data_sharing_research", False), default=False),
+            mood_reminder_frequency=_coerce_str(data.get("mood_reminder_frequency"), default="daily") or "daily",
+            language=_coerce_str(data.get("language"), default="sv") or "sv",
         )

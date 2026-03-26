@@ -197,16 +197,6 @@ def _xp_for_next_level(current_level: int) -> int:
 
 
 # CORS OPTIONS handler for all endpoints
-@rewards_bp.route('/catalog', methods=['OPTIONS'])
-@rewards_bp.route('/achievements', methods=['OPTIONS'])
-@rewards_bp.route('/profile', methods=['OPTIONS'])
-@rewards_bp.route('/add-xp', methods=['OPTIONS'])
-@rewards_bp.route('/claim', methods=['OPTIONS'])
-@rewards_bp.route('/check-achievements', methods=['OPTIONS'])
-@rewards_bp.route('/badges', methods=['OPTIONS'])
-def handle_options():
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
 
 
 @rewards_bp.route('/catalog', methods=['GET'])

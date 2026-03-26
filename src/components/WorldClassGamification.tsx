@@ -53,6 +53,14 @@ interface UserStats {
   totalAchievements: number;
 }
 
+interface MoodDataItem {
+  timestamp?: string;
+}
+
+interface ChatHistoryResponse {
+  conversation?: unknown[];
+}
+
 // ----------------------------------------------------------------------
 // Components
 // ----------------------------------------------------------------------
@@ -139,18 +147,21 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
     try {
       setLoading(true);
-      const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
+      const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
         getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
         getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
       ]);
 
-      const totalMoods = Array.isArray(moodsData) ? moodsData.length : 0;
+      const moodsData: MoodDataItem[] = Array.isArray(moodsDataRaw) ? (moodsDataRaw as MoodDataItem[]) : [];
+      const chatHistoryData = (chatHistoryDataRaw ?? {}) as ChatHistoryResponse;
+
+      const totalMoods = moodsData.length;
 
       // Calculate streak from mood data: consecutive days counting back from today
       const now = new Date();
       const daySet = new Set(
-        (Array.isArray(moodsData) ? moodsData : []).map((m: any) => new Date(m.timestamp).toDateString())
+        moodsData.map((m) => new Date(m.timestamp ?? '').toDateString())
       );
       let streakDays = 0;
       for (let i = 0; i < 365; i++) {
@@ -218,7 +229,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
     } finally {
       setLoading(false);
     }
-  }, [announceToScreenReader, user]);
+  }, [announceToScreenReader, t, user]);
 
   useEffect(() => { loadGamificationData(); }, [loadGamificationData]);
 

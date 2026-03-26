@@ -26,27 +26,28 @@ class CircuitBreaker:
         self.expected_exception = expected_exception
 
         self.failure_count = 0
-        self.last_failure_time = None
+        self.last_failure_time: float | None = None
         self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
 
         self._lock = threading.Lock()
 
     def call(self, func: Callable, *args, **kwargs):
         """Execute function with circuit breaker protection"""
-        if self.state == 'OPEN':
-            if self._should_attempt_reset():
-                self.state = 'HALF_OPEN'
-                logger.info("Circuit breaker entering HALF_OPEN state")
-            else:
-                raise CircuitBreakerOpenException("Circuit breaker is OPEN")
+        with self._lock:
+            if self.state == 'OPEN':
+                if self._should_attempt_reset():
+                    self.state = 'HALF_OPEN'
+                    logger.info("Circuit breaker entering HALF_OPEN state")
+                else:
+                    raise CircuitBreakerOpenException("Circuit breaker is OPEN")
 
         try:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except self.expected_exception as e:
+        except self.expected_exception:
             self._on_failure()
-            raise e
+            raise
 
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset"""
@@ -61,8 +62,8 @@ class CircuitBreaker:
         with self._lock:
             if self.state == 'HALF_OPEN':
                 self.state = 'CLOSED'
-                self.failure_count = 0
                 logger.info("Circuit breaker reset to CLOSED state")
+            self.failure_count = 0
 
     def _on_failure(self):
         """Handle failed call"""
@@ -99,6 +100,32 @@ class ErrorHandler:
         self._monitoring_thread = threading.Thread(target=self._monitor_errors, daemon=True)
         self._monitoring_thread.start()
 
+    @staticmethod
+    def _sanitize_context(context: dict[str, Any] | None) -> dict[str, Any]:
+        """Sanitize context to avoid logging sensitive payloads in error traces."""
+        if not context:
+            return {}
+
+        sanitized: dict[str, Any] = {}
+        for key, value in context.items():
+            key_text = str(key)
+            key_lower = key_text.lower()
+            if key_lower in {"password", "token", "secret", "authorization", "cookie", "email"}:
+                sanitized[key_text] = "***"
+                continue
+
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                value_text = str(value)
+                sanitized[key_text] = value_text[:200]
+            elif isinstance(value, (list, tuple, set)):
+                sanitized[key_text] = f"{type(value).__name__}(len={len(value)})"
+            elif isinstance(value, dict):
+                sanitized[key_text] = f"dict(keys={list(value.keys())[:10]})"
+            else:
+                sanitized[key_text] = type(value).__name__
+
+        return sanitized
+
     def register_circuit_breaker(self, name: str, circuit_breaker: CircuitBreaker):
         """Register a circuit breaker"""
         self.circuit_breakers[name] = circuit_breaker
@@ -130,11 +157,13 @@ class ErrorHandler:
         timestamp = datetime.now(UTC)
 
         # Create error record
+        safe_context = self._sanitize_context(context)
+
         error_record = {
             'timestamp': timestamp,
             'error_type': error_type,
             'error_message': error_message,
-            'context': context or {},
+            'context': safe_context,
             'traceback': traceback.format_exc(),
             'handled': False,
             'retried': False,
@@ -259,6 +288,8 @@ class ErrorHandler:
         try:
             if service_name in ('firebase', 'firestore', 'database'):
                 from ..firebase_config import db
+                if db is None:
+                    return {'recovered': False, 'action': 'database_unavailable'}
                 db.collection('_health_check').limit(1).get()
                 logger.info(f"Reconnection to {service_name} succeeded")
                 return {'recovered': True, 'action': 'reconnection_success'}
@@ -412,8 +443,8 @@ def handle_errors(f: Callable) -> Callable:
                 e,
                 context={
                     'function': f.__name__,
-                    'args': str(args) if args else None,
-                    'kwargs': str(kwargs) if kwargs else None
+                    'arg_count': len(args),
+                    'kwarg_keys': sorted(list(kwargs.keys())) if kwargs else []
                 },
                 should_retry=True,
                 max_retries=3,

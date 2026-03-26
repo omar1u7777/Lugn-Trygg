@@ -4,6 +4,7 @@ Provides API endpoints for mental health crisis detection and intervention
 """
 
 import logging
+from google.cloud.firestore import FieldFilter
 from datetime import UTC, datetime
 
 from flask import Blueprint, g, request
@@ -293,7 +294,7 @@ def get_assessment_history():
 
         # Get recent assessments
         assessments_query = db.collection('crisis_assessments')\
-            .where('user_id', '==', user_id)\
+            .where(filter=FieldFilter('user_id', '==', user_id))\
             .order_by('assessment_timestamp', direction='DESCENDING')\
             .limit(min(limit, 50))  # type: ignore
 

@@ -23,6 +23,11 @@ from ..utils.response_utils import APIResponse
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+def _preflight_response():
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +38,7 @@ def get_csrf_token():
     Generate and persist CSRF token for double-submit cookie validation.
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     csrf_middleware = current_app.extensions.get('csrf_middleware')
     if csrf_middleware is not None:
@@ -156,7 +161,7 @@ def get_dashboard_summary(user_id: str):
     Backend caches for 5 minutes for optimal performance.
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         # Validate user_id format
@@ -463,7 +468,7 @@ def get_quick_stats(user_id: str):
     Ultra-fast endpoint for dashboard refresh.
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         # Validate user_id format
@@ -537,7 +542,7 @@ def get_quick_stats(user_id: str):
 def get_dashboard_legacy():
     """Legacy /api/dashboard endpoint that proxies to the user-specific summary."""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     if not getattr(g, 'user_id', None):
         return APIResponse.bad_request('User context missing')
@@ -552,7 +557,7 @@ def get_dashboard_legacy():
 def get_dashboard_legacy_stats():
     """Legacy /api/dashboard/stats endpoint forwarding to quick stats."""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     if not getattr(g, 'user_id', None):
         return APIResponse.bad_request('User context missing')

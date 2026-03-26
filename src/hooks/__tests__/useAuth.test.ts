@@ -12,11 +12,18 @@ describe('useAuth', () => {
   test('should throw error when used outside AuthProvider', () => {
     // Suppress React error boundary / console.error noise
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onWindowError = (event: ErrorEvent) => {
+      if (String(event.error?.message || event.message).includes('useAuth måste användas inom en <AuthProvider>')) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('error', onWindowError);
 
     expect(() => {
       renderHook(() => useAuth());
     }).toThrow('useAuth måste användas inom en <AuthProvider>');
 
+    window.removeEventListener('error', onWindowError);
     consoleSpy.mockRestore();
   });
 

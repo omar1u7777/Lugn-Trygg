@@ -18,6 +18,15 @@ consent_bp = Blueprint('consent', __name__)
 logger = logging.getLogger(__name__)
 
 
+def _mask_user_id(user_id: str) -> str:
+    """Mask user ID in logs to minimize personal data exposure."""
+    if not user_id:
+        return "unknown"
+    if len(user_id) <= 6:
+        return "***"
+    return f"{user_id[:3]}***{user_id[-3:]}"
+
+
 # Mapping from frontend consent types to backend consent types
 CONSENT_TYPE_MAPPING = {
     'dataProcessing': 'data_processing',
@@ -95,17 +104,22 @@ def grant_bulk_consents():
             }
         )
 
-        logger.info(f"💚 Bulk consent update for user {user_id}: {len(granted_consents)} granted, {len(failed_consents)} failed")
+        logger.info(
+            "💚 Bulk consent update for user %s: %d granted, %d failed",
+            _mask_user_id(user_id),
+            len(granted_consents),
+            len(failed_consents),
+        )
 
         return APIResponse.success({
             'granted': granted_consents,
             'failed': failed_consents,
             'timestamp': datetime.now(UTC).isoformat()
-        }, "Consents updated successfully")
+        }, "Samtycken uppdaterades")
 
     except Exception as e:
         logger.exception(f"Error granting bulk consents: {e}")
-        return APIResponse.error("Could not update consents", "CONSENT_ERROR", 500)
+        return APIResponse.error("Kunde inte uppdatera samtycken", "CONSENT_ERROR", 500)
 
 
 @consent_bp.route('', methods=['GET'])
@@ -121,14 +135,14 @@ def get_user_consents():
         consents = consent_service.get_user_consents(user_id)
 
         if 'error' in consents:
-            return APIResponse.error(consents['error'], "FETCH_ERROR", 404)
+            return APIResponse.error("Kunde inte hämta samtycken", "FETCH_ERROR", 404)
 
-        logger.info(f"📋 User {user_id} fetched consents")
-        return APIResponse.success(consents, "Consents retrieved")
+        logger.info("📋 User %s fetched consents", _mask_user_id(user_id))
+        return APIResponse.success(consents, "Samtycken hämtade")
 
     except Exception as e:
         logger.exception(f"Error getting user consents: {e}")
-        return APIResponse.error("Could not retrieve consents", "FETCH_ERROR", 500)
+        return APIResponse.error("Kunde inte hämta samtycken", "FETCH_ERROR", 500)
 
 
 @consent_bp.route('/<consent_type>', methods=['POST'])
@@ -157,19 +171,19 @@ def grant_consent(consent_type: str):
                 {'consent_type': backend_type, 'version': version}
             )
 
-            logger.info(f"✅ Consent granted: {backend_type} for user {user_id}")
+            logger.info("✅ Consent granted: %s for user %s", backend_type, _mask_user_id(user_id))
 
             return APIResponse.success({
                 'consent_type': backend_type,
                 'granted_at': datetime.now(UTC).isoformat(),
                 'version': version
-            }, f"Consent granted for {backend_type}")
+            }, f"Samtycke aktiverat för {backend_type}")
         else:
-            return APIResponse.bad_request("Could not grant consent", "GRANT_FAILED")
+            return APIResponse.error("Kunde inte aktivera samtycke", "GRANT_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error granting consent: {e}")
-        return APIResponse.error("Could not grant consent", "GRANT_ERROR", 500)
+        return APIResponse.error("Kunde inte aktivera samtycke", "GRANT_ERROR", 500)
 
 
 @consent_bp.route('/<consent_type>', methods=['DELETE'])
@@ -195,18 +209,18 @@ def withdraw_consent(consent_type: str):
                 {'consent_type': backend_type}
             )
 
-            logger.info(f"🚫 Consent withdrawn: {backend_type} for user {user_id}")
+            logger.info("🚫 Consent withdrawn: %s for user %s", backend_type, _mask_user_id(user_id))
 
             return APIResponse.success({
                 'consent_type': backend_type,
                 'withdrawn_at': datetime.now(UTC).isoformat()
-            }, f"Consent withdrawn for {backend_type}")
+            }, f"Samtycke återkallat för {backend_type}")
         else:
-            return APIResponse.bad_request("Could not withdraw consent", "WITHDRAW_FAILED")
+            return APIResponse.error("Kunde inte återkalla samtycke", "WITHDRAW_FAILED", 400)
 
     except Exception as e:
         logger.exception(f"Error withdrawing consent: {e}")
-        return APIResponse.error("Could not withdraw consent", "WITHDRAW_ERROR", 500)
+        return APIResponse.error("Kunde inte återkalla samtycke", "WITHDRAW_ERROR", 500)
 
 
 @consent_bp.route('/validate/<feature>', methods=['GET'])
@@ -221,13 +235,13 @@ def validate_feature_access(feature: str):
         user_id = g.user_id
         validation = consent_service.validate_feature_access(user_id, feature)
 
-        logger.info(f"🔍 Feature access validation for {feature}: {validation.get('access_granted', False)}")
+        logger.info("🔍 Feature access validation for %s: %s", feature, validation.get('access_granted', False))
 
-        return APIResponse.success(validation, "Feature access validated")
+        return APIResponse.success(validation, "Åtkomst validerad")
 
     except Exception as e:
         logger.exception(f"Error validating feature access: {e}")
-        return APIResponse.error("Could not validate feature access", "VALIDATION_ERROR", 500)
+        return APIResponse.error("Kunde inte validera åtkomst", "VALIDATION_ERROR", 500)
 
 
 @consent_bp.route('/check/<consent_type>', methods=['GET'])
@@ -249,8 +263,8 @@ def check_consent(consent_type: str):
         return APIResponse.success({
             'consent_type': backend_type,
             **consent_status
-        }, "Consent status retrieved")
+        }, "Samtyckesstatus hämtad")
 
     except Exception as e:
         logger.exception(f"Error checking consent: {e}")
-        return APIResponse.error("Could not check consent", "CHECK_ERROR", 500)
+        return APIResponse.error("Kunde inte kontrollera samtycke", "CHECK_ERROR", 500)

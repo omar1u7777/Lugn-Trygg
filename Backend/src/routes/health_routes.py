@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 health_bp = Blueprint('health', __name__)
 
+def _preflight_response():
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
+
 @health_bp.route('/', methods=['GET', 'OPTIONS'])
 @rate_limit_by_endpoint
 def health_check():
@@ -29,7 +34,7 @@ def health_check():
     Used by load balancers for liveness probe
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     return APIResponse.success(
         data={
@@ -48,7 +53,7 @@ def readiness_check():
     Used by Kubernetes/load balancers for readiness probe
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     checks = {
         'server': True,
@@ -89,7 +94,7 @@ def liveness_check():
     Returns 200 if process is running
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     return APIResponse.success(
         data={
@@ -110,7 +115,7 @@ def metrics():
     REQUIRES AUTHENTICATION - exposes sensitive system information
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     # Check if user is admin (metrics should only be accessible to admins)
     user_id = g.user_id
@@ -215,7 +220,7 @@ def database_health():
     REQUIRES AUTHENTICATION - performs write operations
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     try:
         start_time = datetime.now(UTC)
@@ -266,7 +271,7 @@ def advanced_health_check():
     REQUIRES AUTHENTICATION - exposes detailed system information
     """
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
 
     # Check if user is admin
     user_id = g.user_id

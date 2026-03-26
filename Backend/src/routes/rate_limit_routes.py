@@ -21,14 +21,6 @@ rate_limit_bp = Blueprint('rate_limit', __name__)
 
 
 # CORS OPTIONS handler for all endpoints
-@rate_limit_bp.route('/status', methods=['OPTIONS'])
-@rate_limit_bp.route('/config', methods=['OPTIONS'])
-@rate_limit_bp.route('/test/<category>', methods=['OPTIONS'])
-@rate_limit_bp.route('/reset/<category>', methods=['OPTIONS'])
-@rate_limit_bp.route('/stats', methods=['OPTIONS'])
-def handle_options(category: str | None = None):
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
 
 
 @rate_limit_bp.route('/status', methods=['GET'])
@@ -84,7 +76,7 @@ def get_rate_limit_status_endpoint():
 
     except Exception as e:
         logger.error(f"Error getting rate limit status: {e}")
-        return APIResponse.error("Failed to get rate limit status", "RATE_LIMIT_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get rate limit status", "RATE_LIMIT_ERROR", 500)
 
 
 @rate_limit_bp.route('/config', methods=['GET'])
@@ -127,7 +119,7 @@ def get_rate_limit_config():
 
     except Exception as e:
         logger.error(f"Error getting rate limit config: {e}")
-        return APIResponse.error("Failed to get rate limit configuration", "CONFIG_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get rate limit configuration", "CONFIG_ERROR", 500)
 
 
 @rate_limit_bp.route('/test/<category>', methods=['POST'])
@@ -206,7 +198,7 @@ def test_rate_limit(category: str):
 
     except Exception as e:
         logger.error(f"Error testing rate limit: {e}")
-        return APIResponse.error("Rate limit test failed", "TEST_ERROR", 500, str(e))
+        return APIResponse.error("Rate limit test failed", "TEST_ERROR", 500)
 
 
 @rate_limit_bp.route('/reset/<category>', methods=['POST'])
@@ -267,7 +259,7 @@ def reset_rate_limit(category: str):
 
     except Exception as e:
         logger.error(f"Error resetting rate limit: {e}")
-        return APIResponse.error("Failed to reset rate limit", "RESET_ERROR", 500, str(e))
+        return APIResponse.error("Failed to reset rate limit", "RESET_ERROR", 500)
 
 
 @rate_limit_bp.route('/stats', methods=['GET'])
@@ -343,4 +335,4 @@ def get_rate_limit_stats():
 
     except Exception as e:
         logger.error(f"Error getting rate limit stats: {e}")
-        return APIResponse.error("Failed to get rate limit statistics", "STATS_ERROR", 500, str(e))
+        return APIResponse.error("Failed to get rate limit statistics", "STATS_ERROR", 500)

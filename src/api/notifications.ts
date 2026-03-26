@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { getApiErrorMessage } from "./errorUtils";
 
 /**
  * Notification settings response interface
@@ -45,9 +46,8 @@ export const saveFCMToken = async (fcmToken: string) => {
     logger.debug('FCM token saved successfully');
     return data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Save FCM token error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to save notification token");
+    logger.error("Save FCM token error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to save notification token"));
   }
 };
 
@@ -69,9 +69,8 @@ export const sendReminder = async (message: string, type: string = 'daily'): Pro
     logger.debug('Reminder sent successfully');
     return data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Send reminder error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to send reminder");
+    logger.error("Send reminder error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to send reminder"));
   }
 };
 
@@ -93,9 +92,8 @@ export const scheduleDailyNotifications = async (enabled: boolean, time: string 
     logger.debug('Daily notifications scheduled successfully');
     return data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Schedule daily notifications error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to schedule daily notifications");
+    logger.error("Schedule daily notifications error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to schedule daily notifications"));
   }
 };
 
@@ -112,9 +110,8 @@ export const disableAllNotifications = async (): Promise<{ allDisabled: boolean 
     logger.debug('All notifications disabled successfully');
     return data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Disable notifications error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to disable notifications");
+    logger.error("Disable notifications error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to disable notifications"));
   }
 };
 
@@ -131,8 +128,7 @@ export const getNotificationSettings = async (): Promise<NotificationSettingsRes
     logger.debug('Notification settings retrieved');
     return data.settings || data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Get notification settings error:", apiError);
+    logger.error("Get notification settings error:", error);
     // Return default settings if endpoint doesn't exist yet
     return {
       dailyRemindersEnabled: false,
@@ -160,8 +156,7 @@ export const updateNotificationSettings = async (settings: {
     logger.debug('Notification settings updated successfully');
     return data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Update notification settings error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to update notification settings");
+    logger.error("Update notification settings error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to update notification settings"));
   }
 };
