@@ -77,6 +77,8 @@ PORT = cast(int, get_env_variable("PORT", 5001, cast_type=int))
 DEBUG = cast(bool, get_env_variable("FLASK_DEBUG", "False", cast_type=bool))
 # Cookies: secure=True only in production (HTTPS); localhost uses HTTP
 COOKIE_SECURE = not DEBUG
+# Cross-site frontend/backend setup (Vercel -> Render) requires SameSite=None in HTTPS production.
+COOKIE_SAMESITE = "None" if COOKIE_SECURE else "Lax"
 
 JWT_SECRET_KEY = get_env_variable("JWT_SECRET_KEY", required=True, hide_value=True)
 JWT_REFRESH_SECRET_KEY = get_env_variable("JWT_REFRESH_SECRET_KEY", required=True, hide_value=True)

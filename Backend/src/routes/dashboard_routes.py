@@ -10,7 +10,7 @@ from typing import Any
 
 from flask import Blueprint, current_app, g, make_response, request
 
-from ..config import COOKIE_SECURE
+from ..config import COOKIE_SAMESITE, COOKIE_SECURE
 from ..firebase_config import db
 from ..middleware.csrf_middleware import CSRF_COOKIE_NAME, CSRF_TTL_SECONDS
 from ..services.audit_service import audit_log
@@ -57,7 +57,7 @@ def get_csrf_token():
         token,
         httponly=False,
         secure=COOKIE_SECURE,
-        samesite='Strict',
+        samesite=COOKIE_SAMESITE,
         max_age=CSRF_TTL_SECONDS,
         path='/',
     )

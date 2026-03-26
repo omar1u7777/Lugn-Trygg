@@ -42,7 +42,7 @@ try:
 except ImportError:
     from ..config import FIREBASE_WEB_API_KEY
 
-from ..config import COOKIE_SECURE, REFRESH_TOKEN_EXPIRES
+from ..config import COOKIE_SAMESITE, COOKIE_SECURE, REFRESH_TOKEN_EXPIRES
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite='Strict',
+        samesite=COOKIE_SAMESITE,
         max_age=int(REFRESH_TOKEN_EXPIRES.total_seconds()),
         path=REFRESH_COOKIE_PATH,
     )
@@ -80,7 +80,7 @@ def _clear_refresh_cookie(response: Response) -> None:
         expires=0,
         httponly=True,
         secure=COOKIE_SECURE,
-        samesite='Strict',
+        samesite=COOKIE_SAMESITE,
         path=REFRESH_COOKIE_PATH,
     )
 
