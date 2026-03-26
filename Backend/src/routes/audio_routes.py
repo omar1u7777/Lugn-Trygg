@@ -5,7 +5,8 @@ Uses external royalty-free audio sources
 """
 
 import logging
-from flask import Blueprint, request, make_response, Response
+
+from flask import Blueprint, Response, make_response, request
 
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
@@ -249,7 +250,7 @@ def get_categories():
             {'categories': categories},
             f"Retrieved {len(categories)} audio categories"
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Error in get_categories")
         return APIResponse.error("Failed to retrieve audio categories", "AUDIO_CATEGORIES_ERROR", 500)
 
@@ -293,7 +294,7 @@ def get_category_tracks(category_id: str):
             },
             'tracks': tracks_camel
         }, f"Retrieved {len(tracks_camel)} tracks for category {category_id}")
-    except Exception as e:
+    except Exception:
         logger.exception("Error retrieving category tracks")
         return APIResponse.error("Failed to retrieve category tracks", "CATEGORY_TRACKS_ERROR", 500)
 
@@ -336,7 +337,7 @@ def get_all_audio():
             {'library': library_camel},
             f"Retrieved complete audio library with {len(library_camel)} categories"
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Error retrieving complete audio library")
         return APIResponse.error("Failed to retrieve audio library", "AUDIO_LIBRARY_ERROR", 500)
 
@@ -376,7 +377,7 @@ def get_track(track_id: str):
                     }, f"Retrieved track {track_id}")
 
         return APIResponse.not_found("Track not found", "TRACK_NOT_FOUND")
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error retrieving track {track_id}")
         return APIResponse.error("Failed to retrieve track", "TRACK_ERROR", 500)
 
@@ -424,6 +425,6 @@ def search_tracks():
             'results': limited,
             'count': len(limited)
         }, f"Found {len(limited)} matching tracks")
-    except Exception as e:
+    except Exception:
         logger.exception("Error searching audio tracks")
         return APIResponse.error("Failed to search audio tracks", "AUDIO_SEARCH_ERROR", 500)

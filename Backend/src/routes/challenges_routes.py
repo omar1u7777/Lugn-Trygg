@@ -4,11 +4,11 @@ Real implementation for team-based wellness challenges
 """
 
 import logging
-from google.cloud.firestore import FieldFilter
 import os
 from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, g, request
+from google.cloud.firestore import FieldFilter
 
 try:
     from google.cloud import firestore as gcfirestore  # For atomic updates if available

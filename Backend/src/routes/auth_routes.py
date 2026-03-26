@@ -19,8 +19,8 @@ from ..schemas.auth import (
 )
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
-from ..services.tamper_detection_service import tamper_detection_service
 from ..services.rate_limiting import rate_limit_by_endpoint
+from ..services.tamper_detection_service import tamper_detection_service
 from ..utils.input_sanitization import input_sanitizer
 from ..utils.response_utils import APIResponse
 from ..utils.timestamp_utils import parse_iso_timestamp
@@ -224,7 +224,7 @@ def login_user(validated_data):
         user, error, access_token, refresh_token = AuthService.login_user(email, password)
         if error or not user:
             audit_log('login_failed', 'unknown', {'reason': error or 'invalid_credentials', 'email': _mask_email(email)})
-            
+
             # Trigger Tamper Detection för misslyckad inloggning
             client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
             tamper_detection_service.record_event(
@@ -233,7 +233,7 @@ def login_user(validated_data):
                 message='Misslyckat inloggningsförsök.',
                 metadata={'email': _mask_email(email), 'ip': client_ip}
             )
-            
+
             # Trigger Tamper Detection för misslyckad inloggning
             client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
             tamper_detection_service.record_event(
