@@ -80,6 +80,43 @@ class SubscriptionService:
         return start_dt, end_dt
 
     @staticmethod
+    def _parse_datetime(value: Any) -> datetime | None:
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            dt = value
+        else:
+            text = str(value).strip()
+            if not text:
+                return None
+            try:
+                dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
+
+    @classmethod
+    def _new_user_trial_end(cls, user_data: dict[str, Any]) -> datetime | None:
+        """Return per-user trial end timestamp if enabled and applicable."""
+        if not cls._parse_bool_env("GLOBAL_NEW_USER_PREMIUM_ENABLED", default=True):
+            return None
+
+        days_raw = os.getenv("GLOBAL_NEW_USER_PREMIUM_DAYS", "14").strip()
+        try:
+            trial_days = max(1, int(days_raw))
+        except ValueError:
+            logger.warning("Invalid GLOBAL_NEW_USER_PREMIUM_DAYS '%s', defaulting to 14", days_raw)
+            trial_days = 14
+
+        created_at = cls._parse_datetime(user_data.get("created_at"))
+        if created_at is None:
+            return None
+        return created_at + timedelta(days=trial_days)
+
+    @staticmethod
     def _today() -> str:
         return datetime.now(UTC).strftime("%Y-%m-%d")
 
@@ -128,11 +165,21 @@ class SubscriptionService:
                 status = "global_trial"
                 plan_meta = plans.get("premium", plan_meta)
 
+        # Per-user trial for newly registered users (default ON unless explicitly disabled).
+        if plan_key == "free" and not trial_active:
+            new_user_trial_end = cls._new_user_trial_end(user_data)
+            if new_user_trial_end is not None and datetime.now(UTC) < new_user_trial_end:
+                trial_active = True
+                trial_end_iso = new_user_trial_end.isoformat()
+                plan_key = "premium"
+                status = "new_user_trial"
+                plan_meta = plans.get("premium", plan_meta)
+
         subscription_payload = dict(subscription)
         if trial_active:
             subscription_payload.update(
                 {
-                    "status": "global_trial",
+                    "status": status,
                     "plan": "premium",
                     "global_trial": True,
                     "trial_ends_at": trial_end_iso,
