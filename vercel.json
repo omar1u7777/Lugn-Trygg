@@ -68,7 +68,7 @@
       "destination": "https://lugn-trygg-backend.onrender.com/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
