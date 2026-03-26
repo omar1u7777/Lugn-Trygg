@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import tempfile
 from datetime import timedelta
 from pathlib import Path
@@ -150,7 +151,17 @@ class Settings(BaseSettings):
 
         if self.flask_env == "production":
             if not self.webauthn_rp_id or self.webauthn_rp_id == "localhost":
-                raise ValueError("WEBAUTHN_RP_ID is required for production environment")
+                render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+                if render_hostname:
+                    object.__setattr__(self, "webauthn_rp_id", render_hostname)
+                    if self.webauthn_origin == "http://localhost:3000":
+                        object.__setattr__(self, "webauthn_origin", f"https://{render_hostname}")
+                    logger.warning(
+                        "WEBAUTHN_RP_ID missing in production; using RENDER_EXTERNAL_HOSTNAME=%s as fallback.",
+                        render_hostname,
+                    )
+                else:
+                    raise ValueError("WEBAUTHN_RP_ID is required for production environment")
 
             if self.flask_debug:
                 raise ValueError("FLASK_DEBUG must be False in production")

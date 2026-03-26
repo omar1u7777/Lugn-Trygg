@@ -176,12 +176,25 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",")
 is_production = os.getenv("FLASK_ENV", "development") == "production"
 webauthn_rp_id = os.getenv("WEBAUTHN_RP_ID")
 if is_production and not webauthn_rp_id:
-    logger.critical("❌ WEBAUTHN_RP_ID environment variable is required in production!")
-    raise ValueError("WEBAUTHN_RP_ID environment variable is required for production WebAuthn configuration.")
+    render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+    if render_hostname:
+        webauthn_rp_id = render_hostname
+        logger.warning(
+            "WEBAUTHN_RP_ID saknas i produktion; använder RENDER_EXTERNAL_HOSTNAME=%s som fallback.",
+            render_hostname,
+        )
+    else:
+        logger.critical("❌ WEBAUTHN_RP_ID environment variable is required in production!")
+        raise ValueError(
+            "WEBAUTHN_RP_ID environment variable is required for production WebAuthn configuration. "
+            "Set WEBAUTHN_RP_ID or ensure RENDER_EXTERNAL_HOSTNAME is available."
+        )
 WEBAUTHN_RP_ID = webauthn_rp_id or "localhost"
 
 WEBAUTHN_RP_NAME = get_env_variable("WEBAUTHN_RP_NAME", "Lugn & Trygg", required=False)
 WEBAUTHN_ORIGIN = get_env_variable("WEBAUTHN_ORIGIN", "http://localhost:3000", required=False)
+if is_production and WEBAUTHN_ORIGIN == "http://localhost:3000" and WEBAUTHN_RP_ID != "localhost":
+    WEBAUTHN_ORIGIN = f"https://{WEBAUTHN_RP_ID}"
 
 MAX_FAILED_LOGIN_ATTEMPTS = cast(int, get_env_variable("MAX_FAILED_LOGIN_ATTEMPTS", 5, cast_type=int))
 LOCKOUT_DURATION_MINUTES_FIRST = cast(int, get_env_variable("LOCKOUT_DURATION_MINUTES_FIRST", 5, cast_type=int))
