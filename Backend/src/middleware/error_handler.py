@@ -444,7 +444,7 @@ def handle_errors(f: Callable) -> Callable:
                 context={
                     'function': f.__name__,
                     'arg_count': len(args),
-                    'kwarg_keys': sorted(list(kwargs.keys())) if kwargs else []
+                    'kwarg_keys': sorted(kwargs.keys()) if kwargs else []
                 },
                 should_retry=True,
                 max_retries=3,
