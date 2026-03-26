@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import UTC, datetime, timedelta
 
-from flask import Blueprint, g, request
+from flask import Response, Blueprint, g, request
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -20,6 +20,11 @@ from src.utils.response_utils import APIResponse
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
 
 feedback_bp = Blueprint("feedback", __name__)
+
+def _preflight_response() -> Response:
+    """Return a typed 204 No Content response for OPTIONS preflight requests."""
+    return make_response('', 204)
+
 logger = logging.getLogger(__name__)
 email_service = EmailService()
 
@@ -48,7 +53,7 @@ def submit_feedback():
     if request.method == "OPTIONS":
         logger.info("✅ FEEDBACK - OPTIONS preflight")
         # Handle CORS preflight
-        return "", 204
+        return _preflight_response()
 
     try:
         data = request.get_json(force=True, silent=True) or {}
@@ -164,7 +169,7 @@ def submit_feedback():
 def list_feedback():
     """List all feedback (admin only)"""
     if request.method == "OPTIONS":
-        return "", 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
@@ -220,7 +225,7 @@ def list_feedback():
 def feedback_stats():
     """Get feedback statistics (admin only)"""
     if request.method == "OPTIONS":
-        return "", 204
+        return _preflight_response()
 
     try:
         user_id = g.user_id
@@ -279,7 +284,7 @@ def feedback_stats():
 def get_user_feedback():
     """Get user's own feedback history"""
     if request.method == "OPTIONS":
-        return "", 204
+        return _preflight_response()
 
     try:
         # SECURITY: Get user_id from JWT token, not from query params

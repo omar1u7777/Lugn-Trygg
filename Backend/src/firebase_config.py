@@ -8,6 +8,7 @@ using environment variables and credentials.
 import asyncio
 import json
 import logging
+from google.cloud.firestore import FieldFilter
 import os
 import time
 from functools import wraps
@@ -416,7 +417,7 @@ async def batch_firestore_operations(operations: list[dict[str, Any]]) -> list[A
     Example:
         operations = [
             {'func': lambda: db.collection('users').document('1').get(), 'args': (), 'kwargs': {}},
-            {'func': lambda: db.collection('moods').where('user_id', '==', '1').get(), 'args': (), 'kwargs': {}}
+            {'func': lambda: db.collection('moods').where(filter=FieldFilter('user_id', '==', '1')).get(), 'args': (), 'kwargs': {}}
         ]
         results = await batch_firestore_operations(operations)
     """

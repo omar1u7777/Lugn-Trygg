@@ -72,23 +72,10 @@ def allowed_file(filename: str) -> bool:
 # OPTIONS Handlers (CORS preflight)
 # ============================================================================
 
-@memory_bp.route('', methods=['OPTIONS'])
-@memory_bp.route('/upload', methods=['OPTIONS'])
-def memory_base_options() -> Response | tuple[Response, int]:
-    """Handle CORS preflight for base memory endpoints"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
-@memory_bp.route('/list/<user_id>', methods=['OPTIONS'])
-def memory_list_options(user_id: str) -> Response | tuple[Response, int]:
-    """Handle CORS preflight for list memories endpoint"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
-@memory_bp.route('/get/<memory_id>', methods=['OPTIONS'])
-def memory_get_options(memory_id: str) -> Response | tuple[Response, int]:
-    """Handle CORS preflight for get memory endpoint"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 @memory_bp.route('', methods=['GET'])
@@ -234,7 +221,7 @@ def list_memories(user_id: str) -> Response | tuple[Response, int]:
             # Fallback for test environments
             memories_ref = list(
                 db.collection("memories")
-                .where("user_id", "==", user_id)
+                .where(filter=FieldFilter("user_id", "==", user_id))
                 .limit(100)
                 .stream()
             )

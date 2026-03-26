@@ -4,16 +4,21 @@ import { vi, describe, test, expect, beforeEach } from 'vitest';
 import TestProviders from '../../utils/TestProviders';
 
 // ---- Hoisted mocks (safe to reference inside vi.mock factories) ----
-const { mockNavigate, mockUseDashboardData, mockUseSubscription, mockAnalytics } = vi.hoisted(() => ({
+const { mockNavigate, mockUseDashboardData, mockUseSubscription, mockAnalytics, mockLocation } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockUseDashboardData: vi.fn(),
   mockUseSubscription: vi.fn(),
   mockAnalytics: { page: vi.fn(), track: vi.fn() },
+  mockLocation: { pathname: '/dashboard', search: '' },
 }));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => mockLocation,
+  };
 });
 
 vi.mock('../../hooks/useDashboardData', () => ({
@@ -120,6 +125,8 @@ function renderDashboard(userId = 'test-user') {
 describe('WorldClassDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocation.pathname = '/dashboard';
+    mockLocation.search = '';
     setupMocks();
   });
 
@@ -254,5 +261,14 @@ describe('WorldClassDashboard', () => {
     setupMocks({ stats: { recentActivity: [] } });
     renderDashboard();
     expect(screen.getByText(/Ingen aktivitet än/)).toBeInTheDocument();
+  });
+
+  test('shows Swedish info notice when Stripe checkout was canceled', async () => {
+    mockLocation.search = '?canceled=true';
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Köpet avbröts. Du kan prova igen när du är redo.')).toBeInTheDocument();
+    });
   });
 });

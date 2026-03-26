@@ -39,7 +39,16 @@ describe('ThemeContext', () => {
 
   it('useTheme throws when used outside ThemeProvider', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => renderHook(() => useTheme())).toThrow();
+    const onWindowError = (event: ErrorEvent) => {
+      if (String(event.error?.message || event.message).includes('useTheme must be used within a ThemeProvider')) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('error', onWindowError);
+
+    expect(() => renderHook(() => useTheme())).toThrow('useTheme must be used within a ThemeProvider');
+
+    window.removeEventListener('error', onWindowError);
     consoleSpy.mockRestore();
   });
 

@@ -47,22 +47,6 @@ privacy_bp = Blueprint('privacy', __name__)
 logger = logging.getLogger(__name__)
 
 
-@privacy_bp.route('/settings/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/export/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/delete/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/retention/status/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/retention/cleanup/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/retention/cleanup-all', methods=['OPTIONS'])
-@privacy_bp.route('/consent/<user_id>', methods=['OPTIONS'])
-@privacy_bp.route('/consent/<user_id>/<consent_type>', methods=['OPTIONS'])
-@privacy_bp.route('/consent/validate/<user_id>/<feature>', methods=['OPTIONS'])
-@privacy_bp.route('/breach/report', methods=['OPTIONS'])
-@privacy_bp.route('/breach/history', methods=['OPTIONS'])
-@privacy_bp.route('/hipaa/encryption-status', methods=['OPTIONS'])
-@privacy_bp.route('/gdpr/data-residency', methods=['OPTIONS'])
-def handle_options(user_id: str | None = None, consent_type: str | None = None, feature: str | None = None):
-    """Handle CORS preflight requests."""
-    return APIResponse.success()
 
 
 @privacy_bp.route('/settings/<user_id>', methods=['GET'])
@@ -208,7 +192,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            memories_query = db.collection('memories').where('user_id', '==', user_id)
+            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
         memories = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in memories_query.stream()]
         export_data['memories'] = memories
         logger.info(f"  ✓ {len(memories)} memories collected")
@@ -223,7 +207,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            feedback_query = db.collection('feedback').where('user_id', '==', user_id)
+            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
         feedback = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in feedback_query.stream()]
         export_data['feedback'] = feedback
         logger.info(f"  ✓ {len(feedback)} feedback entries collected")
@@ -238,7 +222,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
         else:
-            referral_query = db.collection('referrals').where('referrer_id', '==', user_id)
+            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
         referrals = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in referral_query.stream()]
         export_data['referrals'] = referrals
         logger.info(f"  ✓ {len(referrals)} referrals collected")
@@ -253,7 +237,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            journal_query = db.collection('journal_entries').where('user_id', '==', user_id)
+            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
         journal_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in journal_query.stream()]
         export_data['journalEntries'] = journal_entries
         logger.info(f"  ✓ {len(journal_entries)} journal entries collected")
@@ -286,7 +270,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            crisis_query = db.collection('crisis_assessments').where('user_id', '==', user_id)
+            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
         crisis_assessments = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in crisis_query.stream()]
         export_data['crisisAssessments'] = crisis_assessments
         logger.info(f"  ✓ {len(crisis_assessments)} crisis assessments collected")
@@ -301,7 +285,7 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            sync_query = db.collection('sync_history').where('user_id', '==', user_id)
+            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
         sync_entries = [{**(doc.to_dict() or {}), 'id': doc.id} for doc in sync_query.stream()]
         export_data['syncHistory'] = sync_entries
         logger.info(f"  ✓ {len(sync_entries)} sync history entries collected")
@@ -311,14 +295,14 @@ def export_user_data(user_id: str):
         if FieldFilter is not None:
             presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            presence_query = db.collection('peer_chat_presence').where('user_id', '==', user_id)
+            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
         user_sessions = [doc.id for doc in presence_query.stream()]
         peer_messages = []
         for sid in user_sessions:
             if FieldFilter is not None:
                 msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
             else:
-                msg_query = db.collection('peer_chat_messages').where('session_id', '==', sid)
+                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
             for doc in msg_query.stream():
                 peer_messages.append({**(doc.to_dict() or {}), 'id': doc.id})
         export_data['peerChatMessages'] = peer_messages
@@ -398,7 +382,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            memories_query = db.collection('memories').where('user_id', '==', user_id)
+            memories_query = db.collection('memories').where(filter=FieldFilter('user_id', '==', user_id))
         memory_docs = list(memories_query.stream())
         for doc in memory_docs:
             doc.reference.delete()
@@ -431,7 +415,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            feedback_query = db.collection('feedback').where('user_id', '==', user_id)
+            feedback_query = db.collection('feedback').where(filter=FieldFilter('user_id', '==', user_id))
         feedback_docs = list(feedback_query.stream())
         for doc in feedback_docs:
             doc.reference.delete()
@@ -445,7 +429,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
         else:
-            referral_query = db.collection('referrals').where('referrer_id', '==', user_id)
+            referral_query = db.collection('referrals').where(filter=FieldFilter('referrer_id', '==', user_id))
         referral_docs = list(referral_query.stream())
         for doc in referral_docs:
             doc.reference.delete()
@@ -468,7 +452,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            journal_query = db.collection('journal_entries').where('user_id', '==', user_id)
+            journal_query = db.collection('journal_entries').where(filter=FieldFilter('user_id', '==', user_id))
         journal_docs = list(journal_query.stream())
         for doc in journal_docs:
             doc.reference.delete()
@@ -521,7 +505,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            crisis_query = db.collection('crisis_assessments').where('user_id', '==', user_id)
+            crisis_query = db.collection('crisis_assessments').where(filter=FieldFilter('user_id', '==', user_id))
         crisis_docs = list(crisis_query.stream())
         for doc in crisis_docs:
             doc.reference.delete()
@@ -546,7 +530,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            sync_query = db.collection('sync_history').where('user_id', '==', user_id)
+            sync_query = db.collection('sync_history').where(filter=FieldFilter('user_id', '==', user_id))
         sync_docs = list(sync_query.stream())
         for doc in sync_docs:
             doc.reference.delete()
@@ -561,7 +545,7 @@ def delete_user_data(user_id: str):
         if FieldFilter is not None:
             presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
         else:
-            presence_query = db.collection('peer_chat_presence').where('user_id', '==', user_id)
+            presence_query = db.collection('peer_chat_presence').where(filter=FieldFilter('user_id', '==', user_id))
         presence_docs = list(presence_query.stream())
         user_sessions = [doc.id for doc in presence_docs]
         peer_msg_count = 0
@@ -569,7 +553,7 @@ def delete_user_data(user_id: str):
             if FieldFilter is not None:
                 msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
             else:
-                msg_query = db.collection('peer_chat_messages').where('session_id', '==', sid)
+                msg_query = db.collection('peer_chat_messages').where(filter=FieldFilter('session_id', '==', sid))
             for doc in msg_query.stream():
                 doc.reference.delete()
                 peer_msg_count += 1

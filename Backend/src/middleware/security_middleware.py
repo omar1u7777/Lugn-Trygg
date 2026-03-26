@@ -10,6 +10,7 @@ Provides comprehensive security middleware including:
 """
 
 import logging
+import secrets
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -55,10 +56,15 @@ class SecurityMiddleware:
 
     def _before_request(self):
         """Process request before handling"""
+        # Store request start time early so rejected requests are also measurable.
+        g.request_start_time = time.time()
+        g.csp_nonce = secrets.token_urlsafe(16)
+
         # Get client information
         ip_address = self._get_client_ip()
-        user_agent = request.headers.get('User-Agent', '')
+        user_agent = self._truncate_user_agent(request.headers.get('User-Agent'))
         user_id = getattr(g, 'user_id', None)
+        safe_user_id = self._mask_user_id(user_id)
 
         # Rate limiting check
         if self._check_rate_limit(ip_address):
@@ -66,29 +72,29 @@ class SecurityMiddleware:
 
         # Input validation and sanitization
         if request.method in ['POST', 'PUT', 'PATCH']:
-            self._validate_and_sanitize_input()
+            validation_response = self._validate_and_sanitize_input()
+            if validation_response is not None:
+                return validation_response
 
         # CSRF protection for state-changing operations
         if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
             if not self._validate_csrf():
-                return jsonify({"error": "CSRF token validation failed"}), 403
+                return jsonify({"error": "Ogiltig CSRF-token"}), 403
 
         # Log security event
         self.security_service.log_security_event(
             'REQUEST',
-            user_id or 'anonymous',
+            safe_user_id,
             {
                 'method': request.method,
                 'path': request.path,
-                'query_string': request.query_string.decode(),
-                'content_length': request.content_length
+                'has_query_string': bool(request.query_string),
+                'query_string_length': len(request.query_string),
+                'content_length': int(request.content_length or 0)
             },
-            ip_address,
+            self._anonymize_ip(ip_address),
             user_agent
         )
-
-        # Store request start time for performance monitoring
-        g.request_start_time = time.time()
 
     def _after_request(self, response):
         """Process response after handling"""
@@ -97,7 +103,12 @@ class SecurityMiddleware:
             duration = time.time() - g.request_start_time
             # Log slow requests
             if duration > 5.0:  # 5 seconds
-                logger.warning(f"Slow request: {request.method} {request.path} took {duration:.2f}s")
+                logger.warning(
+                    "Langsam request: %s %s tog %.2fs",
+                    request.method,
+                    request.path,
+                    duration,
+                )
 
         # Audit successful responses
         if response.status_code < 400:
@@ -107,8 +118,8 @@ class SecurityMiddleware:
                 request.path,
                 request.method,
                 True,
-                self._get_client_ip(),
-                request.headers.get('User-Agent')
+                self._anonymize_ip(self._get_client_ip()),
+                self._truncate_user_agent(request.headers.get('User-Agent'))
             )
 
         return response
@@ -119,18 +130,21 @@ class SecurityMiddleware:
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = "geolocation=(), microphone=(), camera=()"
 
-        # Content Security Policy
+        # Content Security Policy with per-request nonce for inline scripts.
+        nonce = getattr(g, 'csp_nonce', '')
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' data: https: https://*.googleusercontent.com; "
             "connect-src 'self' https://lugn-trygg-backend.onrender.com https://*.firebaseio.com https://*.googleapis.com; "
-            "frame-ancestors 'none';"
+            "frame-ancestors 'none'; "
+            "base-uri 'self';"
         )
         response.headers['Content-Security-Policy'] = csp
 
@@ -144,22 +158,32 @@ class SecurityMiddleware:
         # Sanitize JSON data
         if request.is_json:
             data = request.get_json(silent=True)
-            if data:
+            if isinstance(data, dict):
                 sanitized = self._sanitize_dict(data)
                 # Replace request data (this is a bit of a hack, but works for validation)
                 request._cached_json = (sanitized, sanitized)
+            elif isinstance(data, list):
+                sanitized_list = [
+                    self._sanitize_dict(item) if isinstance(item, dict)
+                    else self.security_service.sanitize_input(item) if isinstance(item, str)
+                    else item
+                    for item in data
+                ]
+                request._cached_json = (sanitized_list, sanitized_list)
 
         # Check for SQL injection in query parameters
         for key, value in request.args.items():
             if isinstance(value, str) and self.security_service.check_sql_injection(value):
-                logger.warning(f"SQL injection attempt detected in query param: {key}")
+                logger.warning("SQL-injection forsok upptackt i query-parameter: %s", key)
                 self.security_service.log_security_event(
                     'SQL_INJECTION_ATTEMPT',
-                    getattr(g, 'user_id', 'anonymous'),
-                    {'parameter': key, 'value': value[:100]},  # Truncate for security
-                    self._get_client_ip()
+                    self._mask_user_id(getattr(g, 'user_id', None)),
+                    {'parameter': key, 'path': request.path},
+                    self._anonymize_ip(self._get_client_ip())
                 )
-                return jsonify({"error": "Invalid request parameters"}), 400
+                return jsonify({"error": "Ogiltiga forfragningsparametrar"}), 400
+
+        return None
 
     def _sanitize_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         """Recursively sanitize dictionary values"""
@@ -204,12 +228,12 @@ class SecurityMiddleware:
             return False
 
         session_id = getattr(g, 'session_id', 'anonymous')
-        result, error = self.security_service.validate_csrf_token(token, session_id)
+        result, _error = self.security_service.validate_csrf_token(token, session_id)
         return result if result is not None else False
 
     def _check_rate_limit(self, identifier: str) -> bool:
         """Check if request should be rate limited"""
-        result, error = self.security_service.rate_limit_check(
+        result, _error = self.security_service.rate_limit_check(
             identifier,
             f"{request.method}:{request.path}",
             max_requests=100,  # 100 requests per hour
@@ -220,7 +244,7 @@ class SecurityMiddleware:
     def _rate_limit_response(self):
         """Return rate limit exceeded response"""
         return jsonify({
-            "error": "Rate limit exceeded",
+            "error": "For manga forfragningar",
             "retry_after": 3600
         }), 429
 
@@ -238,25 +262,56 @@ class SecurityMiddleware:
 
         return request.remote_addr or 'unknown'
 
+    def _anonymize_ip(self, ip_address: str) -> str:
+        """Mask client IP for GDPR-safe logs."""
+        if not ip_address or ip_address == 'unknown':
+            return 'unknown'
+
+        # Basic IPv4 anonymization; fallback masks last segment for unknown formats.
+        if '.' in ip_address:
+            parts = ip_address.split('.')
+            if len(parts) == 4:
+                return '.'.join(parts[:3] + ['0'])
+        if ':' in ip_address:
+            # IPv6: keep only first 4 blocks and mask rest.
+            parts = ip_address.split(':')
+            return ':'.join(parts[:4] + ['0000'])
+        return ip_address[:32]
+
+    def _truncate_user_agent(self, user_agent: str | None) -> str:
+        """Cap User-Agent size to avoid oversized log payloads."""
+        if not user_agent:
+            return ''
+        return user_agent[:256]
+
+    def _mask_user_id(self, user_id: Any) -> str:
+        """Mask user identifier before logging to security events."""
+        if not user_id:
+            return 'anonymous'
+        user_id_str = str(user_id)
+        if len(user_id_str) <= 6:
+            return '***'
+        return f"{user_id_str[:3]}***{user_id_str[-2:]}"
+
     def _handle_bad_request(self, e):
         """Handle 400 Bad Request errors"""
         self.security_service.log_security_event(
             'BAD_REQUEST',
-            getattr(g, 'user_id', 'anonymous'),
-            {'error': str(e), 'path': request.path},
-            self._get_client_ip()
+            self._mask_user_id(getattr(g, 'user_id', None)),
+            {'path': request.path, 'error_type': type(e).__name__},
+            self._anonymize_ip(self._get_client_ip())
         )
-        return jsonify({"error": "Bad request", "details": str(e)}), 400
+        return jsonify({"error": "Ogiltig begaran"}), 400
 
     def _handle_unauthorized(self, e):
         """Handle 401 Unauthorized errors"""
         self.security_service.log_security_event(
             'UNAUTHORIZED_ACCESS',
-            getattr(g, 'user_id', 'anonymous'),
+            self._mask_user_id(getattr(g, 'user_id', None)),
             {'path': request.path},
-            self._get_client_ip()
+            self._anonymize_ip(self._get_client_ip())
         )
-        return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": "Obeharig"}), 401
 
     def _handle_forbidden(self, e):
         """Handle 403 Forbidden errors"""
@@ -267,25 +322,25 @@ class SecurityMiddleware:
 
         self.security_service.log_security_event(
             'FORBIDDEN_ACCESS',
-            user_id,
+            self._mask_user_id(user_id),
             {'path': request.path},
-            client_ip
+            self._anonymize_ip(client_ip)
         )
 
         # Record in tamper detection - forbidden access is suspicious
         tamper_detection_service.record_event(
             event_type='FORBIDDEN_ACCESS',
-            message=f'Forbidden access attempt to {request.path}',
+            message=f'Forbjudet atkomstforsok till {request.path}',
             severity='high',
             metadata={
-                'user_id': user_id,
+                'user_id': self._mask_user_id(user_id),
                 'path': request.path,
-                'ip': client_ip,
+                'ip': self._anonymize_ip(client_ip),
                 'method': request.method
             }
         )
 
-        return jsonify({"error": "Forbidden"}), 403
+        return jsonify({"error": "Atkomst nekad"}), 403
 
     def _handle_rate_limit(self, e):
         """Handle 429 Rate Limit errors"""
@@ -296,24 +351,24 @@ class SecurityMiddleware:
 
         self.security_service.log_security_event(
             'RATE_LIMIT_EXCEEDED',
-            user_id,
+            self._mask_user_id(user_id),
             {'path': request.path},
-            client_ip
+            self._anonymize_ip(client_ip)
         )
 
         # Record in tamper detection for dashboard visibility
         tamper_detection_service.record_event(
             event_type='RATE_LIMIT_EXCEEDED',
-            message=f'Rate limit exceeded via middleware for {request.path}',
+            message=f'Rate limit overskriden via middleware for {request.path}',
             severity='medium',
             metadata={
-                'user_id': user_id,
+                'user_id': self._mask_user_id(user_id),
                 'path': request.path,
-                'ip': client_ip
+                'ip': self._anonymize_ip(client_ip)
             }
         )
 
-        return jsonify({"error": "Rate limit exceeded", "retry_after": 3600}), 429
+        return jsonify({"error": "For manga forfragningar", "retry_after": 3600}), 429
 
 # Decorator for requiring authentication
 def require_auth(f: Callable) -> Callable:
@@ -343,13 +398,15 @@ def validate_input(schema_class: Any) -> Callable:
         def decorated_function(*args, **kwargs):
             try:
                 if request.is_json:
-                    data = request.get_json()
+                    data = request.get_json(silent=True)
+                    if not isinstance(data, dict):
+                        return jsonify({"error": "Ogiltigt indataformat"}), 400
                     validated_data = schema_class(**data)
                     # Add validated data to kwargs
                     kwargs['validated_data'] = validated_data
                 return f(*args, **kwargs)
             except Exception as e:
-                logger.warning("Input validation failed: %s", str(e))
-                return jsonify({"error": "Invalid input", "details": "Validation failed. Check your request data."}), 400
+                logger.warning("Indatavalidering misslyckades: %s", type(e).__name__)
+                return jsonify({"error": "Ogiltig indata", "details": "Validering misslyckades. Kontrollera din begaran."}), 400
         return decorated_function
     return decorator

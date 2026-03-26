@@ -105,7 +105,7 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
     } finally {
       setIsLoading(false);
     }
-  }, [user, messages, sessionId, maxMessages, generateMessageId]);
+  }, [user, sessionId, maxMessages, generateMessageId]);
 
   const clearChat = useCallback(() => {
     setMessages([]);

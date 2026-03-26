@@ -47,19 +47,6 @@ subscription_bp = Blueprint("subscription", __name__)
 logger = logging.getLogger(__name__)
 
 
-# CORS OPTIONS handler for all endpoints
-@subscription_bp.route("/create-session", methods=["OPTIONS"])
-@subscription_bp.route("/status/<user_id>", methods=["OPTIONS"])
-@subscription_bp.route("/webhook", methods=["OPTIONS"])
-@subscription_bp.route("/purchase-cbt-module", methods=["OPTIONS"])
-@subscription_bp.route("/plans", methods=["OPTIONS"])
-@subscription_bp.route("/purchases/<user_id>", methods=["OPTIONS"])
-@subscription_bp.route("/cancel/<user_id>", methods=["OPTIONS"])
-def handle_options(user_id: str = ""):
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
-
-
 @subscription_bp.route("/create-session", methods=["POST"])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
@@ -69,24 +56,22 @@ def create_checkout_session():
     try:
         if not STRIPE_AVAILABLE:
             logger.warning("❌ Stripe service unavailable - STRIPE_SECRET_KEY not configured")
-            return APIResponse.error("Payment service is not available", "SERVICE_UNAVAILABLE", 503)
+            return APIResponse.error("Betaltjänsten är tillfälligt otillgänglig", "SERVICE_UNAVAILABLE", 503)
 
         data = request.get_json(force=True, silent=True) or {}
 
-        logger.debug(f"📥 Request data: {data}")
-
         user_id = g.get('user_id')
         if not user_id:
-            return APIResponse.unauthorized("Authentication required")
+            return APIResponse.unauthorized("Autentisering krävs")
         user_email = sanitize_text(data.get("email", ""), max_length=254)
         plan = sanitize_text(data.get("plan", "premium"), max_length=50).lower()
         billing_cycle = sanitize_text(data.get("billing_cycle", "monthly"), max_length=20).lower() or "monthly"
 
-        logger.info(f"👤 Processing checkout for user_id: {user_id}, email: {user_email}, plan: {plan}")
+        logger.info("👤 Processing checkout for user_id: %s, plan: %s", user_id, plan)
 
         if not user_email:
             logger.warning("❌ Missing required field: email")
-            return APIResponse.bad_request("Email is required")
+            return APIResponse.bad_request("E-postadress krävs")
 
         # Determine price ID based on plan
         if plan == "premium":
@@ -98,7 +83,7 @@ def create_checkout_session():
             price_id = STRIPE_PRICE_ENTERPRISE
         else:
             logger.warning(f"❌ Invalid plan: {plan}")
-            return APIResponse.bad_request("Invalid plan selected")
+            return APIResponse.bad_request("Ogiltig prenumerationsplan")
 
         # Create Stripe checkout session
         logger.info(f"💳 Creating Stripe checkout session with price_id: {price_id} for plan: {plan}")
@@ -127,11 +112,11 @@ def create_checkout_session():
         return APIResponse.success({
             "sessionId": checkout_session.id,
             "url": checkout_session.url
-        }, "Checkout session created")
+        }, "Checkout-session skapad")
 
     except Exception as e:
         logger.error(f"❌ Error during checkout session creation: {e}")
-        return APIResponse.error("Payment processing failed", "PAYMENT_ERROR", 400)
+        return APIResponse.error("Betalningen kunde inte initieras", "PAYMENT_ERROR", 400)
 
 
 @subscription_bp.route("/status/<user_id>", methods=["GET"])
@@ -142,29 +127,29 @@ def get_subscription_status(user_id: str):
     try:
         user_id = sanitize_text(user_id, max_length=128)
         if not user_id:
-            return APIResponse.bad_request("User ID is required")
+            return APIResponse.bad_request("Användar-ID krävs")
 
         # Security: Only allow users to view their own status
         current_user_id = g.get('user_id')
         if not current_user_id:
-            return APIResponse.unauthorized("Authentication required")
+            return APIResponse.unauthorized("Autentisering krävs")
         if current_user_id != user_id:
-            return APIResponse.forbidden("Cannot view another user's status")
+            return APIResponse.forbidden("Du kan inte se en annan användares status")
 
         # Get user document
         user_doc = db.collection("users").document(user_id).get()  # type: ignore
 
         if not user_doc.exists:
-            return APIResponse.not_found("User not found")
+            return APIResponse.not_found("Användaren hittades inte")
 
         user_data = user_doc.to_dict()
         payload = SubscriptionService.build_status_payload(user_id, user_data)
 
-        return APIResponse.success(payload, "Subscription status retrieved")
+        return APIResponse.success(payload, "Prenumerationsstatus hämtad")
 
     except Exception as e:
         logger.exception(f"❌ Subscription status retrieval failed: {e}")
-        return APIResponse.error("An internal error occurred", "INTERNAL_ERROR", 500)
+        return APIResponse.error("Ett internt fel inträffade", "INTERNAL_ERROR", 500)
 
 
 @subscription_bp.route("/webhook", methods=["POST"])
@@ -175,7 +160,7 @@ def stripe_webhook():
     try:
         if not STRIPE_AVAILABLE:
             logger.warning("❌ Stripe service unavailable for webhook processing")
-            return APIResponse.error("Payment service is not available", "SERVICE_UNAVAILABLE", 503)
+            return APIResponse.error("Betaltjänsten är tillfälligt otillgänglig", "SERVICE_UNAVAILABLE", 503)
 
         payload = request.get_data(as_text=True)
         sig_header = request.headers.get("stripe-signature")
@@ -192,16 +177,16 @@ def stripe_webhook():
                 logger.info("✅ Stripe webhook signature verified")
             except stripe.error.SignatureVerificationError as e:
                 logger.error(f"❌ Webhook signature verification failed: {e}")
-                return APIResponse.error("Invalid webhook signature", "SIGNATURE_ERROR", 400)
+                return APIResponse.error("Ogiltig webhook-signatur", "SIGNATURE_ERROR", 400)
             except ValueError as e:
                 logger.error(f"❌ Invalid webhook payload: {e}")
-                return APIResponse.error("Invalid payload", "PAYLOAD_ERROR", 400)
+                return APIResponse.error("Ogiltig webhook-data", "PAYLOAD_ERROR", 400)
         elif not STRIPE_WEBHOOK_SECRET:
             # In production, never accept unverified webhooks
             flask_env = os.getenv('FLASK_ENV', 'development')
             if flask_env == 'production':
                 logger.error("❌ STRIPE_WEBHOOK_SECRET not configured in production — rejecting webhook")
-                return APIResponse.error("Webhook verification not configured", "CONFIG_ERROR", 503)
+                return APIResponse.error("Verifiering av webhook är inte konfigurerad", "CONFIG_ERROR", 503)
             # Development fallback - log warning but allow
             import json
             event = json.loads(payload)
@@ -209,7 +194,7 @@ def stripe_webhook():
         else:
             # Production: signature header missing
             logger.error("❌ Webhook request missing stripe-signature header")
-            return APIResponse.error("Missing webhook signature", "SIGNATURE_MISSING", 400)
+            return APIResponse.error("Saknad webhook-signatur", "SIGNATURE_MISSING", 400)
 
         event_type = event.get("type")
         logger.info(f"📡 Processing Stripe webhook event: {event_type}")
@@ -274,9 +259,9 @@ def stripe_webhook():
                         filter=FieldFilter("subscription.stripe_customer_id", "==", customer_id)
                     ).stream()
                 else:
-                    users = db.collection("users").where(  # type: ignore
+                    users = db.collection("users").where(filter=FieldFilter(  # type: ignore
                         "subscription.stripe_customer_id", "==", customer_id
-                    ).stream()
+                    )).stream()
 
                 for user_doc in users:
                     user_id = user_doc.id
@@ -299,9 +284,9 @@ def stripe_webhook():
                     filter=FieldFilter("subscription.stripe_customer_id", "==", customer_id)
                 ).stream()
             else:
-                users = db.collection("users").where(  # type: ignore
+                users = db.collection("users").where(filter=FieldFilter(  # type: ignore
                     "subscription.stripe_customer_id", "==", customer_id
-                ).stream()
+                )).stream()
 
             for user_doc in users:
                 user_id = user_doc.id
@@ -314,11 +299,11 @@ def stripe_webhook():
                 logger.info(f"✅ Subscription canceled for user: {user_id}")
                 break
 
-        return APIResponse.success({"status": "success"}, "Webhook processed")
+        return APIResponse.success({"status": "success"}, "Webhook behandlad")
 
     except Exception as e:
         logger.exception(f"❌ Webhook processing failed: {e}")
-        return APIResponse.error("Webhook processing failed", "WEBHOOK_ERROR", 500)
+        return APIResponse.error("Webhooks kunde inte behandlas", "WEBHOOK_ERROR", 500)
 
 
 @subscription_bp.route("/purchase-cbt-module", methods=["POST"])
@@ -330,22 +315,20 @@ def purchase_cbt_module():
     try:
         if not STRIPE_AVAILABLE:
             logger.warning("❌ Stripe service unavailable - STRIPE_SECRET_KEY not configured")
-            return APIResponse.error("Payment service is not available", "SERVICE_UNAVAILABLE", 503)
+            return APIResponse.error("Betaltjänsten är tillfälligt otillgänglig", "SERVICE_UNAVAILABLE", 503)
 
         data = request.get_json(force=True, silent=True) or {}
-        logger.debug(f"📥 Request data: {data}")
-
         user_id = g.get('user_id')
         if not user_id:
-            return APIResponse.unauthorized("Authentication required")
+            return APIResponse.unauthorized("Autentisering krävs")
         user_email = sanitize_text(data.get("email", ""), max_length=254)
         module = sanitize_text(data.get("module", ""), max_length=50)
 
-        logger.info(f"👤 Processing CBT module purchase for user_id: {user_id}, email: {user_email}, module: {module}")
+        logger.info("👤 Processing CBT module purchase for user_id: %s, module: %s", user_id, module)
 
         if not user_email or not module:
             logger.warning("❌ Missing required fields: email or module")
-            return APIResponse.bad_request("Email and module are required")
+            return APIResponse.bad_request("E-postadress och modul krävs")
 
         # Create Stripe checkout session for one-time payment
         logger.info(f"💳 Creating Stripe checkout session for CBT module: {module}")
@@ -374,11 +357,11 @@ def purchase_cbt_module():
         return APIResponse.success({
             "sessionId": checkout_session.id,
             "url": checkout_session.url
-        }, "Checkout session created")
+        }, "Checkout-session skapad")
 
     except Exception as e:
         logger.error(f"❌ Error during CBT module purchase: {e}")
-        return APIResponse.error("Payment processing failed", "PAYMENT_ERROR", 400)
+        return APIResponse.error("Betalningen kunde inte initieras", "PAYMENT_ERROR", 400)
 
 
 @subscription_bp.route("/plans", methods=["GET"])
@@ -387,10 +370,10 @@ def get_available_plans():
     """Get available subscription plans"""
     try:
         plans = load_subscription_plans()
-        return APIResponse.success(plans, "Subscription plans retrieved")
+        return APIResponse.success(plans, "Prenumerationsplaner hämtade")
     except Exception as e:
         logger.exception(f"❌ Error retrieving plans: {e}")
-        return APIResponse.error("An internal error occurred", "INTERNAL_ERROR", 500)
+        return APIResponse.error("Ett internt fel inträffade", "INTERNAL_ERROR", 500)
 
 
 @subscription_bp.route("/purchases/<user_id>", methods=["GET"])
@@ -401,29 +384,29 @@ def get_user_purchases(user_id: str):
     try:
         user_id = sanitize_text(user_id, max_length=128)
         if not user_id:
-            return APIResponse.bad_request("User ID is required")
+            return APIResponse.bad_request("Användar-ID krävs")
 
         # Security: Only allow users to view their own purchases
         current_user_id = g.get('user_id')
         if not current_user_id:
-            return APIResponse.unauthorized("Authentication required")
+            return APIResponse.unauthorized("Autentisering krävs")
         if current_user_id != user_id:
-            return APIResponse.forbidden("Cannot view another user's purchases")
+            return APIResponse.forbidden("Du kan inte se en annan användares köp")
 
         # Get user document
         user_doc = db.collection("users").document(user_id).get()  # type: ignore
 
         if not user_doc.exists:
-            return APIResponse.not_found("User not found")
+            return APIResponse.not_found("Användaren hittades inte")
 
         user_data = user_doc.to_dict()
         purchases = user_data.get("purchases", [])
 
-        return APIResponse.success({"purchases": purchases}, "User purchases retrieved")
+        return APIResponse.success({"purchases": purchases}, "Köp hämtade")
 
     except Exception as e:
         logger.exception(f"❌ Error retrieving purchases for user {user_id}: {e}")
-        return APIResponse.error("An internal error occurred", "INTERNAL_ERROR", 500)
+        return APIResponse.error("Ett internt fel inträffade", "INTERNAL_ERROR", 500)
 
 
 @subscription_bp.route("/cancel/<user_id>", methods=["POST"])
@@ -435,32 +418,32 @@ def cancel_subscription(user_id: str):
         user_id = sanitize_text(user_id, max_length=128)
 
         if not STRIPE_AVAILABLE:
-            return APIResponse.error("Payment service is not available", "SERVICE_UNAVAILABLE", 503)
+            return APIResponse.error("Betaltjänsten är tillfälligt otillgänglig", "SERVICE_UNAVAILABLE", 503)
 
         if not user_id:
-            return APIResponse.bad_request("User ID is required")
+            return APIResponse.bad_request("Användar-ID krävs")
 
         # Security: Only allow users to cancel their own subscription
         current_user_id = g.get('user_id')
         if not current_user_id:
-            return APIResponse.unauthorized("Authentication required")
+            return APIResponse.unauthorized("Autentisering krävs")
         if current_user_id != user_id:
-            return APIResponse.forbidden("Cannot cancel another user's subscription")
+            return APIResponse.forbidden("Du kan inte avsluta en annan användares prenumeration")
 
         # Get user subscription
         user_doc = db.collection("users").document(user_id).get()  # type: ignore
         if not user_doc.exists:
-            return APIResponse.not_found("User not found")
+            return APIResponse.not_found("Användaren hittades inte")
 
         user_data = user_doc.to_dict()
         subscription = user_data.get("subscription", {})
 
         if subscription.get("status") != "active":
-            return APIResponse.bad_request("No active subscription to cancel")
+            return APIResponse.bad_request("Ingen aktiv prenumeration att avsluta")
 
         stripe_subscription_id = subscription.get("stripe_subscription_id")
         if not stripe_subscription_id:
-            return APIResponse.bad_request("Stripe subscription ID is missing")
+            return APIResponse.bad_request("Prenumerations-ID saknas")
 
         # Cancel subscription in Stripe
         try:
@@ -470,7 +453,7 @@ def cancel_subscription(user_id: str):
             )
         except Exception as stripe_error:
             logger.error(f"❌ Stripe cancellation error: {stripe_error}")
-            return APIResponse.error(f"Cancellation error: {str(stripe_error)}", "STRIPE_ERROR", 400)
+            return APIResponse.error("Avslut av prenumeration misslyckades", "STRIPE_ERROR", 400)
 
         # Update Firestore
         db.collection("users").document(user_id).update({  # type: ignore
@@ -482,9 +465,9 @@ def cancel_subscription(user_id: str):
         logger.info(f"✅ Subscription cancellation initiated for user: {user_id}")
 
         return APIResponse.success({
-            "message": "Subscription will be canceled at end of billing period"
-        }, "Cancellation initiated")
+            "message": "Prenumerationen avslutas vid slutet av faktureringsperioden"
+        }, "Avslut initierat")
 
     except Exception as e:
         logger.exception(f"❌ Database error during subscription cancellation: {e}")
-        return APIResponse.error("An internal error occurred during cancellation", "INTERNAL_ERROR", 500)
+        return APIResponse.error("Ett internt fel inträffade vid avslut", "INTERNAL_ERROR", 500)

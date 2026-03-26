@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../api/api';
@@ -32,14 +32,7 @@ const ReferralProgram: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user?.user_id) {
-            fetchReferralData();
-            fetchReferralStats();
-        }
-    }, [user]);
-
-    const fetchReferralData = async () => {
+    const fetchReferralData = useCallback(async () => {
         if (!user?.user_id) {
             setError('User not authenticated');
             setLoading(false);
@@ -70,9 +63,9 @@ const ReferralProgram: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.user_id]);
 
-    const fetchReferralStats = async () => {
+    const fetchReferralStats = useCallback(async () => {
         if (!user?.user_id) return;
 
         try {
@@ -87,7 +80,14 @@ const ReferralProgram: React.FC = () => {
         } catch (err: unknown) {
             logger.error('❌ Failed to fetch referral stats:', err);
         }
-    };
+    }, [user?.user_id]);
+
+    useEffect(() => {
+        if (user?.user_id) {
+            void fetchReferralData();
+            void fetchReferralStats();
+        }
+    }, [fetchReferralData, fetchReferralStats, user?.user_id]);
 
     const calculateTier = (referralCount: number): string => {
         if (referralCount >= 30) return 'Platinum';

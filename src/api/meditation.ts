@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import { getApiErrorMessage } from "./errorUtils";
 
 /**
  * Save a meditation session
@@ -24,9 +25,8 @@ export const saveMeditationSession = async (sessionData: {
     // Handle APIResponse wrapper: { success: true, data: {...}, message: "..." }
     return response.data?.data || response.data;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Save meditation session error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to save meditation session");
+    logger.error("Save meditation session error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to save meditation session"));
   }
 };
 
@@ -45,8 +45,7 @@ export const getMeditationSessions = async (limit: number = 50) => {
     logger.debug('Meditation sessions retrieved:', responseData.sessions?.length || 0);
     return responseData;
   } catch (error: unknown) {
-    const apiError = error as any;
-    logger.error("Get meditation sessions error:", apiError);
-    throw new Error((apiError.response?.data as any)?.error || "Failed to get meditation sessions");
+    logger.error("Get meditation sessions error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to get meditation sessions"));
   }
 };

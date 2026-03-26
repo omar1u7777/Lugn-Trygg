@@ -53,8 +53,8 @@ const MonitoringDashboard: React.FC = () => {
     analytics.page('Monitoring Dashboard', {
       component: 'MonitoringDashboard',
     });
-    loadRealMetrics();
-  }, []);
+    void loadRealMetrics();
+  }, [loadRealMetrics]);
 
   const loadRealMetrics = useCallback(async () => {
     try {

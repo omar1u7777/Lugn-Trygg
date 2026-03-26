@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   HeartIcon,
@@ -13,6 +13,7 @@ import {
 import { Button } from './ui/tailwind/Button';
 import { Card } from './ui/tailwind/Card';
 import { Alert } from './ui/tailwind/Feedback';
+import { Snackbar } from './ui/tailwind';
 
 // Dashboard Components (Extracted for maintainability)
 import { DashboardHeader } from './Dashboard/DashboardHeader';
@@ -34,6 +35,7 @@ import { useAccessibility } from '../hooks/useAccessibility';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
+import { getSubscriptionStatus } from '../api/subscription';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
@@ -90,8 +92,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
-  const { isPremium } = useSubscription();
+  const { isPremium, refreshSubscription } = useSubscription();
 
   const resolvedUserId = user?.user_id || userId;
 
@@ -100,6 +103,19 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   const [activeView, setActiveView] = useState<'overview' | 'mood-basic' | 'mood-list' | 'chat' | 'analytics' | 'gamification'>('overview');
   const [showWellnessOnboarding, setShowWellnessOnboarding] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    variant: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    variant: 'info',
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
 
   // Debug wellness goals and show onboarding if empty
   useEffect(() => {
@@ -189,7 +205,119 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     if (!loading) {
       announceToScreenReader(t('worldDashboard.dashboardLoaded'), 'polite');
     }
-  }, [user?.user_id, loading, announceToScreenReader]);
+  }, [user?.user_id, loading, announceToScreenReader, t]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const checkoutSuccess = params.get('success') === 'true';
+    const checkoutCanceled = params.get('canceled') === 'true';
+
+    if (!checkoutSuccess && !checkoutCanceled) {
+      return;
+    }
+
+    const clearCheckoutParams = () => {
+      const nextParams = new URLSearchParams(location.search);
+      nextParams.delete('success');
+      nextParams.delete('canceled');
+      nextParams.delete('session_id');
+
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextParams.toString() ? `?${nextParams.toString()}` : '',
+        },
+        { replace: true }
+      );
+    };
+
+    if (checkoutCanceled) {
+      setSnackbar({
+        open: true,
+        message: 'Köpet avbröts. Du kan prova igen när du är redo.',
+        variant: 'info',
+      });
+      clearCheckoutParams();
+      return;
+    }
+
+    if (!resolvedUserId) {
+      setSnackbar({
+        open: true,
+        message: 'Kunde inte verifiera prenumerationen. Logga in igen och försök på nytt.',
+        variant: 'warning',
+      });
+      clearCheckoutParams();
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncSubscriptionFromStripe = async () => {
+      setSnackbar({
+        open: true,
+        message: 'Verifierar din betalning och uppdaterar Premium ...',
+        variant: 'info',
+      });
+
+      const maxAttempts = 5;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
+          const status = await getSubscriptionStatus(resolvedUserId);
+          if (status.isPremium || status.isTrial || status.plan === 'enterprise') {
+            await refreshSubscription();
+
+            if (!cancelled) {
+              setSnackbar({
+                open: true,
+                message: 'Premium är nu aktivt. Välkommen!',
+                variant: 'success',
+              });
+              analytics.track('Stripe Checkout Synced', {
+                component: 'WorldClassDashboard',
+                attempts: attempt + 1,
+                plan: status.plan,
+              });
+              clearCheckoutParams();
+            }
+            return;
+          }
+        } catch (syncError) {
+          logger.warn('Stripe sync polling failed', syncError);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+      }
+
+      await refreshSubscription();
+
+      if (!cancelled) {
+        setSnackbar({
+          open: true,
+          message: 'Betalningen registrerades. Premium uppdateras inom kort automatiskt.',
+          variant: 'warning',
+        });
+        clearCheckoutParams();
+      }
+    };
+
+    syncSubscriptionFromStripe().catch((syncError) => {
+      logger.error('Stripe checkout sync failed', syncError);
+      if (!cancelled) {
+        setSnackbar({
+          open: true,
+          message: 'Kunde inte uppdatera prenumerationen just nu. Försök igen om en stund.',
+          variant: 'error',
+        });
+        clearCheckoutParams();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId]);
 
   const handleRefresh = () => {
     logger.debug('Dashboard refresh clicked');
@@ -510,6 +638,13 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           emptyStateMessage={t('worldDashboard.noActivityYet')}
         />
       </div>
+
+      <Snackbar
+        open={snackbar.open}
+        onClose={handleCloseSnackbar}
+        message={snackbar.message}
+        variant={snackbar.variant}
+      />
     </div>
   );
 };

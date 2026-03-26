@@ -67,6 +67,48 @@ class EmailService:
                 self.client = resend  # Mock resend
                 self.enabled = False
 
+    @staticmethod
+    def _is_resend_auth_error(error: Exception) -> bool:
+        """Return True when the failure indicates invalid/unauthorized Resend credentials."""
+        error_str = str(error).lower()
+        return (
+            'api key' in error_str
+            or 'invalid' in error_str
+            or 'unauthorized' in error_str
+        )
+
+    def _send_resend_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        auth_error_log: str
+    ) -> dict[str, Any]:
+        """Send a raw payload to Resend with graceful degradation on auth failures."""
+        if not self.client:
+            logger.error("❌ Resend not configured")
+            return {
+                "success": False,
+                "error": "Email service not configured",
+                "email_id": None
+            }
+
+        try:
+            response = self.client.Emails.send(payload)
+            return {
+                "success": True,
+                "email_id": response.get("id"),
+                "response": response
+            }
+        except Exception as send_error:
+            if self._is_resend_auth_error(send_error):
+                logger.warning(auth_error_log)
+                return {
+                    "success": False,
+                    "error": "Email service temporarily unavailable",
+                    "email_id": None
+                }
+            raise
+
     def send_referral_invitation(
         self,
         to_email: str,
@@ -182,33 +224,29 @@ Lugn & Trygg - Mental hälsa & välmående
 © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
 """
 
-            # CRITICAL FIX: Graceful degradation if API key is invalid
-            try:
-                # Send email via Resend
-                response = self.client.Emails.send({
+            send_result = self._send_resend_payload(
+                {
                     "from": f"{self.from_name} <{self.from_email}>",
                     "to": [to_email],
                     "subject": subject,
                     "html": html_content,
                     "text": plain_text
-                })
-            except Exception as send_error:
-                error_str = str(send_error).lower()
-                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning("⚠️ Resend API key invalid for referral email - skipping email send")
-                    # Return success=False but don't crash the application
-                    return {
-                        "success": False,
-                        "error": "Email service temporarily unavailable",
-                        "email_id": None
-                    }
-                raise  # Re-raise if it's a different error
+                },
+                auth_error_log="⚠️ Resend API key invalid for referral email - skipping email send"
+            )
 
-            logger.info(f"✅ Referral email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
+            if not send_result["success"]:
+                return send_result
+
+            logger.info(
+                "✅ Referral email sent to %s (id: %s)",
+                _mask_email(to_email),
+                send_result.get("email_id") or "N/A"
+            )
 
             return {
                 "success": True,
-                "email_id": response.get("id"),
+                "email_id": send_result.get("email_id"),
                 "message": "Email sent successfully"
             }
 
@@ -294,17 +332,26 @@ Lugn & Trygg - Mental hälsa & välmående
 </html>
 """
 
-            # Send email via Resend
-            response = self.client.Emails.send({
-                "from": f"{self.from_name} <{self.from_email}>",
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content
-            })
+            send_result = self._send_resend_payload(
+                {
+                    "from": f"{self.from_name} <{self.from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content
+                },
+                auth_error_log="⚠️ Resend API key invalid for referral success notification - skipping email send"
+            )
 
-            logger.info(f"✅ Success notification sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
+            if not send_result["success"]:
+                return send_result
 
-            return {"success": True, "email_id": response.get("id")}
+            logger.info(
+                "✅ Success notification sent to %s (id: %s)",
+                _mask_email(to_email),
+                send_result.get("email_id") or "N/A"
+            )
+
+            return {"success": True, "email_id": send_result.get("email_id")}
 
         except Exception as e:
             logger.exception(f"❌ Failed to send success notification: {e}")
@@ -689,7 +736,7 @@ Du får detta mail eftersom du aktiverat hälsovarningar i inställningarna.
 
         return self._send_email(user_email, subject, html_content, plain_content)
 
-    def send_password_reset_email(self, to_email: str, reset_token: str, reset_link: str) -> dict[str, Any]:
+    def send_password_reset_email(self, to_email: str, _reset_token: str, reset_link: str) -> dict[str, Any]:
         """Send password reset email"""
         if not self.client:
             logger.error("❌ Resend not configured")
@@ -785,31 +832,29 @@ Lugn & Trygg - Mental hälsa & välmående
 © 2025 Lugn & Trygg. Alla rättigheter förbehållna.
 """
 
-            # CRITICAL FIX: Graceful degradation if API key is invalid
-            try:
-                response = self.client.Emails.send({
+            send_result = self._send_resend_payload(
+                {
                     "from": f"{self.from_name} <{self.from_email}>",
                     "to": [to_email],
                     "subject": subject,
                     "html": html_content,
                     "text": plain_text
-                })
-            except Exception as send_error:
-                error_str = str(send_error).lower()
-                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning("⚠️ Resend API key invalid for password reset email - skipping email send")
-                    return {
-                        "success": False,
-                        "error": "Email service temporarily unavailable",
-                        "email_id": None
-                    }
-                raise  # Re-raise if it's a different error
+                },
+                auth_error_log="⚠️ Resend API key invalid for password reset email - skipping email send"
+            )
 
-            logger.info(f"✅ Password reset email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
+            if not send_result["success"]:
+                return send_result
+
+            logger.info(
+                "✅ Password reset email sent to %s (id: %s)",
+                _mask_email(to_email),
+                send_result.get("email_id") or "N/A"
+            )
 
             return {
                 "success": True,
-                "email_id": response.get("id"),
+                "email_id": send_result.get("email_id"),
                 "message": "Password reset email sent successfully"
             }
 
@@ -837,19 +882,18 @@ Lugn & Trygg - Mental hälsa & välmående
             if plain_content:
                 email_data["text"] = plain_content
 
-            # CRITICAL FIX: Graceful degradation if API key is invalid
-            try:
-                response = self.client.Emails.send(email_data)  # type: ignore
-                logger.info(f"✅ Email sent to {_mask_email(to_email)} (id: {response.get('id', 'N/A')})")
+            send_result = self._send_resend_payload(
+                email_data,
+                auth_error_log="⚠️ Resend API key invalid or unauthorized - email service disabled"
+            )
+            if send_result["success"]:
+                logger.info(
+                    "✅ Email sent to %s (id: %s)",
+                    _mask_email(to_email),
+                    send_result.get("email_id") or "N/A"
+                )
                 return True
-            except Exception as send_error:
-                error_str = str(send_error).lower()
-                if 'api key' in error_str or 'invalid' in error_str or 'unauthorized' in error_str:
-                    logger.warning("⚠️ Resend API key invalid or unauthorized - email service disabled")
-                    # Return False but don't crash the application
-                    return False
-                # Re-raise if it's a different error
-                raise
+            return False
 
         except Exception as e:
             logger.exception(f"❌ Failed to send email to {_mask_email(to_email)}: {e}")

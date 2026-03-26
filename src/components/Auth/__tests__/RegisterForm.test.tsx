@@ -28,6 +28,15 @@ describe('RegisterForm', () => {
     vi.clearAllMocks();
   });
 
+  const acceptRequiredConsents = () => {
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    checkboxes.forEach((checkbox) => {
+      if (!checkbox.checked) {
+        fireEvent.click(checkbox);
+      }
+    });
+  };
+
   it('renders registration form with all fields', () => {
     render(<RegisterForm />);
 
@@ -145,6 +154,7 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'StrongPass1!' },
     });
+    acceptRequiredConsents();
     fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {
@@ -152,7 +162,9 @@ describe('RegisterForm', () => {
         'test@example.com',
         'StrongPass1!',
         'Test User',
-        ''
+        '',
+        true,
+        true
       );
     });
   });
@@ -176,6 +188,7 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'StrongPass1!' },
     });
+    acceptRequiredConsents();
     fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {
@@ -202,6 +215,7 @@ describe('RegisterForm', () => {
     fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
       target: { value: 'StrongPass1!' },
     });
+    acceptRequiredConsents();
     fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
 
     await waitFor(() => {

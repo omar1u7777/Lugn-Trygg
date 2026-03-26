@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Typography, Button, Chip, Alert } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
@@ -21,12 +21,36 @@ interface StoryInsightsProps {
   userId?: string;
 }
 
+interface MoodPoint {
+  timestamp?: string;
+  score?: number;
+}
+
+interface ChatHistoryResponse {
+  conversation?: unknown[];
+}
+
+type InsightColor = 'green' | 'gold' | 'blue' | 'orange';
+type InsightTrend = 'up' | 'down' | null;
+
+interface StoryInsightItem {
+  id: string;
+  type: 'trend' | 'achievement' | 'goal' | 'recommendation';
+  title: string;
+  story: string;
+  trend: InsightTrend;
+  color: InsightColor;
+  icon: JSX.Element;
+  action: 'Se detaljer' | 'Dela prestation' | 'Prova nu' | 'Logga nu' | 'Fortsätt logga' | 'Prata med AI';
+  badge: string | null;
+}
+
 const StoryInsights = ({ userId }: StoryInsightsProps) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [insights, setInsights] = useState<any[]>([]);
+  const [insights, setInsights] = useState<StoryInsightItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
     streakDays: 0,
@@ -34,16 +58,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
     totalChats: 0,
   });
 
-  useEffect(() => {
-    analytics.page('Story Insights', {
-      component: 'StoryInsights',
-      userId,
-    });
-
-    loadInsights();
-  }, [userId, user]);
-
-  const loadInsights = async () => {
+  const loadInsights = useCallback(async () => {
     if (!user?.user_id) {
       setLoading(false);
       return;
@@ -53,11 +68,13 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       setLoading(true);
 
       // Load real data from backend APIs
-      const [moodsData, _weeklyAnalysisData, chatHistoryData] = await Promise.all([
+      const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
         getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
         getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
       ]);
+      const moodsData = Array.isArray(moodsDataRaw) ? (moodsDataRaw as MoodPoint[]) : [];
+      const chatHistoryData = (chatHistoryDataRaw ?? {}) as ChatHistoryResponse;
 
       // Calculate insights based on real data
       const totalMoods = moodsData.length;
@@ -65,7 +82,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       // Calculate streak from mood data: consecutive days counting back from today
       const now = new Date();
       const daySet = new Set(
-        (Array.isArray(moodsData) ? moodsData : []).map((m: any) => new Date(m.timestamp).toDateString())
+        moodsData.map((m) => new Date(m.timestamp ?? '').toDateString())
       );
       let streakDays = 0;
       for (let i = 0; i < 365; i++) {
@@ -83,24 +100,24 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
       sevenDaysAgo.setDate(now.getDate() - 7);
       const weeklyProgress = new Set(
         moodsData
-          .filter((m: any) => new Date(m.timestamp) >= sevenDaysAgo)
-          .map((m: any) => new Date(m.timestamp).toDateString())
+          .filter((m) => new Date(m.timestamp ?? '') >= sevenDaysAgo)
+          .map((m) => new Date(m.timestamp ?? '').toDateString())
       ).size;
       const weeklyGoal = 7;
       const totalChats = chatHistoryData.conversation?.length || 0;
 
       // Calculate average mood
       const averageMood = totalMoods > 0
-        ? moodsData.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / totalMoods
+        ? moodsData.reduce((sum: number, mood) => sum + (mood.score || 0), 0) / totalMoods
         : 0;
 
       // Generate dynamic insights based on real data
-      const insights: any[] = [];
+      const insights: StoryInsightItem[] = [];
 
       // Weekly trend insight
       if (totalMoods >= 7) {
         const recentMoods = moodsData.slice(0, 7);
-        const avgRecent = recentMoods.reduce((sum: number, mood: any) => sum + (mood.score || 0), 0) / recentMoods.length;
+        const avgRecent = recentMoods.reduce((sum: number, mood) => sum + (mood.score || 0), 0) / recentMoods.length;
         const trend = avgRecent > averageMood ? 'up' : 'down';
 
         insights.push({
@@ -194,9 +211,18 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [announceToScreenReader, user?.user_id]);
 
-  const handleInsightAction = (insight: any) => {
+  useEffect(() => {
+    analytics.page('Story Insights', {
+      component: 'StoryInsights',
+      userId,
+    });
+
+    loadInsights();
+  }, [loadInsights, userId]);
+
+  const handleInsightAction = (insight: StoryInsightItem) => {
     analytics.track('Insight Action Taken', {
       insight_id: insight.id,
       insight_type: insight.type,

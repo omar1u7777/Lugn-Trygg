@@ -25,6 +25,7 @@ from ..config import (
 HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')
 
 from ..utils.error_handling import handle_service_errors
+from .tamper_detection_service import tamper_detection_service
 from . import IAuditService
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,26 @@ class SecurityService:
             from cryptography.fernet import Fernet as _FernetCls
             self._hipaa_key = _FernetCls.generate_key()
         self._rate_limit_store: dict[str, list] = {}  # In-memory rate limit tracking
+
+    def mask_ip(self, ip_address: str | None) -> str:
+        """
+        Anonymize IP address according to GDPR.
+        """
+        if not ip_address:
+            return '0.0.0.0'
+        import ipaddress
+        try:
+            ip = ipaddress.ip_address(ip_address)
+            if ip.version == 4:
+                return f"{ip.exploded.rsplit('.', 1)[0]}.0"
+            elif ip.version == 6:
+                parts = ip.exploded.split(':')
+                return f"{':'.join(parts[:4])}::0"
+            return '0.0.0.0'
+        except ValueError:
+            return '0.0.0.0'
+
+
 
     @handle_service_errors
     def hash_password(self, password: str) -> str:
@@ -203,6 +224,12 @@ class SecurityService:
         # Check count
         if len(self._rate_limit_store[key]) >= max_requests:
             logger.warning(f"Rate limit exceeded for {identifier} on {action}")
+            tamper_detection_service.record_event(
+                event_type='rate_limit_exceeded',
+                severity='HIGH',
+                message=f"Rate limit breached for {action}",
+                metadata={'identifier': identifier}
+            )
             return True  # Rate limited
 
         # Record this request

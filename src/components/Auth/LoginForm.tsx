@@ -33,7 +33,7 @@ const MESSAGES = {
 // Helper function to extract error message from API errors
 const extractErrorMessage = (err: unknown): string => {
   if (err && typeof err === "object" && "response" in err) {
-    const response = (err as any).response;
+    const response = (err as { response?: { data?: { error?: unknown } } }).response;
     if (response?.data?.error && typeof response.data.error === "string") {
       return response.data.error;
     }

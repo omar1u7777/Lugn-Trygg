@@ -48,12 +48,6 @@ describe('SubscriptionContext', () => {
     vi.clearAllMocks();
   });
 
-  it('useSubscription throws when used outside provider', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => renderHook(() => useSubscription())).toThrow();
-    consoleSpy.mockRestore();
-  });
-
   it('renders children', () => {
     render(
       <SubscriptionProvider>

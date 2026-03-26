@@ -3,17 +3,30 @@ import { useTranslation } from "react-i18next";
 import { getWeeklyAnalysis } from "../api/api";
 import useAuth from "../hooks/useAuth";
 import MoodAnalytics from "./MoodAnalytics";
-import { debounce } from "lodash";
 import { MicrophoneIcon } from "@heroicons/react/24/outline";
 
 interface WeeklyAnalysisProps {
   refreshTrigger?: number;
 }
 
+type TimestampLike = string | number | Date | { toDate: () => Date } | null | undefined;
+
+interface MemoryItem {
+  id?: string;
+  timestamp?: TimestampLike;
+}
+
+interface WeeklyAnalysisData {
+  fallback?: boolean;
+  insights?: string;
+  confidence?: number;
+  recent_memories?: MemoryItem[];
+}
+
 const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<WeeklyAnalysisData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,14 +43,15 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
     }
   }, [user]);
 
-  const debouncedFetchAnalysis = useCallback(debounce(fetchAnalysis, 500), [fetchAnalysis]);
-
   useEffect(() => {
-    debouncedFetchAnalysis();
+    const timeoutId = setTimeout(() => {
+      fetchAnalysis();
+    }, 500);
+
     return () => {
-      debouncedFetchAnalysis.cancel();
+      clearTimeout(timeoutId);
     };
-  }, [debouncedFetchAnalysis, refreshTrigger]);
+  }, [fetchAnalysis, refreshTrigger]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-12">
@@ -160,11 +174,17 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
             {t('dashboard.recentMemories')}
           </h4>
           <div className="space-y-4">
-            {analysis.recent_memories.slice(0, 3).map((mem: any) => {
+            {analysis.recent_memories.slice(0, 3).map((mem: MemoryItem) => {
               let dateString = t('dashboard.invalidDate');
               try {
                 const timestamp = mem.timestamp;
-                const memoryDate = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+                const memoryDate =
+                  timestamp &&
+                  typeof timestamp === 'object' &&
+                  'toDate' in timestamp &&
+                  typeof timestamp.toDate === 'function'
+                    ? timestamp.toDate()
+                    : new Date(timestamp ?? '');
                 if (!isNaN(memoryDate.getTime())) {
                   dateString = memoryDate.toLocaleDateString();
                 }

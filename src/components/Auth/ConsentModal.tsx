@@ -97,7 +97,13 @@ const buildInitialConsents = (): Consents =>
 // Utility function for extracting error messages
 const getErrorMessage = (error: unknown, t: (key: string) => string): string => {
   if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as any;
+    const axiosError = error as {
+      response?: {
+        data?: {
+          error?: unknown;
+        };
+      };
+    };
     if (axiosError.response?.data?.error) {
       return String(axiosError.response.data.error);
     }

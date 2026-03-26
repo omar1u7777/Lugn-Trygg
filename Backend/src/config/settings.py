@@ -6,14 +6,16 @@ Type-safe, validated configuration with automatic environment variable loading
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = None  # Will be set after logging is configured
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -33,7 +35,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY", min_length=32)
     jwt_refresh_secret_key: str = Field(..., alias="JWT_REFRESH_SECRET_KEY", min_length=32)
     jwt_expiration_minutes: int = Field(default=15, alias="JWT_EXPIRATION_MINUTES", ge=1, le=1440)
-    jwt_refresh_expiration_days: int = Field(default=360, alias="JWT_REFRESH_EXPIRATION_DAYS", ge=1, le=3650)
+    jwt_refresh_expiration_days: int = Field(default=30, alias="JWT_REFRESH_EXPIRATION_DAYS", ge=1, le=3650)
 
     # Firebase Configuration
     firebase_web_api_key: str = Field(..., alias="FIREBASE_WEB_API_KEY")
@@ -70,8 +72,8 @@ class Settings(BaseSettings):
     cache_user_data_timeout: int = Field(default=1800, alias="CACHE_USER_DATA_TIMEOUT", ge=0)
 
     # CORS Configuration
-    cors_allowed_origins: str = Field(
-        default="http://localhost:3000,http://127.0.0.1:3000",
+    cors_allowed_origins: list[str] | str = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"],
         alias="CORS_ALLOWED_ORIGINS"
     )
 
@@ -117,7 +119,7 @@ class Settings(BaseSettings):
         if isinstance(v, str) and v.startswith("{"):
             try:
                 creds_json = json.loads(v)
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tf:
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
                     json.dump(creds_json, tf)
                     return tf.name
             except json.JSONDecodeError as exc:
@@ -128,13 +130,15 @@ class Settings(BaseSettings):
 
         return str(v)
 
-    @field_validator("cors_allowed_origins", mode="after")
+    @field_validator("cors_allowed_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v: str) -> list[str]:
+    def parse_cors_origins(cls, v: Any) -> list[str]:
         """Parse CORS origins from comma-separated string"""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v if isinstance(v, list) else []
+        if isinstance(v, list):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        return []
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> Settings:
@@ -156,8 +160,15 @@ class Settings(BaseSettings):
 
         # Process Firebase credentials path override
         if self.firebase_credentials_path:
-            if Path(self.firebase_credentials_path).exists():
-                object.__setattr__(self, 'firebase_credentials', self.firebase_credentials_path)
+            creds_path = Path(self.firebase_credentials_path)
+            if not creds_path.is_absolute():
+                backend_root = Path(__file__).parent.parent.parent
+                creds_path = backend_root / creds_path
+
+            if creds_path.exists():
+                object.__setattr__(self, 'firebase_credentials', str(creds_path.resolve()))
+            else:
+                raise ValueError(f"FIREBASE_CREDENTIALS_PATH hittades inte: {creds_path}")
 
         return self
 
@@ -196,9 +207,7 @@ class Settings(BaseSettings):
     @property
     def cors_allowed_origins_list(self) -> list[str]:
         """Get CORS origins as list"""
-        if isinstance(self.cors_allowed_origins, str):
-            return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
-        return self.cors_allowed_origins if isinstance(self.cors_allowed_origins, list) else []
+        return [origin.strip() for origin in self.cors_allowed_origins if origin.strip()]
 
     def model_dump_safe(self) -> dict[str, Any]:
         """Dump settings with sensitive values hidden"""
@@ -229,7 +238,7 @@ def get_settings() -> Settings:
     """Get global settings instance (singleton pattern)"""
     global _settings
     if _settings is None:
-        _settings = Settings()
+        _settings = Settings()  # type: ignore[call-arg]
     return _settings
 
 
@@ -273,6 +282,11 @@ def __getattr__(name: str) -> Any:
         "CACHE_API_RESPONSE_TIMEOUT": "cache_api_response_timeout",
         "CACHE_USER_DATA_TIMEOUT": "cache_user_data_timeout",
     }
+
+    if name == "ACCESS_TOKEN_EXPIRES":
+        return timedelta(minutes=_settings.jwt_expiration_minutes)
+    if name == "REFRESH_TOKEN_EXPIRES":
+        return timedelta(days=_settings.jwt_refresh_expiration_days)
 
     mapped_name = name_mapping.get(name, name.lower())
 

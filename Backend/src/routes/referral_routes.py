@@ -41,17 +41,6 @@ def generate_referral_code(user_id: str) -> str:
 
 
 # CORS OPTIONS handler for all endpoints
-@referral_bp.route("/generate", methods=["OPTIONS"])
-@referral_bp.route("/stats", methods=["OPTIONS"])
-@referral_bp.route("/invite", methods=["OPTIONS"])
-@referral_bp.route("/complete", methods=["OPTIONS"])
-@referral_bp.route("/leaderboard", methods=["OPTIONS"])
-@referral_bp.route("/history", methods=["OPTIONS"])
-@referral_bp.route("/rewards/catalog", methods=["OPTIONS"])
-@referral_bp.route("/rewards/redeem", methods=["OPTIONS"])
-def handle_options():
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
 
 
 @referral_bp.route("/generate", methods=["POST"])
@@ -115,7 +104,7 @@ def generate_referral():
 
     except Exception as e:
         logger.exception(f"Error generating referral: {e}")
-        return APIResponse.error("Failed to generate referral", "REFERRAL_ERROR", 500, str(e))
+        return APIResponse.error("Failed to generate referral", "REFERRAL_ERROR", 500)
 
 
 @referral_bp.route("/stats", methods=["GET"])
@@ -177,7 +166,7 @@ def get_referral_stats():
 
     except Exception as e:
         logger.exception(f"Error fetching referral stats: {e}")
-        return APIResponse.error("Failed to fetch referral stats", "STATS_ERROR", 500, str(e))
+        return APIResponse.error("Failed to fetch referral stats", "STATS_ERROR", 500)
 
 @referral_bp.route("/invite", methods=["POST"])
 @AuthService.jwt_required
@@ -248,7 +237,7 @@ def send_invitation():
 
     except Exception as e:
         logger.exception(f"Error sending invitation: {e}")
-        return APIResponse.error("Failed to send invitation", "INVITATION_ERROR", 500, str(e))
+        return APIResponse.error("Failed to send invitation", "INVITATION_ERROR", 500)
 
 
 @referral_bp.route("/complete", methods=["POST"])
@@ -388,7 +377,7 @@ def complete_referral():
 
     except Exception as e:
         logger.exception(f"Error completing referral: {e}")
-        return APIResponse.error("Failed to complete referral", "COMPLETE_ERROR", 500, str(e))
+        return APIResponse.error("Failed to complete referral", "COMPLETE_ERROR", 500)
 
 
 @referral_bp.route("/leaderboard", methods=["GET"])
@@ -450,7 +439,7 @@ def get_leaderboard():
 
     except Exception as e:
         logger.exception(f"Error fetching leaderboard: {e}")
-        return APIResponse.error("Failed to fetch leaderboard", "LEADERBOARD_ERROR", 500, str(e))
+        return APIResponse.error("Failed to fetch leaderboard", "LEADERBOARD_ERROR", 500)
 
 
 @referral_bp.route("/history", methods=["GET"])
@@ -475,9 +464,9 @@ def get_referral_history():
                 filter=FieldFilter("referrer_id", "==", user_id)
             )
         else:
-            history_ref = db.collection("referral_history").where(  # type: ignore
+            history_ref = db.collection("referral_history").where(filter=FieldFilter(  # type: ignore
                 "referrer_id", "==", user_id
-            )
+            ))
 
         history_docs = history_ref.get()
 
@@ -504,7 +493,7 @@ def get_referral_history():
 
     except Exception as e:
         logger.exception(f"Error fetching referral history: {e}")
-        return APIResponse.error("Failed to fetch referral history", "HISTORY_ERROR", 500, str(e))
+        return APIResponse.error("Failed to fetch referral history", "HISTORY_ERROR", 500)
 
 
 @referral_bp.route("/rewards/catalog", methods=["GET"])

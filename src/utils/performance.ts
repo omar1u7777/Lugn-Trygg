@@ -9,10 +9,36 @@ import type { ComponentType } from 'react';
 // Lazy loading with error boundaries
 import { logger } from './logger';
 
+type GenericComponent = ComponentType<Record<string, unknown>>;
 
-export const lazyWithFallback = <T extends ComponentType<any>>(
+interface LinkWithImportance extends HTMLLinkElement {
+  importance?: 'high' | 'low' | 'auto';
+}
+
+interface LayoutShiftLike extends PerformanceEntry {
+  hadRecentInput?: boolean;
+  value?: number;
+}
+
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+interface NavigatorConnectionLike {
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  saveData?: boolean;
+}
+
+type PerformanceMetric = Record<string, unknown>;
+
+
+export const lazyWithFallback = <T extends GenericComponent>(
   importFunc: () => Promise<{ default: T }>,
-  fallback?: ComponentType
+  fallback?: GenericComponent
 ) => {
   return lazy(() =>
     importFunc().catch((error) => {
@@ -60,14 +86,14 @@ export const preloadCriticalResources = (assets: PreloadAsset[] = []) => {
       link.crossOrigin = asset.crossOrigin;
     }
     if (asset.importance) {
-      (link as any).importance = asset.importance;
+      (link as LinkWithImportance).importance = asset.importance;
     }
     document.head.appendChild(link);
   });
 };
 
 // Dynamic import with caching
-const importCache = new Map<string, Promise<any>>();
+const importCache = new Map<string, Promise<unknown>>();
 
 export const cachedImport = <T>(key: string, importFunc: () => Promise<T>): Promise<T> => {
   if (importCache.has(key)) {
@@ -84,7 +110,7 @@ export const cachedImport = <T>(key: string, importFunc: () => Promise<T>): Prom
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
   private observers: PerformanceObserver[] = [];
-  private metrics: Map<string, any> = new Map();
+  private metrics: Map<string, PerformanceMetric> = new Map();
 
   static getInstance(): PerformanceMonitor {
     if (!PerformanceMonitor.instance) {
@@ -135,13 +161,14 @@ export class PerformanceMonitor {
       const observer = new PerformanceObserver((list) => {
         const entries = list.getEntries();
 
-        entries.forEach((entry: any) => {
+        entries.forEach((entry) => {
+          const eventEntry = entry as PerformanceEventTiming;
           this.metrics.set('FID', {
-            value: entry.processingStart - entry.startTime,
+            value: eventEntry.processingStart - eventEntry.startTime,
             timestamp: Date.now(),
           });
 
-          logger.debug('FID:', entry.processingStart - entry.startTime);
+          logger.debug('FID:', eventEntry.processingStart - eventEntry.startTime);
         });
       });
 
@@ -158,9 +185,10 @@ export class PerformanceMonitor {
       const observer = new PerformanceObserver((list) => {
         const entries = list.getEntries();
 
-        entries.forEach((entry: any) => {
-          if (!entry.hadRecentInput) {
-            clsValue += entry.value;
+        entries.forEach((entry) => {
+          const shiftEntry = entry as LayoutShiftLike;
+          if (!shiftEntry.hadRecentInput) {
+            clsValue += shiftEntry.value ?? 0;
           }
         });
 
@@ -207,13 +235,14 @@ export class PerformanceMonitor {
       const observer = new PerformanceObserver((list) => {
         const entries = list.getEntries();
 
-        entries.forEach((entry: any) => {
+        entries.forEach((entry) => {
+          const navigationEntry = entry as PerformanceNavigationTiming;
           this.metrics.set('TTFB', {
-            value: entry.responseStart - entry.requestStart,
+            value: navigationEntry.responseStart - navigationEntry.requestStart,
             timestamp: Date.now(),
           });
 
-          logger.debug('TTFB:', entry.responseStart - entry.requestStart);
+          logger.debug('TTFB:', navigationEntry.responseStart - navigationEntry.requestStart);
         });
       });
 
@@ -229,15 +258,16 @@ export class PerformanceMonitor {
     const observer = new PerformanceObserver((list) => {
       const entries = list.getEntries();
 
-      entries.forEach((entry: any) => {
-        if (entry.name.includes('bundle') || entry.name.includes('chunk')) {
-          this.metrics.set(`bundle-${entry.name}`, {
-            loadTime: entry.duration,
-            size: entry.transferSize,
+      entries.forEach((entry) => {
+        const resourceEntry = entry as PerformanceResourceTiming;
+        if (resourceEntry.name.includes('bundle') || resourceEntry.name.includes('chunk')) {
+          this.metrics.set(`bundle-${resourceEntry.name}`, {
+            loadTime: resourceEntry.duration,
+            size: resourceEntry.transferSize,
             timestamp: Date.now(),
           });
 
-          logger.debug(`Bundle ${entry.name}:`, entry.duration, 'ms');
+          logger.debug(`Bundle ${resourceEntry.name}:`, resourceEntry.duration, 'ms');
         }
       });
     });
@@ -267,7 +297,7 @@ export class PerformanceMonitor {
 
 // Bundle analyzer utility
 export const analyzeBundle = async () => {
-  if (!(import.meta as any).env?.DEV) {
+  if (!(import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
     return;
   }
 
@@ -280,7 +310,11 @@ export const analyzeBundle = async () => {
 // Memory usage monitoring
 export const monitorMemoryUsage = () => {
   if ('memory' in performance) {
-    const memInfo = (performance as any).memory;
+    const memInfo = (performance as Performance & { memory?: PerformanceMemory }).memory;
+
+    if (!memInfo) {
+      return null;
+    }
 
     return {
       used: Math.round(memInfo.usedJSHeapSize / 1048576), // MB
@@ -296,7 +330,11 @@ export const monitorMemoryUsage = () => {
 // Network information
 export const getNetworkInfo = () => {
   if ('connection' in navigator) {
-    const connection = (navigator as any).connection;
+    const connection = (navigator as Navigator & { connection?: NavigatorConnectionLike }).connection;
+
+    if (!connection) {
+      return null;
+    }
 
     return {
       effectiveType: connection.effectiveType,
@@ -417,7 +455,7 @@ export class VirtualScroller {
 }
 
 // Debounced function for performance
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number,
   immediate?: boolean
@@ -440,11 +478,11 @@ export const debounce = <T extends (...args: any[]) => any>(
 };
 
 // Throttled function for performance
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {
-  let inThrottle: boolean;
+  let inThrottle = false;
 
   return (...args: Parameters<T>) => {
     if (!inThrottle) {

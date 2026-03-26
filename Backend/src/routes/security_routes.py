@@ -28,12 +28,6 @@ def _serialize_datetimes(payload):
 
 
 # CORS OPTIONS handler for all endpoints
-@security_bp.route('/key-rotation/status', methods=['OPTIONS'])
-@security_bp.route('/tamper/events', methods=['OPTIONS'])
-@security_bp.route('/monitoring/metrics', methods=['OPTIONS'])
-def handle_options():
-    """Handle CORS preflight requests"""
-    return APIResponse.success()
 
 
 @security_bp.route('/key-rotation/status', methods=['GET'])

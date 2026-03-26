@@ -84,14 +84,6 @@ if PROMETHEUS_AVAILABLE and prom is not None:
 # OPTIONS Handlers (CORS preflight)
 # ============================================================================
 
-@metrics_bp.route('/health', methods=['OPTIONS'])
-@metrics_bp.route('/metrics', methods=['OPTIONS'])
-@metrics_bp.route('/metrics/business', methods=['OPTIONS'])
-@metrics_bp.route('/ready', methods=['OPTIONS'])
-@metrics_bp.route('/live', methods=['OPTIONS'])
-def metrics_options():
-    """Handle CORS preflight for metrics endpoints"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
 # ============================================================================

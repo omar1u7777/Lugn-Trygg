@@ -51,8 +51,8 @@ class Logger {
   /**
    * Format log message with prefix and context
    */
-  private formatMessage(message: string, context?: Record<string, any>): any[] {
-    const parts: any[] = [];
+  private formatMessage(message: string, context?: Record<string, unknown>): unknown[] {
+    const parts: unknown[] = [];
     
     if (this.config.prefix) {
       parts.push(this.config.prefix);
@@ -70,7 +70,7 @@ class Logger {
   /**
    * Development-only logging (removed in production)
    */
-  log(message: string, context?: Record<string, any>): void {
+  log(message: string, context?: Record<string, unknown>): void {
     if (this.shouldLog('log')) {
       console.log(...this.formatMessage(message, context));
     }
@@ -79,7 +79,7 @@ class Logger {
   /**
    * Debug logging (development only)
    */
-  debug(message: string, context?: Record<string, any>): void {
+  debug(message: string, context?: Record<string, unknown>): void {
     if (this.shouldLog('debug')) {
       console.debug(...this.formatMessage(`[DEBUG] ${message}`, context));
     }
@@ -88,7 +88,7 @@ class Logger {
   /**
    * Info logging (development only)
    */
-  info(message: string, context?: Record<string, any>): void {
+  info(message: string, context?: Record<string, unknown>): void {
     if (this.shouldLog('info')) {
       console.info(...this.formatMessage(`[INFO] ${message}`, context));
     }
@@ -97,7 +97,7 @@ class Logger {
   /**
    * Warning (enabled in all environments)
    */
-  warn(message: string, context?: Record<string, any>): void {
+  warn(message: string, context?: Record<string, unknown>): void {
     if (this.shouldLog('warn')) {
       console.warn(...this.formatMessage(`⚠️ ${message}`, context));
     }
@@ -106,7 +106,7 @@ class Logger {
   /**
    * Error logging (enabled in all environments)
    */
-  error(message: string, error?: Error | unknown, context?: Record<string, any>): void {
+  error(message: string, error?: Error | unknown, context?: Record<string, unknown>): void {
     if (this.shouldLog('error')) {
       const errorContext = error instanceof Error ? {
         message: error.message,
@@ -145,7 +145,7 @@ class Logger {
   /**
    * Table logging (development only)
    */
-  table(data: any[]): void {
+  table(data: unknown[]): void {
     if (this.shouldLog('debug')) {
       console.table(data);
     }

@@ -30,15 +30,6 @@ logger = logging.getLogger(__name__)
 predictive_bp = Blueprint('predictive', __name__)
 
 
-@predictive_bp.route('/train', methods=['OPTIONS'])
-@predictive_bp.route('/predict', methods=['OPTIONS'])
-@predictive_bp.route('/crisis-check', methods=['OPTIONS'])
-@predictive_bp.route('/insights', methods=['OPTIONS'])
-@predictive_bp.route('/trends', methods=['OPTIONS'])
-@predictive_bp.route('/mood-forecast', methods=['OPTIONS'])
-def handle_options():
-    """Handle CORS preflight requests."""
-    return APIResponse.success()
 
 
 def safe_timestamp_str(ts):
@@ -180,7 +171,7 @@ def check_crisis_risk():
                 .stream())
         else:
             # Fallback without FieldFilter
-            mood_docs = list(mood_ref.where('timestamp', '>=', thirty_days_ago_dt)
+            mood_docs = list(mood_ref.where(filter=FieldFilter('timestamp', '>=', thirty_days_ago_dt))
                 .order_by('timestamp', direction='DESCENDING')
                 .limit(50)
                 .stream())
@@ -300,7 +291,7 @@ def get_mood_trends():
                 .stream())
         else:
             # Fallback without FieldFilter
-            mood_docs = list(mood_ref.where('timestamp', '>=', start_date)
+            mood_docs = list(mood_ref.where(filter=FieldFilter('timestamp', '>=', start_date))
                 .order_by('timestamp')
                 .stream())
 

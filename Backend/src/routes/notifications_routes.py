@@ -16,14 +16,6 @@ notifications_bp = Blueprint('notifications', __name__)
 logger = logging.getLogger(__name__)
 
 
-@notifications_bp.route('/fcm-token', methods=['OPTIONS'])
-@notifications_bp.route('/send-reminder', methods=['OPTIONS'])
-@notifications_bp.route('/schedule-daily', methods=['OPTIONS'])
-@notifications_bp.route('/disable-all', methods=['OPTIONS'])
-@notifications_bp.route('/settings', methods=['OPTIONS'])
-def handle_options():
-    """Handle CORS preflight requests."""
-    return APIResponse.success()
 
 
 @notifications_bp.route('/fcm-token', methods=['POST'])

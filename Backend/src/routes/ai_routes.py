@@ -1,7 +1,8 @@
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
-from flask import Blueprint, g, request
+from flask import Blueprint, Response, g, make_response, request
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -23,6 +24,38 @@ def _get_db():
         return None
 
 
+def _preflight_response() -> Response:
+    """Return typed empty response for OPTIONS requests."""
+    return make_response('', 204)
+
+
+def _mask_identifier(value: str | None) -> str:
+    """Mask user identifiers in logs to reduce PII exposure."""
+    if not value:
+        return 'anonymous'
+    if len(value) <= 6:
+        return '***'
+    return f"{value[:3]}***{value[-2:]}"
+
+
+def _to_bool(value: Any, default: bool = True) -> bool:
+    """Convert flexible request input values to bool safely."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'true', '1', 'yes', 'on'}:
+            return True
+        if normalized in {'false', '0', 'no', 'off'}:
+            return False
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    return default
+
+
 def _check_premium_access(user_id: str):
     """Check if user has premium access for AI features. Returns error response or None."""
     try:
@@ -38,8 +71,8 @@ def _check_premium_access(user_id: str):
                     403,
                     {"requiredPlan": "premium"}
                 )
-    except Exception as e:
-        logger.warning("Failed to check premium access: %s", e)
+    except Exception:
+        logger.warning("Failed to check premium access")
     return None
 
 # 🔹 Generate Personalized Therapeutic Story
@@ -49,23 +82,28 @@ def _check_premium_access(user_id: str):
 def generate_therapeutic_story():
     """Generate a personalized therapeutic story based on user's mood data"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         db_handle = _get_db()
         if db_handle is None:
             return APIResponse.error("Database unavailable", "SERVICE_UNAVAILABLE", 503)
 
-        logger.info("📖 Therapeutic story generation requested")
+        logger.info("Therapeutic story generation requested")
         data = request.get_json(force=True, silent=True) or {}
+        if not isinstance(data, dict):
+            return APIResponse.bad_request("Invalid request body")
 
         # Use user_id from JWT only (not from body - security)
         user_id = getattr(g, 'user_id', None)
         if not user_id:
-            logger.error("❌ Missing user_id in story request")
+            logger.error("Missing user_id in story request")
             return APIResponse.bad_request("User ID required")
 
         # Sanitize and validate locale
         locale = data.get("locale", "sv")
+        if not isinstance(locale, str):
+            locale = "sv"
+        locale = locale.strip().lower()
         if locale not in ALLOWED_LOCALES:
             locale = "sv"  # Fallback to Swedish
 
@@ -89,7 +127,7 @@ def generate_therapeutic_story():
                 "emotions_detected": mood_data.get("emotions_detected", [])
             })
 
-        logger.info(f"📊 Retrieved {len(mood_history)} mood entries for story generation")
+        logger.info("Retrieved %d mood entries for story generation", len(mood_history))
 
         # Generate personalized story
         from src.services.ai_service import ai_services
@@ -99,10 +137,13 @@ def generate_therapeutic_story():
                 user_mood_data=mood_history,
                 locale=locale
             )
-            logger.info(f"✅ Story generated successfully for user {user_id}")
-        except Exception as story_error:
-            logger.warning(f"⚠️ Story generation failed, using fallback: {str(story_error)}")
+            logger.info("Story generated successfully for user %s", _mask_identifier(user_id))
+        except Exception:
+            logger.warning("Story generation failed, using fallback")
             story_result = ai_services._fallback_therapeutic_story(mood_history, locale)
+
+        if not isinstance(story_result, dict) or not isinstance(story_result.get("story"), str):
+            return APIResponse.error("Failed to generate therapeutic story", "STORY_GENERATION_ERROR", 500)
 
         # Save story generation to database for tracking
         timestamp = datetime.now(UTC).isoformat()
@@ -140,8 +181,8 @@ def generate_therapeutic_story():
             "generatedAt": timestamp
         }, "Therapeutic story generated successfully")
 
-    except Exception as e:
-        logger.exception(f"🔥 Fel vid berättelsegenerering: {e}")
+    except Exception:
+        logger.exception("Fel vid berättelsegenerering")
         return APIResponse.error("Failed to generate therapeutic story", "STORY_GENERATION_ERROR", 500)
 
 # 🔹 Predictive Mood Forecasting (POST version for AI endpoint)
@@ -151,19 +192,21 @@ def generate_therapeutic_story():
 def generate_ai_mood_forecast():
     """Generate predictive mood forecast using ML models via POST request"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         db_handle = _get_db()
         if db_handle is None:
             return APIResponse.error("Database unavailable", "SERVICE_UNAVAILABLE", 503)
 
-        logger.info("🔮 Mood forecasting requested")
+        logger.info("Mood forecasting requested")
         data = request.get_json(force=True, silent=True) or {}
+        if not isinstance(data, dict):
+            return APIResponse.bad_request("Invalid request body")
 
         # Use user_id from JWT only (not from body - security)
         user_id = getattr(g, 'user_id', None)
         if not user_id:
-            logger.error("❌ Missing user_id in forecast request")
+            logger.error("Missing user_id in forecast request")
             return APIResponse.bad_request("User ID required")
 
         # Validate and clamp days_ahead
@@ -174,7 +217,7 @@ def generate_ai_mood_forecast():
             days_ahead = 7
         days_ahead = max(1, min(days_ahead, 30))  # Clamp 1-30
 
-        use_sklearn = data.get("use_sklearn", True)  # Default to sklearn model
+        use_sklearn = _to_bool(data.get("use_sklearn", True), default=True)
 
         # Check premium access for AI features
         premium_error = _check_premium_access(user_id)
@@ -196,7 +239,7 @@ def generate_ai_mood_forecast():
                 "emotions_detected": mood_data.get("emotions_detected", [])
             })
 
-        logger.info(f"📊 Retrieved {len(mood_history)} mood entries for forecasting")
+        logger.info("Retrieved %d mood entries for forecasting", len(mood_history))
 
         # Generate forecast using sklearn ML model
         from src.services.ai_service import ai_services
@@ -207,17 +250,20 @@ def generate_ai_mood_forecast():
                     mood_history=mood_history,
                     days_ahead=days_ahead
                 )
-                logger.info(f"✅ ML-based forecast generated successfully for user {user_id}")
+                logger.info("ML-based forecast generated successfully for user %s", _mask_identifier(user_id))
             else:
                 # Fallback to existing method
                 forecast_result = ai_services.predictive_mood_analytics(
                     mood_history=mood_history,
                     days_ahead=days_ahead
                 )
-                logger.info(f"✅ Fallback forecast generated for user {user_id}")
-        except Exception as forecast_error:
-            logger.warning(f"⚠️ Forecast generation failed, using basic analytics: {str(forecast_error)}")
+                logger.info("Fallback forecast generated for user %s", _mask_identifier(user_id))
+        except Exception:
+            logger.warning("Forecast generation failed, using basic analytics")
             forecast_result = ai_services.predictive_mood_analytics(mood_history, days_ahead)
+
+        if not isinstance(forecast_result, dict):
+            return APIResponse.error("Failed to generate mood forecast", "FORECAST_GENERATION_ERROR", 500)
 
         # Save forecast to database for tracking
         timestamp = datetime.now(UTC).isoformat()
@@ -259,8 +305,8 @@ def generate_ai_mood_forecast():
             "generatedAt": timestamp
         }, "Mood forecast generated successfully")
 
-    except Exception as e:
-        logger.exception(f"🔥 Fel vid prognosgenerering: {e}")
+    except Exception:
+        logger.exception("Fel vid prognosgenerering")
         return APIResponse.error("Failed to generate mood forecast", "FORECAST_GENERATION_ERROR", 500)
 
 # 🔹 Get User's Story History
@@ -270,7 +316,7 @@ def generate_ai_mood_forecast():
 def get_story_history():
     """Get user's generated therapeutic stories history"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         db_handle = _get_db()
         if db_handle is None:
@@ -301,8 +347,8 @@ def get_story_history():
 
         return APIResponse.success({"stories": stories}, f"Retrieved {len(stories)} stories")
 
-    except Exception as e:
-        logger.exception(f"🔥 Fel vid hämtning av berättelsehistorik: {e}")
+    except Exception:
+        logger.exception("Fel vid hämtning av berättelsehistorik")
         return APIResponse.error("Failed to retrieve story history", "STORY_HISTORY_ERROR", 500)
 
 # 🔹 Get User's Forecast History
@@ -312,7 +358,7 @@ def get_story_history():
 def get_forecast_history():
     """Get user's mood forecast history"""
     if request.method == 'OPTIONS':
-        return '', 204
+        return _preflight_response()
     try:
         db_handle = _get_db()
         if db_handle is None:
@@ -342,6 +388,6 @@ def get_forecast_history():
 
         return APIResponse.success({"forecasts": forecasts}, f"Retrieved {len(forecasts)} forecasts")
 
-    except Exception as e:
-        logger.exception(f"🔥 Fel vid hämtning av prognoshistorik: {e}")
+    except Exception:
+        logger.exception("Fel vid hämtning av prognoshistorik")
         return APIResponse.error("Failed to retrieve forecast history", "FORECAST_HISTORY_ERROR", 500)

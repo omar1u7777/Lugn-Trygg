@@ -35,7 +35,7 @@ const isValidEmail = (email: string): boolean => {
 };
 
 // Custom hook for forgot password logic
-const useForgotPassword = (onSuccess: () => void) => {
+const useForgotPassword = (_onSuccess: () => void) => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -95,7 +95,7 @@ const useForgotPassword = (onSuccess: () => void) => {
     } finally {
       setLoading(false);
     }
-  }, [email, onSuccess, announceToScreenReader, resetStates]);
+  }, [email, announceToScreenReader, resetStates]);
 
   return {
     email,

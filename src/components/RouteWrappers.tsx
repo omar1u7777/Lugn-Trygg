@@ -7,10 +7,20 @@ import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../utils/logger';
 
+type AuthUserLike = {
+  user_id?: string;
+  uid?: string;
+  id?: string;
+};
 
 // Helper function to get user ID from auth context
-const getUserId = (user: any): string => {
-  return (user as any)?.user_id || (user as any)?.uid || (user as any)?.id || '';
+const getUserId = (user: unknown): string => {
+  if (!user || typeof user !== 'object') {
+    return '';
+  }
+
+  const authUser = user as AuthUserLike;
+  return authUser.user_id || authUser.uid || authUser.id || '';
 };
 
 // Lazy-load feature surfaces so browsers only download them on demand
@@ -59,7 +69,7 @@ export const WorldClassAnalyticsWrapper: React.FC = () => {
 // DailyInsights Wrapper - 100% HONEST: Actually fetches real data or shows honest message
 export const DailyInsightsWrapper: React.FC = () => {
   const { user } = useAuth();
-  const [moodData, setMoodData] = useState<any[]>([]);
+  const [moodData, setMoodData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

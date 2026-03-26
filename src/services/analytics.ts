@@ -6,6 +6,32 @@
 
 import { logger } from '../utils/logger';
 
+type AnalyticsProperties = Record<string, unknown>;
+
+interface WebVitalMetric {
+  value: number;
+}
+
+interface AmplitudeInstanceLike {
+  logEvent: (eventName: string, properties?: AnalyticsProperties) => void;
+  getSessionId?: () => number;
+  setUserId: (userId: string) => void;
+  setUserProperties: (properties: AnalyticsProperties) => void;
+  clearUserProperties?: () => void;
+}
+
+interface AmplitudeGlobal {
+  getInstance: () => AmplitudeInstanceLike;
+}
+
+interface AnalyticsWindow extends Window {
+  gtag?: (...args: unknown[]) => void;
+  va?: (...args: unknown[]) => void;
+  amplitude?: AmplitudeGlobal;
+}
+
+const appWindow = window as AnalyticsWindow;
+
 // Sentry for production error tracking
 // Only initialized when VITE_SENTRY_DSN is set — no-ops gracefully otherwise
 let Sentry: {
@@ -71,6 +97,7 @@ interface ErrorContext {
   userId?: string;
   url?: string;
   userAgent?: string;
+  [key: string]: unknown;
 }
 
 // Configuration
@@ -79,7 +106,7 @@ const ENABLE_WEB_VITALS = import.meta.env.VITE_ENABLE_WEB_VITALS !== 'false';
 
 // Analytics instances
 const firebaseAnalytics: unknown = null;
-const amplitudeInstance: unknown = null;
+const amplitudeInstance: AmplitudeInstanceLike | null = null;
 
 // Production optimization: disable analytics in development unless explicitly enabled
 const ENABLE_ANALYTICS = import.meta.env.PROD || import.meta.env.VITE_FORCE_ANALYTICS === 'true';
@@ -87,7 +114,7 @@ const ENABLE_ANALYTICS = import.meta.env.PROD || import.meta.env.VITE_FORCE_ANAL
 // Core Analytics Service
 export const analytics = {
   // Page tracking
-  page: (pageName: string, properties: Record<string, any> = {}) => {
+  page: (pageName: string, properties: AnalyticsProperties = {}) => {
     const pageData = {
       page: pageName,
       url: window.location.href,
@@ -103,8 +130,8 @@ export const analytics = {
       }
 
       // Firebase
-      if (firebaseAnalytics && (window as any).gtag) {
-        (window as any).gtag('event', 'page_view', {
+      if (firebaseAnalytics && appWindow.gtag) {
+        appWindow.gtag('event', 'page_view', {
           page_title: pageName,
           page_location: window.location.href,
           ...properties,
@@ -112,8 +139,8 @@ export const analytics = {
       }
 
       // Vercel Analytics
-      if ((window as any).va && VERCEL_ANALYTICS_ID) {
-        (window as any).va('pageview');
+      if (appWindow.va && VERCEL_ANALYTICS_ID) {
+        appWindow.va('pageview');
       }
 
       logger.debug('📊 Page tracked:', pageData);
@@ -123,7 +150,7 @@ export const analytics = {
   },
 
   // Event tracking
-  track: (eventName: string, properties: Record<string, any> = {}) => {
+  track: (eventName: string, properties: AnalyticsProperties = {}) => {
     const eventData = {
       timestamp: Date.now(),
       sessionId: amplitudeInstance?.getSessionId?.() || Date.now(),
@@ -137,13 +164,13 @@ export const analytics = {
       }
 
       // Firebase
-      if (firebaseAnalytics && (window as any).gtag) {
-        (window as any).gtag('event', eventName, properties);
+      if (firebaseAnalytics && appWindow.gtag) {
+        appWindow.gtag('event', eventName, properties);
       }
 
       // Vercel Analytics
-      if ((window as any).va && VERCEL_ANALYTICS_ID) {
-        (window as any).va('event', { name: eventName, properties });
+      if (appWindow.va && VERCEL_ANALYTICS_ID) {
+        appWindow.va('event', { name: eventName, properties });
       }
 
       logger.debug('📊 Event tracked:', eventName, eventData);
@@ -168,8 +195,8 @@ export const analytics = {
       }
 
       // Firebase
-      if (firebaseAnalytics && (window as any).gtag) {
-        (window as any).gtag('config', import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, {
+      if (firebaseAnalytics && appWindow.gtag) {
+        appWindow.gtag('config', import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, {
           user_id: userId,
           custom_map: properties,
         });
@@ -229,8 +256,8 @@ export const analytics = {
       timestamp: Date.now(),
       userAgent: navigator.userAgent,
       url: window.location.href,
-      connection: (navigator as any).connection?.effectiveType || 'unknown',
-      deviceMemory: (navigator as any).deviceMemory || 'unknown',
+      connection: (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || 'unknown',
+      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 'unknown',
     };
 
     try {
@@ -240,8 +267,8 @@ export const analytics = {
       }
 
       // Firebase
-      if (firebaseAnalytics && (window as any).gtag) {
-        (window as any).gtag('event', 'performance', {
+      if (firebaseAnalytics && appWindow.gtag) {
+        appWindow.gtag('event', 'performance', {
           event_category: 'performance',
           event_label: metric.name,
           value: metric.value,
@@ -270,7 +297,7 @@ export const analytics = {
 
   // Business metrics
   business: {
-    moodLogged: (mood: number, context: Record<string, any> = {}) => {
+    moodLogged: (mood: number, context: AnalyticsProperties = {}) => {
       analytics.track('Mood Logged', {
         mood_value: mood,
         mood_category: mood > 7 ? 'positive' : mood > 4 ? 'neutral' : 'negative',
@@ -278,7 +305,7 @@ export const analytics = {
       });
     },
 
-    memoryRecorded: (type: string, context: Record<string, any> = {}) => {
+    memoryRecorded: (type: string, context: AnalyticsProperties = {}) => {
       analytics.track('Memory Recorded', {
         memory_type: type,
         ...context,
@@ -286,7 +313,7 @@ export const analytics = {
     },
 
     // CRITICAL FIX: Add error method for business error tracking
-    error: (message: string, context: Record<string, any> = {}) => {
+    error: (message: string, context: AnalyticsProperties = {}) => {
       const error = new Error(message);
       analytics.error(error, {
         ...context,
@@ -294,7 +321,7 @@ export const analytics = {
       });
     },
 
-    chatbotInteraction: (message: string, response: string, context: Record<string, any> = {}) => {
+    chatbotInteraction: (message: string, response: string, context: AnalyticsProperties = {}) => {
       analytics.track('Chatbot Interaction', {
         message_length: message.length,
         response_length: response.length,
@@ -303,14 +330,14 @@ export const analytics = {
       });
     },
 
-    featureUsed: (feature: string, context: Record<string, any> = {}) => {
+    featureUsed: (feature: string, context: AnalyticsProperties = {}) => {
       analytics.track('Feature Used', {
         feature_name: feature,
         ...context,
       });
     },
 
-    subscriptionEvent: (event: string, plan?: string, context: Record<string, any> = {}) => {
+    subscriptionEvent: (event: string, plan?: string, context: AnalyticsProperties = {}) => {
       analytics.track('Subscription Event', {
         event_type: event,
         subscription_plan: plan,
@@ -319,7 +346,7 @@ export const analytics = {
     },
 
     // API performance tracking
-    apiCall: (endpoint: string, method: string, duration: number, status: number, context: Record<string, any> = {}) => {
+    apiCall: (endpoint: string, method: string, duration: number, status: number, context: AnalyticsProperties = {}) => {
       analytics.track('API Call', {
         endpoint,
         method,
@@ -341,7 +368,7 @@ export const analytics = {
     },
 
     // User interaction performance
-    userInteraction: (interaction: string, duration: number, context: Record<string, any> = {}) => {
+    userInteraction: (interaction: string, duration: number, context: AnalyticsProperties = {}) => {
       analytics.track('User Interaction', {
         interaction_type: interaction,
         duration_ms: duration,
@@ -384,7 +411,7 @@ export const analytics = {
 
   // Health and safety monitoring
   health: {
-    crisisDetected: (indicators: string[], context: Record<string, any> = {}) => {
+    crisisDetected: (indicators: string[], context: AnalyticsProperties = {}) => {
       // High priority - ensure this gets tracked
       analytics.track('Crisis Indicators Detected', {
         indicators,
@@ -401,7 +428,7 @@ export const analytics = {
       });
     },
 
-    safetyCheckCompleted: (result: 'safe' | 'concerning' | 'critical', context: Record<string, any> = {}) => {
+    safetyCheckCompleted: (result: 'safe' | 'concerning' | 'critical', context: AnalyticsProperties = {}) => {
       analytics.track('Safety Check Completed', {
         result,
         severity: result === 'critical' ? 'high' : result === 'concerning' ? 'medium' : 'low',
@@ -415,38 +442,44 @@ export const analytics = {
 const trackWebVitals = () => {
   try {
     // Core Web Vitals
-    import('web-vitals').then((webVitals: any) => {
+    import('web-vitals').then((webVitals: {
+      getCLS: (onReport: (metric: WebVitalMetric) => void) => void;
+      getFID: (onReport: (metric: WebVitalMetric) => void) => void;
+      getFCP: (onReport: (metric: WebVitalMetric) => void) => void;
+      getLCP: (onReport: (metric: WebVitalMetric) => void) => void;
+      getTTFB: (onReport: (metric: WebVitalMetric) => void) => void;
+    }) => {
       const { getCLS, getFID, getFCP, getLCP, getTTFB } = webVitals;
 
-      getCLS((metric: any) => analytics.performance({
+      getCLS((metric: WebVitalMetric) => analytics.performance({
         name: 'CLS',
         value: metric.value,
         unit: metric.value.toString(),
         category: 'web-vitals',
       }));
 
-      getFID((metric: any) => analytics.performance({
+      getFID((metric: WebVitalMetric) => analytics.performance({
         name: 'FID',
         value: metric.value,
         unit: 'ms',
         category: 'web-vitals',
       }));
 
-      getFCP((metric: any) => analytics.performance({
+      getFCP((metric: WebVitalMetric) => analytics.performance({
         name: 'FCP',
         value: metric.value,
         unit: 'ms',
         category: 'web-vitals',
       }));
 
-      getLCP((metric: any) => analytics.performance({
+      getLCP((metric: WebVitalMetric) => analytics.performance({
         name: 'LCP',
         value: metric.value,
         unit: 'ms',
         category: 'web-vitals',
       }));
 
-      getTTFB((metric: any) => analytics.performance({
+      getTTFB((metric: WebVitalMetric) => analytics.performance({
         name: 'TTFB',
         value: metric.value,
         unit: 'ms',
@@ -498,10 +531,10 @@ export function initializeAnalytics() {
 /**
  * Track events with Amplitude
  */
-export function trackEvent(eventName: string, properties?: Record<string, any>) {
+export function trackEvent(eventName: string, properties?: AnalyticsProperties) {
   try {
-    if (typeof window !== 'undefined' && (window as any).amplitude) {
-      (window as any).amplitude.getInstance().logEvent(eventName, properties);
+    if (typeof window !== 'undefined' && appWindow.amplitude) {
+      appWindow.amplitude.getInstance().logEvent(eventName, properties);
     }
     logger.debug(`📊 Event tracked: ${eventName}`, properties);
   } catch (error) {
@@ -513,11 +546,11 @@ export function trackEvent(eventName: string, properties?: Record<string, any>) 
 /**
  * Set user properties for segmentation
  */
-export function setUserProperties(userId: string, properties: Record<string, any>) {
+export function setUserProperties(userId: string, properties: AnalyticsProperties) {
   try {
-    if (typeof window !== 'undefined' && (window as any).amplitude) {
-      (window as any).amplitude.getInstance().setUserId(userId);
-      (window as any).amplitude.getInstance().setUserProperties(properties);
+    if (typeof window !== 'undefined' && appWindow.amplitude) {
+      appWindow.amplitude.getInstance().setUserId(userId);
+      appWindow.amplitude.getInstance().setUserProperties(properties);
     }
     Sentry.setUser({ id: userId });
     logger.debug('👤 User properties set:', properties);
@@ -531,8 +564,8 @@ export function setUserProperties(userId: string, properties: Record<string, any
  */
 export function clearUserData() {
   try {
-    if (typeof window !== 'undefined' && (window as any).amplitude) {
-      (window as any).amplitude.getInstance().clearUserProperties();
+    if (typeof window !== 'undefined' && appWindow.amplitude) {
+      appWindow.amplitude.getInstance().clearUserProperties?.();
     }
     Sentry.setUser(null);
     logger.debug('🧹 User data cleared');
@@ -544,7 +577,7 @@ export function clearUserData() {
 /**
  * Track page views
  */
-export function trackPageView(pageName: string, properties?: Record<string, any>) {
+export function trackPageView(pageName: string, properties?: AnalyticsProperties) {
   trackEvent('page_view', {
     page_name: pageName,
     timestamp: new Date().toISOString(),
@@ -558,7 +591,7 @@ export function trackPageView(pageName: string, properties?: Record<string, any>
 export function trackFeatureUsage(
   featureName: string,
   action: string,
-  properties?: Record<string, any>
+  properties?: AnalyticsProperties
 ) {
   trackEvent('feature_usage', {
     feature: featureName,

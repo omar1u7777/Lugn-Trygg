@@ -16,10 +16,11 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, MutableMapping, cast
 
 # Module logger
 logger = logging.getLogger(__name__)
+_LOGGING_INITIALIZED = False
 
 # Logging levels
 LOG_LEVELS = {
@@ -29,6 +30,55 @@ LOG_LEVELS = {
     'ERROR': logging.ERROR,
     'CRITICAL': logging.CRITICAL
 }
+
+
+def _anonymize_ip(ip_address: Any) -> str:
+    """Return anonymized IP for GDPR-safe logs."""
+    ip_text = str(ip_address or "").strip()
+    if not ip_text:
+        return "unknown"
+
+    if ":" in ip_text:
+        return ip_text.split(":")[0] + "::"
+
+    parts = ip_text.split('.')
+    if len(parts) == 4:
+        return f"{parts[0]}.{parts[1]}.x.x"
+
+    return "masked"
+
+
+def _mask_user_id(user_id: Any) -> str:
+    """Mask user IDs to avoid storing direct identifiers in logs."""
+    user_text = str(user_id or "").strip()
+    if not user_text or user_text == "anonymous":
+        return "anonymous"
+    if len(user_text) <= 6:
+        return "***"
+    return f"{user_text[:3]}***{user_text[-3:]}"
+
+
+def _build_logger_handlers(
+    log_to_console: bool,
+    log_to_file: bool,
+    include_security_file: bool = False,
+    include_performance_file: bool = False,
+) -> list[str]:
+    """Build valid logger handler list based on enabled outputs."""
+    handlers: list[str] = []
+
+    if log_to_console:
+        handlers.append('console')
+
+    if log_to_file:
+        if include_security_file:
+            handlers.append('file_security')
+        elif include_performance_file:
+            handlers.append('file_performance')
+        else:
+            handlers.append('file_app')
+
+    return handlers
 
 class StructuredFormatter(logging.Formatter):
     """JSON structured logging formatter"""
@@ -47,26 +97,34 @@ class StructuredFormatter(logging.Formatter):
             log_entry['exception'] = self.formatException(record.exc_info)
 
         # Add extra fields from record
-        if hasattr(record, 'user_id'):
-            log_entry['user_id'] = record.user_id
-        if hasattr(record, 'request_id'):
-            log_entry['request_id'] = record.request_id
-        if hasattr(record, 'session_id'):
-            log_entry['session_id'] = record.session_id
-        if hasattr(record, 'ip_address'):
-            log_entry['ip_address'] = record.ip_address
-        if hasattr(record, 'user_agent'):
-            log_entry['user_agent'] = record.user_agent
+        user_id = getattr(record, 'user_id', None)
+        if user_id is not None:
+            log_entry['user_id'] = _mask_user_id(user_id)
+        request_id = getattr(record, 'request_id', None)
+        if request_id is not None:
+            log_entry['request_id'] = request_id
+        session_id = getattr(record, 'session_id', None)
+        if session_id is not None:
+            log_entry['session_id'] = session_id
+        ip_address = getattr(record, 'ip_address', None)
+        if ip_address is not None:
+            log_entry['ip_address'] = _anonymize_ip(ip_address)
+        user_agent = getattr(record, 'user_agent', None)
+        if user_agent is not None:
+            log_entry['user_agent'] = user_agent
 
         # Add any additional fields from extra parameter
-        if hasattr(record, '_extra_fields'):
-            log_entry.update(record._extra_fields)
+        extra_fields = getattr(record, '_extra_fields', None)
+        if isinstance(extra_fields, dict):
+            log_entry.update(extra_fields)
 
         # Performance metrics
-        if hasattr(record, 'response_time'):
-            log_entry['response_time'] = record.response_time
-        if hasattr(record, 'db_query_time'):
-            log_entry['db_query_time'] = record.db_query_time
+        response_time = getattr(record, 'response_time', None)
+        if response_time is not None:
+            log_entry['response_time'] = response_time
+        db_query_time = getattr(record, 'db_query_time', None)
+        if db_query_time is not None:
+            log_entry['db_query_time'] = db_query_time
 
         return json.dumps(log_entry, ensure_ascii=False)
 
@@ -79,20 +137,23 @@ class SecurityFormatter(logging.Formatter):
             'level': record.levelname,
             'event_type': getattr(record, 'event_type', 'unknown'),
             'message': record.getMessage(),
-            'source_ip': getattr(record, 'ip_address', 'unknown'),
-            'user_id': getattr(record, 'user_id', 'anonymous'),
+            'source_ip': _anonymize_ip(getattr(record, 'ip_address', 'unknown')),
+            'user_id': _mask_user_id(getattr(record, 'user_id', 'anonymous')),
             'user_agent': getattr(record, 'user_agent', 'unknown'),
             'session_id': getattr(record, 'session_id', 'unknown'),
             'request_id': getattr(record, 'request_id', 'unknown'),
         }
 
         # Add security-specific fields
-        if hasattr(record, 'security_event'):
-            log_entry['security_event'] = record.security_event
-        if hasattr(record, 'attack_type'):
-            log_entry['attack_type'] = record.attack_type
-        if hasattr(record, 'severity'):
-            log_entry['severity'] = record.severity
+        security_event = getattr(record, 'security_event', None)
+        if security_event is not None:
+            log_entry['security_event'] = security_event
+        attack_type = getattr(record, 'attack_type', None)
+        if attack_type is not None:
+            log_entry['attack_type'] = attack_type
+        severity = getattr(record, 'severity', None)
+        if severity is not None:
+            log_entry['severity'] = severity
 
         return json.dumps(log_entry, ensure_ascii=False)
 
@@ -120,6 +181,13 @@ def setup_logging(
     Returns:
         Logging configuration dictionary
     """
+    global _LOGGING_INITIALIZED
+
+    normalized_level = log_level.upper() if log_level.upper() in LOG_LEVELS else 'INFO'
+
+    # Do not leave the app without any logging sink.
+    if not log_to_console and not log_to_file:
+        log_to_console = True
 
     # Ensure log directory exists
     if log_to_file:
@@ -143,7 +211,7 @@ def setup_logging(
         'handlers': {},
         'loggers': {},
         'root': {
-            'level': log_level,
+            'level': normalized_level,
             'handlers': []
         }
     }
@@ -152,7 +220,7 @@ def setup_logging(
     if log_to_console:
         config['handlers']['console'] = {
             'class': 'logging.StreamHandler',
-            'level': log_level,
+            'level': normalized_level,
             'formatter': 'simple' if os.getenv('FLASK_ENV') == 'development' else 'structured',
             'stream': sys.stdout
         }
@@ -163,7 +231,7 @@ def setup_logging(
         # Application logs
         config['handlers']['file_app'] = {
             'class': 'logging.handlers.RotatingFileHandler',
-            'level': log_level,
+            'level': normalized_level,
             'formatter': 'structured',
             'filename': os.path.join(log_directory, 'app.log'),
             'maxBytes': max_file_size,
@@ -212,47 +280,60 @@ def setup_logging(
         # Security events
         'security': {
             'level': 'INFO',
-            'handlers': ['console', 'file_security'] if enable_security_logging and log_to_file else ['console'],
-            'propagate': False
+            'handlers': _build_logger_handlers(
+                log_to_console=log_to_console,
+                log_to_file=(enable_security_logging and log_to_file),
+                include_security_file=True,
+            ),
+            'propagate': True
         },
 
         # Performance monitoring
         'performance': {
             'level': 'INFO',
-            'handlers': ['console', 'file_performance'] if log_to_file else ['console'],
-            'propagate': False
+            'handlers': _build_logger_handlers(
+                log_to_console=log_to_console,
+                log_to_file=log_to_file,
+                include_performance_file=True,
+            ),
+            'propagate': True
         },
 
         # Database operations
         'database': {
             'level': 'INFO',
-            'handlers': ['console', 'file_app'] if log_to_file else ['console'],
-            'propagate': False
+            'handlers': _build_logger_handlers(log_to_console=log_to_console, log_to_file=log_to_file),
+            'propagate': True
         },
 
         # External API calls
         'external_api': {
             'level': 'INFO',
-            'handlers': ['console', 'file_app'] if log_to_file else ['console'],
-            'propagate': False
+            'handlers': _build_logger_handlers(log_to_console=log_to_console, log_to_file=log_to_file),
+            'propagate': True
         },
 
         # Audit trail
         'audit': {
             'level': 'INFO',
-            'handlers': ['console', 'file_security'] if enable_security_logging and log_to_file else ['console'],
-            'propagate': False
+            'handlers': _build_logger_handlers(
+                log_to_console=log_to_console,
+                log_to_file=(enable_security_logging and log_to_file),
+                include_security_file=True,
+            ),
+            'propagate': True
         }
     }
 
     # Apply configuration
     logging.config.dictConfig(config)
+    _LOGGING_INITIALIZED = True
 
     # Set up log level overrides from environment
     _apply_log_level_overrides()
 
     logger.info("Logging configuration applied", extra={
-        'log_level': log_level,
+        'log_level': normalized_level,
         'log_to_file': log_to_file,
         'log_to_console': log_to_console,
         'security_logging': enable_security_logging
@@ -295,10 +376,13 @@ def get_logger(name: str, **context) -> logging.LoggerAdapter:
 class ContextLoggerAdapter(logging.LoggerAdapter):
     """Logger adapter that adds context to all log records"""
 
-    def process(self, msg, kwargs):
+    def process(self, msg: str, kwargs: MutableMapping[str, Any]):
         # Add context to extra
-        extra = kwargs.get('extra', {})
-        extra.update(self.extra)
+        incoming_extra = kwargs.get('extra', {})
+        extra: dict[str, Any] = dict(incoming_extra) if isinstance(incoming_extra, Mapping) else {}
+
+        adapter_extra = self.extra if isinstance(self.extra, Mapping) else {}
+        extra.update(cast(Mapping[str, Any], adapter_extra))
 
         # Handle special context fields
         for key, value in extra.items():
@@ -310,7 +394,7 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
 
     def log_with_context(self, level: int, msg: str, **context):
         """Log with additional context"""
-        extra = dict(self.extra)
+        extra: dict[str, Any] = dict(self.extra) if isinstance(self.extra, Mapping) else {}
         extra.update(context)
         self.log(level, msg, extra=extra)
 
@@ -367,6 +451,11 @@ def log_audit_event(event_type: str, user_id: str, resource: str, action: str, *
 # Initialize logging with defaults
 def init_logging():
     """Initialize logging with environment-based configuration"""
+    global _LOGGING_INITIALIZED
+
+    if _LOGGING_INITIALIZED:
+        return
+
     log_level = os.getenv('LOG_LEVEL', 'INFO')
     log_to_file = os.getenv('LOG_TO_FILE', 'true').lower() == 'true'
     log_to_console = os.getenv('LOG_TO_CONSOLE', 'true').lower() == 'true'
@@ -382,5 +471,5 @@ def init_logging():
     )
 
 # Auto-initialize if this module is imported
-if __name__ != '__main__':
+if os.getenv('AUTO_INIT_LOGGING', 'false').lower() == 'true' and __name__ != '__main__':
     init_logging()

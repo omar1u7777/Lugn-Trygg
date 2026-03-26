@@ -1,5 +1,6 @@
 """Configuration module for Lugn & Trygg Backend."""
 
+import atexit
 import json
 import logging
 import os
@@ -12,11 +13,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
+
+# Avoid leaking runtime configuration details in production logs.
+LOG_ENV_VALUES = os.getenv("LOG_ENV_VALUES", "false").strip().lower() in {"1", "true", "yes"}
+
+
+def _register_temp_file_cleanup(file_path: str) -> None:
+    """Ensure temporary credentials file is deleted on graceful shutdown."""
+
+    def _cleanup() -> None:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            logger.warning("Kunde inte ta bort temporär credentials-fil vid avslut")
+
+    atexit.register(_cleanup)
 
 
 def get_env_variable(
@@ -51,8 +64,11 @@ def get_env_variable(
             f"Miljövariabel '{var_name}' har fel format och kunde inte omvandlas till {cast_type.__name__}."
         ) from err
 
-    log_value = "***" if hide_value else value
-    logger.info(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
+    if LOG_ENV_VALUES:
+        log_value = "***" if hide_value else value
+        logger.info(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
+    else:
+        logger.debug("Miljövariabel laddad: %s", var_name)
 
     return value
 
@@ -95,11 +111,12 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 if FIREBASE_CREDENTIALS_RAW.startswith("{"):
     try:
         creds_json = json.loads(FIREBASE_CREDENTIALS_RAW)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tf:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
             json.dump(creds_json, tf)
             FIREBASE_CREDENTIALS = tf.name
+        _register_temp_file_cleanup(FIREBASE_CREDENTIALS)
         logger.info(
-            f"🔹 Firebase credentials från JSON env-variabel - sparad till {FIREBASE_CREDENTIALS}"
+            "🔹 Firebase credentials laddade från JSON i miljövariabel (temporär fil skapad)"
         )
     except json.JSONDecodeError as exc:
         raise ValueError(
@@ -263,7 +280,7 @@ class Config:
 config = Config()
 
 logger.info(f"✅ Backend körs på port: {PORT}, Debug-läge: {DEBUG}")
-logger.info(f"✅ Firebase-konfiguration laddad från: {FIREBASE_CREDENTIALS}")
+logger.info("✅ Firebase-konfiguration laddad")
 logger.info(
     f"✅ JWT-token expiration: {ACCESS_TOKEN_EXPIRES}, Refresh expiration: {REFRESH_TOKEN_EXPIRES}"
 )
@@ -276,6 +293,7 @@ try:
 
     from .settings import Settings, get_settings
     from .settings import settings as new_settings
+    settings = new_settings
 
     __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings"]
     if TYPE_CHECKING:

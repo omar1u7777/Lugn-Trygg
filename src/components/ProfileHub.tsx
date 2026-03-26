@@ -10,6 +10,7 @@ import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getMoods, getChatHistory, getMemories, changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
 import { getUserProfile, updateUserPreferences } from '../api/users';
+import { getApiErrorMessage } from '../api/errorUtils';
 import { logger } from '../utils/logger';
 import {
   BellIcon,
@@ -152,7 +153,10 @@ const ProfileHub: React.FC = () => {
           totalMemories: Array.isArray(memoriesData) ? memoriesData.length : 0,
           accountAge,
         });
-        logger.debug('✅ PROFILE HUB - Stats calculated', { totalMoods: profileStats.totalMoods, accountAge });
+        logger.debug('✅ PROFILE HUB - Stats calculated', {
+          totalMoods: Array.isArray(moodsData) ? moodsData.length : 0,
+          accountAge,
+        });
       } catch (error: unknown) {
         logger.error('❌ PROFILE HUB - Failed to fetch profile data:', error);
         // CRITICAL FIX: Better error handling with user-friendly messages
@@ -167,7 +171,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [user?.user_id]);
+  }, [user?.createdAt, user?.user_id]);
 
   const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
@@ -238,8 +242,8 @@ const ProfileHub: React.FC = () => {
       setChangeEmailForm({ newEmail: '', password: '' });
       // Refresh user data if needed
       window.location.reload();
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte ändra e-post', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte ändra e-post'), 'error');
     } finally {
       setModalLoading(false);
     }
@@ -271,8 +275,8 @@ const ProfileHub: React.FC = () => {
       showSnackbar('Lösenord uppdaterat!', 'success');
       setChangePasswordModal(false);
       setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte ändra lösenord', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte ändra lösenord'), 'error');
     } finally {
       setModalLoading(false);
     }
@@ -288,8 +292,8 @@ const ProfileHub: React.FC = () => {
         provisioningUri: setupData.provisioningUri || setupData.provisioning_uri
       });
       setEnable2FAModal(true);
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte aktivera 2FA', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte aktivera 2FA'), 'error');
     } finally {
       setModalLoading(false);
     }
@@ -311,8 +315,8 @@ const ProfileHub: React.FC = () => {
       setEnable2FAModal(false);
       setTwoFactorForm({ code: '' });
       setTwoFactorSetup(null);
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte verifiera 2FA', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte verifiera 2FA'), 'error');
     } finally {
       setModalLoading(false);
     }
@@ -323,8 +327,8 @@ const ProfileHub: React.FC = () => {
     try {
       await exportUserData();
       showSnackbar('Din data har exporterats!', 'success');
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte exportera data', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte exportera data'), 'error');
     } finally {
       setModalLoading(false);
     }
@@ -341,8 +345,8 @@ const ProfileHub: React.FC = () => {
       setTimeout(() => {
         window.location.href = '/login';
       }, 2000);
-    } catch (error: any) {
-      showSnackbar(error.message || 'Kunde inte radera kontot', 'error');
+    } catch (error: unknown) {
+      showSnackbar(getApiErrorMessage(error, 'Kunde inte radera kontot'), 'error');
     } finally {
       setModalLoading(false);
     }

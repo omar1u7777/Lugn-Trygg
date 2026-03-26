@@ -72,6 +72,8 @@ def initialize_redis() -> bool:
 
     except redis.ConnectionError as e:
         logger.error(f"❌ Redis connection failed: {e}")
+        redis_client = None
+        redis_pool = None
         return False
     except Exception as e:
         logger.error(f"❌ Redis initialization error: {e}")

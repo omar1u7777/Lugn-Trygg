@@ -119,11 +119,15 @@ def check_password_strength(password: str) -> dict:
 # Test function - only runs when file is executed directly
 if __name__ == "__main__":
     import os
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     # Use environment variable or generate test password securely
     test_password = os.getenv("TEST_PASSWORD", "TestP@ssw0rd!")  # nosec B105
     hashed_pw = hash_password(test_password)
-    print(f"🔐 Hashat lösenord: {hashed_pw}")
+    logger.info("🔐 Hashat lösenord: %s", hashed_pw)
 
     # Verification test
     is_valid = verify_password(test_password, hashed_pw)
-    print(f"✅ Lösenordsverifiering: {'Lyckades' if is_valid else 'Misslyckades'}")
+    logger.info("✅ Lösenordsverifiering: %s", "Lyckades" if is_valid else "Misslyckades")

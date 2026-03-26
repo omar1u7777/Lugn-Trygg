@@ -64,16 +64,8 @@ def _validate_mood(mood) -> tuple[bool, str]:
 # OPTIONS Handlers (CORS preflight)
 # ============================================================================
 
-@journal_bp.route('/<user_id>/journal', methods=['OPTIONS'])
-def journal_options(user_id):
-    """Handle CORS preflight for journal endpoints"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 
-@journal_bp.route('/<user_id>/journal/<entry_id>', methods=['OPTIONS'])
-def journal_entry_options(user_id, entry_id):
-    """Handle CORS preflight for journal entry endpoints"""
-    return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
 
 @journal_bp.route('/<user_id>/journal', methods=['GET'])
 @AuthService.jwt_required
@@ -134,9 +126,9 @@ def get_journal_entries(user_id):
                     filter=FieldFilter('user_id', '==', user_id)
                 ).order_by('created_at', direction='DESCENDING').limit(limit)
             except (TypeError, ImportError):
-                journal_ref = db.collection('journal_entries').where(
+                journal_ref = db.collection('journal_entries').where(filter=FieldFilter(
                     'user_id', '==', user_id
-                ).order_by('created_at', direction='DESCENDING').limit(limit)
+                )).order_by('created_at', direction='DESCENDING').limit(limit)
 
             for doc in journal_ref.stream():
                 data = doc.to_dict()
@@ -159,9 +151,9 @@ def get_journal_entries(user_id):
                         filter=FieldFilter('user_id', '==', user_id)
                     ).limit(limit)
                 except (TypeError, ImportError):
-                    fallback_ref = db.collection('journal_entries').where(
+                    fallback_ref = db.collection('journal_entries').where(filter=FieldFilter(
                         'user_id', '==', user_id
-                    ).limit(limit)
+                    )).limit(limit)
 
                 for doc in fallback_ref.stream():
                     data = doc.to_dict()

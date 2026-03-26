@@ -106,9 +106,7 @@ class MoodEntry(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}
-    )
+    model_config = ConfigDict()
 
 class MoodUpdateRequest(BaseRequest):
     """Update mood entry request"""
@@ -198,9 +196,7 @@ class MoodAnalysis(BaseModel):
     # Generated at
     generated_at: datetime
 
-    model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}
-    )
+    model_config = ConfigDict()
 
 # Voice analysis schemas
 class VoiceAnalysisRequest(BaseRequest):

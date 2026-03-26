@@ -1,4 +1,5 @@
 import logging
+from google.cloud.firestore import FieldFilter
 import os
 import re
 from datetime import UTC, datetime, timedelta
@@ -536,7 +537,7 @@ def analyze_health_mood_patterns():
         # Fetch health data from Firestore
         health_data = []
         try:
-            health_ref = db.collection('health_data').where('user_id', '==', user_id).limit(days).stream()
+            health_ref = db.collection('health_data').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
             for doc in health_ref:
                 doc_data = doc.to_dict()
                 health_data.append({
@@ -552,7 +553,7 @@ def analyze_health_mood_patterns():
         # Fetch mood data from Firestore
         mood_data = []
         try:
-            mood_ref = db.collection('moods').where('user_id', '==', user_id).limit(days).stream()
+            mood_ref = db.collection('moods').where(filter=FieldFilter('user_id', '==', user_id)).limit(days).stream()
             for doc in mood_ref:
                 doc_data = doc.to_dict()
                 mood_data.append({
@@ -640,6 +641,7 @@ def get_wearable_status():
 # Use real OAuth flow instead: GET /api/integration/oauth/{provider}/authorize
 """
 @integration_bp.route("/wearable/connect", methods=["POST"])
+@rate_limit_by_endpoint
 @jwt_required()
 def connect_wearable():
     return jsonify({
@@ -1040,8 +1042,8 @@ def analyze_health_mood_correlation(user_id, health_data):
         thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         moods_ref = (
             db.collection('moods')
-            .where('user_id', '==', user_id)
-            .where('created_at', '>=', thirty_days_ago)
+            .where(filter=FieldFilter('user_id', '==', user_id))
+            .where(filter=FieldFilter('created_at', '>=', thirty_days_ago))
             .order_by('created_at')
             .limit(200)
             .stream()
