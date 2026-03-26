@@ -1,0 +1,3 @@
+# Root requirements shim for platforms that install from repository root.
+# Keeps Render builds working whether command uses requirements.txt or ../requirements.txt from Backend.
+-r Backend/requirements.txt

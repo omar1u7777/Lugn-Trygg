@@ -6,7 +6,7 @@ services:
     plan: free
 
     repo: https://github.com/omar1u7777/Lugn-Trygg
-    branch: main
+    branch: master
 
     rootDir: Backend
 
