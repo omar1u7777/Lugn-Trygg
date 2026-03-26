@@ -54,7 +54,7 @@ const BottomNav: React.FC = memo(() => {
           key={item.path}
           to={item.path}
           className={`
-            flex flex-col items-center justify-center min-w-[60px] py-2 px-3 rounded-xl transition-all duration-200
+            flex flex-col items-center justify-center min-w-[60px] min-h-[44px] py-2 px-3 rounded-xl transition-all duration-200
             ${active 
               ? 'text-[#2c8374]' 
               : 'text-[#a89f97] hover:text-[#6d645d] dark:text-gray-500 dark:hover:text-gray-300'
@@ -72,7 +72,7 @@ const BottomNav: React.FC = memo(() => {
             )}
           </div>
           <span className={`
-            text-[10px] font-medium mt-1 transition-all duration-200
+            text-[11px] font-medium mt-1 transition-all duration-200
             ${active ? 'text-[#2c8374] font-semibold' : ''}
           `}>
             {item.label}

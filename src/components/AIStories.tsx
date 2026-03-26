@@ -302,13 +302,13 @@ const AIStories: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3 flex-grow mr-4">
                   <BookOpenIcon className="w-6 h-6 text-primary-600" />
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                     {selectedStory.title}
                   </h2>
                   <span className={`px-2 py-1 text-xs font-medium text-white rounded-full ${getMoodColor(selectedStory.mood)}`}>
@@ -327,14 +327,14 @@ const AIStories: React.FC = () => {
               </div>
 
               {/* Content */}
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto">
                 <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                   {selectedStory.content || 'Ingen innehåll tillgänglig för denna berättelse.'}
                 </p>
               </div>
 
               {/* Audio Controls */}
-              <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-4 mb-4">
                   <button
                     onClick={isPlaying ? pauseStory : () => playStory(selectedStory)}

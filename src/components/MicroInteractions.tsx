@@ -432,7 +432,7 @@ const ToastNotification = ({
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 300, scale: 0.5, transition: { duration: 0.2 } }}
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="fixed top-4 right-4 z-[1000] min-w-[300px] max-w-md"
+          className="fixed top-4 right-4 z-[1000] w-[calc(100vw-2rem)] max-w-md sm:min-w-[300px] sm:w-auto"
           role="alert"
           aria-live="assertive"
         >

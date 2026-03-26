@@ -323,16 +323,16 @@ const UpgradePage: React.FC = () => {
                   {category.category}
                 </h3>
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700 overflow-x-auto">
                 {/* Header row */}
-                <div className="grid grid-cols-3 px-6 py-3 bg-gray-50/50 dark:bg-gray-800/50 text-sm font-medium text-gray-500 dark:text-gray-400">
+                <div className="grid grid-cols-[minmax(180px,2fr)_minmax(88px,1fr)_minmax(88px,1fr)] sm:grid-cols-3 gap-2 sm:gap-0 px-3 sm:px-6 py-3 bg-gray-50/50 dark:bg-gray-800/50 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 min-w-[360px] sm:min-w-0">
                   <span>Funktion</span>
                   <span className="text-center">Gratis</span>
                   <span className="text-center text-yellow-600 dark:text-yellow-400">Premium</span>
                 </div>
                 {category.features.map((feature, featureIndex) => (
-                  <div key={featureIndex} className="grid grid-cols-3 px-6 py-4 items-center">
-                    <span className="text-gray-900 dark:text-white text-sm">
+                  <div key={featureIndex} className="grid grid-cols-[minmax(180px,2fr)_minmax(88px,1fr)_minmax(88px,1fr)] sm:grid-cols-3 gap-2 sm:gap-0 px-3 sm:px-6 py-4 items-center min-w-[360px] sm:min-w-0">
+                    <span className="text-gray-900 dark:text-white text-sm break-words">
                       {feature.name}
                     </span>
                     <div className="text-center">

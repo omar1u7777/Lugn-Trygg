@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { CloudIcon, CloudArrowUpIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import offlineStorage from '../services/offlineStorage';import { logger } from '../utils/logger';
+import offlineStorage from '../services/offlineStorage';
+import { logger } from '../utils/logger';
 
 
 interface OfflineIndicatorProps {
@@ -103,7 +104,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
 
     return (
       <div
-        className={`fixed ${position === 'top' ? 'top-4' : 'bottom-4'} left-1/2 -translate-x-1/2 z-50 min-w-[300px] max-w-md`}
+        className={`fixed ${position === 'top' ? 'top-4' : 'bottom-4'} left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-md sm:min-w-[300px] sm:w-auto`}
         role="status"
         aria-live="polite"
         aria-atomic="true"
