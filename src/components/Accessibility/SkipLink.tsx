@@ -8,21 +8,24 @@
  * @param children - The text content of the skip link (default: 'Hoppa till huvudinnehållet')
  */
 
-import React from 'react';import { logger } from '../../utils/logger';
+import React from 'react';
+import { logger } from '../../utils/logger';
 
 
 // Constants for better maintainability
 const DEFAULT_TARGET_ID = 'main-content';
 const DEFAULT_SKIP_TEXT = 'Hoppa till huvudinnehållet';
 const SKIP_LINK_CLASSES = `
-  sr-only focus:not-sr-only
-  fixed top-4 left-4 z-[9999]
+  absolute left-[-10000px] top-auto
+  w-px h-px overflow-hidden
+  focus:fixed focus:top-4 focus:left-4 focus:z-[9999]
+  focus:w-auto focus:h-auto focus:overflow-visible
   px-4 py-2
   bg-teal-600 text-white
   rounded-lg shadow-lg
   font-medium
   focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
-  transition-transform transform -translate-y-16 focus:translate-y-0
+  transition-all
 `.trim();
 
 interface SkipLinkProps {

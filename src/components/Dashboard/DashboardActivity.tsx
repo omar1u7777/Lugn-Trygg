@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatRelativeTimeFromNow } from '../../utils/intlFormatters';
 
@@ -16,6 +16,33 @@ interface DashboardActivityProps {
   emptyStateMessage?: string;
   isLoading?: boolean;
 }
+
+interface ActivityGroup {
+  key: 'today' | 'yesterday' | 'earlier-this-year' | 'older';
+  label: string;
+  items: ActivityItem[];
+}
+
+const getActivityGroupKey = (timestamp: Date): ActivityGroup['key'] => {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+  if (timestamp >= todayStart) {
+    return 'today';
+  }
+
+  if (timestamp >= yesterdayStart) {
+    return 'yesterday';
+  }
+
+  if (timestamp.getFullYear() === now.getFullYear()) {
+    return 'earlier-this-year';
+  }
+
+  return 'older';
+};
 
 /**
  * 2026 Timeline Item Component
@@ -76,6 +103,24 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
   isLoading = false,
 }) => {
   const regionProps = getDashboardRegionProps('activity');
+  const groupedActivities = useMemo(() => {
+    const groups: ActivityGroup[] = [
+      { key: 'today', label: 'Idag', items: [] },
+      { key: 'yesterday', label: 'Igår', items: [] },
+      { key: 'earlier-this-year', label: 'Tidigare i år', items: [] },
+      { key: 'older', label: 'Äldre', items: [] },
+    ];
+
+    activities.slice(0, 8).forEach((activity) => {
+      const groupKey = getActivityGroupKey(activity.timestamp);
+      const targetGroup = groups.find((group) => group.key === groupKey);
+      if (targetGroup) {
+        targetGroup.items.push(activity);
+      }
+    });
+
+    return groups.filter((group) => group.items.length > 0);
+  }, [activities]);
 
   if (isLoading) {
     return (
@@ -109,13 +154,22 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
         Senaste Aktivitet
       </h2>
 
-      <div className="space-y-8 relative">
-        {activities.slice(0, 8).map((activity, index) => (
-          <TimelineItem
-            key={activity.id}
-            activity={activity}
-            index={index}
-          />
+      <div className="space-y-10 relative">
+        {groupedActivities.map((group) => (
+          <div key={group.key}>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {group.label}
+            </h3>
+            <div className="space-y-8">
+              {group.items.map((activity, index) => (
+                <TimelineItem
+                  key={activity.id}
+                  activity={activity}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

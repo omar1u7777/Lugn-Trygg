@@ -17,8 +17,9 @@ const QuickActionButton: React.FC<{
   onClick: () => void;
   description: string;
   isLocked: boolean;
+  isDisabled?: boolean;
   index: number;
-}> = ({ action, onClick, description, isLocked, index }) => {
+}> = ({ action, onClick, description, isLocked, isDisabled = false, index }) => {
   const bgColors = {
     'primary': 'bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/20 dark:hover:bg-primary-900/30',
     'secondary': 'bg-secondary-50 hover:bg-secondary-100 dark:bg-secondary-900/20 dark:hover:bg-secondary-900/30',
@@ -45,9 +46,15 @@ const QuickActionButton: React.FC<{
   return (
     <button
       onClick={onClick}
-      className={`group relative flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all duration-300 hover:scale-[1.03] active:scale-95 border border-transparent hover:border-black/5 dark:hover:border-white/10 ${bgColors[colorKey]}`}
+      disabled={isDisabled}
+      className={`group relative flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all duration-300 border border-transparent ${
+        isDisabled
+          ? 'opacity-60 cursor-not-allowed'
+          : `hover:scale-[1.03] active:scale-95 hover:border-black/5 dark:hover:border-white/10 ${bgColors[colorKey]}`
+      }`}
       style={{ animationDelay: `${index * 100}ms` }}
       aria-label={action.ariaLabel}
+      aria-disabled={isDisabled}
     >
       {isLocked && (
         <span className="absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
@@ -80,8 +87,12 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
   const { isPremium, getRemainingMoodLogs, getRemainingMessages, hasFeature } = useSubscription();
   const regionProps = getDashboardRegionProps('quickActions');
 
-  const remainingMoodLogs = getRemainingMoodLogs();
-  const remainingMessages = getRemainingMessages();
+  const rawMoodLogsRemaining = getRemainingMoodLogs();
+  const rawMessagesRemaining = getRemainingMessages();
+  const isUnlimitedMoodLogs = rawMoodLogsRemaining === -1;
+  const isUnlimitedMessages = rawMessagesRemaining === -1;
+  const remainingMoodLogs = isUnlimitedMoodLogs ? 0 : Math.max(0, rawMoodLogsRemaining);
+  const remainingMessages = isUnlimitedMessages ? 0 : Math.max(0, rawMessagesRemaining);
 
   if (isLoading) {
     return (
@@ -102,10 +113,20 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {QUICK_ACTIONS.map((action, index) => {
           let description = action.defaultDescription;
+          let isQuotaReached = false;
+
           if (action.id === 'mood') {
-            description = isPremium ? "Obegränsat idag" : `${remainingMoodLogs} kvar idag`;
+            const hasUnlimitedMood = isPremium || isUnlimitedMoodLogs;
+            description = hasUnlimitedMood ? 'Obegränsat idag' : `${remainingMoodLogs} kvar idag`;
+            isQuotaReached = !hasUnlimitedMood && remainingMoodLogs <= 0;
           } else if (action.id === 'chat') {
-            description = isPremium ? "Alltid redo" : `${remainingMessages} meddelanden`;
+            const hasUnlimitedChat = isPremium || isUnlimitedMessages;
+            description = hasUnlimitedChat ? 'Alltid redo' : `${remainingMessages} meddelanden`;
+            isQuotaReached = !hasUnlimitedChat && remainingMessages <= 0;
+          }
+
+          if (isQuotaReached) {
+            description = 'Kvot nådd idag';
           }
 
           return (
@@ -116,6 +137,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
               onClick={() => onActionClick(action.id)}
               description={description}
               isLocked={action.feature ? !hasFeature(action.feature) : false}
+              isDisabled={isQuotaReached}
             />
           );
         })}

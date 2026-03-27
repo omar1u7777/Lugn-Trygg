@@ -7,6 +7,7 @@ export interface DashboardStatsData {
   streakDays: number;
   totalChats: number;
   achievementsCount: number;
+  moodSamples?: number[];
   moodTrend?: { direction: 'up' | 'down' | 'stable'; value: string };
   streakTrend?: { direction: 'up' | 'down' | 'stable'; value: string };
   chatsTrend?: { direction: 'up' | 'down' | 'stable'; value: string };
@@ -17,6 +18,40 @@ interface DashboardStatsProps {
   stats: DashboardStatsData;
   isLoading?: boolean;
 }
+
+const deriveMoodTrend = (
+  moodSamples: number[] | undefined,
+  averageMood: number
+): { direction: 'up' | 'down' | 'stable'; value: string } => {
+  const validSamples = (moodSamples || []).filter((sample) => Number.isFinite(sample) && sample >= 0 && sample <= 10);
+
+  if (validSamples.length < 2) {
+    return { direction: 'stable', value: averageMood <= 4 ? 'Låg nivå' : 'Stabilt' };
+  }
+
+  const mean = validSamples.reduce((sum, value) => sum + value, 0) / validSamples.length;
+  const variance =
+    validSamples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / validSamples.length;
+  const standardDeviation = Math.sqrt(variance);
+  const changeOverPeriod = validSamples[validSamples.length - 1] - validSamples[0];
+
+  if (changeOverPeriod <= -2) {
+    return { direction: 'down', value: 'Nedåtgående' };
+  }
+
+  if (standardDeviation >= 1.8) {
+    return {
+      direction: changeOverPeriod < 0 ? 'down' : 'stable',
+      value: 'Fluktuerande',
+    };
+  }
+
+  if (changeOverPeriod >= 2) {
+    return { direction: 'up', value: 'Uppåtgående' };
+  }
+
+  return { direction: 'stable', value: 'Stabilt' };
+};
 
 /**
  * Bento Grid Item Component
@@ -77,6 +112,7 @@ const BentoItem: React.FC<{
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading = false }) => {
   const regionProps = getDashboardRegionProps('stats');
+  const moodTrend = stats.moodTrend || deriveMoodTrend(stats.moodSamples, stats.averageMood);
 
   if (isLoading) {
     return (
@@ -103,10 +139,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           color="secondary"
           large
           className="md:col-span-2 md:row-span-1"
-          trend={{
-            direction: 'stable',
-            value: 'Stabilt'
-          }}
+          trend={moodTrend}
         />
 
         {/* Secondary Card - Streak */}

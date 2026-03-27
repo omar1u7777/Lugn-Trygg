@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
@@ -43,6 +43,8 @@ interface ApiErrorLike {
   };
 }
 
+const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
+
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
@@ -53,6 +55,8 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const [isLogging, setIsLogging] = useState(false);
   const [recentMoods, setRecentMoods] = useState<RecentMood[]>([]);
   const [limitError, setLimitError] = useState<string | null>(null);
+  const submitLockRef = useRef(false);
+  const lastMoodSubmissionRef = useRef<{ moodScore: number; timestampMs: number } | null>(null);
 
   // Kolla om användaren kan logga fler humör
   const canLogMore = canLogMood();
@@ -75,6 +79,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
   const handleMoodSelect = (mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
+    setLimitError(null);
     announceToScreenReader(`Valde humör: ${mood.label}`, 'polite');
 
     analytics.track('Mood Selected', {
@@ -84,9 +89,35 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
     });
   };
 
+  const isDuplicateMoodWithinCooldown = useCallback(
+    (moodScore: number) => {
+      const now = Date.now();
+
+      const latestSubmission = lastMoodSubmissionRef.current;
+      if (
+        latestSubmission &&
+        latestSubmission.moodScore === moodScore &&
+        now - latestSubmission.timestampMs < DUPLICATE_MOOD_COOLDOWN_MS
+      ) {
+        return true;
+      }
+
+      return recentMoods.some(
+        (entry) =>
+          entry.score === moodScore &&
+          now - entry.timestamp.getTime() < DUPLICATE_MOOD_COOLDOWN_MS
+      );
+    },
+    [recentMoods]
+  );
+
   const handleLogMood = async () => {
     if (selectedMood === null || !user?.user_id) {
       logger.warn('⚠️ MoodLogger - Missing selected mood or user');
+      return;
+    }
+
+    if (submitLockRef.current || isLogging) {
       return;
     }
 
@@ -96,6 +127,14 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       return;
     }
 
+    if (isDuplicateMoodWithinCooldown(selectedMood)) {
+      const duplicateMessage = 'Du loggade samma humör nyligen. Vänta några minuter innan du loggar samma känsla igen.';
+      setLimitError(duplicateMessage);
+      announceToScreenReader(duplicateMessage, 'polite');
+      return;
+    }
+
+    submitLockRef.current = true;
     setIsLogging(true);
     setLimitError(null);
     try {
@@ -113,6 +152,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
       // Öka användning för gratisanvändare
       incrementMoodLog();
+      lastMoodSubmissionRef.current = { moodScore: selectedMood, timestampMs: Date.now() };
 
       analytics.track('Mood Logged', {
         mood_value: selectedMood,
@@ -151,6 +191,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       }
     } finally {
       setIsLogging(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -212,6 +253,19 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             score: score,
             timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
           };
+        })
+        .filter((mood, index, arr) => {
+          // Prevent duplicate cards when backend returns repeated records.
+          return (
+            index ===
+            arr.findIndex((candidate) =>
+              candidate.id
+                ? candidate.id === mood.id
+                : candidate.score === mood.score &&
+                  candidate.mood === mood.mood &&
+                  candidate.timestamp.getTime() === mood.timestamp.getTime()
+            )
+          );
         })
         .sort((a: RecentMood, b: RecentMood) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 5);
@@ -281,6 +335,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               <button
                 key={mood.value}
                 onClick={() => handleMoodSelect(mood)}
+                disabled={isLogging}
                 style={{ animationDelay: `${index * 0.08}s` }}
                 className={`
                   p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 text-center

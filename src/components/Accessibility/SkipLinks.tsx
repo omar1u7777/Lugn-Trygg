@@ -21,7 +21,6 @@ interface SkipLinksProps {
 const FALLBACK_LINKS = [
   { href: '#main-content', labelKey: 'common.skipToContent', fallback: 'Hoppa till huvudinnehåll' },
   { href: '#navigation', labelKey: 'common.skipToNavigation', fallback: 'Hoppa till navigation' },
-  { href: '#search', labelKey: 'common.skipToSearch', fallback: 'Hoppa till sök' },
 ];
 
 /**
