@@ -62,7 +62,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-4">
+            <h1 className="text-4xl sm:text-5xl lg:text-[3.75rem] font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-4">
               {greeting}, <br className="hidden sm:block" />
               <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
                 {userName}
@@ -82,7 +82,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     if (!isLoading) onRefresh();
                   }}
                   disabled={isLoading}
-                  className="group flex items-center gap-2 px-4 py-2 text-sm rounded-full bg-white dark:bg-slate-800 text-neutral-600 dark:text-neutral-300 font-medium transition-all hover:scale-105 active:scale-95 shadow-sm border border-neutral-200 dark:border-neutral-700 hover:shadow disabled:opacity-50"
+                  className="group flex items-center gap-2 px-4 py-2 text-sm rounded-full bg-white/95 dark:bg-slate-800 text-neutral-700 dark:text-slate-100 font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm border border-neutral-300 dark:border-slate-500 hover:shadow-md hover:bg-white dark:hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-primary-400 disabled:opacity-50"
                 >
                   <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -95,11 +95,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
           {/* Visual Anchor Section - The "Breathing" Card */}
           <div className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-            <div className="glass-panel dark:glass-panel-dark p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm">
+            <div className="p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]">
               <BreathingOrb />
               <div>
-                <h3 className="font-serif text-lg text-neutral-900 dark:text-white mb-1">Dagens Fokus</h3>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-snug">
+                <h3 className="font-serif text-lg text-neutral-900 dark:text-slate-100 mb-1">Dagens Fokus</h3>
+                <p className="text-sm text-neutral-700 dark:text-slate-300 leading-snug">
                   Börja dagen med 3 djupa andetag. Följ orben.
                 </p>
               </div>
