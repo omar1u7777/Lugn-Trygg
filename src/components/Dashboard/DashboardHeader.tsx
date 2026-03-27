@@ -43,6 +43,16 @@ const getDailyFocusContent = () => {
 
 type BreathingPhase = 'inhale' | 'exhale' | 'hold' | 'done';
 
+const BREATH_COUNT_TARGET = 3;
+const PHASE_SECONDS: Record<Exclude<BreathingPhase, 'done'>, number> = {
+  inhale: 4,
+  exhale: 4,
+  hold: 2,
+};
+const DAILY_FOCUS_STORAGE_KEY = 'lugn-trygg-focus-breathing-last-completed';
+
+const getTodayStorageValue = () => new Date().toISOString().slice(0, 10);
+
 /**
  * Breathing Orb Component - 2026 visual anchor
  */
@@ -75,6 +85,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const [completedBreaths, setCompletedBreaths] = useState(0);
   const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('inhale');
   const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(PHASE_SECONDS.inhale);
 
   useEffect(() => {
     // Update greeting every minute
@@ -86,9 +97,25 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }, []);
 
   useEffect(() => {
+    const lastCompleted = window.localStorage.getItem(DAILY_FOCUS_STORAGE_KEY);
+    if (lastCompleted === getTodayStorageValue()) {
+      setSessionCompleted(true);
+      setBreathingPhase('done');
+      setCompletedBreaths(BREATH_COUNT_TARGET);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!isBreathingSessionActive || breathingPhase === 'done') {
       return;
     }
+
+    const phaseDuration = PHASE_SECONDS[breathingPhase];
+    setPhaseSecondsLeft(phaseDuration);
+
+    const countdown = window.setInterval(() => {
+      setPhaseSecondsLeft((previous) => Math.max(previous - 1, 0));
+    }, 1000);
 
     const timer = window.setTimeout(() => {
       if (breathingPhase === 'inhale') {
@@ -102,25 +129,30 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       }
 
       const nextCompleted = completedBreaths + 1;
-      if (nextCompleted >= 3) {
-        setCompletedBreaths(3);
+      if (nextCompleted >= BREATH_COUNT_TARGET) {
+        setCompletedBreaths(BREATH_COUNT_TARGET);
         setBreathingPhase('done');
         setIsBreathingSessionActive(false);
         setSessionCompleted(true);
+        window.localStorage.setItem(DAILY_FOCUS_STORAGE_KEY, getTodayStorageValue());
         return;
       }
 
       setCompletedBreaths(nextCompleted);
       setBreathingPhase('inhale');
-    }, 2200);
+    }, phaseDuration * 1000);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(countdown);
+    };
   }, [isBreathingSessionActive, breathingPhase, completedBreaths]);
 
   const startBreathingSession = () => {
     setCompletedBreaths(0);
     setBreathingPhase('inhale');
     setSessionCompleted(false);
+    setPhaseSecondsLeft(PHASE_SECONDS.inhale);
     setIsBreathingSessionActive(true);
   };
 
@@ -135,7 +167,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     return 'Klart';
   };
 
-  const activeBreathNumber = Math.min(completedBreaths + 1, 3);
+  const activeBreathNumber = Math.min(completedBreaths + 1, BREATH_COUNT_TARGET);
+  const completedPhaseOffset =
+    breathingPhase === 'inhale' ? 0 : breathingPhase === 'exhale' ? 1 : breathingPhase === 'hold' ? 2 : 3;
+  const totalPhases = BREATH_COUNT_TARGET * 3;
+  const completedPhases = sessionCompleted
+    ? totalPhases
+    : Math.min(completedBreaths * 3 + completedPhaseOffset, totalPhases);
+  const breathingProgress = Math.round((completedPhases / totalPhases) * 100);
 
   return (
     <div className="relative overflow-hidden mb-4">
@@ -185,16 +224,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 </p>
                 <p className="mt-2 text-xs text-neutral-500 dark:text-slate-400" aria-live="polite">
                   {isBreathingSessionActive
-                    ? `Andetag ${activeBreathNumber} av 3 · ${getPhaseLabel()}`
+                    ? `Andetag ${activeBreathNumber} av ${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
                     : sessionCompleted
-                      ? 'Bra jobbat! 3 av 3 andetag klara.'
-                      : 'Guidad övning: cirka 20 sekunder.'}
+                      ? 'Bra jobbat! Du har slutfört dagens 3 andetag.'
+                      : 'Guidad övning: cirka 30 sekunder.'}
                 </p>
-                {isBreathingSessionActive && (
+                {(isBreathingSessionActive || sessionCompleted) && (
                   <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/30 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary-500 transition-all duration-500"
-                      style={{ width: `${(completedBreaths / 3) * 100}%` }}
+                      style={{ width: `${breathingProgress}%` }}
                     />
                   </div>
                 )}
