@@ -388,19 +388,29 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (goals && goals.length > 0) {
       const normalizedGoals = goals.map(g => g.toLowerCase().trim());
       const goalMatched = allRecommendations.filter(rec =>
-        rec.tags.some(tag => normalizedGoals.includes(tag.toLowerCase().trim()))
+        rec.tags.some((tag) => {
+          const normalizedTag = tag.toLowerCase().trim();
+          return (
+            normalizedGoals.includes(normalizedTag) ||
+            normalizedGoals.some((goal) => goal.includes(normalizedTag) || normalizedTag.includes(goal))
+          );
+        })
       );
 
-      const generic = allRecommendations.filter(rec =>
-        rec.category === 'Allmänt'
-      );
+      const rankedFallback = [...allRecommendations].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      const unique = new Map<string, Recommendation>();
 
-      filteredRecommendations = [
-        ...goalMatched.slice(0, goals.length * 3),
-        ...generic.slice(0, 2)
-      ];
+      [...goalMatched, ...rankedFallback].forEach((recommendation) => {
+        if (!unique.has(recommendation.id)) {
+          unique.set(recommendation.id, recommendation);
+        }
+      });
+
+      filteredRecommendations = Array.from(unique.values()).slice(0, Math.max(goals.length * 3, 6));
     } else {
-      filteredRecommendations = allRecommendations.slice(0, 6);
+      filteredRecommendations = [...allRecommendations]
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, 6);
     }
 
     const recommendationSignature = filteredRecommendations
@@ -1128,12 +1138,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             {recommendations.slice(0, 3).map((rec, index) => (
               <div
                 key={rec.id}
-                className={`group relative overflow - hidden rounded - [2rem] p - 6 transition - all duration - 300 hover: scale - [1.02] border border - transparent 
-                  ${rec.category.includes('Stress') ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10' :
-                    rec.category.includes('Sömn') ? 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10' :
-                      'bg-white hover:bg-gray-50 dark:bg-slate-800/50'
-                  } `}
-                style={{ animationDelay: `${index * 100} ms` }}
+                className={`group relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 hover:scale-[1.02] border border-transparent ${
+                  rec.category.includes('Stress')
+                    ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10'
+                    : rec.category.includes('Sömn')
+                      ? 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10'
+                      : 'bg-white hover:bg-gray-50 dark:bg-slate-800/50'
+                }`}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="absolute top-0 right-0 p-6 opacity-10 text-6xl group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 pointer-events-none">
                   {rec.image}
@@ -1495,10 +1507,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleRecommendationAction(recommendation, 'save')}
-                      className={`p - 2 rounded - lg transition - colors hover: bg - gray - 100 dark: hover: bg - gray - 700 focus - visible: ring - 2 focus - visible: ring - primary - 500 focus - visible: ring - offset - 2 ${recommendation.saved
+                      className={`p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${recommendation.saved
                         ? 'text-yellow-600 dark:text-yellow-500'
                         : 'text-gray-400 dark:text-gray-500'
-                        } `}
+                        }`}
                       aria-label="Save recommendation"
                     >
                       {recommendation.saved ? (

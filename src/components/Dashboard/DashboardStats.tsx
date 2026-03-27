@@ -105,13 +105,6 @@ const BentoItem: React.FC<{
         </h3>
       </div>
 
-      {large && (
-        <div className="absolute right-0 bottom-0 w-32 h-32 opacity-10 translate-x-4 translate-y-4 pointer-events-none">
-          <svg viewBox="0 0 100 100" fill="currentColor">
-            <circle cx="50" cy="50" r="50" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 };
