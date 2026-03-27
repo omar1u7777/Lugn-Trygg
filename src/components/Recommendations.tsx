@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 // Helper to format Pomodoro time as MM:SS
 const formatPomodoroTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -60,6 +60,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const navigate = useNavigate();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const lastRecommendationsSignatureRef = useRef<string>('');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
@@ -402,11 +403,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       filteredRecommendations = allRecommendations.slice(0, 6);
     }
 
-    setRecommendations(prev => {
-      const changed = JSON.stringify(prev) !== JSON.stringify(filteredRecommendations);
-      return changed ? filteredRecommendations : prev;
-    });
+    const recommendationSignature = filteredRecommendations
+      .map((recommendation) => recommendation.id)
+      .join('|');
 
+    if (recommendationSignature === lastRecommendationsSignatureRef.current) {
+      return;
+    }
+
+    lastRecommendationsSignatureRef.current = recommendationSignature;
+    setRecommendations(filteredRecommendations);
     screenReader(`${filteredRecommendations.length} personaliserade rekommendationer laddade`, 'polite');
   }, [announceToScreenReader]);
 

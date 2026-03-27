@@ -15,18 +15,7 @@ import { logger } from '../../utils/logger';
 // Constants for better maintainability
 const DEFAULT_TARGET_ID = 'main-content';
 const DEFAULT_SKIP_TEXT = 'Hoppa till huvudinnehållet';
-const SKIP_LINK_CLASSES = `
-  absolute left-[-10000px] top-auto opacity-0
-  w-px h-px overflow-hidden
-  focus:fixed focus:top-4 focus:left-4 focus:z-[9999]
-  focus:w-auto focus:h-auto focus:overflow-visible focus:opacity-100
-  px-4 py-2
-  bg-teal-600 text-white
-  rounded-lg shadow-lg
-  font-medium
-  focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
-  transition-all
-`.trim();
+const SKIP_LINK_CLASSES = 'skip-link focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2';
 
 interface SkipLinkProps {
   targetId?: string;
@@ -57,6 +46,7 @@ export const SkipLink: React.FC<SkipLinkProps> = ({
       href={`#${targetId}`}
       onClick={handleClick}
       className={SKIP_LINK_CLASSES}
+      data-skip-link="true"
     >
       {children}
     </a>

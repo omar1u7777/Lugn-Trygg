@@ -188,8 +188,13 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
   // Transform data for component props
-  const moodSamples = safeDashboardStats.recentActivity
+  const moodSamples = [...safeDashboardStats.recentActivity]
     .filter((activity) => activity.type === 'mood')
+    .sort((left, right) => {
+      const leftTime = left.timestamp instanceof Date ? left.timestamp.getTime() : new Date(left.timestamp).getTime();
+      const rightTime = right.timestamp instanceof Date ? right.timestamp.getTime() : new Date(right.timestamp).getTime();
+      return leftTime - rightTime;
+    })
     .map((activity) => extractMoodScoreFromDescription(activity.description))
     .filter((score): score is number => score !== null);
 

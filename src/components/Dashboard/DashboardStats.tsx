@@ -34,16 +34,15 @@ const deriveMoodTrend = (
     validSamples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / validSamples.length;
   const standardDeviation = Math.sqrt(variance);
   const changeOverPeriod = validSamples[validSamples.length - 1] - validSamples[0];
+  const latestScore = validSamples[validSamples.length - 1];
 
-  if (changeOverPeriod <= -2) {
+  // Avoid discouraging trend labels when current mood is still strong.
+  if (changeOverPeriod <= -2 && latestScore <= 7) {
     return { direction: 'down', value: 'Nedåtgående' };
   }
 
   if (standardDeviation >= 1.8) {
-    return {
-      direction: changeOverPeriod < 0 ? 'down' : 'stable',
-      value: 'Fluktuerande',
-    };
+    return { direction: 'stable', value: 'Fluktuerande' };
   }
 
   if (changeOverPeriod >= 2) {
@@ -79,6 +78,13 @@ const BentoItem: React.FC<{
     neutral: 'bg-neutral-100 text-neutral-600'
   };
 
+  const trendBadgeClass =
+    trend?.direction === 'up'
+      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+      : trend?.direction === 'down'
+        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+        : 'bg-white/70 text-neutral-700 dark:bg-slate-700/60 dark:text-neutral-200';
+
   return (
     <div className={`relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg border border-transparent hover:border-black/5 ${bgColors[color]} ${className}`}>
       <div className="flex justify-between items-start mb-4">
@@ -86,7 +92,7 @@ const BentoItem: React.FC<{
           {icon}
         </div>
         {trend && (
-          <span className="text-xs font-medium px-2 py-1 rounded-full bg-white/50 backdrop-blur-sm">
+          <span className={`text-xs font-medium px-2 py-1 rounded-full backdrop-blur-sm ${trendBadgeClass}`}>
             {trend.direction === 'up' ? '↗' : trend.direction === 'down' ? '↘' : '→'} {trend.value}
           </span>
         )}

@@ -10,8 +10,11 @@
 /* Skip links - always visible when focused */
 .skip-link {
   position: absolute;
-  top: -40px;
-  left: 6px;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
   background: #2c8374;
   color: white;
   padding: 8px 16px;
@@ -19,11 +22,18 @@
   border-radius: 4px;
   z-index: 1000;
   font-weight: 600;
-  transition: top 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
-.skip-link:focus {
-  top: 6px;
+.skip-link:focus,
+.skip-link:active {
+  position: fixed;
+  left: 16px;
+  top: 12px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  z-index: 9999;
 }
 
 /* ===== REDUCED MOTION ===== */
@@ -103,16 +113,22 @@
   border: 0 !important;
 }
 
-/* Show on focus for skip links */
-.sr-only:focus {
-  position: static !important;
+.sr-only:focus,
+.sr-only:active {
+  position: fixed !important;
+  left: 16px !important;
+  top: 12px !important;
   width: auto !important;
   height: auto !important;
-  padding: inherit !important;
-  margin: inherit !important;
+  padding: 8px 16px !important;
+  margin: 0 !important;
   overflow: visible !important;
   clip: auto !important;
   white-space: normal !important;
+  background: #2c8374 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  z-index: 9999 !important;
 }
 
 /* ===== LIVE REGIONS ===== */
