@@ -9,9 +9,55 @@ import { logger } from '../utils/logger';
 // 🎯 Skapa AuthContext för att hantera autentisering globalt i appen
 export const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
+const readE2ETestAuthPayload = (): { token: string; user: User } | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const host = window.location.hostname;
+  const isLocalLoopback =
+    host.includes('localhost') ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host === '[::1]';
+
+  if (!isLocalLoopback) {
+    return null;
+  }
+
+  const raw = localStorage.getItem('__e2e_test_auth__');
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      token?: unknown;
+      user?: unknown;
+    };
+
+    if (typeof parsed.token !== 'string' || !parsed.user || typeof parsed.user !== 'object') {
+      return null;
+    }
+
+    const userCandidate = parsed.user as Partial<User>;
+    if (typeof userCandidate.user_id !== 'string' || typeof userCandidate.email !== 'string') {
+      return null;
+    }
+
+    return {
+      token: parsed.token,
+      user: userCandidate as User,
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-   const [token, setTokenState] = useState<string | null>(null);
-   const [user, setUserState] = useState<User | null>(null);
+   const initialE2EAuth = readE2ETestAuthPayload();
+   const [token, setTokenState] = useState<string | null>(initialE2EAuth?.token ?? null);
+   const [user, setUserState] = useState<User | null>(initialE2EAuth?.user ?? null);
    // Internal UI state for initialization and modals
    const [uiState, setUiState] = useState<{
      isInitialized: boolean;
@@ -34,6 +80,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    const hasInitializedRef = useRef(false);
    const navigate = useNavigate();
 
+  const getE2ETestAuthPayload = useCallback((): { token: string; user: User } | null => {
+    return readE2ETestAuthPayload();
+  }, []);
+
   // Restore user profile and try cookie-based refresh to recover in-memory access token.
   useEffect(() => {
     // Prevent multiple initialization attempts
@@ -45,6 +95,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const initializeAuth = async () => {
       try {
+        const e2eAuth = getE2ETestAuthPayload();
+        if (e2eAuth) {
+          setTokenState(e2eAuth.token);
+          setUserState(e2eAuth.user);
+          return;
+        }
+
         const savedUserJson = await secureStorage.getItem('user');
         const userData = savedUserJson ? JSON.parse(savedUserJson) : null;
 
@@ -75,7 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, []); // Empty deps - only run once on mount
+  }, [getE2ETestAuthPayload]); // Empty behavior but explicit dependency for hook safety
 
   // 🔑 Kontrollera om användaren är inloggad (memoized for performance)
   const isLoggedIn = useMemo(() => {
