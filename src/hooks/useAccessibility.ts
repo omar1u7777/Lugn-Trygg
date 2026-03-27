@@ -493,7 +493,6 @@ export const ariaUtils = {
 
   // Announce page changes
   announcePageChange: (pageTitle: string) => {
-    document.title = pageTitle;
     ariaUtils.setLiveRegion(`Navigerat till ${pageTitle}`, 'assertive');
   },
 };

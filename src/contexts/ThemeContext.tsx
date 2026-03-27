@@ -47,11 +47,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Persist theme preference
     localStorage.setItem('lugn-trygg-theme', isDarkMode ? 'dark' : 'light');
 
-    // Update document title for accessibility
-    document.title = isDarkMode
-      ? 'Lugn & Trygg - Mörkt läge'
-      : 'Lugn & Trygg - Ljust läge';
-
   }, [isDarkMode]);
 
   // Listen for system theme changes
