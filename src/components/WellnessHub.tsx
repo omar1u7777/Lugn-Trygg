@@ -20,6 +20,7 @@ import RelaxingSounds from './RelaxingSounds';
 import WellnessGoalsOnboarding from './Wellness/WellnessGoalsOnboarding';
 import useAuth from '../hooks/useAuth';
 import { getMoods, saveMeditationSession, getMeditationSessions, getWellnessGoals } from '../api/api';
+import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
 import { getWellnessHeroImageId } from '../config/env';
@@ -40,6 +41,8 @@ interface WellnessStats {
   streakDays: number;
 }
 
+type SessionType = MeditationOption['type'];
+
 interface MeditationOption {
   id: string;
   title: string;
@@ -50,6 +53,93 @@ interface MeditationOption {
   color?: string;
   icon?: React.ReactNode;
 }
+
+interface ActivityRecord {
+  created_at?: string;
+  createdAt?: string;
+  date?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+const toDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, '0');
+  const d = `${date.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const parseRecordDate = (record: ActivityRecord): Date | null => {
+  const candidate = [record.created_at, record.createdAt, record.date, record.timestamp]
+    .find((value) => typeof value === 'string' && value.trim().length > 0);
+
+  if (!candidate || typeof candidate !== 'string') {
+    return null;
+  }
+
+  const parsed = new Date(candidate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const calculateCurrentStreak = (records: ActivityRecord[]): number => {
+  const daySet = new Set<string>();
+
+  records.forEach((record) => {
+    const parsedDate = parseRecordDate(record);
+    if (parsedDate) {
+      daySet.add(toDateKey(parsedDate));
+    }
+  });
+
+  if (daySet.size === 0) {
+    return 0;
+  }
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  let cursor = daySet.has(toDateKey(today)) ? today : daySet.has(toDateKey(yesterday)) ? yesterday : null;
+  if (!cursor) {
+    return 0;
+  }
+
+  let streak = 0;
+  while (daySet.has(toDateKey(cursor))) {
+    streak += 1;
+    const prevDay = new Date(cursor);
+    prevDay.setDate(prevDay.getDate() - 1);
+    cursor = prevDay;
+  }
+
+  return streak;
+};
+
+export const calculateWellnessStreak = (records: ActivityRecord[]): number =>
+  calculateCurrentStreak(records);
+
+export const applySessionCompletionStats = (
+  prevStats: WellnessStats,
+  sessionType: SessionType,
+  durationMinutes: number
+): WellnessStats => {
+  const safeDuration = Math.max(1, Math.round(durationMinutes));
+
+  return {
+    ...prevStats,
+    meditationMinutes: prevStats.meditationMinutes + safeDuration,
+    breathingExercises: sessionType === 'breathing_exercise' ? prevStats.breathingExercises + 1 : prevStats.breathingExercises,
+    relaxationSessions: sessionType !== 'breathing_exercise' ? prevStats.relaxationSessions + 1 : prevStats.relaxationSessions,
+  };
+};
+
+const formatStreakLabel = (days: number): string => {
+  const normalized = Math.max(0, days);
+  if (normalized === 1) {
+    return '1 dags streak';
+  }
+  return `${normalized} dagars streak`;
+};
 
 // ----------------------------------------------------------------------
 // Components
@@ -194,10 +284,10 @@ const WellnessHub: React.FC = () => {
         else relax++;
       });
 
-      // Simple streak logic (can be refined)
-      let streak = 0;
-      // Simplified streak calculation for brevity
-      if (moods.length > 0) streak = 1;
+      const streak = calculateCurrentStreak([
+        ...(Array.isArray(moods) ? moods : []),
+        ...(Array.isArray(sessions) ? sessions : [])
+      ]);
 
       setWellnessStats({
         meditationMinutes: mins, // Real data only — no fabricated fallback
@@ -240,12 +330,13 @@ const WellnessHub: React.FC = () => {
   const completeMeditation = async () => {
     if (!selectedMeditation || !meditationStartTime || !user?.user_id) return;
     const duration = Math.round((new Date().getTime() - meditationStartTime.getTime()) / 1000 / 60); // mins
+    const safeDuration = Math.max(1, duration);
 
     // Save to backend
     try {
       await saveMeditationSession({
         type: selectedMeditation.type,
-        duration: duration || 1, // Minimum 1 min
+        duration: safeDuration,
         technique: selectedMeditation.title,
         completedCycles: 1,
         notes: 'Completed session'
@@ -253,9 +344,7 @@ const WellnessHub: React.FC = () => {
 
       // Optimistic update
       setWellnessStats(prev => ({
-        ...prev,
-        meditationMinutes: prev.meditationMinutes + duration,
-        relaxationSessions: prev.relaxationSessions + 1
+        ...applySessionCompletionStats(prev, selectedMeditation.type, safeDuration)
       }));
     } catch (e) { logger.error(e); }
 
@@ -313,6 +402,12 @@ const WellnessHub: React.FC = () => {
     { id: 'b2', title: 'Fyrkantsandning', duration: 5, type: 'breathing_exercise', description: 'För balans och lugn', icon: <StopIcon /> },
   ];
 
+  const sleepStories: MeditationOption[] = [
+    { id: 's1', title: 'Stjärnresan', duration: 12, type: 'soundscape', description: 'Lugn godnattsaga för nedvarvning', icon: <MoonIcon /> },
+    { id: 's2', title: 'Regnskogens vila', duration: 15, type: 'soundscape', description: 'Mjuk berättelse med naturljud', icon: <MusicalNoteIcon /> },
+    { id: 's3', title: 'Havets andetag', duration: 20, type: 'soundscape', description: 'Djup vila med havsrytm och guidning', icon: <CloudIcon /> },
+  ];
+
   return (
     <div className="min-h-screen pb-20 bg-[#f8fafc] dark:bg-[#0f172a]">
       {/* 1. Header / Hero Section */}
@@ -331,7 +426,7 @@ const WellnessHub: React.FC = () => {
               {/* Streak / Stats Badge */}
               <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full border border-orange-100 dark:border-orange-800/50">
                 <FireIcon className="w-5 h-5" />
-                <span className="font-semibold">{wellnessStats.streakDays} dagars streak</span>
+                <span className="font-semibold">{formatStreakLabel(wellnessStats.streakDays)}</span>
               </div>
             </div>
           </header>
@@ -366,7 +461,18 @@ const WellnessHub: React.FC = () => {
                 subtitle="Mindfulness"
                 icon={<HeartIcon />}
                 accentColor="bg-teal-500"
-              />
+              >
+                <div className="mt-4 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center justify-between rounded-lg bg-white/60 dark:bg-slate-800/60 px-3 py-2">
+                    <span>Andningspass</span>
+                    <strong>{wellnessStats.breathingExercises}</strong>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-white/60 dark:bg-slate-800/60 px-3 py-2">
+                    <span>Övriga pass</span>
+                    <strong>{wellnessStats.relaxationSessions}</strong>
+                  </div>
+                </div>
+              </BentoCard>
               <BentoCard
                 className="flex-1 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20"
                 title="Sömn & Vila"
@@ -391,14 +497,21 @@ const WellnessHub: React.FC = () => {
                   {userGoals.length > 0 ? (
                     userGoals.slice(0, 3).map((goal, i) => (
                       <div key={i} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
-                        <span className="text-sky-500">•</span>
+                        <span className="text-lg" aria-hidden="true">{getWellnessGoalIcon(goal)}</span>
                         {goal}
                       </div>
                     ))
                   ) : (
                     <div className="flex flex-col gap-2 mt-2">
                       <p className="text-xs text-slate-500">Du har inga aktiva mål än.</p>
-                      <Button size="sm" variant="ghost" className="text-sky-600 bg-sky-100 dark:bg-sky-900/30 w-full justify-start">Lägg till mål +</Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-sky-600 bg-sky-100 dark:bg-sky-900/30 w-full justify-start"
+                        onClick={() => setShowGoalsModal(true)}
+                      >
+                        Lägg till mål +
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -539,6 +652,35 @@ const WellnessHub: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Avslappnande Ljud</h2>
             <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm">
               <RelaxingSounds onClose={() => { }} embedded />
+            </div>
+          </section>
+        )}
+
+        {(activeCategory === 'all' || activeCategory === 'sleep') && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sömn & Vila</h2>
+              <Button variant="ghost" className="text-primary-600">Spela sagor</Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sleepStories.map((story) => (
+                <div
+                  key={story.id}
+                  onClick={() => startMeditation(story)}
+                  className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-lg transition-all cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      {story.icon}
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400">
+                      {story.duration} min
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">{story.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{story.description}</p>
+                </div>
+              ))}
             </div>
           </section>
         )}
