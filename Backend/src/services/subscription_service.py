@@ -33,7 +33,6 @@ class SubscriptionLimitError(Exception):
 
 class SubscriptionService:
     PREMIUM_TIERS = ("premium", "enterprise")
-    _GLOBAL_TRIAL_START_CACHE: datetime | None = None
 
     @staticmethod
     def _parse_bool_env(var_name: str, default: bool = False) -> bool:
@@ -41,43 +40,6 @@ class SubscriptionService:
         if not value:
             return default
         return value in {"1", "true", "yes", "on"}
-
-    @classmethod
-    def _global_trial_window(cls) -> tuple[datetime, datetime] | None:
-        """Return active global trial window config if enabled."""
-        if not cls._parse_bool_env("GLOBAL_FREE_PREMIUM_ENABLED", default=False):
-            return None
-
-        days_raw = os.getenv("GLOBAL_FREE_PREMIUM_DAYS", "14").strip()
-        try:
-            trial_days = max(1, int(days_raw))
-        except ValueError:
-            logger.warning("Invalid GLOBAL_FREE_PREMIUM_DAYS '%s', defaulting to 14", days_raw)
-            trial_days = 14
-
-        start_raw = os.getenv("GLOBAL_FREE_PREMIUM_START", "").strip()
-        if start_raw:
-            try:
-                start_dt = datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
-                if start_dt.tzinfo is None:
-                    start_dt = start_dt.replace(tzinfo=UTC)
-                else:
-                    start_dt = start_dt.astimezone(UTC)
-            except ValueError:
-                logger.warning("Invalid GLOBAL_FREE_PREMIUM_START '%s'; disabling global trial", start_raw)
-                return None
-        else:
-            # If no explicit start is provided, start countdown from first active process request.
-            if cls._GLOBAL_TRIAL_START_CACHE is None:
-                cls._GLOBAL_TRIAL_START_CACHE = datetime.now(UTC)
-                logger.info(
-                    "GLOBAL_FREE_PREMIUM_START missing; starting global trial from %s",
-                    cls._GLOBAL_TRIAL_START_CACHE.isoformat(),
-                )
-            start_dt = cls._GLOBAL_TRIAL_START_CACHE
-
-        end_dt = start_dt + timedelta(days=trial_days)
-        return start_dt, end_dt
 
     @staticmethod
     def _parse_datetime(value: Any) -> datetime | None:
@@ -99,22 +61,72 @@ class SubscriptionService:
         return dt.astimezone(UTC)
 
     @classmethod
-    def _new_user_trial_end(cls, user_data: dict[str, Any]) -> datetime | None:
-        """Return per-user trial end timestamp if enabled and applicable."""
-        if not cls._parse_bool_env("GLOBAL_NEW_USER_PREMIUM_ENABLED", default=True):
-            return None
-
-        days_raw = os.getenv("GLOBAL_NEW_USER_PREMIUM_DAYS", "14").strip()
+    def _account_trial_days(cls) -> int:
+        days_raw = os.getenv("ACCOUNT_BOUND_TRIAL_DAYS", "14").strip()
         try:
-            trial_days = max(1, int(days_raw))
+            return max(1, int(days_raw))
         except ValueError:
-            logger.warning("Invalid GLOBAL_NEW_USER_PREMIUM_DAYS '%s', defaulting to 14", days_raw)
-            trial_days = 14
+            logger.warning("Invalid ACCOUNT_BOUND_TRIAL_DAYS '%s', defaulting to 14", days_raw)
+            return 14
 
-        created_at = cls._parse_datetime(user_data.get("created_at"))
-        if created_at is None:
+    @classmethod
+    def _persist_account_trial(
+        cls,
+        user_id: str,
+        trial_start: datetime,
+        trial_end: datetime,
+    ) -> None:
+        if db is None:
+            return
+
+        db.collection("users").document(user_id).set(
+            {
+                "subscription": {
+                    "plan": "trial",
+                    "status": "trial",
+                    "trial_started_at": trial_start.isoformat(),
+                    "trial_ends_at": trial_end.isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+            },
+            merge=True,
+        )
+
+    @classmethod
+    def _get_account_trial_window(
+        cls,
+        user_id: str | None,
+        subscription: dict[str, Any],
+    ) -> tuple[datetime, datetime] | None:
+        if not cls._parse_bool_env("ACCOUNT_BOUND_TRIAL_ENABLED", default=True):
             return None
-        return created_at + timedelta(days=trial_days)
+
+        trial_end = cls._parse_datetime(
+            subscription.get("trial_ends_at")
+            or subscription.get("trial_end_date")
+            or subscription.get("expires_at")
+        )
+        trial_start = cls._parse_datetime(
+            subscription.get("trial_started_at")
+            or subscription.get("trial_start_date")
+            or subscription.get("start_date")
+        )
+
+        if trial_end is not None:
+            if trial_start is None:
+                trial_start = trial_end - timedelta(days=cls._account_trial_days())
+            return trial_start, trial_end
+
+        if not user_id:
+            return None
+
+        trial_start = datetime.now(UTC)
+        trial_end = trial_start + timedelta(days=cls._account_trial_days())
+        try:
+            cls._persist_account_trial(user_id, trial_start, trial_end)
+        except Exception as exc:  # pragma: no cover - logging only
+            logger.warning("Failed to persist account-bound trial for user %s: %s", user_id, exc)
+        return trial_start, trial_end
 
     @staticmethod
     def _today() -> str:
@@ -144,9 +156,14 @@ class SubscriptionService:
         return plan_key in cls.PREMIUM_TIERS
 
     @classmethod
-    def get_plan_context(cls, user_data: dict[str, Any] | None) -> dict[str, Any]:
+    def get_plan_context(
+        cls,
+        user_data: dict[str, Any] | None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
         user_data = user_data or {}
         subscription = user_data.get("subscription", {}) or {}
+        resolved_user_id = user_id or user_data.get("uid") or user_data.get("id")
         plan_key = cls._normalize_plan(subscription.get("plan"))
         plans = load_subscription_plans()
         plan_meta = plans.get(plan_key, plans.get("free", {}))
@@ -154,34 +171,24 @@ class SubscriptionService:
 
         trial_active = False
         trial_end_iso: str | None = None
-        trial_window = cls._global_trial_window()
+        trial_window = cls._get_account_trial_window(resolved_user_id, subscription)
         if plan_key == "free" and trial_window is not None:
-            start_dt, end_dt = trial_window
+            trial_start, trial_end = trial_window
             now = datetime.now(UTC)
-            if start_dt <= now < end_dt:
+            if trial_start <= now < trial_end:
                 trial_active = True
-                trial_end_iso = end_dt.isoformat()
-                plan_key = "premium"
-                status = "global_trial"
-                plan_meta = plans.get("premium", plan_meta)
-
-        # Per-user trial for newly registered users (default ON unless explicitly disabled).
-        if plan_key == "free" and not trial_active:
-            new_user_trial_end = cls._new_user_trial_end(user_data)
-            if new_user_trial_end is not None and datetime.now(UTC) < new_user_trial_end:
-                trial_active = True
-                trial_end_iso = new_user_trial_end.isoformat()
-                plan_key = "premium"
-                status = "new_user_trial"
-                plan_meta = plans.get("premium", plan_meta)
+                trial_end_iso = trial_end.isoformat()
+                plan_key = "trial"
+                status = "account_trial"
+                plan_meta = plans.get("trial", plans.get("premium", plan_meta))
 
         subscription_payload = dict(subscription)
         if trial_active:
             subscription_payload.update(
                 {
-                    "status": status,
-                    "plan": "premium",
-                    "global_trial": True,
+                    "status": "trial",
+                    "plan": "trial",
+                    "account_trial": True,
                     "trial_ends_at": trial_end_iso,
                     "expires_at": trial_end_iso,
                 }
@@ -318,7 +325,7 @@ class SubscriptionService:
 
     @classmethod
     def build_status_payload(cls, user_id: str, user_data: dict[str, Any] | None) -> dict[str, Any]:
-        context = cls.get_plan_context(user_data)
+        context = cls.get_plan_context(user_data, user_id=user_id)
         usage_raw = cls.get_daily_usage(user_id)
         # Transform usage keys to camelCase for frontend
         usage = {

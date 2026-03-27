@@ -62,24 +62,6 @@ const PLAN_LABELS: Record<SubscriptionTier, string> = {
   enterprise: 'Enterprise',
 };
 
-const FREE_TRIAL_DAYS = 14;
-const FREE_TRIAL_MS = FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
-const GLOBAL_TRIAL_STORAGE_KEY = 'lt_global_trial_until';
-
-const getTrialEndTime = (): number => {
-  if (typeof window === 'undefined') {
-    return 0;
-  }
-
-  const value = window.localStorage.getItem(GLOBAL_TRIAL_STORAGE_KEY);
-  if (!value) {
-    return 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 export const PremiumGate: React.FC<PremiumGateProps> = ({
   feature,
   children,
@@ -87,42 +69,9 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
   description,
   showBlurredPreview = false,
 }) => {
-  const { hasFeature, plan, loading } = useSubscription();
+  const { hasFeature, plan, loading, isTrial } = useSubscription();
   const navigate = useNavigate();
-  const [trialEndTime, setTrialEndTime] = React.useState<number>(() => getTrialEndTime());
-
-  const hasTrialAccess =
-    plan.tier === 'free' &&
-    trialEndTime > Date.now();
-
-  React.useEffect(() => {
-    if (plan.tier !== 'free' || typeof window === 'undefined') {
-      return;
-    }
-
-    const existingTrial = getTrialEndTime();
-    if (existingTrial > 0) {
-      setTrialEndTime(existingTrial);
-      return;
-    }
-
-    const expiresAt = Date.now() + FREE_TRIAL_MS;
-    window.localStorage.setItem(GLOBAL_TRIAL_STORAGE_KEY, String(expiresAt));
-    setTrialEndTime(expiresAt);
-  }, [plan.tier]);
-
-  React.useEffect(() => {
-    if (!hasTrialAccess) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setTrialEndTime(getTrialEndTime());
-    }, Math.max(0, trialEndTime - Date.now()));
-
-    return () => window.clearTimeout(timeout);
-  }, [hasTrialAccess, trialEndTime]);
-
+  const trialEndTime = plan.trialEndsAt ? plan.trialEndsAt.getTime() : 0;
   const remainingMs = Math.max(0, trialEndTime - Date.now());
   const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
 
@@ -136,13 +85,15 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
   }
 
   // Om användaren har tillgång, visa innehållet
-  if (hasFeature(feature) || hasTrialAccess) {
+  if (hasFeature(feature)) {
     return (
       <>
-        {hasTrialAccess && (
+        {isTrial && (
           <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-medium">
-              Gratisperiod aktiv: {remainingDays} dagar kvar av dina {FREE_TRIAL_DAYS} fria dagar.
+              {remainingDays > 0
+                ? `Gratisperiod aktiv: ${remainingDays} dagar kvar.`
+                : 'Gratisperiod aktiv.'}
             </p>
           </div>
         )}
@@ -185,11 +136,9 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
             {description || defaultDescription}
           </p>
 
-          {plan.tier === 'free' && trialEndTime > 0 && (
-            <p className="text-sm text-amber-700 dark:text-amber-300 mb-6">
-              Din kostnadsfria period på {FREE_TRIAL_DAYS} dagar har tagit slut.
-            </p>
-          )}
+          <p className="text-sm text-amber-700 dark:text-amber-300 mb-6">
+            Din kostnadsfria period har tagit slut.
+          </p>
 
           {/* Premium-fördelar */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 text-left">

@@ -120,7 +120,7 @@ def chat_with_ai():
             logger.warning("Failed to fetch user for chat usage tracking: %s", exc)
             user_data = {}
 
-        plan_context = SubscriptionService.get_plan_context(user_data)
+        plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
         try:
             SubscriptionService.consume_quota(
                 user_id,
