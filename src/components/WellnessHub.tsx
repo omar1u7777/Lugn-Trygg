@@ -423,6 +423,9 @@ const WellnessHub: React.FC = () => {
               <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
                 Hitta lugnet, ett andetag i taget.
               </p>
+              <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+                Här utforskar du hela biblioteket. För personliga förslag, gå till Rekommendationer.
+              </p>
             </div>
             <div className="hidden sm:block">
               {/* Streak / Stats Badge */}
