@@ -117,7 +117,7 @@ const Sidebar: React.FC = memo(() => {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 min-h-0 p-4 overflow-y-auto">
         <div className="space-y-1">
           {navItemsRendered}
         </div>
