@@ -132,6 +132,10 @@
   --color-neutral-700: #e2e8f0;
   --color-neutral-800: #f1f5f9;
   --color-neutral-900: #f8fafc;
+  
+  --gradient-background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  --card-bg: rgba(30, 41, 59, 0.8);
+  --card-border: rgba(255, 255, 255, 0.1);
 }
 
 /* ===== TYPOGRAPHY SYSTEM ===== */
@@ -544,8 +548,8 @@
 }
 
 .world-class-dashboard-header {
-  background: #fff7f0;
-  color: #2f2a24;
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-800);
   padding: var(--space-12) var(--space-6);
   text-align: left;
   position: relative;
@@ -577,12 +581,12 @@
 }
 
 .world-class-dashboard-card {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--card-bg, rgba(255, 255, 255, 0.8));
   backdrop-filter: blur(8px);
   border-radius: var(--radius-2xl);
   padding: var(--space-6);
   box-shadow: var(--shadow-card);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.6));
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
