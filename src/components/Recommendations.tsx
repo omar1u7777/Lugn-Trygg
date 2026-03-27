@@ -181,7 +181,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       }
     }
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!compact);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -423,8 +423,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     lastRecommendationsSignatureRef.current = recommendationSignature;
     setRecommendations(filteredRecommendations);
-    screenReader(`${filteredRecommendations.length} personaliserade rekommendationer laddade`, 'polite');
-  }, [announceToScreenReader]);
+    if (!compact) {
+      screenReader(`${filteredRecommendations.length} personaliserade rekommendationer laddade`, 'polite');
+    }
+  }, [announceToScreenReader, compact]);
 
   // Fetch wellness goals on mount
   useEffect(() => {
@@ -433,6 +435,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       userId: user?.user_id,
       isAuthenticated: !!user?.user_id
     });
+
+    // In compact dashboard mode, rely on provided props to avoid unnecessary refresh/flicker.
+    if (compact) {
+      if (wellnessGoals.length > 0) {
+        setFetchedWellnessGoals(wellnessGoals);
+      }
+      setLoading(false);
+      return;
+    }
 
     const fetchWellnessGoalsData = async () => {
       logger.debug('🔄 Starting wellness goals fetch...');
@@ -465,7 +476,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
 
     fetchWellnessGoalsData();
-  }, [user]);
+  }, [compact, user?.user_id, wellnessGoals]);
 
   // Track page view only once on mount
   useEffect(() => {
@@ -2273,12 +2284,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           const userAnswer = quizAnswers[index];
                           const isCorrect = userAnswer === question.correct;
                           return (
-                            <div key={question.question} className={`p - 3 rounded - lg ${isCorrect
+                            <div key={question.question} className={`p-3 rounded-lg ${isCorrect
                               ? 'bg-green-100 dark:bg-green-900/30'
                               : 'bg-red-100 dark:bg-red-900/30'
-                              } `}>
+                              }`}>
                               <div className="flex items-start gap-3">
-                                <span className={`text - lg ${isCorrect ? 'text-green-600' : 'text-red-600'} `}>
+                                <span className={`text-lg ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                                   {isCorrect ? '✅' : '❌'}
                                 </span>
                                 <div className="flex-1">
@@ -3123,8 +3134,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       onClick={() => !isMeditationActive && startMeditationSession(selectedRecommendation.duration || 10)}
                       className="w-40 h-40 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center mb-8 relative shadow-inner group transition-all"
                     >
-                      <div className={`absolute inset - 0 rounded - full border - 4 border - purple - 500 / 20 ${!isMeditationPaused && isMeditationActive ? 'animate-ping' : ''} `} />
-                      <span className={`text - 6xl transition - transform ${!isMeditationPaused && isMeditationActive ? 'scale-110' : 'group-hover:scale-110'} `} role="img" aria-label="meditation">🧘</span>
+                      <div className={`absolute inset-0 rounded-full border-4 border-purple-500/20 ${!isMeditationPaused && isMeditationActive ? 'animate-ping' : ''}`} />
+                      <span className={`text-6xl transition-transform ${!isMeditationPaused && isMeditationActive ? 'scale-110' : 'group-hover:scale-110'}`} role="img" aria-label="meditation">🧘</span>
                     </button>
 
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
