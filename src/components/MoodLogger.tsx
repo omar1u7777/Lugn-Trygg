@@ -256,15 +256,17 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         })
         .filter((mood, index, arr) => {
           // Prevent duplicate cards when backend returns repeated records.
+          // Inkluderar deduplicering baserat på tid (inom 5 min)
           return (
             index ===
-            arr.findIndex((candidate) =>
-              candidate.id
-                ? candidate.id === mood.id
-                : candidate.score === mood.score &&
-                  candidate.mood === mood.mood &&
-                  candidate.timestamp.getTime() === mood.timestamp.getTime()
-            )
+            arr.findIndex((candidate) => {
+              if (candidate.id && mood.id && candidate.id === mood.id) return true;
+              
+              const timeDiffMs = Math.abs(candidate.timestamp.getTime() - mood.timestamp.getTime());
+              const isSameMood = candidate.score === mood.score && candidate.mood === mood.mood;
+              
+              return isSameMood && timeDiffMs < 5 * 60 * 1000;
+            })
           );
         })
         .sort((a: RecentMood, b: RecentMood) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -301,15 +303,8 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         </div>
       )}
 
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-[#2f2a24] mb-4">
-          Hur känns det idag?
-        </h1>
-        <p className="text-[#6d645d]">
-          Välj ditt humör och lägg till en anteckning om du vill
-        </p>
-      </div>
-
+      {/* The main heading is removed since WorldClassDashboard handles it, reducing duplicate text */}
+      
       {/* Usage Limit Banner för planer med gränser */}
       {plan.limits.moodLogsPerDay !== -1 && (
         <div className="mb-6">

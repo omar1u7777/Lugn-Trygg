@@ -52,7 +52,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       <div
         aria-live="polite"
         aria-atomic="true"
-        className="sr-only"
+        className="sr-only absolute w-[1px] h-[1px] p-0 -m-[1px] overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
         id="sr-status"
       />
     </div>
