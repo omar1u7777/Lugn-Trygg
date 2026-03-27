@@ -164,15 +164,28 @@ const LoginForm = () => {
     >
         <div className="text-center mb-6 sm:mb-8">
           <Typography
+            variant="caption"
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs uppercase tracking-[0.14em] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 mb-3"
+          >
+            Säker inloggning
+          </Typography>
+          <Typography
             id="login-title"
             variant="h4"
-            className="p-1.5 flex justify-center items-center gap-1.5 font-bold text-xl sm:text-2xl md:text-3xl text-[#2f2a24] dark:text-gray-100"
+            className="p-1.5 flex justify-center items-center gap-1.5 font-bold text-2xl sm:text-3xl text-slate-900 dark:text-gray-100"
             color="text.primary"
           >
             <span className="text-2xl" aria-hidden="true">
               🔐
             </span>
             Logga in
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300"
+          >
+            Välkommen tillbaka. Logga in för att fortsätta där du slutade.
           </Typography>
         </div>
 
@@ -218,7 +231,7 @@ const LoginForm = () => {
             <div>
               <label
                 htmlFor="password"
-                className="flex items-center text-sm font-medium text-gray-900 dark:text-gray-100"
+                className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-gray-100"
               >
                 <span className="text-primary" aria-hidden="true">
                   🔒
@@ -264,7 +277,7 @@ const LoginForm = () => {
               fullWidth
               loading={loading}
               disabled={loading}
-              className="min-h-[44px] sm:min-h-[48px]"
+              className="min-h-[46px] sm:min-h-[50px] font-semibold"
             >
               <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
               Logga in
@@ -284,7 +297,7 @@ const LoginForm = () => {
           fullWidth
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="p-3 sm:p-3.5 flex justify-center items-center gap-2 min-h-[44px] sm:min-h-[48px]"
+          className="p-3 sm:p-3.5 flex justify-center items-center gap-2 min-h-[46px] sm:min-h-[50px] border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-100"
         >
           <svg style={{ width: "20px", height: "20px" }} viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -300,7 +313,7 @@ const LoginForm = () => {
             Har du inget konto?{" "}
             <Link
               to="/register"
-              className="text-primary-600 dark:text-primary-400 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              className="text-primary-700 dark:text-primary-300 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
               aria-label="Gå till registreringssidan"
             >
               Registrera dig här
@@ -310,7 +323,7 @@ const LoginForm = () => {
             type="button"
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
-            className="text-sm sm:text-base font-semibold text-primary-600 dark:text-primary-400 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
+            className="text-sm sm:text-base font-semibold text-primary-700 dark:text-primary-300 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
             aria-label="Öppna glömt lösenord-dialog"
             aria-haspopup="dialog"
           >
