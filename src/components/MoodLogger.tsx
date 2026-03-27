@@ -55,6 +55,19 @@ const getMoodLabelFromScore = (score: number): string => {
   return 'Ledsen';
 };
 
+const getMoodScoreFromLabel = (label: string): number | null => {
+  const normalized = label.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized === 'super') return 10;
+  if (normalized === 'glad') return 8;
+  if (normalized === 'bra') return 7;
+  if (normalized === 'neutral') return 5;
+  if (normalized === 'orolig') return 3;
+  if (normalized === 'ledsen') return 2;
+  return null;
+};
+
 const normalizeMoodLabel = (rawLabel: string, score: number): string => {
   const trimmed = rawLabel.trim();
   if (!trimmed) {
@@ -283,15 +296,21 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           // This fixes legacy moods that were stored with 'neutral' regardless of score
 
           // Get score - handle different possible field names
-          let score = 0;
-          if (typeof mood.score === 'number') {
+          let score: number | null = null;
+          if (typeof mood.score === 'number' && mood.score >= 1 && mood.score <= 10) {
             score = mood.score;
           } else if (typeof mood.sentiment_score === 'number') {
             // Convert sentiment score (-1 to 1) to 1-10 scale
             score = Math.round((mood.sentiment_score + 1) * 4.5 + 1);
           }
-          // Clamp to 0-10 range
-          score = Math.max(0, Math.min(10, score));
+
+          // Legacy data can contain score=0; infer from label when possible.
+          if (score === null || score === 0) {
+            score = getMoodScoreFromLabel(moodText) ?? score;
+          }
+
+          // Ensure UI always shows a valid 1-10 score.
+          score = Math.max(1, Math.min(10, score ?? 5));
 
           moodText = normalizeMoodLabel(moodText, score);
 
@@ -455,7 +474,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             />
             <div className="mt-2 flex items-center justify-between gap-3 text-sm">
               <span className={`font-medium ${hasMeaningfulNote ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6d645d] dark:text-gray-400'}`}>
-                {hasMeaningfulNote ? 'Reflektion tillagd' : 'Tips: 15+ tecken ger bättre mönsteranalys'}
+                {hasMeaningfulNote ? 'Reflektion tillagd' : 'Tips: 15+ tecken ger bättre personlig uppföljning'}
               </span>
               <span className="text-[#6d645d] dark:text-gray-400 font-medium">
                 {note.length}/200 tecken
@@ -510,12 +529,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               recentMoods.map((mood, index) => {
                 // Determine emoji based on score (1-10 scale)
                 const getEmoji = (score: number) => {
-                  if (score >= 9) return '🤩';  // Super (9-10)
-                  if (score >= 7) return '😊';  // Glad (7-8)
-                  if (score >= 5) return '🙂';  // Bra (5-6)
-                  if (score >= 4) return '😐';  // Neutral (4)
-                  if (score >= 2) return '😟';  // Orolig (2-3)
-                  return '😢';                   // Ledsen (0-1)
+                  if (score >= 10) return '🤩'; // Super (10)
+                  if (score >= 8) return '😊';  // Glad (8-9)
+                  if (score >= 7) return '🙂';  // Bra (7)
+                  if (score >= 5) return '😐';  // Neutral (5-6)
+                  if (score >= 3) return '😟';  // Orolig (3-4)
+                  return '😢';                  // Ledsen (1-2)
                 };
                 
                 return (
