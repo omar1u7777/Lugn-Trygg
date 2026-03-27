@@ -78,7 +78,7 @@ const Sidebar: React.FC = memo(() => {
           key={item.path}
           to={item.path}
           className={`
-            flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
+            flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
             group relative
             ${active
               ? 'bg-[#2c8374] text-white shadow-md shadow-[#2c8374]/20'
@@ -88,10 +88,10 @@ const Sidebar: React.FC = memo(() => {
           aria-current={active ? 'page' : undefined}
         >
           <Icon className="w-5 h-5 flex-shrink-0" />
-          <span className="flex-1">{item.label}</span>
+          <span className="flex-1 min-w-0 truncate">{item.label}</span>
 
           {showPremiumBadge && (
-            <span className="flex items-center gap-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="flex shrink-0 items-center gap-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
               <SparklesIcon className="w-3 h-3" />
             </span>
           )}
@@ -102,7 +102,7 @@ const Sidebar: React.FC = memo(() => {
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-64 fixed left-0 top-0 h-screen bg-[#fff7f0] dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-[100] transition-colors duration-300 overflow-hidden"
+      className="hidden lg:flex flex-col w-64 fixed left-0 top-0 h-screen bg-[#fff7f0] dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-[100] transition-colors duration-300 overflow-hidden overflow-x-hidden"
       aria-label="Huvudnavigation"
     >
       {/* Logo Section */}
@@ -119,7 +119,7 @@ const Sidebar: React.FC = memo(() => {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 min-h-0 p-4 overflow-y-auto">
+      <nav className="flex-1 min-h-0 p-4 overflow-y-auto overflow-x-hidden">
         <div className="space-y-1">
           {navItemsRendered}
         </div>
@@ -141,7 +141,7 @@ const Sidebar: React.FC = memo(() => {
               key={item.path}
               to={item.path}
               className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
+                flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
                 ${active
                   ? 'bg-[#2c8374] text-white shadow-md'
                   : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800'
@@ -150,7 +150,7 @@ const Sidebar: React.FC = memo(() => {
               aria-current={active ? 'page' : undefined}
             >
               <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              <span className="min-w-0 truncate">{item.label}</span>
             </Link>
           );
         })}

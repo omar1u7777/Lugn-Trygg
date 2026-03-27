@@ -1124,6 +1124,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   };
 
+  const getCompactCtaLabel = (type: Recommendation['type']) => {
+    switch (type) {
+      case 'meditation':
+        return 'Visa meditation';
+      case 'exercise':
+        return 'Visa övning';
+      case 'article':
+        return 'Visa artikel';
+      case 'challenge':
+        return 'Visa utmaning';
+      case 'insight':
+        return 'Visa insikt';
+      default:
+        return 'Visa rekommendation';
+    }
+  };
+
   // Compact mode for dashboard - just show featured recommendations
   // Compact mode for dashboard - just show featured recommendations
   if (compact) {
@@ -1193,14 +1210,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     className="flex items-center gap-2 font-medium text-primary-600 dark:text-primary-400 hover:underline group-hover:translate-x-1 transition-transform"
                     aria-label={
                       compact
-                        ? 'Öppna rekommendationer'
+                        ? `${getCompactCtaLabel(rec.type)} i rekommendationer`
                         : rec.type === 'meditation'
                           ? 'Starta passet'
                           : 'Läs mer'
                     }
                   >
                     {compact
-                      ? 'Öppna rekommendationer'
+                      ? getCompactCtaLabel(rec.type)
                       : rec.type === 'meditation'
                         ? 'Starta passet'
                         : 'Läs mer'}
@@ -1237,8 +1254,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             <p className="text-lg opacity-90 mb-4">
               Innehåll anpassat efter dina behov och framsteg
             </p>
+            <p className="text-sm opacity-90 max-w-2xl">
+              Här ser du personliga förslag baserade på dina mål. I Välmåendebiblioteket hittar du hela utbudet av övningar och innehåll.
+            </p>
             {user && (
-              <div className="flex items-center gap-4 text-sm">
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 <span className="bg-white/20 px-3 py-1 rounded-full">
                   🧘 {fetchedWellnessGoals.length} Wellness-mål
                 </span>

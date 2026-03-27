@@ -20,6 +20,7 @@ const ProtectedAppShell: React.FC = () => {
   const location = useLocation();
   const { isLoggedIn, isInitialized } = useAuth();
   const isDashboardRoute = location.pathname === '/dashboard';
+  const isContentHeavyRoute = location.pathname.startsWith('/recommendations') || location.pathname.startsWith('/wellness');
 
   // Show loading state while authentication is being checked
   if (!isInitialized) {
@@ -64,7 +65,7 @@ const ProtectedAppShell: React.FC = () => {
           className="pt-20 pb-24 lg:pb-8 lg:ml-64 px-4 sm:px-6 lg:px-8 focus:outline-none"
           dir={i18n.dir()}
         >
-          <div className="max-w-6xl mx-auto">
+          <div className={`${isContentHeavyRoute ? 'max-w-7xl' : 'max-w-6xl'} mx-auto`}>
             <Suspense fallback={suspenseFallback}>
               <Outlet />
             </Suspense>

@@ -35,7 +35,7 @@ const Navigation: React.FC = () => {
       id="navigation"
       role="navigation"
       aria-label="Huvudnavigation"
-      className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-6 py-3 w-full fixed top-0 left-0 lg:left-64 lg:w-[calc(100%-16rem)] z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
+      className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-2 sm:px-3 md:px-4 lg:px-5 py-3 w-full fixed top-0 left-0 lg:left-64 lg:w-[calc(100%-16rem)] z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
     >
       {/* Logo */}
       <Link
@@ -49,14 +49,14 @@ const Navigation: React.FC = () => {
       </Link>
 
       {/* Navigation Links */}
-      <div className="flex items-center gap-1 md:gap-2">
+      <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2">
         {isLoggedIn ? (
           <>
             {/* Separator */}
-            <div className="hidden md:block w-px h-7 bg-[#e8dcd0] dark:bg-slate-700 mx-1"></div>
+            <div className="hidden lg:block w-px h-7 bg-[#e8dcd0] dark:bg-slate-700 mx-1"></div>
 
             {/* Användarnamn och Premium-badge - endast stora skärmar */}
-            <div className="hidden xl:flex items-center gap-2 px-2">
+            <div className="hidden 2xl:flex items-center gap-2 px-1">
               {isPremium && (
                 <span className="flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
                   <SparklesIcon className="w-3 h-3" />
@@ -72,7 +72,7 @@ const Navigation: React.FC = () => {
             {!isPremium && !subscriptionLoading && (
               <Link
                 to="/upgrade"
-                className={`hidden lg:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm shadow-md hover:shadow-lg min-h-[44px] ${focusRing}`}
+                className={`hidden xl:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white px-3 py-2 rounded-xl font-medium transition-all duration-200 text-sm shadow-md hover:shadow-lg min-h-[44px] ${focusRing}`}
                 aria-label="Uppgradera till premium"
               >
                 <SparklesIcon className="w-4 h-4" />
