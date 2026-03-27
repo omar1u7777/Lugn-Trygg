@@ -7,9 +7,22 @@ const AuthEntryLayout: React.FC = () => {
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.16),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.12),_transparent_50%),linear-gradient(135deg,#f8fafc_0%,#f0f9ff_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.14),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(74,222,128,0.10),_transparent_52%),linear-gradient(135deg,#0f172a_0%,#0b1220_45%,#020617_100%)] flex items-center justify-center px-3 sm:px-4 py-6 sm:py-8">
       <Container maxWidth="xl" centered>
-        <main className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-7 items-center">
+        <main className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-7 items-start lg:items-center">
+          {/* Compact Intro (Mobile/Tablet) */}
+          <section className="lg:hidden order-1 rounded-2xl bg-white/85 dark:bg-slate-900/75 backdrop-blur-xl border border-white/50 dark:border-slate-700/70 shadow-[0_16px_45px_-26px_rgba(15,23,42,0.45)] p-4 sm:p-5">
+            <p className="inline-flex items-center rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-primary-700 dark:text-primary-200 bg-primary-100/90 dark:bg-primary-900/40 mb-2">
+              Lugn &amp; Trygg
+            </p>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 leading-snug">
+              Din mentala hälso-kompanjon i vardagen
+            </h1>
+            <p className="mt-2 text-sm sm:text-base text-slate-700 dark:text-slate-300">
+              Logga in för att fortsätta med humörlogg, AI-stöd och personliga insikter.
+            </p>
+          </section>
+
           {/* Info/Branding Section */}
-          <section className="hidden lg:flex flex-col justify-between h-full rounded-3xl bg-white/85 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25)] dark:shadow-[0_24px_80px_-30px_rgba(15,23,42,0.65)] p-5 md:p-8 transition-all">
+          <section className="hidden lg:flex order-1 flex-col justify-between h-full rounded-3xl bg-white/85 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25)] dark:shadow-[0_24px_80px_-30px_rgba(15,23,42,0.65)] p-5 md:p-8 transition-all">
             <header>
               <p className="inline-flex items-center rounded-full px-3 py-1 text-xs md:text-sm uppercase tracking-[0.16em] text-primary-700 dark:text-primary-200 bg-primary-100/90 dark:bg-primary-900/40 mb-3 md:mb-4">
                 Lugn &amp; Trygg
@@ -37,7 +50,7 @@ const AuthEntryLayout: React.FC = () => {
             </ul>
           </section>
           {/* Login Form Section */}
-          <section className="w-full bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-[0_22px_65px_-28px_rgba(15,23,42,0.45)] border border-slate-200/80 dark:border-slate-700/70 p-4 sm:p-6 md:p-8 transition-all">
+          <section className="order-2 w-full bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-[0_22px_65px_-28px_rgba(15,23,42,0.45)] border border-slate-200/80 dark:border-slate-700/70 p-4 sm:p-6 md:p-8 transition-all">
             <Outlet />
           </section>
         </main>
