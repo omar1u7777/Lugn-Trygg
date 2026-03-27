@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   SparklesIcon,
   MusicalNoteIcon,
@@ -225,6 +226,7 @@ const BentoCard: React.FC<{
 
 const WellnessHub: React.FC = () => {
   useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<'all' | 'meditation' | 'breathing' | 'sounds' | 'sleep'>('all');
 
@@ -416,7 +418,7 @@ const WellnessHub: React.FC = () => {
           <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
-                Wellness Library
+                Välmåendebibliotek
               </h1>
               <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
                 Hitta lugnet, ett andetag i taget.
@@ -529,6 +531,13 @@ const WellnessHub: React.FC = () => {
           <CategoryPill active={activeCategory === 'breathing'} label="Andning" icon={<CloudIcon className="w-4 h-4" />} onClick={() => setActiveCategory('breathing')} />
           <CategoryPill active={activeCategory === 'sounds'} label="Ljudlandskap" icon={<MusicalNoteIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sounds')} />
           <CategoryPill active={activeCategory === 'sleep'} label="Sömn" icon={<MoonIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sleep')} />
+          <button
+            onClick={() => navigate('/recommendations')}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105 bg-primary-50 dark:bg-slate-800 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-slate-700"
+          >
+            <SparklesIcon className="w-4 h-4" />
+            Rekommendationer
+          </button>
         </div>
       </div>
 
