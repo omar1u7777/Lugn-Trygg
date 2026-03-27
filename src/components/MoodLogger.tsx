@@ -16,6 +16,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { Card } from './ui/tailwind';
 import { UsageLimitBanner } from './UsageLimitBanner';
 import { logger } from '../utils/logger';
+import { getMoodLabel, getMoodScoreFromLabel } from '../features/mood/utils';
 
 
 interface MoodLoggerProps {
@@ -60,32 +61,10 @@ interface ApiErrorLike {
 const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
 const VALID_MOOD_LABELS = new Set(['ledsen', 'orolig', 'neutral', 'bra', 'glad', 'super']);
 
-const getMoodLabelFromScore = (score: number): string => {
-  if (score >= 9) return 'Super';
-  if (score >= 7) return 'Glad';
-  if (score >= 5) return 'Bra';
-  if (score >= 4) return 'Neutral';
-  if (score >= 2) return 'Orolig';
-  return 'Ledsen';
-};
-
-const getMoodScoreFromLabel = (label: string): number | null => {
-  const normalized = label.trim().toLowerCase();
-  if (!normalized) return null;
-
-  if (normalized === 'super') return 10;
-  if (normalized === 'glad') return 8;
-  if (normalized === 'bra') return 7;
-  if (normalized === 'neutral') return 5;
-  if (normalized === 'orolig') return 3;
-  if (normalized === 'ledsen') return 2;
-  return null;
-};
-
 const normalizeMoodLabel = (rawLabel: string, score: number): string => {
   const trimmed = rawLabel.trim();
   if (!trimmed) {
-    return getMoodLabelFromScore(score);
+    return getMoodLabel(score);
   }
 
   const normalized = trimmed.toLowerCase();
@@ -94,7 +73,7 @@ const normalizeMoodLabel = (rawLabel: string, score: number): string => {
   // If backend text looks like a note/sentence instead of a mood word,
   // fall back to deterministic label from score.
   if (!VALID_MOOD_LABELS.has(normalized) || looksLikeSentence) {
-    return getMoodLabelFromScore(score);
+    return getMoodLabel(score);
   }
 
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
@@ -415,7 +394,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           score = Math.max(1, Math.min(10, score ?? 5));
 
           // Use score as source of truth so label/emoji/score stay consistent in history cards.
-          moodText = getMoodLabelFromScore(score);
+          moodText = getMoodLabel(score);
 
           return {
             id: mood.id || mood.docId,

@@ -6,6 +6,25 @@
 
 import { MoodEntry, MoodTrend, MOOD_COLORS, MOOD_SCORE_RANGES } from './types';
 
+export interface CanonicalMoodBand {
+  min: number;
+  label: string;
+  emoji: string;
+}
+
+export const CANONICAL_MOOD_SCALE: CanonicalMoodBand[] = [
+  { min: 9, label: 'Super', emoji: '🤩' },
+  { min: 8, label: 'Glad', emoji: '😊' },
+  { min: 7, label: 'Bra', emoji: '🙂' },
+  { min: 5, label: 'Neutral', emoji: '😐' },
+  { min: 3, label: 'Orolig', emoji: '😟' },
+  { min: 0, label: 'Ledsen', emoji: '😢' },
+];
+
+export function getCanonicalMoodBand(score: number): CanonicalMoodBand {
+  return CANONICAL_MOOD_SCALE.find((band) => score >= band.min) || CANONICAL_MOOD_SCALE[CANONICAL_MOOD_SCALE.length - 1];
+}
+
 /**
  * Calculate mood trend over time
  */
@@ -45,30 +64,31 @@ export function getMoodColor(score: number): string {
  * Get emoji for a mood score
  */
 export function getMoodEmoji(score: number): string {
-  if (score >= 9) return '🤩';
-  if (score >= 8) return '😊';
-  if (score >= 7) return '🙂';
-  if (score >= 6) return '😐';
-  if (score >= 5) return '😕';
-  if (score >= 4) return '😢';
-  if (score >= 3) return '😰';
-  if (score >= 2) return '😔';
-  return '😞';
+  return getCanonicalMoodBand(score).emoji;
 }
 
 /**
  * Get mood label in Swedish
  */
 export function getMoodLabel(score: number): string {
-  if (score >= 9) return 'Extatisk';
-  if (score >= 8) return 'Glad';
-  if (score >= 7) return 'Nöjd';
-  if (score >= 6) return 'Okej';
-  if (score >= 5) return 'Neutral';
-  if (score >= 4) return 'Ledsen';
-  if (score >= 3) return 'Orolig';
-  if (score >= 2) return 'Stressad';
-  return 'Mycket låg';
+  return getCanonicalMoodBand(score).label;
+}
+
+/**
+ * Map normalized Swedish label to canonical mood score.
+ */
+export function getMoodScoreFromLabel(label: string): number | null {
+  const normalized = label.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized === 'super') return 10;
+  if (normalized === 'glad') return 8;
+  if (normalized === 'bra') return 7;
+  if (normalized === 'neutral') return 5;
+  if (normalized === 'orolig') return 3;
+  if (normalized === 'ledsen') return 2;
+
+  return null;
 }
 
 /**
