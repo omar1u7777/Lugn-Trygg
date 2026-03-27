@@ -62,6 +62,24 @@ const PLAN_LABELS: Record<SubscriptionTier, string> = {
   enterprise: 'Enterprise',
 };
 
+const FREE_PREVIEW_MINUTES = 15;
+
+const getPreviewStorageKey = (feature: FeatureName) => `lt_preview_${feature}_until`;
+
+const getPreviewEndTime = (feature: FeatureName): number => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  const value = window.localStorage.getItem(getPreviewStorageKey(feature));
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export const PremiumGate: React.FC<PremiumGateProps> = ({
   feature,
   children,
@@ -71,6 +89,35 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 }) => {
   const { hasFeature, plan, loading } = useSubscription();
   const navigate = useNavigate();
+  const [previewEndTime, setPreviewEndTime] = React.useState<number>(() => getPreviewEndTime(feature));
+
+  const hasPreviewAccess =
+    plan.tier === 'free' &&
+    previewEndTime > Date.now();
+
+  React.useEffect(() => {
+    setPreviewEndTime(getPreviewEndTime(feature));
+  }, [feature]);
+
+  React.useEffect(() => {
+    if (!hasPreviewAccess) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setPreviewEndTime(getPreviewEndTime(feature));
+    }, Math.max(0, previewEndTime - Date.now()));
+
+    return () => window.clearTimeout(timeout);
+  }, [feature, hasPreviewAccess, previewEndTime]);
+
+  const handleStartFreePreview = () => {
+    const expiresAt = Date.now() + FREE_PREVIEW_MINUTES * 60 * 1000;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(getPreviewStorageKey(feature), String(expiresAt));
+    }
+    setPreviewEndTime(expiresAt);
+  };
 
   // Visa laddningsindikator medan vi kollar prenumeration
   if (loading) {
@@ -82,8 +129,19 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
   }
 
   // Om användaren har tillgång, visa innehållet
-  if (hasFeature(feature)) {
-    return <>{children}</>;
+  if (hasFeature(feature) || hasPreviewAccess) {
+    return (
+      <>
+        {hasPreviewAccess && (
+          <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            <p className="text-sm font-medium">
+              Testläge aktivt i {FREE_PREVIEW_MINUTES} minuter. Uppgradera för full och obegränsad tillgång.
+            </p>
+          </div>
+        )}
+        {children}
+      </>
+    );
   }
 
   // Standardmeddelanden
@@ -153,6 +211,14 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 
           {/* Knappar */}
           <div className="space-y-3">
+            {plan.tier === 'free' && (
+              <button
+                onClick={handleStartFreePreview}
+                className="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-200 font-semibold py-3 px-6 rounded-xl transition-all duration-200"
+              >
+                Testa gratis i {FREE_PREVIEW_MINUTES} min
+              </button>
+            )}
             <button
               onClick={() => navigate('/upgrade')}
               className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
