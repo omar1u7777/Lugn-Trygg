@@ -148,6 +148,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   });
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | undefined>(undefined);
 
+  const scrollToMoodCheckIn = useCallback(() => {
+    const moodSection = document.getElementById('mood-check-in-section');
+    if (!moodSection) {
+      return;
+    }
+
+    moodSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   const handleCloseSnackbar = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
@@ -564,11 +573,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         userName={extractDisplayName(user?.email || '') || 'vän'}
         isLoading={loading}
         lastUpdatedAt={lastUpdatedAt}
+        onFocusAction={scrollToMoodCheckIn}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Prominent Mood Check Section */}
-        <Card className="mb-6 border-l-4 border-l-secondary-500">
+        <Card id="mood-check-in-section" className="mb-6 border-l-4 border-l-secondary-500">
           <div className="p-4 sm:p-6">
             <div className="text-center mb-4">
               <span className="text-4xl mb-2 block">🧘‍♀️</span>
