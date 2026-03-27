@@ -35,7 +35,7 @@ const Navigation: React.FC = () => {
       id="navigation"
       role="navigation"
       aria-label="Huvudnavigation"
-      className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-6 py-3 w-full fixed top-0 left-0 z-[100] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
+      className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-6 py-3 w-full fixed top-0 left-0 lg:left-64 lg:w-[calc(100%-16rem)] z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
     >
       {/* Logo */}
       <Link
