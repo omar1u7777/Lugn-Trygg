@@ -73,6 +73,19 @@ const normalizeMoodLabel = (rawLabel: string, score: number): string => {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 };
 
+const getReflectionPromptByScore = (score: number): string => {
+  if (score <= 3) {
+    return 'Vad skulle kännas mest hjälpsamt för dig de kommande 60 minuterna?';
+  }
+  if (score <= 5) {
+    return 'Vad har påverkat ditt mående mest hittills idag?';
+  }
+  if (score <= 8) {
+    return 'Vad bidrog till att du känner dig okej eller bra just nu?';
+  }
+  return 'Vad vill du ta med dig från den här positiva känslan resten av dagen?';
+};
+
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
@@ -104,6 +117,20 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
     { emoji: '😊', label: 'Glad', value: 8, description: 'Känner mig glad och positiv', bgColor: 'bg-[#a8e6cf]/20', borderColor: 'border-[#a8e6cf]', selectedBg: 'bg-[#a8e6cf]/30' },
     { emoji: '🤩', label: 'Super', value: 10, description: 'Känner mig fantastisk!', bgColor: 'bg-[#ffd8a8]/20', borderColor: 'border-[#fbbf24]', selectedBg: 'bg-[#fbbf24]/20' },
   ];
+
+  const selectedMoodMeta = selectedMood !== null ? moods.find((m) => m.value === selectedMood) : null;
+  const trimmedNote = note.trim();
+  const hasMeaningfulNote = trimmedNote.length >= 15;
+  const hasSelectedMood = selectedMood !== null;
+
+  // Progress: mood selection is required (70%), note is optional but adds qualitative depth (remaining 30%).
+  const checkInProgress = hasSelectedMood ? (hasMeaningfulNote ? 100 : 70) : 0;
+  const checkInProgressLabel =
+    checkInProgress === 0
+      ? 'Välj ett humör för att starta check-in'
+      : checkInProgress < 100
+        ? 'Du kan logga nu, men en kort anteckning ger bättre insikter över tid'
+        : 'Check-in komplett: humör + reflektion redo att loggas';
 
   const handleMoodSelect = (mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
@@ -342,6 +369,26 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       {/* Mood Selection */}
       <Card className="mb-6">
         <div className="p-4 sm:p-6">
+          <div className="mb-5 rounded-xl border border-[#d6efe9] dark:border-primary-800 bg-[#f4fbf9] dark:bg-primary-900/20 p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-sm font-semibold text-[#1e5f54] dark:text-primary-300">
+                Check-in progress
+              </p>
+              <span className="text-sm font-semibold text-[#1e5f54] dark:text-primary-300" aria-live="polite">
+                {checkInProgress}%
+              </span>
+            </div>
+            <div className="w-full h-2 bg-[#d8efe9] dark:bg-primary-950/60 rounded-full overflow-hidden" role="progressbar" aria-valuenow={checkInProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Check-in progress">
+              <div
+                className="h-full bg-gradient-to-r from-[#2c8374] to-[#4ba99b] transition-all duration-500"
+                style={{ width: `${checkInProgress}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs sm:text-sm text-[#33665e] dark:text-primary-200">
+              {checkInProgressLabel}
+            </p>
+          </div>
+
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-6">
             Välj ditt humör
           </h2>
@@ -380,6 +427,9 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               <span className="inline-block px-4 py-2 bg-[#2c8374]/15 text-[#1e5f54] rounded-full text-sm font-medium">
                 Valt humör: {moods.find(m => m.value === selectedMood)?.label}
               </span>
+              <p className="mt-3 text-sm text-[#6d645d] dark:text-gray-300 max-w-xl mx-auto" aria-live="polite">
+                {getReflectionPromptByScore(selectedMood)}
+              </p>
             </div>
           )}
         </div>
@@ -403,8 +453,13 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               rows={3}
               maxLength={200}
             />
-            <div className="text-right text-sm text-[#6d645d] mt-2 font-medium">
-              {note.length}/200 tecken
+            <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+              <span className={`font-medium ${hasMeaningfulNote ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6d645d] dark:text-gray-400'}`}>
+                {hasMeaningfulNote ? 'Reflektion tillagd' : 'Tips: 15+ tecken ger bättre mönsteranalys'}
+              </span>
+              <span className="text-[#6d645d] dark:text-gray-400 font-medium">
+                {note.length}/200 tecken
+              </span>
             </div>
           </div>
         </Card>
@@ -432,7 +487,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             ) : (
               <>
                 <span>✅</span>
-                Logga humör
+                {hasMeaningfulNote ? 'Logga komplett check-in' : 'Logga humör'}
               </>
             )}
           </button>
