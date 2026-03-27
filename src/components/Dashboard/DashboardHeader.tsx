@@ -22,7 +22,7 @@ const getDailyFocusContent = () => {
     return {
       title: 'Morgonfokus',
       description: 'Börja dagen med 3 djupa andetag. Följ orben.',
-      actionLabel: 'Starta dagen',
+      actionLabel: 'Starta 3 andetag',
     };
   }
 
@@ -30,16 +30,18 @@ const getDailyFocusContent = () => {
     return {
       title: 'Dagens Fokus',
       description: 'Ta en kort paus med 3 djupa andetag innan nästa steg.',
-      actionLabel: 'Ta en paus',
+      actionLabel: 'Starta 3 andetag',
     };
   }
 
   return {
     title: 'Kvällsfokus',
     description: 'Varva ner med 3 lugna andetag och checka in hur dagen känns.',
-    actionLabel: 'Varva ner',
+    actionLabel: 'Starta 3 andetag',
   };
 };
+
+type BreathingPhase = 'inhale' | 'exhale' | 'hold' | 'done';
 
 /**
  * Breathing Orb Component - 2026 visual anchor
@@ -69,6 +71,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => {
   const [greeting, setGreeting] = useState(getGreeting());
   const [focusContent, setFocusContent] = useState(getDailyFocusContent());
+  const [isBreathingSessionActive, setIsBreathingSessionActive] = useState(false);
+  const [completedBreaths, setCompletedBreaths] = useState(0);
+  const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('inhale');
+  const [sessionCompleted, setSessionCompleted] = useState(false);
 
   useEffect(() => {
     // Update greeting every minute
@@ -78,6 +84,58 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!isBreathingSessionActive || breathingPhase === 'done') {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (breathingPhase === 'inhale') {
+        setBreathingPhase('exhale');
+        return;
+      }
+
+      if (breathingPhase === 'exhale') {
+        setBreathingPhase('hold');
+        return;
+      }
+
+      const nextCompleted = completedBreaths + 1;
+      if (nextCompleted >= 3) {
+        setCompletedBreaths(3);
+        setBreathingPhase('done');
+        setIsBreathingSessionActive(false);
+        setSessionCompleted(true);
+        return;
+      }
+
+      setCompletedBreaths(nextCompleted);
+      setBreathingPhase('inhale');
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [isBreathingSessionActive, breathingPhase, completedBreaths]);
+
+  const startBreathingSession = () => {
+    setCompletedBreaths(0);
+    setBreathingPhase('inhale');
+    setSessionCompleted(false);
+    setIsBreathingSessionActive(true);
+  };
+
+  const handleContinueToCheckIn = () => {
+    onFocusAction?.();
+  };
+
+  const getPhaseLabel = () => {
+    if (breathingPhase === 'inhale') return 'Andas in';
+    if (breathingPhase === 'exhale') return 'Andas ut';
+    if (breathingPhase === 'hold') return 'Paus';
+    return 'Klart';
+  };
+
+  const activeBreathNumber = Math.min(completedBreaths + 1, 3);
 
   return (
     <div className="relative overflow-hidden mb-4">
@@ -125,13 +183,42 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 <p className="text-sm text-neutral-700 dark:text-slate-300 leading-snug">
                   {focusContent.description}
                 </p>
+                <p className="mt-2 text-xs text-neutral-500 dark:text-slate-400" aria-live="polite">
+                  {isBreathingSessionActive
+                    ? `Andetag ${activeBreathNumber} av 3 · ${getPhaseLabel()}`
+                    : sessionCompleted
+                      ? 'Bra jobbat! 3 av 3 andetag klara.'
+                      : 'Guidad övning: cirka 20 sekunder.'}
+                </p>
+                {isBreathingSessionActive && (
+                  <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary-500 transition-all duration-500"
+                      style={{ width: `${(completedBreaths / 3) * 100}%` }}
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
-                  onClick={onFocusAction}
+                  onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
+                  disabled={isBreathingSessionActive}
                   className="mt-3 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                 >
-                  {focusContent.actionLabel}
+                  {isBreathingSessionActive
+                    ? 'Guidad paus pågår...'
+                    : sessionCompleted
+                      ? 'Fortsätt till humörcheck-in'
+                      : focusContent.actionLabel}
                 </button>
+                {isBreathingSessionActive && (
+                  <button
+                    type="button"
+                    onClick={handleContinueToCheckIn}
+                    className="mt-2 ml-2 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-xs font-semibold px-3 py-1.5 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+                  >
+                    Hoppa över och fortsätt
+                  </button>
+                )}
               </div>
             </div>
           </div>
