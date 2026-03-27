@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -146,6 +146,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     message: '',
     variant: 'info',
   });
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | undefined>(undefined);
 
   const handleCloseSnackbar = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
@@ -370,14 +371,57 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     };
   }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId]);
 
-  const handleRefresh = () => {
-    logger.debug('Dashboard refresh clicked');
+  const handleRefresh = useCallback((reason: 'manual' | 'interval' | 'visibility' | 'online' = 'manual') => {
+    if (loading) {
+      return;
+    }
+
+    logger.debug('Dashboard refresh triggered', { reason });
     analytics.track('World Class Dashboard Refreshed', {
       component: 'WorldClassDashboard',
       userId: user?.user_id,
+      reason,
     });
     refresh();
-  };
+    setLastUpdatedAt(new Date());
+  }, [loading, refresh, user?.user_id]);
+
+  useEffect(() => {
+    if (!loading && !lastUpdatedAt) {
+      setLastUpdatedAt(new Date());
+    }
+  }, [loading, lastUpdatedAt]);
+
+  useEffect(() => {
+    if (activeView !== 'overview') {
+      return;
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleRefresh('visibility');
+      }
+    };
+
+    const handleOnline = () => {
+      handleRefresh('online');
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        handleRefresh('interval');
+      }
+    }, 45000);
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [activeView, handleRefresh]);
 
   const handleQuickAction = (actionId: string) => {
     analytics.track('Quick Action Taken', {
@@ -425,7 +469,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         <Alert variant="error" className="mb-4">
           <strong>{t('worldDashboard.loadError')}:</strong> {error.message}
         </Alert>
-        <Button onClick={handleRefresh} variant="primary">
+        <Button onClick={() => handleRefresh('manual')} variant="primary">
           {t('worldDashboard.tryAgain')}
         </Button>
       </div>
@@ -439,7 +483,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       setActiveView('overview');
       // Refresh dashboard data when returning from feature views
       setTimeout(() => {
-        refresh();
+        handleRefresh('manual');
       }, 100);
     };
 
@@ -518,8 +562,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       {/* Hero Header */}
       <DashboardHeader
         userName={extractDisplayName(user?.email || '') || 'vän'}
-        onRefresh={handleRefresh}
         isLoading={loading}
+        lastUpdatedAt={lastUpdatedAt}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

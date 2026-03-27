@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 interface DashboardHeaderProps {
   userName?: string;
-  onRefresh?: () => void;
   isLoading?: boolean;
+  lastUpdatedAt?: Date;
 }
 
 const getGreeting = () => {
@@ -36,8 +36,8 @@ const BreathingOrb = () => (
  */
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userName = 'vän',
-  onRefresh,
   isLoading = false,
+  lastUpdatedAt,
 }) => {
   const [greeting, setGreeting] = useState(getGreeting());
 
@@ -73,23 +73,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               Hur känns din energi idag? Ta en stund och landa innan du börjar.
             </p>
 
-            <div className="mt-4 flex items-center gap-4">
-              {/* Quick Action Button - Example */}
-              {onRefresh && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (!isLoading) onRefresh();
-                  }}
-                  disabled={isLoading}
-                  className="group flex items-center gap-2 px-4 py-2 text-sm rounded-full bg-white/95 dark:bg-slate-800 text-neutral-700 dark:text-slate-100 font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm border border-neutral-300 dark:border-slate-500 hover:shadow-md hover:bg-white dark:hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-primary-400 disabled:opacity-50"
-                >
-                  <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span>{isLoading ? 'Uppdaterar...' : 'Uppdatera vy'}</span>
-                </button>
-              )}
+            <div className="mt-4 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+              <span
+                className={`inline-block w-2 h-2 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}
+                aria-hidden="true"
+              />
+              <span>
+                {isLoading
+                  ? 'Uppdaterar data automatiskt...'
+                  : `Uppdateras automatiskt${lastUpdatedAt ? ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+              </span>
             </div>
           </div>
 
