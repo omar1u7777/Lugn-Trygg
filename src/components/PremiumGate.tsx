@@ -74,6 +74,8 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
   const trialEndTime = plan.trialEndsAt ? plan.trialEndsAt.getTime() : 0;
   const remainingMs = Math.max(0, trialEndTime - Date.now());
   const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+  const hasTrialEndDate = Boolean(plan.trialEndsAt);
+  const hasTrialExpired = hasTrialEndDate && trialEndTime > 0 && trialEndTime <= Date.now();
 
   // Visa laddningsindikator medan vi kollar prenumeration
   if (loading) {
@@ -137,7 +139,9 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
           </p>
 
           <p className="text-sm text-amber-700 dark:text-amber-300 mb-6">
-            Din kostnadsfria period har tagit slut.
+            {hasTrialExpired
+              ? 'Din kostnadsfria period har tagit slut.'
+              : 'Den här funktionen ingår i Premium.'}
           </p>
 
           {/* Premium-fördelar */}
