@@ -104,7 +104,6 @@ class SubscriptionService:
         trial_end = cls._parse_datetime(
             subscription.get("trial_ends_at")
             or subscription.get("trial_end_date")
-            or subscription.get("expires_at")
         )
         trial_start = cls._parse_datetime(
             subscription.get("trial_started_at")
