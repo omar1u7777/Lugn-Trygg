@@ -4,6 +4,7 @@ interface DashboardHeaderProps {
   userName?: string;
   isLoading?: boolean;
   lastUpdatedAt?: Date;
+  onFocusAction?: () => void;
 }
 
 const getGreeting = () => {
@@ -12,6 +13,32 @@ const getGreeting = () => {
   if (hour < 14) return "God dag";
   if (hour < 18) return "God eftermiddag";
   return "God kväll";
+};
+
+const getDailyFocusContent = () => {
+  const hour = new Date().getHours();
+
+  if (hour < 10) {
+    return {
+      title: 'Morgonfokus',
+      description: 'Börja dagen med 3 djupa andetag. Följ orben.',
+      actionLabel: 'Starta dagen',
+    };
+  }
+
+  if (hour < 18) {
+    return {
+      title: 'Dagens Fokus',
+      description: 'Ta en kort paus med 3 djupa andetag innan nästa steg.',
+      actionLabel: 'Ta en paus',
+    };
+  }
+
+  return {
+    title: 'Kvällsfokus',
+    description: 'Varva ner med 3 lugna andetag och checka in hur dagen känns.',
+    actionLabel: 'Varva ner',
+  };
 };
 
 /**
@@ -38,13 +65,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userName = 'vän',
   isLoading = false,
   lastUpdatedAt,
+  onFocusAction,
 }) => {
   const [greeting, setGreeting] = useState(getGreeting());
+  const [focusContent, setFocusContent] = useState(getDailyFocusContent());
 
   useEffect(() => {
     // Update greeting every minute
     const interval = setInterval(() => {
       setGreeting(getGreeting());
+      setFocusContent(getDailyFocusContent());
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -91,10 +121,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <div className="p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]">
               <BreathingOrb />
               <div>
-                <h3 className="font-serif text-lg text-neutral-900 dark:text-slate-100 mb-1">Dagens Fokus</h3>
+                <h3 className="font-serif text-lg text-neutral-900 dark:text-slate-100 mb-1">{focusContent.title}</h3>
                 <p className="text-sm text-neutral-700 dark:text-slate-300 leading-snug">
-                  Börja dagen med 3 djupa andetag. Följ orben.
+                  {focusContent.description}
                 </p>
+                <button
+                  type="button"
+                  onClick={onFocusAction}
+                  className="mt-3 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+                >
+                  {focusContent.actionLabel}
+                </button>
               </div>
             </div>
           </div>
