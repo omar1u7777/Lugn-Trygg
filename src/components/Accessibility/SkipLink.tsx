@@ -16,10 +16,10 @@ import { logger } from '../../utils/logger';
 const DEFAULT_TARGET_ID = 'main-content';
 const DEFAULT_SKIP_TEXT = 'Hoppa till huvudinnehållet';
 const SKIP_LINK_CLASSES = `
-  absolute left-[-10000px] top-auto
+  absolute left-[-10000px] top-auto opacity-0
   w-px h-px overflow-hidden
   focus:fixed focus:top-4 focus:left-4 focus:z-[9999]
-  focus:w-auto focus:h-auto focus:overflow-visible
+  focus:w-auto focus:h-auto focus:overflow-visible focus:opacity-100
   px-4 py-2
   bg-teal-600 text-white
   rounded-lg shadow-lg

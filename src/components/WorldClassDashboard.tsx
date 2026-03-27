@@ -234,6 +234,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       icon: <Icon className="w-5 h-5 sm:w-6 sm:h-6" />,
       colorClass
     };
+  }).filter((activity, index, arr) => {
+    // Deduplicera aktiviteter av samma typ/beskrivning som skett inom 5 minuter
+    return (
+      index ===
+      arr.findIndex((candidate) => {
+        if (candidate.id === activity.id) return true;
+        const timeDiffMs = Math.abs(candidate.timestamp.getTime() - activity.timestamp.getTime());
+        const isSameEvent = candidate.type === activity.type && candidate.description === activity.description;
+        return isSameEvent && timeDiffMs < 5 * 60 * 1000;
+      })
+    );
   });
 
   useEffect(() => {
@@ -511,12 +522,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         isLoading={loading}
       />
 
-      <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Prominent Mood Check Section */}
-        <Card className="mb-8 border-l-4 border-l-secondary-500">
-          <div className="p-6 sm:p-8">
-            <div className="text-center mb-6">
-              <span className="text-4xl mb-4 block">🧘‍♀️</span>
+        <Card className="mb-6 border-l-4 border-l-secondary-500">
+          <div className="p-4 sm:p-6">
+            <div className="text-center mb-4">
+              <span className="text-4xl mb-2 block">🧘‍♀️</span>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 {t('worldDashboard.howAreYou')}
               </h2>
@@ -529,7 +540,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         </Card>
 
         {shouldRenderWellnessSkeleton && (
-          <Card className="mb-8 animate-pulse" aria-hidden="true">
+          <Card className="mb-6 animate-pulse" aria-hidden="true">
             <div className="p-6 sm:p-8 space-y-4">
               <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -547,8 +558,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
         {/* Wellness Goals Card (Personalized based on onboarding) */}
         {hasWellnessGoals && (
-          <Card className="mb-8 border-l-4 border-l-primary-500">
-            <div className="p-6 sm:p-8">
+          <Card className="mb-6 border-l-4 border-l-primary-500">
+            <div className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
@@ -579,9 +590,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
         {/* Personalized Recommendations */}
         {shouldReserveRecommendationsSection && (
-          <Card className="mb-8" aria-busy={loading} aria-live="polite">
-            <div className="p-6 sm:p-8">
-              <div className="flex items-center gap-3 mb-6">
+          <Card className="mb-6" aria-busy={loading} aria-live="polite">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
                 <span className="text-2xl sm:text-3xl" aria-hidden="true">💡</span>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
                   {t('worldDashboard.personalRecommendations')}
@@ -619,8 +630,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         />
 
         {/* Weekly Progress Card */}
-        <Card className="world-class-dashboard-card world-class-dashboard-card-premium mb-8 sm:mb-12">
-          <div className="p-6 sm:p-8">
+        <Card className="world-class-dashboard-card world-class-dashboard-card-premium mb-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4">
               <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
               <div>

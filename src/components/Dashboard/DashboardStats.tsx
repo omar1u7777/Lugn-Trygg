@@ -100,9 +100,9 @@ const BentoItem: React.FC<{
       </div>
 
       {large && (
-        <div className="absolute right-0 bottom-0 w-32 h-32 opacity-10 translate-x-8 translate-y-8 rotate-12 pointer-events-none">
+        <div className="absolute right-0 bottom-0 w-32 h-32 opacity-10 translate-x-4 translate-y-4 pointer-events-none">
           <svg viewBox="0 0 100 100" fill="currentColor">
-            <path d="M50 0 L100 50 L50 100 L0 50 Z" />
+            <circle cx="50" cy="50" r="50" />
           </svg>
         </div>
       )}

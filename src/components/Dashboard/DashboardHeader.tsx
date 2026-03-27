@@ -50,8 +50,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }, []);
 
   return (
-    <div className="relative overflow-hidden mb-8">
-      <div className="world-class-container relative z-10 pt-8 pb-4">
+    <div className="relative overflow-hidden mb-4">
+      <div className="world-class-container relative z-10 pt-4 pb-2">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
 
           {/* Welcome Text Section */}
@@ -73,7 +73,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               Hur känns din energi idag? Ta en stund och landa innan du börjar.
             </p>
 
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-4 flex items-center gap-4">
               {/* Quick Action Button - Example */}
               {onRefresh && (
                 <button
@@ -82,12 +82,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     if (!isLoading) onRefresh();
                   }}
                   disabled={isLoading}
-                  className="group flex items-center gap-3 px-6 py-3 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-medium transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl disabled:opacity-50"
+                  className="group flex items-center gap-2 px-4 py-2 text-sm rounded-full bg-white dark:bg-slate-800 text-neutral-600 dark:text-neutral-300 font-medium transition-all hover:scale-105 active:scale-95 shadow-sm border border-neutral-200 dark:border-neutral-700 hover:shadow disabled:opacity-50"
                 >
-                  <span>{isLoading ? 'Uppdaterar...' : 'Uppdatera vy'}</span>
                   <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
+                  <span>{isLoading ? 'Uppdaterar...' : 'Uppdatera vy'}</span>
                 </button>
               )}
             </div>
