@@ -34,6 +34,7 @@ import { useJournaling } from '../hooks/useJournaling';
 import { logger } from '../utils/logger';
 
 const EMPTY_WELLNESS_GOALS: string[] = [];
+type RecommendationFeedback = 'helpful' | 'not_relevant';
 
 
 
@@ -193,6 +194,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'rating' | 'duration' | 'difficulty'>('rating');
+  const [feedbackByRecommendation, setFeedbackByRecommendation] = useState<Record<string, RecommendationFeedback | undefined>>({});
   const [userProgress, setUserProgress] = useState({
     exercisesCompleted: 0,
     meditationMinutes: 0,
@@ -732,6 +734,38 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   };
 
   const categories = ['all', ...Array.from(new Set(recommendations.map(r => r.category))).sort()];
+  const hasActiveFilters = searchTerm.trim().length > 0 || selectedCategory !== 'all' || sortBy !== 'rating';
+
+  const sortLabel = sortBy === 'rating'
+    ? 'Betyg'
+    : sortBy === 'duration'
+      ? 'Längd'
+      : 'Svårighetsgrad';
+
+  const getRecommendationMatchReason = (recommendation: Recommendation): string | null => {
+    const recommendationText = `${recommendation.title} ${recommendation.description} ${recommendation.tags.join(' ')} ${recommendation.category}`.toLowerCase();
+
+    const matchedGoal = resolvedWellnessGoals.find((goal) => {
+      const normalizedGoal = goal.toLowerCase().trim();
+      if (!normalizedGoal) {
+        return false;
+      }
+
+      if (recommendationText.includes(normalizedGoal)) {
+        return true;
+      }
+
+      const goalKeywords = normalizedGoal.split(/\s+/).filter((word) => word.length > 3);
+      return goalKeywords.some((word) => recommendationText.includes(word));
+    });
+
+    if (matchedGoal) {
+      return `Matchar mål: ${matchedGoal}`;
+    }
+
+    const matchedPreference = userPreferences.find((pref) => recommendationText.includes(pref.toLowerCase()));
+    return matchedPreference ? `Matchar intresse: ${matchedPreference}` : null;
+  };
 
   // Crisis detection - comprehensive Swedish/English keywords
   const detectCrisis = (text: string) => {
@@ -1042,6 +1076,25 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     announceToScreenReader(`Action ${action} performed on ${recommendation.title} `, 'polite');
   };
 
+  const handleRecommendationFeedback = (recommendation: Recommendation, feedback: RecommendationFeedback) => {
+    setFeedbackByRecommendation((prev) => ({ ...prev, [recommendation.id]: feedback }));
+
+    analytics.track('Recommendation Feedback', {
+      recommendationId: recommendation.id,
+      feedback,
+      component: 'Recommendations',
+    });
+
+    if (feedback === 'helpful') {
+      logger.debug('👍 Positive feedback for:', recommendation.title);
+      announceToScreenReader('Tack för din positiva feedback!', 'polite');
+      return;
+    }
+
+    logger.debug('👎 Negative feedback for:', recommendation.title);
+    announceToScreenReader('Tack för din feedback, vi förbättrar våra rekommendationer!', 'polite');
+  };
+
   const startMeditationSession = (duration: number) => {
     if (meditationTimer) {
       clearInterval(meditationTimer);
@@ -1258,6 +1311,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     );
   }
 
+  const filteredRecommendations = getFilteredRecommendations();
+
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6">
       {/* Professional Header */}
@@ -1342,6 +1397,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               placeholder="Sök rekommendationer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Sök rekommendationer"
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1376,23 +1432,43 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         </div>
 
         {/* Results Count and Reset */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Visar {getFilteredRecommendations().length} av {recommendations.length} rekommendationer
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-gray-700 dark:text-gray-300" aria-live="polite">
+            Visar {filteredRecommendations.length} av {recommendations.length} rekommendationer
           </div>
-          {(searchTerm || selectedCategory !== 'all' || sortBy !== 'rating') && (
+          {hasActiveFilters && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setSelectedCategory('all');
                 setSortBy('rating');
               }}
-              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline"
+              className="text-sm font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200 underline"
             >
               Återställ filter
             </button>
           )}
         </div>
+
+        {hasActiveFilters && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {searchTerm.trim() && (
+              <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
+                Sökning: {searchTerm.trim()}
+              </span>
+            )}
+            {selectedCategory !== 'all' && (
+              <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
+                Kategori: {selectedCategory}
+              </span>
+            )}
+            {sortBy !== 'rating' && (
+              <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
+                Sortering: {sortLabel}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Featured Recommendations */}
@@ -1521,7 +1597,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       )}
 
       {/* Empty State */}
-      {!loading && !error && getFilteredRecommendations().length === 0 && (
+      {!loading && !error && filteredRecommendations.length === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🔍</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -1534,22 +1610,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       )}
 
       {/* All Recommendations Section */}
-      {!loading && !error && getFilteredRecommendations().length > 0 && (
+      {!loading && !error && filteredRecommendations.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Alla Rekommendationer 📚
             </h2>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {getFilteredRecommendations().length} resultat
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {filteredRecommendations.length} resultat
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            {getFilteredRecommendations().map((recommendation) => (
+            {filteredRecommendations.map((recommendation) => (
               <div
                 key={recommendation.id}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-lg transition-all duration-300 group"
+                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -1597,7 +1673,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
                     {recommendation.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-3">
+                  {getRecommendationMatchReason(recommendation) && (
+                    <p className="inline-flex items-center mb-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      {getRecommendationMatchReason(recommendation)}
+                    </p>
+                  )}
+                  <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-3">
                     {recommendation.description}
                   </p>
 
@@ -1627,7 +1708,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         {recommendation.difficulty}
                       </span>
                       {recommendation.duration && (
-                        <span className="text-gray-600 dark:text-gray-400">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">
                           {recommendation.duration} min
                         </span>
                       )}
@@ -1647,7 +1728,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             />
                           ))}
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
                           ({recommendation.rating})
                         </span>
                       </div>
@@ -1676,38 +1757,35 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                 {/* Feedback */}
                 <div className="flex justify-center gap-2 mt-3">
+                  {(() => {
+                    const selectedFeedback = feedbackByRecommendation[recommendation.id];
+                    return (
+                      <>
                   <button
-                    onClick={() => {
-                      // Track positive feedback
-                      analytics.track('Recommendation Feedback', {
-                        recommendationId: recommendation.id,
-                        feedback: 'helpful',
-                        component: 'Recommendations',
-                      });
-                      logger.debug('👍 Positive feedback for:', recommendation.title);
-                      announceToScreenReader('Tack för din positiva feedback!', 'polite');
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-success-500 focus-visible:ring-offset-2"
+                    onClick={() => handleRecommendationFeedback(recommendation, 'helpful')}
+                    aria-pressed={selectedFeedback === 'helpful'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-success-500 focus-visible:ring-offset-2 ${selectedFeedback === 'helpful'
+                      ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300'
+                      : 'text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20'
+                      }`}
                   >
                     <HandThumbUpIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>Hjälpsam</span>
+                    <span>{selectedFeedback === 'helpful' ? 'Tack för svar' : 'Hjälpsam'}</span>
                   </button>
                   <button
-                    onClick={() => {
-                      // Track negative feedback
-                      analytics.track('Recommendation Feedback', {
-                        recommendationId: recommendation.id,
-                        feedback: 'not_relevant',
-                        component: 'Recommendations',
-                      });
-                      logger.debug('👎 Negative feedback for:', recommendation.title);
-                      announceToScreenReader('Tack för din feedback, vi förbättrar våra rekommendationer!', 'polite');
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2"
+                    onClick={() => handleRecommendationFeedback(recommendation, 'not_relevant')}
+                    aria-pressed={selectedFeedback === 'not_relevant'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2 ${selectedFeedback === 'not_relevant'
+                      ? 'bg-error-100 dark:bg-error-900/30 text-error-700 dark:text-error-300'
+                      : 'text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20'
+                      }`}
                   >
                     <HandThumbDownIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>Inte relevant</span>
+                    <span>{selectedFeedback === 'not_relevant' ? 'Markerad' : 'Inte relevant'}</span>
                   </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

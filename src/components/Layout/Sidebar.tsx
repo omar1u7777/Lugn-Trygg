@@ -77,6 +77,7 @@ const Sidebar: React.FC = memo(() => {
         <Link
           key={item.path}
           to={item.path}
+          title={item.label}
           className={`
             flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
             group relative
@@ -88,7 +89,7 @@ const Sidebar: React.FC = memo(() => {
           aria-current={active ? 'page' : undefined}
         >
           <Icon className="w-5 h-5 flex-shrink-0" />
-          <span className="flex-1 min-w-0 truncate">{item.label}</span>
+          <span className="flex-1 min-w-0 line-clamp-2 leading-5">{item.label}</span>
 
           {showPremiumBadge && (
             <span className="flex shrink-0 items-center gap-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
@@ -140,6 +141,7 @@ const Sidebar: React.FC = memo(() => {
             <Link
               key={item.path}
               to={item.path}
+              title={item.label}
               className={`
                 flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
                 ${active
@@ -150,7 +152,7 @@ const Sidebar: React.FC = memo(() => {
               aria-current={active ? 'page' : undefined}
             >
               <Icon className="w-5 h-5" />
-              <span className="min-w-0 truncate">{item.label}</span>
+              <span className="min-w-0 line-clamp-2 leading-5">{item.label}</span>
             </Link>
           );
         })}
