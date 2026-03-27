@@ -62,16 +62,16 @@ const PLAN_LABELS: Record<SubscriptionTier, string> = {
   enterprise: 'Enterprise',
 };
 
-const FREE_PREVIEW_MINUTES = 15;
+const FREE_TRIAL_DAYS = 14;
+const FREE_TRIAL_MS = FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+const GLOBAL_TRIAL_STORAGE_KEY = 'lt_global_trial_until';
 
-const getPreviewStorageKey = (feature: FeatureName) => `lt_preview_${feature}_until`;
-
-const getPreviewEndTime = (feature: FeatureName): number => {
+const getTrialEndTime = (): number => {
   if (typeof window === 'undefined') {
     return 0;
   }
 
-  const value = window.localStorage.getItem(getPreviewStorageKey(feature));
+  const value = window.localStorage.getItem(GLOBAL_TRIAL_STORAGE_KEY);
   if (!value) {
     return 0;
   }
@@ -89,35 +89,42 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 }) => {
   const { hasFeature, plan, loading } = useSubscription();
   const navigate = useNavigate();
-  const [previewEndTime, setPreviewEndTime] = React.useState<number>(() => getPreviewEndTime(feature));
+  const [trialEndTime, setTrialEndTime] = React.useState<number>(() => getTrialEndTime());
 
-  const hasPreviewAccess =
+  const hasTrialAccess =
     plan.tier === 'free' &&
-    previewEndTime > Date.now();
+    trialEndTime > Date.now();
 
   React.useEffect(() => {
-    setPreviewEndTime(getPreviewEndTime(feature));
-  }, [feature]);
+    if (plan.tier !== 'free' || typeof window === 'undefined') {
+      return;
+    }
+
+    const existingTrial = getTrialEndTime();
+    if (existingTrial > 0) {
+      setTrialEndTime(existingTrial);
+      return;
+    }
+
+    const expiresAt = Date.now() + FREE_TRIAL_MS;
+    window.localStorage.setItem(GLOBAL_TRIAL_STORAGE_KEY, String(expiresAt));
+    setTrialEndTime(expiresAt);
+  }, [plan.tier]);
 
   React.useEffect(() => {
-    if (!hasPreviewAccess) {
+    if (!hasTrialAccess) {
       return;
     }
 
     const timeout = window.setTimeout(() => {
-      setPreviewEndTime(getPreviewEndTime(feature));
-    }, Math.max(0, previewEndTime - Date.now()));
+      setTrialEndTime(getTrialEndTime());
+    }, Math.max(0, trialEndTime - Date.now()));
 
     return () => window.clearTimeout(timeout);
-  }, [feature, hasPreviewAccess, previewEndTime]);
+  }, [hasTrialAccess, trialEndTime]);
 
-  const handleStartFreePreview = () => {
-    const expiresAt = Date.now() + FREE_PREVIEW_MINUTES * 60 * 1000;
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(getPreviewStorageKey(feature), String(expiresAt));
-    }
-    setPreviewEndTime(expiresAt);
-  };
+  const remainingMs = Math.max(0, trialEndTime - Date.now());
+  const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
 
   // Visa laddningsindikator medan vi kollar prenumeration
   if (loading) {
@@ -129,13 +136,13 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
   }
 
   // Om användaren har tillgång, visa innehållet
-  if (hasFeature(feature) || hasPreviewAccess) {
+  if (hasFeature(feature) || hasTrialAccess) {
     return (
       <>
-        {hasPreviewAccess && (
+        {hasTrialAccess && (
           <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-medium">
-              Testläge aktivt i {FREE_PREVIEW_MINUTES} minuter. Uppgradera för full och obegränsad tillgång.
+              Gratisperiod aktiv: {remainingDays} dagar kvar av dina {FREE_TRIAL_DAYS} fria dagar.
             </p>
           </div>
         )}
@@ -178,6 +185,12 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
             {description || defaultDescription}
           </p>
 
+          {plan.tier === 'free' && trialEndTime > 0 && (
+            <p className="text-sm text-amber-700 dark:text-amber-300 mb-6">
+              Din kostnadsfria period på {FREE_TRIAL_DAYS} dagar har tagit slut.
+            </p>
+          )}
+
           {/* Premium-fördelar */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 text-left">
             <div className="flex items-center gap-2 mb-3">
@@ -211,14 +224,6 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 
           {/* Knappar */}
           <div className="space-y-3">
-            {plan.tier === 'free' && (
-              <button
-                onClick={handleStartFreePreview}
-                className="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-200 font-semibold py-3 px-6 rounded-xl transition-all duration-200"
-              >
-                Testa gratis i {FREE_PREVIEW_MINUTES} min
-              </button>
-            )}
             <button
               onClick={() => navigate('/upgrade')}
               className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
