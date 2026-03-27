@@ -266,7 +266,7 @@ def log_mood() -> Response | tuple[Response, int]:
             logger.error(f"Firebase query failed: {str(e)}")
             return APIResponse.error('Service temporarily unavailable', status_code=503)
 
-        plan_context = SubscriptionService.get_plan_context(user_data)
+        plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
         try:
             SubscriptionService.consume_quota(user_id, 'mood_logs', plan_context['limits'])
         except SubscriptionLimitError:

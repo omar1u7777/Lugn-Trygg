@@ -63,7 +63,7 @@ def _check_premium_access(user_id: str):
         if db_handle:
             user_doc = db_handle.collection('users').document(user_id).get()
             user_data = user_doc.to_dict() if user_doc.exists else {}
-            plan_ctx = SubscriptionService.get_plan_context(user_data)
+            plan_ctx = SubscriptionService.get_plan_context(user_data, user_id=user_id)
             if not plan_ctx.get('is_premium') and not plan_ctx.get('is_trial'):
                 return APIResponse.error(
                     "AI stories and forecasts require a premium subscription",
