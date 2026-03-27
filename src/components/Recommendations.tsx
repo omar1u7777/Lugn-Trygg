@@ -834,7 +834,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     try {
       // For web push notifications, we'd need Firebase SDK
       // For now, we'll simulate FCM token registration
-      const mockToken = `web - fcm - token - ${user?.user_id} -${Date.now()} `;
+      const mockToken = `web-fcm-token-${user?.user_id}-${Date.now()}`;
       await saveFCMToken(mockToken);
       setNotificationSettings(prev => ({ ...prev, fcmToken: true }));
       return true;
@@ -1278,7 +1278,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
           <div className="flex flex-col items-center md:items-end">
             <div className="text-6xl mb-2">🧠</div>
-            <p className="text-sm opacity-75">Evidence-Based Content</p>
+            <p className="text-sm opacity-75">Evidensbaserat innehåll</p>
           </div>
         </div>
 
@@ -3628,13 +3628,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => navigate('/dashboard')}
               className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
             >
               Gå Till Dashboard
             </button>
             <button
-              onClick={() => window.location.href = '/wellness'}
+              onClick={() => navigate('/wellness')}
               className="px-6 py-3 border border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 font-medium rounded-lg transition-colors"
             >
               Uppdatera Dina Mål

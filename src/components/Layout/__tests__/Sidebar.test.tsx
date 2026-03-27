@@ -29,6 +29,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: 'Hem' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Humör' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'AI Stöd' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Rekommendationer' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Profil' })).toBeTruthy();
   });
 
