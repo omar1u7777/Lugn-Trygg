@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getMoods, logMood as apiLogMood, getWeeklyAnalysis } from '../../../api/api';
 import useAuth from '../../../hooks/useAuth';
 import { MoodEntry, MoodStats, MoodTrend, MOOD_COLORS } from '../types';
+import { getMoodLabel as getCanonicalMoodLabel } from '../utils';
 
 interface UseMoodDataOptions {
   autoFetch?: boolean;
@@ -70,7 +71,7 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
           id: m.id || m.mood_id,
           userId: m.user_id,
           score: m.mood_score || m.score,
-          mood: m.mood || getMoodLabel(m.mood_score || m.score),
+          mood: m.mood || getCanonicalMoodLabel(m.mood_score || m.score),
           text: m.text || m.description,
           timestamp: new Date(m.timestamp || m.created_at),
           tags: m.tags || [],
@@ -173,15 +174,6 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     getMoodColor,
     getAverageScore,
   }), [moods, stats, trends, isLoading, error, fetchMoods, logMood, getMoodColor, getAverageScore]);
-}
-
-// Helper functions
-function getMoodLabel(score: number): string {
-  if (score >= 9) return 'ecstatic';
-  if (score >= 7) return 'happy';
-  if (score >= 5) return 'content';
-  if (score >= 3) return 'sad';
-  return 'stressed';
 }
 
 function calculateTrend(moods: MoodEntry[]): 'up' | 'down' | 'stable' {

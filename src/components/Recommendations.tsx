@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
 // Helper to format Pomodoro time as MM:SS
 const formatPomodoroTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -222,6 +222,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [, setIsLoadingMeditation] = useState(false);
   const [, setMeditationSessions] = useState<any[]>([]);
   const [debugMode, setDebugMode] = useState(false);
+  const showDebugTools = import.meta.env.DEV;
 
   // Pomodoro extra state
   const [pomodoroHistory, setPomodoroHistory] = useState<any[]>([]);
@@ -1190,8 +1191,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       }
                     }}
                     className="flex items-center gap-2 font-medium text-primary-600 dark:text-primary-400 hover:underline group-hover:translate-x-1 transition-transform"
+                    aria-label={
+                      compact
+                        ? 'Öppna rekommendationer'
+                        : rec.type === 'meditation'
+                          ? 'Starta passet'
+                          : 'Läs mer'
+                    }
                   >
-                    {rec.type === 'meditation' ? 'Starta passet' : 'Läs mer'}
+                    {compact
+                      ? 'Öppna rekommendationer'
+                      : rec.type === 'meditation'
+                        ? 'Starta passet'
+                        : 'Läs mer'}
                     <span>→</span>
                   </button>
                 </div>
@@ -1236,26 +1248,30 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 <span className="bg-white/20 px-3 py-1 rounded-full">
                   📚 Evidensbaserat innehåll
                 </span>
-                {/* Debug toggle for development */}
-                <button
-                  onClick={() => setDebugMode((prev) => !prev)}
-                  className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs"
-                  title="Toggle debug mode"
-                >
-                  🐛 {debugMode ? 'ON' : 'OFF'}
-                </button>
-                {/* Test progress button */}
-                <button
-                  onClick={() => {
-                    updateProgress('exercise', 1);
-                    updateProgress('meditation', 10);
-                    updateProgress('article', 1);
-                  }}
-                  className="bg-green-500/20 hover:bg-green-500/30 px-3 py-1 rounded-full text-xs"
-                  title="Test progress tracking"
-                >
-                  ✅ Test Progress
-                </button>
+                {showDebugTools && (
+                  <>
+                    {/* Debug toggle for development only */}
+                    <button
+                      onClick={() => setDebugMode((prev) => !prev)}
+                      className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs"
+                      title="Toggle debug mode"
+                    >
+                      🐛 {debugMode ? 'ON' : 'OFF'}
+                    </button>
+                    {/* Test progress button for development only */}
+                    <button
+                      onClick={() => {
+                        updateProgress('exercise', 1);
+                        updateProgress('meditation', 10);
+                        updateProgress('article', 1);
+                      }}
+                      className="bg-green-500/20 hover:bg-green-500/30 px-3 py-1 rounded-full text-xs"
+                      title="Test progress tracking"
+                    >
+                      ✅ Test Progress
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1267,7 +1283,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         </div>
 
         {/* Debug Panel */}
-        {debugMode && (
+        {showDebugTools && debugMode && (
           <div className="mt-4 p-4 bg-black/20 rounded-lg text-xs font-mono">
             <h4 className="font-bold mb-2">🐛 Debug Info:</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1565,7 +1581,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex items-center justify-between text-xs sm:text-sm mb-3">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <span
-                        className={`inline - flex items - center px - 2 py - 1 rounded - full text - xs font - medium ${getDifficultyColor(recommendation.difficulty) === 'success'
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recommendation.difficulty) === 'success'
                           ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300'
                           : getDifficultyColor(recommendation.difficulty) === 'warning'
                             ? 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-300'
@@ -1587,7 +1603,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           {[1, 2, 3, 4, 5].map((star) => (
                             <StarIcon
                               key={star}
-                              className={`w - 3 h - 3 sm: w - 4 sm: h - 4 ${star <= (recommendation.rating || 0)
+                              className={`w-3 h-3 sm:w-4 sm:h-4 ${star <= (recommendation.rating || 0)
                                 ? 'text-yellow-400 fill-current'
                                 : 'text-gray-300 dark:text-gray-600'
                                 } `}
@@ -1692,7 +1708,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Meta Info */}
               <div className="flex items-center gap-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                <span className={`px - 2 py - 1 rounded - full text - xs font - medium ${getDifficultyColor(selectedRecommendation.difficulty) === 'success'
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(selectedRecommendation.difficulty) === 'success'
                   ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300'
                   : getDifficultyColor(selectedRecommendation.difficulty) === 'warning'
                     ? 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-300'
@@ -1708,7 +1724,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     {[1, 2, 3, 4, 5].map((star) => (
                       <StarIcon
                         key={star}
-                        className={`w - 4 h - 4 ${star <= (selectedRecommendation.rating || 0)
+                        className={`w-4 h-4 ${star <= (selectedRecommendation.rating || 0)
                           ? 'text-yellow-400 fill-current'
                           : 'text-gray-300 dark:text-gray-600'
                           } `}
@@ -1740,17 +1756,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex justify-center mb-6">
                     <div className="relative">
                       {/* Animated background rings */}
-                      <div className={`absolute inset - 0 rounded - full border - 4 transition - all duration - 1000 ${breathingPhase === 'inhale' ? 'border-green-300 scale-150 opacity-60' :
+                      <div className={`absolute inset-0 rounded-full border-4 transition-all duration-1000 ${breathingPhase === 'inhale' ? 'border-green-300 scale-150 opacity-60' :
                         breathingPhase === 'exhale' || breathingPhase === 'exhale2' ? 'border-blue-300 scale-90 opacity-40' :
                           'border-gray-300 scale-100 opacity-20'
                         } `}></div>
-                      <div className={`absolute inset - 2 rounded - full border - 2 transition - all duration - 1000 ${breathingPhase === 'hold' ? 'border-yellow-300 scale-110 opacity-50' :
+                      <div className={`absolute inset-2 rounded-full border-2 transition-all duration-1000 ${breathingPhase === 'hold' ? 'border-yellow-300 scale-110 opacity-50' :
                         'border-transparent scale-100 opacity-0'
                         } `}></div>
 
                       {/* Main breathing circle with enhanced animations */}
                       <div
-                        className={`relative w - 32 h - 32 rounded - full flex items - center justify - center text - 2xl font - bold transition - all duration - 1000 transform ${breathingPhase === 'exhale'
+                        className={`relative w-32 h-32 rounded-full flex items-center justify-center text-2xl font-bold transition-all duration-1000 transform ${breathingPhase === 'exhale'
                           ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
                           : breathingPhase === 'inhale'
                             ? 'bg-gradient-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
@@ -1764,7 +1780,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           } `}
                       >
                         {/* Breathing icon with animation */}
-                        <div className={`transition - all duration - 500 ${breathingPhase === 'inhale' ? 'animate-bounce' :
+                        <div className={`transition-all duration-500 ${breathingPhase === 'inhale' ? 'animate-bounce' :
                           breathingPhase === 'exhale' || breathingPhase === 'exhale2' ? 'animate-pulse' :
                             breathingPhase === 'hold' ? 'animate-ping' :
                               breathingPhase === 'completed' ? 'animate-spin' : ''
@@ -1871,7 +1887,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {['identify', 'challenge', 'replace', 'practice', 'complete'].map((phase, index) => (
                         <div
                           key={phase}
-                          className={`w - 3 h - 3 rounded - full ${index <= ['identify', 'challenge', 'replace', 'practice', 'complete'].indexOf(kbtPhase)
+                          className={`w-3 h-3 rounded-full ${index <= ['identify', 'challenge', 'replace', 'practice', 'complete'].indexOf(kbtPhase)
                             ? 'bg-purple-500'
                             : 'bg-gray-300'
                             } `}
@@ -2162,7 +2178,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             setCurrentSection(index);
                             updateArticleProgress(index, (index / neuroscienceArticleSections.length) * 100);
                           }}
-                          className={`w - 3 h - 3 rounded - full transition - colors ${index === currentSection
+                          className={`w-3 h-3 rounded-full transition-colors ${index === currentSection
                             ? 'bg-blue-500'
                             : index < currentSection
                               ? 'bg-green-500'
@@ -2443,7 +2459,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             fill="none"
                             strokeDasharray={`${2 * Math.PI * 45} `}
                             strokeDashoffset={`${2 * Math.PI * 45 * (1 - getPomodoroProgress() / 100)} `}
-                            className={`transition - all duration - 1000 ${pomodoroPhase === 'work'
+                            className={`transition-all duration-1000 ${pomodoroPhase === 'work'
                               ? 'text-red-500'
                               : pomodoroPhase === 'break'
                                 ? 'text-green-500'
@@ -2468,7 +2484,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                       {/* Phase Indicator */}
                       <div className="mb-4">
-                        <div className={`inline - flex items - center gap - 2 px - 4 py - 2 rounded - full text - sm font - medium ${pomodoroPhase === 'work'
+                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${pomodoroPhase === 'work'
                           ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                           : pomodoroPhase === 'break'
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
@@ -2488,7 +2504,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         {Array.from({ length: totalPomodoroSessions }, (_, i) => (
                           <div
                             key={i}
-                            className={`w - 3 h - 3 rounded - full ${i + 1 < pomodoroSession
+                            className={`w-3 h-3 rounded-full ${i + 1 < pomodoroSession
                               ? 'bg-green-500'
                               : i + 1 === pomodoroSession && pomodoroPhase === 'work'
                                 ? 'bg-red-500 animate-pulse'
@@ -2623,7 +2639,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <button
                             key={mood}
                             onClick={() => setJournalMood(journalMood === mood ? undefined : mood)}
-                            className={`w - 8 h - 8 rounded - full text - xs font - medium transition - all ${journalMood === mood
+                            className={`w-8 h-8 rounded-full text-xs font-medium transition-all ${journalMood === mood
                               ? 'bg-blue-500 text-white scale-110'
                               : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
                               } `}
@@ -2650,7 +2666,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                                   : [...prev, tag]
                               );
                             }}
-                            className={`px - 3 py - 1 rounded - full text - sm transition - all ${journalTags.includes(tag)
+                            className={`px-3 py-1 rounded-full text-sm transition-all ${journalTags.includes(tag)
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
                               } `}
@@ -2756,7 +2772,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {Array.from({ length: 7 }, (_, i) => (
                         <div
                           key={i + 1}
-                          className={`w - 8 h - 8 rounded - full flex items - center justify - center text - sm transition - all duration - 300 ${i + 1 <= gratitudeDay && (gratitudeEntries[i + 1]?.length || 0) >= 3
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-300 ${i + 1 <= gratitudeDay && (gratitudeEntries[i + 1]?.length || 0) >= 3
                             ? 'bg-green-500 text-white shadow-lg'
                             : i + 1 === gratitudeDay && isGratitudeChallengeActive
                               ? 'bg-orange-500 text-white animate-pulse shadow-lg'
@@ -2925,7 +2941,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {muscleGroups.map((group, index) => (
                         <div
                           key={group.name}
-                          className={`w - 10 h - 10 rounded - full flex items - center justify - center text - sm transition - all duration - 300 ${index < currentMuscleGroup
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all duration-300 ${index < currentMuscleGroup
                             ? 'bg-green-500 text-white shadow-lg'
                             : index === currentMuscleGroup && isRelaxationActive
                               ? 'bg-blue-500 text-white animate-pulse shadow-lg scale-110'
@@ -2999,11 +3015,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           </label>
                           <button
                             onClick={() => setBreathingSync(!breathingSync)}
-                            className={`relative inline - flex h - 6 w - 11 items - center rounded - full transition - colors ${breathingSync ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${breathingSync ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                               } `}
                           >
                             <span
-                              className={`inline - block h - 4 w - 4 transform rounded - full bg - white transition - transform ${breathingSync ? 'translate-x-6' : 'translate-x-1'
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${breathingSync ? 'translate-x-6' : 'translate-x-1'
                                 } `}
                             />
                           </button>
@@ -3074,7 +3090,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             </span>
                           </div>
                           <div className="flex justify-center">
-                            <div className={`w - 16 h - 16 rounded - full border - 4 transition - all duration - 1000 ${relaxationPhase === 'tense' ? 'border-green-400 bg-green-100 scale-125' :
+                            <div className={`w-16 h-16 rounded-full border-4 transition-all duration-1000 ${relaxationPhase === 'tense' ? 'border-green-400 bg-green-100 scale-125' :
                               relaxationPhase === 'relax' ? 'border-blue-400 bg-blue-100 scale-90' :
                                 'border-gray-300 bg-gray-50 scale-100'
                               } `}></div>
@@ -3336,7 +3352,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
                     Status:
                   </span>
-                  <span className={`px - 2 py - 1 rounded - full text - xs font - medium ${notificationSettings.dailyRemindersEnabled
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${notificationSettings.dailyRemindersEnabled
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                     : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                     } `}>
@@ -3633,5 +3649,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 Recommendations.displayName = 'Recommendations';
 
 export default Recommendations;
+
 
 
