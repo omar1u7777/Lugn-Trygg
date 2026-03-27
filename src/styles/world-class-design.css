@@ -134,8 +134,8 @@
   --color-neutral-900: #f8fafc;
   
   --gradient-background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  --card-bg: rgba(30, 41, 59, 0.8);
-  --card-border: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(30, 41, 59, 0.9);
+  --card-border: rgba(255, 255, 255, 0.2);
 }
 
 /* ===== TYPOGRAPHY SYSTEM ===== */
@@ -581,12 +581,12 @@
 }
 
 .world-class-dashboard-card {
-  background: var(--card-bg, rgba(255, 255, 255, 0.8));
+  background: var(--card-bg, rgba(255, 255, 255, 0.86));
   backdrop-filter: blur(8px);
   border-radius: var(--radius-2xl);
   padding: var(--space-6);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.75));
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
