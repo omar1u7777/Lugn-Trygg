@@ -1,6 +1,23 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+const normalizeLanguageCode = (code: string): string => {
+  const lowered = code.toLowerCase();
+  if (lowered.startsWith('sv')) {
+    return 'sv';
+  }
+
+  if (lowered === 'nb' || lowered.startsWith('nb-') || lowered.startsWith('no')) {
+    return 'no';
+  }
+
+  if (lowered.startsWith('en')) {
+    return 'en';
+  }
+
+  return lowered;
+};
+
 const normalizeLanguageDisplayName = (code: string, name: string): string => {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -17,11 +34,12 @@ const normalizeLanguageDisplayName = (code: string, name: string): string => {
 
 const LanguageSwitcher: React.FC = () => {
   const { i18n, t } = useTranslation();
+  const currentLanguage = normalizeLanguageCode(i18n.language);
 
   const languages = [
-    { code: 'sv', name: t('language.swedish'), flag: '🇸🇪' },
-    { code: 'en', name: t('language.english'), flag: '🇺🇸' },
-    { code: 'no', name: t('language.norwegian'), flag: '🇳🇴' }
+    { code: 'sv', name: t('language.swedish') },
+    { code: 'en', name: t('language.english') },
+    { code: 'no', name: t('language.norwegian') }
   ];
 
   useEffect(() => {
@@ -39,14 +57,14 @@ const LanguageSwitcher: React.FC = () => {
   return (
     <div className="relative">
       <select
-        value={i18n.language}
+        value={currentLanguage}
         onChange={(e) => changeLanguage(e.target.value)}
         className="px-4 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-10 min-w-[120px] text-sm transition-all duration-200"
         aria-label={t('language.selectLanguage')}
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>
-            {lang.flag} {normalizeLanguageDisplayName(lang.code, lang.name)}
+            {normalizeLanguageDisplayName(lang.code, lang.name)}
           </option>
         ))}
       </select>
