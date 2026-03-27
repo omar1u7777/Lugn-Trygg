@@ -44,6 +44,34 @@ interface ApiErrorLike {
 }
 
 const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
+const VALID_MOOD_LABELS = new Set(['ledsen', 'orolig', 'neutral', 'bra', 'glad', 'super']);
+
+const getMoodLabelFromScore = (score: number): string => {
+  if (score >= 9) return 'Super';
+  if (score >= 7) return 'Glad';
+  if (score >= 5) return 'Bra';
+  if (score >= 4) return 'Neutral';
+  if (score >= 2) return 'Orolig';
+  return 'Ledsen';
+};
+
+const normalizeMoodLabel = (rawLabel: string, score: number): string => {
+  const trimmed = rawLabel.trim();
+  if (!trimmed) {
+    return getMoodLabelFromScore(score);
+  }
+
+  const normalized = trimmed.toLowerCase();
+  const looksLikeSentence = trimmed.length > 18 || normalized.includes(' ');
+
+  // If backend text looks like a note/sentence instead of a mood word,
+  // fall back to deterministic label from score.
+  if (!VALID_MOOD_LABELS.has(normalized) || looksLikeSentence) {
+    return getMoodLabelFromScore(score);
+  }
+
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+};
 
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const { t } = useTranslation();
@@ -238,14 +266,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           // Clamp to 0-10 range
           score = Math.max(0, Math.min(10, score));
 
-          if (!moodText || moodText.toLowerCase() === 'neutral') {
-            if (score >= 9) moodText = 'Super';
-            else if (score >= 7) moodText = 'Glad';
-            else if (score >= 5) moodText = 'Bra';
-            else if (score >= 4) moodText = 'Neutral';
-            else if (score >= 2) moodText = 'Orolig';
-            else moodText = 'Ledsen';
-          }
+          moodText = normalizeMoodLabel(moodText, score);
 
           return {
             id: mood.id || mood.docId,
@@ -443,7 +464,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
                 };
                 
                 return (
-                <div key={mood.id || index} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] transition-colors border-b border-[#f2e4d4] last:border-0">
+                <div key={mood.id || index} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] dark:hover:bg-slate-800/70 transition-colors border-b border-[#f2e4d4] dark:border-slate-700 last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#fff7f0] flex items-center justify-center">
                       <span className="text-xl">
