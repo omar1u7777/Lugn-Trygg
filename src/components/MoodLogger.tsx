@@ -312,7 +312,8 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           // Ensure UI always shows a valid 1-10 score.
           score = Math.max(1, Math.min(10, score ?? 5));
 
-          moodText = normalizeMoodLabel(moodText, score);
+          // Use score as source of truth so label/emoji/score stay consistent in history cards.
+          moodText = getMoodLabelFromScore(score);
 
           return {
             id: mood.id || mood.docId,
