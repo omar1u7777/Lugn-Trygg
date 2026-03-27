@@ -1,5 +1,13 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  ChartBarIcon,
+  ExclamationTriangleIcon,
+  FaceFrownIcon,
+  FaceSmileIcon,
+  MinusCircleIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { logMood, getMoods } from '../api/api';
@@ -19,6 +27,12 @@ interface RecentMood {
   mood: string;
   score: number;
   timestamp: Date;
+}
+
+interface RecentMoodGroup {
+  key: string;
+  label: string;
+  entries: RecentMood[];
 }
 
 type TimestampLike = Date | string | number | { toDate?: () => Date } | null | undefined;
@@ -97,6 +111,94 @@ const getReflectionPromptByScore = (score: number): string => {
     return 'Vad bidrog till att du känner dig okej eller bra just nu?';
   }
   return 'Vad vill du ta med dig från den här positiva känslan resten av dagen?';
+};
+
+const getMoodVisual = (score: number) => {
+  if (score >= 10) {
+    return {
+      Icon: SparklesIcon,
+      iconClass: 'text-amber-600 dark:text-amber-300',
+      iconBgClass: 'bg-amber-50 dark:bg-amber-900/30',
+      scoreBadgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    };
+  }
+
+  if (score >= 8) {
+    return {
+      Icon: FaceSmileIcon,
+      iconClass: 'text-emerald-600 dark:text-emerald-300',
+      iconBgClass: 'bg-emerald-50 dark:bg-emerald-900/30',
+      scoreBadgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+    };
+  }
+
+  if (score >= 7) {
+    return {
+      Icon: FaceSmileIcon,
+      iconClass: 'text-teal-600 dark:text-teal-300',
+      iconBgClass: 'bg-teal-50 dark:bg-teal-900/30',
+      scoreBadgeClass: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+    };
+  }
+
+  if (score >= 5) {
+    return {
+      Icon: MinusCircleIcon,
+      iconClass: 'text-slate-600 dark:text-slate-300',
+      iconBgClass: 'bg-slate-100 dark:bg-slate-700/40',
+      scoreBadgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300',
+    };
+  }
+
+  if (score >= 3) {
+    return {
+      Icon: ExclamationTriangleIcon,
+      iconClass: 'text-orange-600 dark:text-orange-300',
+      iconBgClass: 'bg-orange-50 dark:bg-orange-900/30',
+      scoreBadgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    };
+  }
+
+  return {
+    Icon: FaceFrownIcon,
+    iconClass: 'text-rose-600 dark:text-rose-300',
+    iconBgClass: 'bg-rose-50 dark:bg-rose-900/30',
+    scoreBadgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  };
+};
+
+const isSameCalendarDay = (left: Date, right: Date): boolean => {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+};
+
+const getDayGroupLabel = (date: Date): string => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (isSameCalendarDay(date, today)) {
+    return 'Idag';
+  }
+
+  if (isSameCalendarDay(date, yesterday)) {
+    return 'Igår';
+  }
+
+  return date.toLocaleDateString('sv-SE', {
+    day: 'numeric',
+    month: 'short',
+  });
+};
+
+const getLocalDayKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
@@ -352,6 +454,26 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
     }
   }, [loadRecentMoods, user?.user_id]);
 
+  const groupedRecentMoods = useMemo<RecentMoodGroup[]>(() => {
+    return recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
+      const groupKey = getLocalDayKey(mood.timestamp);
+      const existingGroup = groups.find((group) => group.key === groupKey);
+
+      if (existingGroup) {
+        existingGroup.entries.push(mood);
+        return groups;
+      }
+
+      groups.push({
+        key: groupKey,
+        label: getDayGroupLabel(mood.timestamp),
+        entries: [mood],
+      });
+
+      return groups;
+    }, []);
+  }, [recentMoods]);
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Back to Dashboard Button - Only show if onMoodLogged is provided */}
@@ -523,47 +645,46 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       <Card className="mt-8 border border-[#f2e4d4]">
         <div className="p-4 sm:p-6">
           <h3 className="text-xl font-semibold text-[#2f2a24] dark:text-white mb-4 flex items-center gap-2">
-            <span>📊</span> Dina senaste humör
+            <ChartBarIcon className="w-5 h-5 text-[#2c8374]" aria-hidden="true" />
+            Dina senaste humör
           </h3>
           <div className="space-y-3">
-            {recentMoods.length > 0 ? (
-              recentMoods.map((mood, index) => {
-                // Determine emoji based on score (1-10 scale)
-                const getEmoji = (score: number) => {
-                  if (score >= 10) return '🤩'; // Super (10)
-                  if (score >= 8) return '😊';  // Glad (8-9)
-                  if (score >= 7) return '🙂';  // Bra (7)
-                  if (score >= 5) return '😐';  // Neutral (5-6)
-                  if (score >= 3) return '😟';  // Orolig (3-4)
-                  return '😢';                  // Ledsen (1-2)
-                };
-                
-                return (
-                <div key={mood.id || index} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] dark:hover:bg-slate-800/70 transition-colors border-b border-[#f2e4d4] dark:border-slate-700 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#fff7f0] flex items-center justify-center">
-                      <span className="text-xl">
-                        {getEmoji(mood.score)}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-[#2f2a24] dark:text-white">{mood.mood || t('mood.unknown', 'Humör')}</div>
-                      <div className="text-sm text-[#6d645d] dark:text-gray-400">
-                        {mood.timestamp.toLocaleDateString('sv-SE', {
-                          day: 'numeric',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    </div>
+            {groupedRecentMoods.length > 0 ? (
+              groupedRecentMoods.map((group) => (
+                <section key={group.key} className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#6d645d] dark:text-gray-400">
+                    {group.label}
+                  </p>
+                  <div className="space-y-2">
+                    {group.entries.map((mood, index) => {
+                      const moodVisual = getMoodVisual(mood.score);
+                      const MoodIcon = moodVisual.Icon;
+
+                      return (
+                        <div key={mood.id || `${group.key}-${index}`} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] dark:hover:bg-slate-800/70 transition-colors border-b border-[#f2e4d4] dark:border-slate-700 last:border-0">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${moodVisual.iconBgClass}`} aria-hidden="true">
+                              <MoodIcon className={`w-5 h-5 ${moodVisual.iconClass}`} />
+                            </div>
+                            <div>
+                              <div className="font-medium text-[#2f2a24] dark:text-white">{mood.mood || t('mood.unknown', 'Humör')}</div>
+                              <div className="text-sm text-[#6d645d] dark:text-gray-400">
+                                {mood.timestamp.toLocaleTimeString('sv-SE', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${moodVisual.scoreBadgeClass}`}>
+                            {mood.score}/10
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span className="px-3 py-1.5 bg-[#2c8374]/10 text-[#1e5f54] rounded-full text-sm font-semibold">
-                    {mood.score}/10
-                  </span>
-                </div>
-              );
-              })
+                </section>
+              ))
             ) : (
               <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                 <p className="mb-1">Inga humör loggade ännu</p>

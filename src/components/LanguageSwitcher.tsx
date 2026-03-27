@@ -1,6 +1,20 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+const normalizeLanguageDisplayName = (code: string, name: string): string => {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return name;
+  }
+
+  // Safety guard for odd locale strings such as "se Svenska".
+  if (code === 'sv' && /^se\s+svenska$/i.test(trimmed)) {
+    return 'Svenska';
+  }
+
+  return trimmed;
+};
+
 const LanguageSwitcher: React.FC = () => {
   const { i18n, t } = useTranslation();
 
@@ -32,7 +46,7 @@ const LanguageSwitcher: React.FC = () => {
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>
-            {lang.flag} {lang.name}
+            {lang.flag} {normalizeLanguageDisplayName(lang.code, lang.name)}
           </option>
         ))}
       </select>
