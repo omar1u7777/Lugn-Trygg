@@ -33,6 +33,8 @@ import { useGratitude } from '../hooks/useGratitude';
 import { useJournaling } from '../hooks/useJournaling';
 import { logger } from '../utils/logger';
 
+const EMPTY_WELLNESS_GOALS: string[] = [];
+
 
 
 
@@ -56,7 +58,7 @@ const formatReadingTime = (seconds: number) => {
 
 // interfaces are now imported from ../types/recommendation
 
-const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, wellnessGoals = [], compact = false }) => {
+const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, wellnessGoals = EMPTY_WELLNESS_GOALS, compact = false }) => {
   const navigate = useNavigate();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
@@ -66,6 +68,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
+  const resolvedWellnessGoals = Array.isArray(wellnessGoals) ? wellnessGoals : EMPTY_WELLNESS_GOALS;
+  const wellnessGoalsSignature = resolvedWellnessGoals.join('|');
   
   // Save user progress to localStorage
   const saveUserProgress = useCallback((progress: typeof userProgress) => {
@@ -442,9 +446,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     // In compact dashboard mode, rely on provided props to avoid unnecessary refresh/flicker.
     if (compact) {
-      if (wellnessGoals.length > 0) {
-        setFetchedWellnessGoals(wellnessGoals);
+      if (resolvedWellnessGoals.length > 0) {
+        setFetchedWellnessGoals(resolvedWellnessGoals);
       }
+      setLoading(false);
+      return;
+    }
+
+    if (resolvedWellnessGoals.length > 0) {
+      setFetchedWellnessGoals(resolvedWellnessGoals);
       setLoading(false);
       return;
     }
@@ -480,24 +490,24 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
 
     fetchWellnessGoalsData();
-  }, [compact, user?.user_id, wellnessGoals]);
+  }, [compact, user?.user_id, wellnessGoalsSignature]);
 
   // Track page view only once on mount
   useEffect(() => {
     analytics.page('Recommendations', {
       component: 'Recommendations',
       userId: userId || user?.user_id,
-      wellnessGoals: wellnessGoals.length > 0 ? wellnessGoals : fetchedWellnessGoals,
+      wellnessGoals: resolvedWellnessGoals.length > 0 ? resolvedWellnessGoals : fetchedWellnessGoals,
     });
   }, []); // Only run once on mount
 
   // Load recommendations when goals change
   useEffect(() => {
-    const goalsToUse = wellnessGoals.length > 0 ? wellnessGoals : fetchedWellnessGoals;
+    const goalsToUse = resolvedWellnessGoals.length > 0 ? resolvedWellnessGoals : fetchedWellnessGoals;
     logger.debug('📋 Loading recommendations with goals:', goalsToUse);
 
     loadRecommendations(goalsToUse, announceToScreenReader);
-  }, [wellnessGoals, fetchedWellnessGoals, loadRecommendations, announceToScreenReader]);
+  }, [wellnessGoalsSignature, fetchedWellnessGoals, loadRecommendations, announceToScreenReader]);
 
   // Cleanup timers on unmount
   useEffect(() => {
