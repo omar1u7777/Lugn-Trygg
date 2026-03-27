@@ -100,7 +100,7 @@ const Sidebar: React.FC = memo(() => {
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#fff7f0] dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-[110] transition-colors duration-300"
+      className="hidden lg:flex flex-col w-64 fixed left-0 top-0 h-screen bg-[#fff7f0] dark:bg-slate-900 border-r border-[#e8dcd0] dark:border-slate-800 z-[100] transition-colors duration-300 overflow-hidden"
       aria-label="Huvudnavigation"
     >
       {/* Logo Section */}
@@ -117,7 +117,7 @@ const Sidebar: React.FC = memo(() => {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
+      <nav className="flex-1 p-4">
         <div className="space-y-1">
           {navItemsRendered}
         </div>
