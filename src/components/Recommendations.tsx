@@ -88,7 +88,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           break;
         case 'meditation':
           newProgress.meditationMinutes += amount ?? 0;
-          logger.debug('📊 Meditation minutes added:', amount, 'total:', newProgress.meditationMinutes);
+          logger.debug('📊 Meditation minutes added', {
+            addedMinutes: amount,
+            totalMinutes: newProgress.meditationMinutes,
+          });
           break;
         case 'article':
           newProgress.articlesRead += amount ?? 1;
@@ -785,7 +788,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.includes('progress')) {
-        logger.debug('🔍 Found progress key:', key, '=', localStorage.getItem(key));
+        logger.debug('🔍 Found progress key', {
+          key,
+          value: localStorage.getItem(key),
+        });
       }
     }
   }, []);
@@ -798,7 +804,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       setNotificationSettings({
         dailyRemindersEnabled: settings.dailyRemindersEnabled || false,
         reminderTime: settings.reminderTime || '09:00',
-        fcmToken: settings.fcmToken || false
+        fcmToken: settings.hasFcmToken || false
       });
     } catch (error) {
       logger.error('Failed to load notification settings:', error);

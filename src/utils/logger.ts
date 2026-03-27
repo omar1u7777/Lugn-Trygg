@@ -49,10 +49,37 @@ class Logger {
   }
 
   /**
+   * Normalize arbitrary context values into a serializable object payload.
+   */
+  private normalizeContext(context?: unknown): Record<string, unknown> | undefined {
+    if (context === undefined || context === null) {
+      return undefined;
+    }
+
+    if (Array.isArray(context)) {
+      return { items: context };
+    }
+
+    if (context instanceof Error) {
+      return {
+        message: context.message,
+        stack: context.stack,
+      };
+    }
+
+    if (typeof context === 'object') {
+      return context as Record<string, unknown>;
+    }
+
+    return { value: context };
+  }
+
+  /**
    * Format log message with prefix and context
    */
-  private formatMessage(message: string, context?: Record<string, unknown>): unknown[] {
+  private formatMessage(message: string, context?: unknown): unknown[] {
     const parts: unknown[] = [];
+    const normalizedContext = this.normalizeContext(context);
     
     if (this.config.prefix) {
       parts.push(this.config.prefix);
@@ -60,8 +87,8 @@ class Logger {
     
     parts.push(message);
     
-    if (context && Object.keys(context).length > 0) {
-      parts.push('\n Context:', context);
+    if (normalizedContext && Object.keys(normalizedContext).length > 0) {
+      parts.push('\n Context:', normalizedContext);
     }
     
     return parts;
@@ -70,7 +97,7 @@ class Logger {
   /**
    * Development-only logging (removed in production)
    */
-  log(message: string, context?: Record<string, unknown>): void {
+  log(message: string, context?: unknown): void {
     if (this.shouldLog('log')) {
       console.log(...this.formatMessage(message, context));
     }
@@ -79,7 +106,7 @@ class Logger {
   /**
    * Debug logging (development only)
    */
-  debug(message: string, context?: Record<string, unknown>): void {
+  debug(message: string, context?: unknown): void {
     if (this.shouldLog('debug')) {
       console.debug(...this.formatMessage(`[DEBUG] ${message}`, context));
     }
@@ -88,7 +115,7 @@ class Logger {
   /**
    * Info logging (development only)
    */
-  info(message: string, context?: Record<string, unknown>): void {
+  info(message: string, context?: unknown): void {
     if (this.shouldLog('info')) {
       console.info(...this.formatMessage(`[INFO] ${message}`, context));
     }
@@ -97,7 +124,7 @@ class Logger {
   /**
    * Warning (enabled in all environments)
    */
-  warn(message: string, context?: Record<string, unknown>): void {
+  warn(message: string, context?: unknown): void {
     if (this.shouldLog('warn')) {
       console.warn(...this.formatMessage(`⚠️ ${message}`, context));
     }
@@ -106,13 +133,13 @@ class Logger {
   /**
    * Error logging (enabled in all environments)
    */
-  error(message: string, error?: Error | unknown, context?: Record<string, unknown>): void {
+  error(message: string, error?: Error | unknown, context?: unknown): void {
     if (this.shouldLog('error')) {
       const errorContext = error instanceof Error ? {
         message: error.message,
         stack: error.stack,
-        ...context
-      } : context;
+        ...this.normalizeContext(context)
+      } : this.normalizeContext(context ?? error);
       
       console.error(...this.formatMessage(`❌ ${message}`, errorContext));
       
