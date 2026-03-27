@@ -7,7 +7,6 @@ import AppLayout from '../AppLayout';
 import { LoadingSpinner } from '../LoadingStates';
 import { useTranslation } from 'react-i18next';
 import WorldClassDashboardSkeleton from '../WorldClassDashboardSkeleton';
-import { SkipLink } from '../Accessibility/SkipLink';
 import { useAuth } from '../../contexts/AuthContext';
 
 // CSS imports moved to src/main.tsx so they load on ALL pages (including
@@ -52,9 +51,6 @@ const ProtectedAppShell: React.FC = () => {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-b from-[#fff7f0] to-[#fffaf5] dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-        {/* Skip Link for keyboard navigation */}
-        <SkipLink targetId="main-content" />
-
         {/* Top Navigation */}
         <Navigation />
 

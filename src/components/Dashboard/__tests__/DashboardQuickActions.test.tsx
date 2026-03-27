@@ -52,6 +52,44 @@ describe('DashboardQuickActions', () => {
       fireEvent.click(screen.getByText('Få stöd'));
       expect(mockOnActionClick).toHaveBeenCalledWith('chat');
     });
+
+    it('disables mood and chat actions when quota is exhausted', () => {
+      mockUseSubscription.mockReturnValue({
+        isPremium: false,
+        getRemainingMoodLogs: () => 0,
+        getRemainingMessages: () => -2,
+        hasFeature: () => false,
+      });
+
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+
+      const moodButton = screen.getByRole('button', { name: /Checka in med ditt mående/i });
+      const chatButton = screen.getByRole('button', { name: /Starta samtal med AI-stöd/i });
+
+      expect(screen.getAllByText('Kvot nådd idag').length).toBeGreaterThanOrEqual(2);
+      expect(moodButton).toBeDisabled();
+      expect(chatButton).toBeDisabled();
+
+      fireEvent.click(moodButton);
+      fireEvent.click(chatButton);
+      expect(mockOnActionClick).not.toHaveBeenCalled();
+    });
+
+    it('shows unlimited labels instead of negative values when backend returns -1', () => {
+      mockUseSubscription.mockReturnValue({
+        isPremium: false,
+        getRemainingMoodLogs: () => -1,
+        getRemainingMessages: () => -1,
+        hasFeature: () => false,
+      });
+
+      render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
+
+      expect(screen.getByText('Obegränsat idag')).toBeInTheDocument();
+      expect(screen.getByText('Alltid redo')).toBeInTheDocument();
+      expect(screen.queryByText('-1 kvar idag')).not.toBeInTheDocument();
+      expect(screen.queryByText('-1 meddelanden')).not.toBeInTheDocument();
+    });
   });
 
   describe('premium plan', () => {

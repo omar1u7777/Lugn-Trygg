@@ -40,10 +40,38 @@ import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
 import { formatNumber } from '../utils/intlFormatters';
+import { extractDisplayName } from '../utils/nameUtils';
 
 interface WorldClassDashboardProps {
   userId?: string;
 }
+
+const MOOD_LABEL_SCORES: Record<string, number> = {
+  ledsen: 2,
+  orolig: 3,
+  neutral: 5,
+  bra: 7,
+  glad: 8,
+  super: 10,
+};
+
+const extractMoodScoreFromDescription = (description: string): number | null => {
+  if (!description) {
+    return null;
+  }
+
+  const explicitScoreMatch = description.match(/(\d{1,2})\s*\/\s*10/);
+  if (explicitScoreMatch) {
+    const parsed = Number(explicitScoreMatch[1]);
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 10) {
+      return parsed;
+    }
+  }
+
+  const normalized = description.toLowerCase();
+  const matchedLabel = Object.keys(MOOD_LABEL_SCORES).find((label) => normalized.includes(label));
+  return matchedLabel ? MOOD_LABEL_SCORES[matchedLabel] : null;
+};
 
 const WorldClassAnalyticsView = lazy(() => import('./WorldClassAnalytics'));
 const RecommendationsPanel = lazy(() => import('./Recommendations'));
@@ -94,7 +122,13 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isPremium, refreshSubscription } = useSubscription();
+  const { hasFeature, plan, refreshSubscription } = useSubscription();
+  const moodLogLimit = plan?.limits?.moodLogsPerDay ?? 3;
+  const chatMessageLimit = plan?.limits?.chatMessagesPerDay ?? 10;
+  const hasUnlimitedUsage = moodLogLimit === -1 && chatMessageLimit === -1;
+  const planName = typeof plan === 'string' ? plan : plan?.name;
+  const isPremiumPlan = planName === 'premium' || planName === 'enterprise';
+  const isPremiumUser = isPremiumPlan || hasUnlimitedUsage || hasFeature('premium') || hasFeature('unlimited_usage');
 
   const resolvedUserId = user?.user_id || userId;
 
@@ -144,11 +178,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
   // Transform data for component props
+  const moodSamples = safeDashboardStats.recentActivity
+    .filter((activity) => activity.type === 'mood')
+    .map((activity) => extractMoodScoreFromDescription(activity.description))
+    .filter((score): score is number => score !== null);
+
   const stats = {
     averageMood: safeDashboardStats.averageMood,
     streakDays: safeDashboardStats.streakDays,
     totalChats: safeDashboardStats.totalChats,
     achievementsCount: Math.floor(safeDashboardStats.streakDays / 7) + Math.floor(safeDashboardStats.totalMoods / 10),
+    moodSamples,
   };
 
   const formattedWeeklyProgress = formatNumber(safeDashboardStats.weeklyProgress);
@@ -335,9 +375,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     });
 
     // Premium features require subscription check
-    const premiumFeatures = ['meditation', 'journal'];
+    if (actionId === 'meditation' && !hasFeature('wellness')) {
+      navigate('/upgrade');
+      return;
+    }
 
-    if (premiumFeatures.includes(actionId) && !isPremium) {
+    if (actionId === 'journal' && !hasFeature('journal')) {
       // Navigate to upgrade page for premium features
       navigate('/upgrade');
       return;
@@ -412,7 +455,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           </Suspense>
         )}
         {activeView === 'gamification' && (
-          isPremium ? (
+          hasFeature('gamification') ? (
             <WorldClassGamification onClose={handleCloseFeature} />
           ) : (
             <PremiumGate
@@ -455,7 +498,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       )}
 
       {/* Usage Limit Banner - Shows remaining free tier usage */}
-      {!isPremium && (
+      {!isPremiumUser && (
         <div className="px-4 sm:px-6 lg:px-8 pt-4">
           <UsageLimitBanner variant="compact" />
         </div>
@@ -463,7 +506,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
       {/* Hero Header */}
       <DashboardHeader
-        userName={user?.email?.split('@')[0] || 'vän'}
+        userName={extractDisplayName(user?.email || '') || 'vän'}
         onRefresh={handleRefresh}
         isLoading={loading}
       />
@@ -530,20 +573,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                 {t('worldDashboard.goalRecommendations')}
               </p>
-            </div>
-          </Card>
-        )}
-
-        {shouldRenderWellnessSkeleton && (
-          <Card className="mb-8 animate-pulse" aria-hidden="true">
-            <div className="p-6 sm:p-8 space-y-4">
-              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map((skeleton) => (
-                  <div key={skeleton} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                ))}
-              </div>
             </div>
           </Card>
         )}
