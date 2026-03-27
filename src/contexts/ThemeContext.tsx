@@ -28,9 +28,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       return savedTheme === 'dark';
     }
 
-    // Check system preference
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return systemPrefersDark;
+    // Default to light mode on first visit for consistent auth entry experience.
+    return false;
   });
 
   useEffect(() => {
