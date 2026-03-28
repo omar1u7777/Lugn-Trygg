@@ -42,9 +42,35 @@ class ErrorBoundary extends Component<Props, State> {
 
     if (isChunkLoadError) {
       const chunkReloadKey = 'vite_chunk_reloaded';
-      if (!sessionStorage.getItem(chunkReloadKey)) {
-        sessionStorage.setItem(chunkReloadKey, 'true');
-        window.location.reload();
+      const lastReload = sessionStorage.getItem(chunkReloadKey);
+      const now = Date.now();
+      
+      // Only reload if we haven\'t reloaded in the last 10 seconds
+      if (!lastReload || (now - parseInt(lastReload)) > 10000) {
+        sessionStorage.setItem(chunkReloadKey, now.toString());
+        
+        // Force unregister service workers and clear caches before reload
+        if (typeof window !== 'undefined') {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              for (const reg of regs) {
+                reg.unregister();
+              }
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(names => {
+              for (const name of names) {
+                caches.delete(name);
+              }
+            });
+          }
+          
+          // Add a cache-busing query param to force network fetch
+          const url = new URL(window.location.href);
+          url.searchParams.set('t', now.toString());
+          window.location.replace(url.toString());
+        }
       }
     }
 
@@ -130,7 +156,11 @@ class ErrorBoundary extends Component<Props, State> {
               <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
                 Vi är ledsna, men något oväntat hände. Vårt team har fått information om felet.
               </p>
-
+                {this.state.error && (
+                  <div className="text-xs text-left p-3 mt-2 mb-4 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded overflow-auto font-mono w-full break-words max-h-32 shadow-inner">
+                    <strong>{this.state.error.name}:</strong> {this.state.error.message}
+                  </div>
+                )}
               <div className="flex flex-col gap-3">
                 {canRetry ? (
                   <button

@@ -297,7 +297,7 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
     };
     logger.error("API Error Response:", errorData);
 
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('auth/refresh')) {
       return await handle401Error(error, originalRequest);
     }
 
