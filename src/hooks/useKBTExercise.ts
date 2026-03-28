@@ -3,6 +3,45 @@ import { useExerciseTimer } from './useExerciseTimer';
 import { KBT_PHASES } from '../constants/recommendations';
 import { KBTPhaseName } from '../types/recommendation';
 
+const MIN_NEGATIVE_LENGTH = 15;
+const MIN_EVIDENCE_LENGTH = 30;
+const MIN_ALTERNATIVE_LENGTH = 15;
+
+const LOW_QUALITY_PATTERNS = [
+    /^vet\s+inte$/i,
+    /^idk$/i,
+    /^ingen\s+aning$/i,
+    /^jag\s+vet\s+inte$/i,
+    /^-+$/,
+    /^\.+$/,
+];
+
+const getWordCount = (value: string) => value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+
+const isLowQualityInput = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return true;
+    return LOW_QUALITY_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+const hasEvidenceStructure = (value: string) => {
+    const normalized = value.toLowerCase();
+    const hasFor = normalized.includes('för:') || normalized.includes('for:');
+    const hasAgainst = normalized.includes('emot:') || normalized.includes('against:');
+    return hasFor && hasAgainst;
+};
+
+const getDurationForPhase = (phase: KBTPhaseName) => {
+    if (phase === 'challenge') return 180;
+    if (phase === 'replace') return 120;
+    if (phase === 'practice') return 300;
+    return 0;
+};
+
 interface UserThoughts {
     negative: string;
     evidence: string;
@@ -30,17 +69,49 @@ export const useKBTExercise = (options: {
     });
 
     const nextPhase = useCallback(() => {
+        const negativeThought = thoughts.negative.trim();
+        const evidence = thoughts.evidence.trim();
+        const alternative = thoughts.alternative.trim();
+
         // Validation
-        if (phase === 'identify' && thoughts.negative.trim().length < 10) {
-            if (options.announce) options.announce('Skriv minst 10 tecken i din negativa tanke innan du fortsätter', 'assertive');
+        if (phase === 'identify' && negativeThought.length < MIN_NEGATIVE_LENGTH) {
+            if (options.announce) {
+                options.announce(`Skriv minst ${MIN_NEGATIVE_LENGTH} tecken i din negativa tanke innan du fortsätter`, 'assertive');
+            }
             return;
         }
-        if (phase === 'challenge' && thoughts.evidence.trim().length < 20) {
-            if (options.announce) options.announce('Beskriv bevisen för och emot tanken innan du fortsätter', 'assertive');
+        if (phase === 'identify' && getWordCount(negativeThought) < 4) {
+            if (options.announce) options.announce('Försök beskriva tanken med minst fyra ord för att göra den tydlig', 'assertive');
             return;
         }
-        if (phase === 'replace' && thoughts.alternative.trim().length < 10) {
-            if (options.announce) options.announce('Skapa en balanserad alternativ tanke innan du fortsätter', 'assertive');
+        if (phase === 'identify' && isLowQualityInput(negativeThought)) {
+            if (options.announce) options.announce('Skriv en konkret tanke, inte bara ett kort standardsvar', 'assertive');
+            return;
+        }
+        if (phase === 'challenge' && evidence.length < MIN_EVIDENCE_LENGTH) {
+            if (options.announce) {
+                options.announce(`Beskriv bevisen med minst ${MIN_EVIDENCE_LENGTH} tecken innan du fortsätter`, 'assertive');
+            }
+            return;
+        }
+        if (phase === 'challenge' && !hasEvidenceStructure(evidence)) {
+            if (options.announce) {
+                options.announce('Använd gärna strukturen "För:" och "Emot:" för en mer balanserad analys', 'assertive');
+            }
+            return;
+        }
+        if (phase === 'replace' && alternative.length < MIN_ALTERNATIVE_LENGTH) {
+            if (options.announce) {
+                options.announce(`Skapa en balanserad alternativ tanke med minst ${MIN_ALTERNATIVE_LENGTH} tecken`, 'assertive');
+            }
+            return;
+        }
+        if (phase === 'replace' && getWordCount(alternative) < 4) {
+            if (options.announce) options.announce('Försök skriva minst fyra ord i din balanserade tanke', 'assertive');
+            return;
+        }
+        if (phase === 'replace' && alternative.toLowerCase() === negativeThought.toLowerCase()) {
+            if (options.announce) options.announce('Din alternativa tanke behöver skilja sig från den negativa tanken', 'assertive');
             return;
         }
 
@@ -51,10 +122,7 @@ export const useKBTExercise = (options: {
                 setPhase(next);
 
                 // Set time for next phase
-                let duration = 0;
-                if (next === 'challenge') duration = 180;
-                else if (next === 'replace') duration = 120;
-                else if (next === 'practice') duration = 300;
+                const duration = getDurationForPhase(next);
 
                 if (duration > 0) {
                     setTimeLeft(duration);
