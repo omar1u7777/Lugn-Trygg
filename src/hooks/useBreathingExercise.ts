@@ -6,13 +6,16 @@ export type BreathingPhase = 'prepare' | 'exhale' | 'inhale' | 'hold' | 'exhale2
 
 export const useBreathingExercise = (options: {
     onComplete?: (cycleCount: number) => void;
-    onPhaseChange?: (phase: BreathingPhase, instruction: string) => void;
+    onPhaseChange?: (phase: BreathingPhase, instruction: string, secondsLeft?: number) => void;
+    targetCycles?: number;
 } = {}) => {
     const [phase, setPhase] = useState<BreathingPhase>('rest');
     const [cycleCount, setCycleCount] = useState(0);
     const [totalSeconds, setTotalSeconds] = useState(0);
+    const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0);
 
     const cycleTotalTime = BREATHING_PHASES.reduce((sum, p) => sum + p.duration, 0);
+    const targetCycles = options.targetCycles ?? 4;
 
     const onTick = useCallback((seconds: number) => {
         setTotalSeconds(seconds);
@@ -41,34 +44,44 @@ export const useBreathingExercise = (options: {
             elapsed += p.duration;
         }
 
+        const elapsedInPhase = currentCycleTime - elapsed;
+        const secondsLeft = Math.max(currentPhase.duration - elapsedInPhase + 1, 0);
+        setPhaseSecondsLeft(secondsLeft);
+
         if (phase !== (currentPhase.name as BreathingPhase)) {
             const nextPhaseName = currentPhase.name as BreathingPhase;
             setPhase(nextPhaseName);
             if (options.onPhaseChange) {
-                options.onPhaseChange(nextPhaseName, currentPhase.instruction);
+                options.onPhaseChange(nextPhaseName, currentPhase.instruction, secondsLeft);
             }
         }
 
         if (currentCycleTime === cycleTotalTime) {
             setCycleCount(prev => {
                 const next = prev + 1;
-                if (next >= 4) {
+                if (next >= targetCycles) {
                     stopTimer();
                     setPhase('completed');
+                    setPhaseSecondsLeft(0);
                     if (options.onComplete) options.onComplete(next);
                 }
                 return next;
             });
         }
-    }, [totalSeconds, isActive, cycleTotalTime, phase, options, stopTimer]);
+    }, [totalSeconds, isActive, cycleTotalTime, phase, options, stopTimer, targetCycles]);
 
     const start = useCallback(() => {
         setCycleCount(0);
         setTotalSeconds(0);
         setPhase('exhale');
+        setPhaseSecondsLeft(BREATHING_PHASES[0].duration);
         startTimer();
         if (options.onPhaseChange) {
-            options.onPhaseChange(BREATHING_PHASES[0].name as BreathingPhase, BREATHING_PHASES[0].instruction);
+            options.onPhaseChange(
+                BREATHING_PHASES[0].name as BreathingPhase,
+                BREATHING_PHASES[0].instruction,
+                BREATHING_PHASES[0].duration
+            );
         }
     }, [startTimer, options]);
 
@@ -77,6 +90,7 @@ export const useBreathingExercise = (options: {
         setPhase('rest');
         setCycleCount(0);
         setTotalSeconds(0);
+        setPhaseSecondsLeft(0);
     }, [stopTimer]);
 
     return {
@@ -84,6 +98,8 @@ export const useBreathingExercise = (options: {
         phase,
         cycleCount,
         totalSeconds,
+        phaseSecondsLeft,
+        targetCycles,
         start,
         stop
     };

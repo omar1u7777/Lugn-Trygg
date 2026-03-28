@@ -113,17 +113,27 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       return newProgress;
     });
   }, [user?.user_id, saveUserProgress]);
+
+  const [selectedBreathingCycles, setSelectedBreathingCycles] = useState<4 | 8 | 12>(4);
+  const [breathingUseSound, setBreathingUseSound] = useState(false);
+  const [breathingUseHaptics, setBreathingUseHaptics] = useState(true);
+  const [showBreathingScience, setShowBreathingScience] = useState(false);
+  const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
   
   // Breathing Exercise Hook
   const {
     isActive: isBreathingActive,
     phase: breathingPhase,
     cycleCount: breathingCount,
+    phaseSecondsLeft,
+    targetCycles,
     start: startBreathingExercise,
     stop: stopBreathingExercise
   } = useBreathingExercise({
+    targetCycles: selectedBreathingCycles,
     onComplete: (cycles) => {
       updateProgress('meditation', 4);
+      updateProgress('exercise', 1);
       setRecommendations(prev =>
         prev.map(r => (r.id === 'stress-1' ? { ...r, completed: true } : r))
       );
@@ -151,6 +161,87 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       announceToScreenReader(instruction, 'polite');
     }
   });
+
+  const playPhaseTone = useCallback((phase: string) => {
+    if (!breathingUseSound || typeof window === 'undefined') return;
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const frequencyMap: Record<string, number> = {
+      exhale: 220,
+      inhale: 440,
+      hold: 330,
+      exhale2: 220,
+      completed: 520,
+    };
+
+    const frequency = frequencyMap[phase] || 300;
+
+    try {
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      gain.gain.value = 0.03;
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.12);
+
+      oscillator.onended = () => {
+        audioContext.close().catch(() => {
+          // Ignore close errors to avoid interrupting exercise flow.
+        });
+      };
+    } catch (error) {
+      logger.debug('Could not play breathing tone', { error });
+    }
+  }, [breathingUseSound]);
+
+  const getBreathingCue = useCallback(() => {
+    switch (breathingPhase) {
+      case 'exhale':
+        return { icon: '🔵', title: 'Andas ut helt', detail: '2 sekunder - töm lungorna helt' };
+      case 'inhale':
+        return { icon: '🟢', title: 'Andas in', detail: '4 sekunder - fyll lungorna långsamt' };
+      case 'hold':
+        return { icon: '🟡', title: 'Håll andan', detail: '7 sekunder - håll kvar luften' };
+      case 'exhale2':
+        return { icon: '🔵', title: 'Andas ut långsamt', detail: '8 sekunder - töm lungorna helt' };
+      case 'completed':
+        return {
+          icon: '🎉',
+          title: 'Andningsövning slutförd!',
+          detail: `Bra jobbat! Du har genomfört ${targetCycles} andningscykler enligt 4-7-8-metoden.`,
+        };
+      default:
+        return {
+          icon: '🫁',
+          title: isBreathingActive ? 'Nästa cykel börjar...' : 'Redo att börja?',
+          detail: '4-7-8 metoden hjälper till att minska stress och ångest.',
+        };
+    }
+  }, [breathingPhase, isBreathingActive, targetCycles]);
+
+  const breathingCue = getBreathingCue();
+
+  useEffect(() => {
+    if (!isBreathingActive) return;
+    playPhaseTone(breathingPhase);
+
+    if (
+      breathingUseHaptics &&
+      navigator.vibrate &&
+      ['exhale', 'inhale', 'hold', 'exhale2', 'completed'].includes(breathingPhase)
+    ) {
+      navigator.vibrate(breathingPhase === 'completed' ? [80, 40, 120] : 35);
+    }
+  }, [breathingPhase, breathingUseHaptics, isBreathingActive, playPhaseTone]);
 
 
 
@@ -1242,6 +1333,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       clearInterval(articleReadingTimer);
       setArticleReadingTimer(null);
     }
+    setIsBreathingFullscreen(false);
+    setShowBreathingScience(false);
 
     setShowContentModal(false);
     setSelectedRecommendation(null);
@@ -1405,6 +1498,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     ? !!completedRecommendationIds[selectedRecommendationId]
     : false;
   const canManuallyCompleteSelectedRecommendation = !isStressBreathingRecommendation || breathingPhase === 'completed';
+  const selectedRecommendationHasNextFlow = isSelectedRecommendationCompleted && !!selectedRecommendation;
+  const nextCompletedActionLabel = selectedRecommendation?.type === 'exercise'
+    ? 'Reflektera i dagboken'
+    : 'Gå till nästa övning';
+  const isPrimaryActionDisabled = !isSelectedRecommendationCompleted && !canManuallyCompleteSelectedRecommendation;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -1906,7 +2004,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 </div>
                 <button
                   onClick={handleCloseContentModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
+                  className="text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md p-2"
                   aria-label="Stäng"
                 >
                   ✕
@@ -1950,136 +2048,138 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Interactive Breathing Exercise for 4-7-8 */}
               {selectedRecommendation.id === 'stress-1' && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                    🫁 Interaktiv Andningsguide
-                  </h3>
+                <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-[260] overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-center sm:text-left">
+                        🫁 Interaktiv Andningsguide
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setBreathingUseSound(prev => !prev)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${breathingUseSound ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                        >
+                          {breathingUseSound ? '🔊 Ljud på' : '🔈 Ljud av'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBreathingUseHaptics(prev => !prev)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${breathingUseHaptics ? 'bg-emerald-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                        >
+                          {breathingUseHaptics ? '📳 Haptik på' : '📴 Haptik av'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsBreathingFullscreen(prev => !prev)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white"
+                        >
+                          {isBreathingFullscreen ? '🗗 Avsluta helskärm' : '🗖 Helskärm'}
+                        </button>
+                      </div>
+                    </div>
 
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    Följ den färgade cirkeln och siffrorna för att skapa ett lugnt andningsmönster
-                  </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 text-center">
+                      Följ cue-texten i cirkeln och siffrorna för att skapa ett lugnt andningsmönster.
+                    </p>
 
-                  {/* Enhanced Breathing Visual Guide */}
-                  <div className="flex justify-center mb-6">
-                    <div className="relative">
-                      {/* Animated background rings */}
-                      <div className={`absolute inset-0 rounded-full border-4 transition-all duration-1000 ${breathingPhase === 'inhale' ? 'border-green-300 scale-150 opacity-60' :
-                        breathingPhase === 'exhale' || breathingPhase === 'exhale2' ? 'border-blue-300 scale-90 opacity-40' :
-                          'border-gray-300 scale-100 opacity-20'
-                        } `}></div>
-                      <div className={`absolute inset-2 rounded-full border-2 transition-all duration-1000 ${breathingPhase === 'hold' ? 'border-yellow-300 scale-110 opacity-50' :
-                        'border-transparent scale-100 opacity-0'
-                        } `}></div>
+                    <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+                      {[4, 8, 12].map((cycleOption) => (
+                        <button
+                          key={cycleOption}
+                          type="button"
+                          disabled={isBreathingActive}
+                          onClick={() => setSelectedBreathingCycles(cycleOption as 4 | 8 | 12)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${selectedBreathingCycles === cycleOption
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white/80 dark:bg-gray-700 text-gray-700 dark:text-gray-200'} ${isBreathingActive ? 'opacity-60 cursor-not-allowed' : 'hover:bg-indigo-100 dark:hover:bg-gray-600'}`}
+                        >
+                          {cycleOption} cykler
+                        </button>
+                      ))}
+                    </div>
 
-                      {/* Main breathing circle with enhanced animations */}
-                      <div
-                        className={`relative w-32 h-32 rounded-full flex items-center justify-center text-2xl font-bold transition-all duration-1000 transform ${breathingPhase === 'exhale'
-                          ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
-                          : breathingPhase === 'inhale'
-                            ? 'bg-gradient-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
-                            : breathingPhase === 'hold'
-                              ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
-                              : breathingPhase === 'exhale2'
-                                ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
-                                : breathingPhase === 'completed'
-                                  ? 'bg-gradient-to-br from-purple-400 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl animate-bounce'
-                                  : 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'
-                          } `}
-                      >
-                        {/* Breathing icon with animation */}
-                        <div className={`transition-all duration-500 ${breathingPhase === 'inhale' ? 'animate-bounce' :
-                          breathingPhase === 'exhale' || breathingPhase === 'exhale2' ? 'animate-pulse' :
-                            breathingPhase === 'hold' ? 'animate-ping' :
-                              breathingPhase === 'completed' ? 'animate-spin' : ''
-                          } `}>
-                          {breathingPhase === 'completed' ? (
-                            <span className="text-4xl">🎉</span>
-                          ) : breathingCount > 0 ? (
-                            <span className="text-3xl font-black">{breathingCount}</span>
-                          ) : (
-                            <span className="text-4xl">🫁</span>
+                    <div className="flex justify-center mb-6">
+                      <div className="relative">
+                        <div className={`absolute inset-0 rounded-full border-4 transition-all duration-1000 ${breathingPhase === 'inhale' ? 'border-green-300 scale-150 opacity-60' : breathingPhase === 'exhale' || breathingPhase === 'exhale2' ? 'border-blue-300 scale-90 opacity-40' : 'border-gray-300 scale-100 opacity-20'}`}></div>
+                        <div className={`absolute inset-2 rounded-full border-2 transition-all duration-1000 ${breathingPhase === 'hold' ? 'border-yellow-300 scale-110 opacity-50' : 'border-transparent scale-100 opacity-0'}`}></div>
+
+                        <div
+                          className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-1000 transform ${breathingPhase === 'exhale'
+                            ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                            : breathingPhase === 'inhale'
+                              ? 'bg-gradient-to-br from-green-400 to-green-600 text-white scale-125 shadow-green-500/50 shadow-xl animate-pulse'
+                              : breathingPhase === 'hold'
+                                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white scale-110 shadow-yellow-500/50 shadow-lg'
+                                : breathingPhase === 'exhale2'
+                                  ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white scale-75 shadow-blue-500/50 shadow-lg'
+                                  : breathingPhase === 'completed'
+                                    ? 'bg-gradient-to-br from-purple-500 to-pink-600 text-white scale-110 shadow-purple-500/50 shadow-xl'
+                                    : 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 scale-100 shadow-gray-500/20 shadow-md'} `}
+                        >
+                          <span className="text-xs font-semibold tracking-wide uppercase opacity-90">
+                            {breathingCue.title}
+                          </span>
+                          <span className="text-3xl font-black leading-tight mt-1">
+                            {breathingPhase === 'completed' ? '✓' : phaseSecondsLeft > 0 ? phaseSecondsLeft : '•'}
+                          </span>
+                          <span className="text-xs font-medium mt-1 opacity-90">
+                            Cykel {Math.min(breathingCount + (isBreathingActive ? 1 : 0), targetCycles)} av {targetCycles}
+                          </span>
+
+                          {breathingPhase === 'inhale' && (
+                            <div className="absolute inset-0 rounded-full border-2 border-green-300 animate-ping opacity-75"></div>
                           )}
                         </div>
 
-                        {/* Ripple effect for inhale */}
-                        {breathingPhase === 'inhale' && (
-                          <div className="absolute inset-0 rounded-full border-2 border-green-300 animate-ping opacity-75"></div>
-                        )}
-
-                        {/* Celebration confetti effect */}
-                        {breathingPhase === 'completed' && (
-                          <>
-                            <div className="absolute inset-0 rounded-full border-2 border-purple-300 animate-ping opacity-75"></div>
-                            <div className="absolute inset-0 rounded-full border-2 border-pink-300 animate-ping opacity-50 animation-delay-300"></div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Phase indicator dots */}
-                      <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                        {[
-                          { phase: 'exhale', color: 'blue' },
-                          { phase: 'inhale', color: 'green' },
-                          { phase: 'hold', color: 'yellow' },
-                          { phase: 'exhale2', color: 'blue' }
-                        ].map((item) => (
-                          <div
-                            key={item.phase}
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${breathingPhase === item.phase
-                              ? `bg-${item.color}-500 scale-125 animate-pulse`
-                              : 'bg-gray-300 scale-100'
-                              }`}
-                          />
-                        ))}
+                        <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${breathingPhase === 'exhale' ? 'bg-blue-500 scale-125 animate-pulse' : 'bg-gray-300'}`} />
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${breathingPhase === 'inhale' ? 'bg-green-500 scale-125 animate-pulse' : 'bg-gray-300'}`} />
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${breathingPhase === 'hold' ? 'bg-yellow-500 scale-125 animate-pulse' : 'bg-gray-300'}`} />
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${breathingPhase === 'exhale2' ? 'bg-blue-600 scale-125 animate-pulse' : 'bg-gray-300'}`} />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Breathing Instructions */}
-                  <div className="text-center mb-4">
-                    <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      {breathingPhase === 'exhale' && '🔵 Andas ut helt genom munnen...'}
-                      {breathingPhase === 'inhale' && '🟢 Andas in genom näsan...'}
-                      {breathingPhase === 'hold' && '🟡 Håll andan...'}
-                      {breathingPhase === 'exhale2' && '🔵 Andas ut genom munnen...'}
-                      {breathingPhase === 'completed' && '🎉 Andningsövning slutförd!'}
-                      {breathingPhase === 'rest' && !isBreathingActive && '🫁 Redo att börja?'}
-                      {breathingPhase === 'rest' && isBreathingActive && '⏳ Nästa cykel börjar...'}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {breathingPhase === 'exhale' && '2 sekunder - töm lungorna helt'}
-                      {breathingPhase === 'inhale' && '4 sekunder - fyll lungorna långsamt'}
-                      {breathingPhase === 'hold' && '7 sekunder - håll kvar luften'}
-                      {breathingPhase === 'exhale2' && '8 sekunder - töm lungorna helt'}
-                      {breathingPhase === 'completed' && 'Bra jobbat! Du har genomfört 4 andningscykler enligt Dr. Weils metod.'}
-                      {breathingPhase === 'rest' && '4-7-8 metoden hjälper till att minska stress och ångest.'}
-                    </p>
-                  </div>
+                    <div className="text-center mb-4">
+                      <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                        {breathingCue.icon} {breathingCue.title}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{breathingCue.detail}</p>
+                    </div>
 
-                  {/* Control Buttons */}
-                  <div className="flex justify-center gap-3">
-                    {isBreathingActive ? (
+                    <div className="text-center mb-4">
                       <button
-                        onClick={stopBreathingExercise}
-                        className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                        type="button"
+                        onClick={() => setShowBreathingScience(prev => !prev)}
+                        className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline"
                       >
-                        ⏹️ Stoppa
+                        {showBreathingScience ? 'Dölj' : 'Visa'}: Varför 4-7-8?
                       </button>
-                    ) : breathingPhase === 'completed' ? (
-                      <button
-                        onClick={startBreathingExercise}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        🔁 Starta om Andningsövning
-                      </button>
-                    ) : (
-                      <button
-                        onClick={startBreathingExercise}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        🚀 Starta Andningsövning
-                      </button>
-                    )}
+                      {showBreathingScience && (
+                        <div className="mt-3 text-sm text-left bg-white/80 dark:bg-gray-800/70 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3 text-gray-700 dark:text-gray-300">
+                          4-7-8-andning förlänger utandningen, vilket kan aktivera kroppens lugn- och återhämtningssystem. Tekniken kan hjälpa till att sänka upplevd stress, stabilisera andningsrytmen och skapa bättre fokus i stunden.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-center gap-3">
+                      {isBreathingActive ? (
+                        <button
+                          onClick={stopBreathingExercise}
+                          className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                        >
+                          ⏹️ Stoppa
+                        </button>
+                      ) : (
+                        <button
+                          onClick={startBreathingExercise}
+                          className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                        >
+                          {breathingPhase === 'completed' ? '🔁 Starta ny omgång' : '🚀 Starta andningsövning'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -3431,12 +3531,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Relaterade Ämnen</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedRecommendation.tags.map((tag) => (
-                      <span
+                      <button
                         key={tag}
-                        className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+                        type="button"
+                        onClick={() => {
+                          setSearchTerm(tag);
+                          announceToScreenReader(`Filter aktiverat för ${tag}`, 'polite');
+                        }}
+                        className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors"
                       >
-                        {tag}
-                      </span>
+                        #{tag}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -3445,9 +3550,29 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {/* Actions */}
               <div className="flex gap-3">
                 <button
-                  disabled={!canManuallyCompleteSelectedRecommendation}
+                  disabled={isPrimaryActionDisabled}
                   onClick={async () => {
                     try {
+                      if (isSelectedRecommendationCompleted && selectedRecommendationHasNextFlow) {
+                        if (selectedRecommendation.type === 'exercise') {
+                          handleCloseContentModal();
+                          navigate('/journal');
+                          announceToScreenReader('Öppnar dagboken för reflektion.', 'polite');
+                          return;
+                        }
+
+                        const currentIndex = recommendations.findIndex(rec => rec.id === selectedRecommendation.id);
+                        const nextRecommendation = currentIndex >= 0 ? recommendations[currentIndex + 1] : null;
+
+                        if (nextRecommendation) {
+                          setSelectedRecommendation(nextRecommendation);
+                          announceToScreenReader(`Nästa övning: ${nextRecommendation.title}`, 'polite');
+                        } else {
+                          announceToScreenReader('Du har gått igenom alla rekommendationer i listan.', 'polite');
+                        }
+                        return;
+                      }
+
                       if (!canManuallyCompleteSelectedRecommendation) {
                         announceToScreenReader('Slutför andningsövningen först för att markera aktiviteten som slutförd.', 'polite');
                         return;
@@ -3497,12 +3622,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       announceToScreenReader('Kunde inte markera som slutförd', 'assertive');
                     }
                   }}
-                  className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors ${canManuallyCompleteSelectedRecommendation
+                  className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors ${!isPrimaryActionDisabled
                     ? 'bg-primary-600 hover:bg-primary-700 text-white'
                     : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                     }`}
                 >
-                  {isSelectedRecommendationCompleted ? 'Redan Slutförd' : 'Markera som Slutförd'}
+                  {isSelectedRecommendationCompleted ? nextCompletedActionLabel : 'Markera som Slutförd'}
                 </button>
                 <button
                   onClick={handleCloseContentModal}
@@ -3513,7 +3638,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               </div>
               {isStressBreathingRecommendation && !canManuallyCompleteSelectedRecommendation && (
                 <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                  Slutför 4-7-8-cyklerna först. När texten visar "Andningsövning slutförd" kan du markera aktiviteten.
+                  Slutför {targetCycles} cykler först. När texten visar "Andningsövning slutförd" kan du markera aktiviteten.
                 </p>
               )}
             </div>
