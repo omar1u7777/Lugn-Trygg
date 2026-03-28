@@ -1079,12 +1079,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (user?.user_id) {
       const saved = localStorage.getItem(`article_progress_focus-3_${user.user_id}`);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setArticleProgress(parsed.progress || 0);
-        setCurrentSection(parsed.section || 0);
-        setReadingTime(parsed.readingTime || 0);
-        setArticleCompleted(parsed.completed || false);
-        logger.debug('💾 Loaded article progress:', parsed);
+        try {
+          const parsed = JSON.parse(saved);
+          setArticleProgress(parsed.progress || 0);
+          setCurrentSection(parsed.section || 0);
+          setReadingTime(parsed.readingTime || 0);
+          setArticleCompleted(parsed.completed || false);
+          logger.debug('💾 Loaded article progress:', parsed);
+        } catch(e) {
+          console.error(e);
+        }
       }
     }
   };

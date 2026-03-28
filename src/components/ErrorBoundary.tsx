@@ -34,6 +34,20 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
+    // Detect ChunkLoadError (Vite/Webpack missing dynamically imported modules on new deployments)
+    const isChunkLoadError = error?.name === 'ChunkLoadError' || 
+                             (error?.message && /Failed to fetch dynamically imported module/i.test(error.message)) ||
+                             (error?.message && /Importing a module script failed/i.test(error.message)) ||
+                             (error?.message && /missing/i.test(error.message) && /dynamically imported/i.test(error.message));
+
+    if (isChunkLoadError) {
+      const chunkReloadKey = 'vite_chunk_reloaded';
+      if (!sessionStorage.getItem(chunkReloadKey)) {
+        sessionStorage.setItem(chunkReloadKey, 'true');
+        window.location.reload();
+      }
+    }
+
     return {
       hasError: true,
       error
