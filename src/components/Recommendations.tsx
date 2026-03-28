@@ -69,6 +69,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
+  const [completedRecommendationIds, setCompletedRecommendationIds] = useState<Record<string, boolean>>({});
   const resolvedWellnessGoals = Array.isArray(wellnessGoals) ? wellnessGoals : EMPTY_WELLNESS_GOALS;
   const wellnessGoalsSignature = resolvedWellnessGoals.join('|');
   
@@ -123,6 +124,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   } = useBreathingExercise({
     onComplete: (cycles) => {
       updateProgress('meditation', 4);
+      setRecommendations(prev =>
+        prev.map(r => (r.id === 'stress-1' ? { ...r, completed: true } : r))
+      );
+      setCompletedRecommendationIds(prev => ({ ...prev, 'stress-1': true }));
+
+      analytics.track('Recommendation Completed', {
+        recommendationId: 'stress-1',
+        type: 'meditation',
+        duration: 4,
+        source: 'breathing_auto',
+        component: 'Recommendations',
+      });
+
       const sessionData = {
         type: 'breathing',
         duration: 4,
@@ -1171,7 +1185,28 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     // Save progress and session
     if (selectedRecommendation && user?.user_id) {
-      updateProgress('meditation', selectedRecommendation.duration || 10);
+      const recommendationId = selectedRecommendation.id;
+      const alreadyCompleted = !!completedRecommendationIds[recommendationId];
+
+      if (!alreadyCompleted) {
+        updateProgress('meditation', selectedRecommendation.duration || 10);
+      }
+
+      setRecommendations(prev =>
+        prev.map(r => (r.id === recommendationId ? { ...r, completed: true } : r))
+      );
+      setCompletedRecommendationIds(prev => ({ ...prev, [recommendationId]: true }));
+
+      if (!alreadyCompleted) {
+        analytics.track('Recommendation Completed', {
+          recommendationId,
+          type: selectedRecommendation.type,
+          duration: selectedRecommendation.duration,
+          source: 'meditation_timer',
+          component: 'Recommendations',
+        });
+      }
+
       try {
         await saveMeditationSession({
           type: 'meditation',
@@ -1186,6 +1221,44 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       announceToScreenReader(`${selectedRecommendation.title} slutförd! Bra jobbat!`, 'polite');
     }
   };
+
+  const handleCloseContentModal = useCallback(() => {
+    if (isBreathingActive) {
+      stopBreathingExercise();
+    }
+    if (isRelaxationActive) {
+      stopProgressiveRelaxation();
+    }
+    if (isKbtActive) {
+      stopKbtExercise();
+    }
+    if (isPomodoroActive) {
+      stopPomodoroTimer();
+    }
+    if (isMeditationActive || meditationTimer) {
+      stopMeditationSession();
+    }
+    if (articleReadingTimer) {
+      clearInterval(articleReadingTimer);
+      setArticleReadingTimer(null);
+    }
+
+    setShowContentModal(false);
+    setSelectedRecommendation(null);
+  }, [
+    articleReadingTimer,
+    isBreathingActive,
+    isKbtActive,
+    isMeditationActive,
+    isPomodoroActive,
+    isRelaxationActive,
+    meditationTimer,
+    stopBreathingExercise,
+    stopKbtExercise,
+    stopMeditationSession,
+    stopPomodoroTimer,
+    stopProgressiveRelaxation,
+  ]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -1326,6 +1399,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   }
 
   const filteredRecommendations = getFilteredRecommendations();
+  const selectedRecommendationId = selectedRecommendation?.id ?? '';
+  const isStressBreathingRecommendation = selectedRecommendationId === 'stress-1';
+  const isSelectedRecommendationCompleted = selectedRecommendationId
+    ? !!completedRecommendationIds[selectedRecommendationId]
+    : false;
+  const canManuallyCompleteSelectedRecommendation = !isStressBreathingRecommendation || breathingPhase === 'completed';
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -1826,7 +1905,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowContentModal(false)}
+                  onClick={handleCloseContentModal}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
                   aria-label="Stäng"
                 >
@@ -1979,19 +2058,26 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                   {/* Control Buttons */}
                   <div className="flex justify-center gap-3">
-                    {!isBreathingActive ? (
-                      <button
-                        onClick={startBreathingExercise}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        🚀 Starta Andningsövning
-                      </button>
-                    ) : (
+                    {isBreathingActive ? (
                       <button
                         onClick={stopBreathingExercise}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
                       >
                         ⏹️ Stoppa
+                      </button>
+                    ) : breathingPhase === 'completed' ? (
+                      <button
+                        onClick={startBreathingExercise}
+                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+                      >
+                        🔁 Starta om Andningsövning
+                      </button>
+                    ) : (
+                      <button
+                        onClick={startBreathingExercise}
+                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                      >
+                        🚀 Starta Andningsövning
                       </button>
                     )}
                   </div>
@@ -2235,7 +2321,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       </>
                     ) : (
                       <button
-                        onClick={() => setShowContentModal(false)}
+                        onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
                         🎉 Stäng
@@ -2477,7 +2563,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       </button>
                     ) : (
                       <button
-                        onClick={() => setShowContentModal(false)}
+                        onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
                         🎉 Stäng
@@ -2685,7 +2771,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       </button>
                     ) : (
                       <button
-                        onClick={() => setShowContentModal(false)}
+                        onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
                         🎉 Stäng
@@ -2874,7 +2960,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {isSavingJournal ? '💾 Sparar...' : '📝 Spara Journalanteckning'}
                     </button>
                     <button
-                      onClick={() => setShowContentModal(false)}
+                      onClick={handleCloseContentModal}
                       className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       Stäng
@@ -3260,7 +3346,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       </button>
                     ) : (
                       <button
-                        onClick={() => setShowContentModal(false)}
+                        onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
                         🎉 Stäng
@@ -3359,50 +3445,77 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {/* Actions */}
               <div className="flex gap-3">
                 <button
+                  disabled={!canManuallyCompleteSelectedRecommendation}
                   onClick={async () => {
                     try {
+                      if (!canManuallyCompleteSelectedRecommendation) {
+                        announceToScreenReader('Slutför andningsövningen först för att markera aktiviteten som slutförd.', 'polite');
+                        return;
+                      }
+
+                      const alreadyCompleted = !!completedRecommendationIds[selectedRecommendation.id];
+
                       // Mark as completed in local state
                       setRecommendations(prev =>
                         prev.map(r =>
                           r.id === selectedRecommendation.id ? { ...r, completed: true } : r
                         )
                       );
+                      setCompletedRecommendationIds(prev => ({ ...prev, [selectedRecommendation.id]: true }));
 
-                      // Update user progress based on recommendation type
-                      if (selectedRecommendation.type === 'meditation') {
-                        updateProgress('meditation', selectedRecommendation.duration);
-                      } else if (selectedRecommendation.type === 'exercise') {
-                        updateProgress('exercise');
-                      } else if (selectedRecommendation.type === 'article') {
-                        updateProgress('article');
+                      // Update progress only once and avoid duplicate counting for auto-completed stress-1.
+                      if (!alreadyCompleted && selectedRecommendation.id !== 'stress-1') {
+                        if (selectedRecommendation.type === 'meditation') {
+                          updateProgress('meditation', selectedRecommendation.duration || 10);
+                        } else if (selectedRecommendation.type === 'exercise') {
+                          updateProgress('exercise');
+                        } else if (selectedRecommendation.type === 'article') {
+                          updateProgress('article');
+                        }
                       }
 
                       logger.debug('✅ Recommendation marked as completed:', selectedRecommendation.id);
-                      analytics.track('Recommendation Completed', {
-                        recommendationId: selectedRecommendation.id,
-                        type: selectedRecommendation.type,
-                        duration: selectedRecommendation.duration,
-                        component: 'Recommendations',
-                      });
+                      if (!alreadyCompleted) {
+                        analytics.track('Recommendation Completed', {
+                          recommendationId: selectedRecommendation.id,
+                          type: selectedRecommendation.type,
+                          duration: selectedRecommendation.duration,
+                          source: selectedRecommendation.id === 'stress-1' ? 'manual_after_breathing' : 'manual',
+                          component: 'Recommendations',
+                        });
+                      }
 
-                      setShowContentModal(false);
-                      announceToScreenReader(`${selectedRecommendation.title} markerad som slutförd`, 'polite');
+                      handleCloseContentModal();
+                      announceToScreenReader(
+                        alreadyCompleted
+                          ? `${selectedRecommendation.title} var redan markerad som slutförd.`
+                          : `${selectedRecommendation.title} markerad som slutförd`,
+                        'polite'
+                      );
                     } catch (error) {
                       logger.error('Failed to mark as completed:', error);
                       announceToScreenReader('Kunde inte markera som slutförd', 'assertive');
                     }
                   }}
-                  className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors ${canManuallyCompleteSelectedRecommendation
+                    ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                    : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    }`}
                 >
-                  Markera som Slutförd
+                  {isSelectedRecommendationCompleted ? 'Redan Slutförd' : 'Markera som Slutförd'}
                 </button>
                 <button
-                  onClick={() => setShowContentModal(false)}
+                  onClick={handleCloseContentModal}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Stäng
                 </button>
               </div>
+              {isStressBreathingRecommendation && !canManuallyCompleteSelectedRecommendation && (
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                  Slutför 4-7-8-cyklerna först. När texten visar "Andningsövning slutförd" kan du markera aktiviteten.
+                </p>
+              )}
             </div>
           </div>
         </div>
