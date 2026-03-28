@@ -3,7 +3,8 @@
  * Handles service worker registration, offline functionality, and app installation
  */
 
-import { analytics } from './analytics';import { logger } from '../utils/logger';
+import { analytics } from './analytics';
+import { logger } from '../utils/logger';
 
 
 interface BeforeInstallPromptEvent extends Event {
@@ -29,8 +30,15 @@ class PWAService {
     // Register service worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register('/sw.js')
+        const swPath = `${import.meta.env.BASE_URL}sw.js`;
+
+        fetch(swPath, { method: 'GET', cache: 'no-store' })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Service worker script unavailable (${response.status}) at ${swPath}`);
+            }
+            return navigator.serviceWorker.register(swPath, { scope: import.meta.env.BASE_URL });
+          })
           .then((registration) => {
             logger.debug('SW registered: ', registration);
 
@@ -48,12 +56,14 @@ class PWAService {
 
             analytics.track('PWA Service Worker Registered', {
               scope: registration.scope,
+              swPath,
             });
           })
           .catch((registrationError) => {
-            logger.debug('SW registration failed: ', registrationError);
+            logger.debug('SW registration skipped/failed: ', registrationError);
             analytics.track('PWA Service Worker Registration Failed', {
-              error: registrationError.message,
+              error: registrationError instanceof Error ? registrationError.message : String(registrationError),
+              swPath,
             });
           });
       });

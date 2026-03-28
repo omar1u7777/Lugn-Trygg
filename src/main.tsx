@@ -171,16 +171,25 @@ const startApp = async () => {
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then((registration) => {
-          if ((import.meta as any).env?.DEV) {
-            logger.debug('Service Worker registered successfully', { scope: registration.scope });
-            logger.debug('Offline support activated for 1000 users');
+      const swPath = `${import.meta.env.BASE_URL}sw.js`;
+
+      fetch(swPath, { method: 'GET', cache: 'no-store' })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Service worker script unavailable (${response.status}) at ${swPath}`);
           }
+          return navigator.serviceWorker.register(swPath, { scope: import.meta.env.BASE_URL });
         })
-        .catch((error) => {
-          if ((import.meta as any).env?.DEV) {
-            logger.warn('Service Worker registration failed', { error });
+        .then((registration) => {
+          logger.info('Service Worker registered successfully', { scope: registration.scope, swPath });
+        })
+        .catch(async (error) => {
+          logger.warn('Service Worker registration skipped/failed', { error, swPath });
+          try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          } catch (unregisterError) {
+            logger.debug('Could not unregister stale service workers after registration failure', { unregisterError });
           }
         });
     });
