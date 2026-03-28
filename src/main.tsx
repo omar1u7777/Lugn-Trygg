@@ -171,6 +171,20 @@ const startApp = async () => {
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
+      const isVercelHost = typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app');
+
+      if (isVercelHost) {
+        navigator.serviceWorker.getRegistrations()
+          .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+          .then(() => {
+            logger.info('Skipped service worker on vercel.app and removed stale registrations');
+          })
+          .catch((error) => {
+            logger.debug('Could not unregister service workers on vercel.app', { error });
+          });
+        return;
+      }
+
       const swPath = `${import.meta.env.BASE_URL}sw.js`;
 
       fetch(swPath, { method: 'GET', cache: 'no-store' })

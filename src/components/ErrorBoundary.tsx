@@ -4,7 +4,8 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
 
 
 interface Props {
@@ -63,7 +64,7 @@ class ErrorBoundary extends Component<Props, State> {
     });
 
     // Log error to external service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       // logErrorToService(error, errorInfo);
     }
   }
@@ -94,7 +95,7 @@ class ErrorBoundary extends Component<Props, State> {
 
       const { retryCount, error, errorInfo } = this.state;
       const canRetry = retryCount < this.maxRetries;
-      const showDetails = this.props.showDetails || process.env.NODE_ENV === 'development';
+      const showDetails = this.props.showDetails || import.meta.env.DEV;
 
       return (
         <div className="min-h-screen flex justify-center items-center p-4 bg-gray-50 dark:bg-gray-900"
