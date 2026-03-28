@@ -12,6 +12,7 @@ import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
 import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
+import { updateCBTProgress } from '../api/cbt';
 import {
   HandThumbDownIcon,
   HandThumbUpIcon,
@@ -22,7 +23,7 @@ import {
   StarIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
-import { Recommendation, RecommendationsProps } from '../types/recommendation';
+import { KBTPhaseName, Recommendation, RecommendationsProps } from '../types/recommendation';
 import { RECOMMENDATIONS_POOL, muscleGroups, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { useBreathingExercise } from '../hooks/useBreathingExercise';
@@ -35,6 +36,192 @@ import { logger } from '../utils/logger';
 
 const EMPTY_WELLNESS_GOALS: string[] = [];
 type RecommendationFeedback = 'helpful' | 'not_relevant';
+
+const KBT_GUIDED_PHASES: KBTPhaseName[] = ['identify', 'challenge', 'replace', 'practice'];
+const KBT_TOTAL_STEPS = KBT_GUIDED_PHASES.length;
+const KBT_MIN_NEGATIVE_LENGTH = 15;
+const KBT_MIN_EVIDENCE_LENGTH = 30;
+const KBT_MIN_ALTERNATIVE_LENGTH = 15;
+const KBT_MIN_ACTION_PLAN_LENGTH = 10;
+const KBT_MIN_OBSTACLE_PLAN_LENGTH = 12;
+const KBT_MIN_REHEARSAL_CONTEXT_LENGTH = 8;
+const KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH = 12;
+const KBT_MIN_EXPERIMENT_MEASURE_LENGTH = 10;
+const KBT_MIN_SOCRATIC_REFLECTION_LENGTH = 18;
+const KBT_MIN_IF_THEN_PLAN_LENGTH = 18;
+const KBT_MIN_COPING_CARD_LENGTH = 12;
+
+type KbtDistortionInsight = {
+  key: string;
+  label: string;
+  hint: string;
+  reframeQuestion: string;
+};
+
+const KBT_DISTORTION_RULES: Array<KbtDistortionInsight & { pattern: RegExp }> = [
+  {
+    key: 'catastrophizing',
+    label: 'Katastroftankande',
+    hint: 'Tanken forutsager varsta mojliga utfall utan mellanlagescenarion.',
+    reframeQuestion: 'Vad ar det mest sannolika utfallet, inte det varsta?',
+    pattern: /(katastrof|helt forstort|allt kommer ga fel|det kommer ga at skogen|det blir en katastrof)/i,
+  },
+  {
+    key: 'black_white',
+    label: 'Svart-vitt tankande',
+    hint: 'Tanken anvander ytterligheter som "alltid", "aldrig" eller "helt".',
+    reframeQuestion: 'Vilket mer nyanserat mellanlage skulle kunna vara sant?',
+    pattern: /(alltid|aldrig|helt|totalt|ingen|alla|maste lyckas)/i,
+  },
+  {
+    key: 'mind_reading',
+    label: 'Tankelasning',
+    hint: 'Tanken antar vad andra tycker utan tydliga bevis.',
+    reframeQuestion: 'Vilka faktiska bevis har du for vad andra tanker?',
+    pattern: /(de tycker|alla tycker|ingen gillar mig|de kommer doma mig|de tycker jag ar)/i,
+  },
+  {
+    key: 'self_labeling',
+    label: 'Global sjalvetikett',
+    hint: 'Ett misstag goras om till en generell etikett om dig som person.',
+    reframeQuestion: 'Hur skulle du beskriva situationen utan att etikettera dig sjalv?',
+    pattern: /(jag ar vardelos|jag ar dalig|jag duger inte|jag ar ett misslyckande)/i,
+  },
+];
+
+const getKbtDistortionInsights = (negativeThought: string): KbtDistortionInsight[] => {
+  const thought = negativeThought.trim();
+  if (!thought) return [];
+
+  const matches = KBT_DISTORTION_RULES.filter((rule) => rule.pattern.test(thought))
+    .slice(0, 2)
+    .map(({ pattern: _pattern, ...insight }) => insight);
+
+  return matches;
+};
+
+const calculateKbtSessionQuality = (params: {
+  beliefBefore: number | null;
+  beliefAfter: number | null;
+  negative: string;
+  evidence: string;
+  alternative: string;
+  actionPlan: string;
+  obstaclePlan: string;
+  rehearsalContext: string;
+  experimentHypothesis: string;
+  experimentMeasure: string;
+  socraticReflection: string;
+  ifThenPlan: string;
+  copingCard: string;
+  executionConfidenceAfter: number | null;
+}) => {
+  const {
+    beliefBefore,
+    beliefAfter,
+    negative,
+    evidence,
+    alternative,
+    actionPlan,
+    obstaclePlan,
+    rehearsalContext,
+    experimentHypothesis,
+    experimentMeasure,
+    socraticReflection,
+    ifThenPlan,
+    copingCard,
+    executionConfidenceAfter,
+  } = params;
+
+  const shift = typeof beliefBefore === 'number' && typeof beliefAfter === 'number'
+    ? beliefAfter - beliefBefore
+    : 0;
+
+  const shiftScore = Math.max(0, Math.min(25, (shift + 5) * 1.25));
+  const writingChecks = [
+    negative.trim().length >= KBT_MIN_NEGATIVE_LENGTH,
+    evidence.trim().length >= KBT_MIN_EVIDENCE_LENGTH,
+    alternative.trim().length >= KBT_MIN_ALTERNATIVE_LENGTH,
+    actionPlan.trim().length >= KBT_MIN_ACTION_PLAN_LENGTH,
+    obstaclePlan.trim().length >= KBT_MIN_OBSTACLE_PLAN_LENGTH,
+    rehearsalContext.trim().length >= KBT_MIN_REHEARSAL_CONTEXT_LENGTH,
+    experimentHypothesis.trim().length >= KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH,
+    experimentMeasure.trim().length >= KBT_MIN_EXPERIMENT_MEASURE_LENGTH,
+    socraticReflection.trim().length >= KBT_MIN_SOCRATIC_REFLECTION_LENGTH,
+    ifThenPlan.trim().length >= KBT_MIN_IF_THEN_PLAN_LENGTH,
+    copingCard.trim().length >= KBT_MIN_COPING_CARD_LENGTH,
+    typeof executionConfidenceAfter === 'number',
+  ];
+  const writingScore = (writingChecks.filter(Boolean).length / writingChecks.length) * 40;
+  const score = Math.round(Math.max(0, Math.min(100, 35 + shiftScore + writingScore)));
+
+  let label = 'Stabil grund';
+  if (score >= 80) label = 'Mycket stark genomforing';
+  else if (score >= 60) label = 'Bra genomforing';
+
+  return { score, label, shift };
+};
+
+const getKbtStepFromPhase = (phase: KBTPhaseName) => {
+  const index = KBT_GUIDED_PHASES.indexOf(phase);
+  return index >= 0 ? index + 1 : KBT_TOTAL_STEPS;
+};
+
+const getKbtAdaptiveFeedback = (before: number | null, after: number | null) => {
+  if (typeof before !== 'number' || typeof after !== 'number') {
+    return {
+      title: 'Fortsatt reflektion',
+      message: 'Du har gjort ett viktigt arbete. Fortsatt repetition av den balanserade tanken kan gora den mer tillganglig i vardagen.'
+    };
+  }
+
+  const shift = after - before;
+  if (shift >= 20) {
+    return {
+      title: 'Tydlig omstrukturering',
+      message: 'Din nya tanke kanns betydligt mer trovardig nu. Det tyder pa att du har brutit ett automatiskt stresstolkningmonster.'
+    };
+  }
+  if (shift >= 5) {
+    return {
+      title: 'Bra framsteg',
+      message: 'Du ror dig i ratt riktning. Fortsatt ova pa den nya tanken i liknande situationer for att befasta effekten.'
+    };
+  }
+
+  return {
+    title: 'Stabilisering behovs',
+    message: 'Forandring tar tid. Testa att konkretisera evidensen ytterligare och prova samma ovning igen i en lugn stund.'
+  };
+};
+
+const getKbtStressFeedback = (before: number | null, after: number | null) => {
+  if (typeof before !== 'number' || typeof after !== 'number') {
+    return {
+      title: 'Stressmätning saknas',
+      message: 'Lagg till stressniva fore och efter nasta gang for att tydligare se effekten av ovningen.'
+    };
+  }
+
+  const shift = after - before;
+  if (shift <= -20) {
+    return {
+      title: 'Tydlig stressminskning',
+      message: 'Din stressniva gick ner markant. Fortsatt med samma strategi i liknande situationer.'
+    };
+  }
+  if (shift <= -5) {
+    return {
+      title: 'Bra stressreglering',
+      message: 'Stressnivan minskade. Repetera ovrigt handlingssteg for att befasta effekten.'
+    };
+  }
+
+  return {
+    title: 'Stressen kvarstar delvis',
+    message: 'Om stressen fortfarande ar hog, kombinera tanken med en kort andningspaus innan nasta steg.'
+  };
+};
 
 
 
@@ -117,21 +304,29 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [selectedBreathingCycles, setSelectedBreathingCycles] = useState<4 | 8 | 12>(4);
   const [breathingUseSound, setBreathingUseSound] = useState(false);
   const [breathingUseHaptics, setBreathingUseHaptics] = useState(true);
+  const [breathingStressBefore, setBreathingStressBefore] = useState<number | null>(null);
+  const [breathingStressAfter, setBreathingStressAfter] = useState<number | null>(null);
   const [showBreathingScience, setShowBreathingScience] = useState(false);
   const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
+  const breathingAudioContextRef = useRef<AudioContext | null>(null);
+  const breathingOutcomeSyncedRef = useRef(false);
   
   // Breathing Exercise Hook
   const {
     isActive: isBreathingActive,
+    isPaused: isBreathingPaused,
     phase: breathingPhase,
     cycleCount: breathingCount,
     phaseSecondsLeft,
     targetCycles,
     start: startBreathingExercise,
+    pause: pauseBreathingExercise,
+    resume: resumeBreathingExercise,
     stop: stopBreathingExercise
   } = useBreathingExercise({
     targetCycles: selectedBreathingCycles,
     onComplete: (cycles) => {
+      breathingOutcomeSyncedRef.current = false;
       updateProgress('meditation', 4);
       updateProgress('exercise', 1);
       setRecommendations(prev =>
@@ -152,7 +347,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         duration: 4,
         technique: '4-7-8',
         completedCycles: cycles,
-        notes: `4-7-8 andningsövning - ${cycles} cykler slutförda`
+        notes: `4-7-8 andningsövning - ${cycles} cykler slutförda | Stress fore/efter: ${breathingStressBefore ?? '-'} -> ${breathingStressAfter ?? '-'}`
       };
       handleSaveMeditationSession(sessionData);
       announceToScreenReader('Andningsövning slutförd! Bra jobbat!', 'polite');
@@ -179,7 +374,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     const frequency = frequencyMap[phase] || 300;
 
     try {
-      const audioContext = new AudioContextClass();
+      const audioContext = breathingAudioContextRef.current ?? new AudioContextClass();
+      breathingAudioContextRef.current = audioContext;
+
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {
+          // Resume can fail on restricted autoplay environments.
+        });
+      }
+
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
 
@@ -192,18 +395,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.12);
-
-      oscillator.onended = () => {
-        audioContext.close().catch(() => {
-          // Ignore close errors to avoid interrupting exercise flow.
-        });
-      };
     } catch (error) {
       logger.debug('Could not play breathing tone', { error });
     }
   }, [breathingUseSound]);
 
   const getBreathingCue = useCallback(() => {
+    if (isBreathingPaused) {
+      return {
+        icon: '⏸️',
+        title: 'Pausad',
+        detail: 'Tryck Fortsätt när du vill fortsätta samma cykel.',
+      };
+    }
+
     switch (breathingPhase) {
       case 'exhale':
         return { icon: '🔵', title: 'Andas ut helt', detail: '2 sekunder - töm lungorna helt' };
@@ -226,12 +431,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           detail: '4-7-8 metoden hjälper till att minska stress och ångest.',
         };
     }
-  }, [breathingPhase, isBreathingActive, targetCycles]);
+  }, [breathingPhase, isBreathingActive, isBreathingPaused, targetCycles]);
 
   const breathingCue = getBreathingCue();
 
   useEffect(() => {
     if (!isBreathingActive) return;
+    if (isBreathingPaused) return;
     playPhaseTone(breathingPhase);
 
     if (
@@ -241,7 +447,41 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     ) {
       navigator.vibrate(breathingPhase === 'completed' ? [80, 40, 120] : 35);
     }
-  }, [breathingPhase, breathingUseHaptics, isBreathingActive, playPhaseTone]);
+  }, [breathingPhase, breathingUseHaptics, isBreathingActive, isBreathingPaused, playPhaseTone]);
+
+  useEffect(() => {
+    return () => {
+      if (breathingAudioContextRef.current) {
+        breathingAudioContextRef.current.close().catch(() => {
+          // Best-effort cleanup.
+        });
+        breathingAudioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (breathingPhase !== 'completed') {
+      breathingOutcomeSyncedRef.current = false;
+      return;
+    }
+
+    if (breathingOutcomeSyncedRef.current) return;
+    if (typeof breathingStressBefore !== 'number' || typeof breathingStressAfter !== 'number') return;
+
+    breathingOutcomeSyncedRef.current = true;
+
+    handleSaveMeditationSession({
+      type: 'breathing',
+      duration: 1,
+      technique: '4-7-8-outcome',
+      completedCycles: targetCycles,
+      notes: `Uppfoljning stress fore/efter: ${breathingStressBefore} -> ${breathingStressAfter} (delta ${breathingStressAfter - breathingStressBefore})`
+    }).catch((error: unknown) => {
+      logger.debug('Could not sync breathing outcome', { error });
+      breathingOutcomeSyncedRef.current = false;
+    });
+  }, [breathingPhase, breathingStressBefore, breathingStressAfter, handleSaveMeditationSession, targetCycles]);
 
 
 
@@ -373,7 +613,95 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   };
 
   const [kbtStep, setKbtStep] = useState(0);
+  const [kbtBeliefBefore, setKbtBeliefBefore] = useState<number | null>(null);
+  const [kbtBeliefAfter, setKbtBeliefAfter] = useState<number | null>(null);
+  const [kbtStressBefore, setKbtStressBefore] = useState<number | null>(null);
+  const [kbtStressAfter, setKbtStressAfter] = useState<number | null>(null);
+  const [kbtActionPlan, setKbtActionPlan] = useState('');
+  const [kbtExperimentHypothesis, setKbtExperimentHypothesis] = useState('');
+  const [kbtExperimentMeasure, setKbtExperimentMeasure] = useState('');
+  const [kbtSocraticReflection, setKbtSocraticReflection] = useState('');
+  const [kbtIfThenPlan, setKbtIfThenPlan] = useState('');
+  const [kbtCopingCard, setKbtCopingCard] = useState('');
+  const [kbtExecutionConfidenceAfter, setKbtExecutionConfidenceAfter] = useState<number | null>(null);
+  const [kbtObstaclePlan, setKbtObstaclePlan] = useState('');
+  const [kbtFollowUpWindow, setKbtFollowUpWindow] = useState('I morgon bitti');
+  const [kbtRehearsalContext, setKbtRehearsalContext] = useState('');
+  const kbtCompletionSyncedRef = useRef(false);
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
+
+  const activeKbtStep = getKbtStepFromPhase(kbtPhase);
+  const kbtDistortionInsights = getKbtDistortionInsights(userThoughts.negative);
+  const kbtProgressPercentage = kbtPhase === 'complete'
+    ? 100
+    : Math.round((activeKbtStep / KBT_TOTAL_STEPS) * 100);
+
+  const startKbtFlow = useCallback(() => {
+    setKbtStep(1);
+    setKbtBeliefBefore(null);
+    setKbtBeliefAfter(null);
+    setKbtStressBefore(null);
+    setKbtStressAfter(null);
+    setKbtActionPlan('');
+    setKbtExperimentHypothesis('');
+    setKbtExperimentMeasure('');
+    setKbtSocraticReflection('');
+    setKbtIfThenPlan('');
+    setKbtCopingCard('');
+    setKbtExecutionConfidenceAfter(null);
+    setKbtObstaclePlan('');
+    setKbtFollowUpWindow('I morgon bitti');
+    setKbtRehearsalContext('');
+    startKbtExercise();
+  }, [startKbtExercise]);
+
+  const handleNextKbtPhase = useCallback(() => {
+    if (kbtPhase === 'challenge' && kbtSocraticReflection.trim().length < KBT_MIN_SOCRATIC_REFLECTION_LENGTH) {
+      announceToScreenReader(`Besvara reflektionsfragan med minst ${KBT_MIN_SOCRATIC_REFLECTION_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtBeliefAfter === null) {
+      announceToScreenReader('Välj hur trovärdig den nya tanken känns innan du fortsätter', 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtStressAfter === null) {
+      announceToScreenReader('Välj stressniva efter ovningen innan du fortsatter', 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtExecutionConfidenceAfter === null) {
+      announceToScreenReader('Välj hur trygg du känner dig att genomföra planen i vardagen', 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtActionPlan.trim().length < KBT_MIN_ACTION_PLAN_LENGTH) {
+      announceToScreenReader(`Skriv ett konkret handlingssteg med minst ${KBT_MIN_ACTION_PLAN_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtExperimentHypothesis.trim().length < KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH) {
+      announceToScreenReader(`Skriv en testbar hypotes med minst ${KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtExperimentMeasure.trim().length < KBT_MIN_EXPERIMENT_MEASURE_LENGTH) {
+      announceToScreenReader(`Beskriv vad du ska observera med minst ${KBT_MIN_EXPERIMENT_MEASURE_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtIfThenPlan.trim().length < KBT_MIN_IF_THEN_PLAN_LENGTH) {
+      announceToScreenReader(`Skriv en om-så plan med minst ${KBT_MIN_IF_THEN_PLAN_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtCopingCard.trim().length < KBT_MIN_COPING_CARD_LENGTH) {
+      announceToScreenReader(`Skriv ett kort coping-kort med minst ${KBT_MIN_COPING_CARD_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtObstaclePlan.trim().length < KBT_MIN_OBSTACLE_PLAN_LENGTH) {
+      announceToScreenReader(`Beskriv en hinderplan med minst ${KBT_MIN_OBSTACLE_PLAN_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    if (kbtPhase === 'practice' && kbtRehearsalContext.trim().length < KBT_MIN_REHEARSAL_CONTEXT_LENGTH) {
+      announceToScreenReader(`Beskriv var du repeterar tanken med minst ${KBT_MIN_REHEARSAL_CONTEXT_LENGTH} tecken`, 'assertive');
+      return;
+    }
+    nextKbtPhase();
+  }, [announceToScreenReader, kbtActionPlan, kbtBeliefAfter, kbtCopingCard, kbtExecutionConfidenceAfter, kbtExperimentHypothesis, kbtExperimentMeasure, kbtIfThenPlan, kbtObstaclePlan, kbtPhase, kbtRehearsalContext, kbtSocraticReflection, kbtStressAfter, nextKbtPhase]);
 
   // Daily Reminders State
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
@@ -475,12 +803,30 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         setKbtThoughts(parsed.thoughts || { negative: '', evidence: '', alternative: '' });
         setKbtPhase(parsed.phase || 'identify');
         setKbtStep(parsed.step || 0);
+        setKbtBeliefBefore(typeof parsed.beliefBefore === 'number' ? parsed.beliefBefore : null);
+        setKbtBeliefAfter(typeof parsed.beliefAfter === 'number' ? parsed.beliefAfter : null);
+        setKbtStressBefore(typeof parsed.stressBefore === 'number' ? parsed.stressBefore : null);
+        setKbtStressAfter(typeof parsed.stressAfter === 'number' ? parsed.stressAfter : null);
+        setKbtActionPlan(typeof parsed.actionPlan === 'string' ? parsed.actionPlan : '');
+        setKbtExperimentHypothesis(typeof parsed.experimentHypothesis === 'string' ? parsed.experimentHypothesis : '');
+        setKbtExperimentMeasure(typeof parsed.experimentMeasure === 'string' ? parsed.experimentMeasure : '');
+        setKbtSocraticReflection(typeof parsed.socraticReflection === 'string' ? parsed.socraticReflection : '');
+        setKbtIfThenPlan(typeof parsed.ifThenPlan === 'string' ? parsed.ifThenPlan : '');
+        setKbtCopingCard(typeof parsed.copingCard === 'string' ? parsed.copingCard : '');
+        setKbtExecutionConfidenceAfter(typeof parsed.executionConfidenceAfter === 'number' ? parsed.executionConfidenceAfter : null);
+        setKbtObstaclePlan(typeof parsed.obstaclePlan === 'string' ? parsed.obstaclePlan : '');
+        setKbtFollowUpWindow(typeof parsed.followUpWindow === 'string' ? parsed.followUpWindow : 'I morgon bitti');
+        setKbtRehearsalContext(typeof parsed.rehearsalContext === 'string' ? parsed.rehearsalContext : '');
         logger.debug('💾 Loaded saved KBT progress:', parsed);
       } catch (error) {
         logger.error('Failed to load KBT progress:', error);
       }
     }
   }, [user, setKbtThoughts, setKbtPhase, setKbtStep]);
+
+  useEffect(() => {
+    setKbtStep(kbtPhase === 'complete' ? KBT_TOTAL_STEPS : activeKbtStep);
+  }, [activeKbtStep, kbtPhase]);
 
   // Save progress whenever it changes
   useEffect(() => {
@@ -489,12 +835,85 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         thoughts: userThoughts,
         phase: kbtPhase,
         step: kbtStep,
+        beliefBefore: kbtBeliefBefore,
+        beliefAfter: kbtBeliefAfter,
+        stressBefore: kbtStressBefore,
+        stressAfter: kbtStressAfter,
+        actionPlan: kbtActionPlan,
+        experimentHypothesis: kbtExperimentHypothesis,
+        experimentMeasure: kbtExperimentMeasure,
+        socraticReflection: kbtSocraticReflection,
+        ifThenPlan: kbtIfThenPlan,
+        copingCard: kbtCopingCard,
+        executionConfidenceAfter: kbtExecutionConfidenceAfter,
+        obstaclePlan: kbtObstaclePlan,
+        followUpWindow: kbtFollowUpWindow,
+        rehearsalContext: kbtRehearsalContext,
         timestamp: Date.now()
       };
       localStorage.setItem(`kbt_progress_${user.user_id}`, JSON.stringify(progress));
       logger.debug('Saved KBT progress:', progress);
     }
-  }, [userThoughts, kbtPhase, kbtStep, user]);
+  }, [userThoughts, kbtPhase, kbtStep, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtExecutionConfidenceAfter, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, user]);
+
+  useEffect(() => {
+    if (kbtPhase !== 'complete') {
+      kbtCompletionSyncedRef.current = false;
+      return;
+    }
+
+    if (kbtCompletionSyncedRef.current) return;
+    kbtCompletionSyncedRef.current = true;
+
+    const shift = typeof kbtBeliefBefore === 'number' && typeof kbtBeliefAfter === 'number'
+      ? kbtBeliefAfter - kbtBeliefBefore
+      : 0;
+
+    const quality = calculateKbtSessionQuality({
+      beliefBefore: kbtBeliefBefore,
+      beliefAfter: kbtBeliefAfter,
+      negative: userThoughts.negative,
+      evidence: userThoughts.evidence,
+      alternative: userThoughts.alternative,
+      actionPlan: kbtActionPlan,
+      obstaclePlan: kbtObstaclePlan,
+      rehearsalContext: kbtRehearsalContext,
+      experimentHypothesis: kbtExperimentHypothesis,
+      experimentMeasure: kbtExperimentMeasure,
+      socraticReflection: kbtSocraticReflection,
+      ifThenPlan: kbtIfThenPlan,
+      copingCard: kbtCopingCard,
+      executionConfidenceAfter: kbtExecutionConfidenceAfter,
+    });
+    const successRate = Math.max(10, Math.min(100, Math.round((50 + shift + quality.score) / 2)));
+    const notes = [
+      `Negativ tanke: ${userThoughts.negative || 'Ingen angiven'}`,
+      `Identifierade forvrangningar: ${kbtDistortionInsights.length > 0 ? kbtDistortionInsights.map((item) => item.label).join(', ') : 'Inga tydliga monster'}`,
+      `Balanserad tanke: ${userThoughts.alternative || 'Ingen angiven'}`,
+      `Skattning fore/efter: ${kbtBeliefBefore ?? '-'} -> ${kbtBeliefAfter ?? '-'}`,
+      `Stress fore/efter: ${kbtStressBefore ?? '-'} -> ${kbtStressAfter ?? '-'}`,
+      `Genomforandetillit: ${kbtExecutionConfidenceAfter ?? '-'}%`,
+      `Sokratisk reflektion: ${kbtSocraticReflection || 'Ingen reflektion angiven'}`,
+      `Om-sa plan: ${kbtIfThenPlan || 'Ingen om-sa plan angiven'}`,
+      `Coping-kort: ${kbtCopingCard || 'Inget coping-kort angivet'}`,
+      `Handlingssteg: ${kbtActionPlan || 'Inget handlingssteg angivet'}`,
+      `Experimenthypotes: ${kbtExperimentHypothesis || 'Ingen hypotes angiven'}`,
+      `Observationsmatt: ${kbtExperimentMeasure || 'Inget matt angivet'}`,
+      `Hinderplan: ${kbtObstaclePlan || 'Ingen hinderplan angiven'}`,
+      `Uppfoljning: ${kbtFollowUpWindow}, sammanhang: ${kbtRehearsalContext || 'Ej angivet'}`,
+      `Kvalitetspoang: ${quality.score}/100 (${quality.label})`
+    ].join(' | ');
+
+    updateCBTProgress({
+      exerciseId: 'stress-2-kbt-thought-record',
+      successRate,
+      timeSpent: 600,
+      difficultyRating: 2,
+      notes,
+    }).catch((error) => {
+      logger.debug('Could not sync KBT progress to backend', { error });
+    });
+  }, [kbtPhase, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtExecutionConfidenceAfter, userThoughts.negative, userThoughts.evidence, userThoughts.alternative, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, kbtDistortionInsights]);
 
   const loadRecommendations = useCallback((goals: string[], screenReader: typeof announceToScreenReader) => {
     const allRecommendations = RECOMMENDATIONS_POOL;
@@ -1115,7 +1534,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         if (recommendation.id === 'stress-1') {
           setTimeout(() => startBreathingExercise(), 500);
         } else if (recommendation.id === 'stress-2') {
-          setTimeout(() => startKbtExercise(), 500);
+          setTimeout(() => startKbtFlow(), 500);
         } else if (recommendation.id === 'stress-3') {
           setTimeout(() => startProgressiveRelaxation(), 500);
         } else if (recommendation.id === 'generic-1') {
@@ -1335,6 +1754,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
     setIsBreathingFullscreen(false);
     setShowBreathingScience(false);
+    setBreathingStressBefore(null);
+    setBreathingStressAfter(null);
 
     setShowContentModal(false);
     setSelectedRecommendation(null);
@@ -2083,6 +2504,26 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       Följ cue-texten i cirkeln och siffrorna för att skapa ett lugnt andningsmönster.
                     </p>
 
+                    <div className="mb-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
+                      <label htmlFor="breathing-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
+                        Stress fore start ({breathingStressBefore ?? 0}/100)
+                      </label>
+                      <input
+                        id="breathing-stress-before"
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={breathingStressBefore ?? 0}
+                        onChange={(e) => setBreathingStressBefore(Number(e.target.value))}
+                        disabled={isBreathingActive || breathingPhase === 'completed'}
+                        className="w-full accent-rose-600"
+                      />
+                      <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
+                        Satt en snabb baslinje innan andningsrundan.
+                      </p>
+                    </div>
+
                     <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
                       {[4, 8, 12].map((cycleOption) => (
                         <button
@@ -2163,23 +2604,64 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       )}
                     </div>
 
+                    {breathingPhase === 'completed' && (
+                      <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg text-left border border-emerald-100 dark:border-emerald-800">
+                        <label htmlFor="breathing-stress-after" className="text-sm font-medium text-emerald-700 dark:text-emerald-300 block mb-1">
+                          Stress efter ovningen ({breathingStressAfter ?? 0}/100)
+                        </label>
+                        <input
+                          id="breathing-stress-after"
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={breathingStressAfter ?? 0}
+                          onChange={(e) => setBreathingStressAfter(Number(e.target.value))}
+                          className="w-full accent-emerald-600"
+                        />
+                        {typeof breathingStressBefore === 'number' && typeof breathingStressAfter === 'number' && (
+                          <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">
+                            Forandring: {breathingStressAfter - breathingStressBefore <= 0 ? '' : '+'}{breathingStressAfter - breathingStressBefore} poang
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex justify-center gap-3">
                       {isBreathingActive ? (
-                        <button
-                          onClick={stopBreathingExercise}
-                          className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
-                        >
-                          ⏹️ Stoppa
-                        </button>
+                        <>
+                          <button
+                            onClick={isBreathingPaused ? resumeBreathingExercise : pauseBreathingExercise}
+                            className={`px-6 py-3 ${isBreathingPaused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'} text-white font-medium rounded-lg transition-colors`}
+                          >
+                            {isBreathingPaused ? '▶️ Fortsätt' : '⏸️ Pausa'}
+                          </button>
+                          <button
+                            onClick={stopBreathingExercise}
+                            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                          >
+                            ⏹️ Stoppa
+                          </button>
+                        </>
                       ) : (
                         <button
-                          onClick={startBreathingExercise}
+                          onClick={() => {
+                            breathingOutcomeSyncedRef.current = false;
+                            setBreathingStressAfter(null);
+                            startBreathingExercise();
+                          }}
+                          disabled={breathingStressBefore === null}
                           className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                         >
                           {breathingPhase === 'completed' ? '🔁 Starta ny omgång' : '🚀 Starta andningsövning'}
                         </button>
                       )}
                     </div>
+                    {!isBreathingActive && breathingStressBefore === null && (
+                      <p className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
+                        Välj stressnivå före start för att kunna jämföra effekten efteråt.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -2196,12 +2678,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   </p>
 
                   {/* Progress Indicator */}
-                  <div className="flex justify-center mb-6">
-                    <div className="flex items-center space-x-2">
-                      {['identify', 'challenge', 'replace', 'practice', 'complete'].map((phase, index) => (
+                  <div className="mb-6">
+                    <p className="text-center text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">
+                      {kbtPhase === 'complete' ? 'KBT-övning klar' : `Steg ${activeKbtStep} av ${KBT_TOTAL_STEPS}`}
+                    </p>
+                    <div className="w-full h-2 bg-purple-100 dark:bg-purple-900/40 rounded-full overflow-hidden mb-3">
+                      <div
+                        className="h-full bg-purple-500 transition-all duration-500"
+                        style={{ width: `${kbtProgressPercentage}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center space-x-2">
+                      {['identify', 'challenge', 'replace', 'practice'].map((phase, index) => (
                         <div
                           key={phase}
-                          className={`w-3 h-3 rounded-full ${index <= ['identify', 'challenge', 'replace', 'practice', 'complete'].indexOf(kbtPhase)
+                          className={`w-3 h-3 rounded-full ${index < activeKbtStep
                             ? 'bg-purple-500'
                             : 'bg-gray-300'
                             } `}
@@ -2248,11 +2739,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           placeholder="Skriv din negativa tanke här... (t.ex. 'Jag kommer att misslyckas')"
                           className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           rows={3}
-                          minLength={10}
+                          minLength={KBT_MIN_NEGATIVE_LENGTH}
                           required
                         />
-                        {userThoughts.negative.length < 10 && userThoughts.negative.length > 0 && (
-                          <p className="text-red-500 text-sm mt-1">Skriv minst 10 tecken för att fortsätta</p>
+                        {userThoughts.negative.trim().length < KBT_MIN_NEGATIVE_LENGTH && userThoughts.negative.trim().length > 0 && (
+                          <p className="text-red-500 text-sm mt-1">Skriv minst {KBT_MIN_NEGATIVE_LENGTH} tecken för att fortsätta</p>
                         )}
                       </div>
                     )}
@@ -2270,6 +2761,50 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg mb-4">
                           <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-1">Din negativa tanke:</p>
                           <p className="text-red-600 dark:text-red-400 italic">"{userThoughts.negative}"</p>
+                        </div>
+
+                        {kbtDistortionInsights.length > 0 && (
+                          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg mb-4 text-left border border-yellow-100 dark:border-yellow-800">
+                            <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300 mb-2">Mojliga tankefeller att utforska:</p>
+                            {kbtDistortionInsights.map((insight) => (
+                              <div key={insight.key} className="mb-2 last:mb-0">
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300"><strong>{insight.label}:</strong> {insight.hint}</p>
+                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">Fraga: {insight.reframeQuestion}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg mb-4 text-left">
+                          <label htmlFor="kbt-belief-before" className="text-sm font-medium text-purple-700 dark:text-purple-300 block mb-1">
+                            Hur trovärdig känns den negativa tanken just nu? ({kbtBeliefBefore ?? 0}%)
+                          </label>
+                          <input
+                            id="kbt-belief-before"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={kbtBeliefBefore ?? 0}
+                            onChange={(e) => setKbtBeliefBefore(Number(e.target.value))}
+                            className="w-full accent-purple-600"
+                          />
+                        </div>
+
+                        <div className="bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg mb-4 text-left">
+                          <label htmlFor="kbt-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
+                            Hur stark ar stressen i kroppen just nu? ({kbtStressBefore ?? 0}/100)
+                          </label>
+                          <input
+                            id="kbt-stress-before"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={kbtStressBefore ?? 0}
+                            onChange={(e) => setKbtStressBefore(Number(e.target.value))}
+                            className="w-full accent-rose-600"
+                          />
                         </div>
 
                         {/* Evidence Framework */}
@@ -2296,15 +2831,41 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         <textarea
                           value={userThoughts.evidence}
                           onChange={(e) => handleThoughtChange('evidence', e.target.value)}
-                          placeholder="Analysera bevis för och emot din tanke. T.ex: För: 'Jag har misslyckats tidigare' Emot: 'Jag har också lyckats många gånger och lärt mig av misstagen'"
+                          placeholder={`Analysera tanken \"${userThoughts.negative || '...'}\" med strukturen:\nFör: ...\nEmot: ...`}
                           className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           rows={5}
-                          minLength={20}
+                          minLength={KBT_MIN_EVIDENCE_LENGTH}
                           required
                         />
-                        {userThoughts.evidence.length < 20 && userThoughts.evidence.length > 0 && (
-                          <p className="text-red-500 text-sm mt-1">Beskriv minst 20 tecken bevis för att fortsätta</p>
+                        {userThoughts.evidence.trim().length < KBT_MIN_EVIDENCE_LENGTH && userThoughts.evidence.trim().length > 0 && (
+                          <p className="text-red-500 text-sm mt-1">Beskriv minst {KBT_MIN_EVIDENCE_LENGTH} tecken för att fortsätta</p>
                         )}
+                        {userThoughts.evidence.trim().length >= KBT_MIN_EVIDENCE_LENGTH && !/(för:|for:)/i.test(userThoughts.evidence) && (
+                          <p className="text-amber-600 text-sm mt-1">Tips: Lägg till "För:" för tydlig struktur.</p>
+                        )}
+                        {userThoughts.evidence.trim().length >= KBT_MIN_EVIDENCE_LENGTH && !/(emot:|against:)/i.test(userThoughts.evidence) && (
+                          <p className="text-amber-600 text-sm mt-1">Tips: Lägg till "Emot:" för att balansera analysen.</p>
+                        )}
+
+                        <div className="mt-4 bg-sky-50 dark:bg-sky-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-socratic-reflection" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mb-1">
+                            Sokratisk fraga: Om en van hade samma tanke, vad skulle du saga till hen utifran bevisen?
+                          </label>
+                          <textarea
+                            id="kbt-socratic-reflection"
+                            value={kbtSocraticReflection}
+                            onChange={(e) => setKbtSocraticReflection(e.target.value)}
+                            placeholder="Skriv ett kort, medkannande och faktabaserat svar som du sjalv kan anvanda."
+                            className="w-full p-3 border border-sky-200 dark:border-sky-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                            rows={3}
+                            minLength={KBT_MIN_SOCRATIC_REFLECTION_LENGTH}
+                          />
+                          {kbtSocraticReflection.trim().length > 0 && kbtSocraticReflection.trim().length < KBT_MIN_SOCRATIC_REFLECTION_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_SOCRATIC_REFLECTION_LENGTH} tecken for att forankra en hjalpsam inre dialog.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -2342,17 +2903,25 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           </ul>
                         </div>
 
+                        {kbtDistortionInsights.length > 0 && (
+                          <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg mb-4 text-left border border-teal-100 dark:border-teal-800">
+                            <p className="text-sm font-semibold text-teal-700 dark:text-teal-300 mb-1">Riktad omformuleringshjalp</p>
+                            <p className="text-sm text-teal-700 dark:text-teal-300">Utga fran: <strong>{kbtDistortionInsights[0].label}</strong></p>
+                            <p className="text-xs text-teal-700 dark:text-teal-300 mt-1">Prova att besvara: {kbtDistortionInsights[0].reframeQuestion}</p>
+                          </div>
+                        )}
+
                         <textarea
                           value={userThoughts.alternative}
                           onChange={(e) => handleThoughtChange('alternative', e.target.value)}
-                          placeholder="Skriv en balanserad tanke som tar hänsyn till både positiva och negativa aspekter..."
+                          placeholder={`Skriv en balanserad tanke som svarar på:\n\"${userThoughts.negative || 'din tanke'}\"\nmed stöd av evidensen ovan.`}
                           className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           rows={4}
-                          minLength={10}
+                          minLength={KBT_MIN_ALTERNATIVE_LENGTH}
                           required
                         />
-                        {userThoughts.alternative.length < 10 && userThoughts.alternative.length > 0 && (
-                          <p className="text-red-500 text-sm mt-1">Skriv minst 10 tecken för att fortsätta</p>
+                        {userThoughts.alternative.trim().length < KBT_MIN_ALTERNATIVE_LENGTH && userThoughts.alternative.trim().length > 0 && (
+                          <p className="text-red-500 text-sm mt-1">Skriv minst {KBT_MIN_ALTERNATIVE_LENGTH} tecken för att fortsätta</p>
                         )}
                       </div>
                     )}
@@ -2373,11 +2942,261 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             Upprepa denna tanke och känn skillnaden i ditt sinne.
                           </p>
                         </div>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
+                          <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                            <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-1">Utgångstanke</p>
+                            <p className="text-sm text-red-600 dark:text-red-400 italic">"{userThoughts.negative || 'Ingen negativ tanke angiven'}"</p>
+                          </div>
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">Din evidens</p>
+                            <p className="text-sm text-blue-600 dark:text-blue-400 line-clamp-4">{userThoughts.evidence || 'Ingen evidensanalys angiven'}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-belief-after" className="text-sm font-medium text-green-700 dark:text-green-300 block mb-1">
+                            Hur trovärdig känns den nya tanken nu? ({kbtBeliefAfter ?? 0}%)
+                          </label>
+                          <input
+                            id="kbt-belief-after"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={kbtBeliefAfter ?? 0}
+                            onChange={(e) => setKbtBeliefAfter(Number(e.target.value))}
+                            className="w-full accent-green-600"
+                          />
+                          <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                            När du klickar "Nästa steg" sparas detta som din efter-skattning.
+                          </p>
+                        </div>
+
+                        <div className="mt-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-stress-after" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
+                            Hur stark ar stressen nu efter ovningen? ({kbtStressAfter ?? 0}/100)
+                          </label>
+                          <input
+                            id="kbt-stress-after"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={kbtStressAfter ?? 0}
+                            onChange={(e) => setKbtStressAfter(Number(e.target.value))}
+                            className="w-full accent-rose-600"
+                          />
+                        </div>
+
+                        <div className="mt-4 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-execution-confidence-after" className="text-sm font-medium text-emerald-700 dark:text-emerald-300 block mb-1">
+                            Hur trygg ar du att faktiskt genomfora planen i vardagen? ({kbtExecutionConfidenceAfter ?? 0}%)
+                          </label>
+                          <input
+                            id="kbt-execution-confidence-after"
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={kbtExecutionConfidenceAfter ?? 0}
+                            onChange={(e) => setKbtExecutionConfidenceAfter(Number(e.target.value))}
+                            className="w-full accent-emerald-600"
+                          />
+                        </div>
+
+                        <div className="mt-4 bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-action-plan" className="text-sm font-medium text-indigo-700 dark:text-indigo-300 block mb-1">
+                            Vad ar ett konkret mikro-steg du kan gora inom 24 timmar?
+                          </label>
+                          <textarea
+                            id="kbt-action-plan"
+                            value={kbtActionPlan}
+                            onChange={(e) => setKbtActionPlan(e.target.value)}
+                            placeholder="Exempel: Nar stressen kommer pa jobbet, tar jag 2 minuter och skriver en For/Emot-lista innan jag agerar."
+                            className="w-full p-3 border border-indigo-200 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            rows={3}
+                            minLength={KBT_MIN_ACTION_PLAN_LENGTH}
+                          />
+                          {kbtActionPlan.trim().length > 0 && kbtActionPlan.trim().length < KBT_MIN_ACTION_PLAN_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_ACTION_PLAN_LENGTH} tecken for ett tydligt handlingssteg.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 bg-violet-50 dark:bg-violet-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-experiment-hypothesis" className="text-sm font-medium text-violet-700 dark:text-violet-300 block mb-1">
+                            Beteendeexperiment: Vad tror du hander om du foljer den nya tanken?
+                          </label>
+                          <textarea
+                            id="kbt-experiment-hypothesis"
+                            value={kbtExperimentHypothesis}
+                            onChange={(e) => setKbtExperimentHypothesis(e.target.value)}
+                            placeholder="Exempel: Om jag genomfor uppgiften stegvis kommer stressen minska inom 10 minuter."
+                            className="w-full p-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                            rows={3}
+                            minLength={KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH}
+                          />
+                          {kbtExperimentHypothesis.trim().length > 0 && kbtExperimentHypothesis.trim().length < KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH} tecken for en testbar hypotes.
+                            </p>
+                          )}
+
+                          <label htmlFor="kbt-experiment-measure" className="text-sm font-medium text-violet-700 dark:text-violet-300 block mt-3 mb-1">
+                            Vad observerar du for att se om hypotesen stammer?
+                          </label>
+                          <textarea
+                            id="kbt-experiment-measure"
+                            value={kbtExperimentMeasure}
+                            onChange={(e) => setKbtExperimentMeasure(e.target.value)}
+                            placeholder="Exempel: Jag skattar stress var 5:e minut och noterar om jag faktiskt fortsatter uppgiften."
+                            className="w-full p-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                            rows={2}
+                            minLength={KBT_MIN_EXPERIMENT_MEASURE_LENGTH}
+                          />
+                          {kbtExperimentMeasure.trim().length > 0 && kbtExperimentMeasure.trim().length < KBT_MIN_EXPERIMENT_MEASURE_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_EXPERIMENT_MEASURE_LENGTH} tecken for ett tydligt observationsmatt.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 bg-cyan-50 dark:bg-cyan-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-if-then-plan" className="text-sm font-medium text-cyan-700 dark:text-cyan-300 block mb-1">
+                            Om-sa plan: Om stressen slar till, vad gor du da direkt?
+                          </label>
+                          <textarea
+                            id="kbt-if-then-plan"
+                            value={kbtIfThenPlan}
+                            onChange={(e) => setKbtIfThenPlan(e.target.value)}
+                            placeholder="Exempel: Om jag fastnar i oro, sa tar jag tre lugna andetag och gor forsta 2-minuterssteget i uppgiften."
+                            className="w-full p-3 border border-cyan-200 dark:border-cyan-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            rows={3}
+                            minLength={KBT_MIN_IF_THEN_PLAN_LENGTH}
+                          />
+                          {kbtIfThenPlan.trim().length > 0 && kbtIfThenPlan.trim().length < KBT_MIN_IF_THEN_PLAN_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_IF_THEN_PLAN_LENGTH} tecken for en tydlig om-sa plan.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 bg-lime-50 dark:bg-lime-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-coping-card" className="text-sm font-medium text-lime-700 dark:text-lime-300 block mb-1">
+                            Coping-kort: Skriv en kort mening du kan lasa nar stressen stiger.
+                          </label>
+                          <textarea
+                            id="kbt-coping-card"
+                            value={kbtCopingCard}
+                            onChange={(e) => setKbtCopingCard(e.target.value)}
+                            placeholder="Exempel: Jag tar ett steg i taget, och jag behover inte vara perfekt for att gora framsteg."
+                            className="w-full p-3 border border-lime-200 dark:border-lime-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 focus:border-transparent"
+                            rows={2}
+                            minLength={KBT_MIN_COPING_CARD_LENGTH}
+                          />
+                          {kbtCopingCard.trim().length > 0 && kbtCopingCard.trim().length < KBT_MIN_COPING_CARD_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_COPING_CARD_LENGTH} tecken for ett anvandbart coping-kort.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-obstacle-plan" className="text-sm font-medium text-amber-700 dark:text-amber-300 block mb-1">
+                            Vilket hinder ar mest sannolikt, och hur svarar du om det uppstar?
+                          </label>
+                          <textarea
+                            id="kbt-obstacle-plan"
+                            value={kbtObstaclePlan}
+                            onChange={(e) => setKbtObstaclePlan(e.target.value)}
+                            placeholder="Exempel: Om jag undviker uppgiften efter lunch, da tar jag 5 minuter och borjar med minsta mojliga delsteg."
+                            className="w-full p-3 border border-amber-200 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            rows={3}
+                            minLength={KBT_MIN_OBSTACLE_PLAN_LENGTH}
+                          />
+                          {kbtObstaclePlan.trim().length > 0 && kbtObstaclePlan.trim().length < KBT_MIN_OBSTACLE_PLAN_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_OBSTACLE_PLAN_LENGTH} tecken for en tydlig hinderplan.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 bg-sky-50 dark:bg-sky-900/20 p-3 rounded-lg text-left">
+                          <label htmlFor="kbt-follow-up-window" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mb-1">
+                            Nar repeterar du den balanserade tanken nasta gang?
+                          </label>
+                          <select
+                            id="kbt-follow-up-window"
+                            value={kbtFollowUpWindow}
+                            onChange={(e) => setKbtFollowUpWindow(e.target.value)}
+                            className="w-full p-2 border border-sky-200 dark:border-sky-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                          >
+                            <option value="I kväll">I kväll</option>
+                            <option value="I morgon bitti">I morgon bitti</option>
+                            <option value="Inom 48 timmar">Inom 48 timmar</option>
+                          </select>
+
+                          <label htmlFor="kbt-rehearsal-context" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mt-3 mb-1">
+                            Var eller i vilken situation gor du repetitionen?
+                          </label>
+                          <textarea
+                            id="kbt-rehearsal-context"
+                            value={kbtRehearsalContext}
+                            onChange={(e) => setKbtRehearsalContext(e.target.value)}
+                            placeholder="Exempel: Pa bussen till jobbet, eller innan forsta motet pa morgonen."
+                            className="w-full p-3 border border-sky-200 dark:border-sky-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                            rows={2}
+                            minLength={KBT_MIN_REHEARSAL_CONTEXT_LENGTH}
+                          />
+                          {kbtRehearsalContext.trim().length > 0 && kbtRehearsalContext.trim().length < KBT_MIN_REHEARSAL_CONTEXT_LENGTH && (
+                            <p className="text-red-500 text-sm mt-1">
+                              Skriv minst {KBT_MIN_REHEARSAL_CONTEXT_LENGTH} tecken for tydligt sammanhang.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 
                     {kbtPhase === 'complete' && (
                       <div className="text-center">
+                        {(() => {
+                          const adaptiveFeedback = getKbtAdaptiveFeedback(kbtBeliefBefore, kbtBeliefAfter);
+                          const stressFeedback = getKbtStressFeedback(kbtStressBefore, kbtStressAfter);
+                          const quality = calculateKbtSessionQuality({
+                            beliefBefore: kbtBeliefBefore,
+                            beliefAfter: kbtBeliefAfter,
+                            negative: userThoughts.negative,
+                            evidence: userThoughts.evidence,
+                            alternative: userThoughts.alternative,
+                            actionPlan: kbtActionPlan,
+                            obstaclePlan: kbtObstaclePlan,
+                            rehearsalContext: kbtRehearsalContext,
+                            experimentHypothesis: kbtExperimentHypothesis,
+                            experimentMeasure: kbtExperimentMeasure,
+                            socraticReflection: kbtSocraticReflection,
+                            ifThenPlan: kbtIfThenPlan,
+                            copingCard: kbtCopingCard,
+                            executionConfidenceAfter: kbtExecutionConfidenceAfter,
+                          });
+                          return (
+                            <>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-3 text-left border border-blue-100 dark:border-blue-800">
+                                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">{adaptiveFeedback.title}</p>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">{adaptiveFeedback.message}</p>
+                              </div>
+                              <div className="bg-sky-50 dark:bg-sky-900/20 p-4 rounded-lg mb-4 text-left border border-sky-100 dark:border-sky-800">
+                                <p className="text-sm font-semibold text-sky-700 dark:text-sky-300 mb-1">Sessionens kvalitet: {quality.score}/100</p>
+                                <p className="text-sm text-sky-700 dark:text-sky-300">{quality.label}</p>
+                              </div>
+                              <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-lg mb-4 text-left border border-rose-100 dark:border-rose-800">
+                                <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 mb-1">{stressFeedback.title}</p>
+                                <p className="text-sm text-rose-700 dark:text-rose-300">{stressFeedback.message}</p>
+                              </div>
+                            </>
+                          );
+                        })()}
                         <h4 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
                           ✅ KBT-övning Slutförd!
                         </h4>
@@ -2390,6 +3209,45 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             <strong>Negativ tanke:</strong> {userThoughts.negative || 'Ingen angiven'}<br />
                             <strong>Balanserad tanke:</strong> {userThoughts.alternative || 'Ingen angiven'}
                           </p>
+                          {typeof kbtBeliefBefore === 'number' && typeof kbtBeliefAfter === 'number' && (
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-3">
+                              <strong>Skattning:</strong> Från {kbtBeliefBefore}% till {kbtBeliefAfter}% ({kbtBeliefAfter - kbtBeliefBefore >= 0 ? '+' : ''}{kbtBeliefAfter - kbtBeliefBefore} procentenheter)
+                            </p>
+                          )}
+                          {typeof kbtStressBefore === 'number' && typeof kbtStressAfter === 'number' && (
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                              <strong>Stressnivå:</strong> Från {kbtStressBefore}/100 till {kbtStressAfter}/100 ({kbtStressAfter - kbtStressBefore <= 0 ? '' : '+'}{kbtStressAfter - kbtStressBefore})
+                            </p>
+                          )}
+                          {typeof kbtExecutionConfidenceAfter === 'number' && (
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                              <strong>Genomforandetillit:</strong> {kbtExecutionConfidenceAfter}%
+                            </p>
+                          )}
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-3">
+                            <strong>Ditt nästa steg:</strong> {kbtActionPlan || 'Inget handlingssteg angivet'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Din hinderplan:</strong> {kbtObstaclePlan || 'Ingen hinderplan angiven'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Experimenthypotes:</strong> {kbtExperimentHypothesis || 'Ingen hypotes angiven'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Vad du observerar:</strong> {kbtExperimentMeasure || 'Inget observationsmatt angivet'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Sokratisk reflektion:</strong> {kbtSocraticReflection || 'Ingen reflektion angiven'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Om-sa plan:</strong> {kbtIfThenPlan || 'Ingen om-sa plan angiven'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Coping-kort:</strong> {kbtCopingCard || 'Inget coping-kort angivet'}
+                          </p>
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            <strong>Uppföljning:</strong> {kbtFollowUpWindow} ({kbtRehearsalContext || 'Sammanhang ej angivet'})
+                          </p>
                         </div>
                       </div>
                     )}
@@ -2399,7 +3257,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex justify-center gap-3 mt-6">
                     {!isKbtActive ? (
                       <button
-                        onClick={startKbtExercise}
+                        onClick={startKbtFlow}
                         className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
                       >
                         🚀 Starta KBT-övning
@@ -2407,7 +3265,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     ) : kbtPhase !== 'complete' ? (
                       <>
                         <button
-                          onClick={nextKbtPhase}
+                          onClick={handleNextKbtPhase}
                           className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
                         >
                           Nästa Steg →
