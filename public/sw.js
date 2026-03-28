@@ -115,8 +115,22 @@ self.addEventListener('fetch', (event) => {
         );
       })
       .catch(() => {
-        // Return offline page or cached version
-        return caches.match('/') || caches.match('/index.html');
+        // Never return HTML for non-navigation asset requests.
+        // Returning index.html for JS/CSS causes runtime parse errors and app crashes.
+        if (request.destination === 'document' || request.mode === 'navigate') {
+          return caches.match('/index.html').then((cachedIndex) => {
+            if (cachedIndex) return cachedIndex;
+            return caches.match('/').then((cachedRoot) => {
+              if (cachedRoot) return cachedRoot;
+              return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+            });
+          });
+        }
+
+        return caches.match(request).then((cachedAsset) => {
+          if (cachedAsset) return cachedAsset;
+          return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+        });
       })
   );
 });
