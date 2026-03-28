@@ -30,6 +30,19 @@ class PWAService {
     // Register service worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
+        const isVercelHost = typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app');
+        if (isVercelHost) {
+          navigator.serviceWorker.getRegistrations()
+            .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+            .then(() => {
+              logger.debug('Skipping SW registration on vercel.app and removing stale registrations');
+            })
+            .catch((error) => {
+              logger.debug('Failed to cleanup stale service workers on vercel.app', error);
+            });
+          return;
+        }
+
         const swPath = `${import.meta.env.BASE_URL}sw.js`;
 
         fetch(swPath, { method: 'GET', cache: 'no-store' })
