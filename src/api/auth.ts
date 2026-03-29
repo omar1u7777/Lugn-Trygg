@@ -140,35 +140,71 @@ const validateLoginResponse = (data: unknown): LoginResponse => {
   return data as LoginResponse;
 };
 
+// Constants for retry logic
+const MAX_LOGIN_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
 /**
- * Logs in a user with email and password
+ * Logs in a user with email and password with retry logic for network issues
  * @param email - User's email address
  * @param password - User's password
  * @returns Promise resolving to user data including tokens
- * @throws AuthError if login fails
+ * @throws AuthError if login fails after all retries
  */
 export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
-  try {
-    const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
-
-    // Backend returns: { success: true, message: "...", data: { accessToken, user, userId } }
-    const responseData = response.data?.data || response.data;
-    const validatedData = validateLoginResponse(responseData);
-
-    await tokenStorage.setAccessToken(validatedData.accessToken);
-
-    // Fetch CSRF token after successful login
+  let lastError: unknown;
+  
+  for (let attempt = 1; attempt <= MAX_LOGIN_RETRIES; attempt++) {
     try {
-      await csrfManager.getToken();
-    } catch (csrfError) {
-      logger.warn("Failed to fetch CSRF token after login", { csrfError });
-    }
+      logger.debug(`LOGIN - Attempt ${attempt}/${MAX_LOGIN_RETRIES}`, { email });
+      const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
 
-    return validatedData;
-  } catch (error: unknown) {
-    tokenStorage.clearTokens();
-    throw createAuthError(error, "Invalid login credentials");
+      // Backend returns: { success: true, message: "...", data: { accessToken, user, userId } }
+      const responseData = response.data?.data || response.data;
+      const validatedData = validateLoginResponse(responseData);
+
+      await tokenStorage.setAccessToken(validatedData.accessToken);
+
+      // Fetch CSRF token after successful login
+      try {
+        await csrfManager.getToken();
+      } catch (csrfError) {
+        logger.warn("Failed to fetch CSRF token after login", { csrfError });
+      }
+
+      logger.debug(`LOGIN - Success on attempt ${attempt}`);
+      return validatedData;
+    } catch (error: unknown) {
+      lastError = error;
+      
+      // Check if it's a timeout or network error that might be transient
+      const isRetryableError = axios.isAxiosError(error) && (
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ETIMEDOUT' ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('Network Error') ||
+        error.response?.status === 408 ||
+        error.response?.status === 504
+      );
+      
+      if (!isRetryableError || attempt === MAX_LOGIN_RETRIES) {
+        // Don't retry if it's not a network error or we've exhausted retries
+        break;
+      }
+      
+      // Calculate exponential backoff delay
+      const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      logger.warn(`LOGIN - Attempt ${attempt} failed, retrying in ${delay}ms...`, { 
+        error: (error as Error).message,
+        code: (error as { code?: string }).code 
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+  
+  tokenStorage.clearTokens();
+  throw createAuthError(lastError, "Inloggning misslyckades. Försök igen om en stund.");
 };
 
 /**
