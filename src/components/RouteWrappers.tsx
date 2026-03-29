@@ -41,6 +41,7 @@ const PeerSupportChat = lazy(() => import('./PeerSupportChat'));
 const CrisisAlert = lazy(() => import('./CrisisAlert'));
 const OnboardingFlow = lazy(() => import('./OnboardingFlow'));
 const PrivacySettings = lazy(() => import('./PrivacySettings'));
+const CrisisPage = lazy(() => import('../pages/CrisisPage'));
 
 // WorldClassAIChat Wrapper
 export const WorldClassAIChatWrapper: React.FC = () => {
@@ -263,4 +264,9 @@ export const OnboardingFlowWrapper: React.FC = () => {
 export const PrivacySettingsWrapper: React.FC = () => {
   const { user } = useAuth();
   return <PrivacySettings userId={getUserId(user)} />;
+};
+
+// CrisisPage Wrapper - Full standalone crisis support page
+export const CrisisPageWrapper: React.FC = () => {
+  return <CrisisPage />;
 };

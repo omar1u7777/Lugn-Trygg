@@ -399,10 +399,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
                   Prata med AI
                 </a>
                 <a 
-                  href="tel:90101" 
+                  href="/crisis" 
                   className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
                 >
-                  Jourtelefon
+                  Få hjälp nu
                 </a>
               </div>
             </div>
