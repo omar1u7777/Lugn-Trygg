@@ -150,12 +150,58 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }, [recentMood]);
 
   useEffect(() => {
-    // Update greeting every minute
-    const interval = setInterval(() => {
-      setGreeting(getGreeting());
-      setFocusContent(getDailyFocusContent());
-    }, 60000);
-    return () => clearInterval(interval);
+    // Update greeting only at hour boundaries (10:00, 14:00, 18:00) when greeting changes
+    const calculateMsToNextBoundary = (): number => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentSecond = now.getSeconds();
+      const currentMs = now.getMilliseconds();
+      
+      // Define greeting change hours
+      const boundaryHours = [10, 14, 18];
+      
+      // Find next boundary hour
+      let nextBoundaryHour = boundaryHours.find(h => h > currentHour);
+      
+      // If no boundary today, next is 10:00 tomorrow
+      if (!nextBoundaryHour) {
+        nextBoundaryHour = 10;
+      }
+      
+      // Calculate time until next boundary
+      let hoursUntilBoundary = nextBoundaryHour - currentHour;
+      if (hoursUntilBoundary < 0) {
+        hoursUntilBoundary += 24; // Next day
+      }
+      
+      const minutesUntilBoundary = (hoursUntilBoundary * 60) - currentMinute;
+      const msUntilBoundary = (minutesUntilBoundary * 60 * 1000) 
+        - (currentSecond * 1000) 
+        - currentMs;
+      
+      return msUntilBoundary;
+    };
+    
+    let timeoutId: number;
+    
+    const scheduleNextUpdate = () => {
+      const msToNext = calculateMsToNextBoundary();
+      
+      timeoutId = window.setTimeout(() => {
+        setGreeting(getGreeting());
+        setFocusContent(getDailyFocusContent());
+        // Schedule next update
+        scheduleNextUpdate();
+      }, msToNext);
+    };
+    
+    // Start scheduling
+    scheduleNextUpdate();
+    
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {
