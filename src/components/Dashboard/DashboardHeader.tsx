@@ -7,6 +7,8 @@ interface DashboardHeaderProps {
   lastUpdatedAt?: Date;
   onFocusAction?: () => void;
   userId?: string;
+  hasLoggedToday?: boolean;
+  lastMood?: string;
 }
 
 const getGreeting = (moodContext?: string): string => {
@@ -94,6 +96,25 @@ const getSmartTimestamp = (lastUpdatedAt?: Date): string => {
   return ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
 };
 
+// Hjälpfunktion för kontextuell prompt baserad på användarens aktivitet
+const getContextualPrompt = (hasLoggedToday?: boolean, lastMood?: string): string => {
+  if (hasLoggedToday) {
+    return "Bra jobbat med dagens check-in! Vill du se dina insikter?";
+  }
+  
+  // Om vi har en tidigare mood, skapa kontinuitet
+  if (lastMood) {
+    const hour = new Date().getHours();
+    if (hour < 10) {
+      return `God morgon! Igår var din känsla "${lastMood}". Hur känns det att starta idag?`;
+    }
+    return `Välkommen tillbaka! Senast var din känsla "${lastMood}". Vad märker du nu?`;
+  }
+  
+  // Standard mindful prompt för nya användare
+  return "Vad för känslor eller tankar är närvarande just nu? Allt är välkommet här.";
+};
+
 /**
  * Breathing Orb Component - 2026 visual anchor
  */
@@ -120,6 +141,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   lastUpdatedAt,
   onFocusAction,
   userId,
+  hasLoggedToday,
+  lastMood,
 }) => {
   // Hämta dashboard data för mood-baserad personalisering
   const dashboardResult = userId ? useDashboardData(userId) : null;
@@ -264,6 +287,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     setIsBreathingSessionActive(true);
   };
 
+  // Keyboard shortcut för att starta breathing session med Space
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isBreathingSessionActive && !sessionCompleted) {
+        e.preventDefault();
+        startBreathingSession();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBreathingSessionActive, sessionCompleted]);
+
   const handleContinueToCheckIn = () => {
     onFocusAction?.();
   };
@@ -304,8 +339,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </span>
             </h1>
 
-            <p className="text-lg text-neutral-600 dark:text-neutral-300 max-w-xl leading-relaxed">
-              Hur känns din energi idag? Ta en stund och landa innan du börjar.
+            <p 
+              className="text-lg text-neutral-600 dark:text-neutral-300 max-w-xl leading-relaxed"
+              role="doc-subtitle"
+              aria-label="Inbjudan till reflektion"
+            >
+              {getContextualPrompt(hasLoggedToday, lastMood)}
             </p>
 
             <div className="mt-4 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
@@ -349,9 +388,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                       : 'Guidad övning: cirka 30 sekunder.'}
                 </p>
                 {(isBreathingSessionActive || sessionCompleted) && (
-                  <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/30 rounded-full overflow-hidden">
+                  <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary-500 transition-all duration-500"
+                      className="h-full bg-primary-500 dark:bg-primary-400 transition-all duration-500"
                       style={{ width: `${breathingProgress}%` }}
                     />
                   </div>
@@ -360,6 +399,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   type="button"
                   onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
                   disabled={isBreathingSessionActive}
+                  aria-label={isBreathingSessionActive 
+                    ? "Guidad andningsövning pågår, följ instruktionerna" 
+                    : sessionCompleted 
+                      ? "Fortsätt till humörcheck-in"
+                      : `Starta guidad andningsövning: ${focusContent.description}`}
                   className="mt-3 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                 >
                   {isBreathingSessionActive
