@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequ
 import { getBackendUrl } from "../config/env";
 import { tokenStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
+import { API_ENDPOINTS } from "./constants";
 
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
@@ -69,7 +70,6 @@ const subscribeTokenRefresh = (cb: (token: string | null) => void) => {
 
 // Cache for dynamic imports to improve performance
 let analyticsModule: ReturnType<typeof import('../services/analytics.lazy')> | null = null;
-let authModule: ReturnType<typeof import('../services/authUtils')> | null = null;
 let offlineStorageModule: ReturnType<typeof import('../services/offlineStorage')> | null = null;
 
 // Helper functions for analytics
@@ -78,13 +78,6 @@ const getAnalytics = async () => {
     analyticsModule = await import('../services/analytics.lazy');
   }
   return analyticsModule.analytics;
-};
-
-const getAuth = async () => {
-  if (!authModule) {
-    authModule = await import('./auth');
-  }
-  return authModule;
 };
 
 const getOfflineStorage = async () => {
@@ -217,6 +210,33 @@ const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): 
   throw error;
 };
 
+const clearLocalAuthState = () => {
+  tokenStorage.clearTokens();
+  try {
+    localStorage.removeItem('secure_user');
+    localStorage.removeItem('user');
+  } catch (storageError) {
+    logger.warn('Failed to clear local auth state after refresh failure', { storageError });
+  }
+};
+
+const refreshAccessTokenWithCookie = async (): Promise<string | null> => {
+  try {
+    const response = await api.post(API_ENDPOINTS.AUTH.REFRESH_TOKEN, {});
+    const responseData = response.data?.data || response.data;
+    const accessToken = responseData?.accessToken;
+
+    if (typeof accessToken === 'string' && accessToken.length > 0) {
+      return accessToken;
+    }
+
+    return null;
+  } catch (refreshError) {
+    logger.warn('Refresh token request failed', { refreshError });
+    return null;
+  }
+};
+
 const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Promise<AxiosResponse> => {
   // If already refreshing, queue this request to retry after refresh completes
   if (isRefreshing) {
@@ -240,27 +260,20 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
   isRefreshing = true;
   originalRequest._retry = true;
 
-  try {
-    const { refreshAccessToken } = await getAuth();
-    const newAccessToken = await refreshAccessToken();
-    if (newAccessToken) {
-      await tokenStorage.setAccessToken(newAccessToken);
-      api.defaults.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
-      originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
-      logger.info("Token refreshed successfully");
-      isRefreshing = false;
-      onRefreshed(newAccessToken);
-      return api(originalRequest);
-    }
-  } catch (refreshError) {
-    logger.error("Automatic token refresh failed:", refreshError);
-    logger.warn("Token refresh failed, logging out user");
+  const newAccessToken = await refreshAccessTokenWithCookie();
+  if (newAccessToken) {
+    await tokenStorage.setAccessToken(newAccessToken);
+    api.defaults.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
+    originalRequest.headers = originalRequest.headers || {};
+    originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
+    logger.info("Token refreshed successfully");
     isRefreshing = false;
-    onRefreshed(null);
-    const { logoutUser } = await getAuth();
-    logoutUser();
+    onRefreshed(newAccessToken);
+    return api(originalRequest);
   }
+
+  logger.warn("Token refresh failed, clearing local auth state");
+  clearLocalAuthState();
   isRefreshing = false;
   onRefreshed(null);
   throw error;
