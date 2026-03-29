@@ -32,6 +32,17 @@ const MESSAGES = {
 
 // Helper function to extract error message from API errors
 const extractErrorMessage = (err: unknown): string => {
+  // Handle network timeout specifically
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message?: string }).message || "";
+    if (message.includes("timeout") || message.includes("ECONNABORTED")) {
+      return "Servern svarar inte just nu. Försök igen om några sekunder eller kontrollera din internetanslutning.";
+    }
+    if (message.includes("Network Error")) {
+      return "Kunde inte ansluta till servern. Kontrollera att du har internetanslutning.";
+    }
+  }
+  
   // Handle Firebase popup blocked error
   if (err && typeof err === "object" && "code" in err) {
     const code = (err as { code?: string }).code;
