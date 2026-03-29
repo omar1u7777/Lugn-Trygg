@@ -1873,6 +1873,26 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     {rec.description}
                   </p>
 
+                  {/* Status indicator */}
+                  {(rec.completionRate !== undefined && rec.completionRate > 0 && rec.completionRate < 100) && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mb-3">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </span>
+                      <span className="font-medium">⏸️ Påbörjad - {rec.completionRate}%</span>
+                    </div>
+                  )}
+                  {rec.completed && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mb-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="font-medium">✓ Klar idag</span>
+                      {rec.streak && rec.streak > 1 && (
+                        <span className="text-amber-600 dark:text-amber-400 ml-1">🔥 {rec.streak} dagar</span>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     onClick={() => {
                       if (compact) {
@@ -1891,11 +1911,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     }
                   >
                     {compact
-                      ? getCompactCtaLabel(rec.type)
+                      ? (rec.completionRate !== undefined && rec.completionRate > 0 && rec.completionRate < 100)
+                        ? 'Fortsätt övningen →'
+                        : rec.completed
+                          ? 'Gör igen →'
+                          : rec.type === 'meditation'
+                            ? `Gör övningen (${rec.duration || 5} min) →`
+                            : rec.type === 'exercise'
+                              ? `Starta övningen (${rec.duration || 10} min) →`
+                              : rec.type === 'article'
+                                ? `Läs artikeln (${rec.duration || 3} min) →`
+                                : 'Utforska →'
                       : rec.type === 'meditation'
                         ? 'Starta passet'
                         : 'Läs mer'}
-                    <span>→</span>
                   </button>
                 </div>
               </div>
