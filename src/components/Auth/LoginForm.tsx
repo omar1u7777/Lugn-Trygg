@@ -32,6 +32,20 @@ const MESSAGES = {
 
 // Helper function to extract error message from API errors
 const extractErrorMessage = (err: unknown): string => {
+  // Handle Firebase popup blocked error
+  if (err && typeof err === "object" && "code" in err) {
+    const code = (err as { code?: string }).code;
+    if (code === "auth/popup-blocked") {
+      return "Popup blockerad av webbläsaren. Tillåt popups för denna webbplats eller använd e-postinloggning istället.";
+    }
+    if (code === "auth/popup-closed-by-user") {
+      return "Inloggningsfönstret stängdes. Försök igen.";
+    }
+    if (code === "auth/cancelled-popup-request") {
+      return "Inloggningsfönstret avbröts. Försök igen.";
+    }
+  }
+  
   if (err && typeof err === "object" && "response" in err) {
     const response = (err as { response?: { data?: { error?: unknown } } }).response;
     if (response?.data?.error && typeof response.data.error === "string") {
