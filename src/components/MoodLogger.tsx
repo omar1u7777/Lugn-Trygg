@@ -28,6 +28,7 @@ interface RecentMood {
   mood: string;
   score: number;
   timestamp: Date;
+  note?: string;
 }
 
 interface RecentMoodGroup {
@@ -415,6 +416,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             mood: moodText,
             score: score,
             timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
+            note: mood.note || undefined,
           };
         })
         .filter((mood, index, arr) => {
@@ -466,6 +468,27 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       return groups;
     }, []);
   }, [recentMoods]);
+
+  // Beräkna veckans streak (antal loggningar denna vecka)
+  const weeklyStreak = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Måndag
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    return recentMoods.filter(mood => mood.timestamp >= startOfWeek).length;
+  }, [recentMoods]);
+
+  // Beräkna trend (jämför med föregående humör)
+  const getTrend = (currentIndex: number, allEntries: RecentMood[]): 'up' | 'down' | 'stable' | null => {
+    if (currentIndex >= allEntries.length - 1) return null;
+    const current = allEntries[currentIndex].score;
+    const previous = allEntries[currentIndex + 1]?.score;
+    if (!previous) return null;
+    if (current > previous) return 'up';
+    if (current < previous) return 'down';
+    return 'stable';
+  };
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -680,10 +703,18 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       {/* Recent Moods */}
       <Card className="mt-8 border border-[#f2e4d4]">
         <div className="p-4 sm:p-6">
-          <h3 className="text-xl font-semibold text-[#2f2a24] dark:text-white mb-4 flex items-center gap-2">
-            <ChartBarIcon className="w-5 h-5 text-[#2c8374]" aria-hidden="true" />
-            Dina senaste humör
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-[#2f2a24] dark:text-white flex items-center gap-2">
+              <ChartBarIcon className="w-5 h-5 text-[#2c8374]" aria-hidden="true" />
+              Dina senaste humör
+            </h3>
+            {/* Weekly streak indicator */}
+            {weeklyStreak > 0 && (
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
+                {weeklyStreak} loggningar denna vecka 💪
+              </span>
+            )}
+          </div>
           <div className="space-y-3">
             {groupedRecentMoods.length > 0 ? (
               groupedRecentMoods.map((group) => (
@@ -695,15 +726,36 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
                     {group.entries.map((mood, index) => {
                       const moodVisual = getMoodVisual(mood.score);
                       const MoodIcon = moodVisual.Icon;
+                      
+                      // Flatten all entries to calculate trend
+                      const allEntries = groupedRecentMoods.flatMap(g => g.entries);
+                      const moodIndex = allEntries.findIndex(e => e.id === mood.id);
+                      const trend = getTrend(moodIndex, allEntries);
 
                       return (
-                        <div key={mood.id || `${group.key}-${index}`} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] dark:hover:bg-slate-800/70 transition-colors border-b border-[#f2e4d4] dark:border-slate-700 last:border-0">
+                        <div 
+                          key={mood.id || `${group.key}-${index}`} 
+                          className="group flex items-center justify-between py-3 px-3 rounded-xl hover:bg-[#fff7f0] dark:hover:bg-slate-800/70 transition-colors border-b border-[#f2e4d4] dark:border-slate-700 last:border-0"
+                          title={mood.note || undefined}
+                        >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${moodVisual.iconBgClass}`} aria-hidden="true">
                               <MoodIcon className={`w-5 h-5 ${moodVisual.iconClass}`} />
                             </div>
                             <div>
-                              <div className="font-medium text-[#2f2a24] dark:text-white">{mood.mood || t('mood.unknown', 'Humör')}</div>
+                              <div className="font-medium text-[#2f2a24] dark:text-white flex items-center gap-2">
+                                {mood.mood || t('mood.unknown', 'Humör')}
+                                {/* Trend indicator */}
+                                {trend && (
+                                  <span className={`text-xs ${
+                                    trend === 'up' ? 'text-emerald-500' : 
+                                    trend === 'down' ? 'text-orange-500' : 
+                                    'text-gray-400'
+                                  }`}>
+                                    {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-sm text-[#6d645d] dark:text-gray-400">
                                 {mood.timestamp.toLocaleTimeString('sv-SE', {
                                   hour: '2-digit',

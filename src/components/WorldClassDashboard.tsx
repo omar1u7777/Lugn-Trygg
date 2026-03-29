@@ -476,7 +476,20 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     }
   };
 
-  // Error state
+// Helper function för implementation intentions (nästa steg per mål)
+const getNextStepForGoal = (goal: string): string => {
+  const steps: Record<string, string[]> = {
+    'Bättre sömn': ['Gå och lägg dig 22:00 idag', 'Stäng av skärmar 1h innan säng', 'Läs en bok istället för telefon'],
+    'Ökad fokusering': ['Ta 3 djupa andetag nu', 'Stäng av notifikationer 30 min', 'Arbeta i 25-min intervall'],
+    'Hantera stress': ['Gör 3-minuters andningsövning', 'Ta en kort promenad', 'Skriv ner 3 saker du är tacksam för'],
+    'Mer energi': ['Drick ett glas vatten', 'Gör 5-minuters stretching', 'Ta en power nap 20 min'],
+    'Bättre humör': ['Lyssna på din favoritlåt', 'Ring en vän', 'Gör något snällt för någon'],
+  };
+  
+  const goalSteps = steps[goal] || ['Logga ditt humör idag', 'Reflektera över dagen', 'Sätt ett litet mål för imorgon'];
+  const randomStep = goalSteps[Math.floor(Math.random() * goalSteps.length)];
+  return randomStep || 'Fortsätt arbeta med ditt mål';
+};
   if (error) {
     return (
       <div className="world-class-dashboard p-4 sm:p-6 lg:p-8">
@@ -619,26 +632,78 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         {hasWellnessGoals && (
           <Card className="mb-6 border-l-4 border-l-primary-500">
             <div className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                  {t('worldDashboard.wellnessGoals')}
-                </h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                    {t('worldDashboard.wellnessGoals')}
+                  </h2>
+                </div>
+                {/* Edit goals button */}
+                <button
+                  onClick={() => setShowWellnessOnboarding(true)}
+                  className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
+                  aria-label="Redigera wellness-mål"
+                >
+                  ✏️ Redigera
+                </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {safeDashboardStats.wellnessGoals.map((goal) => (
-                  <div
-                    key={goal}
-                    className="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800"
-                  >
-                    <span className="text-xl">
-                      {getWellnessGoalIcon(goal)}
-                    </span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {goal}
-                    </span>
-                  </div>
-                ))}
+                {safeDashboardStats.wellnessGoals.map((goal) => {
+                  // Simulated progress - in real app would come from backend
+                  const progress = Math.min(((safeDashboardStats.weeklyProgress || 0) / (safeDashboardStats.weeklyGoal || 1)) * 100, 100);
+                  const nextStep = getNextStepForGoal(goal);
+                  
+                  return (
+                    <div
+                      key={goal}
+                      className="flex flex-col gap-2 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">
+                          {getWellnessGoalIcon(goal)}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white flex-1">
+                          {goal}
+                        </span>
+                        {/* Mastery tracking dots */}
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((step) => (
+                            <div
+                              key={step}
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                step <= Math.ceil(progress / 20)
+                                  ? 'bg-primary-500'
+                                  : 'bg-gray-300 dark:bg-gray-600'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Progress bar per goal */}
+                      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      
+                      {/* Implementation intention - Next step */}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Nästa steg: {nextStep}
+                      </p>
+                      
+                      {/* CTA for recommendations */}
+                      <button
+                        onClick={() => navigate('/recommendations')}
+                        className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline mt-1 text-left"
+                      >
+                        Se rekommendationer →
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                 {t('worldDashboard.goalRecommendations')}
