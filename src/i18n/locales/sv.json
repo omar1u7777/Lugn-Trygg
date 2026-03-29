@@ -519,7 +519,7 @@
       "focus": "Ökad fokusering",
       "clarity": "Mental klarhet"
     },
-    "goalRecommendations": "💡 Rekommendationer baserat på dina mål visas nedan",
+    "goalRecommendations": "",
     "personalRecommendations": "Personliga Rekommendationer",
     "addGoalsForRecs": "Lägg till wellness-mål för att låsa upp skräddarsydda rekommendationer.",
     "weeklyProgress": "Veckoprogress",
@@ -530,7 +530,7 @@
     "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!"
   },
   "social": {
-    "title": "🤝 Gemenskap",
+    "title": "",
     "subtitle": "Anslut till communityn, dela prestationer och väx tillsammans",
     "communityMembers": "Aktiva community-medlemmar",
     "moodLogs": "Dina humörloggningar",
@@ -555,7 +555,7 @@
     "inLeaderboard": "I community topplistan",
     "activeMember": "Aktiv Medlem",
     "partOfUsers": "En del av {{count}} användare",
-    "clickToShare": "💡 Klicka på en prestation för att dela den med vänner",
+    "clickToShare": "",
     "guidelines": {
       "title": "Community-riktlinjer",
       "supportive": "Var stöttande",
@@ -576,5 +576,21 @@
       "sharedSuccess": "Delad framgång",
       "sharedSuccessDesc": "Fira prestationer tillsammans"
     }
+  },
+  "dashboardStats": {
+    "sectionTitle": "Statistik Översikt",
+    "moodTitle": "Ditt Mående",
+    "streakTitle": "Nuvarande Streak",
+    "chatsTitle": "AI Samtal",
+    "achievementsTitle": "Achievements",
+    "days": "dagar",
+    "basedOnLogs": "baserat på {{count}} logg(ar)",
+    "streakActive": "Aktiv",
+    "total": "Totalt",
+    "progressOngoing": "Pågår",
+    "allUnlocked": "Alla upplåsta!",
+    "noChatsThisWeek": "Inga samtal denna vecka",
+    "oneChatThisWeek": "1 samtal denna vecka",
+    "chatsThisWeek": "{{count}} samtal denna vecka"
   }
 }
