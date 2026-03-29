@@ -190,7 +190,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   // Memoize wellnessGoals to prevent new array reference on every render
   const wellnessGoals = useMemo(() => dashboardStats.wellnessGoals || [], [dashboardStats.wellnessGoals]);
   
-  const safeDashboardStats = {
+  const safeDashboardStats = useMemo(() => ({
     totalMoods: dashboardStats.totalMoods || 0,
     totalChats: dashboardStats.totalChats || 0,
     averageMood: dashboardStats.averageMood || 0,
@@ -199,30 +199,34 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     weeklyProgress: Math.max(dashboardStats.weeklyProgress || 0, 0),
     wellnessGoals,
     recentActivity: dashboardStats.recentActivity || [],
-  };
+  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.recentActivity]);
 
   const hasWellnessGoals = Array.isArray(safeDashboardStats.wellnessGoals) && safeDashboardStats.wellnessGoals.length > 0;
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
   const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
-  // Transform data for component props
-  const moodSamples = [...safeDashboardStats.recentActivity]
-    .filter((activity) => activity.type === 'mood')
-    .sort((left, right) => {
-      const leftTime = left.timestamp instanceof Date ? left.timestamp.getTime() : new Date(left.timestamp).getTime();
-      const rightTime = right.timestamp instanceof Date ? right.timestamp.getTime() : new Date(right.timestamp).getTime();
-      return leftTime - rightTime;
-    })
-    .map((activity) => extractMoodScoreFromDescription(activity.description))
-    .filter((score): score is number => score !== null);
+  // Transform data for component props - memoized to prevent re-renders
+  const moodSamples = useMemo(() => 
+    [...safeDashboardStats.recentActivity]
+      .filter((activity) => activity.type === 'mood')
+      .sort((left, right) => {
+        const leftTime = left.timestamp instanceof Date ? left.timestamp.getTime() : new Date(left.timestamp).getTime();
+        const rightTime = right.timestamp instanceof Date ? right.timestamp.getTime() : new Date(right.timestamp).getTime();
+        return leftTime - rightTime;
+      })
+      .map((activity) => extractMoodScoreFromDescription(activity.description))
+      .filter((score): score is number => score !== null),
+    [safeDashboardStats.recentActivity]
+  );
 
-  const stats = {
+  // Memoize stats object to prevent DashboardStats re-renders
+  const stats = useMemo(() => ({
     averageMood: safeDashboardStats.averageMood,
     streakDays: safeDashboardStats.streakDays,
     totalChats: safeDashboardStats.totalChats,
     achievementsCount: Math.floor(safeDashboardStats.streakDays / 7) + Math.floor(safeDashboardStats.totalMoods / 10),
     moodSamples,
-  };
+  }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.totalMoods, moodSamples]);
 
   const formattedWeeklyProgress = formatNumber(safeDashboardStats.weeklyProgress);
   const formattedWeeklyGoal = formatNumber(safeDashboardStats.weeklyGoal);
