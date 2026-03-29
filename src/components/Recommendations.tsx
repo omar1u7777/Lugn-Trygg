@@ -2238,13 +2238,34 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            {filteredRecommendations.map((recommendation) => (
+            {filteredRecommendations.map((recommendation) => {
+              // Get category color for visual consistency
+              const getCategoryColor = (category: string) => {
+                const colors: Record<string, string> = {
+                  'Stresshantering': 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800',
+                  'Sömn': 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800',
+                  'Fokus': 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800',
+                  'Mental klarhet': 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800',
+                  'Produktivitet': 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800',
+                  'Relationer': 'bg-pink-50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-800',
+                };
+                return colors[category] || 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
+              };
+              
+              return (
               <div
                 key={recommendation.id}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group"
+                className={`relative rounded-lg border p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group overflow-hidden ${getCategoryColor(recommendation.category)}`}
               >
+                {/* Recommended for badge */}
+                {recommendation.primaryGoal && (
+                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs px-3 py-1.5 text-center font-medium">
+                    ✨ Rekommenderas för {recommendation.primaryGoal}
+                  </div>
+                )}
+
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className={`flex items-start justify-between mb-4 ${recommendation.primaryGoal ? 'mt-6' : ''}`}>
                   <div className="flex items-center gap-3">
                     <div className="text-2xl sm:text-3xl">
                       {recommendation.image || getTypeIcon(recommendation.type)}
@@ -2286,6 +2307,32 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                 {/* Content */}
                 <div className="mb-4">
+                  {/* Progress bar for completion rate */}
+                  {(recommendation.completionRate !== undefined && recommendation.completionRate > 0 && recommendation.completionRate < 100) && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-primary-600 dark:text-primary-400 font-medium">
+                          ⏳ Påbörjad - {recommendation.completionRate}% klart
+                        </span>
+                        <span className="text-gray-400">
+                          {recommendation.lastAccessedAt && `Senast: ${new Date(recommendation.lastAccessedAt).toLocaleDateString('sv-SE')}`}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
+                          style={{ width: `${recommendation.completionRate}%` }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleRecommendationAction(recommendation, 'continue')}
+                        className="mt-2 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline font-medium"
+                      >
+                        Fortsätt där du slutade →
+                      </button>
+                    </div>
+                  )}
+
                   {/* Completion status badge */}
                   {recommendation.completed && (
                     <div className="flex items-center gap-1.5 mb-2 text-emerald-600 dark:text-emerald-400">
@@ -2366,23 +2413,50 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 </div>
 
                 {/* Actions */}
-                <button
-                  onClick={() => handleRecommendationAction(recommendation, 'start')}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-all duration-200 group-hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
-                >
-                  <PlayIcon className="w-5 h-5" aria-hidden="true" />
-                  <span>
-                    {recommendation.type === 'meditation'
-                      ? `Gör övningen nu (${recommendation.duration || 5} min) →`
-                      : recommendation.type === 'exercise'
-                        ? 'Starta träningen nu →'
-                        : recommendation.type === 'article'
-                          ? 'Läs artikeln (3 min) →'
-                          : recommendation.type === 'challenge'
-                            ? 'Påbörja utmaningen →'
-                            : 'Utforska nu →'}
-                  </span>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => handleRecommendationAction(recommendation, 'start')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-all duration-200 group-hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
+                  >
+                    <PlayIcon className="w-5 h-5" aria-hidden="true" />
+                    <span>
+                      {recommendation.completionRate && recommendation.completionRate > 0 && recommendation.completionRate < 100
+                        ? 'Fortsätt övningen →'
+                        : recommendation.type === 'meditation'
+                          ? `Gör övningen nu (${recommendation.duration || 5} min) →`
+                          : recommendation.type === 'exercise'
+                            ? 'Starta träningen nu →'
+                            : recommendation.type === 'article'
+                              ? 'Läs artikeln (3 min) →'
+                              : recommendation.type === 'challenge'
+                                ? 'Påbörja utmaningen →'
+                                : 'Utforska nu →'}
+                    </span>
+                  </button>
+
+                  {/* Quick start button (appears on hover) */}
+                  {recommendation.type === 'meditation' && (
+                    <button
+                      onClick={() => quickStartRecommendation(recommendation)}
+                      className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-full p-2 hover:scale-110 z-10"
+                      title="Starta direkt"
+                      aria-label="Starta övning direkt"
+                    >
+                      <span className="text-lg">▶️</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Social proof - people doing this now */}
+                {recommendation.peopleDoingThisNow && recommendation.peopleDoingThisNow > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-2 flex items-center justify-center gap-1">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    🔥 {recommendation.peopleDoingThisNow} personer gör detta just nu
+                  </p>
+                )}
 
                 {/* Social proof - users who completed today */}
                 {recommendation.dailyCompletions && recommendation.dailyCompletions > 0 && (
@@ -2390,6 +2464,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     {recommendation.dailyCompletions.toLocaleString('sv-SE')} personer har gjort detta idag
                   </p>
                 )}
+
+                {/* Bottom progress bar (visual only) */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700">
+                  <div 
+                    className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
+                    style={{ width: `${recommendation.completionRate || (recommendation.completed ? 100 : 0)}%` }}
+                  />
+                </div>
 
                 {/* Feedback */}
                 <div className="flex justify-center gap-2 mt-3">
@@ -2424,7 +2506,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   })()}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}
