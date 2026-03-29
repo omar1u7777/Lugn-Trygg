@@ -24,9 +24,16 @@ export {
   Progress,
   Progress as LinearProgress, // MUI compatibility alias
   Spinner,
-  Skeleton,
   Divider,
 } from './Display';
+
+// Skeleton Components (advanced version)
+export {
+  Skeleton,
+  SkeletonText,
+  SkeletonCard,
+  SkeletonForm,
+} from './Skeleton';
 
 // Feedback Components
 export { Alert, Badge, Chip } from './Feedback';
