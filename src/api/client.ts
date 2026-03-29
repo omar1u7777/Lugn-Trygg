@@ -14,6 +14,7 @@ const RETRY_AFTER_HEADER = "retry-after";
 const DEFAULT_RETRY_AFTER = 60;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
+const CSRF_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 // State-changing HTTP methods
 const STATE_CHANGING_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
@@ -58,6 +59,8 @@ export default api;
 let isRefreshing = false;
 // Queue of requests waiting for a token refresh to complete
 let refreshSubscribers: Array<(token: string | null) => void> = [];
+let cachedCsrfToken: string | null = null;
+let csrfTokenExpiresAt = 0;
 
 const onRefreshed = (token: string | null) => {
   refreshSubscribers.forEach(cb => cb(token));
@@ -85,6 +88,28 @@ const getOfflineStorage = async () => {
     offlineStorageModule = await import('../services/offlineStorage');
   }
   return offlineStorageModule;
+};
+
+const getClientCsrfToken = async (): Promise<string | null> => {
+  if (cachedCsrfToken && Date.now() < csrfTokenExpiresAt) {
+    return cachedCsrfToken;
+  }
+
+  try {
+    const response = await api.get(API_ENDPOINTS.AUTH.CSRF_TOKEN);
+    const responseData = response.data?.data || response.data;
+    const csrfToken = responseData?.csrfToken || responseData?.csrf_token;
+
+    if (typeof csrfToken === 'string' && csrfToken.length > 0) {
+      cachedCsrfToken = csrfToken;
+      csrfTokenExpiresAt = Date.now() + CSRF_TOKEN_TTL_MS;
+      return csrfToken;
+    }
+  } catch (csrfError) {
+    logger.warn('Failed to fetch CSRF token in API client', { csrfError });
+  }
+
+  return null;
 };
 
 // Helper function to track API calls
@@ -212,6 +237,8 @@ const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): 
 
 const clearLocalAuthState = () => {
   tokenStorage.clearTokens();
+  cachedCsrfToken = null;
+  csrfTokenExpiresAt = 0;
   try {
     localStorage.removeItem('secure_user');
     localStorage.removeItem('user');
@@ -395,8 +422,7 @@ api.interceptors.request.use(
     const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
     if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
       try {
-        const { getCsrfToken } = await getAuth();
-        const csrf = await getCsrfToken();
+        const csrf = await getClientCsrfToken();
         if (csrf && !config.headers[CSRF_HEADER]) {
           config.headers[CSRF_HEADER] = csrf;
         }
