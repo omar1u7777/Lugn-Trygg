@@ -92,6 +92,8 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
             <button
               key={goal.id}
               onClick={() => toggleGoal(goal.id)}
+              aria-pressed={isSelected}
+              aria-label={`${goal.label}: ${goal.description}`}
               className={`
                 relative p-6 rounded-[1.5rem] text-left transition-all duration-300 border-2
                 ${isSelected

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
@@ -65,12 +65,20 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
+  const forgotPasswordButtonRef = useRef<HTMLButtonElement>(null);
   
   // ✅ Använd custom hook istället för local state
   const { showPassword, togglePassword } = usePasswordToggle();
   
   const { login } = useAuth();
   const { announceToScreenReader } = useAccessibility();
+
+  // Focus management for forgot password modal
+  const handleCloseForgotPassword = () => {
+    setShowForgotPassword(false);
+    // Return focus to the button that opened the modal
+    forgotPasswordButtonRef.current?.focus();
+  };
 
   // ✅ Memoize handlers för bättre performance
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -334,6 +342,7 @@ const LoginForm = () => {
             </Link>
           </Typography>
           <button
+            ref={forgotPasswordButtonRef}
             type="button"
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
@@ -348,8 +357,8 @@ const LoginForm = () => {
       {/* Forgot Password Modal */}
       {showForgotPassword && (
         <ForgotPassword
-          onClose={() => setShowForgotPassword(false)}
-          onSuccess={() => setShowForgotPassword(false)}
+          onClose={handleCloseForgotPassword}
+          onSuccess={handleCloseForgotPassword}
         />
       )}
     </div>
