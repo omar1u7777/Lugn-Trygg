@@ -1187,7 +1187,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // handleSaveJournalEntry and handleLoadJournalHistory are now provided by useJournaling hook
 
   // Meditation Functions
-  const handleSaveMeditationSession = async (sessionData: any) => {
+  async function handleSaveMeditationSession(sessionData: any) {
     if (!user?.user_id) return;
 
     try {
@@ -1199,9 +1199,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     } catch (error) {
       logger.error('Failed to save meditation session:', error);
     }
-  };
+  }
 
-  const handleLoadMeditationHistory = async () => {
+  async function handleLoadMeditationHistory() {
     if (!user?.user_id) return;
 
     setIsLoadingMeditation(true);
@@ -1213,7 +1213,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     } finally {
       setIsLoadingMeditation(false);
     }
-  };
+  }
 
   // Load data on mount
   useEffect(() => {
