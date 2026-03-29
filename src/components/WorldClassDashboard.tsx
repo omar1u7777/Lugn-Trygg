@@ -725,11 +725,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
                   {t('worldDashboard.personalRecommendations')}
                 </h2>
+                {/* Subtle refresh indicator */}
+                {loading && (
+                  <span className="ml-auto text-xs text-gray-400 animate-pulse">
+                    Uppdaterar...
+                  </span>
+                )}
               </div>
 
-              {loading && <RecommendationsSkeleton />}
-
-              {!loading && hasWellnessGoals && (
+              {hasWellnessGoals && (
                 <Suspense fallback={<RecommendationsSkeleton />}>
                   <RecommendationsPanel
                     userId={resolvedUserId}
@@ -739,7 +743,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 </Suspense>
               )}
 
-              {!loading && !hasWellnessGoals && (
+              {!hasWellnessGoals && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {t('worldDashboard.addGoalsForRecs')}
                 </p>
