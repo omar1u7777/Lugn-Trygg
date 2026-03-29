@@ -187,6 +187,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     setShowWellnessOnboarding(!hasGoals);
   }, [dashboardStats.wellnessGoals, loading]);
 
+  // Memoize wellnessGoals to prevent new array reference on every render
+  const wellnessGoals = useMemo(() => dashboardStats.wellnessGoals || [], [dashboardStats.wellnessGoals]);
+  
   const safeDashboardStats = {
     totalMoods: dashboardStats.totalMoods || 0,
     totalChats: dashboardStats.totalChats || 0,
@@ -194,7 +197,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     streakDays: dashboardStats.streakDays || 0,
     weeklyGoal: Math.max(dashboardStats.weeklyGoal || 1, 1),
     weeklyProgress: Math.max(dashboardStats.weeklyProgress || 0, 0),
-    wellnessGoals: dashboardStats.wellnessGoals || [],
+    wellnessGoals,
     recentActivity: dashboardStats.recentActivity || [],
   };
 
