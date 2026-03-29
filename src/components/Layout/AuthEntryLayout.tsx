@@ -2,14 +2,19 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Container } from '../ui/tailwind/Layout';
+import Navigation from './Navigation';
 
 const AuthEntryLayout: React.FC = () => {
   return (
     <div 
-      className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.16),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.12),_transparent_50%),linear-gradient(135deg,#f8fafc_0%,#f0f9ff_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.14),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(74,222,128,0.10),_transparent_52%),linear-gradient(135deg,#0f172a_0%,#0b1220_45%,#020617_100%)] flex items-center justify-center px-3 sm:px-4 py-6 sm:py-8"
+      className="relative min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.16),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.12),_transparent_50%),linear-gradient(135deg,#f8fafc_0%,#f0f9ff_45%,#f8fafc_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.14),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(74,222,128,0.10),_transparent_52%),linear-gradient(135deg,#0f172a_0%,#0b1220_45%,#020617_100%)] flex flex-col"
       role="main"
       aria-label="Inloggningssida"
     >
+      {/* Navigation */}
+      <Navigation />
+      
+      <div className="flex-1 flex items-center justify-center px-3 sm:px-4 py-6 sm:py-8 pt-24">
       {/* Skip to content link for accessibility */}
       <a
         href="#login-form"
@@ -82,6 +87,7 @@ const AuthEntryLayout: React.FC = () => {
           </section>
         </main>
       </Container>
+      </div>
     </div>
   );
 };

@@ -461,6 +461,12 @@
 
       scheduleLoaderRemoval(isLighthouse ? 1200 : 2200);
 
+      // Force remove loader after 3 seconds regardless of conditions
+      // This ensures users never get stuck on loading screen
+      window.setTimeout(function() {
+        window.__removeInitialLoader(true);
+      }, 3000);
+
       window.setTimeout(function() {
         if (!inlineHeroRemoved && !isLighthouse) {
           removeInlineHero(true);

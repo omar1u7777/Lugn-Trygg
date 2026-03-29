@@ -59,16 +59,16 @@ const LanguageSwitcher: React.FC = () => {
       <select
         value={currentLanguage}
         onChange={(e) => changeLanguage(e.target.value)}
-        className="px-4 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-10 min-w-[120px] text-sm transition-all duration-200"
+        className="px-2 sm:px-4 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-7 sm:pr-10 min-w-[60px] sm:min-w-[120px] text-sm transition-all duration-200"
         aria-label={t('language.selectLanguage')}
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>
-            {normalizeLanguageDisplayName(lang.code, lang.name)}
+            {lang.code.toUpperCase()}
           </option>
         ))}
       </select>
-      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+      <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:pr-3 pointer-events-none">
         <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
