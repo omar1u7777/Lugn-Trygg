@@ -25,6 +25,40 @@ interface State {
 class ErrorBoundary extends Component<Props, State> {
   private maxRetries = 3;
 
+  private static recoverFromStaleBundleError() {
+    const recoveryKey = 'bundle_recovery_attempt_ts';
+    const lastAttemptRaw = sessionStorage.getItem(recoveryKey);
+    const now = Date.now();
+    const lastAttempt = lastAttemptRaw ? parseInt(lastAttemptRaw, 10) : 0;
+
+    // Avoid infinite reload loops: only recover once every 10 seconds.
+    if (lastAttempt && now - lastAttempt <= 10000) {
+      return;
+    }
+
+    sessionStorage.setItem(recoveryKey, now.toString());
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => {
+          reg.unregister();
+        });
+      });
+    }
+
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach((name) => {
+          caches.delete(name);
+        });
+      });
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('t', now.toString());
+    window.location.replace(url.toString());
+  }
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -39,39 +73,13 @@ class ErrorBoundary extends Component<Props, State> {
                              (error?.message && /Failed to fetch dynamically imported module/i.test(error.message)) ||
                              (error?.message && /Importing a module script failed/i.test(error.message)) ||
                              (error?.message && /missing/i.test(error.message) && /dynamically imported/i.test(error.message));
+    const isInitializationReferenceError =
+      error?.name === 'ReferenceError' &&
+      !!error?.message &&
+      /Cannot access '.*' before initialization/i.test(error.message);
 
-    if (isChunkLoadError) {
-      const chunkReloadKey = 'vite_chunk_reloaded';
-      const lastReload = sessionStorage.getItem(chunkReloadKey);
-      const now = Date.now();
-      
-      // Only reload if we haven\'t reloaded in the last 10 seconds
-      if (!lastReload || (now - parseInt(lastReload)) > 10000) {
-        sessionStorage.setItem(chunkReloadKey, now.toString());
-        
-        // Force unregister service workers and clear caches before reload
-        if (typeof window !== 'undefined') {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(regs => {
-              for (const reg of regs) {
-                reg.unregister();
-              }
-            });
-          }
-          if ('caches' in window) {
-            caches.keys().then(names => {
-              for (const name of names) {
-                caches.delete(name);
-              }
-            });
-          }
-          
-          // Add a cache-busing query param to force network fetch
-          const url = new URL(window.location.href);
-          url.searchParams.set('t', now.toString());
-          window.location.replace(url.toString());
-        }
-      }
+    if (typeof window !== 'undefined' && (isChunkLoadError || isInitializationReferenceError)) {
+      ErrorBoundary.recoverFromStaleBundleError();
     }
 
     return {
