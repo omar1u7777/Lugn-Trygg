@@ -70,6 +70,7 @@ const PHASE_SECONDS: Record<Exclude<BreathingPhase, 'done'>, number> = {
   hold: 2,
 };
 const DAILY_FOCUS_STORAGE_KEY = 'lugn-trygg-focus-breathing-last-completed';
+const getTodayStorageValue = () => new Date().toISOString().slice(0, 10);
 
 // Hjälpfunktion för att formatera tidsstämpel smart
 const getSmartTimestamp = (lastUpdatedAt?: Date): string => {
@@ -92,8 +93,6 @@ const getSmartTimestamp = (lastUpdatedAt?: Date): string => {
   // Visa klockslag om > 60 minuter
   return ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
 };
-
-const getTodayStorageValue = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Breathing Orb Component - 2026 visual anchor
