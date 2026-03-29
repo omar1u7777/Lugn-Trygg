@@ -226,6 +226,20 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         ? 'Du kan logga nu, men en kort anteckning ger bättre insikter över tid'
         : 'Check-in komplett: humör + reflektion redo att loggas';
 
+  // Keyboard shortcuts för mood val (1-6)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = parseInt(e.key);
+      if (key >= 1 && key <= 6 && !e.ctrlKey && !e.metaKey && !isLogging) {
+        e.preventDefault();
+        const mood = moods[key - 1];
+        if (mood) handleMoodSelect(mood);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [moods, isLogging]);
+
   const handleMoodSelect = (mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
     setLimitError(null);
@@ -499,9 +513,9 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
                 {checkInProgress}%
               </span>
             </div>
-            <div className="w-full h-2 bg-[#d8efe9] dark:bg-primary-950/60 rounded-full overflow-hidden" role="progressbar" aria-valuenow={checkInProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Check-in progress">
+            <div className="w-full h-2 bg-[#d8efe9] dark:bg-primary-800/60 rounded-full overflow-hidden" role="progressbar" aria-valuenow={checkInProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Check-in progress">
               <div
-                className="h-full bg-gradient-to-r from-[#2c8374] to-[#4ba99b] transition-all duration-500"
+                className="h-full bg-gradient-to-r from-[#2c8374] to-[#4ba99b] dark:from-[#4ba99b] dark:to-[#6bc4b5] transition-all duration-500"
                 style={{ width: `${checkInProgress}%` }}
               />
             </div>
@@ -548,6 +562,14 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               <span className="inline-block px-4 py-2 bg-[#2c8374]/15 text-[#1e5f54] rounded-full text-sm font-medium">
                 Valt humör: {moods.find(m => m.value === selectedMood)?.label}
               </span>
+              
+              {/* Self-compassion text för låga humör (2-3) */}
+              {selectedMood <= 3 && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                  Det är okej att ha svåra dagar. Du gör ditt bäst. 💙
+                </p>
+              )}
+              
               <p className="mt-3 text-sm text-[#6d645d] dark:text-gray-300 max-w-xl mx-auto" aria-live="polite">
                 {getReflectionPromptByScore(selectedMood)}
               </p>
