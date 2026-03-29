@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { logoutUser } from "../api/api";
+import { logoutUser, refreshAccessToken } from "../api/auth";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
 import { tokenStorage, secureStorage } from "../utils/secureStorage";
@@ -107,8 +107,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (userData) {
           setUserState(userData);
-
-          const { refreshAccessToken } = await import('../api/auth');
           const refreshedToken = await refreshAccessToken();
 
           if (refreshedToken) {
