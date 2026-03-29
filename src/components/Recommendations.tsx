@@ -1221,7 +1221,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       handleLoadJournalHistory();
       handleLoadMeditationHistory();
     }
-  }, [user]);
+  }, [user?.user_id]);
 
   // Filter and sort recommendations
   const getFilteredRecommendations = () => {
@@ -1635,6 +1635,34 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     logger.debug('👎 Negative feedback for:', recommendation.title);
     announceToScreenReader('Tack för din feedback, vi förbättrar våra rekommendationer!', 'polite');
+  };
+
+  // Quick start a recommendation directly without opening modal
+  const quickStartRecommendation = (recommendation: Recommendation) => {
+    logger.debug(`🚀 Quick start: ${recommendation.title}`);
+    
+    // For meditation types, start immediately
+    if (recommendation.type === 'meditation') {
+      // Set the recommendation and start immediately
+      setSelectedRecommendation(recommendation);
+      setShowContentModal(true);
+      
+      // Start the appropriate exercise after a short delay
+      setTimeout(() => {
+        if (recommendation.id === 'stress-1') {
+          startBreathingExercise();
+        } else if (recommendation.id === 'stress-3') {
+          startProgressiveRelaxation();
+        } else {
+          startMeditationSession(recommendation.duration || 10);
+        }
+      }, 300);
+    }
+    
+    analytics.track('Quick Start', {
+      recommendationId: recommendation.id,
+      type: recommendation.type,
+    });
   };
 
   const startMeditationSession = (duration: number) => {
