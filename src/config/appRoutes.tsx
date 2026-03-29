@@ -13,6 +13,7 @@ import {
   RelaxingSoundsWrapper,
   MoodLoggerBasicWrapper,
   MoodListWrapper,
+  CrisisPageWrapper,
 } from '@/components/RouteWrappers';
 
 const WorldClassDashboard = lazy(() => import('@/components/WorldClassDashboard'));
@@ -86,7 +87,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/story-insights', component: StoryInsights, protected: true },
   { path: '/admin/performance', component: PerformanceDashboard, protected: true, requireAdmin: true },
   { path: '/admin/monitoring', component: MonitoringDashboard, protected: true, requireAdmin: true },
-  { path: '/crisis', component: CrisisAlertWrapper, protected: true },
+  { path: '/crisis', component: CrisisPageWrapper, protected: true },
   { path: '/onboarding', component: OnboardingFlowWrapper, protected: true },
   { path: '/privacy', component: PrivacySettingsWrapper, protected: true },
 ];
