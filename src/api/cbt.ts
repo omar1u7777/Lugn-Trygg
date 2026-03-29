@@ -7,6 +7,7 @@
 
 import { api } from './client';
 import { API_ENDPOINTS } from './constants';
+import { logger } from '../utils/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -82,6 +83,17 @@ export interface ExerciseCompletionData {
   notes?: string;
 }
 
+type EndpointAvailability = 'unknown' | 'available' | 'missing';
+
+let cbtProgressEndpointAvailability: EndpointAvailability = 'unknown';
+
+const DEFAULT_CBT_PROGRESS: CBTProgress = {
+  skillMastery: {},
+  streakCount: 0,
+  completedModules: [],
+  achievements: [],
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API Functions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,8 +132,25 @@ export async function getPersonalizedSession(mood?: string): Promise<Personalize
  * Update progress after completing an exercise
  */
 export async function updateCBTProgress(data: ExerciseCompletionData): Promise<CBTProgress> {
-  const response = await api.post<CBTProgress>(API_ENDPOINTS.CBT.PROGRESS, data);
-  return response.data;
+  if (cbtProgressEndpointAvailability === 'missing') {
+    return DEFAULT_CBT_PROGRESS;
+  }
+
+  try {
+    const response = await api.post<CBTProgress>(API_ENDPOINTS.CBT.PROGRESS, data);
+    cbtProgressEndpointAvailability = 'available';
+    return response.data;
+  } catch (error: unknown) {
+    const statusCode = (error as { response?: { status?: number } })?.response?.status;
+
+    if (statusCode === 404) {
+      cbtProgressEndpointAvailability = 'missing';
+      logger.warn('CBT progress endpoint missing on backend deploy. Skipping future progress sync attempts.');
+      return DEFAULT_CBT_PROGRESS;
+    }
+
+    throw error;
+  }
 }
 
 /**
