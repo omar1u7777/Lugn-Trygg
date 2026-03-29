@@ -116,6 +116,21 @@ const RecommendationsSkeleton = () => (
  * - Extracted components: DashboardHeader, DashboardStats, DashboardQuickActions, DashboardActivity
  * - NO MUI - Pure Tailwind CSS
  */
+// Helper function för implementation intentions (nästa steg per mål)
+const getNextStepForGoal = (goal: string): string => {
+  const steps: Record<string, string[]> = {
+    'Bättre sömn': ['Gå och lägg dig 22:00 idag', 'Stäng av skärmar 1h innan säng', 'Läs en bok istället för telefon'],
+    'Ökad fokusering': ['Ta 3 djupa andetag nu', 'Stäng av notifikationer 30 min', 'Arbeta i 25-min intervall'],
+    'Hantera stress': ['Gör 3-minuters andningsövning', 'Ta en kort promenad', 'Skriv ner 3 saker du är tacksam för'],
+    'Mer energi': ['Drick ett glas vatten', 'Gör 5-minuters stretching', 'Ta en power nap 20 min'],
+    'Bättre humör': ['Lyssna på din favoritlåt', 'Ring en vän', 'Gör något snällt för någon'],
+  };
+  
+  const goalSteps = steps[goal] || ['Logga ditt humör idag', 'Reflektera över dagen', 'Sätt ett litet mål för imorgon'];
+  const randomStep = goalSteps[Math.floor(Math.random() * goalSteps.length)];
+  return randomStep || 'Fortsätt arbeta med ditt mål';
+};
+
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
   const { t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
@@ -476,20 +491,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     }
   };
 
-// Helper function för implementation intentions (nästa steg per mål)
-const getNextStepForGoal = (goal: string): string => {
-  const steps: Record<string, string[]> = {
-    'Bättre sömn': ['Gå och lägg dig 22:00 idag', 'Stäng av skärmar 1h innan säng', 'Läs en bok istället för telefon'],
-    'Ökad fokusering': ['Ta 3 djupa andetag nu', 'Stäng av notifikationer 30 min', 'Arbeta i 25-min intervall'],
-    'Hantera stress': ['Gör 3-minuters andningsövning', 'Ta en kort promenad', 'Skriv ner 3 saker du är tacksam för'],
-    'Mer energi': ['Drick ett glas vatten', 'Gör 5-minuters stretching', 'Ta en power nap 20 min'],
-    'Bättre humör': ['Lyssna på din favoritlåt', 'Ring en vän', 'Gör något snällt för någon'],
-  };
-  
-  const goalSteps = steps[goal] || ['Logga ditt humör idag', 'Reflektera över dagen', 'Sätt ett litet mål för imorgon'];
-  const randomStep = goalSteps[Math.floor(Math.random() * goalSteps.length)];
-  return randomStep || 'Fortsätt arbeta med ditt mål';
-};
   if (error) {
     return (
       <div className="world-class-dashboard p-4 sm:p-6 lg:p-8">
