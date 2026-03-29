@@ -3,6 +3,21 @@ import { useTranslation } from 'react-i18next';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatNumber } from '../../utils/intlFormatters';
 
+// 🎨 Konstanta färgobjekt - flyttade utanför komponent för prestanda
+const BG_COLORS = {
+  primary: 'bg-primary-50 dark:bg-primary-900/10 text-primary-900 dark:text-primary-100',
+  secondary: 'bg-secondary-50 dark:bg-secondary-900/10 text-secondary-900 dark:text-secondary-100',
+  accent: 'bg-accent-50 dark:bg-accent-900/10 text-accent-900 dark:text-accent-100',
+  neutral: 'bg-neutral-50 dark:bg-neutral-900/30 text-neutral-900 dark:text-neutral-100'
+} as const;
+
+const ICON_COLORS = {
+  primary: 'bg-primary-100 text-primary-600',
+  secondary: 'bg-secondary-100 text-secondary-600',
+  accent: 'bg-accent-100 text-accent-600',
+  neutral: 'bg-neutral-100 text-neutral-600'
+} as const;
+
 export interface DashboardStatsData {
   averageMood: number;
   streakDays: number;
@@ -57,8 +72,13 @@ const deriveMoodTrend = (
   const variance =
     validSamples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / validSamples.length;
   const standardDeviation = Math.sqrt(variance);
-  const firstSample = validSamples[0]!;
-  const lastSample = validSamples[validSamples.length - 1]!;
+  const firstSample = validSamples[0];
+  const lastSample = validSamples[validSamples.length - 1];
+  
+  if (firstSample === undefined || lastSample === undefined) {
+    return { direction: 'stable', value: 'Ingen data' };
+  }
+  
   const changeOverPeriod = lastSample - firstSample;
   const latestScore = lastSample;
 
@@ -168,19 +188,8 @@ const BentoItem: React.FC<{
   subtitle?: string;
 }> = ({ title, value, icon, className = '', trend, color, large, children, subtitle }) => {
   
-  const bgColors = {
-    primary: 'bg-primary-50 dark:bg-primary-900/10 text-primary-900 dark:text-primary-100',
-    secondary: 'bg-secondary-50 dark:bg-secondary-900/10 text-secondary-900 dark:text-secondary-100',
-    accent: 'bg-accent-50 dark:bg-accent-900/10 text-accent-900 dark:text-accent-100',
-    neutral: 'bg-neutral-50 dark:bg-neutral-900/30 text-neutral-900 dark:text-neutral-100'
-  };
-
-  const iconColors = {
-    primary: 'bg-primary-100 text-primary-600',
-    secondary: 'bg-secondary-100 text-secondary-600',
-    accent: 'bg-accent-100 text-accent-600',
-    neutral: 'bg-neutral-100 text-neutral-600'
-  };
+  const bgColors = BG_COLORS;
+  const iconColors = ICON_COLORS;
 
   // Psychologically-informed color coding
   // "Down" trends use calming blue/indigo instead of alarming amber/red
@@ -219,7 +228,7 @@ const BentoItem: React.FC<{
         <p className="text-sm font-medium opacity-70 mb-1 uppercase tracking-wider">
           {title}
         </p>
-        <h3 className={`font-serif font-bold ${large ? 'text-4xl' : 'text-3xl'}`}>
+        <h3 className={`font-serif font-bold text-2xl sm:text-3xl ${large ? 'lg:text-4xl' : ''}`}>
           {value}
         </h3>
         {subtitle && (
@@ -235,47 +244,35 @@ const BentoItem: React.FC<{
 };
 
 /**
- * Streak Progress Component
- * Implements loss aversion principle - show what's at stake
+ * Consistency Progress Component
+ * Ny design utan loss aversion - fokuserar på tillväxt istället för "streak"
  */
-const StreakProgress: React.FC<{ current: number; longest: number }> = ({ 
+const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({ 
   current, 
-  longest 
+  total 
 }) => {
-  const daysToRecord = useMemo(() => {
-    if (current === 0) return null;
-    // If streak is active, show days until personal best
-    if (current < longest) {
-      return longest - current;
-    }
-    // If at personal best, show "new record in X days"
-    return current + 1;
-  }, [current, longest]);
+  const percentage = useMemo(() => {
+    if (total === 0) return 0;
+    return Math.min((current / total) * 100, 100);
+  }, [current, total]);
 
-  if (!daysToRecord) return null;
-
-  const isRecord = current >= longest;
-  
   return (
-    <div className="mt-3 text-xs">
-      <div className="flex items-center gap-1.5">
-        <span className={isRecord ? 'text-amber-500' : 'text-gray-500'}>
-          {isRecord ? '🔥 Nytt rekord om ' : '🎯 Personbästa om '}
-        </span>
-        <span className={`font-semibold ${isRecord ? 'text-amber-600' : 'text-gray-700'}`}>
-          {daysToRecord} {daysToRecord === 1 ? 'dag' : 'dagar'}
-        </span>
+    <div className="mt-3">
+      <div className="flex items-center justify-between text-xs mb-1.5">
+        <span className="text-gray-500">Konsekvens denna period</span>
+        <span className="font-medium text-gray-700">{current} av {total} dagar</span>
       </div>
       
-      {/* Progress bar toward record */}
-      <div className="mt-1.5 w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            isRecord ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-accent-500'
-          }`}
-          style={{ width: `${Math.min((current / (longest || 1)) * 100, 100)}%` }}
+          className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
+          style={{ width: `${percentage}%` }}
         />
       </div>
+      
+      <p className="mt-1.5 text-xs text-gray-500">
+        🌱 Varje dag räknas - oavsett om det är i rad eller inte
+      </p>
     </div>
   );
 };
@@ -339,6 +336,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     return next ? next - count : 0;
   }, [stats.achievementsCount]);
 
+  // 💚 Psykologisk säkerhetsspärr för lågt mående
+  const showSafetyBlock = stats.averageMood <= 4 && stats.averageMood > 0;
+
   // Calculate weekly activity context
   const weeklyContext = useMemo(() => {
     const weekly = stats.weeklyChats || 0;
@@ -378,23 +378,48 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           trend={moodTrend}
           subtitle={t('dashboardStats.basedOnLogs', { count: moodSampleCount })}
         >
-          {/* Mini sparkline for visual trend */}
+          {/* Mini sparkline - dold på mobil för att spara plats */}
           {stats.moodSamples && stats.moodSamples.length > 1 && (
-            <MoodSparkline samples={stats.moodSamples} />
+            <div className="hidden sm:block">
+              <MoodSparkline samples={stats.moodSamples} />
+            </div>
+          )}
+          
+          {/* 💚 Psykologisk säkerhetsspärr för lågt mående */}
+          {showSafetyBlock && (
+            <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
+              <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">
+                💙 Det är okej att må så här. Du är inte ensam.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <a 
+                  href="/ai-chat" 
+                  className="text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition-colors"
+                >
+                  Prata med AI
+                </a>
+                <a 
+                  href="tel:90101" 
+                  className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                >
+                  Jourtelefon
+                </a>
+              </div>
+            </div>
           )}
         </BentoItem>
 
-        {/* Streak Card with Loss Aversion Context */}
+        {/* Streak Card - Ny "consistency" design utan loss aversion */}
         <BentoItem
           title={t('dashboardStats.streakTitle')}
           value={`${stats.streakDays} ${t('dashboardStats.days')}`}
-          icon="🔥"
+          icon="🌱"
           color="accent"
           trend={{ direction: 'up', value: t('dashboardStats.streakActive') }}
         >
-          <StreakProgress 
+          <ConsistencyProgress 
             current={stats.streakDays} 
-            longest={stats.longestStreak || stats.streakDays} 
+            total={stats.longestStreak || Math.max(stats.streakDays, 7)} 
           />
         </BentoItem>
 
