@@ -107,6 +107,19 @@ export default defineConfig({
     strictPort: false,
     host: devHost === "0.0.0.0" ? true : devHost,
     https,
+    watch: {
+      // Ignore Python virtual environment and other problematic directories
+      ignored: [
+        '**/.venv/**',
+        '**/venv/**',
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/.cache/**',
+        '**/*.pyc',
+        '**/__pycache__/**'
+      ]
+    },
     headers: {
       // Allow Google sign-in popup to communicate with the opener window
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
