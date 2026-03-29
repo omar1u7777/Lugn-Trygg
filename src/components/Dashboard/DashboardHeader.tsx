@@ -1,18 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useDashboardData } from '../../hooks/useDashboardData';
 
 interface DashboardHeaderProps {
   userName?: string;
   isLoading?: boolean;
   lastUpdatedAt?: Date;
   onFocusAction?: () => void;
+  userId?: string;
 }
 
-const getGreeting = () => {
+const getGreeting = (moodContext?: string): string => {
   const hour = new Date().getHours();
-  if (hour < 10) return "God morgon";
-  if (hour < 14) return "God dag";
-  if (hour < 18) return "God eftermiddag";
-  return "God kväll";
+  let baseGreeting: string;
+  
+  if (hour < 10) baseGreeting = "God morgon";
+  else if (hour < 14) baseGreeting = "God dag";
+  else if (hour < 18) baseGreeting = "God eftermiddag";
+  else baseGreeting = "God kväll";
+  
+  // Psykologisk personalisering baserad på mood
+  if (moodContext) {
+    const lowerMood = moodContext.toLowerCase();
+    if (lowerMood.includes('stress') || lowerMood.includes('ångest') || lowerMood.includes('orolig')) {
+      return `${baseGreeting}. Ta det lugnt idag.`;
+    }
+    if (lowerMood.includes('trött') || lowerMood.includes('utmattad')) {
+      return `${baseGreeting}. Kom ihåg att vila är produktivt.`;
+    }
+    if (lowerMood.includes('glad') || lowerMood.includes('lycklig') || lowerMood.includes('nöjd')) {
+      return `${baseGreeting}! Underbart att se dig.`;
+    }
+  }
+  
+  return baseGreeting;
 };
 
 const getDailyFocusContent = () => {
@@ -78,14 +98,35 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   isLoading = false,
   lastUpdatedAt,
   onFocusAction,
+  userId,
 }) => {
-  const [greeting, setGreeting] = useState(getGreeting());
+  // Hämta dashboard data för mood-baserad personalisering
+  const dashboardResult = userId ? useDashboardData(userId) : null;
+  const stats = dashboardResult?.stats;
+  const recentMood = stats?.averageMood;
+  
+  const [greeting, setGreeting] = useState(getGreeting(recentMood?.toString()));
   const [focusContent, setFocusContent] = useState(getDailyFocusContent());
   const [isBreathingSessionActive, setIsBreathingSessionActive] = useState(false);
   const [completedBreaths, setCompletedBreaths] = useState(0);
   const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('inhale');
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(PHASE_SECONDS.inhale);
+  const breathingCardRef = useRef<HTMLDivElement>(null);
+
+  // Focus management när breathing session startar
+  useEffect(() => {
+    if (isBreathingSessionActive && breathingCardRef.current) {
+      breathingCardRef.current.focus();
+    }
+  }, [isBreathingSessionActive]);
+
+  // Uppdatera hälsning när mood-data ändras
+  useEffect(() => {
+    if (recentMood !== undefined) {
+      setGreeting(getGreeting(recentMood.toString()));
+    }
+  }, [recentMood]);
 
   useEffect(() => {
     // Update greeting every minute
@@ -214,8 +255,19 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </div>
 
           {/* Visual Anchor Section - The "Breathing" Card */}
-          <div className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-            <div className="p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]">
+          <div 
+            ref={breathingCardRef}
+            tabIndex={isBreathingSessionActive ? 0 : -1}
+            role="region"
+            aria-label="Andningsövning"
+            className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" 
+            style={{ animationDelay: '200ms' }}
+          >
+            <div 
+              className="p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               <BreathingOrb />
               <div>
                 <h3 className="font-serif text-lg text-neutral-900 dark:text-slate-100 mb-1">{focusContent.title}</h3>
