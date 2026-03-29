@@ -14,6 +14,14 @@ export interface Recommendation {
     saved?: boolean;
     image?: string;
     category: string;
+    // New fields for enhanced UX
+    completionRate?: number; // 0-100 percentage
+    streak?: number; // current streak days
+    startedButNotCompleted?: boolean;
+    lastAccessedAt?: string; // ISO date
+    peopleDoingThisNow?: number; // live social proof
+    dailyCompletions?: number; // for social proof
+    primaryGoal?: string; // which goal this matches best
 }
 
 export interface RecommendationsProps {
