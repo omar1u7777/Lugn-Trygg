@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDashboardData } from '../../hooks/useDashboardData';
 
 interface DashboardHeaderProps {
@@ -70,6 +70,28 @@ const PHASE_SECONDS: Record<Exclude<BreathingPhase, 'done'>, number> = {
   hold: 2,
 };
 const DAILY_FOCUS_STORAGE_KEY = 'lugn-trygg-focus-breathing-last-completed';
+
+// Hjälpfunktion för att formatera tidsstämpel smart
+const getSmartTimestamp = (lastUpdatedAt?: Date): string => {
+  if (!lastUpdatedAt) return '';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - lastUpdatedAt.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  
+  // Dölj tidsstämpel om data är < 2 minuter gammal (för färsk)
+  if (diffMinutes < 2) {
+    return '';
+  }
+  
+  // Visa "X minuter sedan" om < 60 minuter
+  if (diffMinutes < 60) {
+    return ` · Uppdaterat för ${diffMinutes} min sedan`;
+  }
+  
+  // Visa klockslag om > 60 minuter
+  return ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 const getTodayStorageValue = () => new Date().toISOString().slice(0, 10);
 
@@ -248,8 +270,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               />
               <span>
                 {isLoading
-                  ? 'Uppdaterar data automatiskt...'
-                  : `Uppdateras automatiskt${lastUpdatedAt ? ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+                  ? 'Uppdaterar data...'
+                  : `Uppdateras automatiskt${getSmartTimestamp(lastUpdatedAt)}`}
               </span>
             </div>
           </div>
