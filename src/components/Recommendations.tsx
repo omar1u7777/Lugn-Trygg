@@ -2286,6 +2286,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                 {/* Content */}
                 <div className="mb-4">
+                  {/* Completion status badge */}
+                  {recommendation.completed && (
+                    <div className="flex items-center gap-1.5 mb-2 text-emerald-600 dark:text-emerald-400">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-xs font-medium">Klar idag ✓</span>
+                      {recommendation.streak && recommendation.streak > 1 && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">
+                          🔥 {recommendation.streak} dagar i rad
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
                     {recommendation.title}
                   </h3>
@@ -2360,16 +2373,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <PlayIcon className="w-5 h-5" aria-hidden="true" />
                   <span>
                     {recommendation.type === 'meditation'
-                      ? 'Starta'
+                      ? `Gör övningen nu (${recommendation.duration || 5} min) →`
                       : recommendation.type === 'exercise'
-                        ? 'Börja'
+                        ? 'Starta träningen nu →'
                         : recommendation.type === 'article'
-                          ? 'Läs'
+                          ? 'Läs artikeln (3 min) →'
                           : recommendation.type === 'challenge'
-                            ? 'Påbörja'
-                            : 'Utforska'}
+                            ? 'Påbörja utmaningen →'
+                            : 'Utforska nu →'}
                   </span>
                 </button>
+
+                {/* Social proof - users who completed today */}
+                {recommendation.dailyCompletions && recommendation.dailyCompletions > 0 && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+                    {recommendation.dailyCompletions.toLocaleString('sv-SE')} personer har gjort detta idag
+                  </p>
+                )}
 
                 {/* Feedback */}
                 <div className="flex justify-center gap-2 mt-3">
