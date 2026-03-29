@@ -524,9 +524,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             </p>
           </div>
 
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
             Välj ditt humör
           </h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-6">
+            Tips: Tryck 1-6 på tangentbordet för snabbval ⌨️
+          </p>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6">
             {moods.map((mood, index) => (
@@ -562,6 +565,13 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               <span className="inline-block px-4 py-2 bg-[#2c8374]/15 text-[#1e5f54] rounded-full text-sm font-medium">
                 Valt humör: {moods.find(m => m.value === selectedMood)?.label}
               </span>
+              
+              {/* Celebration vid 100% progress */}
+              {checkInProgress === 100 && (
+                <div className="mt-2 animate-bounce text-emerald-500 text-sm">
+                  ✨ Perfekt! Redo att logga ✨
+                </div>
+              )}
               
               {/* Self-compassion text för låga humör (2-3) */}
               {selectedMood <= 3 && (
@@ -609,31 +619,56 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
       )}
 
 
-      {/* Log Button */}
+      {/* Log Button med network error handling */}
       {selectedMood && (
         <div className="text-center">
-          <button
-            onClick={handleLogMood}
-            disabled={isLogging || !canLogMore}
-            className="px-6 sm:px-8 py-3 text-base sm:text-lg font-medium text-white bg-[#2c8374] hover:bg-[#1e5f54] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2c8374] focus:ring-offset-2 inline-flex items-center gap-2 shadow-md hover:shadow-lg"
-          >
-            {isLogging ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Loggar humör...
-              </>
-            ) : !canLogMore ? (
-              <>
-                <span>🔒</span>
-                Daglig gräns nådd
-              </>
-            ) : (
-              <>
-                <span>✅</span>
-                {hasMeaningfulNote ? 'Logga komplett check-in' : 'Logga humör'}
-              </>
-            )}
-          </button>
+          {limitError?.includes('Network') || limitError?.includes('timeout') ? (
+            <div className="space-y-3">
+              <p className="text-amber-600 dark:text-amber-400 text-sm">
+                Nätverksfel. Kunde inte ansluta till servern.
+              </p>
+              <button
+                onClick={handleLogMood}
+                disabled={isLogging}
+                className="px-6 py-3 text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-colors inline-flex items-center gap-2"
+              >
+                {isLogging ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Försöker igen...
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    Försök igen
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogMood}
+              disabled={isLogging || !canLogMore}
+              className="px-6 sm:px-8 py-3 text-base sm:text-lg font-medium text-white bg-[#2c8374] hover:bg-[#1e5f54] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2c8374] focus:ring-offset-2 inline-flex items-center gap-2 shadow-md hover:shadow-lg"
+            >
+              {isLogging ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Ansluter till server...
+                </>
+              ) : !canLogMore ? (
+                <>
+                  <span>🔒</span>
+                  Daglig gräns nådd
+                </>
+              ) : (
+                <>
+                  <span>✅</span>
+                  {hasMeaningfulNote ? 'Logga komplett check-in' : 'Logga humör'}
+                </>
+              )}
+            </button>
+          )}
           {!canLogMore && (
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               Uppgradera till Premium för obegränsade loggningar
