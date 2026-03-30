@@ -24,7 +24,6 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'sv', // Force Swedish for tests
     fallbackLng: 'sv',
     debug: isDevEnvironment(),
 
@@ -35,7 +34,7 @@ i18n
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'language'
+      lookupLocalStorage: 'i18nextLng' // Match LanguageSwitcher
     },
 
     react: {

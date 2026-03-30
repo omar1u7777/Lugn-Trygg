@@ -21,8 +21,8 @@
     "playwright:install": "playwright install",
     "type-check": "tsc --noEmit",
     "lighthouse": "node scripts/run-lighthouse.mjs",
-    "images:compress": "node scripts/compress-images.mjs"
-    "validate-translations": "node scripts/validateTranslations.js",
+    "images:compress": "node scripts/compress-images.mjs",
+    "validate-translations": "node scripts/validateTranslations.cjs",
     "build": "npm run validate-translations && npx vite build"
   },
   "dependencies": {
