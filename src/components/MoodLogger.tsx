@@ -222,10 +222,10 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const checkInProgress = hasSelectedMood ? (hasMeaningfulNote ? 100 : 70) : 0;
   const checkInProgressLabel =
     checkInProgress === 0
-      ? 'Välj ett humör för att starta check-in'
+      ? t('moodLogger.checkInProgressEmpty', 'Välj ett humör för att starta check-in')
       : checkInProgress < 100
-        ? 'Du kan logga nu, men en kort anteckning ger bättre insikter över tid'
-        : 'Check-in komplett: humör + reflektion redo att loggas';
+        ? t('moodLogger.checkInProgressPartial', 'Du kan logga nu, men en kort anteckning ger bättre insikter över tid')
+        : t('moodLogger.checkInProgressComplete', 'Check-in komplett: humör + reflektion redo att loggas');
 
   // Keyboard shortcuts för mood val (1-6)
   useEffect(() => {
@@ -244,7 +244,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
   const handleMoodSelect = (mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
     setLimitError(null);
-    announceToScreenReader(`Valde humör: ${mood.label}`, 'polite');
+    announceToScreenReader(t('moodLogger.moodSelected', 'Valde humör: {{mood}}', { mood: mood.label }), 'polite');
 
     analytics.track('Mood Selected', {
       mood_value: mood.value,
@@ -287,12 +287,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
     // Kolla om användaren har nått sin gräns
     if (!canLogMore) {
-      announceToScreenReader('Du har nått din dagliga gräns för humörloggningar', 'assertive');
+      announceToScreenReader(t('moodLogger.dailyLimitReached'), 'assertive');
       return;
     }
 
     if (isDuplicateMoodWithinCooldown(selectedMood)) {
-      const duplicateMessage = 'Du loggade samma humör nyligen. Vänta några minuter innan du loggar samma känsla igen.';
+      const duplicateMessage = t('moodLogger.duplicateMoodWarning', 'Du loggade samma humör nyligen. Vänta några minuter innan du loggar samma känsla igen.');
       setLimitError(duplicateMessage);
       announceToScreenReader(duplicateMessage, 'polite');
       return;
@@ -326,7 +326,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         subscription_tier: plan.tier,
       });
 
-      announceToScreenReader('Humör loggat framgångsrikt', 'polite');
+      announceToScreenReader(t('moodLogger.moodLoggedSuccess'), 'polite');
 
       onMoodLogged?.(selectedMood, trimmedNote);
 
@@ -346,12 +346,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
 
       if (quotaExceeded) {
         const serverMessage = apiError.response?.data?.error;
-        const friendlyMessage = serverMessage || 'Du har nått din dagliga gräns för humörloggningar.';
+        const friendlyMessage = serverMessage || t('moodLogger.dailyLimitReachedMessage', 'Du har nått din dagliga gräns för humörloggningar.');
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'assertive');
         refreshSubscription().catch(() => null);
       } else {
-        announceToScreenReader('Misslyckades att logga humör', 'assertive');
+        announceToScreenReader(t('moodLogger.moodLogFailed'), 'assertive');
       }
     } finally {
       setIsLogging(false);
@@ -381,11 +381,11 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           // Check if mood text or note is encrypted (starts with U2FsdGVk)
           // If so, show a placeholder instead of raw encrypted data
           if (moodText.startsWith('U2FsdGVk')) {
-            moodText = 'Anteckning';
+            moodText = t('moodLogger.notePlaceholder', 'Anteckning');
           }
           if (mood.note && typeof mood.note === 'string' && mood.note.startsWith('U2FsdGVk')) {
             // Note is encrypted, don't show it
-            moodText = moodText || 'Humör';
+            moodText = moodText || t('moodLogger.unknownMood', 'Humör');
           }
           
           // Derive proper label from score when text is generic 'neutral' or missing
@@ -501,10 +501,10 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               onMoodLogged();
             }}
             className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            aria-label="Tillbaka till dashboard"
+            aria-label={t('moodLogger.backToDashboard', 'Tillbaka till dashboard')}
           >
             <span aria-hidden="true">←</span>
-            Tillbaka till Dashboard
+            {t('moodLogger.backToDashboard', 'Tillbaka till Dashboard')}
           </button>
         </div>
       )}
@@ -530,7 +530,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           <div className="mb-5 rounded-xl border border-[#d6efe9] dark:border-primary-800 bg-[#f4fbf9] dark:bg-primary-900/20 p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3 mb-2">
               <p className="text-sm font-semibold text-[#1e5f54] dark:text-primary-300">
-                Check-in progress
+                {t('moodLogger.checkInProgress', 'Check-in progress')}
               </p>
               <span className="text-sm font-semibold text-[#1e5f54] dark:text-primary-300" aria-live="polite">
                 {checkInProgress}%
@@ -548,10 +548,10 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           </div>
 
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
-            Välj ditt humör
+            {t('moodLogger.selectMood', 'Välj ditt humör')}
           </h2>
           <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-6">
-            Tips: Tryck 1-6 på tangentbordet för snabbval ⌨️
+            {t('moodLogger.keyboardTip', 'Tips: Tryck 1-6 på tangentbordet för snabbval ⌨️')}
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6">
@@ -586,20 +586,20 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           {selectedMood && (
             <div className="text-center">
               <span className="inline-block px-4 py-2 bg-[#2c8374]/15 text-[#1e5f54] rounded-full text-sm font-medium">
-                Valt humör: {moods.find(m => m.value === selectedMood)?.label}
+                {t('moodLogger.selectedMood', 'Valt humör: {{mood}}', { mood: moods.find(m => m.value === selectedMood)?.label })}
               </span>
               
               {/* Celebration vid 100% progress */}
               {checkInProgress === 100 && (
                 <div className="mt-2 animate-bounce text-emerald-500 text-sm">
-                  ✨ Perfekt! Redo att logga ✨
+                  {t('moodLogger.readyToLog', '✨ Perfekt! Redo att logga ✨')}
                 </div>
               )}
               
               {/* Self-compassion text för låga humör (2-3) */}
               {selectedMood <= 3 && (
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                  Det är okej att ha svåra dagar. Du gör ditt bäst. 💙
+                  {t('moodLogger.hardDaySupport', 'Det är okej att ha svåra dagar. Du gör ditt bäst. 💙')}
                 </p>
               )}
               
@@ -616,12 +616,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
         <Card className="mb-6">
           <div className="p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Lägg till en anteckning (valfritt)
+              {t('moodLogger.addNote', 'Lägg till en anteckning (valfritt)')}
             </h3>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Vad får dig att känna så här idag? ✨"
+              placeholder={t('moodLogger.notePlaceholder', 'Vad får dig att känna så här idag? ✨')}
               className="w-full p-4 border-2 border-[#e8dcd0] rounded-2xl resize-none transition-all duration-200
                 focus:outline-none focus:ring-2 focus:ring-[#2c8374]/30 focus:border-[#2c8374]
                 bg-white/80 backdrop-blur-sm text-[#2f2a24] placeholder-[#a89f97]
@@ -631,10 +631,10 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
             />
             <div className="mt-2 flex items-center justify-between gap-3 text-sm">
               <span className={`font-medium ${hasMeaningfulNote ? 'text-emerald-700 dark:text-emerald-400' : 'text-[#6d645d] dark:text-gray-400'}`}>
-                {hasMeaningfulNote ? 'Reflektion tillagd' : 'Tips: 15+ tecken ger bättre personlig uppföljning'}
+                {hasMeaningfulNote ? t('moodLogger.reflectionAdded', 'Reflektion tillagd') : t('moodLogger.characterTip', 'Tips: 15+ tecken ger bättre personlig uppföljning')}
               </span>
               <span className="text-[#6d645d] dark:text-gray-400 font-medium">
-                {note.length}/200 tecken
+                {note.length}/200 {t('moodLogger.characters', 'tecken')}
               </span>
             </div>
           </div>
@@ -648,7 +648,7 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           {limitError?.includes('Network') || limitError?.includes('timeout') ? (
             <div className="space-y-3">
               <p className="text-amber-600 dark:text-amber-400 text-sm">
-                Nätverksfel. Kunde inte ansluta till servern.
+                {t('moodLogger.networkError', 'Nätverksfel. Kunde inte ansluta till servern.')}
               </p>
               <button
                 onClick={handleLogMood}
@@ -658,12 +658,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
                 {isLogging ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Försöker igen...
+                    {t('moodLogger.retrying', 'Försöker igen...')}
                   </>
                 ) : (
                   <>
                     <span>🔄</span>
-                    Försök igen
+                    {t('moodLogger.tryAgain', 'Försök igen')}
                   </>
                 )}
               </button>
@@ -677,24 +677,24 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               {isLogging ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Ansluter till server...
+                  {t('moodLogger.connecting', 'Ansluter till server...')}
                 </>
               ) : !canLogMore ? (
                 <>
                   <span>🔒</span>
-                  Daglig gräns nådd
+                  {t('moodLogger.dailyLimitReachedButton', 'Daglig gräns nådd')}
                 </>
               ) : (
                 <>
                   <span>✅</span>
-                  {hasMeaningfulNote ? 'Logga komplett check-in' : 'Logga humör'}
+                  {hasMeaningfulNote ? t('moodLogger.logCompleteCheckIn', 'Logga komplett check-in') : t('moodLogger.logMood', 'Logga humör')}
                 </>
               )}
             </button>
           )}
           {!canLogMore && (
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Uppgradera till Premium för obegränsade loggningar
+              {t('moodLogger.upgradeForUnlimited', 'Uppgradera till Premium för obegränsade loggningar')}
             </p>
           )}
         </div>
@@ -706,12 +706,12 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-[#2f2a24] dark:text-white flex items-center gap-2">
               <ChartBarIcon className="w-5 h-5 text-[#2c8374]" aria-hidden="true" />
-              Dina senaste humör
+              {t('moodLogger.recentMoods', 'Dina senaste humör')}
             </h3>
             {/* Weekly streak indicator */}
             {weeklyStreak > 0 && (
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                {weeklyStreak} loggningar denna vecka 💪
+                {t('moodLogger.logsThisWeek', '{{count}} loggningar denna vecka 💪', { count: weeklyStreak })}
               </span>
             )}
           </div>
@@ -775,8 +775,8 @@ const MoodLogger: React.FC<MoodLoggerProps> = ({ onMoodLogged }) => {
               ))
             ) : (
               <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                <p className="mb-1">Inga humör loggade ännu</p>
-                <p className="text-sm">Börja logga dina humör för att se historik här</p>
+                <p className="mb-1">{t('moodLogger.noMoodsYet', 'Inga humör loggade ännu')}</p>
+                <p className="text-sm">{t('moodLogger.startLogging', 'Börja logga dina humör för att se historik här')}</p>
               </div>
             )}
           </div>

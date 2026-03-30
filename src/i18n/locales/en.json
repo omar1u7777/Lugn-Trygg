@@ -233,12 +233,35 @@
     "notSupported": "Voice recognition is not supported in this browser",
     "error": "Voice error: {error}",
     "commands": {
-      "logMood": ["log mood", "record mood", "mood", "feelings"],
-      "recordMemory": ["record memory", "new memory", "memory"],
-      "openChat": ["open chat", "talk to AI", "chat"],
-      "toggleTheme": ["toggle theme", "dark mode", "light mode"],
-      "viewMoods": ["view moods", "my moods"],
-      "viewMemories": ["view memories", "my memories"]
+      "logMood": [
+        "log mood",
+        "record mood",
+        "mood",
+        "feelings"
+      ],
+      "recordMemory": [
+        "record memory",
+        "new memory",
+        "memory"
+      ],
+      "openChat": [
+        "open chat",
+        "talk to AI",
+        "chat"
+      ],
+      "toggleTheme": [
+        "toggle theme",
+        "dark mode",
+        "light mode"
+      ],
+      "viewMoods": [
+        "view moods",
+        "my moods"
+      ],
+      "viewMemories": [
+        "view memories",
+        "my memories"
+      ]
     }
   },
   "badges": {
@@ -296,18 +319,46 @@
     "description": "🎵 Calm and relaxing music to help you unwind and feel better."
   },
   "moodLogger": {
+    "title": "How are you?",
+    "subtitle": "Log your mood and get insights",
+    "backToDashboard": "Back to Dashboard",
+    "loading": "Loading...",
+    "checkInProgress": "Check-in progress",
+    "selectMood": "Select your mood",
+    "keyboardTip": "Tip: Press 1-6 on keyboard for quick selection ⌨️",
+    "selectedMood": "Selected mood: {{mood}}",
+    "readyToLog": "✨ Perfect! Ready to log ✨",
+    "hardDaySupport": "It's okay to have difficult days. You're doing your best. 💙",
+    "addNote": "Add a note (optional)",
+    "notePlaceholder": "What's making you feel this way today? ✨",
+    "reflectionAdded": "Reflection added",
+    "characterTip": "Tip: 15+ characters gives better personal follow-up",
+    "characters": "characters",
+    "logging": "Logging...",
+    "logCompleteCheckIn": "Log complete check-in",
+    "logMood": "Log mood",
+    "dailyLimitReached": "Daily limit reached",
+    "upgradeForUnlimited": "Upgrade to Premium for unlimited logging",
+    "recentMoods": "Your recent moods",
+    "logsThisWeek": "{{count}} logs this week 💪",
+    "noMoodsYet": "No moods logged yet",
+    "startLogging": "Start logging your moods to see history here",
+    "connecting": "Connecting to server...",
+    "networkError": "Network error. Could not connect to server.",
+    "tryAgain": "Try again",
+    "retrying": "Retrying...",
     "howAreYou": "How are you feeling right now?",
     "chooseBest": "Choose what fits best",
     "whatInfluenced": "What has influenced you?",
     "selectFactors": "Select one or more (optional)",
     "tellMore": "Want to tell more?",
-    "putWords": "Put your feelings into words (optional)",
+    "putWords": "Put words to your feelings (optional)",
     "placeholder": "Write your thoughts here...",
     "voiceRecording": "Voice recording (Coming soon)",
     "saving": "Saving...",
     "saveLog": "Save Log",
     "moodSaved": "Mood saved: {{mood}}",
-    "saveFailed": "Could not save mood. Try again.",
+    "saveFailed": "Could not save mood. Please try again.",
     "moods": {
       "fantastic": "Fantastic",
       "good": "Good",
@@ -380,12 +431,30 @@
       "legendary": "Legendary"
     },
     "achievements": {
-      "firstStep": { "title": "First Step", "description": "Log your first mood" },
-      "weekWinner": { "title": "Week Winner", "description": "Log mood 7 days in a row" },
-      "moodExplorer": { "title": "Mood Explorer", "description": "Log 10 moods total" },
-      "conversationStarter": { "title": "Conversation Starter", "description": "Have 10 AI conversations" },
-      "consistencyKing": { "title": "Consistency King", "description": "Log mood 30 days in a row" },
-      "moodMaster": { "title": "Mood Master", "description": "Log 50 moods total" }
+      "firstStep": {
+        "title": "First Step",
+        "description": "Log your first mood"
+      },
+      "weekWinner": {
+        "title": "Week Winner",
+        "description": "Log mood 7 days in a row"
+      },
+      "moodExplorer": {
+        "title": "Mood Explorer",
+        "description": "Log 10 moods total"
+      },
+      "conversationStarter": {
+        "title": "Conversation Starter",
+        "description": "Have 10 AI conversations"
+      },
+      "consistencyKing": {
+        "title": "Consistency King",
+        "description": "Log mood 30 days in a row"
+      },
+      "moodMaster": {
+        "title": "Mood Master",
+        "description": "Log 50 moods total"
+      }
     }
   },
   "worldAnalytics": {
@@ -543,5 +612,57 @@
       "sharedSuccess": "Shared success",
       "sharedSuccessDesc": "Celebrate achievements together"
     }
+  },
+  "ai": {
+    "stories": {
+      "title": "AI Stories",
+      "loadError": "Could not load AI stories",
+      "generateNew": "Generate new story",
+      "generating": "Generating...",
+      "play": "Play",
+      "generateError": "Could not generate story"
+    }
+  },
+  "analytics": {
+    "title": "AI Analysis",
+    "description": "Advanced insights from your mood data",
+    "loadError": "Could not load analysis",
+    "forecastPeriod": "Forecast period",
+    "days": "days",
+    "currentAnalysis": "Current analysis",
+    "recentAverage": "Recent average",
+    "volatility": "Volatility",
+    "forecastSummary": "Forecast summary",
+    "averageForecast": "Average forecast",
+    "trend": "Trend",
+    "confidence": "Confidence",
+    "dailyPredictions": "Daily predictions",
+    "day": "Day",
+    "riskFactors": "Risk factors",
+    "recommendations": "Recommendations",
+    "modelInfo": "Model information",
+    "algorithm": "Algorithm",
+    "trainingAccuracy": "Training accuracy",
+    "dataPoints": "Data points",
+    "noData": "No data available for analysis"
+  },
+  "dashboardStats": {
+    "sectionTitle": "Statistics Overview",
+    "moodTitle": "Your Mood",
+    "streakTitle": "Current Streak",
+    "chatsTitle": "AI Chats",
+    "achievementsTitle": "Achievements",
+    "days": "days",
+    "basedOnLogs": "based on {{count}} log(s)",
+    "streakActive": "Active",
+    "total": "Total",
+    "progressOngoing": "In progress",
+    "allUnlocked": "All unlocked!",
+    "noChatsThisWeek": "No chats this week",
+    "oneChatThisWeek": "1 chat this week",
+    "chatsThisWeek": "{{count}} chats this week",
+    "nextMilestone": "Next milestone:",
+    "almostThere": "🎉 Almost there! One activity left!",
+    "activitiesToNext": "🎯 {{count}} activities to next level",
   }
 }
