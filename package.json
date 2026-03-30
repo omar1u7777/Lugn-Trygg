@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npx vite build",
-    "build:analyze": "cross-env ANALYZE=true npx vite build",
+    "build": "vite build",
+    "build:analyze": "cross-env ANALYZE=true vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "preview": "vite preview",
     "serve": "vite preview --host 0.0.0.0 --port 3000",
@@ -22,8 +22,7 @@
     "type-check": "tsc --noEmit",
     "lighthouse": "node scripts/run-lighthouse.mjs",
     "images:compress": "node scripts/compress-images.mjs",
-    "validate-translations": "node scripts/validateTranslations.cjs",
-    "build": "npm run validate-translations && npx vite build"
+    "validate-translations": "node scripts/validateTranslations.cjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
