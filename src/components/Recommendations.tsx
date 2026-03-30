@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 // Helper to format Pomodoro time as MM:SS
 const formatPomodoroTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -62,30 +63,30 @@ const KBT_DISTORTION_RULES: Array<KbtDistortionInsight & { pattern: RegExp }> = 
   {
     key: 'catastrophizing',
     label: 'Katastroftankande',
-    hint: 'Tanken forutsager varsta mojliga utfall utan mellanlagescenarion.',
-    reframeQuestion: 'Vad ar det mest sannolika utfallet, inte det varsta?',
-    pattern: /(katastrof|helt forstort|allt kommer ga fel|det kommer ga at skogen|det blir en katastrof)/i,
+    hint: 'Tanken förutsäger värsta möjliga utfall utan mellanlägesscenarion.',
+    reframeQuestion: 'Vad är det mest sannolika utfallet, inte det värsta?',
+    pattern: /(katastrof|helt förstört|allt kommer gå fel|det kommer gå åt skogen|det blir en katastrof)/i,
   },
   {
     key: 'black_white',
-    label: 'Svart-vitt tankande',
-    hint: 'Tanken anvander ytterligheter som "alltid", "aldrig" eller "helt".',
-    reframeQuestion: 'Vilket mer nyanserat mellanlage skulle kunna vara sant?',
-    pattern: /(alltid|aldrig|helt|totalt|ingen|alla|maste lyckas)/i,
+    label: 'Svart-vitt tänkande',
+    hint: 'Tanken använder ytterligheter som "alltid", "aldrig" eller "helt".',
+    reframeQuestion: 'Vilket mer nyanserat mellanläge skulle kunna vara sant?',
+    pattern: /(alltid|aldrig|helt|totalt|ingen|alla|måste lyckas)/i,
   },
   {
     key: 'mind_reading',
-    label: 'Tankelasning',
+    label: 'Tankeläsning',
     hint: 'Tanken antar vad andra tycker utan tydliga bevis.',
-    reframeQuestion: 'Vilka faktiska bevis har du for vad andra tanker?',
-    pattern: /(de tycker|alla tycker|ingen gillar mig|de kommer doma mig|de tycker jag ar)/i,
+    reframeQuestion: 'Vilka faktiska bevis har du för vad andra tänker?',
+    pattern: /(de tycker|alla tycker|ingen gillar mig|de kommer döma mig|de tycker jag är)/i,
   },
   {
     key: 'self_labeling',
-    label: 'Global sjalvetikett',
-    hint: 'Ett misstag goras om till en generell etikett om dig som person.',
-    reframeQuestion: 'Hur skulle du beskriva situationen utan att etikettera dig sjalv?',
-    pattern: /(jag ar vardelos|jag ar dalig|jag duger inte|jag ar ett misslyckande)/i,
+    label: 'Global självetikett',
+    hint: 'Ett misstag göras om till en generell etikett om dig som person.',
+    reframeQuestion: 'Hur skulle du beskriva situationen utan att etikettera dig själv?',
+    pattern: /(jag är värdelös|jag är dålig|jag duger inte|jag är ett misslyckande)/i,
   },
 ];
 

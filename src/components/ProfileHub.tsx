@@ -49,7 +49,7 @@ interface ProfileStats {
 }
 
 const ProfileHub: React.FC = () => {
-  const { t: _t } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
@@ -379,16 +379,16 @@ const ProfileHub: React.FC = () => {
             {/* Info Section */}
             <div className="text-center md:text-left flex-1">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 tracking-tight">
-                {user?.email || 'Gäst'}
+                {user?.email || t('profileHub.guest', 'Gäst')}
               </h1>
               <p className="text-indigo-200 text-lg mb-6 max-w-lg mx-auto md:mx-0">
-                {user?.email ? 'Hantera din personliga resa, inställningar och säkerhet.' : 'Logga in för att spara din data.'}
+                {user?.email ? t('profileHub.manageJourney', 'Hantera din personliga resa, inställningar och säkerhet.') : t('profileHub.loginToSave', 'Logga in för att spara din data.')}
               </p>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-sm font-medium flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-indigo-300" />
-                  Medlem i {profileStats.accountAge} dagar
+                  {t('profileHub.memberForDays', 'Medlem i {{days}} dagar', { days: profileStats.accountAge })}
                 </div>
                 {!isPremium && (
                   <Button
@@ -397,7 +397,7 @@ const ProfileHub: React.FC = () => {
                     onClick={() => navigate('/upgrade')}
                     className="bg-amber-500 hover:bg-amber-600 text-white border-none shadow-lg shadow-amber-500/20"
                   >
-                    Uppgradera nu
+                    {t('profileHub.upgradeNow', 'Uppgradera nu')}
                   </Button>
                 )}
               </div>
@@ -409,10 +409,10 @@ const ProfileHub: React.FC = () => {
       {/* Quick Stats Bento Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         {[
-          { label: 'Humörloggar', value: profileStats.totalMoods, icon: HeartIcon, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
-          { label: 'AI-samtal', value: profileStats.totalConversations, icon: ChatBubbleLeftIcon, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-          { label: 'Minnen', value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-          { label: 'Dagar aktiv', value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
+          { label: t('profileHub.moodLogs', 'Humörloggar'), value: profileStats.totalMoods, icon: HeartIcon, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
+          { label: t('profileHub.aiChats', 'AI-samtal'), value: profileStats.totalConversations, icon: ChatBubbleLeftIcon, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+          { label: t('profileHub.memories', 'Minnen'), value: profileStats.totalMemories, icon: SparklesIcon, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+          { label: t('profileHub.daysActive', 'Dagar aktiv'), value: `${profileStats.accountAge}d`, icon: UserIcon, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' }
         ].map((stat) => (
           <div key={stat.label} className="group bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6`}>
