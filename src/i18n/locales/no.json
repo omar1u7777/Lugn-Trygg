@@ -381,7 +381,35 @@
       "exercise": "Trening",
       "food": "Mat",
       "weather": "Vær"
-    }
+    },
+    "title": "Hur mår du?",
+    "subtitle": "Logga ditt humör och få insikter",
+    "backToDashboard": "Tillbaka till Dashboard",
+    "loading": "Laddar...",
+    "checkInProgress": "Check-in progress",
+    "selectMood": "Välj ditt humör",
+    "keyboardTip": "Tips: Tryck 1-6 på tangentbordet för snabbval ",
+    "selectedMood": "Valt humör: {{mood}}",
+    "readyToLog": " Perfekt! Redo att logga ",
+    "hardDaySupport": "Det är okej att ha svåra dagar. Du gör ditt bäst. ",
+    "addNote": "Lägg till en anteckning (valfritt)",
+    "notePlaceholder": "Vad får dig att känna så här idag? ",
+    "reflectionAdded": "Reflektion tillagd",
+    "characterTip": "Tips: 15+ tecken ger bättre personlig uppföljning",
+    "characters": "tecken",
+    "logging": "Loggar...",
+    "logCompleteCheckIn": "Logga komplett check-in",
+    "logMood": "Logga humör",
+    "dailyLimitReached": "Daglig gräns nådd",
+    "upgradeForUnlimited": "Uppgradera till Premium för obegränsade loggningar",
+    "recentMoods": "Dina senaste humör",
+    "logsThisWeek": "{{count}} loggningar denna vecka ",
+    "noMoodsYet": "Inga humör loggade ännu",
+    "startLogging": "Börja logga dina humör för att se historik här",
+    "connecting": "Ansluter till server...",
+    "networkError": "Nätverksfel. Kunde inte ansluta till servern.",
+    "tryAgain": "Försök igen",
+    "retrying": "Försöker igen..."
   },
   "aiChat": {
     "sanctuary": "Din Fristad",
@@ -614,7 +642,8 @@
       "motivationDesc": "Bli uppmuntrad av andra på samma resa",
       "accountability": "Ansvarighet",
       "sharedSuccess": "Delad framgång",
-      "sharedSuccessDesc": "Fira prestationer tillsammans"
+      "sharedSuccessDesc": "Fira prestationer tillsammans",
+      "accountabilityDesc": "Håll dig engagerad med grupputmaningar"
     }
   },
   "dashboardStats": {
@@ -663,5 +692,25 @@
     "inProgress": "Guidet pause pågår...",
     "continue": "Fortsett til humørsjekk-inn",
     "skip": "Hopp over og fortsett"
+  },
+  "achievementProgress": {
+    "title": "Framsteg mot nästa nivå",
+    "description": "Se hur nära du är att låsa upp din nästa achievement",
+    "progressBar": "Framstegsbar",
+    "progressText": "{{progress}}% till nästa nivå",
+    "nextLevel": "Nästa nivå: {{level}}",
+    "activitiesRemaining": "{{count}} aktiviteter kvar",
+    "keepGoing": "Håll dig igång!",
+    "almostThere": " Nästan där!"
+  },
+  "safetyBlock": {
+    "title": "Säkerhetsblock",
+    "description": "Om du känner dig överväldigad eller behöver stöd",
+    "emergencyContact": "Nödkontakt",
+    "emergencyNumber": "Ring {{number}} för omedelbar hjälp",
+    "supportHotline": "Stödtelefon",
+    "supportNumber": "Ring {{number}} för att prata med någon",
+    "onlineResources": "Online-resurser",
+    "resourceLink": "Besök {{link}} för mer information och stöd"
   }
 }

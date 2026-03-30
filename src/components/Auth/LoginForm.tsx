@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react"
+import { useTranslation } from 'react-i18next';
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
@@ -70,6 +71,7 @@ const extractErrorMessage = (err: unknown): string => {
 };
 
 const LoginForm = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -200,7 +202,7 @@ const LoginForm = () => {
             variant="caption"
             className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs uppercase tracking-[0.14em] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 mb-3"
           >
-            Säker inloggning
+            {t('loginForm.secureLogin', 'Säker inloggning')}
           </Typography>
           <Typography
             id="login-title"
@@ -211,14 +213,14 @@ const LoginForm = () => {
             <span className="text-2xl" aria-hidden="true">
               🔐
             </span>
-            Logga in
+            {t('loginForm.loginTitle', 'Logga in')}
           </Typography>
           <Typography
             variant="body2"
             color="text.secondary"
             className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300"
           >
-            Välkommen tillbaka. Logga in för att fortsätta där du slutade.
+            {t('loginForm.welcomeBack', 'Välkommen tillbaka. Logga in för att fortsätta där du slutade.')}
           </Typography>
         </div>
 
@@ -243,12 +245,12 @@ const LoginForm = () => {
           >
             <div>
               <Input
-                label="📧 E-postadress"
+                label={t('loginForm.emailLabel', '📧 E-postadress')}
                 id="email"
                 type="email"
                 value={email}
                 onChange={handleEmailChange}
-                placeholder="Ange din e-postadress"
+                placeholder={t('loginForm.emailPlaceholder', 'Ange din e-postadress')}
                 required
                 disabled={loading}
                 aria-describedby={error || validationErrors.email ? "login-error email-error" : undefined}
@@ -269,7 +271,7 @@ const LoginForm = () => {
                 <span className="text-primary" aria-hidden="true">
                   🔒
                 </span>
-                Lösenord
+                {t('loginForm.passwordLabel', 'Lösenord')}
               </label>
               <div className="relative">
                 <Input
@@ -277,7 +279,7 @@ const LoginForm = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={handlePasswordChange}
-                  placeholder="Ange ditt lösenord"
+                  placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
                   required
                   disabled={loading}
                   className="pr-12"
@@ -288,8 +290,8 @@ const LoginForm = () => {
                   type="button"
                   onClick={togglePassword}
                   disabled={loading}
-                  title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
-                  aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                  title={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
+                  aria-label={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
                   aria-pressed={showPassword}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
@@ -313,14 +315,14 @@ const LoginForm = () => {
               className="min-h-[46px] sm:min-h-[50px] font-semibold"
             >
               <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
-              Logga in
+              {t('loginForm.loginButton', 'Logga in')}
             </Button>
           </form>
         </LoadingSpinner>
 
         <Divider className="my-6 sm:my-8">
           <Typography variant="body2" color="text.secondary" fontWeight="medium">
-            eller
+            {t('loginForm.or', 'eller')}
           </Typography>
         </Divider>
 
@@ -338,18 +340,18 @@ const LoginForm = () => {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
-          Fortsätt med Google
+          {t('loginForm.googleSignIn', 'Fortsätt med Google')}
         </Button>
 
         <div className="flex flex-col gap-3 sm:gap-4 text-center mt-6 sm:mt-8">
           <Typography variant="body2" color="text.secondary" className="text-sm sm:text-base">
-            Har du inget konto?{" "}
+            {t('loginForm.noAccount', 'Har du inget konto?')}{" "}
             <Link
               to="/register"
               className="text-primary-700 dark:text-primary-300 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
-              aria-label="Gå till registreringssidan"
+              aria-label={t('loginForm.goToRegister', 'Gå till registreringssidan')}
             >
-              Registrera dig här
+              {t('loginForm.registerHere', 'Registrera dig här')}
             </Link>
           </Typography>
           <button
@@ -358,10 +360,10 @@ const LoginForm = () => {
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
             className="text-sm sm:text-base font-semibold text-primary-700 dark:text-primary-300 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
-            aria-label="Öppna glömt lösenord-dialog"
+            aria-label={t('loginForm.openForgotPassword', 'Öppna glömt lösenord-dialog')}
             aria-haspopup="dialog"
           >
-            Glömt lösenord?
+            {t('loginForm.forgotPassword', 'Glömt lösenord?')}
           </button>
         </div>
 

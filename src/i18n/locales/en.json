@@ -664,5 +664,51 @@
     "nextMilestone": "Next milestone:",
     "almostThere": "🎉 Almost there! One activity left!",
     "activitiesToNext": "🎯 {{count}} activities to next level",
+    "startJourney": " Börja din resa! Logga ditt första humör för att låsa upp din första achievement.",
+    "allAchievementsUnlocked": " Alla achievements upplåsta!",
+    "hardDay": "En svår dag just nu ",
+    "yourMood": "Ditt mående: {{score}} av 10",
+    "moodAriaLabel": "Ditt mående: {{score}} av 10. En svår dag just nu.",
+    "itsOkay": " Det är okej att må så här. Du är inte ensam.",
+    "talkToAI": "Prata med AI",
+    "getHelp": "Få hjälp nu"
+  },
+  "achievementProgress": {
+    "title": "Framsteg mot nästa nivå",
+    "description": "Se hur nära du är att låsa upp din nästa achievement",
+    "progressBar": "Framstegsbar",
+    "progressText": "{{progress}}% till nästa nivå",
+    "nextLevel": "Nästa nivå: {{level}}",
+    "activitiesRemaining": "{{count}} aktiviteter kvar",
+    "keepGoing": "Håll dig igång!",
+    "almostThere": " Nästan där!"
+  },
+  "safetyBlock": {
+    "title": "Säkerhetsblock",
+    "description": "Om du känner dig överväldigad eller behöver stöd",
+    "emergencyContact": "Nödkontakt",
+    "emergencyNumber": "Ring {{number}} för omedelbar hjälp",
+    "supportHotline": "Stödtelefon",
+    "supportNumber": "Ring {{number}} för att prata med någon",
+    "onlineResources": "Online-resurser",
+    "resourceLink": "Besök {{link}} för mer information och stöd"
+  },
+  "dashboardHeader": {
+    "updatingData": "Uppdaterar data...",
+    "autoUpdate": "Uppdateras automatiskt",
+    "lastUpdated": "Uppdaterat för {{minutes}} min sedan",
+    "lastUpdatedAt": "Senast {{time}}"
+  },
+  "breath": {
+    "breathCount": "Andetag",
+    "of": "av",
+    "completed": "Bra jobbat! Du har slutfört dagens 3 andetag.",
+    "duration": "Guidad övning: cirka 30 sekunder.",
+    "ariaInProgress": "Guidad andningsövning pågår, följ instruktionerna",
+    "ariaContinue": "Fortsätt till humörcheck-in",
+    "ariaStart": "Starta guidad andningsövning",
+    "inProgress": "Guidad paus pågår...",
+    "continue": "Fortsätt till humörcheck-in",
+    "skip": "Hoppa över och fortsätt"
   }
 }
