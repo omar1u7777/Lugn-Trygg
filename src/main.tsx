@@ -21,8 +21,8 @@ import { initPerformanceMonitoring, type ResourceHint, type PreloadAsset } from 
 import { loadPolyfills } from "./utils/loadPolyfills";
 import { scheduleIdleTask } from "./utils/scheduleIdleTask";
 import App from "./App";
-import "./i18n/i18n"; // Initialize i18n
-import i18n from "./i18n/i18n";
+import "./i18n"; // Initialize i18n
+import i18n from "./i18n";
 // Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
 
