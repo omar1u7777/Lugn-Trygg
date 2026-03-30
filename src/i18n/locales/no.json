@@ -62,7 +62,10 @@
     "aiAnalysisNotice": "Denne analysen er generert av AI basert på dine mønstre og trender",
     "aiConfidence": "AI-konfidens:",
     "invalidDate": "Ugyldig dato",
-    "badges": "Prestasjoner"
+    "badges": "Prestasjoner",
+    "relaxingSounds": "Avslappnande Ljud",
+    "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
+    "noMemoryData": "📊 Ingen minnesdata tillgänglig."
   },
   "mood": {
     "title": "Humørlogging",
@@ -83,7 +86,10 @@
     "save": "Lagre",
     "cancel": "Avbryt",
     "success": "Humør lagret!",
-    "error": "Kunne ikke lagre humør"
+    "error": "Kunne ikke lagre humør",
+    "score": "Humörpoäng",
+    "negative": "Negativ",
+    "positive": "Positiv"
   },
   "memories": {
     "title": "Mine minner",
@@ -95,7 +101,8 @@
     "save": "Lagre minne",
     "delete": "Slett",
     "noMemories": "Ingen minner ennå",
-    "addFirst": "Legg til ditt første minne"
+    "addFirst": "Legg til ditt første minne",
+    "count": "Antal minnen"
   },
   "chatbot": {
     "title": "AI-chat",
@@ -226,12 +233,35 @@
     "notSupported": "Stemme gjenkjenning støttes ikke i denne nettleseren",
     "error": "Stemmefeil: {error}",
     "commands": {
-      "logMood": ["logg humør", "spill inn humør", "humør", "følelser"],
-      "recordMemory": ["spill inn minne", "nytt minne", "minne"],
-      "openChat": ["åpne chat", "prat med AI", "chat"],
-      "toggleTheme": ["veksle tema", "mørk modus", "lys modus"],
-      "viewMoods": ["vis humør", "mine humør"],
-      "viewMemories": ["vis minner", "mine minner"]
+      "logMood": [
+        "logg humør",
+        "spill inn humør",
+        "humør",
+        "følelser"
+      ],
+      "recordMemory": [
+        "spill inn minne",
+        "nytt minne",
+        "minne"
+      ],
+      "openChat": [
+        "åpne chat",
+        "prat med AI",
+        "chat"
+      ],
+      "toggleTheme": [
+        "veksle tema",
+        "mørk modus",
+        "lys modus"
+      ],
+      "viewMoods": [
+        "vis humør",
+        "mine humør"
+      ],
+      "viewMemories": [
+        "vis minner",
+        "mine minner"
+      ]
     }
   },
   "badges": {
@@ -255,6 +285,383 @@
     "explorer": {
       "title": "Humørutforsker",
       "desc": "Logget {count} humør"
+    },
+    "description": "Följ dina framsteg och lås upp prestationer när du använder appen!",
+    "summary": "Prestationssammanfattning",
+    "earned": "Intjänade",
+    "remaining": "Återstående",
+    "rare": "Sällsynta",
+    "epic": "Episka",
+    "progress": "Framsteg",
+    "mindful": {
+      "title": "Medveten observatör",
+      "desc": "Slutförde 10 mindfulness-övningar"
+    },
+    "storyteller": {
+      "title": "Berättare",
+      "desc": "Lyssnade på 5 AI-genererade berättelser"
+    },
+    "healthSync": {
+      "title": "Hälsosynkronisering",
+      "desc": "Anslöt bärbar enhet"
+    },
+    "crisisHelper": {
+      "title": "Krisstödjare",
+      "desc": "Använde krisstödsfunktioner"
+    },
+    "predictionMaster": {
+      "title": "Prediktionsmästare",
+      "desc": "Visade humörprediktioner 10 gånger"
     }
+  },
+  "relaxingSounds": {
+    "trackTitle": "Lugn Musik",
+    "description": "🎵 Lugn och avslappnande musik för att hjälpa dig slappna av och må bättre."
+  },
+  "ai": {
+    "stories": {
+      "title": "AI-berättelser",
+      "loadError": "Kunde inte ladda AI-berättelser",
+      "generateNew": "Generera ny berättelse",
+      "generating": "Genererar...",
+      "play": "Spela upp",
+      "generateError": "Kunde inte generera berättelse"
+    }
+  },
+  "analytics": {
+    "title": "AI-analys",
+    "description": "Avancerade insikter från dina humördata",
+    "loadError": "Kunde inte ladda analys",
+    "forecastPeriod": "Prognosperiod",
+    "days": "dagar",
+    "currentAnalysis": "Aktuell analys",
+    "recentAverage": "Senaste genomsnitt",
+    "volatility": "Volatilitet",
+    "forecastSummary": "Prognossammanfattning",
+    "averageForecast": "Genomsnittlig prognos",
+    "trend": "Trend",
+    "confidence": "Konfidens",
+    "dailyPredictions": "Dagliga förutsägelser",
+    "day": "Dag",
+    "riskFactors": "Riskfaktorer",
+    "recommendations": "Rekommendationer",
+    "modelInfo": "Modellinformation",
+    "algorithm": "Algoritm",
+    "trainingAccuracy": "Träningsnoggrannhet",
+    "dataPoints": "Datapunkter",
+    "noData": "Ingen data tillgänglig för analys"
+  },
+  "moodLogger": {
+    "howAreYou": "Hvordan føles det akkurat nå?",
+    "chooseBest": "Velg det som passer best",
+    "whatInfluenced": "Hva har påvirket deg?",
+    "selectFactors": "Velg en eller flere (valgfritt)",
+    "tellMore": "Vil du fortelle mer?",
+    "putWords": "Sett ord på følelsene dine (valgfritt)",
+    "placeholder": "Skriv tankene dine her...",
+    "voiceRecording": "Taleopptak (Kommer snart)",
+    "saving": "Lagrer...",
+    "saveLog": "Lagre Logg",
+    "moodSaved": "Humør lagret: {{mood}}",
+    "saveFailed": "Kunne ikke lagre humør. Prøv igjen.",
+    "moods": {
+      "fantastic": "Fantastisk",
+      "good": "Bra",
+      "okay": "Helt greit",
+      "anxious": "Engstelig",
+      "down": "Ned",
+      "angry": "Sint"
+    },
+    "factors": {
+      "sleep": "Søvn",
+      "work": "Jobb/Skole",
+      "family": "Familie",
+      "friends": "Venner",
+      "health": "Helse",
+      "exercise": "Trening",
+      "food": "Mat",
+      "weather": "Vær"
+    }
+  },
+  "aiChat": {
+    "sanctuary": "Din Fristad",
+    "thinking": "Tänker...",
+    "alwaysHere": "Alltid här för dig",
+    "messagesLeft": "{{count}} meddelanden kvar",
+    "limitReached": "Gräns uppnådd",
+    "dailyLimitReached": "Daglig gräns uppnådd",
+    "welcomeMessage": "Välkommen till din fristad. Jag lyssnar.",
+    "newResponse": "Nytt svar från AI",
+    "errorFallback": "Förlåt, jag tappade tråden. Försök igen.",
+    "suggestions": {
+      "stressed": "Jag känner mig stressad",
+      "motivation": "Behöver motivation",
+      "sleep": "Svårt att sova"
+    },
+    "opening": "Öppnar din fristad...",
+    "welcomeHome": "Välkommen hem.",
+    "welcomeText": "Här inne dömer ingen. Jag finns här för att lyssna, stötta och hjälpa dig sortera tankarna. Vad tänker du på just nu?",
+    "inputPlaceholder": "Skriv ditt meddelande...",
+    "footer": "Lugn & Trygg AI • Privat & Säker"
+  },
+  "gamification": {
+    "myJourney": "Min Resa 🏆",
+    "celebrateProgress": "Fira dina framsteg och din personliga utveckling.",
+    "level": "Nivå {{level}}",
+    "levelNames": {
+      "master": "Mental Mästare",
+      "expert": "Inre Lugn Expert",
+      "wanderer": "Mindfulness Vandrare",
+      "beginner": "Nybörjare"
+    },
+    "continueJourney": "Fortsätt din resa mot inre lugn. Du gör fantastiska framsteg!",
+    "xpProgress": "XP: {{current}} / {{next}}",
+    "percentToLevel": "{{percent}}% till nivå {{level}}",
+    "daysCount": "{{count}} Dagar",
+    "currentStreak": "Nuvarande Streak",
+    "unlockedAchievements": "Upplåsta Achievements",
+    "moodCheckins": "Humör incheckningar",
+    "aiConversations": "AI Samtal",
+    "totalXP": "Totala XP",
+    "ranking": "Ranking",
+    "yourAwards": "Dina Utmärkelser",
+    "unlocked": "Upplåst",
+    "noAwardsYet": "Du har inga utmärkelser än. Fortsätt din resa!",
+    "upcomingChallenges": "Kommande Utmaningar",
+    "achievementsUnlocked": "{{count}} achievements upplåsta",
+    "rarity": {
+      "common": "Vanlig",
+      "rare": "Sällsynt",
+      "epic": "Episk",
+      "legendary": "Legendarisk"
+    },
+    "achievements": {
+      "firstStep": {
+        "title": "Första steget",
+        "description": "Logga ditt första humör"
+      },
+      "weekWinner": {
+        "title": "Veckovinnare",
+        "description": "Logga humör 7 dagar i rad"
+      },
+      "moodExplorer": {
+        "title": "Humörutforskare",
+        "description": "Logga 10 humör totalt"
+      },
+      "conversationStarter": {
+        "title": "Samtalsinitiatör",
+        "description": "Ha 10 AI-samtal"
+      },
+      "consistencyKing": {
+        "title": "Konsekvenskung",
+        "description": "Logga humör 30 dagar i rad"
+      },
+      "moodMaster": {
+        "title": "Humörmästare",
+        "description": "Logga 50 humör totalt"
+      }
+    }
+  },
+  "worldAnalytics": {
+    "title": "📊 Dina Insikter & Analys",
+    "refresh": "Uppdatera",
+    "export": "Exportera",
+    "analyzing": "Analyserar dina data...",
+    "freeTierBanner": "Gratis: Endast senaste {{days}} dagars historik",
+    "upgradeMessage": "Uppgradera till Premium för obegränsad historik och djupare insikter",
+    "upgrade": "Uppgradera",
+    "transparencyTitle": "🔍 Fullständig Ärlighet & Transparens",
+    "transparencyDesc": "Denna analys visar exakt dina råa data utan filtrering, manipulation eller optimering.",
+    "freeTierNote": "(Begränsat till {{days}} dagar för gratisanvändare)",
+    "methodAverage": "Genomsnitt:",
+    "methodAverageDesc": "Enkel aritmetisk medelvärde av alla dina humör-poäng",
+    "methodTrends": "Trender:",
+    "methodTrendsDesc": "Jämförelse mellan senaste 7 dagar vs föregående 7 dagar",
+    "methodInsights": "Insikter:",
+    "methodInsightsDesc": "Automatiskt genererade baserat på enkla matematiska trösklar",
+    "methodNoFilter": "Inga filter:",
+    "methodNoFilterDesc": "Alla dagar med/utan loggningar visas exakt som de är",
+    "avgMood": "Genomsnittligt humör",
+    "basedOnAll": "baserat på alla dina loggningar",
+    "noLogsYet": "inga loggningar än",
+    "totalLogs": "Totala loggningar",
+    "exactCount": "exakt antal inlägg",
+    "daysInRow": "Dagar i rad",
+    "daysWithLog": "dagar med minst 1 loggning",
+    "autoInsights": "Automatiska insikter",
+    "basedOnRules": "baserat på enkla regler",
+    "insightsTitle": "🤖 Automatiska Insikter (100% Ärliga Regler)",
+    "insightsHow": "🔍 Hur insikterna genereras:",
+    "insightRule1": "\"Börja spåra ditt humör\": Visas om du har < 3 loggningar totalt",
+    "insightRule2": "\"Positiv trend\": Visas om genomsnittligt humör >= 7.0",
+    "insightRule3": "\"Nedåtgående trend\": Visas om trenden är nedåtgående",
+    "insightRule4": "\"Behöver du stöd\": Visas om genomsnittligt humör <= 4.0",
+    "simpleRules": "Dessa är enkla, automatiska regler - ingen AI eller komplex analys.",
+    "autoGenerated": "Automatiskt genererad baserat på dina data",
+    "distributionTitle": "📈 Humörfördelning (Exakt Räknat)",
+    "distributionDesc": "100% ärlig fördelning: Varje humör-poäng från dina loggningar räknas exakt en gång. Inga approximationer, ingen rounding, ingen manipulation.",
+    "exactLogs": "exakt antal loggningar",
+    "weeklyTitle": "📅 Veckoöversikt (Exakt Räknat)",
+    "weeklyDesc": "Ärlig vecko-spårning: Visar exakt antal dagar denna vecka där du loggade minst ett humör. Inga \"bonuspoäng\", inga \"extrakrediter\" - bara dina faktiska loggningar.",
+    "weeklyProgress": "{{current}} / {{goal}} dagar med loggningar",
+    "percentCalc": "Procent beräknat som: (dina loggningsdagar / ditt mål) × 100",
+    "logsThisDay": "{{count}} loggning(ar) denna dag",
+    "noLogsThisDay": "Inga loggningar denna dag",
+    "countSt": "{{count}} st",
+    "zeroSt": "0 st",
+    "trendTitle": "📊 Trendanalys (100% Ärlig)",
+    "trendUp": "Uppåtgående trend",
+    "trendDown": "Nedåtgående trend",
+    "trendStable": "Stabil trend",
+    "trendCalc": "Exakt beräkning: Senaste 7 dagar vs föregående 7 dagar",
+    "trendHowTitle": "🔢 Hur trenden beräknas (fullständigt ärligt):",
+    "noFilterNote": "Inga filter, ingen smoothing, ingen manipulation.",
+    "trendDownWarning": "Ärlig observation: Dina senaste 7 dagar visar lägre humör jämfört med föregående 7 dagar.",
+    "trendDownAdvice": "Om du känner dig nedstämd, överväg att prata med en vän, familjemedlem eller professionell.",
+    "trendUpNote": "Ärlig observation: Dina senaste 7 dagar visar högre humör jämfört med föregående 7 dagar.",
+    "recommendationsTitle": "💡 Rekommendationer",
+    "recTrackTitle": "Fortsätt spåra regelbundet",
+    "recTrackDesc": "Daglig humörspårning hjälper dig förstå dina mönster och förbättrar dina insikter över tid.",
+    "recWellnessTitle": "Fokusera på välbefinnande",
+    "recWellnessDesc": "Överväg mindfulness, motion eller andra aktiviteter som förbättrar ditt humör.",
+    "moodDistribution": {
+      "veryBad": "Mycket dåligt (1-2)",
+      "bad": "Dåligt (3-4)",
+      "neutral": "Neutralt (5-6)",
+      "good": "Bra (7-8)",
+      "veryGood": "Mycket bra (9-10)"
+    },
+    "insights": {
+      "startTracking": "Börja spåra ditt humör",
+      "startTrackingDesc": "Logga ditt humör regelbundet för att få bättre insikter om dina mönster.",
+      "positiveTrend": "Positiv trend!",
+      "positiveTrendDesc": "Ditt genomsnittliga humör är högt. Fortsätt med det du gör!",
+      "downwardTrend": "Nedåtgående trend",
+      "downwardTrendDesc": "Ditt humör har sjunkit de senaste dagarna. Överväg att prata med någon.",
+      "needSupport": "Behöver du stöd?",
+      "needSupportDesc": "Ditt humör är lågt. Du är inte ensam - överväg professionell hjälp."
+    }
+  },
+  "worldDashboard": {
+    "dashboardLoaded": "Dashboard laddad",
+    "loadError": "Kunde inte ladda dashboard:",
+    "tryAgain": "Försök igen",
+    "backToDashboard": "Tillbaka till Dashboard",
+    "loadingAnalysis": "Laddar analyser...",
+    "gamificationTitle": "Gamification är en Premium-funktion",
+    "gamificationDesc": "Lås upp achievements, badges och belöningar genom att uppgradera till Premium.",
+    "wellnessGoalsLabel": "Wellnessmål",
+    "howAreYou": "Hur mår du idag?",
+    "takeAMoment": "Ta en stund att checka in med dig själv",
+    "wellnessGoals": "Dina Wellness-Mål",
+    "goals": {
+      "stress": "Hantera stress",
+      "sleep": "Bättre sömn",
+      "focus": "Ökad fokusering",
+      "clarity": "Mental klarhet"
+    },
+    "goalRecommendations": "",
+    "personalRecommendations": "Personliga Rekommendationer",
+    "addGoalsForRecs": "Lägg till wellness-mål för att låsa upp skräddarsydda rekommendationer.",
+    "weeklyProgress": "Veckoprogress",
+    "weeklyProgressText": "{{current}} av {{goal}} humör-inlägg denna vecka",
+    "weeklyProgressLabel": "Veckoprogress: {{current}} av {{goal}}",
+    "weeklyGoalReached": "Grattis! Du har nått ditt veckomål!",
+    "entriesLeft": "{{count}} inlägg kvar till nästa achievement",
+    "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!"
+  },
+  "social": {
+    "title": "",
+    "subtitle": "Anslut till communityn, dela prestationer och väx tillsammans",
+    "communityMembers": "Aktiva community-medlemmar",
+    "moodLogs": "Dina humörloggningar",
+    "referrals": "Lyckade referrals",
+    "leaderboardRank": "Din topplista-ranking",
+    "tabs": {
+      "supportChat": "Stödchatt",
+      "challenges": "Grupputmaningar",
+      "leaderboard": "Topplista",
+      "shareAchievements": "Dela prestationer"
+    },
+    "loginRequired": {
+      "supportChat": "Logga in för att få tillgång till stödchatt",
+      "challenges": "Logga in för att gå med i utmaningar",
+      "leaderboard": "Logga in för att se topplistan",
+      "shareAchievements": "Logga in för att dela prestationer"
+    },
+    "shareTitle": "Dela Dina Prestationer",
+    "shareDesc": "Baserat på din aktivitet har du uppnått imponerande milstolpar! Välj vad du vill dela med communityn.",
+    "consistentTracking": "Konsekvent spårning",
+    "helpedOthers": "Hjälpt andra hitta appen",
+    "inLeaderboard": "I community topplistan",
+    "activeMember": "Aktiv Medlem",
+    "partOfUsers": "En del av {{count}} användare",
+    "clickToShare": "",
+    "guidelines": {
+      "title": "Community-riktlinjer",
+      "supportive": "Var stöttande",
+      "supportiveDesc": "Uppmuntra och lyfta community-medlemmar",
+      "respectful": "Var respektfull",
+      "respectfulDesc": "Behandla alla med vänlighet och respekt",
+      "privacy": "Skydda integritet",
+      "privacyDesc": "Dela aldrig personlig information",
+      "report": "Rapportera problem",
+      "reportDesc": "Flagga olämpligt innehåll omedelbart"
+    },
+    "whyJoin": "Varför ansluta till communityn?",
+    "benefits": {
+      "motivation": "Motivation & stöd",
+      "motivationDesc": "Bli uppmuntrad av andra på samma resa",
+      "accountability": "Ansvarighet",
+      "sharedSuccess": "Delad framgång",
+      "sharedSuccessDesc": "Fira prestationer tillsammans"
+    }
+  },
+  "dashboardStats": {
+    "sectionTitle": "Statistik Översikt",
+    "moodTitle": "Ditt Humør",
+    "streakTitle": "Gjeldende Streak",
+    "chatsTitle": "AI Samtaler",
+    "achievementsTitle": "Prestasjoner",
+    "days": "dager",
+    "basedOnLogs": "basert på {{count}} logg(er)",
+    "streakActive": "Aktiv",
+    "total": "Totalt",
+    "progressOngoing": "Pågår",
+    "allUnlocked": "Alle opplåst!",
+    "noChatsThisWeek": "Ingen samtaler denne uken",
+    "oneChatThisWeek": "1 samtale denne uken",
+    "chatsThisWeek": "{{count}} samtaler denne uken",
+    "nextMilestone": "Neste milestone:",
+    "almostThere": "🎉 Nesten der! En aktivitet igjen!",
+    "activitiesToNext": "🎯 {{count}} aktiviteter til neste nivå",
+    "startJourney": "🌟 Begynn din reise! Logg ditt første humør for å låse opp din første prestasjon.",
+    "allAchievementsUnlocked": "✨ Alle prestasjoner opplåst!",
+    "hardDay": "En vanskelig dag akkurat nå 💙",
+    "yourMood": "Ditt humør: {{score}} av 10",
+    "moodAriaLabel": "Ditt humør: {{score}} av 10. En vanskelig dag akkurat nå.",
+    "itsOkay": " Det er helt greit å føle seg slik. Du er ikke alene.",
+    "talkToAI": "Chat med AI",
+    "getHelp": "Få hjelp nå",
+    "achievementProgress": "Prestasjon Fremgang",
+    "safetyBlock": "Sikkerhetsblokk"
+  },
+  "dashboardHeader": {
+    "updatingData": "Oppdaterer data...",
+    "autoUpdate": "Oppdateres automatisk",
+    "lastUpdated": "Oppdatert for {{minutes}} min siden",
+    "lastUpdatedAt": "Sist {{time}}"
+  },
+  "breath": {
+    "breathCount": "Åndedrag",
+    "of": "av",
+    "completed": "Bra jobbet! Du har fullført dagens 3 åndedrag.",
+    "duration": "Guidet øvelse: omtrent 30 sekunder.",
+    "ariaInProgress": "Guidet pusteøvelse pågår, følg instruksjonene",
+    "ariaContinue": "Fortsett til humørsjekk-inn",
+    "ariaStart": "Start guidet pusteøvelse",
+    "inProgress": "Guidet pause pågår...",
+    "continue": "Fortsett til humørsjekk-inn",
+    "skip": "Hopp over og fortsett"
   }
 }

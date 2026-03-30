@@ -234,55 +234,56 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     Math.max(safeDashboardStats.weeklyGoal - safeDashboardStats.weeklyProgress, 0)
   );
 
-  // Transform activities with icons and colors
-  // Transform activities with icons and colors
-  const activities: ActivityItem[] = safeDashboardStats.recentActivity.map(activity => {
-    let Icon = HeartIcon;
-    let colorClass = 'text-secondary-500';
+  // Transform activities with icons and colors - memoized for performance
+  const activities = useMemo(() => {
+    return safeDashboardStats.recentActivity.map(activity => {
+      let Icon = HeartIcon;
+      let colorClass = 'text-secondary-500';
 
-    switch (activity.type) {
-      case 'mood':
-        Icon = HeartIcon;
-        colorClass = 'text-secondary-500';
-        break;
-      case 'chat':
-        Icon = ChatBubbleLeftRightIcon;
-        colorClass = 'text-primary-500';
-        break;
-      case 'achievement':
-        Icon = TrophyIcon;
-        colorClass = 'text-warning-500';
-        break;
-      case 'meditation':
-        Icon = SparklesIcon;
-        colorClass = 'text-teal-500';
-        break;
-      case 'journal':
-        Icon = BookOpenIcon;
-        colorClass = 'text-indigo-500';
-        break;
-    }
+      switch (activity.type) {
+        case 'mood':
+          Icon = HeartIcon;
+          colorClass = 'text-secondary-500';
+          break;
+        case 'chat':
+          Icon = ChatBubbleLeftRightIcon;
+          colorClass = 'text-primary-500';
+          break;
+        case 'achievement':
+          Icon = TrophyIcon;
+          colorClass = 'text-warning-500';
+          break;
+        case 'meditation':
+          Icon = SparklesIcon;
+          colorClass = 'text-teal-500';
+          break;
+        case 'journal':
+          Icon = BookOpenIcon;
+          colorClass = 'text-indigo-500';
+          break;
+      }
 
-    return {
-      id: activity.id,
-      type: activity.type as 'mood' | 'chat' | 'achievement' | 'meditation' | 'journal',
-      timestamp: activity.timestamp instanceof Date ? activity.timestamp : new Date(activity.timestamp),
-      description: activity.description,
-      icon: <Icon className="w-5 h-5 sm:w-6 sm:h-6" />,
-      colorClass
-    };
-  }).filter((activity, index, arr) => {
-    // Deduplicera aktiviteter av samma typ/beskrivning som skett inom 5 minuter
-    return (
-      index ===
-      arr.findIndex((candidate) => {
-        if (candidate.id === activity.id) return true;
-        const timeDiffMs = Math.abs(candidate.timestamp.getTime() - activity.timestamp.getTime());
-        const isSameEvent = candidate.type === activity.type && candidate.description === activity.description;
-        return isSameEvent && timeDiffMs < 5 * 60 * 1000;
-      })
-    );
-  });
+      return {
+        id: activity.id,
+        type: activity.type as 'mood' | 'chat' | 'achievement' | 'meditation' | 'journal',
+        timestamp: activity.timestamp instanceof Date ? activity.timestamp : new Date(activity.timestamp),
+        description: activity.description,
+        icon: <Icon className="w-5 h-5 sm:w-6 sm:h-6" />,
+        colorClass
+      };
+    }).filter((activity, index, arr) => {
+      // Deduplicera aktiviteter av samma typ/beskrivning som skett inom 5 minuter
+      return (
+        index ===
+        arr.findIndex((candidate) => {
+          if (candidate.id === activity.id) return true;
+          const timeDiffMs = Math.abs(candidate.timestamp.getTime() - activity.timestamp.getTime());
+          const isSameEvent = candidate.type === activity.type && candidate.description === activity.description;
+          return isSameEvent && timeDiffMs < 5 * 60 * 1000;
+        })
+      );
+    });
+  }, [safeDashboardStats.recentActivity]);
 
   useEffect(() => {
     analytics.page('World Class Dashboard', {
@@ -447,7 +448,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       if (document.visibilityState === 'visible' && navigator.onLine) {
         handleRefresh('interval');
       }
-    }, 45000);
+    }, 300000); // 5 minuter istället för 45 sekunder
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('online', handleOnline);
@@ -651,9 +652,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 <button
                   onClick={() => setShowWellnessOnboarding(true)}
                   className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
-                  aria-label="Redigera wellness-mål"
+                  aria-label="Uppdatera wellness-mål"
                 >
-                  ✏️ Redigera
+                  📝 Uppdatera
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -801,7 +802,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </Alert>
             ) : (
               <p className="text-sm text-white/70">
-                {t('worldDashboard.entriesLeft', { count: formattedRemainingEntries })}
+                🎯 {formattedRemainingEntries} inlägg till ditt veckomål
               </p>
             )}
           </div>

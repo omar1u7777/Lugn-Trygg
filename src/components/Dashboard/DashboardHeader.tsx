@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboardData } from '../../hooks/useDashboardData';
 
 interface DashboardHeaderProps {
@@ -15,22 +16,22 @@ const getGreeting = (moodContext?: string): string => {
   const hour = new Date().getHours();
   let baseGreeting: string;
   
-  if (hour < 10) baseGreeting = "God morgon";
-  else if (hour < 14) baseGreeting = "God dag";
-  else if (hour < 18) baseGreeting = "God eftermiddag";
-  else baseGreeting = "God kväll";
+  if (hour < 10) baseGreeting = t('greeting.morning', 'God morgon');
+  else if (hour < 14) baseGreeting = t('greeting.day', 'God dag');
+  else if (hour < 18) baseGreeting = t('greeting.afternoon', 'God eftermiddag');
+  else baseGreeting = t('greeting.evening', 'God kväll');
   
   // Psykologisk personalisering baserad på mood
   if (moodContext) {
     const lowerMood = moodContext.toLowerCase();
     if (lowerMood.includes('stress') || lowerMood.includes('ångest') || lowerMood.includes('orolig')) {
-      return `${baseGreeting}. Ta det lugnt idag.`;
+      return `${baseGreeting}. ${t('greeting.takeItEasy', 'Ta det lugnt idag.')}`;
     }
     if (lowerMood.includes('trött') || lowerMood.includes('utmattad')) {
-      return `${baseGreeting}. Kom ihåg att vila är produktivt.`;
+      return `${baseGreeting}. ${t('greeting.restIsProductive', 'Kom ihåg att vila är produktivt.')}`;
     }
     if (lowerMood.includes('glad') || lowerMood.includes('lycklig') || lowerMood.includes('nöjd')) {
-      return `${baseGreeting}! Underbart att se dig.`;
+      return `${baseGreeting}! ${t('greeting.greatToSeeYou', 'Underbart att se dig.')}`;
     }
   }
   
@@ -144,6 +145,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   hasLoggedToday,
   lastMood,
 }) => {
+  const { t } = useTranslation();
   // Hämta dashboard data för mood-baserad personalisering
   const dashboardResult = userId ? useDashboardData(userId) : null;
   const stats = dashboardResult?.stats;
@@ -354,8 +356,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               />
               <span>
                 {isLoading
-                  ? 'Uppdaterar data...'
-                  : `Uppdateras automatiskt${getSmartTimestamp(lastUpdatedAt)}`}
+                  ? t('dashboardHeader.updatingData', 'Uppdaterar data...')
+                  : `${t('dashboardHeader.autoUpdate', 'Uppdateras automatiskt')}${getSmartTimestamp(lastUpdatedAt)}`}
               </span>
             </div>
           </div>
@@ -382,10 +384,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 </p>
                 <p className="mt-2 text-xs text-neutral-500 dark:text-slate-400" aria-live="polite">
                   {isBreathingSessionActive
-                    ? `Andetag ${activeBreathNumber} av ${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
+                    ? `${t('breath.breathCount', 'Andetag')} ${activeBreathNumber} ${t('breath.of', 'av')} ${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
                     : sessionCompleted
-                      ? 'Bra jobbat! Du har slutfört dagens 3 andetag.'
-                      : 'Guidad övning: cirka 30 sekunder.'}
+                      ? t('breath.completed', 'Bra jobbat! Du har slutfört dagens 3 andetag.')
+                      : t('breath.duration', 'Guidad övning: cirka 30 sekunder.')}
                 </p>
                 {(isBreathingSessionActive || sessionCompleted) && (
                   <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
@@ -400,16 +402,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
                   disabled={isBreathingSessionActive}
                   aria-label={isBreathingSessionActive 
-                    ? "Guidad andningsövning pågår, följ instruktionerna" 
+                    ? t('breath.ariaInProgress', 'Guidad andningsövning pågår, följ instruktionerna')
                     : sessionCompleted 
-                      ? "Fortsätt till humörcheck-in"
-                      : `Starta guidad andningsövning: ${focusContent.description}`}
+                      ? t('breath.ariaContinue', 'Fortsätt till humörcheck-in')
+                      : `${t('breath.ariaStart', 'Starta guidad andningsövning')}: ${focusContent.description}`}
                   className="mt-3 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                 >
                   {isBreathingSessionActive
-                    ? 'Guidad paus pågår...'
+                    ? t('breath.inProgress', 'Guidad paus pågår...')
                     : sessionCompleted
-                      ? 'Fortsätt till humörcheck-in'
+                      ? t('breath.continue', 'Fortsätt till humörcheck-in')
                       : focusContent.actionLabel}
                 </button>
                 {isBreathingSessionActive && (
@@ -418,7 +420,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     onClick={handleContinueToCheckIn}
                     className="mt-2 ml-2 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-xs font-semibold px-3 py-1.5 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                   >
-                    Hoppa över och fortsätt
+                    {t('breath.skip', 'Hoppa över och fortsätt')}
                   </button>
                 )}
               </div>

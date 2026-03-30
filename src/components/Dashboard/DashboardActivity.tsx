@@ -23,6 +23,7 @@ interface ActivityGroup {
   items: ActivityItem[];
 }
 
+const MAX_VISIBLE_ACTIVITIES = 12; 
 const getActivityGroupKey = (timestamp: Date): ActivityGroup['key'] => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -61,13 +62,15 @@ const TimelineItem: React.FC<{ activity: ActivityItem; index: number }> = ({ act
         <div className="absolute left-[19px] sm:left-[23px] -top-8 h-8 w-0.5 bg-gray-200 dark:bg-gray-700" aria-hidden="true" />
       )}
 
-      {/* Timeline Dot/Icon */}
+      {/* Timeline Dot/Icon - uses activity.type for reliable color matching */}
       <div
         className={`absolute left-0 top-0 w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center z-10 
-          transform transition-transform duration-300 group-hover:scale-110 shadow-sm
-          ${activity.id.includes('mood') ? 'bg-pink-50 text-pink-500 dark:bg-pink-900/20 dark:text-pink-300' :
-            activity.id.includes('chat') ? 'bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-300' :
-              'bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-300'}
+          transform transition-transform duration-300 group-hover:scale-110 shadow-sm motion-reduce:transform-none
+          ${activity.type === 'mood' ? 'bg-pink-50 text-pink-500 dark:bg-pink-900/20 dark:text-pink-300' :
+            activity.type === 'chat' ? 'bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-300' :
+              activity.type === 'meditation' ? 'bg-teal-50 text-teal-500 dark:bg-teal-900/20 dark:text-teal-300' :
+                activity.type === 'journal' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-300' :
+                  'bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-300'}
         `}
       >
         <span className="text-xl sm:text-2xl filter drop-shadow-sm">{activity.icon}</span>
@@ -111,7 +114,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
       { key: 'older', label: 'Äldre', items: [] },
     ];
 
-    activities.slice(0, 8).forEach((activity) => {
+    activities.slice(0, MAX_VISIBLE_ACTIVITIES).forEach((activity) => {
       const groupKey = getActivityGroupKey(activity.timestamp);
       const targetGroup = groups.find((group) => group.key === groupKey);
       if (targetGroup) {
@@ -173,10 +176,13 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
         ))}
       </div>
 
-      {activities.length > 8 && (
+      {activities.length > MAX_VISIBLE_ACTIVITIES && (
         <div className="text-center mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
-          <button className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">
-            Visa äldre aktiviteter
+          <button 
+            className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            onClick={() => {/* TODO: Implement load more functionality */}}
+          >
+            Visa äldre aktiviteter ({activities.length - MAX_VISIBLE_ACTIVITIES} till)
           </button>
         </div>
       )}

@@ -181,30 +181,33 @@ const BentoItem: React.FC<{
   value: string | number;
   icon: string;
   className?: string;
-  trend?: { direction: 'up' | 'down' | 'stable'; value: string };
+  trend?: { direction: 'up' | 'down' | 'stable'; value: string; } | undefined;
   color: 'primary' | 'secondary' | 'accent' | 'neutral';
   large?: boolean;
   children?: React.ReactNode;
   subtitle?: string;
-}> = ({ title, value, icon, className = '', trend, color, large, children, subtitle }) => {
+  valueClassName?: string;
+  label?: string | undefined;
+  ariaLabel?: string;
+}> = ({ title, value, icon, className = '', trend, color, large, children, subtitle, valueClassName, label, ariaLabel }) => {
   
   const bgColors = BG_COLORS;
   const iconColors = ICON_COLORS;
 
-  // Psychologically-informed color coding
-  // "Down" trends use calming blue/indigo instead of alarming amber/red
-  const trendBadgeClass =
-    trend?.direction === 'up'
-      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-      : trend?.direction === 'down'
-        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-        : 'bg-white/70 text-neutral-700 dark:bg-slate-700/60 dark:text-neutral-200';
+  // Psychologically-informed trend icons and labels
+  const trendConfig = {
+    up: { icon: '✦', label: 'Positiv utveckling', color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+    down: { icon: '~', label: 'Naturlig variation', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
+    stable: { icon: '○', label: 'Stabilt', color: 'bg-white/90 text-neutral-700 dark:bg-slate-700/80 dark:text-neutral-200 shadow-sm' }
+  };
+
+  const currentTrend = trend ? trendConfig[trend.direction] : null;
 
   return (
     <div 
       className={`relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 
         hover:scale-[1.02] hover:shadow-lg border border-transparent hover:border-black/5 
-        active:scale-[0.98] cursor-pointer select-none
+        active:scale-[0.98] cursor-pointer select-none min-h-[160px]
         ${bgColors[color]} ${className}`}
     >
       <div className="flex justify-between items-start mb-4">
@@ -214,12 +217,13 @@ const BentoItem: React.FC<{
         >
           {icon}
         </div>
-        {trend && (
+        {trend && currentTrend && (
           <span 
-            className={`text-xs font-medium px-2 py-1 rounded-full backdrop-blur-sm 
-              transition-colors duration-200 ${trendBadgeClass}`}
+            className={`text-xs font-medium px-2 sm:px-2.5 py-1 rounded-full backdrop-blur-sm 
+              transition-colors duration-200 ${currentTrend.color}`}
+            title={`Visar din måendets riktning över tid: ${currentTrend.label}`}
           >
-            {trend.direction === 'up' ? '↗' : trend.direction === 'down' ? '→' : '→'} {trend.value}
+            {currentTrend.icon} {currentTrend.label}
           </span>
         )}
       </div>
@@ -228,9 +232,17 @@ const BentoItem: React.FC<{
         <p className="text-sm font-medium opacity-70 mb-1 uppercase tracking-wider">
           {title}
         </p>
-        <h3 className={`font-serif font-bold text-2xl sm:text-3xl ${large ? 'lg:text-4xl' : ''}`}>
+        <h3 
+          className={valueClassName || `font-serif font-bold text-2xl sm:text-3xl ${large ? 'lg:text-4xl' : ''}`}
+          aria-label={ariaLabel}
+        >
           {value}
         </h3>
+        {label && (
+          <p className="text-xs mt-1 font-medium text-rose-600 dark:text-rose-400">
+            {label}
+          </p>
+        )}
         {subtitle && (
           <p className="text-xs mt-1 opacity-60">
             {subtitle}
@@ -259,8 +271,8 @@ const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between text-xs mb-1.5">
-        <span className="text-gray-500">Konsekvens denna period</span>
-        <span className="font-medium text-gray-700">{current} av {total} dagar</span>
+        <span className="text-gray-500">Din aktivitet</span>
+        <span className="font-medium text-gray-700">{current} av {total} {total === 1 ? 'dag' : 'dagar'}</span>
       </div>
       
       <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -271,7 +283,11 @@ const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({
       </div>
       
       <p className="mt-1.5 text-xs text-gray-500">
-        🌱 Varje dag räknas - oavsett om det är i rad eller inte
+        {current === 1 && '🌱 Bra start! Fortsätt så.'}
+        {current === 2 && '🌱 Fin rytm byggs upp!'}
+        {current >= 3 && current < 5 && '✨ Stark konsekvens!'}
+        {current >= 5 && '🔥 Imponerande dedikation!'}
+        {current === 0 && '🌱 Varje dag är en ny möjlighet'}
       </p>
     </div>
   );
@@ -284,22 +300,47 @@ const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({
 const AchievementProgress: React.FC<{ 
   count: number; 
   nextIn?: number;
-}> = ({ count: _count, nextIn }) => {
-  if (!nextIn || nextIn <= 0) {
+}> = ({ count, nextIn }) => {
+  const { t } = useTranslation();
+  
+  // 🎯 Special case for new users - welcoming message instead of progress
+  if (count === 0) {
     return (
-      <div className="mt-3 text-xs text-emerald-600 font-medium">
-        ✨ Alla achievements upplåsta!
+      <div className="mt-3">
+        <div className="text-xs text-gray-600 dark:text-gray-300 mb-2">
+          {t('dashboardStats.startJourney')}
+        </div>
+        <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-500"
+            style={{ width: '5%' }}
+          />
+        </div>
       </div>
     );
   }
 
-  const progress = Math.max(0, 100 - (nextIn * 10)); // Approximate progress
+  if (!nextIn || nextIn <= 0) {
+    return (
+      <div className="mt-3 text-xs text-emerald-600 font-medium">
+        {t('dashboardStats.allAchievementsUnlocked')}
+      </div>
+    );
+  }
+
+  // Calculate actual progress toward next milestone
+  const milestones = [1, 3, 5, 10, 15, 20, 25, 30, 40, 50];
+  const currentMilestone = milestones.find(m => m > count) || 50;
+  const previousMilestone = milestones[milestones.indexOf(currentMilestone) - 1] || 0;
+  const progressInMilestone = count - previousMilestone;
+  const milestoneSize = currentMilestone - previousMilestone;
+  const progress = Math.min((progressInMilestone / milestoneSize) * 100, 100);
   
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-gray-500">Nästa achievement:</span>
-        <span className="font-medium text-gray-700">{nextIn} {nextIn === 1 ? 'aktivitet' : 'aktiviteter'} kvar</span>
+        <span className="text-gray-500">{t('dashboardStats.nextMilestone')}</span>
+        <span className="font-medium text-gray-700">{count} / {currentMilestone}</span>
       </div>
       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
@@ -307,6 +348,11 @@ const AchievementProgress: React.FC<{
           style={{ width: `${progress}%` }}
         />
       </div>
+      <p className="mt-1.5 text-xs text-gray-500">
+        {nextIn === 1 
+          ? t('dashboardStats.almostThere') 
+          : t('dashboardStats.activitiesToNext', { count: nextIn })}
+      </p>
     </div>
   );
 };
@@ -339,7 +385,33 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   // 💚 Psykologisk säkerhetsspärr för lågt mående
   const showSafetyBlock = stats.averageMood <= 4 && stats.averageMood > 0;
 
-  // Calculate weekly activity context
+  // 🎯 Dynamisk mood display - mindre klinisk för låga värden
+  const moodDisplay = useMemo(() => {
+    const score = stats.averageMood;
+    
+    if (score <= 4 && score > 0) {
+      // För lågt mående: hela tal, varm text, mindre font, kvalitativ etikett
+      return {
+        value: `${Math.round(score)} ${t('dashboardStats.days') === 'dagar' ? 'av' : 'of'} 10`, // "3 av 10" inte "3,0/10"
+        className: 'font-serif font-bold text-xl sm:text-2xl text-rose-600 dark:text-rose-400',
+        label: t('dashboardStats.hardDay'),
+        ariaLabel: t('dashboardStats.moodAriaLabel', { score: Math.round(score) }),
+      };
+    }
+    
+    return {
+      value: `${formatNumber(score, { minimumFractionDigits: 1 })} ${t('dashboardStats.days') === 'dagar' ? 'av' : 'of'} 10`,
+      className: `font-serif font-bold text-2xl sm:text-3xl ${score >= 7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-secondary-600 dark:text-secondary-400'}`,
+      label: undefined,
+      ariaLabel: t('dashboardStats.yourMood', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
+    };
+  }, [stats.averageMood, t]);
+
+  // 🎯 Dynamisk streak display med singular/plural
+  const streakText = useMemo(() => {
+    const days = stats.streakDays;
+    return `${days} ${days === 1 ? 'dag' : 'dagar'}`;
+  }, [stats.streakDays]);
   const weeklyContext = useMemo(() => {
     const weekly = stats.weeklyChats || 0;
     if (weekly === 0) return t('dashboardStats.noChatsThisWeek');
@@ -370,12 +442,15 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
         {/* Main Hero Card - Mood with Sparkline */}
         <BentoItem
           title={t('dashboardStats.moodTitle')}
-          value={`${formatNumber(stats.averageMood, { minimumFractionDigits: 1 })}/10`}
+          value={moodDisplay.value}
+          valueClassName={moodDisplay.className}
+          label={moodDisplay.label}
+          ariaLabel={moodDisplay.ariaLabel}
           icon="❤️"
           color="secondary"
           large
           className="md:col-span-2 md:row-span-1"
-          trend={moodTrend}
+          trend={showSafetyBlock ? undefined : moodTrend}
           subtitle={t('dashboardStats.basedOnLogs', { count: moodSampleCount })}
         >
           {/* Mini sparkline - dold på mobil för att spara plats */}
@@ -389,20 +464,20 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           {showSafetyBlock && (
             <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
               <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">
-                💙 Det är okej att må så här. Du är inte ensam.
+                {t('dashboardStats.itsOkay')}
               </p>
               <div className="mt-2 flex gap-2">
                 <a 
                   href="/ai-chat" 
                   className="text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition-colors"
                 >
-                  Prata med AI
+                  {t('dashboardStats.talkToAI')}
                 </a>
                 <a 
                   href="/crisis" 
                   className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
                 >
-                  Få hjälp nu
+                  {t('dashboardStats.getHelp')}
                 </a>
               </div>
             </div>
@@ -412,7 +487,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
         {/* Streak Card - Ny "consistency" design utan loss aversion */}
         <BentoItem
           title={t('dashboardStats.streakTitle')}
-          value={`${stats.streakDays} ${t('dashboardStats.days')}`}
+          value={streakText}
           icon="🌱"
           color="accent"
           trend={{ direction: 'up', value: t('dashboardStats.streakActive') }}
