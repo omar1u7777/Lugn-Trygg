@@ -117,18 +117,11 @@ const RecommendationsSkeleton = () => (
  * - NO MUI - Pure Tailwind CSS
  */
 // Helper function för implementation intentions (nästa steg per mål)
-const getNextStepForGoal = (goal: string): string => {
-  const steps: Record<string, string[]> = {
-    'Bättre sömn': ['Gå och lägg dig 22:00 idag', 'Stäng av skärmar 1h innan säng', 'Läs en bok istället för telefon'],
-    'Ökad fokusering': ['Ta 3 djupa andetag nu', 'Stäng av notifikationer 30 min', 'Arbeta i 25-min intervall'],
-    'Hantera stress': ['Gör 3-minuters andningsövning', 'Ta en kort promenad', 'Skriv ner 3 saker du är tacksam för'],
-    'Mer energi': ['Drick ett glas vatten', 'Gör 5-minuters stretching', 'Ta en power nap 20 min'],
-    'Bättre humör': ['Lyssna på din favoritlåt', 'Ring en vän', 'Gör något snällt för någon'],
-  };
-  
-  const goalSteps = steps[goal] || ['Logga ditt humör idag', 'Reflektera över dagen', 'Sätt ett litet mål för imorgon'];
+const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string => {
+  const steps = t('dashboard.goalSteps') as Record<string, string[]> | undefined;
+  const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || ['Logga ditt humör idag'];
   const randomStep = goalSteps[Math.floor(Math.random() * goalSteps.length)];
-  return randomStep || 'Fortsätt arbeta med ditt mål';
+  return randomStep || ((steps?.['fallback'] as string) || 'Fortsätt arbeta med ditt mål');
 };
 
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
@@ -323,7 +316,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     if (checkoutCanceled) {
       setSnackbar({
         open: true,
-        message: 'Köpet avbröts. Du kan prova igen när du är redo.',
+        message: t('dashboard.purchaseCancelled'),
         variant: 'info',
       });
       clearCheckoutParams();
@@ -333,7 +326,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     if (!resolvedUserId) {
       setSnackbar({
         open: true,
-        message: 'Kunde inte verifiera prenumerationen. Logga in igen och försök på nytt.',
+        message: t('dashboard.verifyFailed'),
         variant: 'warning',
       });
       clearCheckoutParams();
@@ -345,7 +338,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     const syncSubscriptionFromStripe = async () => {
       setSnackbar({
         open: true,
-        message: 'Verifierar din betalning och uppdaterar Premium ...',
+        message: t('dashboard.verifying'),
         variant: 'info',
       });
 
@@ -360,7 +353,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
             if (!cancelled) {
               setSnackbar({
                 open: true,
-                message: 'Premium är nu aktivt. Välkommen!',
+                message: t('dashboard.premiumActive'),
                 variant: 'success',
               });
               analytics.track('Stripe Checkout Synced', {
@@ -384,7 +377,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       if (!cancelled) {
         setSnackbar({
           open: true,
-          message: 'Betalningen registrerades. Premium uppdateras inom kort automatiskt.',
+          message: t('dashboard.paymentRegistered'),
           variant: 'warning',
         });
         clearCheckoutParams();
@@ -396,7 +389,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       if (!cancelled) {
         setSnackbar({
           open: true,
-          message: 'Kunde inte uppdatera prenumerationen just nu. Försök igen om en stund.',
+          message: t('dashboard.updateFailed'),
           variant: 'error',
         });
         clearCheckoutParams();
@@ -597,7 +590,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
       {/* Hero Header */}
       <DashboardHeader
-        userName={extractDisplayName(user?.email || '') || 'vän'}
+        userName={extractDisplayName(user?.email || '') || t('dashboard.friend')}
         isLoading={loading}
         lastUpdatedAt={lastUpdatedAt}
         onFocusAction={scrollToMoodCheckIn}
@@ -652,16 +645,16 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 <button
                   onClick={() => setShowWellnessOnboarding(true)}
                   className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
-                  aria-label="Uppdatera wellness-mål"
+                  aria-label={t('dashboard.updateGoalsAria')}
                 >
-                  📝 Uppdatera
+                  {t('dashboard.updateGoals')}
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
                   // Simulated progress - in real app would come from backend
                   const progress = Math.min(((safeDashboardStats.weeklyProgress || 0) / (safeDashboardStats.weeklyGoal || 1)) * 100, 100);
-                  const nextStep = getNextStepForGoal(goal);
+                  const nextStep = getNextStepForGoal(goal, t);
                   
                   return (
                     <div
@@ -700,7 +693,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       
                       {/* Implementation intention - Next step */}
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Nästa steg: {nextStep}
+                        {t('dashboard.nextStep')}: {nextStep}
                       </p>
                       
                       {/* CTA for recommendations */}
@@ -708,7 +701,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         onClick={() => navigate('/recommendations')}
                         className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline mt-1 text-left"
                       >
-                        Se rekommendationer →
+                        {t('worldDashboard.seeRecommendations')}
                       </button>
                     </div>
                   );
@@ -733,7 +726,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {/* Subtle refresh indicator */}
                 {loading && (
                   <span className="ml-auto text-xs text-gray-400 animate-pulse">
-                    Uppdaterar...
+                    {t('common.updating')}
                   </span>
                 )}
               </div>
@@ -802,7 +795,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </Alert>
             ) : (
               <p className="text-sm text-white/70">
-                🎯 {formattedRemainingEntries} inlägg till ditt veckomål
+                🎯 {t('dashboard.weeklyGoalProgress', { count: formattedRemainingEntries })}
               </p>
             )}
           </div>

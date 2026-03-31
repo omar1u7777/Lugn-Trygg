@@ -29,6 +29,8 @@ export interface SubscriptionFeatures {
   aiStories: boolean;
   recommendations: boolean;
   wellness: boolean;
+  advancedMood: boolean;
+  moodForecast: boolean;
   [key: string]: boolean;
 }
 
@@ -85,6 +87,9 @@ const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 
 const createPlan = (tier: SubscriptionTier): SubscriptionPlan => {
   const config = PLAN_CONFIG[tier] ?? PLAN_CONFIG['free'];
+  if (!config) {
+    throw new Error(`Invalid tier: ${tier}`);
+  }
   return {
     tier,
     limits: config.limits,
@@ -211,7 +216,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         ...basePlan,
         tier: resolvedTier,
         limits: data.limits || basePlan.limits,
-        features: data.features || basePlan.features,
+        features: { ...basePlan.features, ...(data.features || {}) } as SubscriptionFeatures,
         name: data.name || basePlan.name,
         price: typeof data.price === 'number' ? data.price : basePlan.price,
         currency: data.currency || basePlan.currency,

@@ -100,3 +100,15 @@ export const WELLNESS_GOAL_BY_ID = WELLNESS_GOAL_OPTIONS.reduce<Record<string, W
 }, {});
 
 export const getWellnessGoalIcon = (goalId: string): string => WELLNESS_GOAL_BY_ID[goalId]?.icon || '✨';
+
+export const getWellnessGoalLabel = (goalId: string, t: (key: string) => string): string => {
+  const translated = t(`wellnessGoalLabels.${goalId}.label`);
+  if (translated && translated !== `wellnessGoalLabels.${goalId}.label`) return translated;
+  return WELLNESS_GOAL_BY_ID[goalId]?.label || goalId;
+};
+
+export const getWellnessGoalDescription = (goalId: string, t: (key: string) => string): string => {
+  const translated = t(`wellnessGoalLabels.${goalId}.desc`);
+  if (translated && translated !== `wellnessGoalLabels.${goalId}.desc`) return translated;
+  return WELLNESS_GOAL_BY_ID[goalId]?.description || '';
+};

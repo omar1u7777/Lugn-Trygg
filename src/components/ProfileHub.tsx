@@ -3,13 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, Input, Snackbar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import PrivacySettings from './PrivacySettings';
+import DeleteAccountFlow from './ProfileHub/DeleteAccountFlow';
+import PremiumUpsell from './ProfileHub/PremiumUpsell';
+import PasswordStrengthIndicator from './ui/PasswordStrengthIndicator';
+import ScrollableTabs from './ui/ScrollableTabs';
 import { ThemeToggle } from './ui/ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import OptimizedImage from './ui/OptimizedImage';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useDebouncedSave } from '../hooks/useDebouncedSave';
 import { getMoods, getChatHistory, getMemories, changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
-import { getUserProfile, updateUserPreferences } from '../api/users';
+import { getUserProfile, getUserStats, updateUserPreferences } from '../api/users';
 import { getApiErrorMessage } from '../api/errorUtils';
 import { logger } from '../utils/logger';
 import {
@@ -54,12 +59,27 @@ const ProfileHub: React.FC = () => {
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
   const [activeTab, setActiveTab] = useState(0);
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    dataSharing: false,
-    publicProfile: false,
-  });
+  
+  // DEBOUNCED: Use debounced save for settings
+  const settingsManager = useDebouncedSave(
+    {
+      emailNotifications: true,
+      pushNotifications: false,
+      dataSharing: false,
+      publicProfile: false,
+    },
+    {
+      onSave: async (settings) => {
+        await updateUserPreferences(settings);
+        showSnackbar(t('profileHub.settingsSaved', 'Inställningar sparade'), 'success');
+      },
+      delay: 1000,
+      onError: (error) => {
+        showSnackbar(getApiErrorMessage(error, 'Kunde inte spara inställningar'), 'error');
+      }
+    }
+  );
+  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges } = settingsManager;
   const [profileStats, setProfileStats] = useState<ProfileStats>({
     totalMoods: 0,
     totalConversations: 0,
@@ -116,55 +136,52 @@ const ProfileHub: React.FC = () => {
       }
 
       try {
-        logger.debug('📊 PROFILE HUB - Fetching moods, chats, memories, profile...');
-        // Fetch user activity data and saved preferences
-        const [moods, chatHistoryResult, memories, profileResult] = await Promise.allSettled([
-          getMoods(user.user_id),
-          getChatHistory(user.user_id),
-          getMemories(user.user_id),
+        logger.debug('📊 PROFILE HUB - Fetching aggregated stats and profile...');
+        // OPTIMIZED: Use aggregated stats endpoint instead of fetching all data
+        const [statsResult, profileResult] = await Promise.allSettled([
+          getUserStats(),
           getUserProfile(),
         ]);
 
         // Load saved settings from profile
         const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
         if (profile?.preferences) {
-          setSettings(prev => ({
-            ...prev,
+          const loadedSettings = {
+            emailNotifications: true,
+            pushNotifications: false,
+            dataSharing: false,
+            publicProfile: false,
             ...(typeof profile.preferences === 'object' ? profile.preferences : {}),
-          }));
+          };
+          updateSettings(loadedSettings);
         }
 
-        // Calculate account age from user creation date
-        let accountAge = 0;
-        if (user.createdAt) {
+        // Use aggregated stats from backend
+        const stats = statsResult.status === 'fulfilled' ? statsResult.value : null;
+        
+        // Fallback: Calculate account age from user creation date if not provided
+        let accountAge = stats?.accountAge || 0;
+        if (!accountAge && user.createdAt) {
           const created = typeof user.createdAt === 'string' ? new Date(user.createdAt) : user.createdAt;
           if (!isNaN(created.getTime())) {
             accountAge = Math.max(1, Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24)));
           }
         }
 
-        const moodsData = moods.status === 'fulfilled' ? moods.value : [];
-        const chatData = chatHistoryResult.status === 'fulfilled' ? chatHistoryResult.value : { conversation: [] };
-        const memoriesData = memories.status === 'fulfilled' ? memories.value : [];
-
         setProfileStats({
-          totalMoods: Array.isArray(moodsData) ? moodsData.length : 0,
-          totalConversations: chatData?.conversation?.length || 0,
-          totalMemories: Array.isArray(memoriesData) ? memoriesData.length : 0,
+          totalMoods: stats?.totalMoods || 0,
+          totalConversations: stats?.totalConversations || 0,
+          totalMemories: stats?.totalMemories || 0,
           accountAge,
         });
-        logger.debug('✅ PROFILE HUB - Stats calculated', {
-          totalMoods: Array.isArray(moodsData) ? moodsData.length : 0,
+        logger.debug('✅ PROFILE HUB - Stats loaded from backend', {
+          totalMoods: stats?.totalMoods || 0,
           accountAge,
         });
       } catch (error: unknown) {
         logger.error('❌ PROFILE HUB - Failed to fetch profile data:', error);
-        // CRITICAL FIX: Better error handling with user-friendly messages
-        const errorMessage = error instanceof Error && 'response' in error && typeof error.response === 'object' && error.response && 'data' in error.response && typeof error.response.data === 'object' && error.response.data && 'error' in error.response.data
-          ? String(error.response.data.error)
-          : error instanceof Error ? error.message : 'Kunde inte ladda profildata';
-        // CRITICAL FIX: Log error (component doesn't have error state, but we log it)
-        logger.error('Profile data fetch error:', errorMessage);
+        const errorMessage = error instanceof Error ? error.message : 'Kunde inte ladda profildata';
+        showSnackbar(errorMessage, 'error');
       } finally {
         setLoading(false);
       }
@@ -180,17 +197,8 @@ const ProfileHub: React.FC = () => {
 
   const handleSettingChange = (setting: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const checked = event.target.checked;
-    setSettings(prev => {
-      const newSettings = { ...prev, [setting]: checked };
-      // Persist to backend
-      updateUserPreferences(newSettings).catch((err) => {
-        logger.error('Failed to save setting', err);
-        showSnackbar('Kunde inte spara inställning', 'error');
-        // Revert only this specific setting on failure
-        setSettings(p => ({ ...p, [setting]: !checked }));
-      });
-      return newSettings;
-    });
+    // DEBOUNCED: Update settings with automatic save
+    updateSettings(prev => ({ ...prev, [setting]: checked }));
   };
 
   // Modal handlers
@@ -212,10 +220,8 @@ const ProfileHub: React.FC = () => {
   const validatePassword = (password: string): string | null => {
     if (!password) return 'Lösenord krävs';
     if (password.length < 8) return 'Lösenord måste vara minst 8 tecken';
-    if (!/[A-Z]/.test(password)) return 'Lösenord måste innehålla stor bokstav';
-    if (!/[a-z]/.test(password)) return 'Lösenord måste innehålla liten bokstav';
-    if (!/\d/.test(password)) return 'Lösenord måste innehålla siffra';
-    if (!/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]/.test(password)) return 'Lösenord måste innehålla specialtecken';
+    // Only show error for missing requirements if user has tried to submit
+    // Visual feedback will guide them for other requirements
     return null;
   };
 
@@ -249,6 +255,16 @@ const ProfileHub: React.FC = () => {
     }
   };
 
+  const validatePasswordFull = (password: string): string | null => {
+    if (!password) return 'Lösenord krävs';
+    if (password.length < 8) return 'Lösenord måste vara minst 8 tecken';
+    if (!/[A-Z]/.test(password)) return 'Lösenord måste innehålla stor bokstav';
+    if (!/[a-z]/.test(password)) return 'Lösenord måste innehålla liten bokstav';
+    if (!/\d/.test(password)) return 'Lösenord måste innehålla siffra';
+    if (!/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]/.test(password)) return 'Lösenord måste innehålla specialtecken';
+    return null;
+  };
+
   const handleChangePassword = async () => {
     setFormErrors({});
     const { currentPassword, newPassword, confirmPassword } = changePasswordForm;
@@ -258,7 +274,8 @@ const ProfileHub: React.FC = () => {
       return;
     }
 
-    const passwordError = validatePassword(newPassword);
+    // Full validation on submit
+    const passwordError = validatePasswordFull(newPassword);
     if (passwordError) {
       setFormErrors({ newPassword: passwordError });
       return;
@@ -335,21 +352,8 @@ const ProfileHub: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!user?.user_id) return;
-
-    setModalLoading(true);
-    try {
-      await deleteAccount(user.user_id);
-      showSnackbar('Kontot raderas. Du loggas ut.', 'success');
-      // Logout user
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
-    } catch (error: unknown) {
-      showSnackbar(getApiErrorMessage(error, 'Kunde inte radera kontot'), 'error');
-    } finally {
-      setModalLoading(false);
-    }
+    // This is now handled by DeleteAccountFlow component
+    showSnackbar('Raderingsflöde startat', 'info');
   };
 
   return (
@@ -442,11 +446,11 @@ const ProfileHub: React.FC = () => {
               </div>
               <div>
                 <h3 className={`text-xl sm:text-2xl font-bold ${isPremium ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                  {isPremium ? '⭐ Premium-medlem' : isTrial ? '🎁 Provperiod' : '🆓 Gratis-plan'}
+                  {isPremium ? `⭐ ${t('profileHub.premiumMember')}` : isTrial ? `🎁 ${t('profileHub.trial')}` : `🆓 ${t('profileHub.freePlan')}`}
                 </h3>
                 <p className={`text-sm ${isPremium ? 'text-white/80' : 'text-gray-600 dark:text-gray-400'}`}>
                   {isPremium
-                    ? 'Obegränsad tillgång till alla funktioner'
+                    ? t('profileHub.unlimitedAccess')
                     : `${getRemainingMoodLogs()} humörloggningar kvar idag • ${getRemainingMessages()} chattmeddelanden kvar`
                   }
                 </p>
@@ -459,7 +463,7 @@ const ProfileHub: React.FC = () => {
                 className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
                 onClick={() => navigate('/upgrade')}
               >
-                Uppgradera till Premium
+                {t('profileHub.upgradeToPremium')}
               </Button>
             )}
           </div>
@@ -470,7 +474,7 @@ const ProfileHub: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">Humörloggningar</span>
+                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.moodLogs')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">{usage.moodLogs}/{plan.limits.moodLogsPerDay}</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
@@ -482,7 +486,7 @@ const ProfileHub: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">Chattmeddelanden</span>
+                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.chatMessages')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">{usage.chatMessages}/{plan.limits.chatMessagesPerDay}</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
@@ -494,7 +498,7 @@ const ProfileHub: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">Historik</span>
+                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.history')}</span>
                     <span className="font-medium text-gray-900 dark:text-white">{plan.limits.historyDays} dagar</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
@@ -507,33 +511,29 @@ const ProfileHub: React.FC = () => {
         </div>
       </Card>
 
+      {/* Contextual Premium Upsell */}
+      {!isPremium && (
+        <PremiumUpsell
+          usage={usage}
+          stats={profileStats}
+          className="mb-6 sm:mb-8"
+        />
+      )}
+
       {/* Tabs for different profile sections */}
       <Card className="world-class-dashboard-card">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex overflow-x-auto" role="tablist" aria-label="Profile sections">
-            {[
-              { icon: <UserIcon className="w-5 h-5" />, label: 'Kontoinställningar', index: 0 },
-              { icon: <ShieldCheckIcon className="w-5 h-5" />, label: 'Integritet', index: 1 },
-              { icon: <BellIcon className="w-5 h-5" />, label: 'Notiser', index: 2 },
-              { icon: <Cog6ToothIcon className="w-5 h-5" />, label: 'Utseende', index: 3 },
-            ].map((tab) => (
-              <button
-                key={tab.index}
-                onClick={() => setActiveTab(tab.index)}
-                role="tab"
-                className={`flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${activeTab === tab.index
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
-                id={`profile-tab-${tab.index}`}
-                aria-controls={`profile-tabpanel-${tab.index}`}
-                aria-selected={activeTab === tab.index}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+        <div className="border-b border-gray-200 dark:border-gray-700 relative">
+          <ScrollableTabs
+            tabs={[
+              { icon: <UserIcon className="w-5 h-5" />, label: t('profileHub.tabAccount'), index: 0 },
+              { icon: <ShieldCheckIcon className="w-5 h-5" />, label: t('profileHub.tabPrivacy'), index: 1 },
+              { icon: <BellIcon className="w-5 h-5" />, label: t('profileHub.tabNotifications'), index: 2 },
+              { icon: <Cog6ToothIcon className="w-5 h-5" />, label: t('profileHub.tabAppearance'), index: 3 },
+            ]}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            ariaLabel="Profile sections"
+          />
         </div>
 
         <div className="p-4 sm:p-6">
@@ -541,23 +541,23 @@ const ProfileHub: React.FC = () => {
           <TabPanel value={activeTab} index={0}>
             <div className="space-y-4 sm:space-y-6">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                Kontoinformation
+                {t('profileHub.accountInfo')}
               </h3>
               <div className="space-y-4">
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
-                      E-postadress
+                      {t('profileHub.emailAddress')}
                     </p>
                     <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
-                      {user?.email || 'Ej inloggad'}
+                      {user?.email || t('profileHub.notLoggedIn')}
                     </p>
                     <Button
                       variant="outline"
                       size="small"
                       onClick={() => setChangeEmailModal(true)}
                     >
-                      Ändra e-post
+                      {t('profileHub.changeEmail')}
                     </Button>
                   </div>
                 </Card>
@@ -565,7 +565,7 @@ const ProfileHub: React.FC = () => {
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
-                      Lösenord
+                      {t('profileHub.password')}
                     </p>
                     <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
                       ••••••••••
@@ -575,7 +575,7 @@ const ProfileHub: React.FC = () => {
                       size="small"
                       onClick={() => setChangePasswordModal(true)}
                     >
-                      Ändra lösenord
+                      {t('profileHub.changePassword')}
                     </Button>
                   </div>
                 </Card>
@@ -583,10 +583,10 @@ const ProfileHub: React.FC = () => {
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">
-                      🔐 Tvåfaktorsautentisering
+                      🔐 {t('profileHub.twoFactor')}
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Lägg till ett extra lager av säkerhet på ditt konto
+                      {t('profileHub.twoFactorDesc')}
                     </p>
                     <Button
                       variant="primary"
@@ -594,7 +594,7 @@ const ProfileHub: React.FC = () => {
                       onClick={handleEnable2FA}
                       disabled={modalLoading}
                     >
-                      {modalLoading ? 'Konfigurerar...' : 'Aktivera 2FA'}
+                      {modalLoading ? t('profileHub.configuring') : t('profileHub.enable2FA')}
                     </Button>
                   </div>
                 </Card>
@@ -609,7 +609,7 @@ const ProfileHub: React.FC = () => {
             ) : (
               <div className="text-center py-8 sm:py-12">
                 <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
-                  Logga in för att hantera integritetsinställningar
+                  {t('profileHub.loginForPrivacy')}
                 </p>
               </div>
             )}
@@ -618,18 +618,35 @@ const ProfileHub: React.FC = () => {
           {/* Notifications Tab */}
           <TabPanel value={activeTab} index={2}>
             <div className="space-y-4 sm:space-y-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                Aviseringsinställningar
-              </h3>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                  {t('profileHub.notificationSettings')}
+                </h3>
+                {hasUnsavedChanges && (
+                  <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                    {isSavingSettings ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                        Sparar...
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-amber-600 rounded-full" />
+                        Osparade ändringar
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="space-y-4">
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <label className="flex items-center justify-between p-4 sm:p-6 cursor-pointer">
                     <div className="flex-1">
                       <p className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                        E-postnotiser
+                        {t('profileHub.emailNotifications')}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Ta emot uppdateringar och insikter via e-post
+                        {t('profileHub.emailNotificationsDesc')}
                       </p>
                     </div>
                     <input
@@ -645,10 +662,10 @@ const ProfileHub: React.FC = () => {
                   <label className="flex items-center justify-between p-4 sm:p-6 cursor-pointer">
                     <div className="flex-1">
                       <p className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                        Push-notiser
+                        {t('profileHub.pushNotifications')}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Få aviseringar i realtid på din enhet
+                        {t('profileHub.pushNotificationsDesc')}
                       </p>
                     </div>
                     <input
@@ -662,7 +679,7 @@ const ProfileHub: React.FC = () => {
 
                 <div className="pt-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    Vill du aktivera webläsarnotiser?
+                    {t('profileHub.enableBrowserNotificationsQ')}
                   </p>
                   <Button
                     variant="primary"
@@ -673,7 +690,7 @@ const ProfileHub: React.FC = () => {
                     }}
                     className="w-full sm:w-auto"
                   >
-                    Aktivera webläsarnotiser
+                    {t('profileHub.enableBrowserNotifications')}
                   </Button>
                 </div>
               </div>
@@ -684,16 +701,16 @@ const ProfileHub: React.FC = () => {
           <TabPanel value={activeTab} index={3}>
             <div className="space-y-4 sm:space-y-6">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                Utseendeinställningar
+                {t('profileHub.appearanceSettings')}
               </h3>
               <div className="space-y-4">
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      Temaläge
+                      {t('profileHub.themeMode')}
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Växla mellan ljust och mörkt läge
+                      {t('profileHub.themeModeDesc')}
                     </p>
                     <ThemeToggle />
                   </div>
@@ -702,10 +719,10 @@ const ProfileHub: React.FC = () => {
                 <Card className="border border-gray-200 dark:border-gray-700">
                   <div className="p-4 sm:p-6">
                     <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      Språk
+                      {t('profileHub.language')}
                     </h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Välj ditt föredragna språk
+                      {t('profileHub.languageDesc')}
                     </p>
                     <LanguageSwitcher />
                   </div>
@@ -720,7 +737,7 @@ const ProfileHub: React.FC = () => {
       <Card className="border border-gray-200 dark:border-gray-700">
         <div className="p-4 sm:p-6 md:p-8">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-            Kontoåtgärder
+            {t('profileHub.accountActions')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
@@ -730,14 +747,14 @@ const ProfileHub: React.FC = () => {
               disabled={modalLoading}
             >
               <ShieldCheckIcon className="w-5 h-5" aria-hidden="true" />
-              <span>{modalLoading ? 'Exporterar...' : 'Exportera min data'}</span>
+              <span>{modalLoading ? t('profileHub.exporting') : t('profileHub.exportData')}</span>
             </Button>
             <Button
               variant="outline"
               className="w-full min-h-[44px] text-error-600 border-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
               onClick={() => setDeleteAccountModal(true)}
             >
-              Radera konto
+              {t('profileHub.deleteAccount')}
             </Button>
           </div>
         </div>
@@ -746,15 +763,13 @@ const ProfileHub: React.FC = () => {
       {/* Change Email Modal */}
       <Dialog open={changeEmailModal} onClose={() => setChangeEmailModal(false)}>
         <DialogHeader onClose={() => setChangeEmailModal(false)}>
-          <DialogTitle>Ändra e-postadress</DialogTitle>
-          <DialogDescription>
-            Ange din nya e-postadress och nuvarande lösenord för att ändra din e-post.
-          </DialogDescription>
+          <DialogTitle>{t('profileHub.changeEmailTitle')}</DialogTitle>
+          <DialogDescription>{t('profileHub.changeEmailDesc')}</DialogDescription>
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
             <Input
-              label="Ny e-postadress"
+              label={t('profileHub.newEmail')}
               type="email"
               value={changeEmailForm.newEmail}
               onChange={(e) => setChangeEmailForm({ ...changeEmailForm, newEmail: e.target.value })}
@@ -762,7 +777,7 @@ const ProfileHub: React.FC = () => {
               required
             />
             <Input
-              label="Nuvarande lösenord"
+              label={t('profileHub.currentPassword')}
               type="password"
               value={changeEmailForm.password}
               onChange={(e) => setChangeEmailForm({ ...changeEmailForm, password: e.target.value })}
@@ -773,14 +788,14 @@ const ProfileHub: React.FC = () => {
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setChangeEmailModal(false)}>
-            Avbryt
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
             onClick={handleChangeEmail}
             disabled={modalLoading}
           >
-            {modalLoading ? 'Ändrar...' : 'Ändra e-post'}
+            {modalLoading ? t('profileHub.changing') : t('profileHub.changeEmail')}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -788,15 +803,13 @@ const ProfileHub: React.FC = () => {
       {/* Change Password Modal */}
       <Dialog open={changePasswordModal} onClose={() => setChangePasswordModal(false)}>
         <DialogHeader onClose={() => setChangePasswordModal(false)}>
-          <DialogTitle>Ändra lösenord</DialogTitle>
-          <DialogDescription>
-            Ange ditt nuvarande lösenord och välj ett nytt säkert lösenord.
-          </DialogDescription>
+          <DialogTitle>{t('profileHub.changePasswordTitle')}</DialogTitle>
+          <DialogDescription>{t('profileHub.changePasswordDesc')}</DialogDescription>
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
             <Input
-              label="Nuvarande lösenord"
+              label={t('profileHub.currentPassword')}
               type="password"
               value={changePasswordForm.currentPassword}
               onChange={(e) => setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value })}
@@ -804,16 +817,27 @@ const ProfileHub: React.FC = () => {
               required
             />
             <Input
-              label="Nytt lösenord"
+              label={t('profileHub.newPassword')}
               type="password"
               value={changePasswordForm.newPassword}
               onChange={(e) => setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value })}
               error={formErrors.newPassword}
-              helperText="Minst 8 tecken med stor bokstav, liten bokstav, siffra och specialtecken"
+              helperText={t('registerForm.passwordHelp')}
               required
             />
+            
+            {/* Password Strength Indicator */}
+            {changePasswordForm.newPassword && (
+              <div className="mt-2">
+                <PasswordStrengthIndicator 
+                  password={changePasswordForm.newPassword}
+                  showStrength={true}
+                />
+              </div>
+            )}
+            
             <Input
-              label="Bekräfta nytt lösenord"
+              label={t('profileHub.confirmNewPassword')}
               type="password"
               value={changePasswordForm.confirmPassword}
               onChange={(e) => setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value })}
@@ -824,14 +848,14 @@ const ProfileHub: React.FC = () => {
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setChangePasswordModal(false)}>
-            Avbryt
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
             onClick={handleChangePassword}
             disabled={modalLoading}
           >
-            {modalLoading ? 'Ändrar...' : 'Ändra lösenord'}
+            {modalLoading ? t('profileHub.changing') : t('profileHub.changePassword')}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -839,10 +863,8 @@ const ProfileHub: React.FC = () => {
       {/* Enable 2FA Modal */}
       <Dialog open={enable2FAModal} onClose={() => setEnable2FAModal(false)}>
         <DialogHeader onClose={() => setEnable2FAModal(false)}>
-          <DialogTitle>Aktivera tvåfaktorsautentisering</DialogTitle>
-          <DialogDescription>
-            Skanna QR-koden med din autentiseringsapp och ange den 6-siffriga koden.
-          </DialogDescription>
+          <DialogTitle>{t('profileHub.enable2FATitle')}</DialogTitle>
+          <DialogDescription>{t('profileHub.enable2FADesc')}</DialogDescription>
         </DialogHeader>
         <DialogContent>
           {twoFactorSetup?.qrCode ? (
@@ -859,10 +881,10 @@ const ProfileHub: React.FC = () => {
                 />
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                Skanna denna QR-kod med din autentiseringsapp (Google Authenticator, Authy, etc.)
+                {t('profileHub.scanQR')}
               </p>
               <Input
-                label="Verifieringskod"
+                label={t('profileHub.verificationCode')}
                 type="text"
                 value={twoFactorForm.code}
                 onChange={(e) => setTwoFactorForm({ code: e.target.value.replace(/\D/g, '').slice(0, 6) })}
@@ -874,20 +896,20 @@ const ProfileHub: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">Konfigurerar 2FA...</p>
+              <p className="text-gray-600 dark:text-gray-400">{t('profileHub.configuring')}</p>
             </div>
           )}
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setEnable2FAModal(false)}>
-            Avbryt
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
             onClick={handleVerify2FA}
             disabled={modalLoading || !twoFactorSetup?.qrCode}
           >
-            {modalLoading ? 'Verifierar...' : 'Aktivera 2FA'}
+            {modalLoading ? t('profileHub.verifying') : t('profileHub.enable2FA')}
           </Button>
         </DialogFooter>
       </Dialog>
@@ -895,33 +917,31 @@ const ProfileHub: React.FC = () => {
       {/* Delete Account Modal */}
       <Dialog open={deleteAccountModal} onClose={() => setDeleteAccountModal(false)}>
         <DialogHeader onClose={() => setDeleteAccountModal(false)}>
-          <DialogTitle className="text-error-600">Radera konto</DialogTitle>
-          <DialogDescription>
-            Denna åtgärd kan inte ångras. Ditt konto och all tillhörande data kommer att raderas permanent.
-          </DialogDescription>
+          <DialogTitle className="text-error-600">{t('profileHub.deleteAccount')}</DialogTitle>
+          <DialogDescription>{t('profileHub.deleteAccountDesc')}</DialogDescription>
         </DialogHeader>
         <DialogContent>
           <div className="space-y-4">
             <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-4">
               <h4 className="font-semibold text-error-800 dark:text-error-200 mb-2">
-                Vad som kommer raderas:
+                {t('profileHub.whatWillBeDeleted')}
               </h4>
               <ul className="text-sm text-error-700 dark:text-error-300 space-y-1">
-                <li>• Alla humörloggar och analyser</li>
-                <li>• Chatthistorik och konversationer</li>
-                <li>• Sparade minnen och dagboksanteckningar</li>
-                <li>• Kontoinställningar och preferenser</li>
-                <li>• Wellness-mål och framsteg</li>
+                <li>• {t('profileHub.deleteItem1')}</li>
+                <li>• {t('profileHub.deleteItem2')}</li>
+                <li>• {t('profileHub.deleteItem3')}</li>
+                <li>• {t('profileHub.deleteItem4')}</li>
+                <li>• {t('profileHub.deleteItem5')}</li>
               </ul>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Din data kommer att raderas permanent inom 30 dagar. Du kan avbryta genom att kontakta support inom den tiden.
+              {t('profileHub.deleteNote')}
             </p>
           </div>
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDeleteAccountModal(false)}>
-            Avbryt
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -929,10 +949,22 @@ const ProfileHub: React.FC = () => {
             onClick={handleDeleteAccount}
             disabled={modalLoading}
           >
-            {modalLoading ? 'Raderar...' : 'Radera konto'}
+            {modalLoading ? t('profileHub.deleting') : t('profileHub.deleteAccount')}
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* Delete Account Flow with cooling period */}
+      <DeleteAccountFlow
+        isOpen={deleteAccountModal}
+        onDelete={async () => {
+          if (!user?.user_id) throw new Error('No user ID');
+          // Schedule deletion with cooling period
+          // This would call a new endpoint like scheduleAccountDeletion
+          await deleteAccount(user.user_id);
+        }}
+        onCancel={() => setDeleteAccountModal(false)}
+      />
 
       {/* Snackbar */}
       <Snackbar

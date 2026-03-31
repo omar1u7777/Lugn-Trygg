@@ -22,12 +22,34 @@ from src.services.cbt_engine import (
     cbt_engine,
 )
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.services.subscription_service import SubscriptionService
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
 
 # Blueprint definition
 cbt_bp = Blueprint("cbt", __name__)
+
+
+def _check_cbt_access(user_id: str) -> tuple[bool, str]:
+    """Check if user has premium access to CBT modules."""
+    try:
+        user_doc = db.collection("users").document(user_id).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        
+        plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
+        plan_type = plan_context.get("plan_type", "free")
+        
+        # CBT is premium feature - require premium, trial, or enterprise
+        allowed_plans = ["premium", "trial", "enterprise"]
+        if plan_type.lower() not in allowed_plans:
+            return False, f"CBT modules require premium subscription. Current plan: {plan_type}"
+        
+        return True, ""
+        
+    except Exception as e:
+        logger.error(f"Failed to check CBT access for {user_id}: {e}")
+        return False, "Unable to verify subscription status"
 
 
 def _module_to_dict(module: CBTModule) -> dict[str, Any]:
@@ -144,6 +166,16 @@ def get_modules():
     logger.info(f"📚 User {user_id} fetching CBT modules")
 
     try:
+        # Check premium subscription access
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403
+            )
+
         # Get user progress to show completion status
         user_progress = _get_user_progress(user_id)
 
@@ -192,6 +224,16 @@ def get_module_detail(module_id: str):
     logger.info(f"📖 User {user_id} fetching module: {module_id}")
 
     try:
+        # Check premium subscription access
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403
+            )
+
         if module_id not in cbt_engine.modules:
             return APIResponse.error(
                 message="Module not found",
@@ -265,6 +307,16 @@ def get_personalized_session():
     logger.info(f"🎯 Generating CBT session for user {user_id}, mood: {current_mood}")
 
     try:
+        # Check premium subscription access
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403
+            )
+
         # Get user progress
         user_progress = _get_user_progress(user_id)
 
@@ -326,6 +378,16 @@ def update_progress():
     logger.info(f"📝 Updating CBT progress for user {user_id}")
 
     try:
+        # Check premium subscription access
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403
+            )
+
         data = request.get_json(force=True, silent=True)
         if not data:
             return APIResponse.error(

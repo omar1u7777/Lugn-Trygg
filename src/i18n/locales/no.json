@@ -3,6 +3,38 @@
     "name": "Rolig & Trygg",
     "description": "Din personlige mentalhelseassistent"
   },
+  "common": {
+    "requiredField": "obligatorisk felt",
+    "loading": "Laster...",
+    "error": "En feil oppstod",
+    "success": "Ferdig!",
+    "cancel": "Avbryt",
+    "save": "Lagre",
+    "delete": "Slett",
+    "edit": "Rediger",
+    "close": "Lukk",
+    "back": "Tilbake",
+    "next": "Neste",
+    "previous": "Forrige",
+    "search": "Søk",
+    "filter": "Filtrer",
+    "sort": "Sorter",
+    "yes": "Ja",
+    "no": "Nei",
+    "ok": "OK",
+    "status": "Status",
+    "offlineTitle": " Du er offline!",
+    "offlineMessage": "Sjekk internettforbindelsen din og prøv igjen.",
+    "retry": " Prøv igjen",
+    "pageNotFound": " Siden ble ikke funnet!",
+    "skipToContent": "Hopp til hovedinnhold",
+    "skipToNavigation": "Hopp til navigasjon",
+    "skipToSearch": "Hopp til søk",
+    "liveRegionLabel": "Sanntidsoppdateringer",
+    "alertsLiveRegion": "Systemvarsler oppdateres fortløpende",
+    "alertsActiveCount": "{count} aktive varsler",
+    "updating": "Oppdaterer..."
+  },
   "nav": {
     "dashboard": "Oversikt",
     "mood": "Humør",
@@ -29,20 +61,20 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Velkommen",
-    "reminder": "🔔 Påminnelse:",
+    "reminder": " Påminnelse:",
     "moodReminder": "Du har ikke logget humøret ditt i dag. Ta et øyeblikk å reflektere over dagen din!",
     "moodTrends": "Humørtrender (siste uke)",
     "memoryFrequency": "Minnefrekvens (siste uke)",
     "logMood": "Logg Humør",
-    "openMoodLogger": "🎭 Åpne Humørlogging",
+    "openMoodLogger": " Åpne Humørlogging",
     "yourMoodLogs": "Dine Humørlogger",
-    "viewMoodLogs": "📋 Vis Humørlogger",
+    "viewMoodLogs": " Vis Humørlogger",
     "recordMemory": "Ta opp Minne",
-    "openRecording": "🎙 Åpne Opptak",
+    "openRecording": " Åpne Opptak",
     "yourMemories": "Dine Minner",
-    "viewMemories": "🎞 Vis Minner",
+    "viewMemories": " Vis Minner",
     "aiTherapist": "AI-terapeut",
-    "openChat": "💬 Åpne Chat",
+    "openChat": " Åpne Chat",
     "todayMood": "Dagens humør",
     "weeklyStats": "Ukesstatistikk",
     "recentMemories": "Nylige minner",
@@ -51,9 +83,9 @@
     "chatWithAI": "Chat med AI",
     "viewAnalytics": "Se analyse",
     "weeklyMoodAnalysis": "Ukens humøranalyse",
-    "loadingAnalysis": "🔄 Laster analyse...",
-    "analysisError": "❌ Feil: {error}",
-    "noDataAvailable": "📊 Ingen data tilgjengelig.",
+    "loadingAnalysis": " Laster analyse...",
+    "analysisError": " Feil: {error}",
+    "noDataAvailable": " Ingen data tilgjengelig.",
     "moodDistribution": "Humørfordeling",
     "moodLogs": "Humørlogger",
     "average": "Gjennomsnitt",
@@ -65,7 +97,51 @@
     "badges": "Prestasjoner",
     "relaxingSounds": "Avslappnande Ljud",
     "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
-    "noMemoryData": "📊 Ingen minnesdata tillgänglig."
+    "noMemoryData": " Ingen minnesdata tillgänglig.",
+    "goalSteps": {
+      "Bättre sömn": [
+        "Gå og legg deg klokken 22:00 i dag",
+        "Slå av skjermer 1t før sengetid",
+        "Les en bok i stedet for telefon"
+      ],
+      "Ökad fokusering": [
+        "Ta 3 dype åndedrag nå",
+        "Slå av varsler i 30 min",
+        "Jobb i 25-minutters intervaller"
+      ],
+      "Hantera stress": [
+        "Gjør 3-minutters pusteøvelse",
+        "Ta en kort spasertur",
+        "Skriv ned 3 ting du er takknemlig for"
+      ],
+      "Mer energi": [
+        "Drikk et glass vann",
+        "Gjør 5-minutters tøying",
+        "Ta en power nap på 20 min"
+      ],
+      "Bättre humör": [
+        "Lytt til favorittsangen din",
+        "Ring en venn",
+        "Gjør noe snilt for noen"
+      ],
+      "default": [
+        "Logg humøret ditt i dag",
+        "Reflekter over dagen",
+        "Sett et lite mål for i morgen"
+      ],
+      "fallback": "Fortsett å jobbe med målet ditt"
+    },
+    "verifyFailed": "Kunne ikke verifisere abonnementet. Logg inn igjen og prøv på nytt.",
+    "verifying": "Bekrefter betalingen din og oppdaterer Premium ...",
+    "premiumActive": "Premium er nå aktivt. Velkommen!",
+    "paymentRegistered": "Betalingen er registrert. Premium oppdateres automatisk snart.",
+    "updateFailed": "Kunne ikke oppdatere abonnementet akkurat nå. Prøv igjen om et øyeblikk.",
+    "updateGoals": "📝 Oppdater",
+    "updateGoalsAria": "Oppdater wellness-mål",
+    "nextStep": "Neste steg",
+    "friend": "venn",
+    "purchaseCancelled": "Kjøpet ble avbrutt. Du kan prøve igjen når du er klar.",
+    "weeklyGoalProgress": "{{count}} innlegg til ukemålet ditt"
   },
   "mood": {
     "title": "Humørlogging",
@@ -73,8 +149,8 @@
     "greeting": "Hei, hvordan har du det i dag?",
     "sadResponse": "Jeg hører du kanskje føler deg litt nede. Vil du høre på avslappende musikk?",
     "recording": "Spiller inn...",
-    "startRecording": "🎭 Start logging",
-    "close": "❌ Lukk",
+    "startRecording": " Start logging",
+    "close": " Lukk",
     "errorRecording": "En feil oppstod under innspilling. Prøv igjen.",
     "errorSave": "Kunne ikke lagre humøret. Prøv igjen senere.",
     "veryBad": "Svært dårlig",
@@ -125,36 +201,6 @@
     "cancelAnytime": "Du kan avbryte abonnementet når som helst. Ingen bindingstid.",
     "processing": "Behandler...",
     "error": "Abonnement mislyktes"
-  },
-  "common": {
-    "loading": "Laster...",
-    "error": "En feil oppstod",
-    "success": "Ferdig!",
-    "cancel": "Avbryt",
-    "save": "Lagre",
-    "delete": "Slett",
-    "edit": "Rediger",
-    "close": "Lukk",
-    "back": "Tilbake",
-    "next": "Neste",
-    "previous": "Forrige",
-    "search": "Søk",
-    "filter": "Filtrer",
-    "sort": "Sorter",
-    "yes": "Ja",
-    "no": "Nei",
-    "ok": "OK",
-    "status": "Status",
-    "offlineTitle": "🚫 Du er offline!",
-    "offlineMessage": "Sjekk internettforbindelsen din og prøv igjen.",
-    "retry": "🔄 Prøv igjen",
-    "pageNotFound": "🚫 Siden ble ikke funnet!",
-    "skipToContent": "Hopp til hovedinnhold",
-    "skipToNavigation": "Hopp til navigasjon",
-    "skipToSearch": "Hopp til søk",
-    "liveRegionLabel": "Sanntidsoppdateringer",
-    "alertsLiveRegion": "Systemvarsler oppdateres fortløpende",
-    "alertsActiveCount": "{count} aktive varsler"
   },
   "settings": {
     "title": "Innstillinger",
@@ -596,7 +642,8 @@
     "weeklyProgressLabel": "Veckoprogress: {{current}} av {{goal}}",
     "weeklyGoalReached": "Grattis! Du har nått ditt veckomål!",
     "entriesLeft": "{{count}} inlägg kvar till nästa achievement",
-    "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!"
+    "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!",
+    "seeRecommendations": "Se anbefalinger →"
   },
   "social": {
     "title": "",
@@ -679,7 +726,24 @@
     "updatingData": "Oppdaterer data...",
     "autoUpdate": "Oppdateres automatisk",
     "lastUpdated": "Oppdatert for {{minutes}} min siden",
-    "lastUpdatedAt": "Sist {{time}}"
+    "lastUpdatedAt": "Sist {{time}}",
+    "morningFocus": "Morgenfokus",
+    "morningDesc": "Start dagen med 3 dype åndedrag. Følg orben.",
+    "dayFocus": "Daglig fokus",
+    "dayDesc": "Ta en kort pause med 3 dype åndedrag før neste steg.",
+    "eveningFocus": "Kveldsfokus",
+    "eveningDesc": "Rund av med 3 rolige åndedrag og sjekk inn hvordan dagen føles.",
+    "startBreathing": "Start 3 åndedrag",
+    "checkedIn": "Flott jobbet med dagens innsjekk! Vil du se innsiktene dine?",
+    "morningMood": "God morgen! I går var følelsen din \"{{mood}}\". Hvordan kjennes det å starte i dag?",
+    "welcomeBackMood": "Velkommen tilbake! Sist var følelsen din \"{{mood}}\". Hva legger du merke til nå?",
+    "mindfulPrompt": "Hvilke følelser eller tanker er til stede akkurat nå? Alt er velkommen her.",
+    "breatheIn": "Pust inn",
+    "breatheOut": "Pust ut",
+    "pause": "Pause",
+    "done": "Ferdig",
+    "breathingExercise": "Pusteøvelse",
+    "reflectionInvitation": "Invitasjon til refleksjon"
   },
   "breath": {
     "breathCount": "Åndedrag",
@@ -712,5 +776,734 @@
     "supportNumber": "Ring {{number}} för att prata med någon",
     "onlineResources": "Online-resurser",
     "resourceLink": "Besök {{link}} för mer information och stöd"
+  },
+  "loginForm": {
+    "secureLogin": "Sikker innlogging",
+    "loginTitle": "Logg inn",
+    "welcomeBack": "Velkommen tilbake. Logg inn for å fortsette der du sluttet.",
+    "emailLabel": "📧 E-postadresse",
+    "emailPlaceholder": "Skriv inn e-postadressen din",
+    "passwordLabel": "Passord",
+    "passwordPlaceholder": "Skriv inn passordet ditt",
+    "hidePassword": "Skjul passord",
+    "showPassword": "Vis passord",
+    "loginButton": "Logg inn",
+    "or": "eller",
+    "googleSignIn": "Fortsett med Google",
+    "noAccount": "Har du ikke konto?",
+    "registerHere": "Registrer deg her",
+    "goToRegister": "Gå til registreringssiden",
+    "forgotPassword": "Glemt passord?",
+    "openForgotPassword": "Åpne glemt passord-dialog",
+    "loggingIn": "Logger inn...",
+    "loginSuccess": "Innlogging vellykket",
+    "loginFailed": "Innlogging mislykket",
+    "googleLoginSuccess": "Google-innlogging vellykket",
+    "googleLoginFailed": "Google-innlogging mislykket",
+    "defaultError": "En feil oppstod under innlogging",
+    "loggingInGoogle": "Logger inn med Google...",
+    "invalidEmail": "Vennligst skriv inn en gyldig e-postadresse",
+    "passwordRequired": "Passord er påkrevd"
+  },
+  "forgotPassword": {
+    "title": "Tilbakestill passord",
+    "closeDialog": "Lukk dialog",
+    "emailLabel": "E-postadresse",
+    "emailPlaceholder": "Skriv inn e-postadressen din",
+    "emailHint": "Vi sender en tilbakestillingslenke til denne adressen",
+    "sendButton": "Send tilbakestillingslenke",
+    "sending": "Sender...",
+    "backToLogin": "Tilbake til innlogging",
+    "resetLinkSent": "Hvis e-postadressen er registrert, har en tilbakestillingslenke blitt sendt.",
+    "resetLinkSentAnnouncement": "Tilbakestillingslenke sendt",
+    "genericError": "En feil oppstod. Prøv igjen senere.",
+    "invalidEmail": "Ugyldig e-postadresse.",
+    "tooManyRequests": "For mange forespørsler. Prøv igjen senere.",
+    "errorPrefix": "Feil:"
+  },
+  "registerForm": {
+    "title": "Opprett konto",
+    "nameLabel": "Navn",
+    "namePlaceholder": "Skriv inn navnet ditt",
+    "nameRequired": "Navn er påkrevd.",
+    "emailLabel": "E-postadresse",
+    "emailPlaceholder": "Skriv inn e-postadressen din",
+    "invalidEmail": "Skriv inn en gyldig e-postadresse.",
+    "passwordLabel": "Passord",
+    "passwordPlaceholder": "Opprett et sterkt passord",
+    "passwordHelp": "Minst 8 tegn, en stor bokstav, en liten bokstav, ett tall og ett spesialtegn.",
+    "passwordTooShort": "Passordet må være minst 8 tegn langt.",
+    "passwordNeedsChars": "Passordet må inneholde minst en stor bokstav, en liten bokstav og ett tall.",
+    "passwordNeedsSpecial": "Passordet må inneholde minst ett spesialtegn.",
+    "hidePassword": "Skjul passord",
+    "showPassword": "Vis passord",
+    "confirmPasswordLabel": "Bekreft passord",
+    "confirmPasswordPlaceholder": "Bekreft passordet ditt",
+    "passwordMismatch": "Passordene stemmer ikke overens.",
+    "acceptTermsPrefix": "Jeg godtar",
+    "termsLink": "brukervilkårene",
+    "acceptPrivacyPrefix": "Jeg godtar",
+    "privacyLink": "personvernerklæringen",
+    "termsRequired": "Du må godta vilkårene og personvernerklæringen.",
+    "referralActive": "Vervekode aktiv!",
+    "referralBenefit": "Du og vennen din får begge 1 uke gratis premium! 🎉",
+    "referralCode": "Kode:",
+    "creating": "Oppretter konto...",
+    "success": "Registrering vellykket! Du kan nå logge inn.",
+    "successWithReferral": "Registrering vellykket! {{message}} Du kan nå logge inn.",
+    "failedPrefix": "Registrering mislyktes:",
+    "formErrors": "Skjemaet inneholder feil. Korriger dem og prøv igjen.",
+    "hasAccount": "Har du allerede en konto?",
+    "loginLink": "Logg inn her",
+    "goToLogin": "Gå til innloggingssiden"
+  },
+  "authLayout": {
+    "pageLabel": "Innloggingsside",
+    "skipToForm": "Hopp til innloggingsskjemaet",
+    "introLabel": "Introduksjon",
+    "infoLabel": "Om Rolig & Trygg",
+    "formLabel": "Innloggingsskjema",
+    "tagline": "Din mentale helsekompanjong i hverdagen",
+    "loginCta": "Logg inn for å fortsette med humørlogg, AI-støtte og personlige innsikter.",
+    "description": "Følg humøret ditt, få personlig AI-støtte og bygg bærekraftige vaner i ditt eget tempo, sammen med tusenvis av andre som bruker Rolig & Trygg.",
+    "featuresLabel": "Funksjoner",
+    "feature1": "Dataene dine er beskyttet og deles aldri uten ditt samtykke.",
+    "feature2": "Få daglige innsikter, små belønninger og støtte som hjelper deg med å holde rutiner over tid.",
+    "feature3": "AI-støtte for mental helse som tilbyr refleksjon og praktiske strategier tilpasset deg."
+  },
+  "onboarding": {
+    "step1Title": "Velkommen til Rolig & Trygg",
+    "step1Desc": "Din personlige mental helse-app",
+    "step2Title": "Sett målene dine",
+    "step2Desc": "Hva ønsker du å oppnå?",
+    "step3Title": "Start reisen din",
+    "step3Desc": "Du er klar!",
+    "welcomeHeading": "Hei! Vi er glade for at du er her.",
+    "welcomeBody": "Rolig & Trygg hjelper deg med å håndtere stress, forbedre den mentale helsen din og finne ro i hverdagen.",
+    "journeyBegins": "✨ Din personlige reise begynner her",
+    "welcomeNote": "Med dine valgte mål vil vi gi deg personlige anbefalinger for å støtte den mentale helsen din.",
+    "readyHeading": "Du er nå klar til å begynne!",
+    "readyBody": "Start med en kort meditasjon eller spor humøret ditt for å få personlige anbefalinger.",
+    "selectGoals": "Velg wellness-målene dine:",
+    "maxGoals": "Du kan velge opp til {{max}} mål",
+    "stepOf": "Trinn {{current}} av {{total}}",
+    "retryOrSkip": "Prøv igjen eller hopp over",
+    "skip": "Hopp over",
+    "selectAtLeastOne": "Velg minst ett mål for å fortsette",
+    "saving": "Lagrer...",
+    "next": "Neste",
+    "goalsSelected": "mål valgt",
+    "selectMin": "Velg minst 1 mål",
+    "start": "Start",
+    "heroAlt": "Illustrasjon av onboardingreisen"
+  },
+  "crisis": {
+    "titleSevere": "🚨 Akutt krisestøtte",
+    "titleMild": "💙 Støtte og hjelp",
+    "importantInfo": "Viktig informasjon:",
+    "infoText": "Denne siden viser hjelperessurser for alle som trenger støtte med mental helse. Du er ikke alene og profesjonell hjelp er tilgjengelig hele døgnet.",
+    "honestAdvice": "Ærlig råd:",
+    "adviceText": "Hvis du føler at livet er uutholdelig, ring 113 eller Kirkens SOS. Det er alltid noen som vil hjelpe deg.",
+    "line1Name": "Selvmordslinjen (Sverige: 90101)",
+    "line1Desc": "Åpen hele døgnet for akutt støtte og samtale.",
+    "line2Name": "Kirkens SOS",
+    "line2Desc": "For eksistensielle spørsmål og støtte.",
+    "line3Name": "Helsevakten 116 117",
+    "line3Desc": "Medisinsk rådgivning og helsekontakt.",
+    "line4Name": "Mind Selvmordslinjen",
+    "line4Desc": "Chat og støtte på nett.",
+    "line5Name": "BRIS - Barnehjelpetelefonen",
+    "line5Desc": "Støtte for unge voksne og alle som trenger å snakke.",
+    "line6Name": "SPES - Forebygging av selvmord",
+    "line6Desc": "Pårørendestøtte og forebygging.",
+    "line7Name": "Medmenneske",
+    "line7Desc": "Samtalestøtte for eksistensielle spørsmål.",
+    "visitWebsite": "Besøk {{site}}",
+    "remember": "Husk:",
+    "reminder": "Følelsene dine er viktige og gyldige. Å søke hjelp er et tegn på styrke, ikke svakhet."
+  },
+  "greeting": {
+    "morning": "God morgen",
+    "day": "God dag",
+    "afternoon": "God ettermiddag",
+    "evening": "God kveld",
+    "takeItEasy": "Ta det rolig i dag.",
+    "restIsProductive": "Husk at hvile er produktivt.",
+    "greatToSeeYou": "Flott å se deg."
+  },
+  "navigation": {
+    "mainNav": "Hovednavigasjon",
+    "switchToLight": "Bytt til lys modus",
+    "switchToDark": "Bytt til mørk modus",
+    "welcomeBack": "Velkommen tilbake, {{name}}",
+    "discoverPremium": "Oppdag Premium",
+    "endSession": "Logg ut",
+    "unlockUnlimited": "Lås opp ubegrenset tilgang",
+    "confirmLogout": "Er du sikker på at du vil ta en pause? Du kan alltid komme tilbake.",
+    "pause": "Ta en pause",
+    "mobileMenu": "Mobilmeny",
+    "menu": "Meny",
+    "openMenu": "Åpne meny",
+    "profile": "Profil",
+    "settings": "Innstillinger",
+    "theme": "Tema",
+    "language": "Språk"
+  },
+  "password": {
+    "strength": {
+      "label": "Passordstyrke",
+      "empty": "",
+      "weak": "Svakt",
+      "fair": "OK",
+      "good": "Sterkt",
+      "strong": "Veldig sterkt"
+    },
+    "requirement": {
+      "length": "8+ tegn",
+      "uppercase": "Stor bokstav",
+      "lowercase": "Liten bokstav",
+      "number": "Tall",
+      "special": "Spesialtegn"
+    },
+    "tip": "Tips: Bruk en setning eller kombiner ord for et sterkt men huskbart passord."
+  },
+  "premiumUpsell": {
+    "limitTitle": "Løper tom for bruk?",
+    "limitSubtitle": "Få ubegrenset med Premium",
+    "limitMessage": "Du har {{moods}}/{{max}} humørlogger igjen i dag. Ikke mist momentumet!",
+    "limitUrgency": "Nullstilles om {{timeLeft}}",
+    "limitCta": "Lås opp ubegrenset -20%",
+    "engagementTitle": "Du bygger en god vane!",
+    "engagementSubtitle": "Beskytt fremgangen din",
+    "engagementMessage": "Med {{moods}} loggede stemninger og {{chats}} samtaler er du på god vei.",
+    "engagementUrgency": "Begrenset tilbud for engasjerte brukere",
+    "engagementCta": "Fortsett reisen din",
+    "streakTitle": "{{days}} dager med kontinuitet!",
+    "streakSubtitle": "Ikke bryt kjeden",
+    "streakMessage": "Du har bygget en vane. Sørg for at du kan fortsette.",
+    "streakUrgency": "{{streakUsers}} brukere har beskyttet sin streak",
+    "streakCta": "Beskytt streaken din",
+    "defaultTitle": "Oppgrader opplevelsen din",
+    "defaultSubtitle": "Oppdag Premium-funksjoner",
+    "defaultMessage": "Få mer fra velværeedisen din.",
+    "defaultUrgency": "Start 14-dagers prøveperioden",
+    "defaultCta": "Prøv Premium gratis",
+    "benefitUnlimited": "Ubegrensede humørlogger",
+    "benefitChats": "Ubegrensede AI-samtaler",
+    "benefitHistory": "Alltid tilgang til historikken din",
+    "benefitInsights": "Dypere innsikt i mønstrene dine",
+    "benefitTrends": "Langsiktige trender og analyser",
+    "benefitExport": "Eksporter alle dataene dine",
+    "benefitStreakProtection": "Aldri mer begrensninger",
+    "benefitReminders": "Smartere påminnelser",
+    "benefitGoals": "Personlige mål og utfordringer",
+    "remaining": "{{remaining}} igjen",
+    "trust": "Ingen forpliktelser. Avslutt når som helst."
+  },
+  "recommendations": {
+    "title": "Personlige anbefalinger 💡",
+    "subtitle": "Innhold tilpasset dine behov og fremgang",
+    "description": "Her ser du personlige forslag basert på målene dine. I Velværebiblioteket finner du hele utvalget av øvelser og innhold.",
+    "wellnessGoals": "Velværemål",
+    "availableExercises": "Tilgjengelige øvelser",
+    "evidenceBased": "Evidensbasert innhold",
+    "searchPlaceholder": "Søk etter anbefalinger..."
+  },
+  "wellnessHub": {
+    "title": "Velværebibliotek",
+    "subtitle": "Finn roen, ett åndedrag om gangen.",
+    "description": "Her utforsker du hele biblioteket. For personlige forslag, gå til Anbefalinger.",
+    "dailyRec": "Dagens anbefaling",
+    "dailyRecSub": "Start morgenen din med klarhet",
+    "morningFocus": "Morgenfokus",
+    "mindfulness": "Mindfulness",
+    "breathingSessions": "Pusteøkter",
+    "otherSessions": "Andre økter",
+    "sleepTitle": "Søvn & Hvile",
+    "sleepSub": "Spill historier",
+    "myGoals": "Mine mål",
+    "activeGoals": "{{count}} aktive mål",
+    "setGoals": "Sett målene dine",
+    "noGoals": "Du har ingen aktive mål ennå.",
+    "addGoal": "Legg til mål +",
+    "catAll": "Utforsk alt",
+    "catMeditation": "Meditasjon",
+    "catBreathing": "Pust",
+    "catSounds": "Lydlandskaper",
+    "catSleep": "Søvn",
+    "recommendations": "Anbefalinger"
+  },
+  "profileHub": {
+    "guest": "Gjest",
+    "manageJourney": "Administrer din personlige reise, innstillinger og sikkerhet.",
+    "loginToSave": "Logg inn for å lagre dataene dine.",
+    "memberForDays": "Medlem i {{days}} dager",
+    "upgradeNow": "Oppgrader nå",
+    "moodLogs": "Humørlogger",
+    "aiChats": "AI-samtaler",
+    "memories": "Minner",
+    "daysActive": "Dager aktiv",
+    "upgradeToPremium": "Oppgrader til Premium",
+    "chatMessages": "Chattemeldinger",
+    "history": "Historikk",
+    "premiumMember": "Premium-medlem",
+    "trial": "Prøveperiode",
+    "freePlan": "Gratis-plan",
+    "unlimitedAccess": "Ubegrenset tilgang til alle funksjoner",
+    "tabAccount": "Kontoinnstillinger",
+    "tabPrivacy": "Personvern",
+    "tabNotifications": "Varsler",
+    "tabAppearance": "Utseende",
+    "accountInfo": "Kontoinformasjon",
+    "emailAddress": "E-postadresse",
+    "notLoggedIn": "Ikke logget inn",
+    "changeEmail": "Endre e-post",
+    "password": "Passord",
+    "changePassword": "Endre passord",
+    "twoFactor": "Tofaktorautentisering",
+    "twoFactorDesc": "Legg til et ekstra lag med sikkerhet på kontoen din",
+    "configuring": "Konfigurerer...",
+    "enable2FA": "Aktiver 2FA",
+    "loginForPrivacy": "Logg inn for å administrere personverninnstillinger",
+    "notificationSettings": "Varselinnstillinger",
+    "emailNotifications": "E-postvarsler",
+    "emailNotificationsDesc": "Motta oppdateringer og innsikter via e-post",
+    "pushNotifications": "Push-varsler",
+    "pushNotificationsDesc": "Få varsler i sanntid på enheten din",
+    "enableBrowserNotificationsQ": "Vil du aktivere nettlesarvarsler?",
+    "enableBrowserNotifications": "Aktiver nettlesarvarsler",
+    "appearanceSettings": "Utseendeinnstillinger",
+    "themeMode": "Temavisning",
+    "themeModeDesc": "Bytt mellom lys og mørk modus",
+    "language": "Språk",
+    "languageDesc": "Velg ditt foretrukne språk",
+    "accountActions": "Kontohandlinger",
+    "exporting": "Eksporterer...",
+    "exportData": "Eksporter dataene mine",
+    "deleteAccount": "Slett konto",
+    "changeEmailTitle": "Endre e-postadresse",
+    "changeEmailDesc": "Skriv inn den nye e-postadressen og gjeldende passord for å endre e-posten din.",
+    "newEmail": "Ny e-postadresse",
+    "currentPassword": "Gjeldende passord",
+    "changing": "Endrer...",
+    "changePasswordTitle": "Endre passord",
+    "changePasswordDesc": "Skriv inn gjeldende passord og velg et nytt sikkert passord.",
+    "newPassword": "Nytt passord",
+    "confirmNewPassword": "Bekreft nytt passord",
+    "enable2FATitle": "Aktiver tofaktorautentisering",
+    "enable2FADesc": "Skann QR-koden med autentiseringsappen din og skriv inn den 6-sifrede koden.",
+    "scanQR": "Skann denne QR-koden med autentiseringsappen din (Google Authenticator, Authy, osv.)",
+    "verificationCode": "Bekreftelseskode",
+    "verifying": "Bekrefter...",
+    "deleteAccountDesc": "Denne handlingen kan ikke angres. Kontoen din og alle tilknyttede data vil bli permanent slettet.",
+    "whatWillBeDeleted": "Hva som vil bli slettet:",
+    "deleteItem1": "Alle humørlogger og analyser",
+    "deleteItem2": "Chattehistorikk og samtaler",
+    "deleteItem3": "Lagrede minner og dagboknotater",
+    "deleteItem4": "Kontoinnstillinger og preferanser",
+    "deleteItem5": "Velværemål og fremgang",
+    "deleteNote": "Dataene dine vil bli permanent slettet innen 30 dager. Du kan avbryte ved å kontakte support i løpet av den tiden.",
+    "deleting": "Sletter..."
+  },
+  "wellnessGoalLabels": {
+    "Hantera stress": {
+      "label": "Håndtere stress",
+      "desc": "Teknikker for ro og balanse"
+    },
+    "Bättre sömn": {
+      "label": "Bedre søvn",
+      "desc": "Sov dypere og våkn opp uthvilt"
+    },
+    "Ökad fokusering": {
+      "label": "Økt fokus",
+      "desc": "Skjerp konsentrasjonen din"
+    },
+    "Mental klarhet": {
+      "label": "Mental klarhet",
+      "desc": "Rydd tankene og prioriter"
+    },
+    "Ångesthantering": {
+      "label": "Angstmestring",
+      "desc": "Bygg trygghet ved uro og angst"
+    },
+    "Självkänsla": {
+      "label": "Selvfølelse",
+      "desc": "Styrk selvfølelse og selvmedfølelse"
+    },
+    "Relationsstöd": {
+      "label": "Relasjonsstøtte",
+      "desc": "Forbedre relasjoner og kommunikasjon"
+    },
+    "Arbetsbalans": {
+      "label": "Arbeidsbalanse",
+      "desc": "Skap bærekraftig balanse mellom jobb og liv"
+    },
+    "Mindfulness": {
+      "label": "Mindfulness",
+      "desc": "Bli mer til stede i øyeblikket"
+    },
+    "Emotionell balans": {
+      "label": "Emosjonell balanse",
+      "desc": "Forstå og reguler følelsene dine"
+    },
+    "Energi": {
+      "label": "Energi",
+      "desc": "Finn stabil energi i hverdagen"
+    }
+  },
+  "breathingPhases": [
+    {
+      "name": "exhale",
+      "duration": 2,
+      "instruction": "Pust helt ut gjennom munnen..."
+    },
+    {
+      "name": "inhale",
+      "duration": 4,
+      "instruction": "Pust inn gjennom nesen..."
+    },
+    {
+      "name": "hold",
+      "duration": 7,
+      "instruction": "Hold pusten..."
+    },
+    {
+      "name": "exhale2",
+      "duration": 8,
+      "instruction": "Pust ut gjennom munnen..."
+    }
+  ],
+  "muscleGroups": [
+    {
+      "name": "Føtter",
+      "instruction": "Krøll tærne og spenn fotbuen...",
+      "image": "🦶",
+      "visual": "Tenk deg at du krøller tærne som en neve og bøyer foten oppover"
+    },
+    {
+      "name": "Legger",
+      "instruction": "Spenn leggmusklene...",
+      "image": "🦵",
+      "visual": "Spenn musklene på baksiden av beina, som når du går på tå"
+    },
+    {
+      "name": "Lår",
+      "instruction": "Spenn lårets muskler...",
+      "image": "🦵",
+      "visual": "Klem forsiden av lårene, som når du sparker fremover"
+    },
+    {
+      "name": "Mage",
+      "instruction": "Spenn magemusklene...",
+      "image": "🏃",
+      "visual": "Trekk inn magen som for å beskytte deg mot et slag"
+    },
+    {
+      "name": "Bryst og skuldre",
+      "instruction": "Spenn brystet og trekk opp skuldrene...",
+      "image": "🫁",
+      "visual": "Hold pusten og spenn brystkassen, trekk skuldrene opp mot ørene"
+    },
+    {
+      "name": "Armer",
+      "instruction": "Spenn overarmene...",
+      "image": "💪",
+      "visual": "Spenn biceps og triceps, gjør armene stive som trebiter"
+    },
+    {
+      "name": "Underarmer og hender",
+      "instruction": "Spenn underarmene og knytt nevene...",
+      "image": "✋",
+      "visual": "Knyt nevene hardt og spenn musklene i underarmene"
+    },
+    {
+      "name": "Hals og nakke",
+      "instruction": "Spenn nakken og trekk inn haken...",
+      "image": "🙆",
+      "visual": "Trykk hodet bakover mot en pute og spenn nakkemusklene"
+    },
+    {
+      "name": "Ansikt",
+      "instruction": "Spenn ansiktsmusklene...",
+      "image": "😊",
+      "visual": "Klem øynene igjen, rynk pannen, stram kjevene og leppene"
+    }
+  ],
+  "recommendationsPool": {
+    "stress-1": {
+      "title": "4-7-8 Pusteøvelse",
+      "description": "Dr. Andrew Weils vitenskapelig beprøvde metode for angst og søvn",
+      "category": "Stressmestring",
+      "content": "Denne teknikken aktiverer det parasympatiske nervesystemet og senker kortisolnivåer med opp til 30%."
+    },
+    "stress-2": {
+      "title": "KAT-øvelse: Håndtere Stressende Tanker",
+      "description": "Identifiser og utfordre stressede tankemønstre",
+      "category": "KAT",
+      "content": "Lær å gjenkjenne stress-triggere og hvordan du kan håndtere dem bedre."
+    },
+    "stress-3": {
+      "title": "Progressiv Muskelavslapning",
+      "description": "Reduser fysisk spenning fra stress",
+      "category": "Avslapning",
+      "content": "15 minutters veiledet øvelse for å slippe spenninger i kroppen."
+    },
+    "sleep-1": {
+      "title": "Vitenskapen Bak Bedre Søvn",
+      "description": "Forstå hvordan du forbedrer søvnkvaliteten din",
+      "category": "Utdanning",
+      "content": "Lær vitenskapelig beprøvde metoder for bedre søvn."
+    },
+    "sleep-2": {
+      "title": "Søvnmeditasjon: Body Scan",
+      "description": "20 minutters veiledet meditasjon for dypere søvn",
+      "category": "Søvn",
+      "content": "En body scan-meditasjon spesielt designet for søvnproblemer."
+    },
+    "sleep-3": {
+      "title": "7-Dagers Søvnrutine",
+      "description": "Bygg en konsekvent søvnrutine",
+      "category": "Utfordringer",
+      "content": "Etabler sunne søvnvaner over en uke."
+    },
+    "focus-1": {
+      "title": "Pomodoro-teknikk for Bedre Fokus",
+      "description": "Vitenskapelig beprøvd tidsstyringsteknikk for optimal produktivitet",
+      "category": "Produktivitet",
+      "content": "Pomodoro-teknikken utnytter naturlige 90-120 minutters sykluser av høy og lav ytelse."
+    },
+    "focus-2": {
+      "title": "Mindfulness for Fokus",
+      "description": "Vitenskapelig beprøvd MBSR-meditasjon for forbedret konsentrasjon",
+      "category": "Fokus",
+      "content": "Denne veiledede mindfulness-meditasjonen er basert på MBSR-programmet av Dr. Jon Kabat-Zinn."
+    },
+    "focus-3": {
+      "title": "Nevrovitenskap: Slik Fungerer Fokus",
+      "description": "Dybdeforståelse av hjernens oppmerksomhetssystem",
+      "category": "Utdanning",
+      "content": "Artikkel om nevrovitenskapelige mekanismer bak oppmerksomhet og konsentrasjon."
+    },
+    "clarity-1": {
+      "title": "Klarhet-Meditasjon",
+      "description": "Rydd tankene og øk mental klarhet",
+      "category": "Meditasjon",
+      "content": "15 minutters meditasjon for mental klarhet."
+    },
+    "clarity-2": {
+      "title": "Journaling for Mental Klarhet",
+      "description": "Skriv deg til klarere tanker",
+      "category": "Journaling",
+      "content": "Strukturert journaling-metode for å organisere tanker."
+    },
+    "clarity-3": {
+      "title": "Digital Detox for Mental Klarhet",
+      "description": "3-dagers utfordring for et klarere sinn",
+      "category": "Utfordringer",
+      "content": "Reduser skjermtid for økt mental klarhet."
+    },
+    "mindfulness-1": {
+      "title": "Mindfulness for Nybegynnere",
+      "description": "Lær grunnleggende mindfulness på 10 minutter",
+      "category": "Meditasjon",
+      "content": "En veiledet introduksjon til mindfulness-meditasjon."
+    },
+    "mindfulness-2": {
+      "title": "Body Scan Meditasjon",
+      "description": "Skann gjennom kroppen for dyp avslapning",
+      "category": "Meditasjon",
+      "content": "En 20-minutters body scan for å slippe spenninger og stress."
+    },
+    "mindfulness-3": {
+      "title": "5-4-3-2-1 Sansøvelse",
+      "description": "Grounding-teknikk for angst og stress",
+      "category": "Angstmestring",
+      "content": "Bruk sansene dine for å returnere til nåtiden."
+    },
+    "sleep-4": {
+      "title": "Søvnforberedelsesritual",
+      "description": "Forbered deg for dyp søvn med veiledet avslapning",
+      "category": "Søvn",
+      "content": "Et 15-minutters ritual som hjelper deg å roe ned og forberede deg for søvn."
+    },
+    "sleep-5": {
+      "title": "Skjermtid og Søvn",
+      "description": "Hvordan blått lys påvirker søvnkvaliteten din",
+      "category": "Utdanning",
+      "content": "Vitenskapelig oversikt over hvordan skjermtid påvirker melatoninproduksjon."
+    },
+    "social-1": {
+      "title": "Kommunikasjon i Relasjoner",
+      "description": "Forbedre kommunikasjonsferdighetene dine",
+      "category": "Relasjoner",
+      "content": "Lær aktiv lytting og assertiv kommunikasjon."
+    },
+    "social-2": {
+      "title": "Daglig Følelsesdeling",
+      "description": "Del følelsene dine med noen du stoler på",
+      "category": "Relasjoner",
+      "content": "Øv på å uttrykke følelser åpent og ærlig hver dag i en uke."
+    },
+    "work-1": {
+      "title": "Arbeidsplass Stressmestring",
+      "description": "Håndter stress på jobben effektivt",
+      "category": "Arbeidsliv",
+      "content": "Strategier for å håndtere frister, konflikter og arbeidsbelastning."
+    },
+    "work-2": {
+      "title": "Fokus Meditasjon for Arbeid",
+      "description": "Øk konsentrasjonen og produktiviteten",
+      "category": "Arbeidsliv",
+      "content": "En meditasjon designet for å forbedre fokus og arbeidsevne."
+    },
+    "advanced-1": {
+      "title": "Kognitiv Omstrukturering",
+      "description": "Avansert KAT-teknikk for tankemønstre",
+      "category": "Avansert KAT",
+      "content": "Lær å identifisere og omstrukturere dype negative tankemønstre."
+    },
+    "advanced-2": {
+      "title": "Vipassana Meditasjon",
+      "description": "Dyp mindfulness-praksis for erfarne utøvere",
+      "category": "Avansert Meditasjon",
+      "content": "Tradisjonell vipassana-teknikk for bevissthet og innsikt."
+    },
+    "generic-1": {
+      "title": "7-Dagers Takknemlighetsutfordring",
+      "description": "Utvikle et mer positivt syn gjennom daglig takknemlighet",
+      "category": "Generelt",
+      "content": "Skriv ned tre ting du er takknemlig for hver dag i en uke."
+    },
+    "generic-2": {
+      "title": "Mental Helse 101",
+      "description": "Grunnleggende kunnskap om mental helse",
+      "category": "Utdanning",
+      "content": "En oversikt over viktige begreper innen mental helse og velvære."
+    }
+  },
+  "pmr": {
+    "prepare": "Forberedelse",
+    "tense": "Spenn",
+    "relax": "Slapp av",
+    "completed": "Øvelse fullført!",
+    "muscles": "musklene",
+    "prepareDesc": "Sitt eller ligg komfortabelt. Pust rolig.",
+    "relaxDesc": "Slipp spenningen sakte og kjenn avslapningen...",
+    "completedDesc": "Bra jobbet! Du har gjennomført progressiv muskelavslapning.",
+    "guideDesc": "Følg guiden gjennom ulike muskelgrupper for dyp avslapning"
+  },
+  "kbt": {
+    "distortions": {
+      "catastrophizing": {
+        "label": "Katastroftenkning",
+        "hint": "Tanken forutsier verste mulige utfall uten mellomscenarier.",
+        "reframeQuestion": "Hva er det mest sannsynlige utfallet, ikke det verste?"
+      },
+      "black_white": {
+        "label": "Svart-hvitt tenkning",
+        "hint": "Tanken bruker ytterligheter som \"alltid\", \"aldri\" eller \"helt\".",
+        "reframeQuestion": "Hvilket mer nyansert mellomrom kunne være sant?"
+      },
+      "mind_reading": {
+        "label": "Tankelesning",
+        "hint": "Tanken antar hva andre tenker uten tydelige bevis.",
+        "reframeQuestion": "Hvilke faktiske bevis har du for hva andre tenker?"
+      },
+      "self_labeling": {
+        "label": "Global selvmerking",
+        "hint": "En feil gjøres om til en generell merkelapp om deg som person.",
+        "reframeQuestion": "Hvordan ville du beskrive situasjonen uten å merke deg selv?"
+      }
+    },
+    "quality": {
+      "stable": "Stabil grunn",
+      "veryStrong": "Meget sterk gjennomføring",
+      "good": "God gjennomføring"
+    },
+    "adaptive": {
+      "noData": {
+        "title": "Fortsatt refleksjon",
+        "message": "Du har gjort et viktig arbeid. Fortsatt repetisjon av den balanserte tanken kan gjøre den mer tilgjengelig i hverdagen."
+      },
+      "clearRestructuring": {
+        "title": "Tydelig omstrukturering",
+        "message": "Din nye tanke føles betydelig mer troverdig nå. Det tyder på at du har brutt et automatisk stressfortolkningsmønster."
+      },
+      "goodProgress": {
+        "title": "God fremgang",
+        "message": "Du beveger deg i riktig retning. Fortsett å øve på den nye tanken i lignende situasjoner for å befeste effekten."
+      },
+      "stabilization": {
+        "title": "Stabilisering trengs",
+        "message": "Forandring tar tid. Prøv å konkretisere bevisene ytterligere og prøv den samme øvelsen igjen i et rolig øyeblikk."
+      }
+    },
+    "stress": {
+      "noData": {
+        "title": "Stressmåling mangler",
+        "message": "Legg til stressnivå før og etter neste gang for å tydeligere se effekten av øvelsen."
+      },
+      "clearReduction": {
+        "title": "Tydelig stressreduksjon",
+        "message": "Stressnivået ditt gikk markant ned. Fortsett med den samme strategien i lignende situasjoner."
+      },
+      "goodRegulation": {
+        "title": "God stressregulering",
+        "message": "Stressnivået ble redusert. Gjenta de øvrige handlingstrinnene for å befeste effekten."
+      },
+      "remaining": {
+        "title": "Stressen gjenstår delvis",
+        "message": "Hvis stresset fortsatt er høyt, kombiner tanken med en kort pustepause før neste steg."
+      }
+    },
+    "sessionQuality": "Sesjonskvalitet: {{score}}/100"
+  },
+  "wellnessData": {
+    "meditations": [
+      {
+        "id": "1",
+        "title": "Rask Avslapning",
+        "description": "Perfekt for en pause"
+      },
+      {
+        "id": "2",
+        "title": "Dyp Søvn",
+        "description": "Sovn lettere i kveld"
+      },
+      {
+        "id": "3",
+        "title": "Morgenfokus",
+        "description": "Start dagen riktig"
+      }
+    ],
+    "breathingExercises": [
+      {
+        "id": "b1",
+        "title": "4-7-8 Pust",
+        "description": "For angstdempning"
+      },
+      {
+        "id": "b2",
+        "title": "Firkantpust",
+        "description": "For balanse og ro"
+      }
+    ],
+    "sleepStories": [
+      {
+        "id": "s1",
+        "title": "Stjernerisen",
+        "description": "Rolig godnattsfortelling for nedtrapping"
+      },
+      {
+        "id": "s2",
+        "title": "Regnskogens hvile",
+        "description": "Myk fortelling med naturlyder"
+      },
+      {
+        "id": "s3",
+        "title": "Havets pust",
+        "description": "Dyp hvile med havets rytme og veiledning"
+      }
+    ]
   }
 }

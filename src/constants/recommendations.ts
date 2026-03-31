@@ -9,6 +9,12 @@ export const BREATHING_PHASES: BreathingPhaseConfig[] = [
     { name: 'exhale2', duration: 8, instruction: 'Andas ut genom munnen...' }
 ];
 
+export const getBreathingPhases = (t: (key: string) => unknown): BreathingPhaseConfig[] => {
+  const phases = t('breathingPhases') as BreathingPhaseConfig[] | undefined;
+  if (Array.isArray(phases) && phases.length > 0) return phases;
+  return BREATHING_PHASES;
+};
+
 export const muscleGroups = [
     {
         name: 'Fötter',
@@ -65,6 +71,12 @@ export const muscleGroups = [
         visual: 'Knyt ihop ögonen, rynka pannan, spänn käkarna och läpparna'
     }
 ];
+
+export const getMuscleGroups = (t: (key: string) => unknown) => {
+  const groups = t('muscleGroups') as typeof muscleGroups | undefined;
+  if (Array.isArray(groups) && groups.length > 0) return groups;
+  return muscleGroups;
+};
 
 export const neuroscienceArticleSections = [
     {
@@ -544,3 +556,15 @@ export const RECOMMENDATIONS_POOL: Recommendation[] = [
         image: '📚',
     },
 ];
+
+type RecPoolTranslations = Record<string, { title: string; description: string; category: string; content: string }>;
+
+export const getRecommendationsPool = (t: (key: string) => unknown): Recommendation[] => {
+  const pool = t('recommendationsPool') as RecPoolTranslations | undefined;
+  if (!pool || typeof pool !== 'object') return RECOMMENDATIONS_POOL;
+  return RECOMMENDATIONS_POOL.map(rec => {
+    const tr = pool[rec.id];
+    if (!tr) return rec;
+    return { ...rec, title: tr.title || rec.title, description: tr.description || rec.description, category: tr.category || rec.category, content: tr.content || rec.content };
+  });
+};

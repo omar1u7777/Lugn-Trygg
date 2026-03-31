@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface CrisisAlertProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface CrisisAlertProps {
 }
 
 const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const isSevere = moodScore < -0.5;
@@ -17,7 +19,7 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-red-600">
-              {isSevere ? '🚨 Akut Krisstöd' : '💙 Stöd och Hjälp'}
+              {isSevere ? t('crisis.titleSevere') : t('crisis.titleMild')}
             </h2>
             <button
               onClick={onClose}
@@ -30,19 +32,17 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
 
           <div className="space-y-4 text-sm text-gray-700">
             <p>
-              🚨 <strong>Viktig information:</strong> Denna sida visar hjälpresurser för alla som behöver stöd med mental hälsa.
-              Du är inte ensam och professionell hjälp finns tillgänglig dygnet runt.
+              🚨 <strong>{t('crisis.importantInfo')}</strong> {t('crisis.infoText')}
             </p>
             <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 p-2 rounded">
-              💡 <strong>Ärligt råd:</strong> Om du känner att livet känns outhärdligt, ring 112 eller självmordslinjen genast.
-              Det finns alltid någon som vill hjälpa dig.
+              💡 <strong>{t('crisis.honestAdvice')}</strong> {t('crisis.adviceText')}
             </p>
 
             <div className="space-y-3">
               <div className="border-l-4 border-red-500 pl-4">
-                <h3 className="font-semibold text-red-600">Självmordslinjen</h3>
+                <h3 className="font-semibold text-red-600">{t('crisis.line1Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Öppen dygnet runt för akut stöd och samtal.
+                  {t('crisis.line1Desc')}
                 </p>
                 <a
                   href="tel:90101"
@@ -53,9 +53,9 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               </div>
 
               <div className="border-l-4 border-blue-500 pl-4">
-                <h3 className="font-semibold text-blue-600">Jourhavande Präst</h3>
+                <h3 className="font-semibold text-blue-600">{t('crisis.line2Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  För existentiella frågor och stöd.
+                  {t('crisis.line2Desc')}
                 </p>
                 <a
                   href="tel:112"
@@ -66,9 +66,9 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               </div>
 
               <div className="border-l-4 border-green-500 pl-4">
-                <h3 className="font-semibold text-green-600">Vårdguiden 1177</h3>
+                <h3 className="font-semibold text-green-600">{t('crisis.line3Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Medicinsk rådgivning och vårdkontakt.
+                  {t('crisis.line3Desc')}
                 </p>
                 <a
                   href="tel:1177"
@@ -79,9 +79,9 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               </div>
 
               <div className="border-l-4 border-purple-500 pl-4">
-                <h3 className="font-semibold text-purple-600">Mind Självmordslinjen</h3>
+                <h3 className="font-semibold text-purple-600">{t('crisis.line4Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Chatt och stöd online.
+                  {t('crisis.line4Desc')}
                 </p>
                 <a
                   href="https://www.mind.se/"
@@ -89,14 +89,14 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
                   rel="noopener noreferrer"
                   className="inline-block bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm font-medium"
                 >
-                  🌐 Besök Mind.se
+                  🌐 {t('crisis.visitWebsite', { site: 'Mind.se' })}
                 </a>
               </div>
 
               <div className="border-l-4 border-orange-500 pl-4">
-                <h3 className="font-semibold text-orange-600">BRIS - Barnens hjälptelefon</h3>
+                <h3 className="font-semibold text-orange-600">{t('crisis.line5Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Stöd för unga vuxna och alla som behöver prata.
+                  {t('crisis.line5Desc')}
                 </p>
                 <a
                   href="tel:116111"
@@ -115,9 +115,9 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               </div>
 
               <div className="border-l-4 border-teal-500 pl-4">
-                <h3 className="font-semibold text-teal-600">SPES - Riksförbundet för SuicidPrevention</h3>
+                <h3 className="font-semibold text-teal-600">{t('crisis.line6Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Anhörigstöd och prevention.
+                  {t('crisis.line6Desc')}
                 </p>
                 <a
                   href="https://www.spes.se/"
@@ -130,9 +130,9 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               </div>
 
               <div className="border-l-4 border-indigo-500 pl-4">
-                <h3 className="font-semibold text-indigo-600">Jourhavande Medmänniska</h3>
+                <h3 className="font-semibold text-indigo-600">{t('crisis.line7Name')}</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Samtalshjälp för existentiella frågor.
+                  {t('crisis.line7Desc')}
                 </p>
                 <a
                   href="tel:08-7020020"
@@ -145,8 +145,7 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-4">
               <p className="text-xs text-yellow-800">
-                <strong>Kom ihåg:</strong> Dina känslor är viktiga och giltiga.
-                Att söka hjälp är ett tecken på styrka, inte svaghet.
+                <strong>{t('crisis.remember')}</strong> {t('crisis.reminder')}
               </p>
             </div>
           </div>
@@ -156,7 +155,7 @@ const CrisisAlert: React.FC<CrisisAlertProps> = ({ isOpen, onClose, moodScore })
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
             >
-              Stäng
+              {t('common.close')}
             </button>
           </div>
         </div>

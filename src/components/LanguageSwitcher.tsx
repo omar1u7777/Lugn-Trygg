@@ -19,7 +19,11 @@ const normalizeLanguageCode = (code: string): LanguageCode => {
   return 'sv'; // Default fallback
 };
 
-const LanguageSwitcher: React.FC = () => {
+interface LanguageSwitcherProps {
+  compact?: boolean;
+}
+
+const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) => {
   const { i18n, t } = useTranslation();
   const currentLanguage = useMemo(() => normalizeLanguageCode(i18n.language), [i18n.language]);
 
@@ -56,7 +60,10 @@ const LanguageSwitcher: React.FC = () => {
       <select
         value={currentLanguage}
         onChange={(e) => changeLanguage(e.target.value as LanguageCode)}
-        className="px-2 sm:px-3 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-8 sm:pr-10 min-w-[80px] sm:min-w-[140px] text-sm transition-all duration-200"
+        className={compact 
+          ? "px-2 py-1 bg-transparent border-none text-gray-900 dark:text-white focus:outline-none cursor-pointer appearance-none pr-6 text-sm"
+          : "px-2 sm:px-3 py-2 bg-[#f2e4d4] dark:bg-slate-800 hover:bg-[#e8dcd0] dark:hover:bg-slate-700 border border-[#e8dcd0] dark:border-slate-700 rounded-xl text-[#2f2a24] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2c8374] cursor-pointer appearance-none pr-8 sm:pr-10 min-w-[80px] sm:min-w-[140px] text-sm transition-all duration-200"
+        }
         aria-label={t('language.selectLanguage', 'Välj språk')}
       >
         {Object.values(LANGUAGE_CONFIG).map((lang) => (

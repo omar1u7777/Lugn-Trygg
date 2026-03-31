@@ -17,6 +17,15 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+# Import new Swedish BERT NLP service
+try:
+    from .mood_nlp_service import get_mood_nlp, MoodAnalysis
+    NLP_AVAILABLE = True
+except ImportError:
+    NLP_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("Mood NLP service not available, using fallback")
+
 logger = logging.getLogger(__name__)
 
 class PredictiveAnalyticsService:
@@ -44,15 +53,12 @@ class PredictiveAnalyticsService:
 
         self.current_model = 'random_forest'
 
+        # Initialize NLP service
+        self.nlp = get_mood_nlp() if NLP_AVAILABLE else None
+
     def preprocess_mood_data(self, mood_entries: list[dict]) -> pd.DataFrame:
         """
-        Preprocess mood data for predictive modeling
-
-        Args:
-            mood_entries: List of mood entry dictionaries
-
-        Returns:
-            Preprocessed DataFrame ready for modeling
+        Preprocess mood data for predictive modeling using Swedish BERT NLP
         """
         if not mood_entries:
             return pd.DataFrame()
@@ -65,56 +71,37 @@ class PredictiveAnalyticsService:
         df = df.sort_values('timestamp')
 
         # Extract time-based features
-        df['hour'] = df['timestamp'].dt.hour  # type: ignore[attr-defined]
-        df['day_of_week'] = df['timestamp'].dt.dayofweek  # type: ignore[attr-defined]
-        df['month'] = df['timestamp'].dt.month  # type: ignore[attr-defined]
-        df['day_of_year'] = df['timestamp'].dt.dayofyear  # type: ignore[attr-defined]
+        df['hour'] = df['timestamp'].dt.hour
+        df['day_of_week'] = df['timestamp'].dt.dayofweek
+        df['month'] = df['timestamp'].dt.month
+        df['day_of_year'] = df['timestamp'].dt.dayofyear
 
-        # Calculate mood score (simplified sentiment mapping)
-
-        df['mood_score'] = df['mood_text'].apply(
-            lambda x: self._extract_mood_score(x) if pd.notna(x) else 3
-        ) if 'mood_text' in df.columns else 3
+        # Calculate mood score using Swedish BERT NLP (replaces keyword-based scoring)
+        if self.nlp and NLP_AVAILABLE:
+            logger.info("Using Swedish BERT NLP for mood score extraction")
+            df['mood_score'] = df['mood_text'].apply(
+                lambda x: self.nlp.extract_mood_score(x) if pd.notna(x) and isinstance(x, str) else 3
+            ) if 'mood_text' in df.columns else 3
+        else:
+            # Fallback to sentiment_score from database if available
+            df['mood_score'] = df.get('sentiment_score', 3)
+            logger.warning("NLP unavailable, using sentiment_score from database")
 
         # Calculate rolling averages and trends
         df['prev_mood'] = df['mood_score'].shift(1)
         df['trend_3d'] = df['mood_score'].rolling(window=3, min_periods=1).mean()
         df['trend_7d'] = df['mood_score'].rolling(window=7, min_periods=1).mean()
 
-        # Seasonal factors (simplified)
+        # Seasonal factors
         df['seasonal_factor'] = np.sin(2 * np.pi * df['day_of_year'] / 365.25)
 
         # Weekend factor
         df['weekend_factor'] = df['day_of_week'].isin([5, 6]).astype(int)
 
-        # Fill NaN values (using modern pandas methods)
+        # Fill NaN values
         df = df.ffill().bfill().fillna(3)
 
         return df
-
-    def _extract_mood_score(self, mood_text: str) -> int:
-        """
-        Extract mood score from text (simplified version)
-        In production, this would use NLP models
-        """
-        if not mood_text:
-            return 3
-
-        text_lower = mood_text.lower()
-
-        # Simple keyword-based scoring
-        positive_words = ['glad', 'bra', 'bra', 'härlig', 'fantastisk', 'lycklig', 'nöjd']
-        negative_words = ['dålig', 'ledsen', 'arg', 'stressad', 'trött', 'orolig', 'deppig']
-
-        positive_count = sum(1 for word in positive_words if word in text_lower)
-        negative_count = sum(1 for word in negative_words if word in text_lower)
-
-        if positive_count > negative_count:
-            return 4
-        elif negative_count > positive_count:
-            return 2
-        else:
-            return 3
 
     def train_predictive_model(self, mood_entries: list[dict]) -> dict[str, Any]:
         """
@@ -285,6 +272,48 @@ class PredictiveAnalyticsService:
                 'error': str(e),
                 'predictions': []
             }
+
+    def predict_next_mood(self, mood_entries: list[dict]) -> dict[str, Any]:
+        """
+        Predict the next mood entry (convenience method for single-day prediction)
+
+        Args:
+            mood_entries: Historical mood data
+
+        Returns:
+            Single prediction for next mood
+        """
+        result = self.predict_mood_trend(mood_entries, days_ahead=1)
+        
+        if result['success'] and result['predictions']:
+            next_prediction = result['predictions'][0]
+            return {
+                'success': True,
+                'prediction': next_prediction,
+                'trend_direction': self._calculate_trend_direction(mood_entries),
+                'model_info': result.get('model_info', {})
+            }
+        
+        return {
+            'success': False,
+            'error': result.get('error', 'Unable to predict next mood'),
+            'prediction': None
+        }
+
+    def _calculate_trend_direction(self, mood_entries: list[dict]) -> str:
+        """Calculate trend direction from recent entries"""
+        if len(mood_entries) < 3:
+            return 'insufficient_data'
+        
+        recent_scores = [entry.get('mood_score', 3) for entry in mood_entries[-7:]]
+        if len(recent_scores) >= 3:
+            if recent_scores[-1] > recent_scores[0]:
+                return 'improving'
+            elif recent_scores[-1] < recent_scores[0]:
+                return 'declining'
+            else:
+                return 'stable'
+        return 'unknown'
 
     def _create_prediction_features(self, pred_date: pd.Timestamp,
                                   last_entry: pd.Series, df: pd.DataFrame) -> dict[str, float]:

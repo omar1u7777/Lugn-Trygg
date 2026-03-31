@@ -5,6 +5,7 @@ All API route blueprints are registered here for easy importing
 
 # Import all blueprints for easy access
 from .admin_routes import admin_bp
+from .advanced_mood_routes import advanced_mood_bp
 from .ai_helpers_routes import ai_helpers_bp
 from .ai_routes import ai_bp
 from .audio_routes import audio_bp
@@ -22,6 +23,8 @@ from .integration_routes import integration_bp
 from .journal_routes import journal_bp
 from .leaderboard_routes import leaderboard_bp
 from .memory_routes import memory_bp
+from .memory_analysis_routes import memory_analysis_bp
+from .multimedia_memory_routes import multimedia_memory_bp
 from .metrics_routes import metrics_bp
 from .mood_routes import mood_bp
 from .mood_stats_routes import mood_stats_bp
@@ -50,7 +53,10 @@ __all__ = [
     # Core Features
     'mood_bp',
     'mood_stats_bp',
+    'advanced_mood_bp',
     'memory_bp',
+    'memory_analysis_bp',
+    'multimedia_memory_bp',
     'journal_bp',
     'audio_bp',
     'voice_bp',

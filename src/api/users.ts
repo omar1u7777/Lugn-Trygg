@@ -29,6 +29,18 @@ export interface UserPreferences {
 }
 
 /**
+ * User statistics interface
+ */
+export interface UserStats {
+  totalMoods: number;
+  totalConversations: number;
+  totalMemories: number;
+  accountAge: number;
+  lastActiveAt?: string;
+  streakDays?: number;
+}
+
+/**
  * Notification settings interface
  */
 export interface NotificationSettings {
@@ -89,6 +101,26 @@ export const getUserProfile = async (): Promise<UserProfile> => {
   } catch (error: unknown) {
     logger.error("Get user profile error:", error);
     throw new Error(getApiErrorMessage(error, "Failed to get user profile"));
+  }
+};
+
+/**
+ * Get user statistics (aggregated)
+ * @returns Promise resolving to user statistics
+ * @throws Error if stats retrieval fails
+ */
+export const getUserStats = async (): Promise<UserStats> => {
+  logger.debug('getUserStats called');
+  try {
+    const response = await api.get<UserApiResponse<UserStats>>(
+      `${API_ENDPOINTS.USERS.WELLNESS_GOALS}/stats`
+    );
+    logger.debug('User stats retrieved successfully');
+    const data = response.data?.data || response.data;
+    return data;
+  } catch (error: unknown) {
+    logger.error("Get user stats error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to get user statistics"));
   }
 };
 

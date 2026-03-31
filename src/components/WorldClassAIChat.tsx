@@ -8,15 +8,25 @@ import {
   LockClosedIcon,
   HeartIcon,
   LightBulbIcon,
-  FaceSmileIcon
+  FaceSmileIcon,
+  WifiIcon,
+  ExclamationTriangleIcon,
+  MicrophoneIcon,
+  StopCircleIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
-import { chatWithAI, getChatHistory } from '../api/api';
+import { getChatHistory } from '../api/api';
 import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import useStreamingChat from '../hooks/useStreamingChat';
+import useChatCache from '../hooks/useChatCache';
+import useErrorRecovery from '../hooks/useErrorRecovery';
+import useVoiceInput from '../hooks/useVoiceInput';
+import useMessagePagination from '../hooks/useMessagePagination';
+import GradualReveal from './ui/GradualReveal';
 
 import { logger } from '../utils/logger';
 
@@ -41,7 +51,11 @@ interface ChatMessage {
 // Component: Message Bubble
 // ----------------------------------------------------------------------
 
-const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ message }) => {
+const MessageBubble: React.FC<{ 
+  message: ChatMessage; 
+  isLast: boolean; 
+  isStreaming?: boolean;
+}> = ({ message, isLast, isStreaming = false }) => {
   const isUser = message.role === 'user';
 
   return (
@@ -59,7 +73,7 @@ const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ me
           {isUser ? (
             <UserIcon className="w-5 h-5 text-white" />
           ) : (
-            <SparklesIcon className="w-5 h-5 text-white" />
+            <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
           )}
         </div>
 
@@ -70,11 +84,21 @@ const MessageBubble: React.FC<{ message: ChatMessage; isLast: boolean }> = ({ me
             ? 'bg-primary-600 text-white rounded-tr-sm'
             : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-gray-800 dark:text-gray-100 rounded-tl-sm border border-white/40 dark:border-white/10'}
         `}>
-          {message.content}
+          {/* Use GradualReveal for AI messages */}
+          {!isUser && (isStreaming || isLast) ? (
+            <GradualReveal 
+              text={message.content} 
+              speed={20}
+              className="text-gray-800 dark:text-gray-100"
+              showCursor={isStreaming}
+            />
+          ) : (
+            message.content
+          )}
 
           {/* Metadata / Sentiment Indicator (AI only) */}
-          {!isUser && message.sentiment && (
-            <div className="mt-3 flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+          {!isUser && message.sentiment && !isStreaming && (
+            <div className="mt-3 flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/50 animate-fade-in">
               <span className={`
                  inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
                  ${message.sentiment === 'POSITIVE' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
@@ -105,11 +129,75 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { user } = useAuth();
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan } = useSubscription();
 
+  // Streaming hook - onComplete adds the completed AI message to messages state
+  const { isStreaming, currentMessage, streamMessage, clearStreamingMessage } = useStreamingChat({
+    onComplete: (fullMessage, crisisDetected) => {
+      if (fullMessage.trim()) {
+        const aiMsg: ChatMessage = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: fullMessage,
+          timestamp: new Date(),
+          ...(crisisDetected ? { sentiment: 'crisis' } : {}),
+        };
+        setMessages(prev => [...prev, aiMsg]);
+        addToCache([aiMsg]);
+        clearDashboardCache();
+      }
+      clearStreamingMessage();
+      announceToScreenReader(t('aiChat.newResponse'), 'polite');
+    },
+    onError: (error) => {
+      logger.error('Streaming error:', error);
+      clearStreamingMessage();
+      setMessages(prev => [...prev, {
+        id: `err-${Date.now()}`,
+        role: 'assistant',
+        content: t('aiChat.errorFallback'),
+        timestamp: new Date()
+      }]);
+    }
+  });
+
+  // Voice input hook
+  const { isListening, isSupported: voiceSupported, startListening, stopListening, transcript, clearTranscript } = useVoiceInput({
+    onTranscript: (text) => {
+      setInputMessage(text);
+    },
+    language: 'sv-SE'
+  });
+
+  const { 
+    isLoaded: cacheLoaded, 
+    getCachedMessages, 
+    addToCache, 
+    syncWithServer 
+  } = useChatCache(user?.user_id || '');
+
+  const { 
+    isOnline, 
+    isRecovering, 
+    executeWithRecovery,
+  } = useErrorRecovery({
+    maxRetries: 3,
+    retryDelay: 1000
+  });
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [limitError, setLimitError] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+
+  // Pagination - feeds from full messages array, shows latest 50, loads older on scroll up
+  const {
+    displayedMessages,
+    isLoading: paginationLoading,
+    hasMore: hasMoreMessages,
+    loadMore,
+    loadingRef,
+  } = useMessagePagination(messages, { pageSize: 20, initialLoadCount: 50 });
 
   const canSendMore = canSendMessage();
   const remainingMessages = getRemainingMessages();
@@ -126,71 +214,103 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-scroll
+  // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, currentMessage?.content]);
 
   const loadChatHistory = async () => {
     if (!user?.user_id) { setLoading(false); return; }
+    
+    // Wait for cache to load
+    if (!cacheLoaded) return;
+
     try {
-      const historyResponse = await getChatHistory(user.user_id);
-      const history = historyResponse?.conversation || [];
-      const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => ({
-        id: `history-${i}`,
-        role: msg?.role === 'user' ? 'user' : 'assistant',
-        content: msg?.content || msg?.message || '',
-        timestamp: new Date(msg?.timestamp?.toDate?.() || msg?.timestamp || Date.now()),
-        sentiment: msg?.sentiment,
-        emotions: msg?.emotions,
-      }));
-      setMessages(formatted);
-    } catch (e) { logger.error(e); } finally { setLoading(false); }
+      // First, load from cache for instant display
+      const cachedMessages = getCachedMessages();
+      if (cachedMessages.length > 0) {
+        setMessages(cachedMessages);
+        setLoading(false);
+      }
+
+      // Then fetch from server and sync
+      await executeWithRecovery('load-chat-history', async () => {
+        const historyResponse = await getChatHistory(user.user_id);
+        const history = historyResponse?.conversation || [];
+        const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => ({
+          id: `history-${i}`,
+          role: msg?.role === 'user' ? 'user' : 'assistant',
+          content: msg?.content || msg?.message || '',
+          timestamp: new Date(msg?.timestamp?.toDate?.() || msg?.timestamp || Date.now()),
+          sentiment: msg?.sentiment,
+          emotions: msg?.emotions,
+        }));
+
+        // Sync with cache
+        await syncWithServer(formatted);
+        
+        // Update messages with server data
+        setMessages(formatted);
+        
+        return formatted;
+      });
+    } catch (e) {
+      logger.error('Failed to load chat history:', e instanceof Error ? e.message : String(e));
+      if (!isOnline) {
+        setNetworkError(t('aiChat.offlineMode'));
+      }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !user?.user_id) return;
+    // Use transcript from voice if available, otherwise typed input
+    const messageText = (isListening ? transcript : inputMessage).trim();
+    if (!messageText || !user?.user_id) return;
     if (!canSendMore) {
       setLimitError(t('aiChat.limitReached'));
       return;
     }
 
+    // Stop voice listening and clear transcript
+    if (isListening) {
+      stopListening();
+      clearTranscript();
+    }
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: inputMessage.trim(),
+      content: messageText,
       timestamp: new Date(),
     };
 
+    // Add user message to state and cache
     setMessages(prev => [...prev, userMsg]);
+    addToCache([userMsg]);
     setInputMessage('');
     setIsTyping(true);
-    analytics.track('AI Chat Message Sent', { length: userMsg.content.length });
+    setNetworkError(null);
+    
+    analytics.track('AI Chat Message Sent', { 
+      length: userMsg.content.length,
+      isOnline 
+    });
 
     try {
-      const response = await chatWithAI(user.user_id, userMsg.content);
+      // Use real SSE streaming against /chatbot/chat/stream
+      await streamMessage(user.user_id, userMsg.content, messages);
+      // onComplete callback handles adding message to state + cache
       incrementChatMessage();
-
-      const aiMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
-        role: 'assistant',
-        content: response.response || (response as any).message || '',
-        timestamp: new Date(),
-        sentiment: response.crisisDetected ? 'crisis' : undefined,
-        emotions: response.emotionsDetected,
-      };
-
-      setMessages(prev => [...prev, aiMsg]);
-      clearDashboardCache();
-      announceToScreenReader(t('aiChat.newResponse'), 'polite');
-
     } catch (error: any) {
-      if (error?.response?.status === 429) {
+      if (error?.response?.status === 429 || (error as any)?.message === 'Daily limit reached') {
         setLimitError(t('aiChat.dailyLimitReached'));
       } else {
-        setMessages(prev => [...prev, {
-          id: `err-${Date.now()}`, role: 'assistant', content: t('aiChat.errorFallback'), timestamp: new Date()
-        }]);
+        logger.error('Send message error:', error);
+        if (!isOnline) {
+          setNetworkError(t('aiChat.messageQueued'));
+        }
       }
     } finally {
       setIsTyping(false);
@@ -220,8 +340,20 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-display">{t('aiChat.sanctuary')}</h1>
-              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider">
-                {isTyping ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
+              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider flex items-center gap-2">
+                {isTyping || isStreaming ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
+                {!isOnline && (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <WifiIcon className="w-3 h-3" />
+                    Offline
+                  </span>
+                )}
+                {isRecovering && (
+                  <span className="flex items-center gap-1 text-blue-600">
+                    <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    Återansluter...
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -270,11 +402,59 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
           ) : (
             <>
-              {messages.map((msg, i) => (
-                <MessageBubble key={msg.id} message={msg} isLast={i === messages.length - 1} />
+              {/* Load older messages trigger (IntersectionObserver target) */}
+              {hasMoreMessages && (
+                <div ref={loadingRef} className="flex justify-center py-3">
+                  {paginationLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <div className="w-3 h-3 border border-gray-300 border-t-teal-500 rounded-full animate-spin" />
+                      Laddar äldre meddelanden...
+                    </div>
+                  ) : (
+                    <button
+                      onClick={loadMore}
+                      className="text-xs text-teal-600 dark:text-teal-400 hover:underline"
+                    >
+                      Ladda äldre meddelanden
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {displayedMessages.map((msg, i) => (
+                <MessageBubble 
+                  key={msg.id} 
+                  message={msg} 
+                  isLast={i === displayedMessages.length - 1} 
+                  isStreaming={false}
+                />
               ))}
 
-              {isTyping && (
+              {/* Streaming message */}
+              {currentMessage && (
+                <MessageBubble 
+                  message={{
+                    id: currentMessage.id,
+                    role: 'assistant',
+                    content: currentMessage.content,
+                    timestamp: currentMessage.timestamp
+                  }} 
+                  isLast={true}
+                  isStreaming={!currentMessage.isComplete}
+                />
+              )}
+
+              {/* Network error notification */}
+              {networkError && (
+                <div className="flex justify-center mb-6 animate-fade-in-up">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 flex items-center gap-2 max-w-md">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <p className="text-sm text-amber-800 dark:text-amber-200">{networkError}</p>
+                  </div>
+                </div>
+              )}
+
+              {isTyping && !isStreaming && (
                 <div className="flex justify-start mb-6 animate-fade-in-up">
                   <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-4 py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-sm flex items-center gap-1.5 ml-12">
                     <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -299,26 +479,67 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           )}
 
           <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
+            {/* Voice input button (mobile-first, only if browser supports it) */}
+            {voiceSupported && (
+              <button
+                onClick={() => {
+                  if (isListening) {
+                    stopListening();
+                    if (transcript) {
+                      setInputMessage(transcript);
+                      clearTranscript();
+                    }
+                  } else {
+                    clearTranscript();
+                    startListening();
+                  }
+                }}
+                aria-label={isListening ? 'Stoppa röstinspelning' : 'Starta röstinspelning'}
+                className={`flex-shrink-0 p-3 rounded-full transition-all ${
+                  isListening
+                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {isListening ? (
+                  <StopCircleIcon className="w-5 h-5" />
+                ) : (
+                  <MicrophoneIcon className="w-5 h-5" />
+                )}
+              </button>
+            )}
+
             <textarea
               ref={inputRef}
               rows={1}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
+              value={isListening ? transcript : inputMessage}
+              onChange={(e) => { if (!isListening) setInputMessage(e.target.value); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              placeholder={t('aiChat.inputPlaceholder')}
-              aria-label={t('aiChat.inputPlaceholder')}
-              disabled={!canSendMore || isTyping}
-              className="w-full pl-6 pr-14 py-4 bg-white dark:bg-slate-800 border-0 rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[3.5rem] max-h-32"
+              placeholder={isListening ? '🎤 Lyssnar...' : !isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
+              aria-label={!isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
+              disabled={!canSendMore || (isTyping && !isStreaming)}
+              readOnly={isListening}
+              className="w-full pl-6 pr-14 py-4 bg-white dark:bg-slate-800 border-0 rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[3.5rem] max-h-32 disabled:opacity-60"
             />
 
             <div className="absolute right-2 bottom-2">
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || !canSendMore || isTyping}
+                disabled={(!inputMessage.trim() && !transcript) || !canSendMore || (isTyping && !isStreaming)}
                 aria-label={t('aiChat.send', 'Skicka meddelande')}
-                className="p-3 bg-gray-900 hover:bg-black dark:bg-teal-600 dark:hover:bg-teal-500 text-white rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+                className={`p-3 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50 ${
+                  !isOnline
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : 'bg-gray-900 hover:bg-black dark:bg-teal-600 dark:hover:bg-teal-500 text-white'
+                }`}
               >
-                {canSendMore ? <PaperAirplaneIcon className="w-5 h-5 -rotate-90 translate-x-[1px]" /> : <LockClosedIcon className="w-5 h-5" />}
+                {!isOnline ? (
+                  <WifiIcon className="w-5 h-5" />
+                ) : canSendMore ? (
+                  <PaperAirplaneIcon className="w-5 h-5 -rotate-90 translate-x-[1px]" />
+                ) : (
+                  <LockClosedIcon className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
