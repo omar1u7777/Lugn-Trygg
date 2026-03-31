@@ -48,6 +48,17 @@ joblib==1.4.2
 transformers==4.47.1
 # torch is optional - install separately if needed for ML features
 
+# Vector Database & Semantic Search (optional - has fallback)
+pinecone-client==5.0.1
+sentence-transformers==3.2.1
+
+# Audio Analysis (optional - has fallback)
+librosa==0.10.2
+soundfile==0.12.1
+
+# Explainable AI (optional - has fallback)
+shap==0.46.0
+
 # Payment Processing
 stripe==11.3.0
 
