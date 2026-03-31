@@ -30,6 +30,10 @@ export * from './consent';
 export * from './crisis';
 export * from './cbt';
 export * from './dataRetention';
+export * from './biofeedback';
+export * from './advancedMood';
+export * from './insights';
+export * from './memoryUnified';
 
 // Legacy exports for backward compatibility
 export { api as default } from './client';
