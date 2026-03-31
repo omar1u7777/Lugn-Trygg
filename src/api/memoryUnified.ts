@@ -2,7 +2,8 @@
  * Unified Memory API - Multimedia memories (text, image, audio, video)
  */
 
-import { api, ApiError } from './client';
+import { api } from './client';
+import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
 export interface MultimediaMemory {
@@ -30,7 +31,7 @@ export interface UploadMemoryResponse {
  * @param type - Filter by memory type
  * @param limit - Number of memories to retrieve
  */
-export const getMemories = async (
+export const getMultimediaMemories = async (
   type?: 'text' | 'image' | 'audio' | 'video',
   limit: number = 50
 ): Promise<MultimediaMemory[]> => {
@@ -41,7 +42,7 @@ export const getMemories = async (
     return response.data.data?.memories || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
-    throw ApiError.fromAxiosError(error);
+    throw ApiError.fromAxiosError(error as Parameters<typeof ApiError.fromAxiosError>[0]);
   }
 };
 
@@ -49,13 +50,13 @@ export const getMemories = async (
  * Get a single memory by ID
  * @param memoryId - Memory ID
  */
-export const getMemory = async (memoryId: string): Promise<MultimediaMemory> => {
+export const getMultimediaMemory = async (memoryId: string): Promise<MultimediaMemory> => {
   try {
     const response = await api.get(`${API_ENDPOINTS.MEMORY_UNIFIED.MEMORY}/${memoryId}`);
     return response.data.data?.memory;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
-    throw ApiError.fromAxiosError(error);
+    throw ApiError.fromAxiosError(error as Parameters<typeof ApiError.fromAxiosError>[0]);
   }
 };
 
@@ -64,7 +65,7 @@ export const getMemory = async (memoryId: string): Promise<MultimediaMemory> => 
  * @param file - File to upload (for image/audio/video)
  * @param metadata - Memory metadata
  */
-export const uploadMemory = async (
+export const uploadMultimediaMemory = async (
   file?: File,
   metadata: Partial<MultimediaMemory> = {}
 ): Promise<UploadMemoryResponse> => {
@@ -85,7 +86,7 @@ export const uploadMemory = async (
     return response.data.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
-    throw ApiError.fromAxiosError(error);
+    throw ApiError.fromAxiosError(error as Parameters<typeof ApiError.fromAxiosError>[0]);
   }
 };
 
@@ -93,11 +94,11 @@ export const uploadMemory = async (
  * Delete a memory
  * @param memoryId - Memory ID to delete
  */
-export const deleteMemory = async (memoryId: string): Promise<void> => {
+export const deleteMultimediaMemory = async (memoryId: string): Promise<void> => {
   try {
     await api.delete(`${API_ENDPOINTS.MEMORY_UNIFIED.DELETE}/${memoryId}`);
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
-    throw ApiError.fromAxiosError(error);
+    throw ApiError.fromAxiosError(error as Parameters<typeof ApiError.fromAxiosError>[0]);
   }
 };

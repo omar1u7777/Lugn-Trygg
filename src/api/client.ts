@@ -55,6 +55,9 @@ export const apiClient = api;
 // Export api as default export
 export default api;
 
+// Re-export ApiError for convenience
+export { ApiError } from './errors';
+
 // Prevent infinite loop during token refresh
 let isRefreshing = false;
 // Queue of requests waiting for a token refresh to complete

@@ -16,8 +16,8 @@ import {
 import {
   SparklesIcon,
   ExclamationTriangleIcon,
-  TrendingDownIcon,
-  TrendingUpIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
   MinusIcon,
   CalendarIcon,
   InformationCircleIcon
@@ -178,12 +178,12 @@ export const MoodForecastView: React.FC = () => {
           <div className="flex items-center gap-2 mt-1">
             {trend > 0.05 ? (
               <>
-                <TrendingUpIcon className="w-5 h-5 text-emerald-500" />
+                <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-500" />
                 <span className="text-lg font-semibold text-emerald-600">Uppåt</span>
               </>
             ) : trend < -0.05 ? (
               <>
-                <TrendingDownIcon className="w-5 h-5 text-rose-500" />
+                <ArrowTrendingDownIcon className="w-5 h-5 text-rose-500" />
                 <span className="text-lg font-semibold text-rose-600">Nedåt</span>
               </>
             ) : (

@@ -65,6 +65,8 @@ export const API_ENDPOINTS = {
   CHATBOT: {
     /** POST send message to AI chatbot */
     CHAT: '/api/v1/chatbot/chat',
+    /** POST streaming chat endpoint */
+    CHAT_STREAM: '/api/v1/chatbot/chat/stream',
     /** POST legacy alias for /chat */
     MESSAGE: '/api/v1/chatbot/message',
     /** GET conversation history */
