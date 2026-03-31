@@ -22,6 +22,11 @@ import {
 import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
 import { logger } from '../utils/logger';
 
+import MoodCalendar from './MoodCalendar';
+import { useMoodData } from '../features/mood/hooks/useMoodData';
+import { MoodEntry } from '../features/mood/types';
+import { getWellnessInsights, WellnessInsight } from '../api/insights';
+
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
@@ -132,7 +137,13 @@ interface MoodStatistics {
   recent_trend: 'improving' | 'declining' | 'stable';
 }
 
+
 const MoodAnalytics: React.FC = () => {
+    // Health-mood insights state
+    const [wellnessInsights, setWellnessInsights] = useState<WellnessInsight[]>([]);
+    useEffect(() => {
+      getWellnessInsights().then(setWellnessInsights).catch(() => setWellnessInsights([]));
+    }, []);
   const { t } = useTranslation();
   const { user } = useAuth();
   const [forecast, setForecast] = useState<ForecastData | null>(null);
@@ -141,6 +152,11 @@ const MoodAnalytics: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [daysAhead, setDaysAhead] = useState(7);
+  // Calendar state
+  const today = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const { moods, isLoading: moodsLoading } = useMoodData({ autoFetch: true, limit: 200 });
 
   const loadStatistics = useCallback(async () => {
     logger.debug('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
@@ -400,7 +416,8 @@ const MoodAnalytics: React.FC = () => {
     return <CheckCircleIcon className="w-5 h-5 text-success" />;
   };
 
-  if (loading) {
+
+  if (loading || moodsLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
         <div className="flex flex-col items-center gap-4">
@@ -434,6 +451,86 @@ const MoodAnalytics: React.FC = () => {
       transition={{ duration: 0.5 }}
     >
       <div className="space-y-6">
+        {/* Health-Mood Insights */}
+        {wellnessInsights.length > 0 && (
+          <Card>
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <LightBulbIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Hälsa & Humör-insikter
+                </h3>
+              </div>
+              <ul className="space-y-2">
+                {wellnessInsights.map((insight) => (
+                  <li key={insight.id} className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">{insight.title}:</span> {insight.description}
+                    {insight.areas && insight.areas.length > 0 && (
+                      <ul className="ml-4 mt-1 list-disc text-xs text-gray-500 dark:text-gray-400">
+                        {insight.areas.map((area) => (
+                          <li key={area.name}>
+                            {area.name}: {area.score} ({area.trend === 'up' ? '↑' : area.trend === 'down' ? '↓' : '→'})
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Card>
+        )}
+        {/* Mood Calendar for Monthly Analytics */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <CalendarDaysIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+              Månadskalender
+            </h2>
+            <div className="flex gap-2">
+              <button
+                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                onClick={() => {
+                  if (calendarMonth === 0) {
+                    setCalendarMonth(11);
+                    setCalendarYear(calendarYear - 1);
+                  } else {
+                    setCalendarMonth(calendarMonth - 1);
+                  }
+                }}
+                aria-label="Föregående månad"
+              >
+                &lt;
+              </button>
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {today.toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
+              </span>
+              <button
+                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                onClick={() => {
+                  if (calendarMonth === 11) {
+                    setCalendarMonth(0);
+                    setCalendarYear(calendarYear + 1);
+                  } else {
+                    setCalendarMonth(calendarMonth + 1);
+                  }
+                }}
+                aria-label="Nästa månad"
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
+          <MoodCalendar
+            year={calendarYear}
+            month={calendarMonth}
+            moodEntries={moods.map((m) => ({
+              ...m,
+              date: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+              mood: m.score, // for color
+            })) as any}
+          />
+        </div>
         <div className="flex items-center gap-3">
           <LightBulbIcon className="w-8 h-8 text-primary-600 dark:text-primary-500" />
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">

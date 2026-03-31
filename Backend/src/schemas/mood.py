@@ -53,6 +53,8 @@ class MoodLogRequest(BaseRequest):
     location: dict[str, float] | None = None  # {"lat": float, "lng": float}
     weather: dict[str, Any] | None = None  # Weather context
     activities: list[SanitizedString] | None = Field(default_factory=list, max_length=10)
+    tags: list[SanitizedString] | None = Field(default_factory=list, max_length=10, description="Mood tags (e.g. work, family, health)")
+    context: SanitizedString | None = Field(None, max_length=100, description="Mood context (e.g. location, activity)")
     timestamp: datetime | None = None
 
     @field_validator('note', mode='before')
@@ -101,6 +103,8 @@ class MoodEntry(BaseModel):
     sentiment_score: float | None = Field(None, ge=-1, le=1)
     keywords: list[str] = Field(default_factory=list)
     ai_insights: dict[str, Any] | None = None
+    tags: list[str] = Field(default_factory=list, description="Mood tags (e.g. work, family, health)")
+    context: str | None = Field(None, description="Mood context (e.g. location, activity)")
 
     # System fields
     created_at: datetime
