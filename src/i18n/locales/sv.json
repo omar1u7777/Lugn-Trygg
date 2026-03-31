@@ -3,6 +3,38 @@
     "name": "Lugn & Trygg",
     "description": "Din personliga mentalvårdsassistent"
   },
+  "common": {
+    "requiredField": "obligatoriskt fält",
+    "loading": "Laddar...",
+    "error": "Ett fel uppstod",
+    "success": "Klart!",
+    "cancel": "Avbryt",
+    "save": "Spara",
+    "delete": "Ta bort",
+    "edit": "Redigera",
+    "close": "Stäng",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "previous": "Föregående",
+    "search": "Sök",
+    "filter": "Filtrera",
+    "sort": "Sortera",
+    "yes": "Ja",
+    "no": "Nej",
+    "ok": "OK",
+    "status": "Status",
+    "offlineTitle": " Du är offline!",
+    "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
+    "retry": " Försök igen",
+    "pageNotFound": " Sidan hittades inte!",
+    "skipToContent": "Hoppa till huvudinnehåll",
+    "skipToNavigation": "Hoppa till navigation",
+    "skipToSearch": "Hoppa till sök",
+    "liveRegionLabel": "Liveuppdateringar",
+    "alertsLiveRegion": "Systemlarm uppdateras i realtid",
+    "alertsActiveCount": "{count} aktiva larm",
+    "updating": "Uppdaterar..."
+  },
   "nav": {
     "dashboard": "Översikt",
     "mood": "Humör",
@@ -29,20 +61,20 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Välkommen",
-    "reminder": "🔔 Påminnelse:",
+    "reminder": " Påminnelse:",
     "moodReminder": "Du har inte loggat ditt humör idag. Ta en stund att reflektera över din dag!",
     "moodTrends": "Humörtrender (senaste veckan)",
     "memoryFrequency": "Minnesfrekvens (senaste veckan)",
     "logMood": "Logga Humör",
-    "openMoodLogger": "🎭 Öppna Humörloggning",
+    "openMoodLogger": " Öppna Humörloggning",
     "yourMoodLogs": "Dina Humörloggar",
-    "viewMoodLogs": "📋 Visa Humörloggar",
+    "viewMoodLogs": " Visa Humörloggar",
     "recordMemory": "Spela in Minne",
-    "openRecording": "🎙 Öppna Inspelning",
+    "openRecording": " Öppna Inspelning",
     "yourMemories": "Dina Minnen",
-    "viewMemories": "🎞 Visa Minnen",
+    "viewMemories": " Visa Minnen",
     "aiTherapist": "AI-terapeut",
-    "openChat": "💬 Öppna Chatt",
+    "openChat": " Öppna Chatt",
     "todayMood": "Dagens humör",
     "weeklyStats": "Veckostatistik",
     "recentMemories": "Senaste minnen",
@@ -51,9 +83,9 @@
     "chatWithAI": "Prata med AI",
     "viewAnalytics": "Se analys",
     "weeklyMoodAnalysis": "Veckans Måendeanalys",
-    "loadingAnalysis": "🔄 Laddar analys...",
-    "analysisError": "❌ Fel: {error}",
-    "noDataAvailable": "📊 Ingen data tillgänglig.",
+    "loadingAnalysis": " Laddar analys...",
+    "analysisError": " Fel: {error}",
+    "noDataAvailable": " Ingen data tillgänglig.",
     "moodDistribution": "Humörfördelning",
     "moodLogs": "Humörloggar",
     "average": "Genomsnitt",
@@ -65,7 +97,51 @@
     "badges": "Prestationer",
     "relaxingSounds": "Avslappnande Ljud",
     "weeklyMemoryActivity": "Veckovis Minnesaktivitet",
-    "noMemoryData": "📊 Ingen minnesdata tillgänglig."
+    "noMemoryData": " Ingen minnesdata tillgänglig.",
+    "goalSteps": {
+      "Bättre sömn": [
+        "Gå och lägg dig 22:00 idag",
+        "Stäng av skärmar 1h innan säng",
+        "Läs en bok istället för telefon"
+      ],
+      "Ökad fokusering": [
+        "Ta 3 djupa andetag nu",
+        "Stäng av notifikationer 30 min",
+        "Arbeta i 25-min intervall"
+      ],
+      "Hantera stress": [
+        "Gör 3-minuters andningsövning",
+        "Ta en kort promenad",
+        "Skriv ner 3 saker du är tacksam för"
+      ],
+      "Mer energi": [
+        "Drick ett glas vatten",
+        "Gör 5-minuters stretching",
+        "Ta en power nap 20 min"
+      ],
+      "Bättre humör": [
+        "Lyssna på din favoritlåt",
+        "Ring en vän",
+        "Gör något snällt för någon"
+      ],
+      "default": [
+        "Logga ditt humör idag",
+        "Reflektera över dagen",
+        "Sätt ett litet mål för imorgon"
+      ],
+      "fallback": "Fortsätt arbeta med ditt mål"
+    },
+    "verifyFailed": "Kunde inte verifiera prenumerationen. Logga in igen och försök på nytt.",
+    "verifying": "Verifierar din betalning och uppdaterar Premium ...",
+    "premiumActive": "Premium är nu aktivt. Välkommen!",
+    "paymentRegistered": "Betalningen registrerades. Premium uppdateras inom kort automatiskt.",
+    "updateFailed": "Kunde inte uppdatera prenumerationen just nu. Försök igen om en stund.",
+    "updateGoals": "📝 Uppdatera",
+    "updateGoalsAria": "Uppdatera wellness-mål",
+    "nextStep": "Nästa steg",
+    "friend": "vän",
+    "purchaseCancelled": "Köpet avbröts. Du kan prova igen när du är redo.",
+    "weeklyGoalProgress": "{{count}} inlägg till ditt veckomål"
   },
   "mood": {
     "title": "Humörloggning",
@@ -73,8 +149,8 @@
     "greeting": "Hej, hur mår du idag?",
     "sadResponse": "Jag hör att du kanske känner dig lite nere. Vill du lyssna på lugnande musik?",
     "recording": "Spelar in...",
-    "startRecording": "🎭 Börja Logga",
-    "close": "❌ Stäng",
+    "startRecording": " Börja Logga",
+    "close": " Stäng",
     "errorRecording": "Ett fel uppstod vid inspelning. Försök igen.",
     "errorSave": "Kunde inte spara humöret. Försök igen senare.",
     "veryBad": "Mycket dåligt",
@@ -125,36 +201,6 @@
     "cancelAnytime": "Du kan när som helst avbryta prenumerationen. Ingen bindningstid.",
     "processing": "Bearbetar...",
     "error": "Prenumeration misslyckades"
-  },
-  "common": {
-    "loading": "Laddar...",
-    "error": "Ett fel uppstod",
-    "success": "Klart!",
-    "cancel": "Avbryt",
-    "save": "Spara",
-    "delete": "Ta bort",
-    "edit": "Redigera",
-    "close": "Stäng",
-    "back": "Tillbaka",
-    "next": "Nästa",
-    "previous": "Föregående",
-    "search": "Sök",
-    "filter": "Filtrera",
-    "sort": "Sortera",
-    "yes": "Ja",
-    "no": "Nej",
-    "ok": "OK",
-    "status": "Status",
-    "offlineTitle": "🚫 Du är offline!",
-    "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
-    "retry": "🔄 Försök igen",
-    "pageNotFound": "🚫 Sidan hittades inte!",
-    "skipToContent": "Hoppa till huvudinnehåll",
-    "skipToNavigation": "Hoppa till navigation",
-    "skipToSearch": "Hoppa till sök",
-    "liveRegionLabel": "Liveuppdateringar",
-    "alertsLiveRegion": "Systemlarm uppdateras i realtid",
-    "alertsActiveCount": "{count} aktiva larm"
   },
   "settings": {
     "title": "Inställningar",
@@ -233,12 +279,35 @@
     "notSupported": "Röstigenkänning stöds inte i denna webbläsare",
     "error": "Röstfel: {error}",
     "commands": {
-      "logMood": ["logga humör", "spela in humör", "humör", "känslor"],
-      "recordMemory": ["spela in minne", "nytt minne", "minne"],
-      "openChat": ["öppna chatt", "prata med AI", "chat"],
-      "toggleTheme": ["växla tema", "mörkt läge", "ljus läge"],
-      "viewMoods": ["visa humör", "mina humör"],
-      "viewMemories": ["visa minnen", "mina minnen"]
+      "logMood": [
+        "logga humör",
+        "spela in humör",
+        "humör",
+        "känslor"
+      ],
+      "recordMemory": [
+        "spela in minne",
+        "nytt minne",
+        "minne"
+      ],
+      "openChat": [
+        "öppna chatt",
+        "prata med AI",
+        "chat"
+      ],
+      "toggleTheme": [
+        "växla tema",
+        "mörkt läge",
+        "ljus läge"
+      ],
+      "viewMoods": [
+        "visa humör",
+        "mina humör"
+      ],
+      "viewMemories": [
+        "visa minnen",
+        "mina minnen"
+      ]
     }
   },
   "badges": {
@@ -390,24 +459,27 @@
   },
   "aiChat": {
     "sanctuary": "Din Fristad",
-    "thinking": "Tänker...",
     "alwaysHere": "Alltid här för dig",
-    "messagesLeft": "{{count}} meddelanden kvar",
-    "limitReached": "Gräns uppnådd",
-    "dailyLimitReached": "Daglig gräns uppnådd",
-    "welcomeMessage": "Välkommen till din fristad. Jag lyssnar.",
+    "thinking": "Tänker...",
+    "welcomeHome": "Välkommen hem",
+    "welcomeText": "Detta är din trygga plats. Dela vad som helst som är på ditt hjärta - jag är här för att lyssna utan att döma.",
+    "inputPlaceholder": "Berätta vad du känner...",
+    "offlinePlaceholder": "Du är offline. Meddelandet skickas när du är tillbaka online.",
+    "send": "Skicka meddelande",
     "newResponse": "Nytt svar från AI",
-    "errorFallback": "Förlåt, jag tappade tråden. Försök igen.",
+    "opening": "Öppnar din fristad...",
+    "offlineMode": "Du är i offline-läge. Visar cachade meddelanden.",
+    "messageQueued": "Meddelandet köas för att skickas när du är online igen.",
     "suggestions": {
       "stressed": "Jag känner mig stressad",
       "motivation": "Behöver motivation",
-      "sleep": "Svårt att sova"
+      "sleep": "Kan inte sova"
     },
-    "opening": "Öppnar din fristad...",
-    "welcomeHome": "Välkommen hem.",
-    "welcomeText": "Här inne dömer ingen. Jag finns här för att lyssna, stötta och hjälpa dig sortera tankarna. Vad tänker du på just nu?",
-    "inputPlaceholder": "Skriv ditt meddelande...",
-    "footer": "Lugn & Trygg AI • Privat & Säker"
+    "footer": "Dina samtal är privata och säkra",
+    "limitReached": "Daglig gräns nådd",
+    "dailyLimitReached": "Du har nått din dagliga gräns för meddelanden",
+    "messagesLeft": "{{count}} kvar",
+    "errorFallback": "Tyvärr, jag har tekniska svårigheter just nu. Försök igen om en stund."
   },
   "gamification": {
     "myJourney": "Min Resa 🏆",
@@ -441,12 +513,30 @@
       "legendary": "Legendarisk"
     },
     "achievements": {
-      "firstStep": { "title": "Första steget", "description": "Logga ditt första humör" },
-      "weekWinner": { "title": "Veckovinnare", "description": "Logga humör 7 dagar i rad" },
-      "moodExplorer": { "title": "Humörutforskare", "description": "Logga 10 humör totalt" },
-      "conversationStarter": { "title": "Samtalsinitiatör", "description": "Ha 10 AI-samtal" },
-      "consistencyKing": { "title": "Konsekvenskung", "description": "Logga humör 30 dagar i rad" },
-      "moodMaster": { "title": "Humörmästare", "description": "Logga 50 humör totalt" }
+      "firstStep": {
+        "title": "Första steget",
+        "description": "Logga ditt första humör"
+      },
+      "weekWinner": {
+        "title": "Veckovinnare",
+        "description": "Logga humör 7 dagar i rad"
+      },
+      "moodExplorer": {
+        "title": "Humörutforskare",
+        "description": "Logga 10 humör totalt"
+      },
+      "conversationStarter": {
+        "title": "Samtalsinitiatör",
+        "description": "Ha 10 AI-samtal"
+      },
+      "consistencyKing": {
+        "title": "Konsekvenskung",
+        "description": "Logga humör 30 dagar i rad"
+      },
+      "moodMaster": {
+        "title": "Humörmästare",
+        "description": "Logga 50 humör totalt"
+      }
     }
   },
   "worldAnalytics": {
@@ -555,7 +645,8 @@
     "weeklyProgressLabel": "Veckoprogress: {{current}} av {{goal}}",
     "weeklyGoalReached": "Grattis! Du har nått ditt veckomål!",
     "entriesLeft": "{{count}} inlägg kvar till nästa achievement",
-    "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!"
+    "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!",
+    "seeRecommendations": "Se rekommendationer →"
   },
   "social": {
     "title": "",
@@ -656,7 +747,24 @@
     "updatingData": "Uppdaterar data...",
     "autoUpdate": "Uppdateras automatiskt",
     "lastUpdated": "Uppdaterat för {{minutes}} min sedan",
-    "lastUpdatedAt": "Senast {{time}}"
+    "lastUpdatedAt": "Senast {{time}}",
+    "morningFocus": "Morgonfokus",
+    "morningDesc": "Börja dagen med 3 djupa andetag. Följ orben.",
+    "dayFocus": "Dagens Fokus",
+    "dayDesc": "Ta en kort paus med 3 djupa andetag innan nästa steg.",
+    "eveningFocus": "Kvällsfokus",
+    "eveningDesc": "Varva ner med 3 lugna andetag och checka in hur dagen känns.",
+    "startBreathing": "Starta 3 andetag",
+    "checkedIn": "Bra jobbat med dagens check-in! Vill du se dina insikter?",
+    "morningMood": "God morgon! Igår var din känsla \"{{mood}}\". Hur känns det att starta idag?",
+    "welcomeBackMood": "Välkommen tillbaka! Senast var din känsla \"{{mood}}\". Vad märker du nu?",
+    "mindfulPrompt": "Vad för känslor eller tankar är närvarande just nu? Allt är välkommet här.",
+    "breatheIn": "Andas in",
+    "breatheOut": "Andas ut",
+    "pause": "Paus",
+    "done": "Klart",
+    "breathingExercise": "Andningsövning",
+    "reflectionInvitation": "Inbjudan till reflektion"
   },
   "breath": {
     "breathCount": "Andetag",
@@ -668,6 +776,741 @@
     "ariaStart": "Starta guidad andningsövning",
     "inProgress": "Guidad paus pågår...",
     "continue": "Fortsätt till humörcheck-in",
-    "skip": "Hoppa över och fortsätt"
+    "skip": "Hoppa över"
+  },
+  "loginForm": {
+    "secureLogin": "Säker inloggning",
+    "title": "Logga in",
+    "subtitle": "Välkommen tillbaka. Logga in för att fortsätta där du slutade.",
+    "emailLabel": "📧 E-postadress",
+    "emailPlaceholder": "Ange din e-postadress",
+    "passwordLabel": "Lösenord",
+    "passwordPlaceholder": "Ange ditt lösenord",
+    "hidePassword": "Dölj lösenord",
+    "showPassword": "Visa lösenord",
+    "loginButton": "Logga in",
+    "or": "eller",
+    "googleSignIn": "Fortsätt med Google",
+    "noAccount": "Har du inget konto?",
+    "registerHere": "Registrera dig här",
+    "goToRegister": "Gå till registreringssidan",
+    "forgotPassword": "Glömt lösenord?",
+    "openForgotPassword": "Öppna glömt lösenord-dialog",
+    "loggingIn": "Loggar in...",
+    "loginSuccess": "Inloggning lyckades",
+    "loginFailed": "Inloggning misslyckades",
+    "googleLoginSuccess": "Google-inloggning lyckades",
+    "googleLoginFailed": "Google-inloggning misslyckades",
+    "defaultError": "Ett fel uppstod vid inloggning",
+    "loggingInGoogle": "Loggar in med Google...",
+    "invalidEmail": "Ange en giltig e-postadress",
+    "passwordRequired": "Lösenord är obligatoriskt",
+    "formErrors": "Formuläret innehåller fel. Korrigera och försök igen.",
+    "serverTimeout": "Servern svarar inte just nu. Försök igen om några sekunder.",
+    "networkError": "Kunde inte ansluta till servern. Kontrollera internetanslutningen.",
+    "popupBlocked": "Popup blockerad. Tillåt popups för denna webbplats.",
+    "popupClosed": "Inloggningsfönstret stängdes. Försök igen.",
+    "popupCancelled": "Inloggningsfönstret avbröts. Försök igen."
+  },
+  "forgotPassword": {
+    "title": "Återställ Lösenord",
+    "closeDialog": "Stäng dialog",
+    "emailLabel": "E-postadress",
+    "emailPlaceholder": "Ange din e-postadress",
+    "emailHint": "Vi skickar en återställningslänk till denna adress",
+    "sendButton": "Skicka Återställningslänk",
+    "sending": "Skickar...",
+    "backToLogin": "Tillbaka till inloggning",
+    "resetLinkSent": "Om e-postadressen finns registrerad har en återställningslänk skickats.",
+    "resetLinkSentAnnouncement": "Återställningslänk skickad",
+    "genericError": "Ett fel uppstod. Försök igen senare.",
+    "invalidEmail": "Ogiltig e-postadress.",
+    "tooManyRequests": "För många förfrågningar. Försök igen senare.",
+    "errorPrefix": "Fel:"
+  },
+  "registerForm": {
+    "title": "Skapa konto",
+    "nameLabel": "Namn",
+    "namePlaceholder": "Ange ditt namn",
+    "nameRequired": "Namn är obligatoriskt.",
+    "emailLabel": "E-postadress",
+    "emailPlaceholder": "Ange din e-postadress",
+    "invalidEmail": "Ange en giltig e-postadress.",
+    "passwordLabel": "Lösenord",
+    "passwordPlaceholder": "Skapa ett starkt lösenord",
+    "passwordHelp": "Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.",
+    "passwordTooShort": "Lösenordet måste vara minst 8 tecken långt.",
+    "passwordNeedsChars": "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.",
+    "passwordNeedsSpecial": "Lösenordet måste innehålla minst ett specialtecken.",
+    "hidePassword": "Dölj lösenord",
+    "showPassword": "Visa lösenord",
+    "confirmPasswordLabel": "Bekräfta lösenord",
+    "confirmPasswordPlaceholder": "Bekräfta ditt lösenord",
+    "passwordMismatch": "Lösenorden matchar inte.",
+    "acceptTermsPrefix": "Jag accepterar",
+    "termsLink": "användarvillkoren",
+    "acceptPrivacyPrefix": "Jag accepterar",
+    "privacyLink": "integritetspolicyn",
+    "termsRequired": "Du måste acceptera villkoren och integritetspolicyn.",
+    "referralActive": "Referenskod aktiv!",
+    "referralBenefit": "Du och din vän får båda 1 vecka gratis premium! 🎉",
+    "referralCode": "Kod:",
+    "creating": "Skapar konto...",
+    "success": "Registrering lyckades! Du kan nu logga in.",
+    "successWithReferral": "Registrering lyckades! {{message}} Du kan nu logga in.",
+    "failedPrefix": "Registrering misslyckades:",
+    "formErrors": "Formuläret innehåller fel. Korrigera och försök igen.",
+    "hasAccount": "Har du redan ett konto?",
+    "loginLink": "Logga in här",
+    "goToLogin": "Gå till inloggningssidan"
+  },
+  "authLayout": {
+    "pageLabel": "Inloggningssida",
+    "skipToForm": "Hoppa till inloggningsformuläret",
+    "introLabel": "Introduktion",
+    "infoLabel": "Information om Lugn & Trygg",
+    "formLabel": "Inloggningsformulär",
+    "tagline": "Din mentala hälso-kompanjon i vardagen",
+    "loginCta": "Logga in för att fortsätta med humörlogg, AI-stöd och personliga insikter.",
+    "description": "Följ ditt humör, få personligt AI-stöd och bygg hållbara vanor i din egen takt, tillsammans med tusentals andra som använder Lugn & Trygg.",
+    "featuresLabel": "Funktioner",
+    "feature1": "Din data är skyddad och delas aldrig utan ditt samtycke.",
+    "feature2": "Få dagliga insikter, små belöningar och stöd som hjälper dig att hålla rutiner över tid.",
+    "feature3": "AI-stöd för mental hälsa som erbjuder reflektion och praktiska strategier anpassade efter dig."
+  },
+  "onboarding": {
+    "step1Title": "Välkommen till Lugn & Trygg",
+    "step1Desc": "Din personliga mental health-app",
+    "step2Title": "Sätt dina mål",
+    "step2Desc": "Vad vill du uppnå?",
+    "step3Title": "Starta din resa",
+    "step3Desc": "Du är redo!",
+    "welcomeHeading": "Hej! Vi är glada att du är här.",
+    "welcomeBody": "Lugn & Trygg hjälper dig att hantera stress, förbättra din mental hälsa och hitta lugn i ditt dagliga liv.",
+    "journeyBegins": "✨ Din personliga resa börjar här",
+    "welcomeNote": "Med dina valda mål kommer vi att ge dig personliga rekommendationer för att stötta din mental hälsa.",
+    "readyHeading": "Du är nu redo att börja!",
+    "readyBody": "Börja med en kort meditation eller spåra ditt nuvarande humör för att få personliga rekommendationer.",
+    "selectGoals": "Välj dina wellness-mål:",
+    "maxGoals": "Du kan välja upp till {{max}} mål",
+    "stepOf": "Steg {{current}} av {{total}}",
+    "retryOrSkip": "Försök igen eller hoppa över",
+    "skip": "Hoppa över",
+    "selectAtLeastOne": "Välj minst ett mål för att fortsätta",
+    "saving": "Sparar...",
+    "next": "Nästa",
+    "goalsSelected": "mål valda",
+    "selectMin": "Välj minst 1 mål",
+    "start": "Starta",
+    "heroAlt": "Illustration av onboardingresan"
+  },
+  "crisis": {
+    "titleSevere": "🚨 Akut Krisstöd",
+    "titleMild": "💙 Stöd och Hjälp",
+    "importantInfo": "Viktig information:",
+    "infoText": "Denna sida visar hjälpresurser för alla som behöver stöd med mental hälsa. Du är inte ensam och professionell hjälp finns tillgänglig dygnet runt.",
+    "honestAdvice": "Ärligt råd:",
+    "adviceText": "Om du känner att livet känns outhärdligt, ring 112 eller självmordslinjen genast. Det finns alltid någon som vill hjälpa dig.",
+    "line1Name": "Självmordslinjen",
+    "line1Desc": "Öppen dygnet runt för akut stöd och samtal.",
+    "line2Name": "Jourhavande Präst",
+    "line2Desc": "För existentiella frågor och stöd.",
+    "line3Name": "Vårdguiden 1177",
+    "line3Desc": "Medicinsk rådgivning och vårdkontakt.",
+    "line4Name": "Mind Självmordslinjen",
+    "line4Desc": "Chatt och stöd online.",
+    "line5Name": "BRIS - Barnens hjälptelefon",
+    "line5Desc": "Stöd för unga vuxna och alla som behöver prata.",
+    "line6Name": "SPES - Riksförbundet för SuicidPrevention",
+    "line6Desc": "Anhörigstöd och prevention.",
+    "line7Name": "Jourhavande Medmänniska",
+    "line7Desc": "Samtalshjälp för existentiella frågor.",
+    "visitWebsite": "Besök {{site}}",
+    "remember": "Kom ihåg:",
+    "reminder": "Dina känslor är viktiga och giltiga. Att söka hjälp är ett tecken på styrka, inte svaghet."
+  },
+  "greeting": {
+    "morning": "God morgon",
+    "day": "God dag",
+    "afternoon": "God eftermiddag",
+    "evening": "God kväll",
+    "takeItEasy": "Ta det lugnt idag.",
+    "restIsProductive": "Kom ihåg att vila är produktivt.",
+    "greatToSeeYou": "Underbart att se dig."
+  },
+  "navigation": {
+    "mainNav": "Huvudnavigation",
+    "switchToLight": "Byt till ljust läge",
+    "switchToDark": "Byt till mörkt läge",
+    "welcomeBack": "Välkommen tillbaka, {{name}}",
+    "discoverPremium": "Upptäck Premium",
+    "endSession": "Avsluta session",
+    "unlockUnlimited": "Lås upp obegränsad tillgång",
+    "confirmLogout": "Är du säker på att du vill ta en paus? Du kan alltid komma tillbaka.",
+    "pause": "Ta en paus",
+    "mobileMenu": "Mobilmeny",
+    "menu": "Meny",
+    "openMenu": "Öppna meny",
+    "profile": "Profil",
+    "settings": "Inställningar",
+    "theme": "Tema",
+    "language": "Språk"
+  },
+  "password": {
+    "strength": {
+      "label": "Lösenordsstyrka",
+      "empty": "",
+      "weak": "Svagt",
+      "fair": "OK",
+      "good": "Starkt",
+      "strong": "Mycket starkt"
+    },
+    "requirement": {
+      "length": "8+ tecken",
+      "uppercase": "Stor bokstav",
+      "lowercase": "Liten bokstav",
+      "number": "Siffra",
+      "special": "Specialtecken"
+    },
+    "tip": "Tips: Använd en mening eller kombinera ord för ett starkt men minnesvärt lösenord."
+  },
+  "premiumUpsell": {
+    "limitTitle": "Nästan slut på användning?",
+    "limitSubtitle": "Få obegränsat med Premium",
+    "limitMessage": "Du har {{moods}}/{{max}} humörloggningar kvar idag. Förlora inte din momentum!",
+    "limitUrgency": "Återställning om {{timeLeft}}",
+    "limitCta": "Lås upp obegränsat -20%",
+    "engagementTitle": "Du bygger en bra vana!",
+    "engagementSubtitle": "Skydda dina framsteg",
+    "engagementMessage": "Med {{moods}} loggade stämningar och {{chats}} samtal är du på god väg.",
+    "engagementUrgency": "Begränsat erbjudande för engagerade användare",
+    "engagementCta": "Fortsätt din resa",
+    "streakTitle": "{{days}} dagar av kontinuitet!",
+    "streakSubtitle": "Bryt inte kedjan",
+    "streakMessage": "Du har byggt en vana. Se till att du kan fortsätta.",
+    "streakUrgency": "{{streakUsers}} användare har skyddat sin streak",
+    "streakCta": "Skydda din streak",
+    "defaultTitle": "Uppgradera din upplevelse",
+    "defaultSubtitle": "Upptäck Premium-funktioner",
+    "defaultMessage": "Få mer från din välmåenderesa.",
+    "defaultUrgency": "Starta din 14-dagars provperiod",
+    "defaultCta": "Prova Premium gratis",
+    "benefitUnlimited": "Obegränsade humörloggningar",
+    "benefitChats": "Obegränsade AI-samtal",
+    "benefitHistory": "Alltid tillgång till din historik",
+    "benefitInsights": "Djupare insikter om dina mönster",
+    "benefitTrends": "Långsiktiga trender och analyser",
+    "benefitExport": "Exportera all din data",
+    "benefitStreakProtection": "Aldrig mer begränsningar",
+    "benefitReminders": "Smartare påminnelser",
+    "benefitGoals": "Personliga mål och utmaningar",
+    "remaining": "{{remaining}} kvar",
+    "trust": "Ingen bindningstid. Avbryt när som helst."
+  },
+  "recommendations": {
+    "title": "Personliga Rekommendationer 💡",
+    "subtitle": "Innehåll anpassat efter dina behov och framsteg",
+    "description": "Här ser du personliga förslag baserade på dina mål. I Välmåendebiblioteket hittar du hela utbudet av övningar och innehåll.",
+    "wellnessGoals": "Wellness-mål",
+    "availableExercises": "Tillgängliga övningar",
+    "evidenceBased": "Evidensbaserat innehåll",
+    "searchPlaceholder": "Sök rekommendationer..."
+  },
+  "wellnessHub": {
+    "title": "Välmåendebibliotek",
+    "subtitle": "Hitta lugnet, ett andetag i taget.",
+    "description": "Här utforskar du hela biblioteket. För personliga förslag, gå till Rekommendationer.",
+    "dailyRec": "Dagens Rekommendation",
+    "dailyRecSub": "Börja din morgon med klarhet",
+    "morningFocus": "Morgonfokus",
+    "mindfulness": "Mindfulness",
+    "breathingSessions": "Andningspass",
+    "otherSessions": "Övriga pass",
+    "sleepTitle": "Sömn & Vila",
+    "sleepSub": "Spela sagor",
+    "myGoals": "Mina Mål",
+    "activeGoals": "{{count}} aktiva mål",
+    "setGoals": "Sätt dina mål",
+    "noGoals": "Du har inga aktiva mål än.",
+    "addGoal": "Lägg till mål +",
+    "catAll": "Utforska allt",
+    "catMeditation": "Meditation",
+    "catBreathing": "Andning",
+    "catSounds": "Ljudlandskap",
+    "catSleep": "Sömn",
+    "recommendations": "Rekommendationer"
+  },
+  "profileHub": {
+    "guest": "Gäst",
+    "manageJourney": "Hantera din personliga resa, inställningar och säkerhet.",
+    "loginToSave": "Logga in för att spara din data.",
+    "memberForDays": "Medlem i {{days}} dagar",
+    "upgradeNow": "Uppgradera nu",
+    "moodLogs": "Humörloggar",
+    "aiChats": "AI-samtal",
+    "memories": "Minnen",
+    "daysActive": "Dagar aktiv",
+    "upgradeToPremium": "Uppgradera till Premium",
+    "chatMessages": "Chattmeddelanden",
+    "history": "Historik",
+    "premiumMember": "Premium-medlem",
+    "trial": "Provperiod",
+    "freePlan": "Gratis-plan",
+    "unlimitedAccess": "Obegränsad tillgång till alla funktioner",
+    "tabAccount": "Kontoinställningar",
+    "tabPrivacy": "Integritet",
+    "tabNotifications": "Notiser",
+    "tabAppearance": "Utseende",
+    "accountInfo": "Kontoinformation",
+    "emailAddress": "E-postadress",
+    "notLoggedIn": "Ej inloggad",
+    "changeEmail": "Ändra e-post",
+    "password": "Lösenord",
+    "changePassword": "Ändra lösenord",
+    "twoFactor": "Tvåfaktorsautentisering",
+    "twoFactorDesc": "Lägg till ett extra lager av säkerhet på ditt konto",
+    "configuring": "Konfigurerar...",
+    "enable2FA": "Aktivera 2FA",
+    "loginForPrivacy": "Logga in för att hantera integritetsinställningar",
+    "notificationSettings": "Aviseringsinställningar",
+    "emailNotifications": "E-postnotiser",
+    "emailNotificationsDesc": "Ta emot uppdateringar och insikter via e-post",
+    "pushNotifications": "Push-notiser",
+    "pushNotificationsDesc": "Få aviseringar i realtid på din enhet",
+    "enableBrowserNotificationsQ": "Vill du aktivera webbläsarnotiser?",
+    "enableBrowserNotifications": "Aktivera webbläsarnotiser",
+    "appearanceSettings": "Utseendeinställningar",
+    "themeMode": "Temaläge",
+    "themeModeDesc": "Växla mellan ljust och mörkt läge",
+    "language": "Språk",
+    "languageDesc": "Välj ditt föredragna språk",
+    "accountActions": "Kontoåtgärder",
+    "exporting": "Exporterar...",
+    "exportData": "Exportera min data",
+    "deleteAccount": "Radera konto",
+    "changeEmailTitle": "Ändra e-postadress",
+    "changeEmailDesc": "Ange din nya e-postadress och nuvarande lösenord för att ändra din e-post.",
+    "newEmail": "Ny e-postadress",
+    "currentPassword": "Nuvarande lösenord",
+    "changing": "Ändrar...",
+    "changePasswordTitle": "Ändra lösenord",
+    "changePasswordDesc": "Ange ditt nuvarande lösenord och välj ett nytt säkert lösenord.",
+    "newPassword": "Nytt lösenord",
+    "confirmNewPassword": "Bekräfta nytt lösenord",
+    "enable2FATitle": "Aktivera tvåfaktorsautentisering",
+    "enable2FADesc": "Skanna QR-koden med din autentiseringsapp och ange den 6-siffriga koden.",
+    "scanQR": "Skanna denna QR-kod med din autentiseringsapp (Google Authenticator, Authy, etc.)",
+    "verificationCode": "Verifieringskod",
+    "verifying": "Verifierar...",
+    "deleteAccountDesc": "Denna åtgärd kan inte ångras. Ditt konto och all tillhörande data kommer att raderas permanent.",
+    "whatWillBeDeleted": "Vad som kommer raderas:",
+    "deleteItem1": "Alla humörloggar och analyser",
+    "deleteItem2": "Chatthistorik och konversationer",
+    "deleteItem3": "Sparade minnen och dagboksanteckningar",
+    "deleteItem4": "Kontoinställningar och preferenser",
+    "deleteItem5": "Wellness-mål och framsteg",
+    "deleteNote": "Din data kommer att raderas permanent inom 30 dagar. Du kan avbryta genom att kontakta support inom den tiden.",
+    "deleting": "Raderar..."
+  },
+  "wellnessGoalLabels": {
+    "Hantera stress": {
+      "label": "Hantera stress",
+      "desc": "Tekniker för lugn och balans"
+    },
+    "Bättre sömn": {
+      "label": "Bättre sömn",
+      "desc": "Sov djupare och vakna utvilad"
+    },
+    "Ökad fokusering": {
+      "label": "Ökad fokusering",
+      "desc": "Skärp din koncentration"
+    },
+    "Mental klarhet": {
+      "label": "Mental klarhet",
+      "desc": "Rensa tankarna och prioritera"
+    },
+    "Ångesthantering": {
+      "label": "Ångesthantering",
+      "desc": "Bygg trygghet vid oro och ångest"
+    },
+    "Självkänsla": {
+      "label": "Självkänsla",
+      "desc": "Stärk självkänsla och självmedkänsla"
+    },
+    "Relationsstöd": {
+      "label": "Relationsstöd",
+      "desc": "Förbättra relationer och kommunikation"
+    },
+    "Arbetsbalans": {
+      "label": "Arbetsbalans",
+      "desc": "Skapa hållbar balans mellan jobb och liv"
+    },
+    "Mindfulness": {
+      "label": "Mindfulness",
+      "desc": "Bli mer närvarande i stunden"
+    },
+    "Emotionell balans": {
+      "label": "Emotionell balans",
+      "desc": "Förstå och reglera dina känslor"
+    },
+    "Energi": {
+      "label": "Energi",
+      "desc": "Hitta stabil energi i vardagen"
+    }
+  },
+  "breathingPhases": [
+    {
+      "name": "exhale",
+      "duration": 2,
+      "instruction": "Andas ut helt genom munnen..."
+    },
+    {
+      "name": "inhale",
+      "duration": 4,
+      "instruction": "Andas in genom näsan..."
+    },
+    {
+      "name": "hold",
+      "duration": 7,
+      "instruction": "Håll andan..."
+    },
+    {
+      "name": "exhale2",
+      "duration": 8,
+      "instruction": "Andas ut genom munnen..."
+    }
+  ],
+  "muscleGroups": [
+    {
+      "name": "Fötter",
+      "instruction": "Dra ihop tårna och spänn fotvalven...",
+      "image": "🦶",
+      "visual": "Tänk dig att du drar ihop tårna som en näve och böjer foten uppåt"
+    },
+    {
+      "name": "Vadmuskler",
+      "instruction": "Spänn vaderna...",
+      "image": "🦵",
+      "visual": "Spänn musklerna på baksidan av benen, som när du går på tå"
+    },
+    {
+      "name": "Lår",
+      "instruction": "Spänn lårmusklerna...",
+      "image": "🦵",
+      "visual": "Dra ihop framsidan av låren, som när du sparkar framåt"
+    },
+    {
+      "name": "Mage",
+      "instruction": "Spänn magmusklerna...",
+      "image": "🏃",
+      "visual": "Dra in magen som för att skydda dig från ett slag"
+    },
+    {
+      "name": "Bröst och axlar",
+      "instruction": "Spänn bröstet och dra upp axlarna...",
+      "image": "🫁",
+      "visual": "Håll andan och spänn bröstkorgen, dra axlarna upp mot öronen"
+    },
+    {
+      "name": "Armar",
+      "instruction": "Spänn överarmarna...",
+      "image": "💪",
+      "visual": "Spänn biceps och triceps, gör armarna styva som träbitar"
+    },
+    {
+      "name": "Underarmar och händer",
+      "instruction": "Spänn underarmar och knyt nävarna...",
+      "image": "✋",
+      "visual": "Knyt nävarna hårt och spänn underarmarnas muskler"
+    },
+    {
+      "name": "Hals och nacke",
+      "instruction": "Spänn nacken och dra in hakan...",
+      "image": "🙆",
+      "visual": "Tryck huvudet bakåt mot en kudde och spänn nackmusklerna"
+    },
+    {
+      "name": "Ansikte",
+      "instruction": "Spänn ansiktsmusklerna...",
+      "image": "😊",
+      "visual": "Knyt ihop ögonen, rynka pannan, spänn käkarna och läpparna"
+    }
+  ],
+  "recommendationsPool": {
+    "stress-1": {
+      "title": "4-7-8 Andningsövning",
+      "description": "Dr. Andrew Weils vetenskapligt beprövade metod för ångest och sömn",
+      "category": "Stresshantering",
+      "content": "Tekniken aktiverar det parasympatiska nervsystemet och sänker kortisolnivåer med upp till 30%."
+    },
+    "stress-2": {
+      "title": "KBT-övning: Hantera Stressiga Tankar",
+      "description": "Identifiera och utmana stresstankemönster",
+      "category": "KBT",
+      "content": "Lär dig att känna igen stress-triggers och hur du kan hantera dem bättre."
+    },
+    "stress-3": {
+      "title": "Progressiv Muskelavslappning",
+      "description": "Minska fysisk spänning från stress",
+      "category": "Avslappning",
+      "content": "15 minuters guidad övning för att släppa spänningar i kroppen."
+    },
+    "sleep-1": {
+      "title": "Vetenskapen Bakom Bättre Sömn",
+      "description": "Förstå hur du förbättrar din sömnkvalitet",
+      "category": "Utbildning",
+      "content": "Lär dig vetenskapligt beprövade metoder för bättre sömn."
+    },
+    "sleep-2": {
+      "title": "Sömnmeditation: Body Scan",
+      "description": "20 minuters guidad meditation för djupare sömn",
+      "category": "Sömn",
+      "content": "En body scan-meditation speciellt designad för sömnproblem."
+    },
+    "sleep-3": {
+      "title": "7-Dagars Sömnrutin",
+      "description": "Bygg en konsekvent sömnrutin",
+      "category": "Utmaningar",
+      "content": "Etablera hälsosamma sömnvanor över en vecka."
+    },
+    "focus-1": {
+      "title": "Pomodoro-teknik för Bättre Fokus",
+      "description": "Vetenskapligt beprövad tidsstyrningsteknik för optimal produktivitet",
+      "category": "Produktivitet",
+      "content": "Pomodoro-tekniken utnyttjar naturliga 90-120 minuters cykler av hög och låg prestationsförmåga."
+    },
+    "focus-2": {
+      "title": "Mindfulness för Fokus",
+      "description": "Vetenskapligt beprövad MBSR-meditation för förbättrad koncentration",
+      "category": "Fokus",
+      "content": "Denna guidade mindfulness-meditation bygger på MBSR-programmet av Dr. Jon Kabat-Zinn."
+    },
+    "focus-3": {
+      "title": "Neurovetenskap: Så Fungerar Fokus",
+      "description": "Djupgående förståelse av hjärnans uppmärksamhetssystem",
+      "category": "Utbildning",
+      "content": "Artikel om neurovetenskapliga mekanismer bakom uppmärksamhet och koncentration."
+    },
+    "clarity-1": {
+      "title": "Clarity Meditation",
+      "description": "Rensa tankarna och öka mental klarhet",
+      "category": "Meditation",
+      "content": "15 minuters meditation för mental klarhet."
+    },
+    "clarity-2": {
+      "title": "Journaling för Mental Klarhet",
+      "description": "Skriv dig till klarare tankar",
+      "category": "Journaling",
+      "content": "Strukturerad journaling-metod för att organisera tankar."
+    },
+    "clarity-3": {
+      "title": "Digital Detox för Mental Klarhet",
+      "description": "3-dagars utmaning för klarare sinne",
+      "category": "Utmaningar",
+      "content": "Minska skärmtid för ökad mental klarhet."
+    },
+    "mindfulness-1": {
+      "title": "Mindfulness för Nybörjare",
+      "description": "Lär dig grunderna i mindfulness på 10 minuter",
+      "category": "Meditation",
+      "content": "En guidad introduktion till mindfulness-meditation."
+    },
+    "mindfulness-2": {
+      "title": "Body Scan Meditation",
+      "description": "Skanna igenom kroppen för djup avslappning",
+      "category": "Meditation",
+      "content": "En 20-minuters body scan för att släppa spänningar och stress."
+    },
+    "mindfulness-3": {
+      "title": "5-4-3-2-1 Sinnesövning",
+      "description": "Grounding-teknik för ångest och stress",
+      "category": "Ångesthantering",
+      "content": "Använd dina sinnen för att återvända till nuet."
+    },
+    "sleep-4": {
+      "title": "Sömnberedelse Ritual",
+      "description": "Förbered dig för djup sömn med guidad avslappning",
+      "category": "Sömn",
+      "content": "En 15-minuters ritual som hjälper dig varva ner och förbereda för sömn."
+    },
+    "sleep-5": {
+      "title": "Skärmtid och Sömn",
+      "description": "Hur blått ljus påverkar din sömnkvalitet",
+      "category": "Utbildning",
+      "content": "Vetenskaplig översikt över hur skärmtid påverkar melatoninproduktion."
+    },
+    "social-1": {
+      "title": "Kommunikation i Relationer",
+      "description": "Förbättra dina kommunikationsfärdigheter",
+      "category": "Relationer",
+      "content": "Lär dig aktiv lyssning och assertiv kommunikation."
+    },
+    "social-2": {
+      "title": "Daglig Känsla-delning",
+      "description": "Dela dina känslor med någon du litar på",
+      "category": "Relationer",
+      "content": "Öva på att uttrycka känslor öppet och ärligt varje dag i en vecka."
+    },
+    "work-1": {
+      "title": "Arbetsplats Stresshantering",
+      "description": "Hantera stress på jobbet effektivt",
+      "category": "Arbetsliv",
+      "content": "Strategier för att hantera deadlines, konflikter och arbetsbelastning."
+    },
+    "work-2": {
+      "title": "Fokus Meditation för Arbete",
+      "description": "Öka koncentrationen och produktiviteten",
+      "category": "Arbetsliv",
+      "content": "En meditation designad för att förbättra fokus och arbetsförmåga."
+    },
+    "advanced-1": {
+      "title": "Kognitiv Omstrukturering",
+      "description": "Avancerad KBT-teknik för tankemönster",
+      "category": "Avancerad KBT",
+      "content": "Lär dig identifiera och omstrukturera djupgående negativa tankemönster."
+    },
+    "advanced-2": {
+      "title": "Vipassana Meditation",
+      "description": "Djup mindfulness-praktik för erfarna utövare",
+      "category": "Avancerad Meditation",
+      "content": "Traditionell vipassana-teknik för medvetenhet och insikt."
+    },
+    "generic-1": {
+      "title": "7-Dagars Tacksamhetsutmaning",
+      "description": "Utveckla en mer positiv syn genom daglig tacksamhet",
+      "category": "Allmänt",
+      "content": "Skriv ner tre saker du är tacksam för varje dag i en vecka."
+    },
+    "generic-2": {
+      "title": "Mental Hälsa 101",
+      "description": "Grundläggande kunskaper om mental hälsa",
+      "category": "Utbildning",
+      "content": "En översikt över viktiga begrepp inom mental hälsa och välbefinnande."
+    }
+  },
+  "pmr": {
+    "prepare": "Förberedelse",
+    "tense": "Spänn",
+    "relax": "Slappna av",
+    "completed": "Övning slutförd!",
+    "muscles": "musklerna",
+    "prepareDesc": "Sitt eller ligg bekvämt. Andas lugnt.",
+    "relaxDesc": "Släpp spänningen långsamt och känn avslappningen...",
+    "completedDesc": "Bra jobbat! Du har genomfört progressiv muskelavslappning.",
+    "guideDesc": "Följ guiden genom olika muskelgrupper för djup avslappning"
+  },
+  "kbt": {
+    "distortions": {
+      "catastrophizing": {
+        "label": "Katastroftankande",
+        "hint": "Tanken förutsäger värsta möjliga utfall utan mellanlägesscenarion.",
+        "reframeQuestion": "Vad är det mest sannolika utfallet, inte det värsta?"
+      },
+      "black_white": {
+        "label": "Svart-vitt tänkande",
+        "hint": "Tanken använder ytterligheter som \"alltid\", \"aldrig\" eller \"helt\".",
+        "reframeQuestion": "Vilket mer nyanserat mellanläge skulle kunna vara sant?"
+      },
+      "mind_reading": {
+        "label": "Tankeläsning",
+        "hint": "Tanken antar vad andra tycker utan tydliga bevis.",
+        "reframeQuestion": "Vilka faktiska bevis har du för vad andra tänker?"
+      },
+      "self_labeling": {
+        "label": "Global självetikett",
+        "hint": "Ett misstag göras om till en generell etikett om dig som person.",
+        "reframeQuestion": "Hur skulle du beskriva situationen utan att etikettera dig själv?"
+      }
+    },
+    "quality": {
+      "stable": "Stabil grund",
+      "veryStrong": "Mycket stark genomförning",
+      "good": "Bra genomförning"
+    },
+    "adaptive": {
+      "noData": {
+        "title": "Fortsatt reflektion",
+        "message": "Du har gjort ett viktigt arbete. Fortsatt repetition av den balanserade tanken kan göra den mer tillgänglig i vardagen."
+      },
+      "clearRestructuring": {
+        "title": "Tydlig omstrukturering",
+        "message": "Din nya tanke känns betydligt mer trovärdig nu. Det tyder på att du har brutit ett automatiskt stresstolkningsmönster."
+      },
+      "goodProgress": {
+        "title": "Bra framsteg",
+        "message": "Du rör dig i rätt riktning. Fortsätt öva på den nya tanken i liknande situationer för att befästa effekten."
+      },
+      "stabilization": {
+        "title": "Stabilisering behövs",
+        "message": "Förändring tar tid. Testa att konkretisera evidensen ytterligare och prova samma övning igen i en lugn stund."
+      }
+    },
+    "stress": {
+      "noData": {
+        "title": "Stressmätning saknas",
+        "message": "Lägg till stressnivå före och efter nästa gång för att tydligare se effekten av övningen."
+      },
+      "clearReduction": {
+        "title": "Tydlig stressminskning",
+        "message": "Din stressnivå gick ner markant. Fortsätt med samma strategi i liknande situationer."
+      },
+      "goodRegulation": {
+        "title": "Bra stressreglering",
+        "message": "Stressnivån minskade. Repetera övriga handlingssteg för att befästa effekten."
+      },
+      "remaining": {
+        "title": "Stressen kvarstår delvis",
+        "message": "Om stressen fortfarande är hög, kombinera tanken med en kort andningspaus innan nästa steg."
+      }
+    },
+    "sessionQuality": "Sessionens kvalitet: {{score}}/100"
+  },
+  "wellnessData": {
+    "meditations": [
+      {
+        "id": "1",
+        "title": "Snabb Avkoppling",
+        "description": "Perfekt för en paus"
+      },
+      {
+        "id": "2",
+        "title": "Djup Sömn",
+        "description": "Somna lättare ikväll"
+      },
+      {
+        "id": "3",
+        "title": "Morgonfokus",
+        "description": "Starta dagen rätt"
+      }
+    ],
+    "breathingExercises": [
+      {
+        "id": "b1",
+        "title": "4-7-8 Andning",
+        "description": "För ångestdämpning"
+      },
+      {
+        "id": "b2",
+        "title": "Fyrkantsandning",
+        "description": "För balans och lugn"
+      }
+    ],
+    "sleepStories": [
+      {
+        "id": "s1",
+        "title": "Stjärnresan",
+        "description": "Lugn godnattsaga för nedvarvning"
+      },
+      {
+        "id": "s2",
+        "title": "Regnskogens vila",
+        "description": "Mjuk berättelse med naturljud"
+      },
+      {
+        "id": "s3",
+        "title": "Havets andetag",
+        "description": "Djup vila med havsrytm och guidning"
+      }
+    ]
   }
 }

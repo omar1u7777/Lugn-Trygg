@@ -1347,9 +1347,11 @@ Långsiktiga välbefinnande-strategier:
         return [emotion for emotion, score in sorted_emotions[:3]]
 
     def generate_therapeutic_conversation(self, user_message: str, conversation_history: list[dict],
-                                         user_profile: dict[str, Any] | None = None) -> dict[str, Any]:
+                                         user_profile: dict[str, Any] | None = None,
+                                         user_id: str | None = None) -> dict[str, Any]:
         """
         Generate sophisticated therapeutic responses using OpenAI GPT-4o-mini
+        with CBT/ACT framework and RAG personalization.
         """
         logger.info(f"🧠 Generating therapeutic conversation for message: '{user_message[:50]}...'")
         logger.info(f"🧠 OpenAI available: {self.openai_available}")
@@ -1359,7 +1361,7 @@ Långsiktiga välbefinnande-strategier:
             return self._generate_fallback_therapeutic_response(user_message)
 
         try:
-            # Check for crisis indicators first
+            # 1. Check for crisis indicators first (using semantic detection)
             crisis_analysis = self.detect_crisis_indicators(user_message)
             if crisis_analysis["requires_immediate_attention"]:
                 return {
@@ -1370,25 +1372,55 @@ Långsiktiga välbefinnande-strategier:
                     "model_used": "crisis_detection"
                 }
 
-            # Build enhanced context with therapeutic system prompt
-            system_prompt = """Du är en empatisk terapeutisk AI-assistent specialiserad på mental hälsa och välbefinnande.
-            Du hjälper användaren att reflektera lugnt och tryggt över sina känslor och tankar.
+            # 2. Use therapeutic framework to analyze and select intervention
+            from .therapeutic_framework import get_therapeutic_framework, TherapeuticContext
+            
+            framework = get_therapeutic_framework()
+            
+            # Build therapeutic context
+            therapeutic_context = TherapeuticContext(
+                user_id=user_id or "anonymous",
+                current_emotion=self._extract_emotion(user_message),
+                current_thoughts=[user_message],
+                detected_distortions=[],  # Will be detected by framework
+                conversation_stage="exploration",
+                user_values=user_profile.get('values', []) if user_profile else [],
+                past_effective_techniques=user_profile.get('effective_techniques', []) if user_profile else [],
+                session_goals=user_profile.get('goals', []) if user_profile else []
+            )
+            
+            # Analyze input for therapeutic content
+            analysis = framework.analyze_input(user_message, therapeutic_context)
+            
+            # Get modality and technique
+            modality = analysis['recommended_modality']
+            technique = analysis['recommended_technique']
+            
+            logger.info(f"🎯 Therapeutic analysis: modality={modality.value if modality else 'none'}, "
+                       f"technique={technique.value if technique else 'none'}, "
+                       f"distortions={analysis['detected_distortions']}")
 
-            Dina principer:
-            - Var alltid empatisk, stödjande och icke-dömande
-            - Använd evidensbaserade tekniker (KBT, ACT, mindfulness, avslappning)
-            - Ställ öppna frågor för att utforska känslor och tankar djupare
-            - Ge konkreta coping-strategier när det känns rätt
-            - Uppmuntra professionell hjälp vid behov
-            - Svara på svenska med värme och medkänsla
-            - Var kortfattad men hjälpsam - fokusera på kvalitet över kvantitet
-            - Skapa en säker, trygg atmosfär för reflektion"""
+            # 3. Generate base therapeutic prompt
+            base_prompt = framework.generate_therapeutic_prompt(modality, technique)
+            
+            # 4. Apply RAG if user_id available for personalization
+            final_prompt = base_prompt
+            if user_id:
+                try:
+                    from .rag_service import get_rag_service
+                    rag_service = get_rag_service()
+                    final_prompt = rag_service.generate_augmented_prompt(
+                        user_id=user_id,
+                        current_message=user_message,
+                        base_system_prompt=base_prompt
+                    )
+                    logger.info(f"✅ RAG augmentation applied for user {user_id[:8]}...")
+                except Exception as rag_err:
+                    logger.warning(f"⚠️ RAG augmentation failed: {rag_err}, using base prompt")
+                    final_prompt = base_prompt
 
-            # Add user profile context if available
-            if user_profile:
-                system_prompt += f"\n\nAnvändarinformation: {user_profile.get('age_group', 'vuxen')}, {user_profile.get('main_concerns', 'allmänna välmående-frågor')}"
-
-            messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+            # 5. Build messages for OpenAI
+            messages: list[dict[str, str]] = [{"role": "system", "content": final_prompt}]
 
             # Add relevant conversation history (last 6 exchanges for context)
             for msg in conversation_history[-6:]:
@@ -1400,8 +1432,7 @@ Långsiktiga välbefinnande-strategier:
             # Add current message
             messages.append({"role": "user", "content": user_message})
 
-            # Use GPT-4o-mini for cost-effective, fast therapeutic responses
-            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
+            # 6. Call OpenAI with timeout
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,  # type: ignore[arg-type]
@@ -1417,20 +1448,89 @@ Långsiktiga välbefinnande-strategier:
                 return self._generate_fallback_therapeutic_response(user_message)
             ai_response = content.strip()
 
-            # Enhanced sentiment analysis for emotion detection
+            # 7. Enhanced sentiment analysis for emotion detection
             sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
 
-            logger.info("✅ Therapeutic response generated successfully using gpt-4o-mini")
+            # 8. Generate suggested actions based on sentiment and technique
+            suggested_actions = self._generate_suggested_actions(
+                sentiment_analysis, 
+                analysis['detected_distortions']
+            )
 
-            # Add exercise recommendations based on sentiment and conversation
-            exercise_recommendations = self._generate_exercise_recommendations(sentiment_analysis, user_message)
+            # 9. Generate interactive exercise if appropriate
+            suggested_exercise = None
+            if technique and analysis['detected_distortions'] or analysis['avoidance_detected']:
+                try:
+                    from .worksheet_generator import get_worksheet_generator
+                    worksheet_gen = get_worksheet_generator()
+                    
+                    # Generate worksheet
+                    conversation_data = conversation_history + [{"role": "user", "content": user_message}]
+                    worksheet = worksheet_gen.generate_from_conversation(
+                        conversation_id=f"conv_{user_id or 'anon'}_{datetime.now().timestamp()}",
+                        messages=conversation_data,
+                        detected_distortions=[d.value for d in analysis['detected_distortions']]
+                    )
+                    
+                    if worksheet:
+                        suggested_exercise = {
+                            "type": worksheet.type,
+                            "title": worksheet.title,
+                            "description": worksheet.description,
+                            "estimated_duration": worksheet.estimated_duration,
+                            "sections_count": len(worksheet.sections),
+                            "worksheet_id": worksheet.id
+                        }
+                        logger.info(f"📝 Generated worksheet: {worksheet.type}")
+                except Exception as ws_err:
+                    logger.warning(f"⚠️ Worksheet generation failed: {ws_err}")
+
+            # 10. Index conversation for future RAG if user_id available
+            if user_id:
+                try:
+                    from .rag_service import get_rag_service
+                    rag_service = get_rag_service()
+                    
+                    # Determine outcome based on sentiment
+                    outcome = "positive" if sentiment_analysis.get('sentiment') == "POSITIVE" else \
+                             "negative" if sentiment_analysis.get('sentiment') == "NEGATIVE" else "neutral"
+                    
+                    rag_service.index_conversation(
+                        user_id=user_id,
+                        conversation_id=f"conv_{datetime.now().timestamp()}",
+                        messages=conversation_history + [{"role": "user", "content": user_message}],
+                        outcome=outcome
+                    )
+                    
+                    # Index effective coping strategy if identified
+                    if suggested_actions and outcome == "positive":
+                        for action in suggested_actions[:2]:
+                            rag_service.index_coping_strategy(
+                                user_id=user_id,
+                                strategy=action,
+                                context=f"Conversation: {user_message[:100]}...",
+                                effectiveness=0.7
+                            )
+                            
+                except Exception as idx_err:
+                    logger.warning(f"⚠️ Conversation indexing failed: {idx_err}")
+
+            logger.info(
+                f"✅ Therapeutic response generated: modality={modality.value if modality else 'none'}, "
+                f"technique={technique.value if technique else 'none'}"
+            )
 
             return {
                 "response": ai_response,
                 "crisis_detected": False,
                 "sentiment_analysis": sentiment_analysis,
                 "conversation_context": len(conversation_history),
-                "exercise_recommendations": exercise_recommendations,
+                "suggested_actions": suggested_actions,
+                "exercise_recommendations": [suggested_exercise] if suggested_exercise else [],
+                "therapeutic_modality": modality.value if modality else None,
+                "therapeutic_technique": technique.value if technique else None,
+                "cognitive_distortions_detected": [d.value for d in analysis['detected_distortions']],
+                "rag_augmented": user_id is not None,
                 "ai_generated": True,
                 "model_used": "gpt-4o-mini"
             }
@@ -1449,6 +1549,150 @@ Långsiktiga välbefinnande-strategier:
             else:
                 logger.error(f"Enhanced therapeutic conversation failed: {str(e)}")
             return self._generate_fallback_therapeutic_response(user_message)
+
+    def _extract_emotion(self, text: str) -> str:
+        """Extract dominant emotion from text."""
+        emotion_keywords = {
+            'ledsen': 'sadness',
+            'deppig': 'sadness',
+            'arg': 'anger',
+            'ilska': 'anger',
+            'orolig': 'anxiety',
+            'stressad': 'anxiety',
+            'rädd': 'fear',
+            'glad': 'joy',
+            'lycklig': 'joy'
+        }
+        
+        text_lower = text.lower()
+        for keyword, emotion in emotion_keywords.items():
+            if keyword in text_lower:
+                return emotion
+        
+        return 'neutral'
+
+    def _generate_suggested_actions(self, sentiment_analysis: dict, 
+                                     distortions: list) -> list[str]:
+        """Generate suggested actions based on sentiment and detected distortions."""
+        actions = []
+        
+        sentiment = sentiment_analysis.get('sentiment', 'NEUTRAL')
+        
+        if sentiment == 'NEGATIVE':
+            actions.extend([
+                "Ta några djupa andetag (4 sekunder in, 6 ut)",
+                "Gör en 5-4-3-2-1 grounding-övning",
+                "Skriv ner dina tankar i ett tanke-record"
+            ])
+            
+            # Add distortion-specific actions
+            if any('catastrophizing' in str(d) for d in distortions):
+                actions.append("Utforska: Vad är det värsta som kan hända? Och sedan? Och sedan?")
+            if any('mind_reading' in str(d) for d in distortions):
+                actions.append("Fråga dig själv: Vilka bevis har jag för vad andra tänker?")
+        
+        elif sentiment == 'POSITIVE':
+            actions.extend([
+                "Fira dina positiva känslor - vad hjälpte?",
+                "Spara detta ögonblick i minnes-journalen",
+                "Dela glädjen med någon du tycker om"
+            ])
+        
+        else:  # NEUTRAL
+            actions.extend([
+                "Gör något du tycker om i 10 minuter",
+                "Prova en kort mindfulness-övning",
+                "Gå en 5-minuters promenad"
+            ])
+        
+        return actions[:5]  # Return top 5
+
+    def generate_therapeutic_conversation_stream(self, user_message: str, conversation_history: list[dict]):
+        """
+        Stream therapeutic response token-by-token using OpenAI stream=True.
+        Yields SSE-formatted strings: 'data: <chunk>\\n\\n' and 'data: [DONE]\\n\\n'
+        Falls back to yielding full response at once if streaming unavailable.
+        """
+        from typing import Generator
+
+        if not self.openai_available or not self.client:
+            logger.warning("⚠️ OpenAI not available, streaming fallback")
+            fallback = self._generate_fallback_therapeutic_response(user_message)
+            text = fallback.get("response", "")
+            import json
+            for chunk in _split_into_chunks(text, 8):
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        # Crisis check before streaming
+        try:
+            crisis_analysis = self.detect_crisis_indicators(user_message)
+            if crisis_analysis["requires_immediate_attention"]:
+                crisis_text = self._generate_crisis_response(crisis_analysis)
+                import json
+                for chunk in _split_into_chunks(crisis_text, 8):
+                    yield f"data: {json.dumps({'content': chunk, 'crisis': True})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+        except Exception as e:
+            logger.warning(f"Crisis check failed during stream: {e}")
+
+        system_prompt = """Du är en empatisk terapeutisk AI-assistent specialiserad på mental hälsa och välbefinnande.
+        Du hjälper användaren att reflektera lugnt och tryggt över sina känslor och tankar.
+
+        Dina principer:
+        - Var alltid empatisk, stödjande och icke-dömande
+        - Använd evidensbaserade tekniker (KBT, ACT, mindfulness, avslappning)
+        - Ställ öppna frågor för att utforska känslor och tankar djupare
+        - Ge konkreta coping-strategier när det känns rätt
+        - Uppmuntra professionell hjälp vid behov
+        - Svara på svenska med värme och medkänsla
+        - Var kortfattad men hjälpsam - fokusera på kvalitet över kvantitet
+        - Skapa en säker, trygg atmosfär för reflektion"""
+
+        messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        for msg in conversation_history[-6:]:
+            messages.append({
+                "role": str(msg["role"]),
+                "content": str(msg["content"])[:300]
+            })
+        messages.append({"role": "user", "content": user_message})
+
+        import json
+        try:
+            stream = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,  # type: ignore[arg-type]
+                max_tokens=400,
+                temperature=0.7,
+                presence_penalty=0.1,
+                frequency_penalty=0.1,
+                stream=True,
+                timeout=30.0
+            )
+
+            for chunk in stream:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield f"data: {json.dumps({'content': delta.content})}\n\n"
+
+            yield "data: [DONE]\n\n"
+            logger.info("✅ Streaming therapeutic response completed")
+
+        except RateLimitError:
+            logger.warning("⚠️ OpenAI rate limit during stream")
+            fallback = self._generate_fallback_therapeutic_response(user_message, quota_exceeded=True)
+            for chunk in _split_into_chunks(fallback["response"], 8):
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            fallback = self._generate_fallback_therapeutic_response(user_message)
+            for chunk in _split_into_chunks(fallback["response"], 8):
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+            yield "data: [DONE]\n\n"
+
 
     def _generate_crisis_response(self, crisis_analysis: dict) -> str:
         """Generate appropriate crisis response"""
@@ -2234,6 +2478,18 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
 
         # Return top 2 most relevant recommendations
         return sorted(recommendations, key=lambda x: {"high": 0, "medium": 1, "low": 2}[x["urgency"]])[:2]
+
+def _split_into_chunks(text: str, chunk_size: int = 8) -> list[str]:
+    """Split text into word-based chunks for simulated streaming fallback."""
+    words = text.split(" ")
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        part = " ".join(words[i:i + chunk_size])
+        if i + chunk_size < len(words):
+            part += " "
+        chunks.append(part)
+    return chunks
+
 
 # Global instance
 ai_services = AIServices()

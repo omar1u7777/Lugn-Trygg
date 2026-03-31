@@ -6,7 +6,7 @@ import { registerUser } from "../../api/api";
 import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
 import { useAccessibility } from "../../hooks/useAccessibility";
 import { logger } from '../../utils/logger';
-
+import { useTranslation } from 'react-i18next';
 
 const RegisterForm: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +22,7 @@ const RegisterForm: React.FC = () => {
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string; terms?: string }>({});
   
+  const { t } = useTranslation();
   // ✅ Använd custom hooks
   const { 
     showPassword, 
@@ -40,15 +41,15 @@ const RegisterForm: React.FC = () => {
     }
   }, [searchParams]);
 
-  const validatePassword = (password: string) => {
-    if (password.length < 8) {
-      return "Lösenordet måste vara minst 8 tecken långt.";
+  const validatePassword = (pw: string) => {
+    if (pw.length < 8) {
+      return t('registerForm.passwordTooShort');
     }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return "Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.";
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(pw)) {
+      return t('registerForm.passwordNeedsChars');
     }
-    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
-      return "Lösenordet måste innehålla minst ett specialtecken.";
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(pw)) {
+      return t('registerForm.passwordNeedsSpecial');
     }
     return "";
   };
@@ -62,22 +63,22 @@ const RegisterForm: React.FC = () => {
 
     // Validate name
     if (!name.trim()) {
-      setValidationErrors(prev => ({ ...prev, name: "Namn är obligatoriskt." }));
-      announceToScreenReader("Formuläret innehåller fel. Korrigera och försök igen.", "assertive");
+      setValidationErrors(prev => ({ ...prev, name: t('registerForm.nameRequired') }));
+      announceToScreenReader(t('registerForm.formErrors'), "assertive");
       return;
     }
 
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim() || !emailRegex.test(email)) {
-      setValidationErrors(prev => ({ ...prev, email: "Ange en giltig e-postadress." }));
-      announceToScreenReader("Formuläret innehåller fel. Korrigera och försök igen.", "assertive");
+      setValidationErrors(prev => ({ ...prev, email: t('registerForm.invalidEmail') }));
+      announceToScreenReader(t('registerForm.formErrors'), "assertive");
       return;
     }
 
     if (password !== confirmPassword) {
-      setValidationErrors(prev => ({ ...prev, confirmPassword: "Lösenorden matchar inte." }));
-      announceToScreenReader("Lösenorden matchar inte.", "assertive");
+      setValidationErrors(prev => ({ ...prev, confirmPassword: t('registerForm.passwordMismatch') }));
+      announceToScreenReader(t('registerForm.passwordMismatch'), "assertive");
       return;
     }
 
@@ -89,8 +90,8 @@ const RegisterForm: React.FC = () => {
     }
 
     if (!acceptTerms || !acceptPrivacy) {
-      setValidationErrors(prev => ({ ...prev, terms: "Du måste acceptera villkoren och integritetspolicyn." }));
-      announceToScreenReader("Du måste acceptera villkoren och integritetspolicyn.", "assertive");
+      setValidationErrors(prev => ({ ...prev, terms: t('registerForm.termsRequired') }));
+      announceToScreenReader(t('registerForm.termsRequired'), "assertive");
       return;
     }
 
@@ -101,12 +102,12 @@ const RegisterForm: React.FC = () => {
       
       // Check if referral was successful
       if (response.referral?.success) {
-        const msg = `Registrering lyckades! ${response.referral.message} Du kan nu logga in.`;
+        const msg = `${t('registerForm.successWithReferral', { message: response.referral.message })}`;
         setSuccess(msg);
         announceToScreenReader(msg, "polite");
       } else {
-        setSuccess("Registrering lyckades! Du kan nu logga in.");
-        announceToScreenReader("Registrering lyckades! Du kan nu logga in.", "polite");
+        setSuccess(t('registerForm.success'));
+        announceToScreenReader(t('registerForm.success'), "polite");
       }
       
       setEmail("");
@@ -120,7 +121,7 @@ const RegisterForm: React.FC = () => {
         ? String(err.response.data.error)
         : err instanceof Error ? err.message : 'Registration failed';
       setError(errorMessage);
-      announceToScreenReader(`Registrering misslyckades: ${errorMessage}`, "assertive");
+      announceToScreenReader(`${t('registerForm.failedPrefix')} ${errorMessage}`, "assertive");
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ const RegisterForm: React.FC = () => {
             <span className="text-2xl" aria-hidden="true">
               👤
             </span>
-            Skapa konto
+            {t('registerForm.title')}
           </Typography>
         </header>
 
@@ -179,14 +180,14 @@ const RegisterForm: React.FC = () => {
               <span className="text-primary" aria-hidden="true">
                 👤
               </span>
-              Namn
+              {t('registerForm.nameLabel')}
             </label>
             <Input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ange ditt namn"
+              placeholder={t('registerForm.namePlaceholder')}
               required
               disabled={loading}
               aria-describedby={validationErrors.name ? "name-error" : undefined}
@@ -205,14 +206,14 @@ const RegisterForm: React.FC = () => {
               <span className="text-primary" aria-hidden="true">
                 📧
               </span>
-              E-postadress
+              {t('registerForm.emailLabel')}
             </label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Ange din e-postadress"
+              placeholder={t('registerForm.emailPlaceholder')}
               required
               disabled={loading}
               aria-describedby={validationErrors.email ? "email-error" : undefined}
@@ -234,13 +235,13 @@ const RegisterForm: React.FC = () => {
               <span className="text-2xl mr-2" aria-hidden="true">🎁</span>
               <div>
                 <p className="text-sm font-semibold mb-1">
-                  Referenskod aktiv!
+                  {t('registerForm.referralActive')}
                 </p>
                 <p className="text-xs mb-2">
-                  Du och din vän får båda 1 vecka gratis premium! 🎉
+                  {t('registerForm.referralBenefit')}
                 </p>
                 <p className="text-xs font-medium mt-3">
-                  Kod: <span className="font-mono font-bold">{referralCode}</span>
+                  {t('registerForm.referralCode')} <span className="font-mono font-bold">{referralCode}</span>
                 </p>
               </div>
             </Alert>
@@ -254,7 +255,7 @@ const RegisterForm: React.FC = () => {
               <span className="text-primary" aria-hidden="true">
                 🔒
               </span>
-              Lösenord
+              {t('registerForm.passwordLabel')}
             </label>
             <div className="relative">
               <Input
@@ -262,7 +263,7 @@ const RegisterForm: React.FC = () => {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Skapa ett starkt lösenord"
+                placeholder={t('registerForm.passwordPlaceholder')}
                 required
                 disabled={loading}
                 className="pr-12"
@@ -273,8 +274,8 @@ const RegisterForm: React.FC = () => {
                 type="button"
                 onClick={togglePassword}
                 disabled={loading}
-                title={showPassword ? "Dölj lösenord" : "Visa lösenord"}
-                aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                title={showPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
+                aria-label={showPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
                 aria-pressed={showPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
@@ -282,7 +283,7 @@ const RegisterForm: React.FC = () => {
               </button>
             </div>
             <p id="password-help" className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-              Minst 8 tecken, en stor bokstav, en liten bokstav, en siffra och ett specialtecken.
+              {t('registerForm.passwordHelp')}
             </p>
             {validationErrors.password && (
               <p id="password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.password}</p>
@@ -297,7 +298,7 @@ const RegisterForm: React.FC = () => {
               <span className="text-primary" aria-hidden="true">
                 🔒
               </span>
-              Bekräfta lösenord
+              {t('registerForm.confirmPasswordLabel')}
             </label>
             <div className="relative">
               <Input
@@ -305,7 +306,7 @@ const RegisterForm: React.FC = () => {
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Bekräfta ditt lösenord"
+                placeholder={t('registerForm.confirmPasswordPlaceholder')}
                 required
                 disabled={loading}
                 className="pr-12"
@@ -316,8 +317,8 @@ const RegisterForm: React.FC = () => {
                 type="button"
                 onClick={toggleConfirmPassword}
                 disabled={loading}
-                title={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
-                aria-label={showConfirmPassword ? "Dölj lösenord" : "Visa lösenord"}
+                title={showConfirmPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
+                aria-label={showConfirmPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
                 aria-pressed={showConfirmPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
@@ -341,9 +342,9 @@ const RegisterForm: React.FC = () => {
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                Jag accepterar{" "}
+                {t('registerForm.acceptTermsPrefix')}{" "}
                 <Link to="/terms" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
-                  användarvillkoren
+                  {t('registerForm.termsLink')}
                 </Link>
               </span>
             </label>
@@ -357,9 +358,9 @@ const RegisterForm: React.FC = () => {
                 aria-describedby={validationErrors.terms ? "terms-error" : undefined}
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                Jag accepterar{" "}
+                {t('registerForm.acceptPrivacyPrefix')}{" "}
                 <Link to="/privacy" className="text-primary-600 dark:text-primary-400 underline hover:no-underline" target="_blank">
-                  integritetspolicyn
+                  {t('registerForm.privacyLink')}
                 </Link>
               </span>
             </label>
@@ -379,12 +380,12 @@ const RegisterForm: React.FC = () => {
             {loading ? (
               <>
                 <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                <span id="register-loading">Skapar konto...</span>
+                <span id="register-loading">{t('registerForm.creating')}</span>
               </>
             ) : (
               <>
                 <UserPlusIcon className="w-5 h-5 mr-2" aria-hidden="true" />
-                Skapa konto
+                {t('registerForm.title')}
               </>
             )}
           </Button>
@@ -392,13 +393,13 @@ const RegisterForm: React.FC = () => {
 
         <div className="mt-6 sm:mt-8 text-center">
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Har du redan ett konto?{" "}
+            {t('registerForm.hasAccount')}{" "}
             <Link
               to="/login"
               className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
-              aria-label="Gå till inloggningssidan"
+              aria-label={t('registerForm.goToLogin')}
             >
-              Logga in här
+              {t('registerForm.loginLink')}
             </Link>
           </p>
         </div>

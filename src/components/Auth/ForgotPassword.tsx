@@ -7,26 +7,7 @@ import { Input } from "../ui/tailwind/Input";
 import { Button } from "../ui/tailwind/Button";
 import { Alert } from "../ui/tailwind/Feedback";
 import { useAccessibility } from "../../hooks/useAccessibility";
-
-// Constants for messages and error handling
-const MESSAGES = {
-  SENDING_RESET_LINK: "Skickar återställningslänk...",
-  RESET_LINK_SENT: "Om e-postadressen finns registrerad har en återställningslänk skickats.",
-  RESET_LINK_SENT_ANNOUNCEMENT: "Återställningslänk skickad",
-  GENERIC_ERROR: "Ett fel uppstod. Försök igen senare.",
-  EMAIL_HINT: "Vi skickar en återställningslänk till denna adress",
-  BACK_TO_LOGIN: "Tillbaka till inloggning",
-  TITLE: "Återställ Lösenord",
-  EMAIL_LABEL: "E-postadress",
-  EMAIL_PLACEHOLDER: "Ange din e-postadress",
-  SEND_BUTTON: "Skicka Återställningslänk",
-  SENDING_BUTTON: "Skickar...",
-} as const;
-
-const ERROR_MESSAGES = {
-  INVALID_EMAIL: "Ogiltig e-postadress.",
-  TOO_MANY_REQUESTS: "För många förfrågningar. Försök igen senare.",
-} as const;
+import { useTranslation } from 'react-i18next';
 
 // Email validation utility
 const isValidEmail = (email: string): boolean => {
@@ -41,6 +22,7 @@ const useForgotPassword = (_onSuccess: () => void) => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const { announceToScreenReader } = useAccessibility();
+  const { t } = useTranslation();
 
   const resetStates = useCallback(() => {
     setError("");
@@ -53,49 +35,49 @@ const useForgotPassword = (_onSuccess: () => void) => {
 
     // Client-side email validation
     if (!isValidEmail(email)) {
-      const errorMessage = ERROR_MESSAGES.INVALID_EMAIL;
+      const errorMessage = t('forgotPassword.invalidEmail');
       setError(errorMessage);
-      announceToScreenReader(`Fel: ${errorMessage}`, "assertive");
+      announceToScreenReader(`${t('forgotPassword.errorPrefix')} ${errorMessage}`, "assertive");
       return;
     }
 
     setLoading(true);
-    announceToScreenReader(MESSAGES.SENDING_RESET_LINK, "polite");
+    announceToScreenReader(t('forgotPassword.sending'), "polite");
 
     try {
       const { firebaseAuth, authModule } = await loadFirebaseAuthBundle();
       const { sendPasswordResetEmail } = authModule;
       await sendPasswordResetEmail(firebaseAuth, email);
-      setMessage(MESSAGES.RESET_LINK_SENT);
-      announceToScreenReader(MESSAGES.RESET_LINK_SENT_ANNOUNCEMENT, "polite");
+      setMessage(t('forgotPassword.resetLinkSent'));
+      announceToScreenReader(t('forgotPassword.resetLinkSentAnnouncement'), "polite");
     } catch (err: unknown) {
       logger.error('Password reset error:', err);
       const firebaseError = err as { code?: string; message?: string };
-      let errorMessage: string = MESSAGES.GENERIC_ERROR;
+      let errorMessage: string = t('forgotPassword.genericError');
 
       // Improved error handling — avoid revealing account existence
       switch (firebaseError.code) {
         case 'auth/user-not-found':
           // Don't reveal whether the email exists — show generic success message
-          setMessage(MESSAGES.RESET_LINK_SENT);
-          announceToScreenReader(MESSAGES.RESET_LINK_SENT_ANNOUNCEMENT, "polite");
+          setMessage(t('forgotPassword.resetLinkSent'));
+          announceToScreenReader(t('forgotPassword.resetLinkSentAnnouncement'), "polite");
           return;
         case 'auth/invalid-email':
-          errorMessage = ERROR_MESSAGES.INVALID_EMAIL;
+          errorMessage = t('forgotPassword.invalidEmail');
           break;
         case 'auth/too-many-requests':
-          errorMessage = ERROR_MESSAGES.TOO_MANY_REQUESTS;
+          errorMessage = t('forgotPassword.tooManyRequests');
           break;
         default:
           break;
       }
 
       setError(errorMessage);
-      announceToScreenReader(`Fel: ${errorMessage}`, "assertive");
+      announceToScreenReader(`${t('forgotPassword.errorPrefix')} ${errorMessage}`, "assertive");
     } finally {
       setLoading(false);
     }
-  }, [email, announceToScreenReader, resetStates]);
+  }, [email, announceToScreenReader, resetStates, t]);
 
   return {
     email,
@@ -114,6 +96,7 @@ interface ForgotPasswordProps {
 
 const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) => {
   const { email, setEmail, loading, message, error, handleSubmit } = useForgotPassword(onSuccess);
+  const { t } = useTranslation();
 
   return (
     <Dialog open={true} onClose={onClose} size="md" titleId="forgot-password-title">
@@ -121,7 +104,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
         <button
           onClick={onClose}
           className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          aria-label="Stäng dialog"
+          aria-label={t('forgotPassword.closeDialog')}
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
@@ -129,7 +112,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
         <div className="p-6">
           <h2 id="forgot-password-title" className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <span className="text-2xl" aria-hidden="true">🔑</span>
-            {MESSAGES.TITLE}
+            {t('forgotPassword.title')}
           </h2>
 
           {message && (
@@ -161,21 +144,21 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
             <div>
               <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <EnvelopeIcon className="w-4 h-4 inline mr-1" />
-                {MESSAGES.EMAIL_LABEL}
+                {t('forgotPassword.emailLabel')}
               </label>
               <Input
                 id="reset-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={MESSAGES.EMAIL_PLACEHOLDER}
+                placeholder={t('forgotPassword.emailPlaceholder')}
                 required
                 disabled={loading}
                 aria-describedby={error ? "reset-error reset-hint" : "reset-hint"}
                 aria-invalid={!!error}
               />
               <p id="reset-hint" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {MESSAGES.EMAIL_HINT}
+                {t('forgotPassword.emailHint')}
               </p>
             </div>
 
@@ -190,12 +173,12 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
               {loading ? (
                 <>
                   <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
-                  {MESSAGES.SENDING_BUTTON}
+                  {t('forgotPassword.sending')}
                 </>
               ) : (
                 <>
                   <PaperAirplaneIcon className="w-5 h-5 mr-2" aria-hidden="true" />
-                  {MESSAGES.SEND_BUTTON}
+                  {t('forgotPassword.sendButton')}
                 </>
               )}
             </Button>
@@ -208,7 +191,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onClose, onSuccess }) =
               disabled={loading}
               className="text-sm text-primary-600 dark:text-primary-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {MESSAGES.BACK_TO_LOGIN}
+              {t('forgotPassword.backToLogin')}
             </button>
           </div>
         </div>

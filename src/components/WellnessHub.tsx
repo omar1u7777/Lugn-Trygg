@@ -225,7 +225,7 @@ const BentoCard: React.FC<{
 // ----------------------------------------------------------------------
 
 const WellnessHub: React.FC = () => {
-  useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<'all' | 'meditation' | 'breathing' | 'sounds' | 'sleep'>('all');
@@ -392,22 +392,27 @@ const WellnessHub: React.FC = () => {
   // Render
   // ----------------------------------------------------------------------
 
-  // Content Data
+  // Content Data – titles/descriptions from i18n
+  type WellnessDataItem = { id: string; title: string; description: string };
+  const wdMed = (t('wellnessData.meditations', { returnObjects: true }) as WellnessDataItem[]) || [];
+  const wdBr  = (t('wellnessData.breathingExercises', { returnObjects: true }) as WellnessDataItem[]) || [];
+  const wdSl  = (t('wellnessData.sleepStories', { returnObjects: true }) as WellnessDataItem[]) || [];
+
   const meditations: MeditationOption[] = [
-    { id: '1', title: 'Snabb Avkoppling', duration: 5, type: 'guided_meditation', description: 'Perfekt för en paus', icon: <SparklesIcon /> },
-    { id: '2', title: 'Djup Sömn', duration: 20, type: 'guided_meditation', description: 'Somna lättare ikväll', icon: <MoonIcon /> },
-    { id: '3', title: 'Morgonfokus', duration: 10, type: 'guided_meditation', description: 'Starta dagen rätt', icon: <SunIcon /> },
+    { id: '1', title: wdMed[0]?.title || 'Snabb Avkoppling', duration: 5, type: 'guided_meditation', description: wdMed[0]?.description || 'Perfekt för en paus', icon: <SparklesIcon /> },
+    { id: '2', title: wdMed[1]?.title || 'Djup Sömn', duration: 20, type: 'guided_meditation', description: wdMed[1]?.description || 'Somna lättare ikväll', icon: <MoonIcon /> },
+    { id: '3', title: wdMed[2]?.title || 'Morgonfokus', duration: 10, type: 'guided_meditation', description: wdMed[2]?.description || 'Starta dagen rätt', icon: <SunIcon /> },
   ];
 
   const breathingExercises: MeditationOption[] = [
-    { id: 'b1', title: '4-7-8 Andning', duration: 4, type: 'breathing_exercise', description: 'För ångestdämpning', icon: <CloudIcon /> },
-    { id: 'b2', title: 'Fyrkantsandning', duration: 5, type: 'breathing_exercise', description: 'För balans och lugn', icon: <StopIcon /> },
+    { id: 'b1', title: wdBr[0]?.title || '4-7-8 Andning', duration: 4, type: 'breathing_exercise', description: wdBr[0]?.description || 'För ångestdämpning', icon: <CloudIcon /> },
+    { id: 'b2', title: wdBr[1]?.title || 'Fyrkantsandning', duration: 5, type: 'breathing_exercise', description: wdBr[1]?.description || 'För balans och lugn', icon: <StopIcon /> },
   ];
 
   const sleepStories: MeditationOption[] = [
-    { id: 's1', title: 'Stjärnresan', duration: 12, type: 'soundscape', description: 'Lugn godnattsaga för nedvarvning', icon: <MoonIcon /> },
-    { id: 's2', title: 'Regnskogens vila', duration: 15, type: 'soundscape', description: 'Mjuk berättelse med naturljud', icon: <MusicalNoteIcon /> },
-    { id: 's3', title: 'Havets andetag', duration: 20, type: 'soundscape', description: 'Djup vila med havsrytm och guidning', icon: <CloudIcon /> },
+    { id: 's1', title: wdSl[0]?.title || 'Stjärnresan', duration: 12, type: 'soundscape', description: wdSl[0]?.description || 'Lugn godnattsaga för nedvarvning', icon: <MoonIcon /> },
+    { id: 's2', title: wdSl[1]?.title || 'Regnskogens vila', duration: 15, type: 'soundscape', description: wdSl[1]?.description || 'Mjuk berättelse med naturljud', icon: <MusicalNoteIcon /> },
+    { id: 's3', title: wdSl[2]?.title || 'Havets andetag', duration: 20, type: 'soundscape', description: wdSl[2]?.description || 'Djup vila med havsrytm och guidning', icon: <CloudIcon /> },
   ];
 
   return (
@@ -418,13 +423,13 @@ const WellnessHub: React.FC = () => {
           <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
-                Välmåendebibliotek
+                {t('wellnessHub.title')}
               </h1>
               <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
-                Hitta lugnet, ett andetag i taget.
+                {t('wellnessHub.subtitle')}
               </p>
               <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
-                Här utforskar du hela biblioteket. För personliga förslag, gå till Rekommendationer.
+                {t('wellnessHub.description')}
               </p>
             </div>
             <div className="hidden sm:block">
@@ -442,8 +447,8 @@ const WellnessHub: React.FC = () => {
             <div className="md:col-span-2 lg:col-span-2 h-full">
               <BentoCard
                 className="h-full min-h-[300px]"
-                title="Dagens Rekommendation"
-                subtitle="Börja din morgon med klarhet"
+                title={t('wellnessHub.dailyRec')}
+                subtitle={t('wellnessHub.dailyRecSub')}
                 imageHtml={<OptimizedImage src={WELLNESS_HERO_IMAGE_ID} alt="Wellness" className="w-full h-full object-cover" width={800} height={400} fallbackSrc={WELLNESS_HERO_FALLBACK_SRC} />}
                 onClick={() => {
                   const dailyRec = meditations[2];
@@ -452,7 +457,7 @@ const WellnessHub: React.FC = () => {
               >
                 <div className="mt-4">
                   <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-medium border border-white/20">
-                    10 min • Morgonfokus
+                    10 min • {t('wellnessHub.morningFocus')}
                   </span>
                 </div>
               </BentoCard>
@@ -463,25 +468,25 @@ const WellnessHub: React.FC = () => {
               <BentoCard
                 className="flex-1 bg-gradient-to-br from-teal-50 to-green-50 dark:from-teal-900/20 dark:to-green-900/20"
                 title={`${wellnessStats.meditationMinutes}m`}
-                subtitle="Mindfulness"
+                subtitle={t('wellnessHub.mindfulness')}
                 icon={<HeartIcon />}
                 accentColor="bg-teal-500"
               >
                 <div className="mt-4 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex items-center justify-between rounded-lg bg-white/60 dark:bg-slate-800/60 px-3 py-2">
-                    <span>Andningspass</span>
+                    <span>{t('wellnessHub.breathingSessions')}</span>
                     <strong>{wellnessStats.breathingExercises}</strong>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-white/60 dark:bg-slate-800/60 px-3 py-2">
-                    <span>Övriga pass</span>
+                    <span>{t('wellnessHub.otherSessions')}</span>
                     <strong>{wellnessStats.relaxationSessions}</strong>
                   </div>
                 </div>
               </BentoCard>
               <BentoCard
                 className="flex-1 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20"
-                title="Sömn & Vila"
-                subtitle="Spela sagor"
+                title={t('wellnessHub.sleepTitle')}
+                subtitle={t('wellnessHub.sleepSub')}
                 icon={<MoonIcon />}
                 accentColor="bg-indigo-500"
                 onClick={() => setActiveCategory('sleep')}
@@ -492,8 +497,8 @@ const WellnessHub: React.FC = () => {
             <div className="md:col-span-3 lg:col-span-1 h-full">
               <BentoCard
                 className="h-full bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border-sky-100 dark:border-sky-800/30"
-                title="Mina Mål"
-                subtitle={userGoals.length > 0 ? `${userGoals.length} aktiva mål` : "Sätt dina mål"}
+                title={t('wellnessHub.myGoals')}
+                subtitle={userGoals.length > 0 ? t('wellnessHub.activeGoals', { count: userGoals.length }) : t('wellnessHub.setGoals')}
                 icon={<PencilSquareIcon />}
                 accentColor="bg-sky-500"
                 onClick={() => setShowGoalsModal(true)}
@@ -508,14 +513,14 @@ const WellnessHub: React.FC = () => {
                     ))
                   ) : (
                     <div className="flex flex-col gap-2 mt-2">
-                      <p className="text-xs text-slate-500">Du har inga aktiva mål än.</p>
+                      <p className="text-xs text-slate-500">{t('wellnessHub.noGoals')}</p>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="text-sky-600 bg-sky-100 dark:bg-sky-900/30 w-full justify-start"
                         onClick={() => setShowGoalsModal(true)}
                       >
-                        Lägg till mål +
+                        {t('wellnessHub.addGoal')}
                       </Button>
                     </div>
                   )}
@@ -529,17 +534,17 @@ const WellnessHub: React.FC = () => {
       {/* 2. Navigation Pills */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8 overflow-x-auto scrollbar-hide">
         <div className="flex gap-3 pb-2">
-          <CategoryPill active={activeCategory === 'all'} label="Utforska allt" icon={<SparklesIcon className="w-4 h-4" />} onClick={() => setActiveCategory('all')} />
-          <CategoryPill active={activeCategory === 'meditation'} label="Meditation" icon={<HandRaisedIcon className="w-4 h-4" />} onClick={() => setActiveCategory('meditation')} />
-          <CategoryPill active={activeCategory === 'breathing'} label="Andning" icon={<CloudIcon className="w-4 h-4" />} onClick={() => setActiveCategory('breathing')} />
-          <CategoryPill active={activeCategory === 'sounds'} label="Ljudlandskap" icon={<MusicalNoteIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sounds')} />
-          <CategoryPill active={activeCategory === 'sleep'} label="Sömn" icon={<MoonIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sleep')} />
+          <CategoryPill active={activeCategory === 'all'} label={t('wellnessHub.catAll')} icon={<SparklesIcon className="w-4 h-4" />} onClick={() => setActiveCategory('all')} />
+          <CategoryPill active={activeCategory === 'meditation'} label={t('wellnessHub.catMeditation')} icon={<HandRaisedIcon className="w-4 h-4" />} onClick={() => setActiveCategory('meditation')} />
+          <CategoryPill active={activeCategory === 'breathing'} label={t('wellnessHub.catBreathing')} icon={<CloudIcon className="w-4 h-4" />} onClick={() => setActiveCategory('breathing')} />
+          <CategoryPill active={activeCategory === 'sounds'} label={t('wellnessHub.catSounds')} icon={<MusicalNoteIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sounds')} />
+          <CategoryPill active={activeCategory === 'sleep'} label={t('wellnessHub.catSleep')} icon={<MoonIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sleep')} />
           <button
             onClick={() => navigate('/recommendations')}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105 bg-primary-50 dark:bg-slate-800 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-slate-700"
           >
             <SparklesIcon className="w-4 h-4" />
-            Rekommendationer
+            {t('wellnessHub.recommendations')}
           </button>
         </div>
       </div>

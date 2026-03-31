@@ -4,11 +4,19 @@ Early detection and intervention for mental health crises
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# Import semantic crisis detector when available
+try:
+    from .crisis_nlp import get_semantic_crisis_detector, SemanticCrisisAssessment
+    SEMANTIC_DETECTOR_AVAILABLE = True
+except ImportError:
+    SEMANTIC_DETECTOR_AVAILABLE = False
+    logger.warning("Semantic crisis detector not available, using fallback")
 
 @dataclass
 class CrisisIndicator:
@@ -60,6 +68,145 @@ class CrisisInterventionService:
             'high': 0.8,
             'critical': 0.95
         }
+
+        # Initialize semantic crisis detector
+        self.semantic_detector = None
+        if SEMANTIC_DETECTOR_AVAILABLE:
+            try:
+                self.semantic_detector = get_semantic_crisis_detector()
+                logger.info("✅ Semantic crisis detector integrated")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load semantic detector: {e}")
+
+    def assess_text_crisis_risk(self, text: str, conversation_context: Optional[list] = None) -> CrisisAssessment:
+        """
+        Assess crisis risk from user text using semantic NLP.
+        This is the NEW primary method for chat-based crisis detection.
+        """
+        user_id = "text_assessment"  # Anonymous for text-only assessment
+
+        if self.semantic_detector:
+            # Use semantic BERT-based detection
+            semantic_result = self.semantic_detector.detect(text, conversation_context)
+
+            # Convert to CrisisAssessment format
+            # Create synthetic indicators from semantic detection
+            active_indicators = []
+            for concept in semantic_result.detected_concepts:
+                indicator = CrisisIndicator(
+                    indicator_id=concept['name'],
+                    name=concept['description'][:50],
+                    category=concept['category'],
+                    severity_level=self._semantic_to_indicator_level(semantic_result.risk_level),
+                    detection_rules={'semantic_score': concept['score']},
+                    intervention_triggers=[f"semantic_{concept['category']}"],
+                    swedish_description=concept['description'],
+                    risk_weight=concept['weight']
+                )
+                active_indicators.append(indicator)
+
+            return CrisisAssessment(
+                user_id=user_id,
+                overall_risk_level=semantic_result.risk_level,
+                risk_score=semantic_result.semantic_score,
+                active_indicators=active_indicators,
+                risk_trends={'semantic_confidence': semantic_result.confidence},
+                intervention_recommendations=self._get_interventions_for_semantic(semantic_result),
+                assessment_timestamp=datetime.now(),
+                confidence_score=semantic_result.confidence
+            )
+        else:
+            # Fallback to keyword-based
+            return self._fallback_text_assessment(text)
+
+    def _semantic_to_indicator_level(self, risk_level: str) -> str:
+        """Convert semantic risk level to indicator severity."""
+        mapping = {
+            'critical': 'critical',
+            'high': 'high',
+            'medium': 'medium',
+            'low': 'low',
+            'none': 'low'
+        }
+        return mapping.get(risk_level, 'low')
+
+    def _get_interventions_for_semantic(self, semantic_result) -> list[str]:
+        """Get interventions based on semantic detection results."""
+        interventions = []
+
+        if semantic_result.risk_level == 'critical':
+            interventions.extend([
+                "Ring 112 för akut hjälp",
+                "Kontakta Krisjouren: 90101",
+                "Prata med en nära vän eller familjemedlem NU"
+            ])
+        elif semantic_result.risk_level == 'high':
+            interventions.extend([
+                "Kontakta din vårdcentral eller terapeut",
+                "Ring Självmordslinjen: 90101",
+                "Prata med någon du litar på",
+                "Undvik att vara ensam just nu"
+            ])
+
+        # Add concept-specific interventions
+        for concept in semantic_result.detected_concepts:
+            if concept['category'] == 'suicidal':
+                interventions.append("Säkerhetsplan: Ta bort eventuella farliga föremål")
+            elif concept['category'] == 'self_harm':
+                interventions.append("Alternativ till självskada: Kall dusch, is mot handleden")
+            elif concept['category'] == 'hopelessness':
+                interventions.append("Öva på små målbilder - vad skulle kännas lite bättre idag?")
+
+        return interventions[:10]  # Limit interventions
+
+    def _fallback_text_assessment(self, text: str) -> CrisisAssessment:
+        """Fallback keyword-based text assessment."""
+        import re
+
+        text_lower = text.lower()
+
+        # Keyword matching
+        crisis_keywords = {
+            'suicidal': ['döda mig', 'ta livet av mig', 'självmord', 'inte orka längre', 'sluta leva'],
+            'self_harm': ['skada mig själv', 'skära mig', 'självskada'],
+            'hopelessness': ['hopplöst', 'ingen mening', 'ge upp'],
+            'severe_distress': ['kan inte fortsätta', 'bryta ihop', 'håller på att gå sönder']
+        }
+
+        score = 0.0
+        detected = []
+
+        for category, keywords in crisis_keywords.items():
+            for kw in keywords:
+                if kw in text_lower:
+                    score += 0.25
+                    detected.append(f"keyword:{category}")
+
+        # Urgency patterns
+        urgency = re.search(r"hjälp.*?nu|akut|omedelbart", text_lower)
+        if urgency:
+            score += 0.3
+
+        risk_level = 'none'
+        if score >= 0.8:
+            risk_level = 'critical'
+        elif score >= 0.6:
+            risk_level = 'high'
+        elif score >= 0.4:
+            risk_level = 'medium'
+        elif score >= 0.2:
+            risk_level = 'low'
+
+        return CrisisAssessment(
+            user_id="text_fallback",
+            overall_risk_level=risk_level,
+            risk_score=min(1.0, score),
+            active_indicators=[],
+            risk_trends={'method': 'keyword_fallback'},
+            intervention_recommendations=["Kontakta professionell hjälp vid behov"],
+            assessment_timestamp=datetime.now(),
+            confidence_score=0.5
+        )
 
     def _initialize_crisis_indicators(self) -> dict[str, CrisisIndicator]:
         """Initialize comprehensive crisis indicators database"""

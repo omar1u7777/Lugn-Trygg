@@ -10,6 +10,18 @@ from flask import Blueprint, g, request
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
+
+# Import professional voice emotion analyzer
+try:
+    from ..services.voice_emotion_service import (
+        get_voice_emotion_analyzer,
+        analyze_voice_emotion_professional
+    )
+    PROFESSIONAL_VOICE_ANALYSIS = True
+except ImportError:
+    PROFESSIONAL_VOICE_ANALYSIS = False
+    logger.warning("Professional voice emotion service not available")
+
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 from ..utils.speech_utils import transcribe_audio_google
@@ -156,36 +168,107 @@ def analyze_voice_emotion():
         return APIResponse.bad_request("Invalid base64 audio data")
 
     try:
-        # Analyze audio characteristics
-        audio_analysis = analyze_audio_features(audio_bytes)
-
-        # If we have a transcript, add text sentiment
-        text_sentiment = None
-        if transcript:
-            text_sentiment = analyze_text_sentiment(transcript)
-
-        # Combine audio and text analysis
-        emotions = combine_emotion_analysis(audio_analysis, text_sentiment)
-
-        audit_log(
-            event_type="VOICE_EMOTION_ANALYZED",
-            user_id=user_id,
-            details={
-                "primary_emotion": emotions['primary'],
-                "has_transcript": bool(transcript),
-                "audio_size_bytes": len(audio_bytes)
+        # Use professional voice emotion analysis if available
+        if PROFESSIONAL_VOICE_ANALYSIS:
+            from ..services.voice_emotion_service import analyze_voice_emotion_professional
+            
+            result = analyze_voice_emotion_professional(audio_bytes, transcript)
+            
+            # Convert dataclass to response format
+            emotions_dict = {
+                "happy": result.emotion_confidences.get("happy", 0),
+                "sad": result.emotion_confidences.get("sad", 0),
+                "angry": result.emotion_confidences.get("angry", 0),
+                "anxious": result.emotion_confidences.get("anxious", 0),
+                "calm": result.emotion_confidences.get("calm", 0),
+                "neutral": result.emotion_confidences.get("neutral", 0)
             }
-        )
-
-        logger.info(f"✅ Voice emotion analysis for user {user_id}: primary={emotions['primary']}")
-
-        return APIResponse.success({
-            "emotions": emotions['all'],
-            "primaryEmotion": emotions['primary'],
-            "energyLevel": audio_analysis['energy_level'],
-            "speakingPace": audio_analysis['pace'],
-            "volumeVariation": audio_analysis['volume_variation']
-        }, "Emotion analysis successful")
+            
+            audit_log(
+                event_type="VOICE_EMOTION_ANALYZED_PROFESSIONAL",
+                user_id=user_id,
+                details={
+                    "primary_emotion": result.primary_emotion,
+                    "confidence": result.confidence,
+                    "analysis_method": result.analysis_method,
+                    "has_transcript": bool(transcript),
+                    "audio_size_bytes": len(audio_bytes),
+                    "valence": result.valence,
+                    "arousal": result.arousal
+                }
+            )
+            
+            logger.info(f"✅ Professional voice emotion analysis for user {user_id}: "
+                       f"primary={result.primary_emotion}, confidence={result.confidence:.2f}, "
+                       f"method={result.analysis_method}")
+            
+            # Determine energy level from prosodic features
+            if result.prosody.intensity_mean > 0.6:
+                energy_level = "high"
+            elif result.prosody.intensity_mean > 0.4:
+                energy_level = "medium"
+            else:
+                energy_level = "low"
+            
+            # Determine speaking pace
+            if result.prosody.syllables_per_second > 5.5:
+                pace = "fast"
+            elif result.prosody.syllables_per_second > 4.0:
+                pace = "normal"
+            else:
+                pace = "slow"
+            
+            return APIResponse.success({
+                "emotions": emotions_dict,
+                "primaryEmotion": result.primary_emotion,
+                "energyLevel": energy_level,
+                "speakingPace": pace,
+                "volumeVariation": "high" if result.prosody.intensity_range > 0.3 else "moderate",
+                "acousticFeatures": {
+                    "pitchMean": result.prosody.pitch_mean,
+                    "pitchRange": result.prosody.pitch_range,
+                    "intensityMean": result.prosody.intensity_mean,
+                    "speakingRate": result.prosody.syllables_per_second,
+                    "voiceQuality": result.prosody.hnr
+                },
+                "valence": result.valence,
+                "arousal": result.arousal,
+                "dominance": result.dominance,
+                "analysisMethod": result.analysis_method,
+                "confidence": result.confidence
+            }, "Voice emotion analysis successful (professional)")
+        
+        else:
+            # Fallback to legacy analysis
+            audio_analysis = analyze_audio_features(audio_bytes)
+            
+            text_sentiment = None
+            if transcript:
+                text_sentiment = analyze_text_sentiment(transcript)
+            
+            emotions = combine_emotion_analysis(audio_analysis, text_sentiment)
+            
+            audit_log(
+                event_type="VOICE_EMOTION_ANALYZED_LEGACY",
+                user_id=user_id,
+                details={
+                    "primary_emotion": emotions['primary'],
+                    "has_transcript": bool(transcript),
+                    "audio_size_bytes": len(audio_bytes)
+                }
+            )
+            
+            logger.info(f"⚠️ Legacy voice emotion analysis for user {user_id}: primary={emotions['primary']}")
+            
+            return APIResponse.success({
+                "emotions": emotions['all'],
+                "primaryEmotion": emotions['primary'],
+                "energyLevel": audio_analysis['energy_level'],
+                "speakingPace": audio_analysis['pace'],
+                "volumeVariation": audio_analysis['volume_variation'],
+                "analysisMethod": "legacy_basic",
+                "confidence": 0.5
+            }, "Voice emotion analysis successful (legacy)")
 
     except Exception as e:
         logger.exception(f"❌ Voice emotion analysis error: {e}")

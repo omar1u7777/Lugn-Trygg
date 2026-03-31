@@ -25,8 +25,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { KBTPhaseName, Recommendation, RecommendationsProps } from '../types/recommendation';
-import { RECOMMENDATIONS_POOL, muscleGroups, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
-import { getWellnessGoalIcon } from '../constants/wellnessGoals';
+import { RECOMMENDATIONS_POOL, getMuscleGroups, getBreathingPhases, getRecommendationsPool, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
+import { getWellnessGoalIcon, getWellnessGoalLabel } from '../constants/wellnessGoals';
 import { useBreathingExercise } from '../hooks/useBreathingExercise';
 import { useKBTExercise } from '../hooks/useKBTExercise';
 import { usePMR } from '../hooks/usePMR';
@@ -90,13 +90,21 @@ const KBT_DISTORTION_RULES: Array<KbtDistortionInsight & { pattern: RegExp }> = 
   },
 ];
 
-const getKbtDistortionInsights = (negativeThought: string): KbtDistortionInsight[] => {
+const getKbtDistortionInsights = (negativeThought: string, t?: (key: string) => string): KbtDistortionInsight[] => {
   const thought = negativeThought.trim();
   if (!thought) return [];
 
   const matches = KBT_DISTORTION_RULES.filter((rule) => rule.pattern.test(thought))
     .slice(0, 2)
-    .map(({ pattern: _pattern, ...insight }) => insight);
+    .map(({ pattern: _pattern, key, ...rest }) => {
+      if (!t) return { key, ...rest };
+      return {
+        key,
+        label: t(`kbt.distortions.${key}.label`) || rest.label,
+        hint: t(`kbt.distortions.${key}.hint`) || rest.hint,
+        reframeQuestion: t(`kbt.distortions.${key}.reframeQuestion`) || rest.reframeQuestion,
+      };
+    });
 
   return matches;
 };
@@ -157,8 +165,9 @@ const calculateKbtSessionQuality = (params: {
   const score = Math.round(Math.max(0, Math.min(100, 35 + shiftScore + writingScore)));
 
   let label = 'Stabil grund';
-  if (score >= 80) label = 'Mycket stark genomforing';
-  else if (score >= 60) label = 'Bra genomforing';
+  if (score >= 80) label = 'kbt.quality.veryStrong';
+  else if (score >= 60) label = 'kbt.quality.good';
+  else label = 'kbt.quality.stable';
 
   return { score, label, shift };
 };
@@ -168,60 +177,26 @@ const getKbtStepFromPhase = (phase: KBTPhaseName) => {
   return index >= 0 ? index + 1 : KBT_TOTAL_STEPS;
 };
 
-const getKbtAdaptiveFeedback = (before: number | null, after: number | null) => {
+const getKbtAdaptiveFeedback = (before: number | null, after: number | null, t?: (key: string) => string) => {
+  const tr = (key: string, fallback: string) => (t ? (t(key) || fallback) : fallback);
   if (typeof before !== 'number' || typeof after !== 'number') {
-    return {
-      title: 'Fortsatt reflektion',
-      message: 'Du har gjort ett viktigt arbete. Fortsatt repetition av den balanserade tanken kan gora den mer tillganglig i vardagen.'
-    };
+    return { title: tr('kbt.adaptive.noData.title', 'Fortsatt reflektion'), message: tr('kbt.adaptive.noData.message', 'Du har gjort ett viktigt arbete.') };
   }
-
   const shift = after - before;
-  if (shift >= 20) {
-    return {
-      title: 'Tydlig omstrukturering',
-      message: 'Din nya tanke kanns betydligt mer trovardig nu. Det tyder pa att du har brutit ett automatiskt stresstolkningmonster.'
-    };
-  }
-  if (shift >= 5) {
-    return {
-      title: 'Bra framsteg',
-      message: 'Du ror dig i ratt riktning. Fortsatt ova pa den nya tanken i liknande situationer for att befasta effekten.'
-    };
-  }
-
-  return {
-    title: 'Stabilisering behovs',
-    message: 'Forandring tar tid. Testa att konkretisera evidensen ytterligare och prova samma ovning igen i en lugn stund.'
-  };
+  if (shift >= 20) return { title: tr('kbt.adaptive.clearRestructuring.title', 'Tydlig omstrukturering'), message: tr('kbt.adaptive.clearRestructuring.message', 'Din nya tanke känns mer trovärdig nu.') };
+  if (shift >= 5) return { title: tr('kbt.adaptive.goodProgress.title', 'Bra framsteg'), message: tr('kbt.adaptive.goodProgress.message', 'Du rör dig i rätt riktning.') };
+  return { title: tr('kbt.adaptive.stabilization.title', 'Stabilisering behövs'), message: tr('kbt.adaptive.stabilization.message', 'Förändring tar tid.') };
 };
 
-const getKbtStressFeedback = (before: number | null, after: number | null) => {
+const getKbtStressFeedback = (before: number | null, after: number | null, t?: (key: string) => string) => {
+  const tr = (key: string, fallback: string) => (t ? (t(key) || fallback) : fallback);
   if (typeof before !== 'number' || typeof after !== 'number') {
-    return {
-      title: 'Stressmätning saknas',
-      message: 'Lagg till stressniva fore och efter nasta gang for att tydligare se effekten av ovningen.'
-    };
+    return { title: tr('kbt.stress.noData.title', 'Stressmätning saknas'), message: tr('kbt.stress.noData.message', 'Lägg till stressnivå nästa gång.') };
   }
-
   const shift = after - before;
-  if (shift <= -20) {
-    return {
-      title: 'Tydlig stressminskning',
-      message: 'Din stressniva gick ner markant. Fortsatt med samma strategi i liknande situationer.'
-    };
-  }
-  if (shift <= -5) {
-    return {
-      title: 'Bra stressreglering',
-      message: 'Stressnivan minskade. Repetera ovrigt handlingssteg for att befasta effekten.'
-    };
-  }
-
-  return {
-    title: 'Stressen kvarstar delvis',
-    message: 'Om stressen fortfarande ar hog, kombinera tanken med en kort andningspaus innan nasta steg.'
-  };
+  if (shift <= -20) return { title: tr('kbt.stress.clearReduction.title', 'Tydlig stressminskning'), message: tr('kbt.stress.clearReduction.message', 'Din stressnivå gick ner markant.') };
+  if (shift <= -5) return { title: tr('kbt.stress.goodRegulation.title', 'Bra stressreglering'), message: tr('kbt.stress.goodRegulation.message', 'Stressnivån minskade.') };
+  return { title: tr('kbt.stress.remaining.title', 'Stressen kvarstår delvis'), message: tr('kbt.stress.remaining.message', 'Kombinera tanken med en kort andningspaus.') };
 };
 
 
@@ -251,6 +226,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const navigate = useNavigate();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const translatedMuscleGroups = getMuscleGroups(t);
+  const translatedBreathingPhases = getBreathingPhases(t);
   const lastRecommendationsSignatureRef = useRef<string>('');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
@@ -511,7 +489,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         date: new Date().toISOString(),
         duration: duration,
         difficulty: relaxationDifficulty,
-        muscleGroups: count
+        muscleGroups: count // count uses translatedMuscleGroups.length
       };
       setSessionHistory(prev => [newSession, ...prev.slice(0, 9)]);
 
@@ -632,7 +610,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
 
   const activeKbtStep = getKbtStepFromPhase(kbtPhase);
-  const kbtDistortionInsights = getKbtDistortionInsights(userThoughts.negative);
+  const kbtDistortionInsights = getKbtDistortionInsights(userThoughts.negative, t);
   const kbtProgressPercentage = kbtPhase === 'complete'
     ? 100
     : Math.round((activeKbtStep / KBT_TOTAL_STEPS) * 100);
@@ -917,7 +895,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   }, [kbtPhase, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtExecutionConfidenceAfter, userThoughts.negative, userThoughts.evidence, userThoughts.alternative, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, kbtDistortionInsights]);
 
   const loadRecommendations = useCallback((goals: string[], screenReader: typeof announceToScreenReader) => {
-    const allRecommendations = RECOMMENDATIONS_POOL;
+    const allRecommendations = getRecommendationsPool(t);
     let filteredRecommendations: Recommendation[] = [];
 
     if (goals && goals.length > 0) {
@@ -1994,24 +1972,24 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-              Personliga Rekommendationer 💡
+              {t('recommendations.title')}
             </h1>
             <p className="text-lg opacity-90 mb-4">
-              Innehåll anpassat efter dina behov och framsteg
+              {t('recommendations.subtitle')}
             </p>
             <p className="text-sm opacity-90 max-w-2xl">
-              Här ser du personliga förslag baserade på dina mål. I Välmåendebiblioteket hittar du hela utbudet av övningar och innehåll.
+              {t('recommendations.description')}
             </p>
             {user && (
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 <span className="bg-white/20 px-3 py-1 rounded-full">
-                  🧘 {fetchedWellnessGoals.length} Wellness-mål
+                  🧘 {fetchedWellnessGoals.length} {t('recommendations.wellnessGoals')}
                 </span>
                 <span className="bg-white/20 px-3 py-1 rounded-full">
-                  🎯 {recommendations.length} Tillgängliga övningar
+                  🎯 {recommendations.length} {t('recommendations.availableExercises')}
                 </span>
                 <span className="bg-white/20 px-3 py-1 rounded-full">
-                  📚 Evidensbaserat innehåll
+                  📚 {t('recommendations.evidenceBased')}
                 </span>
                 {showDebugTools && (
                   <>
@@ -2043,7 +2021,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
           <div className="flex flex-col items-center md:items-end">
             <div className="text-6xl mb-2">🧠</div>
-            <p className="text-sm opacity-75">Evidensbaserat innehåll</p>
+            <p className="text-sm opacity-75">{t('recommendations.evidenceBased')}</p>
           </div>
         </div>
 
@@ -2068,10 +2046,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="relative">
             <input
               type="text"
-              placeholder="Sök rekommendationer..."
+              placeholder={t('recommendations.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Sök rekommendationer"
+              aria-label={t('recommendations.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -3327,8 +3305,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     {kbtPhase === 'complete' && (
                       <div className="text-center">
                         {(() => {
-                          const adaptiveFeedback = getKbtAdaptiveFeedback(kbtBeliefBefore, kbtBeliefAfter);
-                          const stressFeedback = getKbtStressFeedback(kbtStressBefore, kbtStressAfter);
+                          const adaptiveFeedback = getKbtAdaptiveFeedback(kbtBeliefBefore, kbtBeliefAfter, t);
+                          const stressFeedback = getKbtStressFeedback(kbtStressBefore, kbtStressAfter, t);
                           const quality = calculateKbtSessionQuality({
                             beliefBefore: kbtBeliefBefore,
                             beliefAfter: kbtBeliefAfter,
@@ -3352,8 +3330,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                                 <p className="text-sm text-blue-700 dark:text-blue-300">{adaptiveFeedback.message}</p>
                               </div>
                               <div className="bg-sky-50 dark:bg-sky-900/20 p-4 rounded-lg mb-4 text-left border border-sky-100 dark:border-sky-800">
-                                <p className="text-sm font-semibold text-sky-700 dark:text-sky-300 mb-1">Sessionens kvalitet: {quality.score}/100</p>
-                                <p className="text-sm text-sky-700 dark:text-sky-300">{quality.label}</p>
+                                <p className="text-sm font-semibold text-sky-700 dark:text-sky-300 mb-1">{t('kbt.sessionQuality', { score: quality.score })}</p>
+                                <p className="text-sm text-sky-700 dark:text-sky-300">{t(quality.label)}</p>
                               </div>
                               <div className="bg-rose-50 dark:bg-rose-900/20 p-4 rounded-lg mb-4 text-left border border-rose-100 dark:border-rose-800">
                                 <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 mb-1">{stressFeedback.title}</p>
@@ -4269,13 +4247,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   </h3>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    Följ guiden genom olika muskelgrupper för djup avslappning
+                    {t('pmr.guideDesc')}
                   </p>
 
                   {/* Progress Indicator */}
                   <div className="flex justify-center mb-6">
                     <div className="flex items-center space-x-1">
-                      {muscleGroups.map((group, index) => (
+                      {translatedMuscleGroups.map((group, index) => (
                         <div
                           key={group.name}
                           className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all duration-300 ${index < currentMuscleGroup
@@ -4396,21 +4374,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     </div>
 
                     <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {relaxationPhase === 'prepare' && 'Förberedelse'}
-                      {relaxationPhase === 'tense' && `Spänn: ${muscleGroups[currentMuscleGroup]?.name || 'musklerna'} `}
-                      {relaxationPhase === 'relax' && `Slappna av: ${muscleGroups[currentMuscleGroup]?.name || 'musklerna'} `}
-                      {relaxationPhase === 'completed' && 'Övning slutförd!'}
+                      {relaxationPhase === 'prepare' && t('pmr.prepare')}
+                      {relaxationPhase === 'tense' && `${t('pmr.tense')}: ${translatedMuscleGroups[currentMuscleGroup]?.name || t('pmr.muscles')} `}
+                      {relaxationPhase === 'relax' && `${t('pmr.relax')}: ${translatedMuscleGroups[currentMuscleGroup]?.name || t('pmr.muscles')} `}
+                      {relaxationPhase === 'completed' && t('pmr.completed')}
                     </h4>
 
                     <div className="text-center mb-4">
                       {/* Visual representation */}
-                      {relaxationPhase === 'tense' && muscleGroups[currentMuscleGroup] && (
+                      {relaxationPhase === 'tense' && translatedMuscleGroups[currentMuscleGroup] && (
                         <div className="mb-3">
                           <div className="text-6xl mb-2 animate-pulse">
-                            {muscleGroups[currentMuscleGroup].image}
+                            {translatedMuscleGroups[currentMuscleGroup].image}
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                            {muscleGroups[currentMuscleGroup].visual}
+                            {translatedMuscleGroups[currentMuscleGroup].visual}
                           </p>
                         </div>
                       )}
@@ -4436,10 +4414,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       )}
 
                       <p className="text-gray-700 dark:text-gray-300">
-                        {relaxationPhase === 'prepare' && 'Sitt eller ligg bekvämt. Andas lugnt.'}
-                        {relaxationPhase === 'tense' && muscleGroups[currentMuscleGroup]?.instruction}
-                        {relaxationPhase === 'relax' && 'Släpp spänningen långsamt och känn avslappningen...'}
-                        {relaxationPhase === 'completed' && 'Bra jobbat! Du har genomfört progressiv muskelavslappning.'}
+                        {relaxationPhase === 'prepare' && t('pmr.prepareDesc')}
+                        {relaxationPhase === 'tense' && translatedMuscleGroups[currentMuscleGroup]?.instruction}
+                        {relaxationPhase === 'relax' && t('pmr.relaxDesc')}
+                        {relaxationPhase === 'completed' && t('pmr.completedDesc')}
                       </p>
                     </div>
 

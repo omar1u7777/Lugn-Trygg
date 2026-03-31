@@ -3,6 +3,38 @@
     "name": "Calm & Safe",
     "description": "Your personal mental health assistant"
   },
+  "common": {
+    "requiredField": "required field",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Done!",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "status": "Status",
+    "offlineTitle": " You are offline!",
+    "offlineMessage": "Check your internet connection and try again.",
+    "retry": " Try again",
+    "pageNotFound": " Page not found!",
+    "skipToContent": "Skip to main content",
+    "skipToNavigation": "Skip to navigation",
+    "skipToSearch": "Skip to search",
+    "liveRegionLabel": "Live updates",
+    "alertsLiveRegion": "System alerts update in real time",
+    "alertsActiveCount": "{count} active alerts",
+    "updating": "Updating..."
+  },
   "nav": {
     "dashboard": "Dashboard",
     "mood": "Mood",
@@ -29,20 +61,20 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome",
-    "reminder": "🔔 Reminder:",
+    "reminder": " Reminder:",
     "moodReminder": "You haven't logged your mood today. Take a moment to reflect on your day!",
     "moodTrends": "Mood trends (last week)",
     "memoryFrequency": "Memory frequency (last week)",
     "logMood": "Log Mood",
-    "openMoodLogger": "🎭 Open Mood Logging",
+    "openMoodLogger": " Open Mood Logging",
     "yourMoodLogs": "Your Mood Logs",
-    "viewMoodLogs": "📋 View Mood Logs",
+    "viewMoodLogs": " View Mood Logs",
     "recordMemory": "Record Memory",
-    "openRecording": "🎙 Open Recording",
+    "openRecording": " Open Recording",
     "yourMemories": "Your Memories",
-    "viewMemories": "🎞 View Memories",
+    "viewMemories": " View Memories",
     "aiTherapist": "AI Therapist",
-    "openChat": "💬 Open Chat",
+    "openChat": " Open Chat",
     "todayMood": "Today's mood",
     "weeklyStats": "Weekly statistics",
     "recentMemories": "Recent memories",
@@ -51,9 +83,9 @@
     "chatWithAI": "Chat with AI",
     "viewAnalytics": "View analytics",
     "weeklyMoodAnalysis": "Weekly Mood Analysis",
-    "loadingAnalysis": "🔄 Loading analysis...",
-    "analysisError": "❌ Error: {error}",
-    "noDataAvailable": "📊 No data available.",
+    "loadingAnalysis": " Loading analysis...",
+    "analysisError": " Error: {error}",
+    "noDataAvailable": " No data available.",
     "moodDistribution": "Mood Distribution",
     "moodLogs": "Mood Logs",
     "average": "Average",
@@ -65,7 +97,51 @@
     "badges": "Achievements",
     "relaxingSounds": "Relaxing Sounds",
     "weeklyMemoryActivity": "Weekly Memory Activity",
-    "noMemoryData": "📊 No memory data available."
+    "noMemoryData": " No memory data available.",
+    "goalSteps": {
+      "Bättre sömn": [
+        "Go to bed at 10pm tonight",
+        "Turn off screens 1h before bed",
+        "Read a book instead of your phone"
+      ],
+      "Ökad fokusering": [
+        "Take 3 deep breaths now",
+        "Turn off notifications for 30 min",
+        "Work in 25-min intervals"
+      ],
+      "Hantera stress": [
+        "Do a 3-minute breathing exercise",
+        "Take a short walk",
+        "Write down 3 things you are grateful for"
+      ],
+      "Mer energi": [
+        "Drink a glass of water",
+        "Do 5-minute stretching",
+        "Take a 20-min power nap"
+      ],
+      "Bättre humör": [
+        "Listen to your favorite song",
+        "Call a friend",
+        "Do something kind for someone"
+      ],
+      "default": [
+        "Log your mood today",
+        "Reflect on the day",
+        "Set a small goal for tomorrow"
+      ],
+      "fallback": "Keep working on your goal"
+    },
+    "verifyFailed": "Could not verify subscription. Log in again and try again.",
+    "verifying": "Verifying your payment and updating Premium ...",
+    "premiumActive": "Premium is now active. Welcome!",
+    "paymentRegistered": "Payment registered. Premium will update automatically shortly.",
+    "updateFailed": "Could not update subscription right now. Try again in a moment.",
+    "updateGoals": "📝 Update",
+    "updateGoalsAria": "Update wellness goals",
+    "nextStep": "Next step",
+    "friend": "friend",
+    "purchaseCancelled": "Purchase cancelled. You can try again when you are ready.",
+    "weeklyGoalProgress": "{{count}} entries until your weekly goal"
   },
   "mood": {
     "title": "Mood Logging",
@@ -73,8 +149,8 @@
     "greeting": "Hi, how are you feeling today?",
     "sadResponse": "I hear you might be feeling a bit down. Would you like to listen to calming music?",
     "recording": "Recording...",
-    "startRecording": "🎭 Start Logging",
-    "close": "❌ Close",
+    "startRecording": " Start Logging",
+    "close": " Close",
     "errorRecording": "An error occurred during recording. Please try again.",
     "errorSave": "Could not save the mood. Please try again later.",
     "veryBad": "Very bad",
@@ -125,36 +201,6 @@
     "cancelAnytime": "You can cancel your subscription at any time. No commitment.",
     "processing": "Processing...",
     "error": "Subscription failed"
-  },
-  "common": {
-    "loading": "Loading...",
-    "error": "An error occurred",
-    "success": "Done!",
-    "cancel": "Cancel",
-    "save": "Save",
-    "delete": "Delete",
-    "edit": "Edit",
-    "close": "Close",
-    "back": "Back",
-    "next": "Next",
-    "previous": "Previous",
-    "search": "Search",
-    "filter": "Filter",
-    "sort": "Sort",
-    "yes": "Yes",
-    "no": "No",
-    "ok": "OK",
-    "status": "Status",
-    "offlineTitle": "🚫 You are offline!",
-    "offlineMessage": "Check your internet connection and try again.",
-    "retry": "🔄 Try again",
-    "pageNotFound": "🚫 Page not found!",
-    "skipToContent": "Skip to main content",
-    "skipToNavigation": "Skip to navigation",
-    "skipToSearch": "Skip to search",
-    "liveRegionLabel": "Live updates",
-    "alertsLiveRegion": "System alerts update in real time",
-    "alertsActiveCount": "{count} active alerts"
   },
   "settings": {
     "title": "Settings",
@@ -563,7 +609,8 @@
     "weeklyProgressLabel": "Weekly progress: {{current}} of {{goal}}",
     "weeklyGoalReached": "Congratulations! You've reached your weekly goal!",
     "entriesLeft": "{{count}} entries left until next achievement",
-    "noActivityYet": "No activity yet. Start logging your mood or chat with the AI therapist!"
+    "noActivityYet": "No activity yet. Start logging your mood or chat with the AI therapist!",
+    "seeRecommendations": "See recommendations →"
   },
   "social": {
     "title": "🤝 Community",
@@ -694,21 +741,773 @@
     "resourceLink": "Besök {{link}} för mer information och stöd"
   },
   "dashboardHeader": {
-    "updatingData": "Uppdaterar data...",
-    "autoUpdate": "Uppdateras automatiskt",
-    "lastUpdated": "Uppdaterat för {{minutes}} min sedan",
-    "lastUpdatedAt": "Senast {{time}}"
+    "updatingData": "Updating data...",
+    "autoUpdate": "Updates automatically",
+    "lastUpdated": "Updated {{minutes}} minutes ago",
+    "lastUpdatedAt": "Last updated at {{time}}",
+    "morningFocus": "Morning Focus",
+    "morningDesc": "Start the day with 3 deep breaths. Follow the orb.",
+    "dayFocus": "Daily Focus",
+    "dayDesc": "Take a short break with 3 deep breaths before the next step.",
+    "eveningFocus": "Evening Focus",
+    "eveningDesc": "Wind down with 3 calm breaths and check in on how the day feels.",
+    "startBreathing": "Start 3 breaths",
+    "checkedIn": "Great job with today's check-in! Would you like to see your insights?",
+    "morningMood": "Good morning! Yesterday your feeling was \"{{mood}}\". How does it feel to start today?",
+    "welcomeBackMood": "Welcome back! Last time your feeling was \"{{mood}}\". What do you notice now?",
+    "mindfulPrompt": "What feelings or thoughts are present right now? Everything is welcome here.",
+    "breatheIn": "Breathe in",
+    "breatheOut": "Breathe out",
+    "pause": "Pause",
+    "done": "Done",
+    "breathingExercise": "Breathing exercise",
+    "reflectionInvitation": "Invitation to reflect"
   },
   "breath": {
-    "breathCount": "Andetag",
-    "of": "av",
-    "completed": "Bra jobbat! Du har slutfört dagens 3 andetag.",
-    "duration": "Guidad övning: cirka 30 sekunder.",
-    "ariaInProgress": "Guidad andningsövning pågår, följ instruktionerna",
-    "ariaContinue": "Fortsätt till humörcheck-in",
-    "ariaStart": "Starta guidad andningsövning",
-    "inProgress": "Guidad paus pågår...",
-    "continue": "Fortsätt till humörcheck-in",
-    "skip": "Hoppa över och fortsätt"
+    "breathCount": "Breaths",
+    "of": "of",
+    "completed": "Great job! You've completed today's 3 breaths.",
+    "duration": "Guided exercise: about 30 seconds.",
+    "ariaInProgress": "Guided breathing exercise in progress, follow the instructions",
+    "ariaContinue": "Continue to mood check-in",
+    "ariaStart": "Start guided breathing exercise",
+    "inProgress": "Guided pause in progress...",
+    "continue": "Continue to mood check-in",
+    "skip": "Skip"
+  },
+  "loginForm": {
+    "secureLogin": "Secure Login",
+    "loginTitle": "Sign In",
+    "welcomeBack": "Welcome back. Sign in to continue where you left off.",
+    "emailLabel": "📧 Email Address",
+    "emailPlaceholder": "Enter your email address",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "loginButton": "Sign In",
+    "or": "or",
+    "googleSignIn": "Continue with Google",
+    "noAccount": "Don't have an account?",
+    "registerHere": "Register here",
+    "goToRegister": "Go to registration page",
+    "forgotPassword": "Forgot password?",
+    "openForgotPassword": "Open forgot password dialog",
+    "loggingIn": "Signing in...",
+    "loginSuccess": "Sign in successful",
+    "loginFailed": "Sign in failed",
+    "googleLoginSuccess": "Google sign in successful",
+    "googleLoginFailed": "Google sign in failed",
+    "defaultError": "An error occurred during sign in",
+    "loggingInGoogle": "Signing in with Google...",
+    "invalidEmail": "Please enter a valid email address",
+    "passwordRequired": "Password is required",
+    "formErrors": "The form contains errors. Please correct them and try again.",
+    "serverTimeout": "The server is not responding right now. Please try again in a few seconds or check your internet connection.",
+    "networkError": "Could not connect to the server. Please check your internet connection.",
+    "popupBlocked": "Popup blocked by browser. Please allow popups for this website or use email sign in instead.",
+    "popupClosed": "Sign in window was closed. Please try again.",
+    "popupCancelled": "Sign in window was cancelled. Please try again."
+  },
+  "forgotPassword": {
+    "title": "Reset Password",
+    "closeDialog": "Close dialog",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "Enter your email address",
+    "emailHint": "We will send a reset link to this address",
+    "sendButton": "Send Reset Link",
+    "sending": "Sending...",
+    "backToLogin": "Back to sign in",
+    "resetLinkSent": "If the email address is registered, a reset link has been sent.",
+    "resetLinkSentAnnouncement": "Reset link sent",
+    "genericError": "An error occurred. Please try again later.",
+    "invalidEmail": "Invalid email address.",
+    "tooManyRequests": "Too many requests. Please try again later.",
+    "errorPrefix": "Error:"
+  },
+  "registerForm": {
+    "title": "Create Account",
+    "nameLabel": "Name",
+    "namePlaceholder": "Enter your name",
+    "nameRequired": "Name is required.",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "Enter your email address",
+    "invalidEmail": "Please enter a valid email address.",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Create a strong password",
+    "passwordHelp": "At least 8 characters, one uppercase letter, one lowercase letter, one number and one special character.",
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "passwordNeedsChars": "Password must contain at least one uppercase letter, one lowercase letter and one number.",
+    "passwordNeedsSpecial": "Password must contain at least one special character.",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "confirmPasswordLabel": "Confirm Password",
+    "confirmPasswordPlaceholder": "Confirm your password",
+    "passwordMismatch": "Passwords do not match.",
+    "acceptTermsPrefix": "I accept the",
+    "termsLink": "terms of service",
+    "acceptPrivacyPrefix": "I accept the",
+    "privacyLink": "privacy policy",
+    "termsRequired": "You must accept the terms and privacy policy.",
+    "referralActive": "Referral code active!",
+    "referralBenefit": "You and your friend both get 1 week of free premium! 🎉",
+    "referralCode": "Code:",
+    "creating": "Creating account...",
+    "success": "Registration successful! You can now sign in.",
+    "successWithReferral": "Registration successful! {{message}} You can now sign in.",
+    "failedPrefix": "Registration failed:",
+    "formErrors": "The form contains errors. Please correct them and try again.",
+    "hasAccount": "Already have an account?",
+    "loginLink": "Sign in here",
+    "goToLogin": "Go to sign in page"
+  },
+  "authLayout": {
+    "pageLabel": "Sign in page",
+    "skipToForm": "Skip to sign in form",
+    "introLabel": "Introduction",
+    "infoLabel": "About Calm & Safe",
+    "formLabel": "Sign in form",
+    "tagline": "Your mental health companion in everyday life",
+    "loginCta": "Sign in to continue with mood logging, AI support and personal insights.",
+    "description": "Track your mood, get personal AI support and build sustainable habits at your own pace, together with thousands of others using Calm & Safe.",
+    "featuresLabel": "Features",
+    "feature1": "Your data is protected and never shared without your consent.",
+    "feature2": "Get daily insights, small rewards and support to help you maintain routines over time.",
+    "feature3": "AI support for mental health offering reflection and practical strategies tailored to you."
+  },
+  "onboarding": {
+    "step1Title": "Welcome to Calm & Safe",
+    "step1Desc": "Your personal mental health app",
+    "step2Title": "Set your goals",
+    "step2Desc": "What do you want to achieve?",
+    "step3Title": "Start your journey",
+    "step3Desc": "You are ready!",
+    "welcomeHeading": "Hi! We are glad you are here.",
+    "welcomeBody": "Calm & Safe helps you manage stress, improve your mental health and find calm in your daily life.",
+    "journeyBegins": "✨ Your personal journey starts here",
+    "welcomeNote": "With your selected goals we will give you personal recommendations to support your mental health.",
+    "readyHeading": "You are now ready to begin!",
+    "readyBody": "Start with a short meditation or track your current mood to get personal recommendations.",
+    "selectGoals": "Select your wellness goals:",
+    "maxGoals": "You can select up to {{max}} goals",
+    "stepOf": "Step {{current}} of {{total}}",
+    "retryOrSkip": "Try again or skip",
+    "skip": "Skip",
+    "selectAtLeastOne": "Select at least one goal to continue",
+    "saving": "Saving...",
+    "next": "Next",
+    "goalsSelected": "goals selected",
+    "selectMin": "Select at least 1 goal",
+    "start": "Start",
+    "heroAlt": "Illustration of the onboarding journey"
+  },
+  "crisis": {
+    "titleSevere": "🚨 Acute Crisis Support",
+    "titleMild": "💙 Support and Help",
+    "importantInfo": "Important information:",
+    "infoText": "This page shows help resources for everyone who needs support with mental health. You are not alone and professional help is available around the clock.",
+    "honestAdvice": "Honest advice:",
+    "adviceText": "If you feel that life feels unbearable, call 112 or a crisis line immediately. There is always someone who wants to help you.",
+    "line1Name": "Suicide Line (Sweden: 90101)",
+    "line1Desc": "Open 24/7 for acute support and conversation.",
+    "line2Name": "On-call Priest",
+    "line2Desc": "For existential questions and support.",
+    "line3Name": "Healthcare Guide 1177",
+    "line3Desc": "Medical advice and healthcare contact.",
+    "line4Name": "Mind Crisis Line",
+    "line4Desc": "Chat and online support.",
+    "line5Name": "BRIS - Children's Helpline",
+    "line5Desc": "Support for young adults and everyone who needs to talk.",
+    "line6Name": "SPES - Suicide Prevention Association",
+    "line6Desc": "Family support and prevention.",
+    "line7Name": "On-call Fellow Human",
+    "line7Desc": "Conversation support for existential questions.",
+    "visitWebsite": "Visit {{site}}",
+    "remember": "Remember:",
+    "reminder": "Your feelings are important and valid. Seeking help is a sign of strength, not weakness."
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "day": "Good day",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "takeItEasy": "Take it easy today.",
+    "restIsProductive": "Remember that rest is productive.",
+    "greatToSeeYou": "Wonderful to see you."
+  },
+  "navigation": {
+    "mainNav": "Main navigation",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "welcomeBack": "Welcome back, {{name}}",
+    "discoverPremium": "Discover Premium",
+    "endSession": "End session",
+    "unlockUnlimited": "Unlock unlimited access",
+    "confirmLogout": "Are you sure you want to take a break? You can always come back.",
+    "pause": "Take a break",
+    "mobileMenu": "Mobile menu",
+    "menu": "Menu",
+    "openMenu": "Open menu",
+    "profile": "Profile",
+    "settings": "Settings",
+    "theme": "Theme",
+    "language": "Language"
+  },
+  "password": {
+    "strength": {
+      "label": "Password strength",
+      "empty": "",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Very strong"
+    },
+    "requirement": {
+      "length": "8+ characters",
+      "uppercase": "Uppercase letter",
+      "lowercase": "Lowercase letter",
+      "number": "Number",
+      "special": "Special character"
+    },
+    "tip": "Tip: Use a phrase or combine words for a strong but memorable password."
+  },
+  "premiumUpsell": {
+    "limitTitle": "Running out of usage?",
+    "limitSubtitle": "Get unlimited with Premium",
+    "limitMessage": "You have {{moods}}/{{max}} mood logs left today. Don't lose your momentum!",
+    "limitUrgency": "Resets in {{timeLeft}}",
+    "limitCta": "Unlock unlimited -20%",
+    "engagementTitle": "You're building a great habit!",
+    "engagementSubtitle": "Protect your progress",
+    "engagementMessage": "With {{moods}} logged moods and {{chats}} conversations, you're on a roll.",
+    "engagementUrgency": "Limited offer for engaged users",
+    "engagementCta": "Continue your journey",
+    "streakTitle": "{{days}} days of consistency!",
+    "streakSubtitle": "Don't break the chain",
+    "streakMessage": "You've built a habit. Make sure you can keep going.",
+    "streakUrgency": "{{streakUsers}} users have protected their streak",
+    "streakCta": "Protect your streak",
+    "defaultTitle": "Upgrade your experience",
+    "defaultSubtitle": "Discover Premium features",
+    "defaultMessage": "Get more from your wellness journey.",
+    "defaultUrgency": "Start your 14-day trial",
+    "defaultCta": "Try Premium free",
+    "benefitUnlimited": "Unlimited mood logs",
+    "benefitChats": "Unlimited AI conversations",
+    "benefitHistory": "Always access your history",
+    "benefitInsights": "Deeper insights into your patterns",
+    "benefitTrends": "Long-term trends and analytics",
+    "benefitExport": "Export all your data",
+    "benefitStreakProtection": "Never run out of limits again",
+    "benefitReminders": "Smarter reminders",
+    "benefitGoals": "Personal goals and challenges",
+    "remaining": "{{remaining}} left",
+    "trust": "No commitment. Cancel anytime."
+  },
+  "recommendations": {
+    "title": "Personal Recommendations 💡",
+    "subtitle": "Content tailored to your needs and progress",
+    "description": "Here you see personal suggestions based on your goals. In the Wellness Library you find the full range of exercises and content.",
+    "wellnessGoals": "Wellness goals",
+    "availableExercises": "Available exercises",
+    "evidenceBased": "Evidence-based content",
+    "searchPlaceholder": "Search recommendations..."
+  },
+  "wellnessHub": {
+    "title": "Wellness Library",
+    "subtitle": "Find your calm, one breath at a time.",
+    "description": "Here you explore the full library. For personal suggestions, go to Recommendations.",
+    "dailyRec": "Daily Recommendation",
+    "dailyRecSub": "Start your morning with clarity",
+    "morningFocus": "Morning Focus",
+    "mindfulness": "Mindfulness",
+    "breathingSessions": "Breathing sessions",
+    "otherSessions": "Other sessions",
+    "sleepTitle": "Sleep & Rest",
+    "sleepSub": "Play stories",
+    "myGoals": "My Goals",
+    "activeGoals": "{{count}} active goals",
+    "setGoals": "Set your goals",
+    "noGoals": "You have no active goals yet.",
+    "addGoal": "Add goal +",
+    "catAll": "Explore all",
+    "catMeditation": "Meditation",
+    "catBreathing": "Breathing",
+    "catSounds": "Soundscapes",
+    "catSleep": "Sleep",
+    "recommendations": "Recommendations"
+  },
+  "profileHub": {
+    "guest": "Guest",
+    "manageJourney": "Manage your personal journey, settings and security.",
+    "loginToSave": "Log in to save your data.",
+    "memberForDays": "Member for {{days}} days",
+    "upgradeNow": "Upgrade now",
+    "moodLogs": "Mood Logs",
+    "aiChats": "AI Chats",
+    "memories": "Memories",
+    "daysActive": "Days Active",
+    "upgradeToPremium": "Upgrade to Premium",
+    "chatMessages": "Chat messages",
+    "history": "History",
+    "premiumMember": "Premium member",
+    "trial": "Trial period",
+    "freePlan": "Free plan",
+    "unlimitedAccess": "Unlimited access to all features",
+    "tabAccount": "Account Settings",
+    "tabPrivacy": "Privacy",
+    "tabNotifications": "Notifications",
+    "tabAppearance": "Appearance",
+    "accountInfo": "Account Information",
+    "emailAddress": "Email Address",
+    "notLoggedIn": "Not logged in",
+    "changeEmail": "Change email",
+    "password": "Password",
+    "changePassword": "Change password",
+    "twoFactor": "Two-factor authentication",
+    "twoFactorDesc": "Add an extra layer of security to your account",
+    "configuring": "Configuring...",
+    "enable2FA": "Enable 2FA",
+    "loginForPrivacy": "Log in to manage privacy settings",
+    "notificationSettings": "Notification Settings",
+    "emailNotifications": "Email notifications",
+    "emailNotificationsDesc": "Receive updates and insights by email",
+    "pushNotifications": "Push notifications",
+    "pushNotificationsDesc": "Get real-time notifications on your device",
+    "enableBrowserNotificationsQ": "Would you like to enable browser notifications?",
+    "enableBrowserNotifications": "Enable browser notifications",
+    "appearanceSettings": "Appearance Settings",
+    "themeMode": "Theme Mode",
+    "themeModeDesc": "Switch between light and dark mode",
+    "language": "Language",
+    "languageDesc": "Select your preferred language",
+    "accountActions": "Account Actions",
+    "exporting": "Exporting...",
+    "exportData": "Export my data",
+    "deleteAccount": "Delete account",
+    "changeEmailTitle": "Change email address",
+    "changeEmailDesc": "Enter your new email address and current password to change your email.",
+    "newEmail": "New email address",
+    "currentPassword": "Current password",
+    "changing": "Changing...",
+    "changePasswordTitle": "Change password",
+    "changePasswordDesc": "Enter your current password and choose a new secure password.",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "enable2FATitle": "Enable two-factor authentication",
+    "enable2FADesc": "Scan the QR code with your authentication app and enter the 6-digit code.",
+    "scanQR": "Scan this QR code with your authentication app (Google Authenticator, Authy, etc.)",
+    "verificationCode": "Verification code",
+    "verifying": "Verifying...",
+    "deleteAccountDesc": "This action cannot be undone. Your account and all associated data will be permanently deleted.",
+    "whatWillBeDeleted": "What will be deleted:",
+    "deleteItem1": "All mood logs and analyses",
+    "deleteItem2": "Chat history and conversations",
+    "deleteItem3": "Saved memories and journal entries",
+    "deleteItem4": "Account settings and preferences",
+    "deleteItem5": "Wellness goals and progress",
+    "deleteNote": "Your data will be permanently deleted within 30 days. You can cancel by contacting support within that time.",
+    "deleting": "Deleting..."
+  },
+  "wellnessGoalLabels": {
+    "Hantera stress": {
+      "label": "Manage stress",
+      "desc": "Techniques for calm and balance"
+    },
+    "Bättre sömn": {
+      "label": "Better sleep",
+      "desc": "Sleep deeper and wake up rested"
+    },
+    "Ökad fokusering": {
+      "label": "Increased focus",
+      "desc": "Sharpen your concentration"
+    },
+    "Mental klarhet": {
+      "label": "Mental clarity",
+      "desc": "Clear your mind and prioritize"
+    },
+    "Ångesthantering": {
+      "label": "Anxiety management",
+      "desc": "Build safety during worry and anxiety"
+    },
+    "Självkänsla": {
+      "label": "Self-esteem",
+      "desc": "Strengthen self-esteem and self-compassion"
+    },
+    "Relationsstöd": {
+      "label": "Relationship support",
+      "desc": "Improve relationships and communication"
+    },
+    "Arbetsbalans": {
+      "label": "Work-life balance",
+      "desc": "Create sustainable balance between work and life"
+    },
+    "Mindfulness": {
+      "label": "Mindfulness",
+      "desc": "Become more present in the moment"
+    },
+    "Emotionell balans": {
+      "label": "Emotional balance",
+      "desc": "Understand and regulate your emotions"
+    },
+    "Energi": {
+      "label": "Energy",
+      "desc": "Find stable energy in everyday life"
+    }
+  },
+  "breathingPhases": [
+    {
+      "name": "exhale",
+      "duration": 2,
+      "instruction": "Breathe out completely through your mouth..."
+    },
+    {
+      "name": "inhale",
+      "duration": 4,
+      "instruction": "Breathe in through your nose..."
+    },
+    {
+      "name": "hold",
+      "duration": 7,
+      "instruction": "Hold your breath..."
+    },
+    {
+      "name": "exhale2",
+      "duration": 8,
+      "instruction": "Breathe out through your mouth..."
+    }
+  ],
+  "muscleGroups": [
+    {
+      "name": "Feet",
+      "instruction": "Curl your toes and tense your arches...",
+      "image": "🦶",
+      "visual": "Imagine curling your toes like a fist and bending your foot upward"
+    },
+    {
+      "name": "Calves",
+      "instruction": "Tense your calves...",
+      "image": "🦵",
+      "visual": "Tense the muscles at the back of your legs, like when you stand on your toes"
+    },
+    {
+      "name": "Thighs",
+      "instruction": "Tense your thigh muscles...",
+      "image": "🦵",
+      "visual": "Squeeze the front of your thighs, like when you kick forward"
+    },
+    {
+      "name": "Abdomen",
+      "instruction": "Tense your abdominal muscles...",
+      "image": "🏃",
+      "visual": "Pull your stomach in as if protecting yourself from a blow"
+    },
+    {
+      "name": "Chest and shoulders",
+      "instruction": "Tense your chest and raise your shoulders...",
+      "image": "🫁",
+      "visual": "Hold your breath and tense your chest, raise shoulders toward your ears"
+    },
+    {
+      "name": "Arms",
+      "instruction": "Tense your upper arms...",
+      "image": "💪",
+      "visual": "Tense your biceps and triceps, make your arms stiff like wooden planks"
+    },
+    {
+      "name": "Forearms and hands",
+      "instruction": "Tense your forearms and clench your fists...",
+      "image": "✋",
+      "visual": "Clench your fists tightly and tense the muscles in your forearms"
+    },
+    {
+      "name": "Neck and throat",
+      "instruction": "Tense your neck and pull in your chin...",
+      "image": "🙆",
+      "visual": "Press your head back against a pillow and tense your neck muscles"
+    },
+    {
+      "name": "Face",
+      "instruction": "Tense your facial muscles...",
+      "image": "😊",
+      "visual": "Squeeze your eyes shut, wrinkle your forehead, clench your jaw and lips"
+    }
+  ],
+  "recommendationsPool": {
+    "stress-1": {
+      "title": "4-7-8 Breathing Exercise",
+      "description": "Dr. Andrew Weil's scientifically proven method for anxiety and sleep",
+      "category": "Stress management",
+      "content": "This technique activates the parasympathetic nervous system and lowers cortisol levels by up to 30%."
+    },
+    "stress-2": {
+      "title": "CBT Exercise: Managing Stressful Thoughts",
+      "description": "Identify and challenge stress thought patterns",
+      "category": "CBT",
+      "content": "Learn to recognize stress triggers and how to manage them better."
+    },
+    "stress-3": {
+      "title": "Progressive Muscle Relaxation",
+      "description": "Reduce physical tension from stress",
+      "category": "Relaxation",
+      "content": "15-minute guided exercise to release tension in your body."
+    },
+    "sleep-1": {
+      "title": "The Science Behind Better Sleep",
+      "description": "Understand how to improve your sleep quality",
+      "category": "Education",
+      "content": "Learn scientifically proven methods for better sleep."
+    },
+    "sleep-2": {
+      "title": "Sleep Meditation: Body Scan",
+      "description": "20-minute guided meditation for deeper sleep",
+      "category": "Sleep",
+      "content": "A body scan meditation specially designed for sleep problems."
+    },
+    "sleep-3": {
+      "title": "7-Day Sleep Routine",
+      "description": "Build a consistent sleep routine",
+      "category": "Challenges",
+      "content": "Establish healthy sleep habits over a week."
+    },
+    "focus-1": {
+      "title": "Pomodoro Technique for Better Focus",
+      "description": "Scientifically proven time management technique for optimal productivity",
+      "category": "Productivity",
+      "content": "The Pomodoro technique leverages natural 90-120 minute cycles of high and low performance."
+    },
+    "focus-2": {
+      "title": "Mindfulness for Focus",
+      "description": "Scientifically proven MBSR meditation for improved concentration",
+      "category": "Focus",
+      "content": "This guided mindfulness meditation is based on the MBSR program by Dr. Jon Kabat-Zinn."
+    },
+    "focus-3": {
+      "title": "Neuroscience: How Focus Works",
+      "description": "In-depth understanding of the brain's attention system",
+      "category": "Education",
+      "content": "Article on neuroscientific mechanisms behind attention and concentration."
+    },
+    "clarity-1": {
+      "title": "Clarity Meditation",
+      "description": "Clear your mind and increase mental clarity",
+      "category": "Meditation",
+      "content": "15-minute meditation for mental clarity."
+    },
+    "clarity-2": {
+      "title": "Journaling for Mental Clarity",
+      "description": "Write your way to clearer thinking",
+      "category": "Journaling",
+      "content": "Structured journaling method to organize your thoughts."
+    },
+    "clarity-3": {
+      "title": "Digital Detox for Mental Clarity",
+      "description": "3-day challenge for a clearer mind",
+      "category": "Challenges",
+      "content": "Reduce screen time for increased mental clarity."
+    },
+    "mindfulness-1": {
+      "title": "Mindfulness for Beginners",
+      "description": "Learn the basics of mindfulness in 10 minutes",
+      "category": "Meditation",
+      "content": "A guided introduction to mindfulness meditation."
+    },
+    "mindfulness-2": {
+      "title": "Body Scan Meditation",
+      "description": "Scan through your body for deep relaxation",
+      "category": "Meditation",
+      "content": "A 20-minute body scan to release tension and stress."
+    },
+    "mindfulness-3": {
+      "title": "5-4-3-2-1 Senses Exercise",
+      "description": "Grounding technique for anxiety and stress",
+      "category": "Anxiety management",
+      "content": "Use your senses to return to the present moment."
+    },
+    "sleep-4": {
+      "title": "Sleep Preparation Ritual",
+      "description": "Prepare for deep sleep with guided relaxation",
+      "category": "Sleep",
+      "content": "A 15-minute ritual to help you wind down and prepare for sleep."
+    },
+    "sleep-5": {
+      "title": "Screen Time and Sleep",
+      "description": "How blue light affects your sleep quality",
+      "category": "Education",
+      "content": "Scientific overview of how screen time affects melatonin production."
+    },
+    "social-1": {
+      "title": "Communication in Relationships",
+      "description": "Improve your communication skills",
+      "category": "Relationships",
+      "content": "Learn active listening and assertive communication."
+    },
+    "social-2": {
+      "title": "Daily Feeling Sharing",
+      "description": "Share your feelings with someone you trust",
+      "category": "Relationships",
+      "content": "Practice expressing feelings openly and honestly every day for a week."
+    },
+    "work-1": {
+      "title": "Workplace Stress Management",
+      "description": "Manage stress at work effectively",
+      "category": "Work life",
+      "content": "Strategies for handling deadlines, conflicts and workload."
+    },
+    "work-2": {
+      "title": "Focus Meditation for Work",
+      "description": "Increase concentration and productivity",
+      "category": "Work life",
+      "content": "A meditation designed to improve focus and work performance."
+    },
+    "advanced-1": {
+      "title": "Cognitive Restructuring",
+      "description": "Advanced CBT technique for thought patterns",
+      "category": "Advanced CBT",
+      "content": "Learn to identify and restructure deep negative thought patterns."
+    },
+    "advanced-2": {
+      "title": "Vipassana Meditation",
+      "description": "Deep mindfulness practice for experienced practitioners",
+      "category": "Advanced Meditation",
+      "content": "Traditional vipassana technique for awareness and insight."
+    },
+    "generic-1": {
+      "title": "7-Day Gratitude Challenge",
+      "description": "Develop a more positive outlook through daily gratitude",
+      "category": "General",
+      "content": "Write down three things you are grateful for every day for a week."
+    },
+    "generic-2": {
+      "title": "Mental Health 101",
+      "description": "Basic knowledge about mental health",
+      "category": "Education",
+      "content": "An overview of important concepts in mental health and wellbeing."
+    }
+  },
+  "pmr": {
+    "prepare": "Preparation",
+    "tense": "Tense",
+    "relax": "Relax",
+    "completed": "Exercise complete!",
+    "muscles": "muscles",
+    "prepareDesc": "Sit or lie comfortably. Breathe calmly.",
+    "relaxDesc": "Release the tension slowly and feel the relaxation...",
+    "completedDesc": "Well done! You have completed progressive muscle relaxation.",
+    "guideDesc": "Follow the guide through different muscle groups for deep relaxation"
+  },
+  "kbt": {
+    "distortions": {
+      "catastrophizing": {
+        "label": "Catastrophizing",
+        "hint": "The thought predicts the worst possible outcome without middle-ground scenarios.",
+        "reframeQuestion": "What is the most likely outcome, not the worst?"
+      },
+      "black_white": {
+        "label": "Black-and-white thinking",
+        "hint": "The thought uses extremes like \"always\", \"never\" or \"completely\".",
+        "reframeQuestion": "What more nuanced middle ground could be true?"
+      },
+      "mind_reading": {
+        "label": "Mind reading",
+        "hint": "The thought assumes what others think without clear evidence.",
+        "reframeQuestion": "What actual evidence do you have for what others are thinking?"
+      },
+      "self_labeling": {
+        "label": "Global self-labeling",
+        "hint": "A mistake is turned into a general label about you as a person.",
+        "reframeQuestion": "How would you describe the situation without labeling yourself?"
+      }
+    },
+    "quality": {
+      "stable": "Stable foundation",
+      "veryStrong": "Very strong completion",
+      "good": "Good completion"
+    },
+    "adaptive": {
+      "noData": {
+        "title": "Continued reflection",
+        "message": "You have done important work. Continued repetition of the balanced thought can make it more accessible in everyday life."
+      },
+      "clearRestructuring": {
+        "title": "Clear restructuring",
+        "message": "Your new thought feels considerably more credible now. This indicates you have broken an automatic stress interpretation pattern."
+      },
+      "goodProgress": {
+        "title": "Good progress",
+        "message": "You are moving in the right direction. Keep practicing the new thought in similar situations to consolidate the effect."
+      },
+      "stabilization": {
+        "title": "Stabilization needed",
+        "message": "Change takes time. Try to concretize the evidence further and try the same exercise again in a calm moment."
+      }
+    },
+    "stress": {
+      "noData": {
+        "title": "Stress measurement missing",
+        "message": "Add stress level before and after next time to more clearly see the effect of the exercise."
+      },
+      "clearReduction": {
+        "title": "Clear stress reduction",
+        "message": "Your stress level dropped significantly. Continue with the same strategy in similar situations."
+      },
+      "goodRegulation": {
+        "title": "Good stress regulation",
+        "message": "Stress level decreased. Repeat the remaining action steps to consolidate the effect."
+      },
+      "remaining": {
+        "title": "Stress partially remains",
+        "message": "If stress is still high, combine the thought with a short breathing pause before the next step."
+      }
+    },
+    "sessionQuality": "Session quality: {{score}}/100"
+  },
+  "wellnessData": {
+    "meditations": [
+      {
+        "id": "1",
+        "title": "Quick Relaxation",
+        "description": "Perfect for a break"
+      },
+      {
+        "id": "2",
+        "title": "Deep Sleep",
+        "description": "Fall asleep easier tonight"
+      },
+      {
+        "id": "3",
+        "title": "Morning Focus",
+        "description": "Start the day right"
+      }
+    ],
+    "breathingExercises": [
+      {
+        "id": "b1",
+        "title": "4-7-8 Breathing",
+        "description": "For anxiety relief"
+      },
+      {
+        "id": "b2",
+        "title": "Box Breathing",
+        "description": "For balance and calm"
+      }
+    ],
+    "sleepStories": [
+      {
+        "id": "s1",
+        "title": "Star Journey",
+        "description": "Calm bedtime story for winding down"
+      },
+      {
+        "id": "s2",
+        "title": "Rainforest Rest",
+        "description": "Soft story with nature sounds"
+      },
+      {
+        "id": "s3",
+        "title": "Ocean Breath",
+        "description": "Deep rest with ocean rhythm and guidance"
+      }
+    ]
   }
 }

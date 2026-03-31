@@ -266,6 +266,8 @@ try:
     from src.routes.mood_routes import mood_bp
     from src.routes.mood_stats_routes import mood_stats_bp
     from src.routes.memory_routes import memory_bp
+    from src.routes.multimedia_memory_routes import multimedia_memory_bp
+    from src.routes.memory_analysis_routes import memory_analysis_bp
     from src.routes.ai_routes import ai_bp
     from src.routes.ai_helpers_routes import ai_helpers_bp
     from src.routes.chatbot_routes import chatbot_bp
@@ -295,6 +297,10 @@ try:
     from src.routes.cbt_routes import cbt_bp
     from src.routes.consent_routes import consent_bp
     from src.routes.crisis_routes import crisis_bp
+    from src.routes.advanced_mood_routes import advanced_mood_bp
+    from src.routes.biofeedback_ws_routes import biofeedback_ws_bp, register_biofeedback_websocket_handlers
+    from src.routes.ai_music_routes import ai_music_bp
+    from src.routes.insights_routes import insights_bp
 
     # Initialize Firebase
     initialize_firebase()
@@ -394,7 +400,8 @@ try:
             'subscription', 'metrics', 'predictive', 'rate-limit', 'dashboard',
             'onboarding', 'privacy', 'journal', 'challenges', 'rewards', 'audio',
             'peer-chat', 'leaderboard', 'voice', 'sync-history', 'cbt', 'consent',
-            'crisis', 'security', 'integration',
+            'crisis', 'security', 'integration', 'advanced-mood', 'biofeedback',
+            'ai-music', 'memory-analysis', 'memory-unified', 'insights',
         ])
 
         def __init__(self, wsgi_app):
@@ -617,6 +624,42 @@ try:
         logger.info("✅ Registered crisis_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register crisis_bp: {e}")
+
+    try:
+        app.register_blueprint(multimedia_memory_bp, url_prefix='/api/v1/memory-unified')
+        logger.info("✅ Registered multimedia_memory_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register multimedia_memory_bp: {e}")
+
+    try:
+        app.register_blueprint(memory_analysis_bp, url_prefix='/api/v1/memory-analysis')
+        logger.info("✅ Registered memory_analysis_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register memory_analysis_bp: {e}")
+
+    try:
+        app.register_blueprint(advanced_mood_bp, url_prefix='/api/v1/advanced-mood')
+        logger.info("✅ Registered advanced_mood_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register advanced_mood_bp: {e}")
+
+    try:
+        app.register_blueprint(biofeedback_ws_bp, url_prefix='/api/v1/biofeedback')
+        logger.info("✅ Registered biofeedback_ws_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register biofeedback_ws_bp: {e}")
+
+    try:
+        app.register_blueprint(ai_music_bp, url_prefix='/api/v1/ai-music')
+        logger.info("✅ Registered ai_music_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register ai_music_bp: {e}")
+
+    try:
+        app.register_blueprint(insights_bp, url_prefix='/api/v1/insights')
+        logger.info("✅ Registered insights_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register insights_bp: {e}")
 
     # Debug: Print URL map
     logger.info("🔍 DEBUG: URL Map after blueprint registration:")

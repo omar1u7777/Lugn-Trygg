@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useDashboardData } from '../../hooks/useDashboardData';
 
 interface DashboardHeaderProps {
@@ -12,55 +13,54 @@ interface DashboardHeaderProps {
   lastMood?: string;
 }
 
-const getGreeting = (moodContext?: string): string => {
+const getGreeting = (t: TFunction, moodContext?: string): string => {
   const hour = new Date().getHours();
   let baseGreeting: string;
   
-  if (hour < 10) baseGreeting = t('greeting.morning', 'God morgon');
-  else if (hour < 14) baseGreeting = t('greeting.day', 'God dag');
-  else if (hour < 18) baseGreeting = t('greeting.afternoon', 'God eftermiddag');
-  else baseGreeting = t('greeting.evening', 'God kväll');
+  if (hour < 10) baseGreeting = t('greeting.morning');
+  else if (hour < 14) baseGreeting = t('greeting.day');
+  else if (hour < 18) baseGreeting = t('greeting.afternoon');
+  else baseGreeting = t('greeting.evening');
   
-  // Psykologisk personalisering baserad på mood
   if (moodContext) {
     const lowerMood = moodContext.toLowerCase();
     if (lowerMood.includes('stress') || lowerMood.includes('ångest') || lowerMood.includes('orolig')) {
-      return `${baseGreeting}. ${t('greeting.takeItEasy', 'Ta det lugnt idag.')}`;
+      return `${baseGreeting}. ${t('greeting.takeItEasy')}`;
     }
     if (lowerMood.includes('trött') || lowerMood.includes('utmattad')) {
-      return `${baseGreeting}. ${t('greeting.restIsProductive', 'Kom ihåg att vila är produktivt.')}`;
+      return `${baseGreeting}. ${t('greeting.restIsProductive')}`;
     }
     if (lowerMood.includes('glad') || lowerMood.includes('lycklig') || lowerMood.includes('nöjd')) {
-      return `${baseGreeting}! ${t('greeting.greatToSeeYou', 'Underbart att se dig.')}`;
+      return `${baseGreeting}! ${t('greeting.greatToSeeYou')}`;
     }
   }
   
   return baseGreeting;
 };
 
-const getDailyFocusContent = () => {
+const getDailyFocusContent = (t: TFunction) => {
   const hour = new Date().getHours();
 
   if (hour < 10) {
     return {
-      title: 'Morgonfokus',
-      description: 'Börja dagen med 3 djupa andetag. Följ orben.',
-      actionLabel: 'Starta 3 andetag',
+      title: t('dashboardHeader.morningFocus'),
+      description: t('dashboardHeader.morningDesc'),
+      actionLabel: t('dashboardHeader.startBreathing'),
     };
   }
 
   if (hour < 18) {
     return {
-      title: 'Dagens Fokus',
-      description: 'Ta en kort paus med 3 djupa andetag innan nästa steg.',
-      actionLabel: 'Starta 3 andetag',
+      title: t('dashboardHeader.dayFocus'),
+      description: t('dashboardHeader.dayDesc'),
+      actionLabel: t('dashboardHeader.startBreathing'),
     };
   }
 
   return {
-    title: 'Kvällsfokus',
-    description: 'Varva ner med 3 lugna andetag och checka in hur dagen känns.',
-    actionLabel: 'Starta 3 andetag',
+    title: t('dashboardHeader.eveningFocus'),
+    description: t('dashboardHeader.eveningDesc'),
+    actionLabel: t('dashboardHeader.startBreathing'),
   };
 };
 
@@ -75,46 +75,22 @@ const PHASE_SECONDS: Record<Exclude<BreathingPhase, 'done'>, number> = {
 const DAILY_FOCUS_STORAGE_KEY = 'lugn-trygg-focus-breathing-last-completed';
 const getTodayStorageValue = () => new Date().toISOString().slice(0, 10);
 
-// Hjälpfunktion för att formatera tidsstämpel smart
-const getSmartTimestamp = (lastUpdatedAt?: Date): string => {
+const getSmartTimestamp = (t: TFunction, lastUpdatedAt?: Date): string => {
   if (!lastUpdatedAt) return '';
   
   const now = new Date();
   const diffMs = now.getTime() - lastUpdatedAt.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
   
-  // Dölj tidsstämpel om data är < 2 minuter gammal (för färsk)
-  if (diffMinutes < 2) {
-    return '';
-  }
+  if (diffMinutes < 2) return '';
   
-  // Visa "X minuter sedan" om < 60 minuter
   if (diffMinutes < 60) {
-    return ` · Uppdaterat för ${diffMinutes} min sedan`;
+    return ` · ${t('dashboardHeader.lastUpdated', { minutes: diffMinutes })}`;
   }
   
-  // Visa klockslag om > 60 minuter
-  return ` · Senast ${lastUpdatedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
+  return ` · ${t('dashboardHeader.lastUpdatedAt', { time: lastUpdatedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) })}`;
 };
 
-// Hjälpfunktion för kontextuell prompt baserad på användarens aktivitet
-const getContextualPrompt = (hasLoggedToday?: boolean, lastMood?: string): string => {
-  if (hasLoggedToday) {
-    return "Bra jobbat med dagens check-in! Vill du se dina insikter?";
-  }
-  
-  // Om vi har en tidigare mood, skapa kontinuitet
-  if (lastMood) {
-    const hour = new Date().getHours();
-    if (hour < 10) {
-      return `God morgon! Igår var din känsla "${lastMood}". Hur känns det att starta idag?`;
-    }
-    return `Välkommen tillbaka! Senast var din känsla "${lastMood}". Vad märker du nu?`;
-  }
-  
-  // Standard mindful prompt för nya användare
-  return "Vad för känslor eller tankar är närvarande just nu? Allt är välkommet här.";
-};
 
 /**
  * Breathing Orb Component - 2026 visual anchor
@@ -151,8 +127,25 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const stats = dashboardResult?.stats;
   const recentMood = stats?.averageMood;
   
-  const [greeting, setGreeting] = useState(getGreeting(recentMood?.toString()));
-  const [focusContent, setFocusContent] = useState(getDailyFocusContent());
+  const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood?.toString()));
+  const [focusContent, setFocusContent] = useState(() => getDailyFocusContent(t));
+
+  const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
+    if (hasLogged) return t('dashboardHeader.checkedIn');
+    if (mood) {
+      const hour = new Date().getHours();
+      if (hour < 10) return t('dashboardHeader.morningMood', { mood });
+      return t('dashboardHeader.welcomeBackMood', { mood });
+    }
+    return t('dashboardHeader.mindfulPrompt');
+  };
+
+  const getPhaseLabel = () => {
+    if (breathingPhase === 'inhale') return t('dashboardHeader.breatheIn');
+    if (breathingPhase === 'exhale') return t('dashboardHeader.breatheOut');
+    if (breathingPhase === 'hold') return t('dashboardHeader.pause');
+    return t('dashboardHeader.done');
+  };
   const [isBreathingSessionActive, setIsBreathingSessionActive] = useState(false);
   const [completedBreaths, setCompletedBreaths] = useState(0);
   const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('inhale');
@@ -170,9 +163,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   // Uppdatera hälsning när mood-data ändras
   useEffect(() => {
     if (recentMood !== undefined) {
-      setGreeting(getGreeting(recentMood.toString()));
+      setGreeting(getGreeting(t, recentMood.toString()));
     }
-  }, [recentMood]);
+  }, [recentMood, t]);
 
   useEffect(() => {
     // Update greeting only at hour boundaries (10:00, 14:00, 18:00) when greeting changes
@@ -214,8 +207,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       const msToNext = calculateMsToNextBoundary();
       
       timeoutId = window.setTimeout(() => {
-        setGreeting(getGreeting());
-        setFocusContent(getDailyFocusContent());
+        setGreeting(getGreeting(t));
+        setFocusContent(getDailyFocusContent(t));
         // Schedule next update
         scheduleNextUpdate();
       }, msToNext);
@@ -227,6 +220,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     return () => {
       window.clearTimeout(timeoutId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -305,12 +299,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onFocusAction?.();
   };
 
-  const getPhaseLabel = () => {
-    if (breathingPhase === 'inhale') return 'Andas in';
-    if (breathingPhase === 'exhale') return 'Andas ut';
-    if (breathingPhase === 'hold') return 'Paus';
-    return 'Klart';
-  };
 
   const activeBreathNumber = Math.min(completedBreaths + 1, BREATH_COUNT_TARGET);
   const completedPhaseOffset =
@@ -344,7 +332,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <p 
               className="text-lg text-neutral-600 dark:text-neutral-300 max-w-xl leading-relaxed"
               role="doc-subtitle"
-              aria-label="Inbjudan till reflektion"
+              aria-label={t('dashboardHeader.reflectionInvitation')}
             >
               {getContextualPrompt(hasLoggedToday, lastMood)}
             </p>
@@ -356,8 +344,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               />
               <span>
                 {isLoading
-                  ? t('dashboardHeader.updatingData', 'Uppdaterar data...')
-                  : `${t('dashboardHeader.autoUpdate', 'Uppdateras automatiskt')}${getSmartTimestamp(lastUpdatedAt)}`}
+                  ? t('dashboardHeader.updatingData')
+                  : `${t('dashboardHeader.autoUpdate')}${getSmartTimestamp(t, lastUpdatedAt)}`}
               </span>
             </div>
           </div>
@@ -367,7 +355,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             ref={breathingCardRef}
             tabIndex={isBreathingSessionActive ? 0 : -1}
             role="region"
-            aria-label="Andningsövning"
+            aria-label={t('dashboardHeader.breathingExercise')}
             className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" 
             style={{ animationDelay: '200ms' }}
           >

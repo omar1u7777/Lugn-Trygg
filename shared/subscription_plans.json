@@ -20,7 +20,9 @@
       "export": false,
       "aiStories": false,
       "recommendations": false,
-      "wellness": false
+      "wellness": false,
+      "advancedMood": false,
+      "moodForecast": false
     }
   },
   "premium": {
@@ -44,7 +46,9 @@
       "export": true,
       "aiStories": true,
       "recommendations": true,
-      "wellness": true
+      "wellness": true,
+      "advancedMood": true,
+      "moodForecast": true
     }
   },
   "enterprise": {
@@ -95,7 +99,9 @@
       "export": true,
       "aiStories": true,
       "recommendations": true,
-      "wellness": true
+      "wellness": true,
+      "advancedMood": true,
+      "moodForecast": true
     }
   }
 }

@@ -42,6 +42,14 @@ const UpgradePage = lazy(() => import('@/pages/UpgradePage'));
 const HealthMonitoring = lazy(() => import('@/components/HealthMonitoring'));
 const SecurityMonitor = lazy(() => import('@/components/Admin/SecurityMonitor'));
 
+// Advanced Mood Tracking Components (2026)
+const AdvancedMoodLogger = lazy(() => import('@/components/AdvancedMoodLogger'));
+const ClinicalAssessment = lazy(() => import('@/components/ClinicalAssessment'));
+const MoodForecastView = lazy(() => import('@/components/MoodForecastView'));
+
+// Advanced AI Chat Components (2026)
+const AIChatInsights = lazy(() => import('@/components/AIChatInsights'));
+
 export interface RouteDefinition {
   path: string;
   component: React.ComponentType;
@@ -74,11 +82,17 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/rewards', component: RewardsHub, protected: true, feature: 'gamification', featureTitle: 'Belöningar är en Premium-funktion' },
   { path: '/profile', component: ProfileHub, protected: true },
   { path: '/ai-chat', component: WorldClassAIChatWrapper, protected: true },
+  // Advanced AI Chat Routes (2026)
+  { path: '/ai-chat/insights', component: AIChatInsights, protected: true, feature: 'insights', featureTitle: 'AI-samtalsinsikter är en Premium-funktion' },
   { path: '/voice-chat', component: VoiceChat, protected: true, feature: 'voiceChat', featureTitle: 'Röstchatt är en Premium-funktion' },
   { path: '/voice', component: VoicePage, protected: true },
   { path: '/mood-logger', component: WorldClassMoodLoggerWrapper, protected: true },
   { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
   { path: '/mood-list', component: MoodListWrapper, protected: true },
+  // Advanced Mood Tracking Routes (2026)
+  { path: '/mood/advanced', component: AdvancedMoodLogger, protected: true, feature: 'advancedMood', featureTitle: 'Avancerad humörloggning är en Premium-funktion' },
+  { path: '/mood/assessment', component: ClinicalAssessment, protected: true },
+  { path: '/mood/forecast', component: MoodForecastView, protected: true, feature: 'moodForecast', featureTitle: 'AI-prognoser är en Premium-funktion' },
   { path: '/daily-insights', component: DailyInsightsWrapper, protected: true },
   { path: '/weekly-analysis', component: WeeklyAnalysis, protected: true },
   { path: '/recommendations', component: Recommendations, protected: true, feature: 'recommendations', featureTitle: 'Rekommendationer är en Premium-funktion' },

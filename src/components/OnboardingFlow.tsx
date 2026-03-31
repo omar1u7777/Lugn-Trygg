@@ -12,6 +12,7 @@ import { MAX_WELLNESS_GOALS, WELLNESS_GOAL_VALUES } from '../constants/wellnessG
 import OptimizedImage from './ui/OptimizedImage';
 import { getOnboardingHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
+import { useTranslation } from 'react-i18next';
 
 
 interface OnboardingStep {
@@ -27,89 +28,91 @@ interface OnboardingFlowProps {
   userId: string;
 }
 
-// Helper function to create goal selection step content dynamically
-const createGoalSelectionContent = (selectedGoals: string[], toggleGoal: (goal: string) => void) => (
-  <div className="space-y-4" role="region" aria-label="Goal Selection Step" tabIndex={0}>
-    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
-      Välj dina wellness-mål:
-    </h3>
-    <div className="space-y-2">
-      {WELLNESS_GOAL_VALUES.map((goal) => (
-        <button
-          key={goal}
-          onClick={() => toggleGoal(goal)}
-          className={`w-full px-4 py-2.5 rounded-lg border-2 font-medium transition-all duration-200 flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] ${
-            selectedGoals.includes(goal)
-              ? 'bg-primary-600 border-primary-600 text-white'
-              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-        >
-          <span>{goal}</span>
-          {selectedGoals.includes(goal) && (
-            <CheckIcon className="w-5 h-5" aria-hidden="true" />
-          )}
-        </button>
-      ))}
-    </div>
-    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-      <span className="text-info-500">ℹ️</span> Du kan välja upp till {MAX_WELLNESS_GOALS} mål
-    </p>
-  </div>
-);
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  {
-    id: 1,
-    title: 'Välkommen till Lugn & Trygg',
-    description: 'Din personliga mental health-app',
-    icon: '🌟',
-    content: (
-      <div className="space-y-4" role="region" aria-label="Welcome Step" tabIndex={0}>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Hej! Vi är glada att du är här.
-        </h3>
-        <p className="text-base text-gray-700 dark:text-gray-300">
-          Lugn & Trygg hjälper dig att hantera stress, förbättra din mental hälsa och hitta lugn i ditt dagliga liv.
-        </p>
-        <p className="text-base font-semibold text-gray-900 dark:text-white">
-          ✨ Din personliga resa börjar här
-        </p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Med dina valda mål kommer vi att ge dig personliga rekommendationer för att stötta din mental hälsa.
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: 2,
-    title: 'Sätt dina mål',
-    description: 'Vad vill du uppnå?',
-    icon: '🎯',
-    content: null, // Will be set dynamically in the render
-  },
-  {
-    id: 3,
-    title: 'Starta din resa',
-    description: 'Du är redo!',
-    icon: '🚀',
-    content: (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Du är nu redo att börja!
-        </h3>
-        <p className="text-base text-gray-700 dark:text-gray-300">
-          Börja med en kort meditation eller spåra din nuvarande humör för att få personliga rekommendationer.
-        </p>
-      </div>
-    ),
-  },
-];
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, userId }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const { t } = useTranslation();
+
+  const createGoalSelectionContent = (selGoals: string[], toggleGoal: (goal: string) => void) => (
+    <div className="space-y-4" role="region" aria-label="Goal Selection Step" tabIndex={0}>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+        {t('onboarding.selectGoals')}
+      </h3>
+      <div className="space-y-2">
+        {WELLNESS_GOAL_VALUES.map((goal) => (
+          <button
+            key={goal}
+            onClick={() => toggleGoal(goal)}
+            className={`w-full px-4 py-2.5 rounded-lg border-2 font-medium transition-all duration-200 flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] ${
+              selGoals.includes(goal)
+                ? 'bg-primary-600 border-primary-600 text-white'
+                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            <span>{goal}</span>
+            {selGoals.includes(goal) && (
+              <CheckIcon className="w-5 h-5" aria-hidden="true" />
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+        <span className="text-info-500" aria-hidden="true">ℹ️</span>
+        {t('onboarding.maxGoals', { max: MAX_WELLNESS_GOALS })}
+      </p>
+    </div>
+  );
+
+  const ONBOARDING_STEPS: OnboardingStep[] = [
+    {
+      id: 1,
+      title: t('onboarding.step1Title'),
+      description: t('onboarding.step1Desc'),
+      icon: '🌟',
+      content: (
+        <div className="space-y-4" role="region" aria-label="Welcome Step" tabIndex={0}>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {t('onboarding.welcomeHeading')}
+          </h3>
+          <p className="text-base text-gray-700 dark:text-gray-300">
+            {t('onboarding.welcomeBody')}
+          </p>
+          <p className="text-base font-semibold text-gray-900 dark:text-white">
+            {t('onboarding.journeyBegins')}
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {t('onboarding.welcomeNote')}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 2,
+      title: t('onboarding.step2Title'),
+      description: t('onboarding.step2Desc'),
+      icon: '🎯',
+      content: null,
+    },
+    {
+      id: 3,
+      title: t('onboarding.step3Title'),
+      description: t('onboarding.step3Desc'),
+      icon: '🚀',
+      content: (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {t('onboarding.readyHeading')}
+          </h3>
+          <p className="text-base text-gray-700 dark:text-gray-300">
+            {t('onboarding.readyBody')}
+          </p>
+        </div>
+      ),
+    },
+  ];
 
   const ONBOARDING_HERO_IMAGE_ID = getOnboardingHeroImageId();
   const ONBOARDING_HERO_FALLBACK_SRC = 'https://res.cloudinary.com/dxmijbysc/image/upload/c_scale,w_auto,dpr_auto,q_auto,f_auto/hero-bild_pfcdsx.jpg';
@@ -275,7 +278,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                   aria-live="polite"
                   aria-atomic="true"
                 >
-                  Steg {activeStep + 1} av {ONBOARDING_STEPS.length}
+                  {t('onboarding.stepOf', { current: activeStep + 1, total: ONBOARDING_STEPS.length })}
                 </p>
               </div>
 
@@ -316,7 +319,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                         ❌ {saveError}
                       </p>
                       <p className="text-xs text-error-700 dark:text-error-400 mt-1">
-                        Försök igen eller hoppa över
+                        {t('onboarding.retryOrSkip')}
                       </p>
                     </div>
                   )}
@@ -355,25 +358,25 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                   disabled={isSaving}
                   className="w-full sm:w-auto px-6 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
                 >
-                  Hoppa över
+                  {t('onboarding.skip')}
                 </button>
                 <button
                   onClick={handleNext}
                   disabled={!canProceedToNextStep() || isSaving}
                   className="w-full sm:flex-1 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] flex items-center justify-center gap-2 order-1 sm:order-2"
-                  aria-label={activeStep === 1 && selectedGoals.length === 0 ? 'Välj minst ett mål för att fortsätta' : undefined}
+                  aria-label={activeStep === 1 && selectedGoals.length === 0 ? t('onboarding.selectAtLeastOne') : undefined}
                 >
                   {isSaving ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>Sparar...</span>
+                      <span>{t('onboarding.saving')}</span>
                     </>
                   ) : activeStep === 1 ? (
                     <span>
-                      Nästa {selectedGoals.length > 0 ? `(${selectedGoals.length}/${MAX_WELLNESS_GOALS} mål valda)` : '(Välj minst 1 mål)'}
+                      {t('onboarding.next')}{selectedGoals.length > 0 ? ` (${selectedGoals.length}/${MAX_WELLNESS_GOALS} ${t('onboarding.goalsSelected')})` : ` (${t('onboarding.selectMin')})`}
                     </span>
                   ) : (
-                    <span>{activeStep === ONBOARDING_STEPS.length - 1 ? 'Starta' : 'Nästa'}</span>
+                    <span>{activeStep === ONBOARDING_STEPS.length - 1 ? t('onboarding.start') : t('onboarding.next')}</span>
                   )}
                 </button>
               </div>
@@ -383,7 +386,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                 <div className="relative rounded-[28px] border border-white/60 dark:border-white/10 overflow-hidden shadow-xl">
                   <OptimizedImage
                     src={ONBOARDING_HERO_IMAGE_ID}
-                    alt="Illustration av onboardingresan"
+                    alt={t('onboarding.heroAlt')}
                     width={360}
                     height={320}
                     sizes="100vw"
@@ -403,7 +406,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
                 <div className="relative rounded-[32px] border border-white/70 dark:border-white/10 overflow-hidden shadow-2xl">
                   <OptimizedImage
                     src={ONBOARDING_HERO_IMAGE_ID}
-                    alt="Illustration av onboardingresan"
+                    alt={t('onboarding.heroAlt')}
                     width={420}
                     height={360}
                     sizes={ONBOARDING_HERO_SIZES}

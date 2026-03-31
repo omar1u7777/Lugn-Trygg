@@ -53,6 +53,8 @@ const FEATURE_NAMES: Record<FeatureName, string> = {
   aiStories: 'AI-berättelser',
   recommendations: 'Rekommendationer',
   wellness: 'Välmåendehubben',
+  advancedMood: 'Avancerad humörloggning',
+  moodForecast: 'AI-prognoser',
 };
 
 const PLAN_LABELS: Record<SubscriptionTier, string> = {

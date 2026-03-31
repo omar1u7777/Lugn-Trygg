@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { cn } from '../../../utils/cn';
+import { useTranslation } from 'react-i18next';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -28,6 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
+    const { t } = useTranslation();
     const reactId = useId();
     const hasError = !!error;
     const inputId = props.id || reactId;
@@ -46,7 +48,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           >
             {label}
             {props.required && (
-              <span className="text-secondary-500 ml-1" aria-label="obligatoriskt fält">
+              <span className="text-secondary-500 ml-1" aria-label={t('common.requiredField', 'obligatoriskt fält')}>
                 *
               </span>
             )}
@@ -134,6 +136,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
+    const { t } = useTranslation();
     const reactId = useId();
     const hasError = !!error;
     const textareaId = props.id || reactId;
@@ -149,7 +152,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           >
             {label}
             {props.required && (
-              <span className="text-error-500 ml-1" aria-label="obligatoriskt fält">
+              <span className="text-error-500 ml-1" aria-label={t('common.requiredField', 'obligatoriskt fält')}>
                 *
               </span>
             )}

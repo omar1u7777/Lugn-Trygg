@@ -12,6 +12,37 @@ flask-jwt-extended==4.7.1
 firebase-admin==6.5.0
 
 # Environment & Configuration
+# Crisis Escalation Services
+# Twilio for SMS alerts during mental health crises
+twilio==9.0.0
+
+# SendGrid for email notifications
+sendgrid==6.11.0
+
+# Vector Database & Semantic Search
+# Pinecone for RAG (Retrieval-Augmented Generation) vector storage
+pinecone-client==5.0.1
+
+# Swedish BERT embeddings for semantic similarity
+sentence-transformers==3.2.1
+
+# Explainable AI (XAI)
+# SHAP for model interpretation and prediction explanations
+shap==0.46.0
+
+# Professional Voice Emotion Analysis
+# Librosa for advanced audio feature extraction (prosodic and spectral features)
+librosa==0.10.2
+soundfile==0.12.1  # Required for librosa audio I/O
+
+# Audio metadata extraction
+mutagen==1.47.0
+
+# Real-time WebSocket Communication
+# Flask-SocketIO for real-time crisis monitoring during chat sessions
+flask-socketio==5.3.6
+python-socketio==5.11.0
+
 python-dotenv==1.0.0
 
 # HTTP & Requests
@@ -53,8 +84,8 @@ soundfile>=0.12.1
 
 # Natural Language Processing
 transformers==4.47.1
-librosa==0.10.2.post1
 torch>=2.0.0
+tensorflow>=2.15.0
 
 # Payment Processing
 stripe==11.3.0
