@@ -3,7 +3,8 @@
  * Real-time WebSocket communication for breathing guidance
  */
 
-import { api, ApiError } from './client';
+import { api } from './client';
+import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
 // Types

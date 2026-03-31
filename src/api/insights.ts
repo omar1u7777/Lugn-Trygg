@@ -2,7 +2,8 @@
  * Insights API - AI-powered wellness insights and recommendations
  */
 
-import { api, ApiError } from './client';
+import { api } from './client';
+import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
 export interface Insight {
