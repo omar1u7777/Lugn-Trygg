@@ -11,7 +11,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   BookOpenIcon,
-  TargetIcon,
+  FlagIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
 import api from '@/api/api';
@@ -253,7 +253,7 @@ export const AIChatInsights: React.FC = () => {
             <QualityCard
               title="Specificitet"
               score={metrics.specificity_score}
-              icon={<TargetIcon className="w-5 h-5" />}
+              icon={<FlagIcon className="w-5 h-5" />}
               description="Konkreta, handlingsbara råd"
             />
             <QualityCard
@@ -277,7 +277,7 @@ export const AIChatInsights: React.FC = () => {
             <QualityCard
               title="Mål-uppfyllelse"
               score={metrics.goal_alignment}
-              icon={<TargetIcon className="w-5 h-5" />}
+              icon={<FlagIcon className="w-5 h-5" />}
               description="Koppling till dina mål"
             />
           </div>
