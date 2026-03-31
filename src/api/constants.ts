@@ -201,6 +201,88 @@ export const API_ENDPOINTS = {
     GET_FORECASTS: '/api/v1/ai/forecasts',
   } as const,
 
+  /** AI Music Generation endpoints - Neural ambient soundscapes */
+  AI_MUSIC: {
+    /** GET available soundscape types */
+    SOUNDSCAPES: '/api/v1/ai-music/soundscapes',
+    /** POST generate soundscape */
+    GENERATE: '/api/v1/ai-music/generate',
+    /** GET stream generated track - append /{trackId} */
+    STREAM: '/api/v1/ai-music/stream',
+    /** GET adaptive recommendation */
+    RECOMMENDATION: '/api/v1/ai-music/recommendation',
+    /** GET adaptive soundscape by mood - append /{mood} */
+    ADAPTIVE: '/api/v1/ai-music/adaptive',
+    /** GET brainwave frequency info */
+    BRAINWAVE_INFO: '/api/v1/ai-music/brainwave-info',
+  } as const,
+
+  /** Biofeedback Breathing endpoints - HRV analysis and guided breathing */
+  BIOFEEDBACK: {
+    /** WebSocket endpoint for real-time biofeedback */
+    WS: '/api/v1/biofeedback/ws',
+    /** GET available breathing patterns */
+    PATTERNS: '/api/v1/biofeedback/patterns',
+    /** POST start breathing session */
+    START_SESSION: '/api/v1/biofeedback/sessions/start',
+    /** POST end breathing session */
+    END_SESSION: '/api/v1/biofeedback/sessions/end',
+    /** GET session history */
+    SESSION_HISTORY: '/api/v1/biofeedback/sessions/history',
+    /** GET HRV analysis */
+    HRV_ANALYSIS: '/api/v1/biofeedback/hrv/analysis',
+  } as const,
+
+  /** Advanced Mood Tracking endpoints */
+  ADVANCED_MOOD: {
+    /** POST log advanced mood entry */
+    LOG: '/api/v1/advanced-mood/log',
+    /** GET mood entries */
+    ENTRIES: '/api/v1/advanced-mood/entries',
+    /** GET mood patterns analysis */
+    PATTERNS: '/api/v1/advanced-mood/patterns',
+    /** GET mood correlations */
+    CORRELATIONS: '/api/v1/advanced-mood/correlations',
+    /** GET mood forecast */
+    FORECAST: '/api/v1/advanced-mood/forecast',
+  } as const,
+
+  /** Unified Memory endpoints - Multimedia memories */
+  MEMORY_UNIFIED: {
+    /** GET all multimedia memories */
+    MEMORIES: '/api/v1/memory-unified/memories',
+    /** POST upload multimedia memory */
+    UPLOAD: '/api/v1/memory-unified/upload',
+    /** GET single memory - append /{memoryId} */
+    MEMORY: '/api/v1/memory-unified/memory',
+    /** DELETE memory - append /{memoryId} */
+    DELETE: '/api/v1/memory-unified/memory',
+  } as const,
+
+  /** Memory Analysis endpoints */
+  MEMORY_ANALYSIS: {
+    /** GET memory insights */
+    INSIGHTS: '/api/v1/memory-analysis/insights',
+    /** GET memory sentiment analysis */
+    SENTIMENT: '/api/v1/memory-analysis/sentiment',
+    /** GET memory trends */
+    TRENDS: '/api/v1/memory-analysis/trends',
+    /** GET memory recommendations */
+    RECOMMENDATIONS: '/api/v1/memory-analysis/recommendations',
+  } as const,
+
+  /** Insights endpoints - AI-powered wellness insights */
+  INSIGHTS: {
+    /** GET all user insights */
+    ALL: '/api/v1/insights',
+    /** GET wellness insights */
+    WELLNESS: '/api/v1/insights/wellness',
+    /** GET behavioral insights */
+    BEHAVIORAL: '/api/v1/insights/behavioral',
+    /** GET personalized recommendations */
+    RECOMMENDATIONS: '/api/v1/insights/recommendations',
+  } as const,
+
   /** Admin dashboard endpoints (Admin only) */
   ADMIN: {
     PERFORMANCE_METRICS: '/api/v1/admin/performance-metrics',

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getAudioLibrary,
@@ -6,6 +6,11 @@ import {
   type AudioLibrary
 } from "../api/api";
 import { logger } from '../utils/logger';
+
+// Lazy load AI Music Generator for better performance
+const AIMusicGenerator = lazy(() => import('./AIMusicGenerator'));
+
+type SoundTab = 'library' | 'ai-music';
 
 interface RelaxingSoundsProps {
   onClose: () => void;
@@ -15,6 +20,7 @@ interface RelaxingSoundsProps {
 const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = false }) => {
   const { t, i18n } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [activeTab, setActiveTab] = useState<SoundTab>('library');
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [currentTime, setCurrentTime] = useState(0);
@@ -202,199 +208,251 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-slate-600 dark:text-slate-400">{t('common.loading', 'Laddar...')}</p>
-            </div>
+        {/* Tab Switcher */}
+        <div className={`px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab('library')}
+              className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'library'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+              }`}
+            >
+              <span className="mr-2">📚</span>
+              {t('sounds.library', 'Ljudbibliotek')}
+            </button>
+            <button
+              onClick={() => setActiveTab('ai-music')}
+              className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'ai-music'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+              }`}
+            >
+              <span className="mr-2">🤖</span>
+              {t('sounds.aiMusic', 'AI-Musik')}
+              <span className="ml-2 px-2 py-0.5 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+                {t('common.new', 'Ny')}
+              </span>
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* Error State */}
-        {error && !loading && (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <span className="text-5xl mb-4 block">😔</span>
-              <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-              <button
-                onClick={fetchAudioLibrary}
-                className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-              >
-                {t('common.retry', 'Försök igen')}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content */}
-        {!loading && !error && categories.length > 0 && (
-          <>
-            {/* Category Selection */}
-            <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
-              <div className="flex flex-wrap gap-3">
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedCategory === category.id
-                      ? 'bg-primary-500 text-white shadow-lg'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
-                      }`}
-                  >
-                    <span className="mr-2">{category.icon}</span>
-                    {getLocalizedText(category)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-              {/* Track List */}
-              <div className="flex-1 flex flex-col min-h-0">
-                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
-                  <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span>{currentCategory?.icon}</span>
-                    {currentCategory && getLocalizedText(currentCategory)}
-                  </h4>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{currentCategory?.description}</p>
+        {/* AI Music Tab */}
+        {activeTab === 'ai-music' && (
+          <div className="flex-1 overflow-y-auto">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-slate-600 dark:text-slate-400">{t('common.loading', 'Laddar...')}</p>
                 </div>
+              </div>
+            }>
+              <AIMusicGenerator />
+            </Suspense>
+          </div>
+        )}
 
-                <div className={`flex-1 overflow-y-auto px-6 py-4 ${embedded ? 'px-0' : ''}`}>
-                  <div className="space-y-3">
-                    {currentPlaylist.map((track, index) => (
-                      <div
-                        key={track.id}
-                        onClick={() => selectTrack(track, index)}
-                        className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTrack?.id === track.id
-                          ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-600 shadow-md'
-                          : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
+        {/* Library Tab */}
+        {activeTab === 'library' && (
+          <>
+            {/* Loading State */}
+            {loading && (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-slate-600 dark:text-slate-400">{t('common.loading', 'Laddar...')}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <span className="text-5xl mb-4 block">😔</span>
+                  <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+                  <button
+                    onClick={fetchAudioLibrary}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                  >
+                    {t('common.retry', 'Försök igen')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Main Content */}
+            {!loading && !error && categories.length > 0 && (
+              <>
+                {/* Category Selection */}
+                <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                  <div className="flex flex-wrap gap-3">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedCategory === category.id
+                          ? 'bg-primary-500 text-white shadow-lg'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                           }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-slate-900 dark:text-slate-100 truncate">
-                              {getLocalizedText(track)}
-                            </h5>
-                            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{track.artist}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 line-clamp-2">{track.description}</p>
-                          </div>
-                          <div className="text-right ml-4 flex-shrink-0">
-                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{track.duration}</div>
-                            {selectedTrack?.id === track.id && (
-                              <div className="text-xs text-primary-600 dark:text-primary-400 mt-1">
-                                {isPlaying ? '🔊 Spelar' : '⏸️ Pausad'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                        <span className="mr-2">{category.icon}</span>
+                        {getLocalizedText(category)}
+                      </button>
                     ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Player Controls - Always Visible */}
-              <div className="lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
-                <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
-                  <div className="text-center mb-6">
-                    <div
-                      className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors"
-                      onClick={togglePlay}
-                    >
-                      {isPlaying ? '⏸️' : '▶️'}
+                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                  {/* Track List */}
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className={`px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 ${embedded ? 'px-0' : ''}`}>
+                      <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <span>{currentCategory?.icon}</span>
+                        {currentCategory && getLocalizedText(currentCategory)}
+                      </h4>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">{currentCategory?.description}</p>
                     </div>
-                    {selectedTrack ? (
-                      <div>
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 truncate">
-                          {getLocalizedText(selectedTrack)}
-                        </h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{selectedTrack.artist}</p>
+
+                    <div className={`flex-1 overflow-y-auto px-6 py-4 ${embedded ? 'px-0' : ''}`}>
+                      <div className="space-y-3">
+                        {currentPlaylist.map((track, index) => (
+                          <div
+                            key={track.id}
+                            onClick={() => selectTrack(track, index)}
+                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedTrack?.id === track.id
+                              ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-600 shadow-md'
+                              : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                                  {getLocalizedText(track)}
+                                </h5>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{track.artist}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 line-clamp-2">{track.description}</p>
+                              </div>
+                              <div className="text-right ml-4 flex-shrink-0">
+                                <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{track.duration}</div>
+                                {selectedTrack?.id === track.id && (
+                                  <div className="text-xs text-primary-600 dark:text-primary-400 mt-1">
+                                    {isPlaying ? '🔊 Spelar' : '⏸️ Pausad'}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <p className="text-slate-500 dark:text-slate-400 text-sm">{t('music.selectTrack', 'Välj en låt för att börja')}</p>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Audio Error Message */}
-                  {audioError && (
-                    <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                      <p className="text-sm text-red-600 dark:text-red-400">{audioError}</p>
-                    </div>
-                  )}
-
-                  {/* Progress Bar */}
-                  {selectedTrack && (
-                    <div className="mb-6">
-                      <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
+                  {/* Player Controls - Always Visible */}
+                  <div className="lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700">
+                    <div className={`p-6 h-full flex flex-col ${embedded ? 'px-4' : ''}`}>
+                      <div className="text-center mb-6">
+                        <div
+                          className="w-20 h-20 mx-auto mb-4 bg-primary-500 rounded-full flex items-center justify-center text-white text-2xl shadow-lg cursor-pointer hover:bg-primary-600 transition-colors"
+                          onClick={togglePlay}
+                        >
+                          {isPlaying ? '⏸️' : '▶️'}
+                        </div>
+                        {selectedTrack ? (
+                          <div>
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1 truncate">
+                              {getLocalizedText(selectedTrack)}
+                            </h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{selectedTrack.artist}</p>
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 dark:text-slate-400 text-sm">{t('music.selectTrack', 'Välj en låt för att börja')}</p>
+                        )}
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max={duration || 0}
-                        value={currentTime}
-                        onChange={handleSeek}
-                        className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
-                      />
+
+                      {/* Audio Error Message */}
+                      {audioError && (
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <p className="text-sm text-red-600 dark:text-red-400">{audioError}</p>
+                        </div>
+                      )}
+
+                      {/* Progress Bar */}
+                      {selectedTrack && (
+                        <div className="mb-6">
+                          <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400 mb-2">
+                            <span>{formatTime(currentTime)}</span>
+                            <span>{formatTime(duration)}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max={duration || 0}
+                            value={currentTime}
+                            onChange={handleSeek}
+                            className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+                      )}
+
+                      {/* Control Buttons */}
+                      <div className="flex items-center justify-center gap-4 mb-6">
+                        <button
+                          onClick={handlePreviousTrack}
+                          disabled={!selectedTrack || currentPlaylist.length === 0}
+                          className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ⏮️
+                        </button>
+
+                        <button
+                          onClick={togglePlay}
+                          disabled={!selectedTrack}
+                          className="w-16 h-16 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        >
+                          <span className="text-2xl">{isPlaying ? '⏸️' : '▶️'}</span>
+                        </button>
+
+                        <button
+                          onClick={handleNextTrack}
+                          disabled={!selectedTrack || currentPlaylist.length === 0}
+                          className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ⏭️
+                        </button>
+                      </div>
+
+                      {/* Volume Control */}
+                      <div className="flex items-center gap-3 mt-auto">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">🔉</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={volume}
+                          onChange={handleVolumeChange}
+                          className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
+                        />
+                        <span className="text-sm text-slate-600 dark:text-slate-400">🔊</span>
+                      </div>
+
+                      {/* License Info */}
+                      {selectedTrack && (
+                        <div className="mt-4 text-center">
+                          <p className="text-xs text-slate-400 dark:text-slate-500">
+                            {t('audio.license', 'Licens')}: {selectedTrack.license}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {/* Control Buttons */}
-                  <div className="flex items-center justify-center gap-4 mb-6">
-                    <button
-                      onClick={handlePreviousTrack}
-                      disabled={!selectedTrack || currentPlaylist.length === 0}
-                      className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ⏮️
-                    </button>
-
-                    <button
-                      onClick={togglePlay}
-                      disabled={!selectedTrack}
-                      className="w-16 h-16 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                    >
-                      <span className="text-2xl">{isPlaying ? '⏸️' : '▶️'}</span>
-                    </button>
-
-                    <button
-                      onClick={handleNextTrack}
-                      disabled={!selectedTrack || currentPlaylist.length === 0}
-                      className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ⏭️
-                    </button>
                   </div>
-
-                  {/* Volume Control */}
-                  <div className="flex items-center gap-3 mt-auto">
-                    <span className="text-sm text-slate-600 dark:text-slate-400">🔉</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={volume}
-                      onChange={handleVolumeChange}
-                      className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">🔊</span>
-                  </div>
-
-                  {/* License Info */}
-                  {selectedTrack && (
-                    <div className="mt-4 text-center">
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {t('audio.license', 'Licens')}: {selectedTrack.license}
-                      </p>
-                    </div>
-                  )}
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </>
         )}
 
