@@ -5,8 +5,8 @@ import {
   SparklesIcon,
   HeartIcon,
   LightBulbIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   MinusIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -131,9 +131,9 @@ export const AIChatInsights: React.FC = () => {
   const getTrendIcon = (trend: string): React.ReactNode => {
     switch (trend) {
       case 'improving':
-        return <TrendingUpIcon className="w-5 h-5 text-green-500" />;
+        return <ArrowTrendingUpIcon className="w-5 h-5 text-green-500" />;
       case 'declining':
-        return <TrendingDownIcon className="w-5 h-5 text-red-500" />;
+        return <ArrowTrendingDownIcon className="w-5 h-5 text-red-500" />;
       default:
         return <MinusIcon className="w-5 h-5 text-gray-500" />;
     }
@@ -192,7 +192,7 @@ export const AIChatInsights: React.FC = () => {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          <TrendingUpIcon className="w-4 h-4" />
+          <ArrowTrendingUpIcon className="w-4 h-4" />
           Framsteg
         </button>
       </div>
@@ -385,7 +385,7 @@ export const AIChatInsights: React.FC = () => {
                     )}
                     {progress.trajectory.deterioration_detected && (
                       <div className="flex items-center gap-2 text-red-600">
-                        <TrendingDownIcon className="w-5 h-5" />
+                        <ArrowTrendingDownIcon className="w-5 h-5" />
                         <span>Försämringstrend - kontakta vårdgivare</span>
                       </div>
                     )}
