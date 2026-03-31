@@ -307,6 +307,9 @@ def log_mood() -> Response | tuple[Response, int]:
         mood_text = data.get('mood_text', '') if data else ''
         # CRITICAL FIX: Get note (from frontend MoodLogger)
         note = data.get('note', '') if data else ''
+        # Get tags and context (from frontend MoodLogger)
+        tags = data.get('tags', []) if data else []
+        context = data.get('context', '') if data else ''
         # CRITICAL FIX: Get user-submitted score (1-10 scale)
         user_score = data.get('score') if data else None
         if user_score is not None:
@@ -316,6 +319,9 @@ def log_mood() -> Response | tuple[Response, int]:
                     user_score = None
             except (ValueError, TypeError):
                 user_score = None
+        # Ensure tags is a list
+        if not isinstance(tags, list):
+            tags = [tags] if tags else []
 
         timestamp = (
             data.get('timestamp', datetime.now(UTC).isoformat())
