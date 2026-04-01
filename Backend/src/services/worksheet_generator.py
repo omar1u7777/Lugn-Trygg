@@ -326,13 +326,13 @@ class WorksheetGenerator:
             """
         )
     
-    def _generate_committed_action(self, conversation_id: str, 
-                                    messages: List[dict]) -> Worksheet:
+    def _generate_committed_action(self, conversation_id: str,
+                                    messages: list[dict]) -> Worksheet:
         """Generate ACT committed action worksheet."""
         
         # Try to extract a value from messages
         user_text = " ".join([m['content'] for m in messages if m.get('role') == 'user'])
-        
+
         return Worksheet(
             id=f"act_ca_{conversation_id}_{datetime.now().timestamp()}",
             type="act_committed_action",
@@ -410,11 +410,11 @@ class WorksheetGenerator:
             4. Säkerställa handlingen är kopplad till värdering, inte känsla
             """
         )
-    
+
     def _generate_exposure_hierarchy(self, conversation_id: str,
-                                      messages: List[dict]) -> Worksheet:
+                                      messages: list[dict]) -> Worksheet:
         """Generate exposure hierarchy for anxiety/avoidance."""
-        
+
         return Worksheet(
             id=f"exp_{conversation_id}_{datetime.now().timestamp()}",
             type="cbt_exposure_hierarchy",
@@ -484,10 +484,10 @@ class WorksheetGenerator:
             4. Förklara att exponering handlar om att lära sig att ångest minskar av sig själv
             """
         )
-    
+
     def _generate_mood_analysis(self, conversation_id: str) -> Worksheet:
         """Generate mood pattern analysis worksheet."""
-        
+
         return Worksheet(
             id=f"mood_{conversation_id}_{datetime.now().timestamp()}",
             type="mood_patterns",
@@ -541,13 +541,13 @@ class WorksheetGenerator:
             estimated_duration="15-20 minuter",
             can_save_progress=True
         )
-    
+
     def _extract_situation(self, text: str) -> str:
         """Extract situation description from text."""
         # Simple extraction - in production use NLP
         # Look for context indicators
         indicators = ["igår", "idag", "imorse", "i fredags", "på jobbet", "hemma", "i skolan"]
-        
+
         for indicator in indicators:
             if indicator in text.lower():
                 # Find sentence containing indicator
@@ -555,14 +555,14 @@ class WorksheetGenerator:
                 for sent in sentences:
                     if indicator in sent.lower():
                         return sent.strip()
-        
+
         # Return first sentence as fallback
         first_sentence = text.split('.')[0] if text else ""
         return first_sentence[:200]  # Limit length
 
 
 # Singleton instance
-_worksheet_generator: Optional[WorksheetGenerator] = None
+_worksheet_generator: WorksheetGenerator | None = None
 
 
 def get_worksheet_generator() -> WorksheetGenerator:
