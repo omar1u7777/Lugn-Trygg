@@ -22,6 +22,8 @@ import {
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { logMood, getMoods } from '../api/api';
+import { api } from '../api/client';
+import { API_ENDPOINTS } from '../api/constants';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { Card } from './ui/tailwind';
@@ -29,6 +31,7 @@ import { CircumplexSliders } from './mood/CircumplexSliders';
 import { TagSelector } from './mood/TagSelector';
 import { logger } from '../utils/logger';
 import { getMoodLabel } from '../features/mood/utils';
+import type { AxiosError } from 'axios';
 
 interface SuperMoodLoggerProps {
   onMoodLogged?: (mood?: number, note?: string) => void;
@@ -45,6 +48,51 @@ interface RecentMood {
   tags?: string[];
   valence?: number;
   arousal?: number;
+}
+
+/** Raw mood entry from API — fields may vary since backend is flexible */
+interface RawMoodEntry {
+  id?: string;
+  docId?: string;
+  score?: number;
+  sentiment_score?: number;
+  mood_text?: string;
+  note?: string;
+  tags?: string[];
+  valence?: number;
+  arousal?: number;
+  timestamp?: { toDate: () => Date } | string | number | Date;
+}
+
+interface RecentMoodGroup {
+  key: string;
+  label: string;
+  entries: RecentMood[];
+}
+
+interface RecentMood {
+  id?: string;
+  mood: string;
+  score: number;
+  timestamp: Date;
+  note?: string;
+  tags?: string[];
+  valence?: number;
+  arousal?: number;
+}
+
+/** Raw mood entry from API — fields may vary since backend is flexible */
+interface RawMoodEntry {
+  id?: string;
+  docId?: string;
+  score?: number;
+  sentiment_score?: number;
+  mood_text?: string;
+  note?: string;
+  tags?: string[];
+  valence?: number;
+  arousal?: number;
+  timestamp?: { toDate: () => Date } | string | number | Date;
 }
 
 interface RecentMoodGroup {
@@ -152,6 +200,8 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const lastMoodSubmissionRef = useRef<{ moodScore: number; timestampMs: number } | null>(null);
   const submitLockRef = useRef(false);
   const isMountedRef = useRef(true);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const moods = [
     { emoji: '😢', label: 'Ledsen', value: 2, description: 'Känner mig ledsen eller nedstämd' },
@@ -167,14 +217,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
     };
   }, []);
 
   useEffect(() => {
     if (showRecentMoods && user?.user_id) {
-      loadRecentMoods();
+      void loadRecentMoods();
     }
-  }, [user?.user_id, showRecentMoods]);
+  }, [user?.user_id, showRecentMoods, loadRecentMoods]);
 
   const loadRecentMoods = useCallback(async () => {
     if (!user?.user_id) return;
@@ -186,7 +239,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       if (!isMountedRef.current) return;
       
       const normalized: RecentMood[] = (moodsResponse || [])
-        .map((mood: any) => {
+        .map((mood: RawMoodEntry) => {
           const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
           const score = mood.score || mood.sentiment_score || 5;
           const moodText = mood.mood_text || getMoodLabel(score);
@@ -267,16 +320,31 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       const moodText = moodObj?.label || 'Neutral';
       const trimmedNote = note.trim();
 
-      await logMood(user.user_id, {
-        score: selectedMood,
-        mood_text: moodText,
-        note: trimmedNote || `Känner mig ${moodText.toLowerCase()}`,
-        valence: showAdvanced ? valence : undefined,
-        arousal: showAdvanced ? arousal : undefined,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        context: context.trim() || undefined,
-        voice_data: audioBlob ? await blobToBase64(audioBlob) : undefined,
-      });
+      if (audioBlob) {
+        const formData = new FormData();
+        formData.append('score', String(selectedMood));
+        formData.append('mood_text', moodText);
+        formData.append('note', trimmedNote || `Känner mig ${moodText.toLowerCase()}`);
+        if (showAdvanced && valence) formData.append('valence', String(valence));
+        if (showAdvanced && arousal) formData.append('arousal', String(arousal));
+        if (selectedTags.length > 0) formData.append('tags', JSON.stringify(selectedTags));
+        if (context.trim()) formData.append('context', context.trim());
+        formData.append('audio', audioBlob, 'recording.webm');
+
+        await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        await logMood(user.user_id, {
+          score: selectedMood,
+          mood_text: moodText,
+          note: trimmedNote || `Känner mig ${moodText.toLowerCase()}`,
+          valence: showAdvanced ? valence : undefined,
+          arousal: showAdvanced ? arousal : undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          context: context.trim() || undefined,
+        });
+      }
 
       incrementMoodLog();
       lastMoodSubmissionRef.current = { moodScore: selectedMood, timestampMs: Date.now() };
@@ -309,17 +377,20 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       setShowAdvanced(false);
       setAudioBlob(null);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Failed to log mood:', error);
-      const quotaExceeded = error.response?.status === 429;
+      const axiosError = error as AxiosError<{ error?: string }>;
+      const quotaExceeded = axiosError.response?.status === 429;
       
       if (quotaExceeded) {
-        const serverMessage = error.response?.data?.error;
+        const serverMessage = axiosError.response?.data?.error;
         const friendlyMessage = serverMessage || t('moodLogger.dailyLimitReachedMessage');
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'assertive');
       } else {
-        announceToScreenReader(t('moodLogger.moodLogFailed', 'Kunde inte logga humör'), 'assertive');
+        const friendlyMessage = t('moodLogger.moodLogFailed', 'Kunde inte logga humör. Försök igen.');
+        announceToScreenReader(friendlyMessage, 'assertive');
+        setLimitError(friendlyMessage); // Reuse limitError state for general errors
       }
     } finally {
       setIsLogging(false);
@@ -327,13 +398,37 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     }
   };
 
-  const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
   };
 
   const groupedMoods = recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
@@ -455,7 +550,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             <div>
               <button
                 type="button"
-                onClick={() => setIsRecording(!isRecording)}
+                onClick={() => isRecording ? stopRecording() : startRecording()}
                 disabled={isLogging}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-colors

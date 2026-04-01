@@ -22,6 +22,9 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const [currentMessage, setCurrentMessage] = useState<StreamingMessage | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // CRITICAL FIX: Use ref to avoid dependency issues with useCallback
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const streamMessage = useCallback(async (
     userId: string,
@@ -105,22 +108,27 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
             setCurrentMessage(prev =>
               prev ? { ...prev, isComplete: true, crisisDetected } : null
             );
-            options.onComplete?.(accumulatedContent, crisisDetected);
+            // Use ref to access latest options without dependency issues
+            optionsRef.current.onComplete?.(accumulatedContent, crisisDetected);
             setIsStreaming(false);
             return;
           }
 
           try {
             const parsed = JSON.parse(data);
-            const token = parsed.content ?? '';
+            const tokenText = parsed.content ?? '';
             if (parsed.crisis) crisisDetected = true;
+            // Check for error in stream
+            if (parsed.error) {
+              logger.warn('Stream error from server:', parsed.error);
+            }
 
-            if (token) {
-              accumulatedContent += token;
+            if (tokenText) {
+              accumulatedContent += tokenText;
               setCurrentMessage(prev =>
                 prev ? { ...prev, content: accumulatedContent } : null
               );
-              options.onChunk?.(token);
+              optionsRef.current.onChunk?.(tokenText);
             }
           } catch {
             logger.warn('Failed to parse SSE chunk:', data);
@@ -130,7 +138,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
 
       // Stream ended without [DONE] - treat as complete
       setCurrentMessage(prev => prev ? { ...prev, isComplete: true } : null);
-      options.onComplete?.(accumulatedContent, crisisDetected);
+      optionsRef.current.onComplete?.(accumulatedContent, crisisDetected);
 
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -139,12 +147,13 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       }
       const error = err instanceof Error ? err : new Error('Streaming failed');
       setError(error);
-      options.onError?.(error);
+      optionsRef.current.onError?.(error);
       logger.error('Streaming error:', error);
     } finally {
       setIsStreaming(false);
     }
-  }, [options]);
+    // CRITICAL FIX: Empty dependency array - options accessed via ref to prevent recreating callback
+  }, []);
 
   const stopStreaming = useCallback(() => {
     if (abortControllerRef.current) {

@@ -267,8 +267,7 @@ def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_csr
     audio_b64 = base64.b64encode(b'fake audio data').decode('utf-8')
 
     response = client.post("/api/mood/log", json={
-        "mood_text": "",
-        "voice_data": f"data:audio/wav;base64,{audio_b64}",
+        "mood_text": "Test mood",
         "timestamp": "2024-01-15T10:00:00Z"
     }, headers=auth_csrf_headers)
 

@@ -53,7 +53,7 @@ class MoodLogRequest(BaseRequest):
     category: MoodCategory | None = None
     intensity: MoodIntensity | None = None
     note: SanitizedString | None = Field(None, max_length=1000, description="Optional mood note")
-    voice_data: str | None = Field(None, description="Base64 encoded voice recording")
+    voice_url: str | None = Field(None, description="URL to voice recording in Firebase Storage")
     triggers: list[TriggerType] | None = Field(default_factory=list, max_length=5)
     location: dict[str, float] | None = None  # {"lat": float, "lng": float}
     weather: dict[str, Any] | None = None  # Weather context

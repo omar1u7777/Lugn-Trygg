@@ -25,7 +25,7 @@ class DataRetentionService:
             'chat_sessions': 2555,
             'ai_conversations': 2555,
             'journal_entries': 2555,
-            'voice_data': 2555,
+            'voice_recordings': 2555,
             'wellness_activities': 2555,
             'notifications': 365,  # 1 year for non-critical data
             'feedback': 2555,
@@ -160,7 +160,7 @@ class DataRetentionService:
                 if batch_count > 0:
                     batch.commit()
 
-            elif collection_name == 'voice_data':
+            elif collection_name == 'voice_recordings':
                 # Voice data is stored in mood entries, check mood timestamps
                 moods_ref = db.collection('users').document(user_id).collection('moods')  # type: ignore
                 old_moods = moods_ref.where(filter=FieldFilter('timestamp', '<', cutoff_iso)).stream()
@@ -170,9 +170,9 @@ class DataRetentionService:
 
                 for doc in old_moods:
                     mood_data = doc.to_dict()
-                    # Remove voice_data field if it exists
-                    if 'voice_data' in mood_data:
-                        update_data = {'voice_data': None, 'voice_transcript': None}
+                    # Remove voice_url field if it exists
+                    if 'voice_url' in mood_data:
+                        update_data = {'voice_url': None, 'voice_transcript': None}
                         batch.update(doc.reference, update_data)
                         batch_count += 1
                         deleted_count += 1
