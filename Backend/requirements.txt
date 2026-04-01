@@ -30,6 +30,9 @@ bleach==6.3.0
 # Caching & Rate Limiting
 redis==7.1.0
 
+# Server
+waitress==3.0.2
+
 # AI & ML - OpenAI (pinned)
 openai==1.58.1
 
