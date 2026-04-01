@@ -4,9 +4,9 @@
  * Provides graceful error handling for individual features
  * without crashing the entire application.
  */
-
 import React, { Component, ReactNode } from 'react';
-import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';import { logger } from '../../utils/logger';
+import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { logger } from '../../utils/logger';
 
 
 interface Props {
