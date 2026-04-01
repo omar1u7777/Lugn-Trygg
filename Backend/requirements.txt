@@ -1,15 +1,15 @@
 # Core Flask Dependencies
-Flask==3.0.3
-Flask-Limiter==3.8.0
+Flask==3.1.2
+Flask-Limiter==4.1.1
 Flask-Babel==4.0.0
 Werkzeug==3.1.5
 
 # JWT Authentication
-PyJWT==2.9.0
+PyJWT==2.11.0
 flask-jwt-extended==4.7.1
 
 # Firebase
-firebase-admin==6.5.0
+firebase-admin==7.1.0
 
 # Environment & Configuration
 python-dotenv==1.0.0
@@ -19,16 +19,16 @@ twilio==9.0.0
 sendgrid==6.11.0
 
 # HTTP & Requests
-requests==2.31.0
+requests==2.32.5
 
 # Security & Encryption
-bcrypt==4.0.1
-pycryptodome==3.21.0
-cryptography==43.0.3
-bleach==6.2.0
+bcrypt==5.0.0
+pycryptodome==3.23.0
+cryptography==46.0.4
+bleach==6.3.0
 
 # Caching & Rate Limiting
-redis==5.2.1
+redis==7.1.0
 
 # AI & ML - OpenAI (pinned)
 openai==1.58.1
@@ -36,25 +36,25 @@ openai==1.58.1
 # AI & ML - Google Cloud (pinned, minimal)
 google-cloud-speech==2.28.1
 google-cloud-language==2.15.0
-google-cloud-storage==2.19.0
+google-cloud-storage==3.9.0
 
 # ML & Data Science (pinned)
-scikit-learn==1.5.2
-numpy==1.26.4
-pandas==2.2.3
-joblib==1.4.2
+scikit-learn==1.8.0
+numpy==2.4.2
+pandas==3.0.0
+joblib==1.5.3
 
 # Natural Language Processing (pinned)
-transformers==4.47.1
+transformers==5.4.0
 # torch is optional - install separately if needed for ML features
 
 # Vector Database & Semantic Search (optional - has fallback)
 pinecone-client==5.0.1
-sentence-transformers==3.2.1
+sentence-transformers==5.3.0
 
 # Audio Analysis (optional - has fallback)
-librosa==0.10.2
-soundfile==0.12.1
+librosa==0.11.0
+soundfile==0.13.1
 
 # Explainable AI (optional - has fallback)
 shap==0.46.0
@@ -63,43 +63,43 @@ shap==0.46.0
 stripe==11.3.0
 
 # Database & Storage
-google-cloud-firestore==2.19.0
+google-cloud-firestore==2.23.0
 
 # Email Services
 resend==0.8.0
 
 # Data Validation
-pydantic==2.10.3
+pydantic==2.12.5
 pydantic-settings==2.7.0
-email-validator==2.2.0
-marshmallow==3.23.2
+email-validator==2.3.0
+marshmallow==4.2.2
 
 # API Documentation
-apispec==6.6.1
+apispec==6.9.0
 flasgger==0.9.7.1
 
 # Monitoring & Logging
-prometheus-client==0.21.1
-sentry-sdk[flask]==1.40.6
-structlog==24.4.0
-python-json-logger==2.0.7
+prometheus-client==0.24.1
+sentry-sdk[flask]==2.52.0
+structlog==25.5.0
+python-json-logger==4.0.0
 
 # Health Data Integration
-oauthlib==3.2.2
+oauthlib==3.3.1
 requests-oauthlib==2.0.0
 
 # Utilities
-Pillow==10.4.0
+Pillow==12.1.0
 python-dateutil==2.9.0.post0
-pytz==2024.2
+pytz==2025.2
 
 # Two-Factor Authentication
 pyotp==2.9.0
 qrcode[pil]==8.0
-webauthn==2.2.0
+webauthn==2.7.0
 
 # System Monitoring
-psutil==6.1.1
+psutil==7.2.2
 
 # Task Scheduling
 schedule==1.2.2

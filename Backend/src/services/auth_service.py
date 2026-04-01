@@ -245,7 +245,7 @@ class AuthService:
             try:
                 AuthRepository().update_last_login(user_uid)
             except Exception:
-                logger.warning("Failed to update last_login for user %s", user_uid)
+                logger.warning("Failed to update last_login for user %s***", str(user_uid)[:8])
 
             user = User(uid=str(user_uid), email=str(user_email))
             logger.info("Login successful for user: %s", str(user_uid).replace('\n', '').replace('\r', '')[:100])

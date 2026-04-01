@@ -65,7 +65,7 @@ class ChatRAGService:
     
     def __init__(self, user_id: str):
         self.user_id = user_id
-        self.session_id = hashlib.md5(f"{user_id}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
+        self.session_id = hashlib.sha256(f"{user_id}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
         
         # Initialize embedding model
         self.embedding_model = None
