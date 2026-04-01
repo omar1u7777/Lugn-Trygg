@@ -19,7 +19,7 @@ twilio==9.0.0
 sendgrid==6.11.0
 
 # HTTP & Requests
-requests==2.32.5
+requests==2.31.0
 
 # Security & Encryption
 bcrypt==5.0.0
@@ -66,7 +66,6 @@ stripe==11.3.0
 google-cloud-firestore==2.23.0
 
 # Email Services
-resend==0.8.0
 
 # Data Validation
 pydantic==2.12.5
@@ -97,6 +96,7 @@ pytz==2025.2
 pyotp==2.9.0
 qrcode[pil]==8.0
 webauthn==2.7.0
+pyOpenSSL==25.3.0
 
 # System Monitoring
 psutil==7.2.2
