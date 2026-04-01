@@ -265,6 +265,7 @@ try:
     from src.routes.auth_routes import auth_bp
     from src.routes.mood_routes import mood_bp
     from src.routes.mood_stats_routes import mood_stats_bp
+    from src.routes.mood_analytics_routes import mood_analytics_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.multimedia_memory_routes import multimedia_memory_bp
     from src.routes.memory_analysis_routes import memory_analysis_bp
@@ -395,7 +396,7 @@ try:
         """WSGI middleware that rewrites /api/<resource> to /api/v1/<resource>."""
 
         _V1_SEGMENTS = frozenset([
-            'auth', 'admin', 'mood', 'mood-stats', 'memory', 'ai', 'ai-helpers',
+            'auth', 'admin', 'mood', 'mood-stats', 'mood-analytics', 'memory', 'ai', 'ai-helpers',
             'chatbot', 'feedback', 'notifications', 'referral', 'users',
             'subscription', 'metrics', 'predictive', 'rate-limit', 'dashboard',
             'onboarding', 'privacy', 'journal', 'challenges', 'rewards', 'audio',
@@ -455,6 +456,12 @@ try:
         logger.info("✅ Registered mood_stats_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register mood_stats_bp: {e}")
+
+    try:
+        app.register_blueprint(mood_analytics_bp, url_prefix='/api/v1/mood-analytics')
+        logger.info("✅ Registered mood_analytics_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register mood_analytics_bp: {e}")
 
     try:
         app.register_blueprint(memory_bp, url_prefix='/api/v1/memory')

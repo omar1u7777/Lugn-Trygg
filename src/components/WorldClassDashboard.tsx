@@ -22,7 +22,7 @@ import { DashboardActivity, type ActivityItem } from './Dashboard/DashboardActiv
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 
 // Feature Components - Direct imports to prevent code splitting
-import MoodLogger from './MoodLogger';
+import { SuperMoodLogger } from './SuperMoodLogger';
 import MoodList from './MoodList';
 import WorldClassAIChat from './WorldClassAIChat';
 import WorldClassGamification from './WorldClassGamification';
@@ -530,7 +530,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           </Button>
         </div>
 
-        {activeView === 'mood-basic' && <MoodLogger />}
+        {activeView === 'mood-basic' && <SuperMoodLogger showRecentMoods={true} />}
         {activeView === 'mood-list' && <MoodList onClose={handleCloseFeature} />}
         {activeView === 'chat' && <WorldClassAIChat onClose={handleCloseFeature} />}
         {activeView === 'analytics' && (
@@ -609,7 +609,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {t('worldDashboard.takeAMoment')}
               </p>
             </div>
-            <MoodLogger />
+            <SuperMoodLogger showRecentMoods={false} />
           </div>
         </Card>
 

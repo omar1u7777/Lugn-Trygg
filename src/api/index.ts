@@ -35,6 +35,20 @@ export * from './advancedMood';
 export * from './insights';
 export * from './memoryUnified';
 
+// Mood Analytics - explicit exports to avoid conflicts
+export {
+  getCorrelationAnalysis,
+  getClinicalFlags,
+  getImpactAnalysis,
+  type TagCorrelation,
+  type CorrelationInsight,
+  type CorrelationAnalysisResponse,
+  type ClinicalFlag,
+  type ClinicalRecommendation,
+  type ClinicalFlagsResponse,
+  type ImpactAnalysisResponse
+} from './moodAnalytics';
+
 // Legacy exports for backward compatibility
 export { api as default } from './client';
 export { API_BASE_URL } from './client';

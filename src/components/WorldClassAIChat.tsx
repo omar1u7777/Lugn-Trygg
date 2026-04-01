@@ -205,6 +205,15 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Load History
   useEffect(() => {
@@ -228,7 +237,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     try {
       // First, load from cache for instant display
       const cachedMessages = getCachedMessages();
-      if (cachedMessages.length > 0) {
+      if (cachedMessages.length > 0 && isMountedRef.current) {
         setMessages(cachedMessages);
         setLoading(false);
       }
@@ -236,6 +245,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       // Then fetch from server and sync
       await executeWithRecovery('load-chat-history', async () => {
         const historyResponse = await getChatHistory(user.user_id);
+        
+        // Only update state if component is still mounted
+        if (!isMountedRef.current) return [];
+        
         const history = historyResponse?.conversation || [];
         const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => ({
           id: `history-${i}`,
@@ -249,8 +262,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         // Sync with cache
         await syncWithServer(formatted);
         
-        // Update messages with server data
-        setMessages(formatted);
+        // Update messages with server data only if still mounted
+        if (isMountedRef.current) {
+          setMessages(formatted);
+        }
         
         return formatted;
       });

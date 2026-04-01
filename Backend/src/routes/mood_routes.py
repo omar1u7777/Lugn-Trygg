@@ -322,6 +322,24 @@ def log_mood() -> Response | tuple[Response, int]:
         # Ensure tags is a list
         if not isinstance(tags, list):
             tags = [tags] if tags else []
+        
+        # Circumplex Model: Get valence and arousal (1-10 scale)
+        valence = data.get('valence') if data else None
+        arousal = data.get('arousal') if data else None
+        if valence is not None:
+            try:
+                valence = int(valence)
+                if valence < 1 or valence > 10:
+                    valence = None
+            except (ValueError, TypeError):
+                valence = None
+        if arousal is not None:
+            try:
+                arousal = int(arousal)
+                if arousal < 1 or arousal > 10:
+                    arousal = None
+            except (ValueError, TypeError):
+                arousal = None
 
         timestamp = (
             data.get('timestamp', datetime.now(UTC).isoformat())
@@ -474,7 +492,13 @@ def log_mood() -> Response | tuple[Response, int]:
                 'ai_analysis': sentiment_analysis or voice_analysis,
                 'sentiment_analysis': sentiment_analysis,
                 'voice_analysis': voice_analysis,
-                'transcript': transcript
+                'transcript': transcript,
+                # Circumplex Model
+                'valence': valence,  # Pleasantness (1-10)
+                'arousal': arousal,  # Energy/Activation (1-10)
+                # Tags and context for correlation analysis
+                'tags': tags,
+                'context': context
             }
             logger.info(f"💾 Prepared mood_data: score={final_score}, sentiment={mood_data.get('sentiment')}")
 

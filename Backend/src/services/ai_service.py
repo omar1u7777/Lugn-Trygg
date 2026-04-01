@@ -1400,11 +1400,68 @@ Långsiktiga välbefinnande-strategier:
                        f"technique={technique.value if technique else 'none'}, "
                        f"distortions={analysis['detected_distortions']}")
 
-            # 3. Generate base therapeutic prompt
+            # 3. Fetch user's mood history for context-aware responses
+            mood_context = ""
+            if user_id:
+                try:
+                    from src.firebase_config import db
+                    mood_ref = db.collection("users").document(user_id).collection("moods")
+                    recent_moods = list(mood_ref.order_by("timestamp", direction="DESCENDING").limit(7).stream())
+                    
+                    if recent_moods:
+                        mood_scores = []
+                        for mood_doc in recent_moods:
+                            mood_data = mood_doc.to_dict()
+                            score = mood_data.get("score", mood_data.get("sentiment_score", 5))
+                            mood_scores.append(score)
+                        
+                        avg_mood = sum(mood_scores) / len(mood_scores) if mood_scores else 5
+                        
+                        # Determine trend
+                        if len(mood_scores) >= 3:
+                            recent_avg = sum(mood_scores[:3]) / 3
+                            older_avg = sum(mood_scores[3:]) / len(mood_scores[3:]) if len(mood_scores) > 3 else recent_avg
+                            if recent_avg > older_avg + 1:
+                                trend = "förbättras"
+                            elif recent_avg < older_avg - 1:
+                                trend = "försämras"
+                            else:
+                                trend = "är stabilt"
+                        else:
+                            trend = "är okänt (för lite data)"
+                        
+                        mood_context = f"""\n\nAnvändarens humörkontext (senaste 7 dagarna):
+- Genomsnittligt humör: {avg_mood:.1f}/10
+- Humörtrend: {trend}
+- Antal inlägg: {len(mood_scores)}
+- Senaste humör: {mood_scores[0]}/10
+
+Ta hänsyn till användarens humörmönster när du svarar."""
+                        logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}")
+                except Exception as mood_err:
+                    logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
+                    mood_context = ""
+            
+            # 4. Generate base therapeutic prompt with mood context
             base_prompt = framework.generate_therapeutic_prompt(modality, technique)
             
-            # 4. Apply RAG if user_id available for personalization
-            final_prompt = base_prompt
+            # Add Swedish language enforcement and mood context
+            enhanced_prompt = f"""Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.
+
+Din roll:
+- Lyssna aktivt och empatiskt
+- Ge stöd och validering
+- Föreslå evidensbaserade coping-strategier (CBT, DBT, ACT)
+- Uppmuntra professionell hjälp vid behov
+- Aldrig diagnostisera eller ge medicinsk rådgivning
+
+{base_prompt}
+{mood_context}
+
+VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig."""
+            
+            # 5. Apply RAG if user_id available for personalization
+            final_prompt = enhanced_prompt
             if user_id:
                 try:
                     from .rag_service import get_rag_service
@@ -1416,10 +1473,10 @@ Långsiktiga välbefinnande-strategier:
                     )
                     logger.info(f"✅ RAG augmentation applied for user {user_id[:8]}...")
                 except Exception as rag_err:
-                    logger.warning(f"⚠️ RAG augmentation failed: {rag_err}, using base prompt")
-                    final_prompt = base_prompt
+                    logger.warning(f"⚠️ RAG augmentation failed: {rag_err}, using enhanced prompt")
+                    final_prompt = enhanced_prompt
 
-            # 5. Build messages for OpenAI
+            # 6. Build messages for OpenAI
             messages: list[dict[str, str]] = [{"role": "system", "content": final_prompt}]
 
             # Add relevant conversation history (last 6 exchanges for context)
@@ -1432,7 +1489,7 @@ Långsiktiga välbefinnande-strategier:
             # Add current message
             messages.append({"role": "user", "content": user_message})
 
-            # 6. Call OpenAI with timeout
+            # 7. Call OpenAI with timeout
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,  # type: ignore[arg-type]
@@ -1448,16 +1505,16 @@ Långsiktiga välbefinnande-strategier:
                 return self._generate_fallback_therapeutic_response(user_message)
             ai_response = content.strip()
 
-            # 7. Enhanced sentiment analysis for emotion detection
+            # 8. Enhanced sentiment analysis for emotion detection
             sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
 
-            # 8. Generate suggested actions based on sentiment and technique
+            # 9. Generate suggested actions based on sentiment and technique
             suggested_actions = self._generate_suggested_actions(
                 sentiment_analysis, 
                 analysis['detected_distortions']
             )
 
-            # 9. Generate interactive exercise if appropriate
+            # 10. Generate interactive exercise if appropriate
             suggested_exercise = None
             if technique and analysis['detected_distortions'] or analysis['avoidance_detected']:
                 try:
@@ -1485,7 +1542,7 @@ Långsiktiga välbefinnande-strategier:
                 except Exception as ws_err:
                     logger.warning(f"⚠️ Worksheet generation failed: {ws_err}")
 
-            # 10. Index conversation for future RAG if user_id available
+            # 11. Index conversation for future RAG if user_id available
             if user_id:
                 try:
                     from .rag_service import get_rag_service

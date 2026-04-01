@@ -25,7 +25,6 @@ const getUserId = (user: unknown): string => {
 
 // Lazy-load feature surfaces so browsers only download them on demand
 const WorldClassAIChat = lazy(() => import('./WorldClassAIChat'));
-const WorldClassMoodLogger = lazy(() => import('./WorldClassMoodLogger'));
 const WorldClassGamification = lazy(() => import('./WorldClassGamification'));
 const WorldClassAnalytics = lazy(() => import('./WorldClassAnalytics'));
 const DailyInsights = lazy(() => import('./DailyInsights'));
@@ -34,8 +33,10 @@ const Leaderboard = lazy(() => import('./Leaderboard'));
 const GroupChallenges = lazy(() => import('./GroupChallenges'));
 const MemoryRecorder = lazy(() => import('./MemoryRecorder'));
 const MemoryList = lazy(() => import('./MemoryList'));
-const MoodLogger = lazy(() => import('./MoodLogger'));
 const MoodList = lazy(() => import('./MoodList'));
+
+// SuperMoodLogger - The ultimate mood tracking system
+const SuperMoodLogger = lazy(() => import('./SuperMoodLogger').then(m => ({ default: m.SuperMoodLogger })));
 const RelaxingSounds = lazy(() => import('./RelaxingSounds'));
 const PeerSupportChat = lazy(() => import('./PeerSupportChat'));
 const CrisisAlert = lazy(() => import('./CrisisAlert'));
@@ -49,10 +50,13 @@ export const WorldClassAIChatWrapper: React.FC = () => {
   return <WorldClassAIChat onClose={() => navigate(-1)} />;
 };
 
-// WorldClassMoodLogger Wrapper
+// SuperMoodLogger Wrapper (replaces WorldClassMoodLogger)
 export const WorldClassMoodLoggerWrapper: React.FC = () => {
-  const navigate = useNavigate();
-  return <WorldClassMoodLogger onClose={() => navigate(-1)} />;
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <SuperMoodLogger showRecentMoods={true} enableVoiceRecording={false} />
+    </div>
+  );
 };
 
 // WorldClassGamification Wrapper
@@ -200,10 +204,16 @@ export const MemoryListWrapper: React.FC = () => {
   return <MemoryList userId={getUserId(user)} />;
 };
 
-// MoodLogger basic wrapper - reuses existing component with navigation callbacks
+// MoodLogger basic wrapper - uses SuperMoodLogger
 export const MoodLoggerBasicWrapper: React.FC = () => {
-  const navigate = useNavigate();
-  return <MoodLogger onMoodLogged={() => navigate(-1)} />;
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <SuperMoodLogger 
+        showRecentMoods={true} 
+        enableVoiceRecording={false}
+      />
+    </div>
+  );
 };
 
 export const MoodListWrapper: React.FC = () => {

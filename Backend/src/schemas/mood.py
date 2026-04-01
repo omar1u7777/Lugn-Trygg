@@ -43,8 +43,13 @@ class TriggerType(StrEnum):
 
 # Mood logging schemas
 class MoodLogRequest(BaseRequest):
-    """Mood logging request"""
+    """Mood logging request with Circumplex Model support"""
     mood_value: MoodValue = Field(..., ge=1, le=10, description="Mood value (1-10)")
+    
+    # Circumplex Model (Russell's model of affect)
+    valence: int | None = Field(None, ge=1, le=10, description="Valence: Pleasantness (1=unpleasant, 10=pleasant)")
+    arousal: int | None = Field(None, ge=1, le=10, description="Arousal: Energy/Activation (1=calm, 10=excited)")
+    
     category: MoodCategory | None = None
     intensity: MoodIntensity | None = None
     note: SanitizedString | None = Field(None, max_length=1000, description="Optional mood note")
@@ -89,6 +94,11 @@ class MoodEntry(BaseModel):
     id: str
     user_id: str
     mood_value: MoodValue
+    
+    # Circumplex Model
+    valence: int | None = Field(None, ge=1, le=10, description="Valence: Pleasantness")
+    arousal: int | None = Field(None, ge=1, le=10, description="Arousal: Energy/Activation")
+    
     category: MoodCategory | None
     intensity: MoodIntensity | None
     note: SanitizedString | None
