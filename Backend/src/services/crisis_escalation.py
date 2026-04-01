@@ -336,10 +336,10 @@ class CrisisEscalationService:
                         from_=self.twilio_phone,
                         to=phone
                     )
-                    logger.info(f"📱 Emergency contact SMS sent to {contact_name}")
+                    logger.info(f"📱 Emergency contact SMS sent to {contact_name[:3]}***")
                     
                 except Exception as e:
-                    logger.error(f"❌ Failed to SMS contact {contact_name}: {e}")
+                    logger.error(f"❌ Failed to SMS contact {contact_name[:3]}***: {str(e)[:50]}")
             
             # Email to contact
             if email and notify_email and self.sendgrid_client:
@@ -350,10 +350,10 @@ class CrisisEscalationService:
                         alert=alert,
                         user_name=user_name
                     )
-                    logger.info(f"📧 Emergency contact email sent to {contact_name}")
+                    logger.info(f"📧 Emergency contact email sent to {contact_name[:3]}***")
                     
                 except Exception as e:
-                    logger.error(f"❌ Failed to email contact {contact_name}: {e}")
+                    logger.error(f"❌ Failed to email contact {contact_name[:3]}***: {str(e)[:50]}")
     
     async def _send_contact_email(self, to_email: str, to_name: str, 
                                    alert: CrisisAlert, user_name: str):
