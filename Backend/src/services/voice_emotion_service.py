@@ -626,8 +626,8 @@ def analyze_voice_emotion_professional(audio_bytes: bytes, transcript: Optional[
     
     # Try professional analysis first
     result = analyzer.analyze_audio(audio_bytes)
-    
+
     # If text available, could enhance with text sentiment
     # (multimodal fusion would go here)
-    
+
     return result
