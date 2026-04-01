@@ -7,10 +7,43 @@ interface UseVoiceInputOptions {
   language?: string;
 }
 
+// Define proper types for Speech Recognition API
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: { transcript: string };
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
 declare global {
   interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
+    SpeechRecognition: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
   }
 }
 
@@ -18,7 +51,7 @@ export const useVoiceInput = (options: UseVoiceInputOptions = {}) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef('');
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -42,7 +75,7 @@ export const useVoiceInput = (options: UseVoiceInputOptions = {}) => {
       logger.info('Voice recognition started');
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const chunk: string = event.results[i][0].transcript;
@@ -58,7 +91,7 @@ export const useVoiceInput = (options: UseVoiceInputOptions = {}) => {
       setTranscript((finalTranscriptRef.current + interimTranscript).trim());
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       logger.error('Speech recognition error:', event.error);
       const messages: Record<string, string> = {
         'no-speech': 'Inget tal upptäcktes',

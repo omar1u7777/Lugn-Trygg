@@ -1082,6 +1082,7 @@ Långsiktiga välbefinnande-strategier:
     def predictive_mood_analytics(self, mood_history: list[dict], days_ahead: int = 7) -> dict[str, Any]:
         """
         Advanced predictive analytics for mood forecasting using ML techniques
+        Uses user's mood score (1-10 scale) for clinically meaningful predictions.
         """
         if len(mood_history) < 14:
             return {
@@ -1092,14 +1093,16 @@ Långsiktiga välbefinnande-strategier:
             }
 
         try:
-            # Extract and prepare data
+            # Extract and prepare data — prefer user's 1-10 score
             scores = []
             dates = []
 
             for entry in mood_history[-60:]:  # Use last 60 entries for better prediction
                 try:
-                    ai_analysis = entry.get("ai_analysis", {})
-                    score = float(ai_analysis.get("score", entry.get("sentiment_score", 0)))
+                    raw_score = entry.get("score", entry.get("sentiment_score", 0))
+                    score = float(raw_score)
+                    # Normalize to 1-10 range
+                    score = max(1.0, min(10.0, score))
                     timestamp = parse_iso_timestamp(entry.get("timestamp"))
                     scores.append(score)
                     dates.append(timestamp)
@@ -1139,21 +1142,25 @@ Långsiktiga välbefinnande-strategier:
                 # Simple exponential smoothing prediction
                 prediction = last_score + (current_trend * (i + 1))
                 # Add some randomness based on historical volatility
-                noise = np.random.normal(0, volatility * 0.5)
+                noise = np.random.normal(0, volatility * 0.3)
                 prediction += noise
-                # Bound predictions between -1 and 1
-                prediction = np.clip(prediction, -1.0, 1.0)
+                # Bound predictions to 1-10 scale
+                prediction = np.clip(prediction, 1.0, 10.0)
                 future_predictions.append(float(prediction))
 
-            # Risk assessment
+            # Risk assessment (1-10 scale: low mood < 4)
             risk_factors = []
-            if volatility > 0.6:
-                risk_factors.append("high_mood_volatility")
+            recent_avg = float(np.mean(scores_array[-7:]))
+            avg_forecast = float(np.mean(future_predictions))
+            if volatility > 1.5:
+                risk_factors.append("high_volatility_predicted")
+            if avg_forecast < 4.0:
+                risk_factors.append("low_mood_forecast")
             if current_trend < -0.1:
                 risk_factors.append("negative_trend")
-            if np.mean(scores_array[-7:]) < -0.3:
+            if recent_avg < 4.0:
                 risk_factors.append("persistently_low_mood")
-            if len([s for s in scores_array[-7:] if s < -0.5]) > 3:
+            if len([s for s in scores_array[-7:] if s < 4.0]) > 3:
                 risk_factors.append("frequent_negative_moods")
 
             # Generate recommendations based on analysis
@@ -1161,16 +1168,18 @@ Långsiktiga välbefinnande-strategier:
                 risk_factors, float(current_trend), float(volatility), future_predictions
             )
 
-            # Calculate confidence based on data quality and consistency
-            data_consistency = 1.0 - (volatility / 2.0)  # Lower volatility = higher confidence
+            # Calculate confidence with NaN/Inf protection
+            data_consistency = max(0.0, min(1.0, 1.0 - (volatility / 5.0)))  # Scaled for 1-10
             data_quantity = min(1.0, len(scores_array) / 60.0)  # More data = higher confidence
-            confidence = (data_consistency + data_quantity) / 2.0
+            confidence = float(max(0.0, min(1.0, (data_consistency + data_quantity) / 2.0)))
+            if not np.isfinite(confidence):
+                confidence = 0.3
 
             return {
                 "forecast": {
                     "next_week_average": float(np.mean(future_predictions)),
-                    "trend_direction": "improving" if current_trend > 0.05 else "declining" if current_trend < -0.05 else "stable",
-                    "volatility_level": "high" if volatility > 0.6 else "medium" if volatility > 0.3 else "low",
+                    "trend_direction": "improving" if current_trend > 0.1 else "declining" if current_trend < -0.1 else "stable",
+                    "volatility_level": "high" if volatility > 2.0 else "medium" if volatility > 1.0 else "low",
                     "daily_predictions": future_predictions
                 },
                 "current_analysis": {
@@ -1361,26 +1370,31 @@ Långsiktiga välbefinnande-strategier:
             return self._generate_fallback_therapeutic_response(user_message)
 
         try:
-            # 1. Check for crisis indicators first (using semantic detection)
+            # 1. CRITICAL: Perform sentiment analysis FIRST to influence response
+            sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
+            
+            # 2. Check for crisis indicators (using semantic detection and sentiment)
             crisis_analysis = self.detect_crisis_indicators(user_message)
             if crisis_analysis["requires_immediate_attention"]:
                 return {
                     "response": self._generate_crisis_response(crisis_analysis),
                     "crisis_detected": True,
                     "crisis_analysis": crisis_analysis,
+                    "sentiment_analysis": sentiment_analysis,
                     "ai_generated": True,
                     "model_used": "crisis_detection"
                 }
 
-            # 2. Use therapeutic framework to analyze and select intervention
+            # 3. Use therapeutic framework to analyze and select intervention
             from .therapeutic_framework import TherapeuticContext, get_therapeutic_framework
 
             framework = get_therapeutic_framework()
 
-            # Build therapeutic context
+            # Build therapeutic context with sentiment-enhanced emotion detection
+            current_emotion = sentiment_analysis.get('primary_emotion') or self._extract_emotion(user_message)
             therapeutic_context = TherapeuticContext(
                 user_id=user_id or "anonymous",
-                current_emotion=self._extract_emotion(user_message),
+                current_emotion=current_emotion,
                 current_thoughts=[user_message],
                 detected_distortions=[],  # Will be detected by framework
                 conversation_stage="exploration",
@@ -1398,9 +1412,10 @@ Långsiktiga välbefinnande-strategier:
 
             logger.info(f"🎯 Therapeutic analysis: modality={modality.value if modality else 'none'}, "
                        f"technique={technique.value if technique else 'none'}, "
+                       f"sentiment={sentiment_analysis.get('sentiment', 'unknown')}, "
                        f"distortions={analysis['detected_distortions']}")
 
-            # 3. Fetch user's mood history for context-aware responses
+            # 4. Fetch user's mood history for context-aware responses
             mood_context = ""
             if user_id:
                 try:
@@ -1442,8 +1457,18 @@ Ta hänsyn till användarens humörmönster när du svarar."""
                     logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
                     mood_context = ""
 
-            # 4. Generate base therapeutic prompt with mood context
+            # 5. Generate base therapeutic prompt with sentiment and mood context
             base_prompt = framework.generate_therapeutic_prompt(modality, technique)
+
+            # Add sentiment-specific guidance based on analysis
+            sentiment_guidance = ""
+            sentiment_label = sentiment_analysis.get('sentiment', 'NEUTRAL')
+            if sentiment_label == 'NEGATIVE':
+                sentiment_guidance = "Användaren verkar ha negativa känslor just nu - var extra stödjande, validera deras känslor, och erbjud konkreta coping-strategier."
+            elif sentiment_label == 'POSITIVE':
+                sentiment_guidance = "Användaren verkar vara i ett positivt tillstånd - uppmärksamma och förstärk dessa positiva känslor."
+            else:
+                sentiment_guidance = "Användarens sinnesstämning är neutral - var nyfiken och utforskande."
 
             # Add Swedish language enforcement and mood context
             enhanced_prompt = f"""Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.
@@ -1454,6 +1479,8 @@ Din roll:
 - Föreslå evidensbaserade coping-strategier (CBT, DBT, ACT)
 - Uppmuntra professionell hjälp vid behov
 - Aldrig diagnostisera eller ge medicinsk rådgivning
+
+{sentiment_guidance}
 
 {base_prompt}
 {mood_context}
@@ -2115,135 +2142,12 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             scores = []
             for entry in mood_history[-30:]:
                 try:
-                    score = float(entry.get("sentiment_score", entry.get("score", 0)))
-                    scores.append(score)
-                except (ValueError, TypeError):
-                    continue
-
-            if len(scores) < 3:
-                return {
-                    "forecast": "Behöver fler numeriska humörvärden",
-                    "confidence": 0.0,
-                    "model_info": "insufficient_numeric_data"
-                }
-
-            scores_array = np.array(scores)
-
-            # Simple moving average forecast
-            recent_avg = float(np.mean(scores_array[-7:])) if len(scores_array) >= 7 else float(np.mean(scores_array))
-            trend = np.polyfit(range(len(scores_array)), scores_array, 1)[0] if len(scores_array) >= 3 else 0.0
-
-            # Generate forecast using simple exponential smoothing
-            forecast_scores = []
-            last_score = scores_array[-1]
-
-            for i in range(days_ahead):
-                # Dampen trend over time and add some regression to mean
-                damping_factor = 0.9 ** (i + 1)  # Trend dampens over time
-                predicted_score = last_score + (trend * damping_factor * (i + 1))
-                # Add slight regression to mean
-                predicted_score = predicted_score * 0.7 + recent_avg * 0.3
-                # Clip to valid range
-                predicted_score = np.clip(predicted_score, -1.0, 1.0)
-                forecast_scores.append(float(predicted_score))
-
-            avg_forecast = float(np.mean(forecast_scores))
-            trend_direction = "improving" if avg_forecast > recent_avg + 0.1 else "declining" if avg_forecast < recent_avg - 0.1 else "stable"
-
-            # Simple risk assessment
-            volatility = float(np.std(scores_array))
-            risk_factors = []
-            if volatility > 0.4:
-                risk_factors.append("high_volatility")
-            if avg_forecast < -0.2:
-                risk_factors.append("low_mood_forecast")
-            if trend < -0.05:
-                risk_factors.append("negative_trend")
-
-            return {
-                "forecast": {
-                    "daily_predictions": forecast_scores,
-                    "average_forecast": avg_forecast,
-                    "trend": trend_direction,
-                    "confidence_interval": {
-                        "lower": float(np.percentile(forecast_scores, 25)),
-                        "upper": float(np.percentile(forecast_scores, 75))
-                    }
-                },
-                "model_info": {
-                    "algorithm": "simple_exponential_smoothing",
-                    "data_points_used": len(scores_array),
-                    "method": "fast_statistical"
-                },
-                "current_analysis": {
-                    "recent_average": recent_avg,
-                    "historical_volatility": volatility,
-                    "data_points": len(scores_array)
-                },
-                "risk_factors": risk_factors,
-                "recommendations": self._generate_simple_forecast_recommendations(risk_factors, trend_direction, avg_forecast),
-                "confidence": 0.6,  # Lower confidence than ML but much faster
-                "forecast_period_days": days_ahead
-            }
-
-        except Exception as e:
-            logger.error(f"Simple forecasting failed: {str(e)}")
-            return {
-                "forecast": "Enkel prognos misslyckades",
-                "confidence": 0.0,
-                "error": str(e),
-                "fallback": self.predictive_mood_analytics(mood_history, days_ahead)
-            }
-
-    def predictive_mood_forecasting_sklearn(self, mood_history: list[dict], days_ahead: int = 7, user_id: str | None = None) -> dict[str, Any]:
-        """
-        Advanced predictive mood forecasting using scikit-learn ML models trained on historical mood logs
-
-        Args:
-            mood_history: List of mood entries with timestamps and scores
-            days_ahead: Number of days to forecast
-            user_id: User ID for caching (optional but recommended)
-
-        Returns:
-            ML-based mood forecast with confidence intervals
-        """
-        # For very small datasets, use simple forecasting first
-        if len(mood_history) < 10:
-            logger.info("Using simple forecasting for small dataset")
-            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
-
-        try:
-            import time
-
-            import numpy as np
-            import sklearn
-            from sklearn.ensemble import RandomForestRegressor
-            from sklearn.linear_model import LinearRegression
-            from sklearn.metrics import mean_squared_error
-            from sklearn.model_selection import train_test_split
-
-        except ImportError:
-            logger.warning("scikit-learn not available, using simple forecasting")
-            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
-
-        if len(mood_history) < 14:
-            return self.predictive_mood_forecasting_simple(mood_history, days_ahead)
-
-        # Try to get cached model first
-        if user_id:
-            cached_result = self._get_cached_ml_model(user_id, mood_history)
-            if cached_result:
-                return cached_result
-
-        try:
-            # Prepare data for ML
-            scores = []
-            dates = []
-            features = []
-
-            for entry in mood_history[-60:]:  # Use last 60 entries for training
-                try:
-                    score = float(entry.get("sentiment_score", entry.get("score", 0)))
+                    # Prefer user's actual mood score (1-10 scale) over AI sentiment (-1 to +1)
+                    # The user's score is the clinically meaningful value for mood tracking
+                    raw_score = entry.get("score", entry.get("sentiment_score", 0))
+                    score = float(raw_score)
+                    # Normalize to 0-10 range if somehow out of bounds
+                    score = max(0.0, min(10.0, score))
                     timestamp = parse_iso_timestamp(entry.get("timestamp"))
 
                     scores.append(score)
@@ -2335,23 +2239,25 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
                 next_features = np.array([[next_day_of_week, next_hour, week_avg, month_avg]])
                 predicted_score = best_model.predict(next_features)[0]
 
-                # Clip to valid range
-                predicted_score = np.clip(predicted_score, -1.0, 1.0)
+                # Clip to valid mood score range (1-10 scale)
+                predicted_score = np.clip(predicted_score, 1.0, 10.0)
                 forecast_scores.append(float(predicted_score))
 
-            # Calculate confidence based on model performance
-            rmse = np.sqrt(best_score)
-            confidence = max(0.0, 1.0 - (rmse / 2.0))  # Lower RMSE = higher confidence
+            # Calculate confidence with NaN/Inf protection
+            rmse = float(np.sqrt(best_score))
+            if not np.isfinite(rmse):
+                rmse = 0.5  # Default moderate confidence on numerical issues
+            confidence = float(max(0.0, min(1.0, 1.0 - (rmse / 5.0))))  # Scaled for 1-10 range
 
             # Analyze forecast trends
             avg_forecast = np.mean(forecast_scores)
             trend = "improving" if avg_forecast > np.mean(scores[-7:]) + 0.1 else "declining" if avg_forecast < np.mean(scores[-7:]) - 0.1 else "stable"
 
-            # Risk assessment
+            # Risk assessment (1-10 scale: low mood < 4)
             risk_factors = []
-            if np.std(forecast_scores) > 0.4:
+            if np.std(forecast_scores) > 1.5:
                 risk_factors.append("high_volatility_predicted")
-            if avg_forecast < -0.3:
+            if avg_forecast < 4.0:
                 risk_factors.append("low_mood_forecast")
             if trend == "declining":
                 risk_factors.append("negative_trend")

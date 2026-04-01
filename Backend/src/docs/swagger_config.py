@@ -166,7 +166,7 @@ class MoodLogRequest(Schema):
         metadata={'description': 'Mood value (1-10)'}
     )
     note = fields.Str(metadata={'description': 'Optional mood note'})
-    voice_data = fields.Str(metadata={'description': 'Base64 encoded voice data'})
+    voice_url = fields.Str(metadata={'description': 'URL to voice recording in Firebase Storage'})
     timestamp = fields.DateTime(metadata={'description': 'Mood timestamp'})
 
 

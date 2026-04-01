@@ -27,6 +27,22 @@ interface UseMoodDataReturn {
   logMood: (mood: Omit<MoodEntry, 'id' | 'userId' | 'timestamp'>) => Promise<boolean>;
   getMoodColor: (score: number) => string;
   getAverageScore: () => number;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
+}
+
+interface UseMoodDataReturn {
+  moods: MoodEntry[];
+  stats: MoodStats | null;
+  trends: MoodTrend[];
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  logMood: (mood: Omit<MoodEntry, 'id' | 'userId' | 'timestamp'>) => Promise<boolean>;
+  getMoodColor: (score: number) => string;
+  getAverageScore: () => number;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
 }
 
 // Cache for mood data
@@ -42,17 +58,24 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
   const [trends, setTrends] = useState<MoodTrend[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   const userId = user?.user_id;
 
-  const fetchMoods = useCallback(async () => {
+  const fetchMoods = useCallback(async (reset = false) => {
     if (!userId) return;
 
-    // Check cache
-    const cached = moodCache.get(userId);
-    if (cached && Date.now() - cached.timestamp < cacheTime) {
-      setMoods(cached.data);
-      return;
+    const currentOffset = reset ? 0 : offset;
+
+    // Check cache only on initial load
+    if (currentOffset === 0) {
+      const cached = moodCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < cacheTime) {
+        setMoods(cached.data);
+        setHasMore(false);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -64,9 +87,9 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
         getWeeklyAnalysis(userId).catch(() => ({})),
       ]);
 
-      // Transform and limit data
+      // Transform data
       const transformedMoods = (moodsData || [])
-        .slice(0, limit)
+        .slice(currentOffset, currentOffset + limit)
         .map((m: any) => ({
           id: m.id || m.mood_id,
           userId: m.user_id,
@@ -77,12 +100,22 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
           tags: m.tags || [],
         }));
 
-      // Update cache
-      moodCache.set(userId, { data: transformedMoods, timestamp: Date.now() });
-      setMoods(transformedMoods);
+      if (reset) {
+        // Update cache and replace moods
+        moodCache.set(userId, { data: transformedMoods, timestamp: Date.now() });
+        setMoods(transformedMoods);
+        setOffset(limit);
+      } else {
+        // Append new moods
+        setMoods(prev => [...prev, ...transformedMoods]);
+        setOffset(prev => prev + limit);
+      }
 
-      // Calculate stats
-      if (transformedMoods.length > 0) {
+      // Check if there's more data
+      setHasMore(transformedMoods.length === limit);
+
+      // Calculate stats (only on initial load)
+      if (currentOffset === 0 && transformedMoods.length > 0) {
         const avgScore = transformedMoods.reduce((sum: number, m: MoodEntry) => sum + m.score, 0) / transformedMoods.length;
         const moodCounts = transformedMoods.reduce((acc: Record<string, number>, m: MoodEntry) => {
           acc[m.mood] = (acc[m.mood] || 0) + 1;
@@ -100,34 +133,42 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
       }
 
       // Calculate trends (last 7 days)
-      const last7Days = transformedMoods
-        .filter((m: MoodEntry) => {
-          const daysDiff = (Date.now() - m.timestamp.getTime()) / (1000 * 60 * 60 * 24);
-          return daysDiff <= 7;
-        })
-        .map((m: MoodEntry) => ({
-          date: m.timestamp.toISOString().split('T')[0],
-          score: m.score,
-          mood: m.mood,
-        }));
-      setTrends(last7Days);
+      if (currentOffset === 0) {
+        const last7Days = transformedMoods
+          .filter((m: MoodEntry) => {
+            const daysDiff = (Date.now() - m.timestamp.getTime()) / (1000 * 60 * 60 * 24);
+            return daysDiff <= 7;
+          })
+          .map((m: MoodEntry) => ({
+            date: m.timestamp.toISOString().split('T')[0],
+            score: m.score,
+            mood: m.mood,
+          }));
+        setTrends(last7Days);
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch moods'));
     } finally {
       setIsLoading(false);
     }
-  }, [userId, limit, cacheTime]);
+  }, [userId, limit, cacheTime, offset]);
+
+  const loadMore = useCallback(async () => {
+    if (hasMore && !isLoading) {
+      await fetchMoods(false);
+    }
+  }, [hasMore, isLoading, fetchMoods]);
 
   const logMood = useCallback(async (moodData: Omit<MoodEntry, 'id' | 'userId' | 'timestamp'>): Promise<boolean> => {
     if (!userId) return false;
 
     try {
-      await apiLogMood({
-        user_id: userId,
-        mood_score: moodData.score,
-        mood: moodData.mood,
-        text: moodData.text,
+      await apiLogMood(userId, {
+        score: moodData.score,
+        mood_text: moodData.mood,
+        note: moodData.text,
+        tags: moodData.tags,
       });
 
       // Invalidate cache
@@ -173,7 +214,9 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
     logMood,
     getMoodColor,
     getAverageScore,
-  }), [moods, stats, trends, isLoading, error, fetchMoods, logMood, getMoodColor, getAverageScore]);
+    hasMore,
+    loadMore,
+  }), [moods, stats, trends, isLoading, error, fetchMoods, logMood, getMoodColor, getAverageScore, hasMore, loadMore]);
 }
 
 function calculateTrend(moods: MoodEntry[]): 'up' | 'down' | 'stable' {

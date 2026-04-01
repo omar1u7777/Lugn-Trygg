@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { logger } from '../utils/logger';
 
 interface RetryConfig {
@@ -13,7 +13,7 @@ interface FailedRequest {
   timestamp: Date;
   error: Error;
   retryCount: number;
-  retry: () => Promise<any>;
+  retry: () => Promise<unknown>;
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -27,7 +27,8 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [failedRequests, setFailedRequests] = useState<FailedRequest[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
-  const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
+  // Use useMemo for retryConfig to prevent changing on every render
+  const retryConfig = useMemo(() => ({ ...DEFAULT_RETRY_CONFIG, ...config }), [config]);
   const retryTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Monitor online/offline status
@@ -35,8 +36,6 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
     const handleOnline = () => {
       setIsOnline(true);
       logger.info('Network connection restored');
-      // Trigger retry of failed requests
-      retryFailedRequests();
     };
 
     const handleOffline = () => {
@@ -53,11 +52,18 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
     };
   }, []);
 
+  // Retry failed requests when coming back online
+  useEffect(() => {
+    if (isOnline && failedRequests.length > 0) {
+      retryFailedRequests();
+    }
+  }, [isOnline, failedRequests, retryFailedRequests]);
+
   // Add failed request to queue
   const addFailedRequest = useCallback((
     id: string,
     error: Error,
-    retryFunction: () => Promise<any>,
+    retryFunction: () => Promise<unknown>,
     retryCount: number = 0
   ) => {
     const failedRequest: FailedRequest = {
@@ -189,8 +195,10 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
 
   // Cleanup on unmount
   useEffect(() => {
+    // Copy ref value to variable inside effect body for cleanup function
+    const timeouts = retryTimeouts.current;
     return () => {
-      retryTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      timeouts.forEach(timeout => clearTimeout(timeout));
     };
   }, []);
 

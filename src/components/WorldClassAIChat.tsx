@@ -103,10 +103,12 @@ const MessageBubble: React.FC<{
                  inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
                  ${message.sentiment === 'POSITIVE' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
                   message.sentiment === 'NEGATIVE' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' :
+                  message.sentiment === 'crisis' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200' :
                     'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}
                `}>
                 {message.sentiment === 'POSITIVE' && <FaceSmileIcon className="w-3 h-3" />}
-                {message.sentiment}
+                {message.sentiment === 'crisis' && <ExclamationTriangleIcon className="w-3 h-3" />}
+                {message.sentiment === 'crisis' ? 'KRIS' : message.sentiment}
               </span>
               {message.emotions?.map(e => (
                 <span key={e} className="text-xs text-gray-400 capitalize">{e}</span>

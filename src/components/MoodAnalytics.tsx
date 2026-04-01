@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { LazyAnalyticsCharts as AnalyticsCharts } from './Charts/LazyChartWrapper';
 import { logger } from '../utils/logger';
+import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
@@ -108,19 +109,19 @@ interface ForecastData {
       upper: number;
     };
   };
-  model_info: {
+  modelInfo: {
     algorithm: string;
-    training_rmse: number;
+    training_rmse?: number;
     data_points_used: number;
   };
-  current_analysis: {
+  currentAnalysis: {
     recent_average: number;
     volatility: number;
   };
-  risk_factors: string[];
+  riskFactors: string[];
   recommendations: string[];
   confidence: number;
-  ai_unavailable?: boolean; // HONEST: Mark when AI service is unavailable
+  ai_unavailable?: boolean;
 }
 
 interface MoodStatistics {
@@ -150,12 +151,13 @@ const MoodAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [daysAhead, setDaysAhead] = useState(7);
   // Calendar state
   const today = new Date();
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
-  const { moods, isLoading: moodsLoading } = useMoodData({ autoFetch: true, limit: 200 });
+  const { moods, isLoading: moodsLoading, hasMore, loadMore } = useMoodData({ autoFetch: true, limit: 50 });
 
   const loadStatistics = useCallback(async () => {
     logger.debug('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
@@ -170,7 +172,6 @@ const MoodAnalytics: React.FC = () => {
       setStatistics(stats);
     } catch (err) {
       logger.error('❌ MOOD ANALYTICS - Failed to load statistics:', err);
-      // Don't show error, just use null statistics
     }
   }, [user?.user_id]);
 
@@ -184,11 +185,10 @@ const MoodAnalytics: React.FC = () => {
       setForecast(response.data);
     } catch (err: unknown) {
       logger.error('❌ MOOD ANALYTICS - Failed to load forecast:', err);
-      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
+      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response.data && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
         ? String(err.response.data.error)
         : t('analytics.loadError');
       setError(errorMessage);
-      // Set null forecast on error — don't fabricate fake prediction data
       setForecast(null);
     } finally {
       setLoading(false);
@@ -216,8 +216,8 @@ const MoodAnalytics: React.FC = () => {
         const doc = new jsPDFModule();
         const {
           forecast: forecastData,
-          model_info,
-          risk_factors = [],
+          modelInfo,
+          riskFactors = [],
           recommendations = [],
           confidence,
         } = currentForecast;
@@ -226,7 +226,7 @@ const MoodAnalytics: React.FC = () => {
 
       // Title
       doc.setFontSize(20);
-      doc.setTextColor(102, 126, 234); // Purple
+      doc.setTextColor(102, 126, 234);
       doc.text('Lugn & Trygg - Humöranalys', pageWidth / 2, y, { align: 'center' });
       y += 15;
 
@@ -292,15 +292,15 @@ const MoodAnalytics: React.FC = () => {
       y += 10;
 
       // Risk Factors
-        if (risk_factors.length > 0) {
+        if (riskFactors.length > 0) {
         doc.setFontSize(14);
-        doc.setTextColor(231, 76, 60); // Red
+        doc.setTextColor(231, 76, 60);
         doc.text('⚠️ Riskfaktorer', 20, y);
         y += 10;
 
         doc.setFontSize(9);
         doc.setTextColor(0);
-        risk_factors.forEach(risk => {
+        riskFactors.forEach(risk => {
           const lines = doc.splitTextToSize(`• ${risk}`, pageWidth - 50);
           lines.forEach((line: string) => {
             if (y > 270) {
@@ -322,7 +322,7 @@ const MoodAnalytics: React.FC = () => {
         }
 
         doc.setFontSize(14);
-        doc.setTextColor(39, 174, 96); // Green
+        doc.setTextColor(39, 174, 96);
         doc.text('💡 Rekommendationer', 20, y);
         y += 10;
 
@@ -355,11 +355,11 @@ const MoodAnalytics: React.FC = () => {
 
         doc.setFontSize(9);
         doc.setTextColor(0);
-        doc.text(`Algoritm: ${model_info.algorithm}`, 25, y);
+        doc.text(`Algoritm: ${modelInfo.algorithm}`, 25, y);
         y += 6;
-        doc.text(`Tränings-RMSE: ${model_info.training_rmse?.toFixed(3) || 'N/A'}`, 25, y);
+        doc.text(`Tränings-RMSE: ${modelInfo.training_rmse?.toFixed(3) ?? 'N/A'}`, 25, y);
         y += 6;
-        doc.text(`Datapunkter använd: ${model_info.data_points_used}`, 25, y);
+        doc.text(`Datapunkter använd: ${modelInfo.data_points_used}`, 25, y);
         y += 15;
 
         // Footer
@@ -385,15 +385,16 @@ const MoodAnalytics: React.FC = () => {
       });
   };
 
+  // 1-10 mood score scale thresholds
   const _getSentimentColor = (score: number) => {
-    if (score > 0.2) return '#4CAF50';
-    if (score < -0.2) return '#F44336';
-    return '#FF9800';
+    if (score >= 7) return '#4CAF50';  // Positive (7-10)
+    if (score <= 4) return '#F44336';  // Negative (1-4)
+    return '#FF9800';                   // Neutral (5-6)
   };
 
   const getSentimentLabel = (score: number) => {
-    if (score > 0.2) return t('mood.positive');
-    if (score < -0.2) return t('mood.negative');
+    if (score >= 7) return t('mood.positive');
+    if (score <= 4) return t('mood.negative');
     return t('mood.neutral');
   };
 
@@ -435,10 +436,46 @@ const MoodAnalytics: React.FC = () => {
     );
   }
 
-  if (!forecast || !forecast.current_analysis) {
+  if (!forecast || !forecast.currentAnalysis) {
+    const hasSomeData = statistics && statistics.total_moods > 0;
+    
+    if (hasSomeData) {
+      return (
+        <div className="bg-warning-50 dark:bg-warning-900/30 border border-warning-200 dark:border-warning-800 rounded-lg p-6">
+          <p className="text-warning-800 dark:text-warning-300 mb-4">
+            {t('analytics.forecastUnavailable', 'Prognos är inte tillgänglig just nu. Visar din statistik.')}
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.total_moods}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('analytics.totalMoods', 'Totalt')}</p>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.average_sentiment?.toFixed(1)}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('analytics.averageSentiment', 'Snitt')}</p>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.current_streak}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('analytics.streak', 'Dagar')}</p>
+            </div>
+            <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{statistics.positive_percentage}%</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('analytics.positive', 'Positiva')}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
-      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-blue-800 dark:text-blue-300">{t('analytics.noData')}</p>
+      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+        <ChartBarIcon className="w-16 h-16 mx-auto text-blue-400 dark:text-blue-500 mb-4" />
+        <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
+          {t('analytics.noDataTitle', 'Ingen data ännu')}
+        </h3>
+        <p className="text-blue-700 dark:text-blue-300 max-w-md mx-auto">
+          {t('analytics.noDataDescription', 'Börja logga ditt humör dagligen för att se mönster, trender och AI-drivna insikter här.')}
+        </p>
       </div>
     );
   }
@@ -502,7 +539,7 @@ const MoodAnalytics: React.FC = () => {
                 &lt;
               </button>
               <span className="font-medium text-gray-700 dark:text-gray-200">
-                {today.toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
+                {new Date(calendarYear, calendarMonth).toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
               </span>
               <button
                 className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -526,9 +563,21 @@ const MoodAnalytics: React.FC = () => {
             moodEntries={moods.map((m) => ({
               ...m,
               date: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
-              mood: m.score, // for color
-            })) as any}
+              mood: m.score,
+            }))}
           />
+          {hasMore && (
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                disabled={moodsLoading}
+                className="text-sm"
+              >
+                {moodsLoading ? 'Laddar...' : 'Ladda fler'}
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <LightBulbIcon className="w-8 h-8 text-primary-600 dark:text-primary-500" />
@@ -586,15 +635,15 @@ const MoodAnalytics: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Genomsnitt</p>
                 </div>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {statistics.average_sentiment.toFixed(2)}
+                  {statistics.average_sentiment.toFixed(1)}/10
                 </p>
                 <p className={`text-xs mt-1 ${
-                  statistics.average_sentiment > 0.2 ? 'text-success-600' :
-                  statistics.average_sentiment < -0.2 ? 'text-error-600' :
+                  statistics.average_sentiment >= 7 ? 'text-success-600' :
+                  statistics.average_sentiment <= 4 ? 'text-error-600' :
                   'text-gray-500'
                 }`}>
-                  {statistics.average_sentiment > 0.2 ? 'Positivt' :
-                   statistics.average_sentiment < -0.2 ? 'Negativt' : 'Neutralt'}
+                  {statistics.average_sentiment >= 7 ? 'Positivt' :
+                   statistics.average_sentiment <= 4 ? 'Negativt' : 'Neutralt'}
                 </p>
               </div>
             </Card>
@@ -646,16 +695,47 @@ const MoodAnalytics: React.FC = () => {
             ))}
           </div>
           
-          {/* Export PDF Button */}
-          <Button
-            variant="outline"
-            onClick={exportToPDF}
-            disabled={!forecast}
-            className="flex items-center gap-2"
-          >
-            <ArrowDownTrayIcon className="w-4 h-4" />
-            Exportera PDF
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            {/* Export PDF Button */}
+            <Button
+              variant="outline"
+              onClick={exportToPDF}
+              disabled={!forecast}
+              className="flex items-center gap-2"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              Exportera PDF
+            </Button>
+            
+            {/* Export CSV Button */}
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!user?.user_id) return;
+                setExporting(true);
+                try {
+                  const csv = await exportMoodData(user.user_id, 'csv');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `humor-data-${new Date().toISOString().split('T')[0]}.csv`;
+                  link.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  logger.error('CSV export failed:', err);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              disabled={exporting || moodsLoading || !moods?.length}
+              className="flex items-center gap-2"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              {exporting ? t('analytics.exporting', 'Exporterar...') : t('analytics.exportCSV', 'Exportera CSV')}
+            </Button>
+          </div>
+          
           {pdfError && (
             <div className="bg-warning-50 dark:bg-warning-900/30 border border-warning-200 dark:border-warning-800 rounded-lg p-4">
               <p className="text-warning-800 dark:text-warning-300 text-sm">{pdfError}</p>
@@ -681,20 +761,20 @@ const MoodAnalytics: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-primary-600 h-2 rounded-full"
-                      style={{ width: `${((forecast.current_analysis.recent_average + 1) / 2) * 100}%` }}
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${(forecast.currentAnalysis.recent_average / 10) * 100}%` }}
                       role="progressbar"
-                      aria-valuenow={((forecast.current_analysis.recent_average + 1) / 2) * 100}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
+                      aria-valuenow={forecast.currentAnalysis.recent_average}
+                      aria-valuemin={1}
+                      aria-valuemax={10}
                     ></div>
                   </div>
                   <span className="text-sm font-bold text-gray-900 dark:text-white">
-                    {forecast.current_analysis.recent_average.toFixed(2)}
+                    {forecast.currentAnalysis.recent_average.toFixed(1)}/10
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {getSentimentLabel(forecast.current_analysis.recent_average)}
+                  {getSentimentLabel(forecast.currentAnalysis.recent_average)}
                 </p>
               </div>
 
@@ -703,9 +783,9 @@ const MoodAnalytics: React.FC = () => {
                   {t('analytics.volatility')}
                 </p>
                 <p className={`text-lg font-semibold ${
-                  forecast.current_analysis.volatility > 0.5 ? 'text-warning-600' : 'text-success-600'
+                  forecast.currentAnalysis.volatility > 2.0 ? 'text-warning-600' : 'text-success-600'
                 }`}>
-                  {(forecast.current_analysis.volatility || 0).toFixed(2)}
+                  {(forecast.currentAnalysis.volatility || 0).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -725,7 +805,7 @@ const MoodAnalytics: React.FC = () => {
                     {t('analytics.averageForecast')}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {forecast.forecast.average_forecast.toFixed(2)}
+                    {forecast.forecast.average_forecast.toFixed(1)}/10
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {getSentimentLabel(forecast.forecast.average_forecast)}
@@ -747,7 +827,6 @@ const MoodAnalytics: React.FC = () => {
                   </span>
                 </div>
 
-                {/* HONEST: Only show AI confidence when AI service is actually working */}
                 {!forecast.ai_unavailable && (
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -801,7 +880,7 @@ const MoodAnalytics: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Risk Factors */}
-          {forecast.risk_factors.length > 0 && (
+          {forecast.riskFactors.length > 0 && (
             <Card>
               <div className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -812,11 +891,11 @@ const MoodAnalytics: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {forecast.risk_factors.map((risk) => (
+                  {forecast.riskFactors.map((risk) => (
                     <div key={risk} className="flex items-center gap-2">
                       {getRiskIcon(risk)}
                       <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {t(`analytics.risks.${risk}`)}
+                        {t(`analytics.risks.${risk}`, risk)}
                       </p>
                     </div>
                   ))}
@@ -826,7 +905,7 @@ const MoodAnalytics: React.FC = () => {
           )}
 
           {/* Recommendations */}
-          <Card className={forecast.risk_factors.length === 0 ? 'md:col-span-2' : ''}>
+          <Card className={forecast.riskFactors.length === 0 ? 'md:col-span-2' : ''}>
             <div className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <CheckCircleIcon className="w-5 h-5 text-success-600 dark:text-success-500" />
@@ -859,7 +938,7 @@ const MoodAnalytics: React.FC = () => {
                   {t('analytics.algorithm')}
                 </p>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  {forecast.model_info.algorithm.replace('_', ' ').toUpperCase()}
+                  {forecast.modelInfo.algorithm.replace('_', ' ').toUpperCase()}
                 </p>
               </div>
 
@@ -868,7 +947,7 @@ const MoodAnalytics: React.FC = () => {
                   {t('analytics.trainingAccuracy')}
                 </p>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  {forecast.model_info.training_rmse.toFixed(3)}
+                  {forecast.modelInfo.training_rmse?.toFixed(3) ?? 'N/A'}
                 </p>
               </div>
 
@@ -877,7 +956,7 @@ const MoodAnalytics: React.FC = () => {
                   {t('analytics.dataPoints')}
                 </p>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  {forecast.model_info.data_points_used}
+                  {forecast.modelInfo.data_points_used}
                 </p>
               </div>
             </div>
@@ -889,4 +968,3 @@ const MoodAnalytics: React.FC = () => {
 };
 
 export default MoodAnalytics;
-

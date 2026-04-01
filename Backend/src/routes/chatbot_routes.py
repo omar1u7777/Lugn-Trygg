@@ -160,18 +160,22 @@ def chat_with_ai():
                 {"limit": exc.limit_value}
             )
 
-        # Get conversation history (last 10 messages)
+        # Get conversation history (last 10 messages) - CRITICAL: Cap at 20 to prevent token overflow
+        MAX_CONVERSATION_HISTORY = 20
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         recent_messages = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(10).stream())
 
-        # Build conversation context
+        # Build conversation context - limited to prevent memory/token issues
         conversation_history = []
-        for msg_doc in reversed(recent_messages):
+        for msg_doc in reversed(recent_messages[:MAX_CONVERSATION_HISTORY]):
             msg_data = msg_doc.to_dict()
             conversation_history.append({
                 "role": msg_data.get("role"),
                 "content": msg_data.get("content")
             })
+        
+        if len(recent_messages) > MAX_CONVERSATION_HISTORY:
+            logger.warning(f"Conversation history truncated from {len(recent_messages)} to {MAX_CONVERSATION_HISTORY} for user {user_id}")
 
         # Generate AI response with enhanced features
         logger.info(f"🤖 Generating AI response, message length: {len(user_message)}")
@@ -264,29 +268,45 @@ def chat_with_ai():
                         requires_immediate_action=assessment.overall_risk_level == 'critical'
                     )
 
-                    # Execute REAL escalation (SMS, email, push, dashboard)
-                    escalation_service = get_crisis_escalation_service()
-                    escalation_result = asyncio.run(
-                        escalation_service.escalate(crisis_alert)
+                    # Execute REAL escalation in background thread to avoid blocking
+                    import threading
+                    def escalate_async(alert):
+                        try:
+                            escalation_service = get_crisis_escalation_service()
+                            # Note: escalate may be async, use run_coroutine_threadsafe if needed
+                            import asyncio
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            result = loop.run_until_complete(escalation_service.escalate(alert))
+                            loop.close()
+                            
+                            if result.success:
+                                logger.info(
+                                    f"✅ Crisis escalation completed via channels: "
+                                    f"{[c.value for c in result.channels_used]}"
+                                )
+                            else:
+                                logger.error(
+                                    f"❌ Crisis escalation failed: "
+                                    f"{len(result.failures)} channels failed"
+                                )
+                        except Exception as esc_err:
+                            logger.exception(f"Crisis escalation thread failed: {esc_err}")
+                    
+                    # Start escalation in background thread
+                    escalation_thread = threading.Thread(
+                        target=escalate_async, 
+                        args=(crisis_alert,),
+                        daemon=True
                     )
+                    escalation_thread.start()
 
-                    if escalation_result.success:
-                        logger.info(
-                            f"✅ Crisis escalation completed via channels: "
-                            f"{[c.value for c in escalation_result.channels_used]}"
-                        )
-                    else:
-                        logger.error(
-                            f"❌ Crisis escalation failed: "
-                            f"{len(escalation_result.failures)} channels failed"
-                        )
-
-                    # Store escalation result in response for frontend
+                    # Store alert info in response for frontend
                     ai_response["crisis_escalation"] = {
                         "escalated": True,
-                        "alert_id": escalation_result.alert_id,
-                        "channels_used": [c.value for c in escalation_result.channels_used],
-                        "success": escalation_result.success
+                        "alert_id": crisis_alert.timestamp.isoformat(),
+                        "channels_attempted": ["sms", "email", "push", "dashboard"],
+                        "pending": True
                     }
 
             except Exception as crisis_err:
@@ -389,18 +409,22 @@ def chat_stream():
                 {"limit": exc.limit_value}
             )
 
-        # Fetch last 10 messages for context
+        # Fetch last 10 messages for context - CRITICAL: Cap at 20 to prevent token overflow
+        MAX_STREAM_HISTORY = 20
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         recent_docs = list(
             conversation_ref.order_by("timestamp", direction="DESCENDING").limit(10).stream()
         )
         conversation_history = []
-        for msg_doc in reversed(recent_docs):
+        for msg_doc in reversed(recent_docs[:MAX_STREAM_HISTORY]):
             msg_data = msg_doc.to_dict()
             conversation_history.append({
                 "role": msg_data.get("role"),
                 "content": msg_data.get("content")
             })
+        
+        if len(recent_docs) > MAX_STREAM_HISTORY:
+            logger.warning(f"Stream conversation history truncated from {len(recent_docs)} to {MAX_STREAM_HISTORY} for user {user_id}")
 
         # Save user message to Firestore before streaming
         timestamp = datetime.now(UTC).isoformat()
@@ -420,20 +444,39 @@ def chat_stream():
         # Accumulate full response to save to Firestore after stream ends
         def generate():
             full_response = []
+            chunk_count = 0
+            error_count = 0
             try:
                 for sse_chunk in ai_services.generate_therapeutic_conversation_stream(
                     user_message, conversation_history
                 ):
+                    chunk_count += 1
                     # Accumulate non-DONE chunks
                     if sse_chunk.strip() != "data: [DONE]":
                         import json as _json
                         try:
                             payload = _json.loads(sse_chunk.replace("data: ", "", 1))
-                            full_response.append(payload.get("content", ""))
-                        except Exception:
+                            content = payload.get("content", "")
+                            if content:
+                                full_response.append(content)
+                        except _json.JSONDecodeError as json_err:
+                            error_count += 1
+                            if error_count <= 3:  # Log first 3 errors only
+                                logger.warning(f"SSE JSON parse error (chunk {chunk_count}): {json_err}")
+                            # Still yield the chunk for resilience
                             pass
+                        except Exception as parse_err:
+                            error_count += 1
+                            if error_count <= 3:
+                                logger.warning(f"SSE parse error (chunk {chunk_count}): {parse_err}")
                     yield sse_chunk
 
+            except Exception as stream_err:
+                logger.error(f"Streaming error: {stream_err}")
+                # Yield error message to client
+                import json as _json
+                yield f"data: {_json.dumps({'error': 'Stream interrupted', 'content': ' [Avbruten] '})}\n\n"
+                yield "data: [DONE]\n\n"
             finally:
                 # Save AI response to Firestore after stream completes
                 full_text = "".join(full_response)
@@ -445,7 +488,9 @@ def chat_stream():
                             "content": full_text,
                             "timestamp": ai_timestamp,
                             "ai_generated": True,
-                            "model_used": "gpt-4o-mini-stream"
+                            "model_used": "gpt-4o-mini-stream",
+                            "chunks_received": chunk_count,
+                            "parse_errors": error_count
                         })
                         # Award XP
                         try:

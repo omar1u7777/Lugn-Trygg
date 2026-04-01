@@ -12,11 +12,13 @@ import logging
 import os
 import re
 import time
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import wraps
 from typing import Any
 
+from firebase_admin import storage as firebase_storage
 from flask import Blueprint, Response, current_app, g, jsonify, request
 from google.cloud.firestore import FieldFilter
 
@@ -289,16 +291,25 @@ def log_mood() -> Response | tuple[Response, int]:
         #   - CSP may block Firebase Auth iframe; update CSP for local testing if needed
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
-            # Also handle file upload for audio
             audio_file = request.files.get('audio')
-            if audio_file:
-                audio_bytes = audio_file.read()
-                voice_data = audio_bytes  # Store raw bytes for analysis
-            else:
-                voice_data = data.get('voice_data')
+            audio_bytes = audio_file.read() if audio_file else None
+            voice_url = None
+            if audio_bytes:
+                try:
+                    bucket = firebase_storage.bucket()
+                    timestamp_str = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
+                    blob_name = f"users/{user_id}/voice/{timestamp_str}_{uuid.uuid4().hex[:8]}.webm"
+                    blob = bucket.blob(blob_name)
+                    blob.upload_from_string(audio_bytes, content_type='audio/webm')
+                    blob.make_public()
+                    voice_url = blob.public_url
+                    logger.info(f"🎙️ Voice uploaded to Storage: {blob_name}")
+                except Exception as storage_err:
+                    logger.warning(f"⚠️ Failed to upload voice to Storage: {storage_err}")
         else:
             data = request.get_json(force=True, silent=True)
-            voice_data = data.get('voice_data') if data else None
+            audio_bytes = None
+            voice_url = None
             audio_file = None
 
         if not data and not audio_file:
@@ -310,7 +321,19 @@ def log_mood() -> Response | tuple[Response, int]:
         # Get tags and context (from frontend MoodLogger)
         tags = data.get('tags', []) if data else []
         context = data.get('context', '') if data else ''
-        # CRITICAL FIX: Get user-submitted score (1-10 scale)
+        
+        # INPUT SANITIZATION: Validate and sanitize text fields
+        if note and len(note) > 2000:
+            note = note[:2000]  # Truncate to prevent abuse
+        if context and len(context) > 500:
+            context = context[:500]
+        
+        # Sanitize tags: limit count, length, and strip dangerous characters
+        if not isinstance(tags, list):
+            tags = [tags] if tags else []
+        tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, str) and t.strip()]
+        
+        # Get user-submitted score (1-10 scale)
         user_score = data.get('score') if data else None
         if user_score is not None:
             try:
@@ -319,10 +342,6 @@ def log_mood() -> Response | tuple[Response, int]:
                     user_score = None
             except (ValueError, TypeError):
                 user_score = None
-        # Ensure tags is a list
-        if not isinstance(tags, list):
-            tags = [tags] if tags else []
-
         # Circumplex Model: Get valence and arousal (1-10 scale)
         valence = data.get('valence') if data else None
         arousal = data.get('arousal') if data else None
@@ -359,15 +378,8 @@ def log_mood() -> Response | tuple[Response, int]:
         # Analyze voice if provided
         voice_analysis = None
         transcript = None
-        if voice_data:
+        if audio_bytes:
             try:
-                # voice_data is already bytes from file upload, or base64 string
-                if isinstance(voice_data, bytes):
-                    audio_bytes = voice_data
-                else:
-                    # Handle base64 string
-                    import base64
-                    audio_bytes = base64.b64decode(voice_data.split(',')[1]) if ',' in voice_data else base64.b64decode(voice_data)
 
                 # First try to transcribe the audio to get the spoken text
                 from ..utils.speech_utils import transcribe_audio_google
@@ -500,6 +512,9 @@ def log_mood() -> Response | tuple[Response, int]:
                 'tags': tags,
                 'context': context
             }
+
+            if voice_url:
+                mood_data['voice_url'] = voice_url
             logger.info(f"💾 Prepared mood_data: score={final_score}, sentiment={mood_data.get('sentiment')}")
 
             doc_ref = mood_ref.add(mood_data)
@@ -521,18 +536,24 @@ def log_mood() -> Response | tuple[Response, int]:
             invalidate_mood_cache(user_id)
 
             # CRISIS DETECTION: Check for crisis indicators after mood is saved
+            # Only trigger on clinically meaningful signals:
+            # 1. Very low mood score (≤ 3 on 1-10 scale)
+            # 2. Text containing crisis keywords (not just any text)
             try:
                 from ..services.crisis_intervention import crisis_intervention_service
-                crisis_text = note or mood_text or transcript or ''
-                crisis_context = {
-                    'user_id': user_id,
-                    'mood_history': [{'sentiment_score': final_score}],
-                    'recent_text_content': crisis_text,
-                    'consecutive_low_mood_days': 0,
-                    'mood_score_drop_last_week': 0,
-                }
-                # Only flag if score is very low or text indicates crisis
-                if final_score <= 3 or crisis_text:
+                crisis_keywords = ['självmord', 'suicid', 'döda mig', 'döda', 'självskada',
+                                   'hopplos', 'hopplös', 'vill inte leva', 'ta mitt liv',
+                                   'hatar mig själv', 'värdelös', 'börda', 'far bättre utan mig']
+                has_crisis_keywords = crisis_text and any(kw in crisis_text.lower() for kw in crisis_keywords)
+                
+                if final_score <= 3 or has_crisis_keywords:
+                    crisis_context = {
+                        'user_id': user_id,
+                        'mood_history': [{'sentiment_score': final_score}],
+                        'recent_text_content': crisis_text if has_crisis_keywords else '',
+                        'consecutive_low_mood_days': 0,
+                        'mood_score_drop_last_week': 0,
+                    }
                     assessment = crisis_intervention_service.assess_crisis_risk(crisis_context)
                     if assessment.overall_risk_level in ('critical', 'high'):
                         logger.warning(
@@ -564,7 +585,7 @@ def log_mood() -> Response | tuple[Response, int]:
 
         audit_log('mood_logged', user_id, {
             'has_text': bool(mood_text),
-            'has_voice': bool(voice_data),
+            'has_voice': bool(audio_bytes),
             'sentiment': sentiment_analysis.get('sentiment') if sentiment_analysis else None
         })
 
@@ -662,6 +683,9 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
         start_date = request.args.get('start_date')  # YYYY-MM-DD format
         end_date = request.args.get('end_date')    # YYYY-MM-DD format
         sentiment_filter = request.args.get('sentiment')  # POSITIVE, NEGATIVE, NEUTRAL
+        # Note: Firestore cursor pagination requires document snapshot, not just timestamp value
+        # For now, we use limit/offset pagination which works reliably
+        offset = max(int(request.args.get('offset', 0)), 0)
 
         # Build Firestore query - OPTIMIZED
         mood_ref = db.collection('users').document(user_id).collection('moods')
@@ -680,19 +704,38 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
 
         # Order by timestamp descending and limit results
         query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
+        
+        # Apply offset pagination if provided
+        if offset > 0:
+            query = query.offset(offset)
 
         # PERFORMANCE: Stream documents directly - use list comprehension
-        moods = [
-            {**doc.to_dict(), 'id': doc.id}
-            for doc in query.stream()
-        ]
+        try:
+            moods = [
+                {**doc.to_dict(), 'id': doc.id}
+                for doc in query.stream()
+            ]
+        except Exception as query_error:
+            # Fallback: if composite index is missing, fetch without ordering
+            logger.warning(f"Firestore query failed (likely missing composite index), using fallback: {query_error}")
+            fallback_query = mood_ref.limit(limit * 2)  # Fetch more to compensate for client-side sorting
+            if offset > 0:
+                fallback_query = fallback_query.offset(offset)
+            all_moods = [
+                {**doc.to_dict(), 'id': doc.id}
+                for doc in fallback_query.stream()
+            ]
+            # Sort client-side
+            all_moods.sort(key=lambda m: m.get('timestamp', ''), reverse=True)
+            moods = all_moods[:limit]
 
         # Return dict for cache decorator - it will jsonify
         return {
             'moods': moods,
             'total': len(moods),
             'limit': limit,
-            'has_more': len(moods) == limit
+            'has_more': len(moods) == limit,
+            'offset': offset
         }, 200
 
     except Exception as e:
@@ -788,7 +831,26 @@ def get_recent_moods() -> Response | tuple[Response, int]:
         mood_ref = db.collection('users').document(user_id).collection('moods')
         query = mood_ref.where(filter=FieldFilter('timestamp', '>=', seven_days_ago_str)).order_by('timestamp', direction='DESCENDING')
 
-        mood_docs = list(query.stream())
+        try:
+            mood_docs = list(query.stream())
+        except Exception as query_error:
+            # Fallback: if composite index is missing, fetch and sort client-side
+            logger.warning(f"Firestore query failed (likely missing composite index), using fallback: {query_error}")
+            fallback_docs = list(mood_ref.stream())
+            mood_docs = [
+                doc for doc in fallback_docs
+                if doc.to_dict().get('timestamp', '') >= seven_days_ago_str
+            ]
+            mood_docs.sort(key=lambda d: d.to_dict().get('timestamp', ''), reverse=True)
+        except Exception as query_error:
+            # Fallback: if composite index is missing, fetch and sort client-side
+            logger.warning(f"Firestore query failed (likely missing composite index), using fallback: {query_error}")
+            fallback_docs = list(mood_ref.stream())
+            mood_docs = [
+                doc for doc in fallback_docs
+                if doc.to_dict().get('timestamp', '') >= seven_days_ago_str
+            ]
+            mood_docs.sort(key=lambda d: d.to_dict().get('timestamp', ''), reverse=True)
 
         moods = []
         for doc in mood_docs:
@@ -1196,11 +1258,15 @@ def predictive_mood_forecast() -> Response | tuple[Response, int]:
         for doc in mood_docs:
             mood_data = doc.to_dict()
             mood_history.append({
+                "score": mood_data.get("score", 5),  # User's 1-10 mood score (primary)
                 "sentiment": mood_data.get("sentiment", "NEUTRAL"),
-                "sentiment_score": mood_data.get("score", 0),
+                "sentiment_score": mood_data.get("sentiment_score", 0),  # AI sentiment (-1 to +1)
                 "timestamp": mood_data.get("timestamp", ""),
                 "note": mood_data.get("note", ""),
-                "emotions_detected": mood_data.get("emotions_detected", [])
+                "emotions_detected": mood_data.get("emotions_detected", []),
+                "valence": mood_data.get("valence"),
+                "arousal": mood_data.get("arousal"),
+                "tags": mood_data.get("tags", []),
             })
 
         logger.info(f"📊 Retrieved {len(mood_history)} mood entries for forecasting")

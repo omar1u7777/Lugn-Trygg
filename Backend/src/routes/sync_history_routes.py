@@ -73,9 +73,18 @@ def get_sync_history():
 
             # Manual filtering for timestamp and provider
             ts = data.get('timestamp')
-            if ts and hasattr(ts, 'timestamp'):
+            if ts:
+                # Handle Firestore Timestamp objects or ISO strings
+                if hasattr(ts, 'timestamp'):
+                    # Firestore Timestamp - convert to Python datetime
+                    ts_datetime = ts
+                elif isinstance(ts, str):
+                    ts_datetime = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                else:
+                    ts_datetime = ts
+                
                 # Skip if before cutoff
-                if ts.timestamp() < cutoff_date.timestamp():
+                if ts_datetime < cutoff_date:
                     continue
 
             # Filter by provider if specified

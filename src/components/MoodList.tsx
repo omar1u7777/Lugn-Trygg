@@ -55,6 +55,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // For manual refresh
 
   useEffect(() => {
     analytics.page('Mood List', {
@@ -68,9 +69,13 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   useEffect(() => {
     if (!user) return;
 
+    let retryCount = 0;
+    const maxRetries = 3;
+    let retryTimeoutId: NodeJS.Timeout | null = null;
+
     const fetchMoods = async () => {
       try {
-        setLoading(true);
+        setLoading(retryCount === 0); // Only show loading on first attempt
         setError(null);
         const moodDataRaw = await getMoods(user.user_id);
         let moodData: MoodEntry[] = Array.isArray(moodDataRaw) ? (moodDataRaw as MoodEntry[]) : [];
@@ -95,6 +100,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         });
 
         setMoods(sortedMoods);
+        retryCount = 0; // Reset retry count on success
 
         analytics.track('Moods Loaded', {
           count: sortedMoods.length,
@@ -104,8 +110,19 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       } catch (err: unknown) {
         logger.error("❌ Fel vid hämtning av humör:", err);
         const errorMessage = err instanceof Error ? err.message : "Ett fel uppstod vid hämtning av humörloggar.";
+        
+        // Retry with exponential backoff
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+          logger.info(`🔄 Retrying fetchMoods (attempt ${retryCount}/${maxRetries}) in ${delay}ms`);
+          retryTimeoutId = setTimeout(() => {
+            fetchMoods();
+          }, delay);
+          return;
+        }
+        
         setError(errorMessage);
-
         analytics.track('Mood Load Error', {
           error: errorMessage,
           component: 'MoodList',
@@ -118,11 +135,19 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
     fetchMoods();
 
-    // Refresh moods every 30 seconds to show latest entries
-    const interval = setInterval(fetchMoods, 30000);
+    // Refresh moods every 5 minutes (was 30 seconds - too aggressive)
+    const interval = setInterval(() => {
+      retryCount = 0; // Reset retry count on scheduled refresh
+      fetchMoods();
+    }, 300000);
 
-    return () => clearInterval(interval);
-  }, [historyDays, user]);
+    return () => {
+      clearInterval(interval);
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId);
+      }
+    };
+  }, [historyDays, user, refreshTrigger]);
 
   // Filter moods based on sentiment, search, and date range
   const filteredMoods = moods.filter(mood => {
@@ -146,7 +171,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
     // Date range filter
     if (dateRange !== 'all') {
-      const moodDate = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+      const moodDate = toDate(mood.timestamp);
       const now = new Date();
       const diffTime = now.getTime() - moodDate.getTime();
       const diffDays = diffTime / (1000 * 3600 * 24);
@@ -220,9 +245,11 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   };
 
   const handleExportMoods = async (format: 'csv' | 'json') => {
-    if (!user?.user_id) return;
+    if (!user?.user_id || exporting) return; // Prevent multiple exports
 
     setExporting(true);
+    let downloadUrl: string | null = null;
+    
     try {
       const dataToExport = filteredMoods.map(mood => ({
         date: formatTimestamp(mood.timestamp),
@@ -232,6 +259,14 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         emotions: mood.emotions_detected?.join(', ') || '',
         timestamp: mood.timestamp?.toDate ? mood.timestamp.toDate().toISOString() : mood.timestamp,
       }));
+
+      if (dataToExport.length === 0) {
+        announceToScreenReader('Inga humör att exportera', 'polite');
+        return;
+      }
+
+      let blob: Blob;
+      let filename: string;
 
       if (format === 'csv') {
         const csvContent = [
@@ -246,19 +281,22 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
           ])
         ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `mood-data-${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
+        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        filename = `mood-data-${new Date().toISOString().split('T')[0]}.csv`;
       } else {
         const jsonContent = JSON.stringify(dataToExport, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `mood-data-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
+        blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+        filename = `mood-data-${new Date().toISOString().split('T')[0]}.json`;
       }
+
+      // Create download link with cleanup
+      downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       analytics.track('Moods Exported', {
         format,
@@ -272,6 +310,10 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       logger.error('Failed to export moods:', error);
       announceToScreenReader('Misslyckades att exportera humördata', 'assertive');
     } finally {
+      // Cleanup download URL after a delay
+      if (downloadUrl) {
+        setTimeout(() => URL.revokeObjectURL(downloadUrl!), 1000);
+      }
       setExporting(false);
     }
   };
@@ -328,26 +370,37 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
             Dina Humörloggar
           </h3>
 
-          {/* Close button */}
-          {!inline && (
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            {/* Refresh button */}
             <button
-              className="w-12 h-12 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 text-xl font-bold"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent backdrop click
-                logger.debug('🗂️ MoodList close button clicked directly');
-                logger.debug('🗂️ Calling onClose function...');
-                onClose?.();
-                logger.debug('🗂️ onClose function called successfully');
+              onClick={() => {
+                logger.debug('🔄 Manual refresh triggered');
+                setError(null);
+                setRefreshTrigger(prev => prev + 1); // Trigger data refetch
               }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                logger.debug('🗂️ MoodList close button touch start');
-              }}
-              aria-label="Stäng"
+              disabled={loading}
+              className="w-10 h-10 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg"
+              aria-label="Uppdatera"
+              title="Uppdatera"
             >
-              ✕
+              {loading ? '⏳' : '🔄'}
             </button>
-          )}
+
+            {/* Close button */}
+            {!inline && (
+              <button
+                className="w-12 h-12 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 text-xl font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose?.();
+                }}
+                aria-label="Stäng"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -621,13 +674,13 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
                             Styrka:
                           </span>
                           <span className={`text-sm font-semibold px-2 py-1 rounded ${
-                            score > 0
+                            score >= 7
                               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                              : score < 0
-                              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                              : score >= 4
+                              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                           }`}>
-                            {Math.abs(score) > 1 ? `${Math.abs(score).toFixed(0)}%` : `${(Math.abs(score) * 100).toFixed(0)}%`}
+                            {score}/10
                           </span>
                         </div>
                       )}

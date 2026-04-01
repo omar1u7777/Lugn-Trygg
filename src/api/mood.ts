@@ -108,9 +108,25 @@ export interface TodayMoodResponse {
  * @returns Promise resolving to mood log response
  * @throws Error if mood logging fails
  */
-export const logMood = async (userId: string, moodData: MoodData): Promise<GenericObject> => {
+export const logMood = async (userId: string, moodData: MoodData, audioBlob?: Blob): Promise<GenericObject> => {
   try {
-    // Token added automatically by interceptor
+    if (audioBlob) {
+      const formData = new FormData();
+      formData.append('score', String(moodData.score ?? ''));
+      if (moodData.mood_text) formData.append('mood_text', moodData.mood_text);
+      if (moodData.note) formData.append('note', moodData.note);
+      if (moodData.valence !== undefined) formData.append('valence', String(moodData.valence));
+      if (moodData.arousal !== undefined) formData.append('arousal', String(moodData.arousal));
+      if (moodData.tags && moodData.tags.length > 0) formData.append('tags', JSON.stringify(moodData.tags));
+      if (moodData.context) formData.append('context', moodData.context);
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return (response.data?.data || response.data) as GenericObject;
+    }
+
     const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, {
       user_id: userId,
       ...moodData
@@ -226,5 +242,69 @@ export const analyzeText = async (text: string) => {
     return response.data?.data || response.data;
   } catch (error: unknown) {
     throw new Error(getApiErrorMessage(error, "An error occurred during text analysis."));
+  }
+};
+
+/**
+ * Export mood entries as CSV for data portability
+ * @param userId - User ID
+ * @returns Promise resolving to CSV string
+ */
+export const exportMoodData = async (userId: string, format: 'csv' | 'json' = 'csv'): Promise<string> => {
+  try {
+    const moods = await getMoods(userId);
+    
+    if (format === 'json') {
+      return JSON.stringify(moods, null, 2);
+    }
+    
+    // CSV export
+    const headers = ['Datum', 'Humör', 'Poäng', 'Anteckning', 'Taggar', 'Valens', 'Arousal'];
+    const rows = moods.map((m: { timestamp?: string | Date; mood_text?: string; score?: number; note?: string; tags?: string[]; valence?: number; arousal?: number }) => {
+      const date = m.timestamp ? new Date(m.timestamp).toLocaleDateString('sv-SE') : '';
+      const mood = m.mood_text || '';
+      const score = m.score ?? '';
+      const note = (m.note || '').replace(/"/g, '""');
+      const tags = (m.tags || []).join(', ');
+      const valence = m.valence ?? '';
+      const arousal = m.arousal ?? '';
+      return `"${date}","${mood}",${score},"${note}","${tags}",${valence},${arousal}`;
+    });
+    
+    return [headers.join(','), ...rows].join('\n');
+  } catch (error: unknown) {
+    throw new Error(getApiErrorMessage(error, "An error occurred while exporting mood data."));
+  }
+};
+
+/**
+ * Export mood entries as CSV for data portability
+ * @param userId - User ID
+ * @returns Promise resolving to CSV string
+ */
+export const exportMoodData = async (userId: string, format: 'csv' | 'json' = 'csv'): Promise<string> => {
+  try {
+    const moods = await getMoods(userId);
+    
+    if (format === 'json') {
+      return JSON.stringify(moods, null, 2);
+    }
+    
+    // CSV export
+    const headers = ['Datum', 'Humör', 'Poäng', 'Anteckning', 'Taggar', 'Valens', 'Arousal'];
+    const rows = moods.map((m: { timestamp?: string | Date; mood_text?: string; score?: number; note?: string; tags?: string[]; valence?: number; arousal?: number }) => {
+      const date = m.timestamp ? new Date(m.timestamp).toLocaleDateString('sv-SE') : '';
+      const mood = m.mood_text || '';
+      const score = m.score ?? '';
+      const note = (m.note || '').replace(/"/g, '""');
+      const tags = (m.tags || []).join(', ');
+      const valence = m.valence ?? '';
+      const arousal = m.arousal ?? '';
+      return `"${date}","${mood}",${score},"${note}","${tags}",${valence},${arousal}`;
+    });
+    
+    return [headers.join(','), ...rows].join('\n');
+  } catch (error: unknown) {
+    throw new Error(getApiErrorMessage(error, "An error occurred while exporting mood data."));
   }
 };
