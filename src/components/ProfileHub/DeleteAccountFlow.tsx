@@ -19,7 +19,7 @@ interface DeleteAccountFlowProps {
 }
 
 // Check for distress patterns in recent activity
-const hasRecentDistressPatterns = (user: any): boolean => {
+const hasRecentDistressPatterns = (_user: unknown): boolean => {
   // This would check for patterns like:
   // - Multiple mood logs with very low scores
   // - Recent searches for depression/suicide help
