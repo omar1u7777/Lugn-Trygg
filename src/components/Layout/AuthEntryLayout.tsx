@@ -27,11 +27,11 @@ const AuthEntryLayout: React.FC = () => {
       <Container maxWidth="xl" centered>
         <main 
           id="main-content"
-          className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-7 items-start lg:items-center"
+          className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-7 items-center"
         >
           {/* Compact Intro (Mobile/Tablet) */}
           <section 
-            className="lg:hidden order-1 rounded-2xl bg-white/85 dark:bg-slate-900/75 backdrop-blur-xl border border-white/50 dark:border-slate-700/70 shadow-[0_16px_45px_-26px_rgba(15,23,42,0.45)] p-4 sm:p-5"
+            className="md:hidden order-1 rounded-2xl bg-white/85 dark:bg-slate-900/75 backdrop-blur-xl border border-white/50 dark:border-slate-700/70 shadow-[0_16px_45px_-26px_rgba(15,23,42,0.45)] p-4 sm:p-5"
             aria-label={t('authLayout.introLabel')}
           >
             <p className="inline-flex items-center rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-primary-700 dark:text-primary-200 bg-primary-100/90 dark:bg-primary-900/40 mb-2">
@@ -47,35 +47,35 @@ const AuthEntryLayout: React.FC = () => {
 
           {/* Info/Branding Section */}
           <section 
-            className="hidden lg:flex order-1 flex-col justify-between h-full rounded-3xl bg-white/85 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25)] dark:shadow-[0_24px_80px_-30px_rgba(15,23,42,0.65)] p-5 md:p-8 transition-all"
+            className="hidden md:flex order-1 flex-col justify-between h-full rounded-3xl bg-white/85 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/50 dark:border-slate-800 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25)] dark:shadow-[0_24px_80px_-30px_rgba(15,23,42,0.65)] p-5 md:p-6 lg:p-8 transition-all"
             aria-label={t('authLayout.infoLabel')}
           >
             <header>
-              <p className="inline-flex items-center rounded-full px-3 py-1 text-xs md:text-sm uppercase tracking-[0.16em] text-primary-700 dark:text-primary-200 bg-primary-100/90 dark:bg-primary-900/40 mb-3 md:mb-4">
+              <p className="inline-flex items-center rounded-full px-3 py-1 text-xs lg:text-sm uppercase tracking-[0.16em] text-primary-700 dark:text-primary-200 bg-primary-100/90 dark:bg-primary-900/40 mb-3 md:mb-4">
                 {t('app.name')}
               </p>
-              <h1 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white leading-tight">
+              <h1 className="text-xl md:text-2xl lg:text-4xl font-bold text-slate-900 dark:text-white leading-tight">
                 {t('authLayout.tagline')}
               </h1>
-              <p className="mt-3 md:mt-4 text-base md:text-lg text-slate-700 dark:text-slate-300 leading-relaxed">
+              <p className="mt-3 md:mt-4 text-sm md:text-base lg:text-lg text-slate-700 dark:text-slate-300 leading-relaxed">
                 {t('authLayout.description')}
               </p>
             </header>
             <ul 
-              className="space-y-3 md:space-y-4 text-slate-700 dark:text-slate-200 mt-6 md:mt-10"
+              className="space-y-2 md:space-y-3 lg:space-y-4 text-slate-700 dark:text-slate-200 mt-4 md:mt-6 lg:mt-10"
               aria-label={t('authLayout.featuresLabel')}
             >
-              <li className="flex items-center gap-2 md:gap-3">
-                <span className="text-xl md:text-2xl" aria-hidden="true">🛡️</span>
-                <p className="text-sm md:text-base">{t('authLayout.feature1')}</p>
+              <li className="flex items-center gap-2 lg:gap-3">
+                <span className="text-lg lg:text-2xl" aria-hidden="true">🛡️</span>
+                <p className="text-sm lg:text-base">{t('authLayout.feature1')}</p>
               </li>
-              <li className="flex items-center gap-2 md:gap-3">
-                <span className="text-xl md:text-2xl" aria-hidden="true">📈</span>
-                <p className="text-sm md:text-base">{t('authLayout.feature2')}</p>
+              <li className="flex items-center gap-2 lg:gap-3">
+                <span className="text-lg lg:text-2xl" aria-hidden="true">📈</span>
+                <p className="text-sm lg:text-base">{t('authLayout.feature2')}</p>
               </li>
-              <li className="flex items-center gap-2 md:gap-3">
-                <span className="text-xl md:text-2xl" aria-hidden="true">🤖</span>
-                <p className="text-sm md:text-base">{t('authLayout.feature3')}</p>
+              <li className="flex items-center gap-2 lg:gap-3">
+                <span className="text-lg lg:text-2xl" aria-hidden="true">🤖</span>
+                <p className="text-sm lg:text-base">{t('authLayout.feature3')}</p>
               </li>
             </ul>
           </section>
