@@ -103,7 +103,7 @@ class HomeworkAdherence:
 class TherapeuticProgressTracker:
     """
     Professional therapeutic progress tracking
-    
+
     Implements:
     - Reliable Change Index (Jacobson & Truax, 1991)
     - Clinical Significance methodology
@@ -130,7 +130,7 @@ class TherapeuticProgressTracker:
     ) -> dict[str, Any]:
         """
         Calculate Reliable Change Index (RCI)
-        
+
         RCI determines if change is statistically reliable vs. measurement error
         """
         change = current_score - baseline_score
@@ -176,11 +176,11 @@ class TherapeuticProgressTracker:
     ) -> SessionOutcome:
         """
         Assess outcome of a single session
-        
+
         Pre/post session measurement using validated scales
         """
         # Calculate wellbeing change (0-10 scale, higher is better)
-        wellbeing_change = post_session_scores.get('wellbeing', 5) - pre_session_scores.get('wellbeing', 5)
+        _wellbeing_change = post_session_scores.get('wellbeing', 5) - pre_session_scores.get('wellbeing', 5)
 
         # Calculate symptom reduction (0-1 scale)
         pre_symptoms = pre_session_scores.get('symptoms', 0.5)
@@ -252,14 +252,14 @@ class TherapeuticProgressTracker:
     ) -> TherapeuticAlliance:
         """
         Estimate working alliance from conversation patterns
-        
+
         Based on Bordin's Working Alliance Inventory:
         - Bond: emotional connection
         - Tasks: agreement on methods
         - Goals: agreement on outcomes
         """
         ai_messages = [m for m in messages if m.get('role') == 'assistant']
-        user_messages = [m for m in messages if m.get('role') == 'user']
+        _user_messages = [m for m in messages if m.get('role') == 'user']
 
         # 1. Bond score - emotional connection markers
         bond_markers = [
@@ -296,7 +296,7 @@ class TherapeuticProgressTracker:
             "don't understand", "not helpful", "not listening", "you don't get it",
             "förstår inte", "inte hjälpsam", "lyssnar inte", "fattar inte"
         ]
-        rupture_count = sum(1 for msg in user_messages
+        rupture_count = sum(1 for msg in _user_messages
                           for indicator in rupture_indicators
                           if indicator in msg.get('content', '').lower())
         rupture_detected = rupture_count > 0
@@ -336,7 +336,7 @@ class TherapeuticProgressTracker:
     ) -> ProgressTrajectory:
         """
         Analyze long-term progress trajectory
-        
+
         Detects:
         - Linear improvement trends
         - Plateaus
@@ -428,7 +428,7 @@ class TherapeuticProgressTracker:
     ) -> float:
         """
         Predict risk of therapy dropout
-        
+
         Based on research on dropout predictors:
         - Slow progress
         - Early plateau
