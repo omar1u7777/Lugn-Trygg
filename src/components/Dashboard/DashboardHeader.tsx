@@ -122,9 +122,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   lastMood,
 }) => {
   const { t } = useTranslation();
-  // Hämta dashboard data för mood-baserad personalisering
-  const dashboardResult = userId ? useDashboardData(userId) : null;
-  const stats = dashboardResult?.stats;
+  // Hämta dashboard data för mood-baserad personalisering - ALLTID kalla hooken
+  const dashboardResult = useDashboardData(userId ?? '');
+  const stats = userId ? dashboardResult?.stats : null;
   const recentMood = stats?.averageMood;
   
   const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood?.toString()));

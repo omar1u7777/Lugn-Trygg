@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -19,12 +18,11 @@ import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
   MinusIcon,
-  CalendarIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import useAuth from '../hooks/useAuth';
 import api from '../api/api';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { sv } from 'date-fns/locale';
 
 interface ForecastData {
@@ -44,8 +42,8 @@ interface TemporalPattern {
 }
 
 export const MoodForecastView: React.FC = () => {
-  const { t } = useTranslation();
-  const { user } = useAuth();
+  const { t: _t } = useTranslation();
+  const { user: _user } = useAuth();
   const [forecast, setForecast] = useState<ForecastData[]>([]);
   const [patterns, setPatterns] = useState<TemporalPattern[]>([]);
   const [loading, setLoading] = useState(true);

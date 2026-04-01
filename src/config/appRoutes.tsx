@@ -4,7 +4,6 @@ import LoginForm from '@/components/Auth/LoginForm'; // Critical for LCP: load i
 import RegisterForm from '@/components/Auth/RegisterForm';
 import {
   DailyInsightsWrapper,
-  CrisisAlertWrapper,
   OnboardingFlowWrapper,
   PrivacySettingsWrapper,
   WorldClassAIChatWrapper,

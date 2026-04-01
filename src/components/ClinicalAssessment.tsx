@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -47,8 +47,8 @@ const RESPONSE_OPTIONS = [
 ];
 
 export const ClinicalAssessment: React.FC = () => {
-  const { t } = useTranslation();
-  const { user } = useAuth();
+  const { t: _t } = useTranslation();
+  const { user: _user } = useAuth();
   const [activeTab, setActiveTab] = useState<'phq9' | 'gad7'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [result, setResult] = useState<any>(null);

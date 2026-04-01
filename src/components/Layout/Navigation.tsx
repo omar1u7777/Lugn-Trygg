@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSubscription } from "../../contexts/SubscriptionContext";
-import { extractDisplayName } from "../../utils/nameUtils";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { SparklesIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import MobileMenu from "./MobileMenu";

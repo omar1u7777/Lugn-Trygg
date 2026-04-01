@@ -1,6 +1,5 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckIcon } from '@heroicons/react/24/solid';
 
 // Language configuration with display names and flags
 const LANGUAGE_CONFIG = {

@@ -66,7 +66,7 @@ const DEFAULT_PERSONALITIES: Record<string, PersonalityProfile> = {
 
 export const useAIPersonality = (userId: string) => {
   const [currentPersonality, setCurrentPersonality] = useState<PersonalityProfile>(DEFAULT_PERSONALITIES.gentle_coach);
-  const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [userPreferences: _userPreferences, setUserPreferences] = useState<any>(null);
   const [adaptationHistory, setAdaptationHistory] = useState<Array<{
     timestamp: Date;
     from: string;
@@ -97,7 +97,7 @@ export const useAIPersonality = (userId: string) => {
   }, [userId]);
 
   // Analyze message to understand user preferences
-  const analyzeMessage = useCallback((message: string, messageHistory: any[] = []): MessageAnalysis => {
+  const analyzeMessage = useCallback((message: string, messageHistory: _messageHistory: any[] = []): MessageAnalysis => {
     // Simple sentiment analysis (in real app, use NLP service)
     const positiveWords = ['glad', 'happy', 'bra', 'rolig', 'fantastisk'];
     const negativeWords = ['sad', 'ledsen', 'orolig', 'stressad', 'dålig'];
@@ -211,7 +211,7 @@ export const useAIPersonality = (userId: string) => {
 
   // Get personality-aware response prefix
   const getResponsePrefix = useCallback((analysis: MessageAnalysis) => {
-    const { traits, responseStyle } = currentPersonality;
+    const { traits: _traits, responseStyle } = currentPersonality;
     
     switch (responseStyle) {
       case 'gentle':

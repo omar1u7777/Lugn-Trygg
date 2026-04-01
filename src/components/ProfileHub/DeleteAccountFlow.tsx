@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } from '../ui/tailwind';
+import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogContent } from '../ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import { 
   ExclamationTriangleIcon,

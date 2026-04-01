@@ -386,7 +386,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {moods.map(mood => {
-                const visual = getMoodVisual(mood.value);
+                const _visual = getMoodVisual(mood.value);
                 const isSelected = selectedMood === mood.value;
                 
                 return (
