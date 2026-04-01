@@ -65,13 +65,13 @@ class WorksheetGenerator:
 
         # Extract user messages
         user_messages = [m['content'] for m in messages if m.get('role') == 'user']
-        
+
         if not user_messages:
             return None
 
         # Analyze content for worksheet type
         combined_text = " ".join(user_messages).lower()
-        
+
         # Determine appropriate worksheet type
         worksheet_type = self._determine_worksheet_type(
             combined_text,
