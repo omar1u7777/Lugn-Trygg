@@ -316,9 +316,10 @@ def export_user_data(user_id: str):
         file_buffer.write(json_data.encode('utf-8'))
         file_buffer.seek(0)
 
-        # Generate filename
+        # Generate filename (sanitized to prevent path traversal)
         export_date = datetime.now(UTC).strftime('%Y-%m-%d')
-        filename = f"lugn-trygg-data-{export_date}.json"
+        safe_user_id = re.sub(r'[^a-zA-Z0-9_-]', '', str(user_id)[:16])
+        filename = f"lugn-trygg-data-{safe_user_id}-{export_date}.json"
 
         logger.info("Data export completed for user %s - %d bytes", str(user_id)[:8], len(json_data))
         audit_log('data_exported', user_id, {'size_bytes': len(json_data)})

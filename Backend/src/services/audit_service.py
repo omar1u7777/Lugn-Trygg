@@ -60,7 +60,7 @@ class AuditService:
             doc_ref = _db.collection("audit_logs").document()
             doc_ref.set(audit_entry)
 
-            logger.info("Audit log created: %s for user %s", str(event_type).replace('\n', '').replace('\r', '')[:50], str(user_id).replace('\n', '').replace('\r', '')[:50])
+            logger.info("Audit log created: %s for user %s***", str(event_type)[:50], str(user_id)[:8])
 
             # Apply retention policy (delete logs older than 7 years for HIPAA)
             self._apply_retention_policy()
