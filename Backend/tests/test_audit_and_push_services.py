@@ -1,9 +1,9 @@
 """
 Unit tests for AuditService and PushNotificationService
 """
+from datetime import UTC, datetime, timedelta
+
 import pytest
-import os
-from datetime import datetime, timezone, timedelta
 from cryptography.fernet import Fernet
 
 import src.services.audit_service as audit_mod
@@ -134,11 +134,11 @@ def test_audit_service_init_with_env_key(monkeypatch):
 def test_audit_service_init_without_env_key(monkeypatch):
     """Test that AuditService REQUIRES HIPAA_ENCRYPTION_KEY for production security"""
     monkeypatch.delenv('HIPAA_ENCRYPTION_KEY', raising=False)
-    
+
     # Should raise ValueError - HIPAA key is REQUIRED for production
     with pytest.raises(ValueError) as exc_info:
         service = AuditService()
-    
+
     # Verify error message is clear
     assert "HIPAA_ENCRYPTION_KEY" in str(exc_info.value)
     assert "REQUIRED" in str(exc_info.value)
@@ -179,12 +179,12 @@ def test_apply_retention_policy():
     service = AuditService()
     fake_db = audit_mod.db
     # Create old log
-    old_date = (datetime.now(timezone.utc) - timedelta(days=3000)).isoformat()
+    old_date = (datetime.now(UTC) - timedelta(days=3000)).isoformat()
     fake_db.collection('audit_logs').document('old1').set({'timestamp': old_date, 'event_type': 'OLD'})
     # Create recent log
-    recent_date = datetime.now(timezone.utc).isoformat()
+    recent_date = datetime.now(UTC).isoformat()
     fake_db.collection('audit_logs').document('recent1').set({'timestamp': recent_date, 'event_type': 'RECENT'})
-    
+
     service._apply_retention_policy()
     # Note: FakeCollection.where() doesn't support 'filter' kwarg like real Firestore
     # So retention policy may fail in test environment - that's acceptable
@@ -210,7 +210,7 @@ def test_get_audit_trail():
         'details': details_encrypted,
         'timestamp': '2025-01-02T00:00:00'
     })
-    
+
     trail = service.get_audit_trail('user-x', limit=10)
     # Note: FakeCollection.where() doesn't support 'filter' kwarg like real Firestore
     # So get_audit_trail may return empty list in test environment
@@ -227,7 +227,7 @@ def test_get_audit_trail_decryption_fail():
         'details': 'not-valid-encrypted-data',
         'timestamp': '2025-01-01T00:00:00'
     })
-    
+
     trail = service.get_audit_trail('user-y')
     # Note: FakeCollection.where() doesn't support 'filter' kwarg
     # So get_audit_trail may return empty list in test environment
@@ -395,7 +395,7 @@ def test_send_bulk_notifications_success(monkeypatch):
         success_count = 3
         failure_count = 1
     monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', lambda msg: FakeBatchResponse())
-    
+
     tokens = ['t1', 't2', 't3', 't4']
     result = service.send_bulk_notifications(tokens, 'Hello', 'World', {'k': 'v'})
     assert result['success'] is True
@@ -409,7 +409,7 @@ def test_send_bulk_notifications_large_batch(monkeypatch):
         success_count = 500
         failure_count = 0
     monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', lambda msg: FakeBatchResponse())
-    
+
     # Send 1200 tokens (should split into 3 batches of 500, 500, 200)
     tokens = [f't{i}' for i in range(1200)]
     result = service.send_bulk_notifications(tokens, 'Bulk', 'Test')
@@ -422,7 +422,7 @@ def test_send_bulk_notifications_exception(monkeypatch):
     def raise_exc(msg):
         raise Exception('bulk fail')
     monkeypatch.setattr(push_mod.messaging, 'send_each_for_multicast', raise_exc)
-    
+
     result = service.send_bulk_notifications(['t1'], 'Title', 'Body')
     assert result['success'] is False
     assert 'bulk fail' in result['error']

@@ -1,6 +1,5 @@
 import logging
 from datetime import UTC, datetime
-from typing import List
 
 from flask import Blueprint, Response, g, make_response, request, stream_with_context
 
@@ -23,9 +22,7 @@ except ImportError:
     logger.warning("Chat RAG service not available")
 
 try:
-    from src.services.therapeutic_framework_detector import (
-        get_framework_detector, TherapeuticFramework
-    )
+    from src.services.therapeutic_framework_detector import TherapeuticFramework, get_framework_detector
     FRAMEWORK_AVAILABLE = True
 except ImportError:
     FRAMEWORK_AVAILABLE = False
@@ -229,15 +226,11 @@ def chat_with_ai():
 
             # CRISIS INTERVENTION: Real escalation with SMS/email/push
             try:
-                from ..services.crisis_escalation import (
-                    get_crisis_escalation_service, 
-                    CrisisAlert, 
-                    EscalationResult
-                )
-                
+                from ..services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+
                 # Use semantic crisis detector for better accuracy
                 from ..services.crisis_intervention import crisis_intervention_service
-                
+
                 # Get conversation context for better detection
                 conversation_context = [
                     {"role": "user", "content": user_message}
@@ -245,19 +238,19 @@ def chat_with_ai():
                     {"role": msg.get("role"), "content": msg.get("content")}
                     for msg in conversation_history[-3:]  # Last 3 messages for context
                 ]
-                
+
                 # Perform semantic crisis assessment
                 assessment = crisis_intervention_service.assess_text_crisis_risk(
-                    user_message, 
+                    user_message,
                     conversation_context
                 )
-                
+
                 if assessment.overall_risk_level in ('critical', 'high'):
                     logger.warning(
                         "🚨 CRISIS CONFIRMED via AI chat: user=%s risk=%s score=%.2f",
                         user_id, assessment.overall_risk_level, assessment.risk_score
                     )
-                    
+
                     # Create crisis alert for escalation
                     crisis_alert = CrisisAlert(
                         user_id=user_id,
@@ -270,13 +263,13 @@ def chat_with_ai():
                         timestamp=datetime.now(UTC),
                         requires_immediate_action=assessment.overall_risk_level == 'critical'
                     )
-                    
+
                     # Execute REAL escalation (SMS, email, push, dashboard)
                     escalation_service = get_crisis_escalation_service()
                     escalation_result = asyncio.run(
                         escalation_service.escalate(crisis_alert)
                     )
-                    
+
                     if escalation_result.success:
                         logger.info(
                             f"✅ Crisis escalation completed via channels: "
@@ -287,7 +280,7 @@ def chat_with_ai():
                             f"❌ Crisis escalation failed: "
                             f"{len(escalation_result.failures)} channels failed"
                         )
-                    
+
                     # Store escalation result in response for frontend
                     ai_response["crisis_escalation"] = {
                         "escalated": True,
@@ -295,7 +288,7 @@ def chat_with_ai():
                         "channels_used": [c.value for c in escalation_result.channels_used],
                         "success": escalation_result.success
                     }
-                    
+
             except Exception as crisis_err:
                 logger.exception(f"Crisis intervention/escalation failed (non-blocking): {crisis_err}")
                 # Still flag crisis even if escalation fails
@@ -487,17 +480,17 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
     - Crisis detection and advanced features
     """
     from src.services.ai_service import ai_services
-    
+
     # Initialize advanced features
     rag_context_used = False
     framework_detected = None
     techniques_used = []
-    
+
     # 1. Use RAG to retrieve personalized context if available
     if RAG_AVAILABLE and user_id:
         try:
             rag_service = get_chat_rag_service(user_id)
-            
+
             # Retrieve relevant context from user's history
             contexts = rag_service.retrieve_context(
                 query=user_message,
@@ -505,7 +498,7 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
                 max_results=3,
                 recency_days=30
             )
-            
+
             if contexts:
                 rag_context_used = True
                 logger.info(f"RAG: Retrieved {len(contexts)} context items for user {user_id}")
@@ -514,34 +507,34 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
             contexts = []
     else:
         contexts = []
-    
+
     # 2. Detect therapeutic framework
     if FRAMEWORK_AVAILABLE:
         try:
             detector = get_framework_detector()
             framework, confidence = detector.detect_framework(user_message)
             techniques = detector.detect_techniques(user_message)
-            
+
             if confidence > 0.6:
                 framework_detected = framework.value
                 techniques_used = [t.technique for t in techniques[:3]]
                 logger.info(f"Framework detected: {framework.value} (confidence: {confidence:.2f})")
         except Exception as e:
             logger.warning(f"Framework detection failed: {e}")
-    
+
     # 3. Generate AI response with context augmentation
     try:
         if rag_context_used and contexts:
             # Build augmented prompt with RAG context
             context_text = "\n".join([f"[{ctx.source}] {ctx.content}" for ctx in contexts])
-            
+
             augmented_message = f"""User message: {user_message}
 
 Relevant context from user's history:
 {context_text}
 
 Please provide a personalized response that considers this context while being natural and conversational."""
-            
+
             ai_response = ai_services.generate_therapeutic_conversation(
                 augmented_message,
                 conversation_history
@@ -552,12 +545,12 @@ Please provide a personalized response that considers this context while being n
                 user_message,
                 conversation_history
             )
-        
+
         # Add metadata about advanced features
         ai_response["rag_context_used"] = rag_context_used
         ai_response["framework_detected"] = framework_detected
         ai_response["techniques_used"] = techniques_used
-        
+
     except Exception as e:
         logger.error(f"AI response generation failed: {e}")
         # Fallback to basic response
@@ -568,15 +561,15 @@ Please provide a personalized response that considers this context while being n
             "framework_detected": None,
             "techniques_used": []
         }
-    
+
     # 4. Add suggested actions if not in crisis
     if not ai_response.get("crisis_detected", False):
         sentiment_analysis = ai_response.get("sentiment_analysis", {})
         suggested_actions = generate_suggested_actions(sentiment_analysis)
-        
+
         ai_response["suggested_actions"] = suggested_actions
         ai_response["emotions_detected"] = sentiment_analysis.get("emotions", [])
-    
+
     # 5. Track progress if available
     if PROGRESS_AVAILABLE and user_id:
         try:
@@ -585,7 +578,7 @@ Please provide a personalized response that considers this context while being n
             ai_response["progress_tracking_enabled"] = True
         except Exception as e:
             logger.warning(f"Progress tracking setup failed: {e}")
-    
+
     return ai_response
 
 def generate_ai_feature_suggestions(user_message: str, conversation_history: list, ai_response: dict) -> dict:
@@ -1091,13 +1084,13 @@ def get_therapeutic_framework_analysis():
     """
     if request.method == 'OPTIONS':
         return _preflight_response()
-    
+
     if not FRAMEWORK_AVAILABLE:
         return APIResponse.error("Framework analysis unavailable", "SERVICE_UNAVAILABLE", 503)
-    
+
     try:
         user_id = g.user_id
-        
+
         # Get recent conversations
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         recent_messages = list(
@@ -1105,7 +1098,7 @@ def get_therapeutic_framework_analysis():
             .limit(50)
             .get()
         )
-        
+
         if not recent_messages:
             return APIResponse.success({
                 "framework": "unknown",
@@ -1113,34 +1106,34 @@ def get_therapeutic_framework_analysis():
                 "techniques": [],
                 "message": "No conversation data available"
             })
-        
+
         # Analyze all AI messages for framework detection
         detector = get_framework_detector()
         ai_messages = [m.to_dict() for m in recent_messages if m.to_dict().get("role") == "assistant"]
-        
+
         # Detect primary framework
         all_content = " ".join([m.get("content", "") for m in ai_messages])
         framework, confidence = detector.detect_framework(all_content)
-        
+
         # Detect techniques
         all_techniques = []
         for msg in ai_messages:
             techniques = detector.detect_techniques(msg.get("content", ""))
             all_techniques.extend(techniques)
-        
+
         # Count technique frequency
         technique_counts = {}
         for tech in all_techniques:
             key = tech.technique
             technique_counts[key] = technique_counts.get(key, 0) + 1
-        
+
         # Get top techniques
         top_techniques = sorted(
             [{"technique": k, "count": v} for k, v in technique_counts.items()],
             key=lambda x: x["count"],
             reverse=True
         )[:5]
-        
+
         return APIResponse.success({
             "framework": framework.value,
             "confidence": confidence,
@@ -1148,7 +1141,7 @@ def get_therapeutic_framework_analysis():
             "total_messages_analyzed": len(ai_messages),
             "analysis_timestamp": datetime.now(UTC).isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Framework analysis failed: {e}")
         return APIResponse.error("Analysis failed", "ANALYSIS_ERROR", 500)
@@ -1165,14 +1158,14 @@ def get_therapeutic_progress():
     """
     if request.method == 'OPTIONS':
         return _preflight_response()
-    
+
     if not PROGRESS_AVAILABLE:
         return APIResponse.error("Progress tracking unavailable", "SERVICE_UNAVAILABLE", 503)
-    
+
     try:
         user_id = g.user_id
         tracker = get_progress_tracker(user_id)
-        
+
         # Get all conversation sessions
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         session_docs = list(
@@ -1180,7 +1173,7 @@ def get_therapeutic_progress():
             .limit(100)
             .get()
         )
-        
+
         if len(session_docs) < 3:
             return APIResponse.success({
                 "status": "insufficient_data",
@@ -1188,7 +1181,7 @@ def get_therapeutic_progress():
                 "sessions_available": len(session_docs),
                 "sessions_needed": 3
             })
-        
+
         # Build session outcomes from conversation data
         session_outcomes = []
         for doc in session_docs:
@@ -1205,17 +1198,17 @@ def get_therapeutic_progress():
                     "user_satisfaction": data.get("user_rating", 3)
                 }
                 session_outcomes.append(outcome)
-        
+
         # Analyze trajectory
         trajectory = tracker.analyze_progress_trajectory(session_outcomes)
-        
+
         # Generate progress report
         report = tracker.generate_progress_report(
             session_outcomes=session_outcomes,
             alliances=[],  # Would need explicit alliance tracking
             trajectory=trajectory
         )
-        
+
         return APIResponse.success({
             "progress_report": report,
             "trajectory": {
@@ -1228,7 +1221,7 @@ def get_therapeutic_progress():
             "recommendations": _generate_progress_recommendations(trajectory),
             "analysis_timestamp": datetime.now(UTC).isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Progress analysis failed: {e}")
         return APIResponse.error("Progress analysis failed", "ANALYSIS_ERROR", 500)
@@ -1244,13 +1237,13 @@ def get_conversation_quality_metrics():
     """
     if request.method == 'OPTIONS':
         return _preflight_response()
-    
+
     if not FRAMEWORK_AVAILABLE:
         return APIResponse.error("Quality analysis unavailable", "SERVICE_UNAVAILABLE", 503)
-    
+
     try:
         user_id = g.user_id
-        
+
         # Get recent conversation
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         recent_messages = list(
@@ -1258,33 +1251,33 @@ def get_conversation_quality_metrics():
             .limit(30)
             .get()
         )
-        
+
         if not recent_messages:
             return APIResponse.success({
                 "message": "No conversation data available",
                 "metrics": None
             })
-        
+
         # Convert to message format
         messages = [m.to_dict() for m in recent_messages]
-        
+
         # Get user goals for goal alignment calculation
         try:
             goals_docs = db.collection("users").document(user_id).collection("goals").get()
             user_goals = [g.to_dict().get("title", "") for g in goals_docs]
         except Exception:
             user_goals = []
-        
+
         # Calculate quality metrics
         detector = get_framework_detector()
         metrics = detector.analyze_conversation_quality(messages, user_goals)
-        
+
         # Generate recommendations
         current_framework = TherapeuticFramework.CBT  # Default, could be detected
         recommendations = detector.generate_therapeutic_recommendations(
             current_framework, metrics, {}
         )
-        
+
         return APIResponse.success({
             "metrics": {
                 "empathy_score": metrics.empathy_score,
@@ -1300,7 +1293,7 @@ def get_conversation_quality_metrics():
             "messages_analyzed": len(messages),
             "analysis_timestamp": datetime.now(UTC).isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Quality metrics failed: {e}")
         return APIResponse.error("Quality analysis failed", "ANALYSIS_ERROR", 500)
@@ -1310,7 +1303,7 @@ def _estimate_wellbeing_from_sentiment(data: dict) -> float:
     """Estimate wellbeing score from conversation sentiment"""
     sentiment = data.get("sentiment", "NEUTRAL")
     emotions = data.get("emotions_detected", [])
-    
+
     # Base score from sentiment
     base_scores = {
         "POSITIVE": 7.0,
@@ -1318,37 +1311,37 @@ def _estimate_wellbeing_from_sentiment(data: dict) -> float:
         "NEGATIVE": 3.0
     }
     score = base_scores.get(sentiment, 5.0)
-    
+
     # Adjust based on emotions
     positive_emotions = ["joy", "contentment", "gratitude", "hope"]
     negative_emotions = ["sadness", "anger", "fear", "anxiety"]
-    
+
     for emotion in emotions:
         if emotion.lower() in positive_emotions:
             score += 0.5
         elif emotion.lower() in negative_emotions:
             score -= 0.5
-    
+
     return max(1.0, min(10.0, score))
 
 
-def _generate_progress_recommendations(trajectory) -> List[str]:
+def _generate_progress_recommendations(trajectory) -> list[str]:
     """Generate recommendations based on trajectory analysis"""
     recommendations = []
-    
+
     if trajectory.deterioration_detected:
         recommendations.append("Kontakta en vårdgivare - dina måendeindikatorer visar på försämring")
-    
+
     if trajectory.plateau_detected:
         recommendations.append("Överväg att prova nya terapeutiska tekniker eller öka sessionsfrekvensen")
-    
+
     if trajectory.risk_of_dropout > 0.6:
         recommendations.append("Din engagemangsnivå har minskat - låt oss diskutera vad som skulle hjälpa")
-    
+
     if trajectory.clinically_significant_change:
         recommendations.append("Fantastiskt framsteg! Fortsätt med dina nuvarande strategier")
-    
+
     if not recommendations:
         recommendations.append("Fortsätt med dina nuvarande övningar och sessioner")
-    
+
     return recommendations

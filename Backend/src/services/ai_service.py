@@ -1373,10 +1373,10 @@ Långsiktiga välbefinnande-strategier:
                 }
 
             # 2. Use therapeutic framework to analyze and select intervention
-            from .therapeutic_framework import get_therapeutic_framework, TherapeuticContext
-            
+            from .therapeutic_framework import TherapeuticContext, get_therapeutic_framework
+
             framework = get_therapeutic_framework()
-            
+
             # Build therapeutic context
             therapeutic_context = TherapeuticContext(
                 user_id=user_id or "anonymous",
@@ -1388,14 +1388,14 @@ Långsiktiga välbefinnande-strategier:
                 past_effective_techniques=user_profile.get('effective_techniques', []) if user_profile else [],
                 session_goals=user_profile.get('goals', []) if user_profile else []
             )
-            
+
             # Analyze input for therapeutic content
             analysis = framework.analyze_input(user_message, therapeutic_context)
-            
+
             # Get modality and technique
             modality = analysis['recommended_modality']
             technique = analysis['recommended_technique']
-            
+
             logger.info(f"🎯 Therapeutic analysis: modality={modality.value if modality else 'none'}, "
                        f"technique={technique.value if technique else 'none'}, "
                        f"distortions={analysis['detected_distortions']}")
@@ -1407,16 +1407,16 @@ Långsiktiga välbefinnande-strategier:
                     from src.firebase_config import db
                     mood_ref = db.collection("users").document(user_id).collection("moods")
                     recent_moods = list(mood_ref.order_by("timestamp", direction="DESCENDING").limit(7).stream())
-                    
+
                     if recent_moods:
                         mood_scores = []
                         for mood_doc in recent_moods:
                             mood_data = mood_doc.to_dict()
                             score = mood_data.get("score", mood_data.get("sentiment_score", 5))
                             mood_scores.append(score)
-                        
+
                         avg_mood = sum(mood_scores) / len(mood_scores) if mood_scores else 5
-                        
+
                         # Determine trend
                         if len(mood_scores) >= 3:
                             recent_avg = sum(mood_scores[:3]) / 3
@@ -1429,7 +1429,7 @@ Långsiktiga välbefinnande-strategier:
                                 trend = "är stabilt"
                         else:
                             trend = "är okänt (för lite data)"
-                        
+
                         mood_context = f"""\n\nAnvändarens humörkontext (senaste 7 dagarna):
 - Genomsnittligt humör: {avg_mood:.1f}/10
 - Humörtrend: {trend}
@@ -1441,10 +1441,10 @@ Ta hänsyn till användarens humörmönster när du svarar."""
                 except Exception as mood_err:
                     logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
                     mood_context = ""
-            
+
             # 4. Generate base therapeutic prompt with mood context
             base_prompt = framework.generate_therapeutic_prompt(modality, technique)
-            
+
             # Add Swedish language enforcement and mood context
             enhanced_prompt = f"""Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.
 
@@ -1459,7 +1459,7 @@ Din roll:
 {mood_context}
 
 VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig."""
-            
+
             # 5. Apply RAG if user_id available for personalization
             final_prompt = enhanced_prompt
             if user_id:
@@ -1510,7 +1510,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
             # 9. Generate suggested actions based on sentiment and technique
             suggested_actions = self._generate_suggested_actions(
-                sentiment_analysis, 
+                sentiment_analysis,
                 analysis['detected_distortions']
             )
 
@@ -1520,7 +1520,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                 try:
                     from .worksheet_generator import get_worksheet_generator
                     worksheet_gen = get_worksheet_generator()
-                    
+
                     # Generate worksheet
                     conversation_data = conversation_history + [{"role": "user", "content": user_message}]
                     worksheet = worksheet_gen.generate_from_conversation(
@@ -1528,7 +1528,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         messages=conversation_data,
                         detected_distortions=[d.value for d in analysis['detected_distortions']]
                     )
-                    
+
                     if worksheet:
                         suggested_exercise = {
                             "type": worksheet.type,
@@ -1547,18 +1547,18 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                 try:
                     from .rag_service import get_rag_service
                     rag_service = get_rag_service()
-                    
+
                     # Determine outcome based on sentiment
                     outcome = "positive" if sentiment_analysis.get('sentiment') == "POSITIVE" else \
                              "negative" if sentiment_analysis.get('sentiment') == "NEGATIVE" else "neutral"
-                    
+
                     rag_service.index_conversation(
                         user_id=user_id,
                         conversation_id=f"conv_{datetime.now().timestamp()}",
                         messages=conversation_history + [{"role": "user", "content": user_message}],
                         outcome=outcome
                     )
-                    
+
                     # Index effective coping strategy if identified
                     if suggested_actions and outcome == "positive":
                         for action in suggested_actions[:2]:
@@ -1568,7 +1568,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                                 context=f"Conversation: {user_message[:100]}...",
                                 effectiveness=0.7
                             )
-                            
+
                 except Exception as idx_err:
                     logger.warning(f"⚠️ Conversation indexing failed: {idx_err}")
 
@@ -1620,48 +1620,48 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             'glad': 'joy',
             'lycklig': 'joy'
         }
-        
+
         text_lower = text.lower()
         for keyword, emotion in emotion_keywords.items():
             if keyword in text_lower:
                 return emotion
-        
+
         return 'neutral'
 
-    def _generate_suggested_actions(self, sentiment_analysis: dict, 
+    def _generate_suggested_actions(self, sentiment_analysis: dict,
                                      distortions: list) -> list[str]:
         """Generate suggested actions based on sentiment and detected distortions."""
         actions = []
-        
+
         sentiment = sentiment_analysis.get('sentiment', 'NEUTRAL')
-        
+
         if sentiment == 'NEGATIVE':
             actions.extend([
                 "Ta några djupa andetag (4 sekunder in, 6 ut)",
                 "Gör en 5-4-3-2-1 grounding-övning",
                 "Skriv ner dina tankar i ett tanke-record"
             ])
-            
+
             # Add distortion-specific actions
             if any('catastrophizing' in str(d) for d in distortions):
                 actions.append("Utforska: Vad är det värsta som kan hända? Och sedan? Och sedan?")
             if any('mind_reading' in str(d) for d in distortions):
                 actions.append("Fråga dig själv: Vilka bevis har jag för vad andra tänker?")
-        
+
         elif sentiment == 'POSITIVE':
             actions.extend([
                 "Fira dina positiva känslor - vad hjälpte?",
                 "Spara detta ögonblick i minnes-journalen",
                 "Dela glädjen med någon du tycker om"
             ])
-        
+
         else:  # NEUTRAL
             actions.extend([
                 "Gör något du tycker om i 10 minuter",
                 "Prova en kort mindfulness-övning",
                 "Gå en 5-minuters promenad"
             ])
-        
+
         return actions[:5]  # Return top 5
 
     def generate_therapeutic_conversation_stream(self, user_message: str, conversation_history: list[dict]):
@@ -1670,7 +1670,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
         Yields SSE-formatted strings: 'data: <chunk>\\n\\n' and 'data: [DONE]\\n\\n'
         Falls back to yielding full response at once if streaming unavailable.
         """
-        from typing import Generator
+        from collections.abc import Generator
 
         if not self.openai_available or not self.client:
             logger.warning("⚠️ OpenAI not available, streaming fallback")

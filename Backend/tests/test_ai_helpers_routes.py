@@ -2,9 +2,9 @@
 Tests for ai_helpers_routes.py
 Covers: text sentiment analysis endpoint.
 """
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pytest
 
 BASE = "/api/v1/ai-helpers"
 

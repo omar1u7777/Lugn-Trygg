@@ -2,10 +2,10 @@
 Tests for mood_stats_routes.py
 Covers: mood statistics endpoint.
 """
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
-from datetime import datetime, timezone, timedelta
 
+import pytest
 
 BASE = "/api/v1/mood-stats"
 USER_ID = "testuser1234567890ab"
@@ -23,21 +23,21 @@ def mock_mood_stats_db(mock_db):
     mood1.to_dict.return_value = {
         "score": 0.8,
         "sentiment": "positive",
-        "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+        "timestamp": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
     }
     mood2 = MagicMock()
     mood2.id = "m2"
     mood2.to_dict.return_value = {
         "score": -0.3,
         "sentiment": "negative",
-        "timestamp": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        "timestamp": (datetime.now(UTC) - timedelta(days=2)).isoformat(),
     }
     mood3 = MagicMock()
     mood3.id = "m3"
     mood3.to_dict.return_value = {
         "score": 0.1,
         "sentiment": "neutral",
-        "timestamp": (datetime.now(timezone.utc) - timedelta(days=3)).isoformat(),
+        "timestamp": (datetime.now(UTC) - timedelta(days=3)).isoformat(),
     }
 
     moods_subcol = MagicMock()

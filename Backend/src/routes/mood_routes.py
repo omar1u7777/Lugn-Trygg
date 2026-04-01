@@ -322,7 +322,7 @@ def log_mood() -> Response | tuple[Response, int]:
         # Ensure tags is a list
         if not isinstance(tags, list):
             tags = [tags] if tags else []
-        
+
         # Circumplex Model: Get valence and arousal (1-10 scale)
         valence = data.get('valence') if data else None
         arousal = data.get('arousal') if data else None

@@ -2,8 +2,6 @@
 Tests for subscription_service.py
 Covers: plan normalization, premium check, plan context, daily usage, quota.
 """
-import pytest
-from unittest.mock import MagicMock
 
 
 class TestNormalizePlan:

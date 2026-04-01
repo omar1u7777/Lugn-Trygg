@@ -36,17 +36,17 @@ def _check_cbt_access(user_id: str) -> tuple[bool, str]:
     try:
         user_doc = db.collection("users").document(user_id).get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
-        
+
         plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
         plan_type = plan_context.get("plan_type", "free")
-        
+
         # CBT is premium feature - require premium, trial, or enterprise
         allowed_plans = ["premium", "trial", "enterprise"]
         if plan_type.lower() not in allowed_plans:
             return False, f"CBT modules require premium subscription. Current plan: {plan_type}"
-        
+
         return True, ""
-        
+
     except Exception as e:
         logger.error(f"Failed to check CBT access for {user_id}: {e}")
         return False, "Unable to verify subscription status"

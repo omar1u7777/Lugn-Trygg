@@ -4,17 +4,12 @@ Provides real-time generated binaural beats, isochronic tones, and procedural am
 """
 
 import logging
-from typing import Dict
-from flask import Blueprint, g, request, Response, stream_with_context
-from datetime import datetime
 
+from flask import Blueprint, Response, g, request, stream_with_context
+
+from src.services.ai_music_service import SoundscapeType, get_ai_music_service
 from src.services.auth_service import AuthService
 from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.ai_music_service import (
-    get_ai_music_service,
-    SoundscapeType,
-    BrainwaveFrequency
-)
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -30,12 +25,12 @@ def get_available_soundscapes():
     try:
         service = get_ai_music_service()
         soundscapes = service.get_available_soundscapes()
-        
+
         return APIResponse.success(
             data={'soundscapes': soundscapes},
             message=f"Found {len(soundscapes)} AI soundscape types"
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get soundscapes: {e}")
         return APIResponse.error("Failed to retrieve soundscapes", "AI_MUSIC_ERROR", 500)
@@ -60,7 +55,7 @@ def generate_soundscape():
     try:
         user_id = g.get('user_id')
         data = request.get_json() or {}
-        
+
         # Validate type
         soundscape_type_str = data.get('type', 'meditation')
         try:
@@ -71,7 +66,7 @@ def generate_soundscape():
                 "INVALID_TYPE",
                 400
             )
-        
+
         # Validate duration (5 min default, max 20 min to prevent abuse)
         duration = data.get('duration', 300)
         if not isinstance(duration, int) or duration < 60 or duration > 1200:
@@ -80,10 +75,10 @@ def generate_soundscape():
                 "INVALID_DURATION",
                 400
             )
-        
+
         # Optional mood for adaptive generation
         target_mood = data.get('mood')
-        
+
         # Generate
         service = get_ai_music_service()
         track = service.generate_soundscape(
@@ -92,7 +87,7 @@ def generate_soundscape():
             duration=duration,
             target_mood=target_mood
         )
-        
+
         # Return metadata
         return APIResponse.success(
             data={
@@ -110,7 +105,7 @@ def generate_soundscape():
             },
             message="AI soundscape generated successfully"
         )
-        
+
     except Exception as e:
         logger.exception(f"Failed to generate soundscape: {e}")
         return APIResponse.error("Failed to generate soundscape", "GENERATION_ERROR", 500)
@@ -123,14 +118,14 @@ def stream_soundscape(track_id: str):
     try:
         service = get_ai_music_service()
         track = service.get_track(track_id)
-        
+
         if not track or not track.audio_data:
             return APIResponse.not_found("Track not found or expired")
-        
+
         # Stream the audio
         def generate():
             yield track.audio_data
-        
+
         return Response(
             stream_with_context(generate()),
             mimetype='audio/wav',
@@ -141,7 +136,7 @@ def stream_soundscape(track_id: str):
                 'X-Duration': str(track.duration_seconds)
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to stream soundscape: {e}")
         return APIResponse.error("Failed to stream audio", "STREAM_ERROR", 500)
@@ -154,10 +149,10 @@ def download_soundscape(track_id: str):
     try:
         service = get_ai_music_service()
         track = service.get_track(track_id)
-        
+
         if not track or not track.audio_data:
             return APIResponse.not_found("Track not found or expired")
-        
+
         return Response(
             track.audio_data,
             mimetype='audio/wav',
@@ -166,7 +161,7 @@ def download_soundscape(track_id: str):
                 'Content-Length': len(track.audio_data)
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to download soundscape: {e}")
         return APIResponse.error("Failed to download audio", "DOWNLOAD_ERROR", 500)
@@ -182,13 +177,13 @@ def preview_soundscape(soundscape_type: str):
     """
     try:
         user_id = g.get('user_id')
-        
+
         # Validate type
         try:
             st = SoundscapeType(soundscape_type)
         except ValueError:
             return APIResponse.error("Invalid soundscape type", "INVALID_TYPE", 400)
-        
+
         # Generate 30-second preview
         service = get_ai_music_service()
         track = service.generate_soundscape(
@@ -197,7 +192,7 @@ def preview_soundscape(soundscape_type: str):
             duration=30,
             target_mood=None
         )
-        
+
         # Stream directly
         return Response(
             track.audio_data,
@@ -209,7 +204,7 @@ def preview_soundscape(soundscape_type: str):
                 'X-Track-Type': soundscape_type
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to generate preview: {e}")
         return APIResponse.error("Failed to generate preview", "PREVIEW_ERROR", 500)
@@ -280,7 +275,7 @@ def get_brainwave_info():
             'research': 'Gamma-aktivitet är förknippad med transcendentala upplevelser och peak states.'
         }
     }
-    
+
     return APIResponse.success(
         data=info,
         message="Brainwave frequency information"
@@ -302,19 +297,19 @@ def get_adaptive_recommendation():
     """
     try:
         data = request.get_json() or {}
-        
+
         mood = data.get('current_mood', 'neutral')
         time_of_day = data.get('time_of_day', 'afternoon')
         activity = data.get('activity', 'relaxing')
-        
+
         # Recommendation logic
         recommendations = _get_adaptive_recommendation(mood, time_of_day, activity)
-        
+
         return APIResponse.success(
             data=recommendations,
             message="Personalized soundscape recommendations"
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get recommendation: {e}")
         return APIResponse.error("Failed to generate recommendation", "REC_ERROR", 500)
@@ -334,9 +329,9 @@ def _get_brainwave_description(freq: float) -> str:
         return "Gamma (Peak)"
 
 
-def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> Dict:
+def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> dict:
     """Generate adaptive soundscape recommendation."""
-    
+
     # Mood-based mapping
     mood_mapping = {
         'anxious': {
@@ -370,7 +365,7 @@ def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> 
             'priority': 2
         }
     }
-    
+
     # Time-based adjustments
     time_mapping = {
         'morning': 'focus',
@@ -378,7 +373,7 @@ def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> 
         'evening': 'meditation',
         'night': 'deep_sleep'
     }
-    
+
     # Activity-based
     activity_mapping = {
         'working': 'focus',
@@ -387,19 +382,19 @@ def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> 
         'sleeping': 'deep_sleep',
         'exercising': 'cosmic'
     }
-    
+
     # Combine factors
     mood_rec = mood_mapping.get(mood, {'type': 'meditation', 'reason': 'General wellness'})
     time_rec = time_mapping.get(time_of_day, 'meditation')
     activity_rec = activity_mapping.get(activity, 'meditation')
-    
+
     # Priority: mood > activity > time
     final_type = mood_rec['type']
     if mood == 'neutral' or mood not in mood_mapping:
         final_type = activity_rec
     if activity == 'relaxing' and time_of_day in ['evening', 'night']:
         final_type = time_rec
-    
+
     return {
         'recommended_soundscape': final_type,
         'reasoning': mood_rec.get('reason', 'Personalized for your state'),

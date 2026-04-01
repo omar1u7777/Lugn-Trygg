@@ -3,16 +3,13 @@ Daily Insights Routes - API for proactive therapeutic insights
 """
 
 import logging
+
 from flask import Blueprint, g, request
 
-from src.services.auth_service import AuthService
-from src.services.rate_limiting import rate_limit_by_endpoint
-from src.services.daily_insight_service import (
-    get_insight_generator,
-    generate_daily_insights,
-    DailyInsightGenerator
-)
 from src.firebase_config import db
+from src.services.auth_service import AuthService
+from src.services.daily_insight_service import generate_daily_insights, get_insight_generator
+from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -30,14 +27,14 @@ def generate_insights(user_id: str):
     """
     try:
         current_user = g.get('user_id')
-        
+
         # Users can only generate for themselves
         if user_id != current_user:
             return APIResponse.forbidden("Can only generate insights for yourself")
-        
+
         # Generate insights
         insights = generate_daily_insights(user_id)
-        
+
         response_data = {
             'generated_count': len(insights),
             'insights': [
@@ -53,14 +50,14 @@ def generate_insights(user_id: str):
                 for i in insights
             ]
         }
-        
+
         logger.info(f"Generated {len(insights)} insights for {user_id}")
-        
+
         return APIResponse.success(
             data=response_data,
             message=f"Generated {len(insights)} personalized insights"
         )
-        
+
     except Exception as e:
         logger.exception(f"Failed to generate insights: {e}")
         return APIResponse.error("Failed to generate insights", "INSIGHT_ERROR", 500)
@@ -73,18 +70,18 @@ def get_pending_insights(user_id: str):
     """Get pending insights for user."""
     try:
         current_user = g.get('user_id')
-        
+
         if user_id != current_user:
             return APIResponse.forbidden("Unauthorized access")
-        
+
         generator = get_insight_generator()
         insights = generator.get_pending_insights(user_id)
-        
+
         return APIResponse.success(
             data={'insights': insights, 'count': len(insights)},
             message=f"Found {len(insights)} pending insights"
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to fetch insights: {e}")
         return APIResponse.error("Failed to fetch insights")
@@ -97,23 +94,23 @@ def dismiss_insight(insight_id: str):
     """Mark an insight as dismissed by user."""
     try:
         user_id = g.get('user_id')
-        
+
         # Verify ownership
         insight_doc = db.collection('insights').document(insight_id).get()
         if not insight_doc.exists:
             return APIResponse.not_found("Insight not found")
-        
+
         if insight_doc.to_dict().get('user_id') != user_id:
             return APIResponse.forbidden("Unauthorized")
-        
+
         # Update status
         db.collection('insights').document(insight_id).update({
             'status': 'dismissed',
             'dismissed_at': datetime.now()
         })
-        
+
         return APIResponse.success(message="Insight dismissed")
-        
+
     except Exception as e:
         logger.error(f"Failed to dismiss insight: {e}")
         return APIResponse.error("Failed to dismiss insight")
@@ -128,13 +125,13 @@ def insight_action_taken(insight_id: str):
         user_id = g.get('user_id')
         data = request.get_json() or {}
         action_taken = data.get('action', 'unknown')
-        
+
         db.collection('insights').document(insight_id).update({
             'status': 'action_taken',
             'action_taken': action_taken,
             'action_taken_at': datetime.now()
         })
-        
+
         # Also log for analytics
         from src.services.audit_service import audit_log
         audit_log(
@@ -145,9 +142,9 @@ def insight_action_taken(insight_id: str):
                 "action": action_taken
             }
         )
-        
+
         return APIResponse.success(message="Action recorded")
-        
+
     except Exception as e:
         logger.error(f"Failed to record action: {e}")
         return APIResponse.error("Failed to record action")

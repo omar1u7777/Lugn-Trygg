@@ -175,8 +175,8 @@ def check_crisis_risk():
                 .limit(50)
                 .stream())
             # Filter by date in Python code
-            mood_docs = [doc for doc in mood_docs 
-                        if doc.to_dict().get('timestamp') and 
+            mood_docs = [doc for doc in mood_docs
+                        if doc.to_dict().get('timestamp') and
                         doc.to_dict()['timestamp'] >= thirty_days_ago_dt]
 
         mood_data = extract_mood_entries(mood_docs)
@@ -297,8 +297,8 @@ def get_mood_trends():
             mood_docs = list(mood_ref.order_by('timestamp')
                 .stream())
             # Filter by date in Python code
-            mood_docs = [doc for doc in mood_docs 
-                        if doc.to_dict().get('timestamp') and 
+            mood_docs = [doc for doc in mood_docs
+                        if doc.to_dict().get('timestamp') and
                         doc.to_dict()['timestamp'] >= start_date]
 
         mood_data = extract_mood_entries(mood_docs)

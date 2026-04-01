@@ -2,10 +2,10 @@
 Tests for journal_routes.py
 Covers: CRUD operations for journal entries.
 """
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
 
+import pytest
 
 BASE = "/api/v1/journal"
 USER_ID = "testuser1234567890ab"
@@ -36,8 +36,8 @@ def mock_journal_db(mock_db):
         "mood": 8,
         "tags": ["happy"],
         "user_id": USER_ID,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
     }
 
     # --- Journal document ref (used for POST new doc + GET/PUT/DELETE existing) ---

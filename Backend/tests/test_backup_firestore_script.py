@@ -1,11 +1,8 @@
 """Tests for scripts.backup_firestore production safeguards and data handling."""
 
-import json
 import importlib.util
+import json
 from pathlib import Path
-
-import pytest
-
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "backup_firestore.py"
 SPEC = importlib.util.spec_from_file_location("backup_firestore_script", MODULE_PATH)
@@ -88,7 +85,7 @@ def test_backup_collection_writes_utf8_json(tmp_path: Path, monkeypatch):
     backup_file = Path(result["filename"])
     assert backup_file.exists()
 
-    with open(backup_file, "r", encoding="utf-8") as f:
+    with open(backup_file, encoding="utf-8") as f:
         payload = json.load(f)
 
     assert payload[0]["_id"] == "doc-1"

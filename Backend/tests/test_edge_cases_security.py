@@ -5,9 +5,8 @@ Target: Boost coverage from 48% to 95%+
 Note: Some tests accept 503 as valid since Firebase mock may not fully replace db in routes
 """
 
-import pytest
-from datetime import datetime, timedelta
 import json
+from datetime import datetime
 
 
 class TestMoodRoutesEdgeCases:
@@ -270,7 +269,7 @@ class TestChatbotEdgeCases:
             'Jag tänker på självmord',
             'Jag vill inte leva längre'
         ]
-        
+
         for message in crisis_messages:
             response = client.post(
                 '/api/chatbot/chat',
@@ -287,13 +286,13 @@ class TestAuthenticationEdgeCases:
     def test_register_existing_email(self, client):
         """Test registering with existing email"""
         email = f'test_{datetime.now().timestamp()}@example.com'
-        
+
         # First registration
         client.post(
             '/api/auth/register',
             json={'email': email, 'password': 'Test1234!'}
         )
-        
+
         # Second registration (should fail)
         response = client.post(
             '/api/auth/register',
@@ -326,7 +325,7 @@ class TestAuthenticationEdgeCases:
     def test_weak_password(self, client):
         """Test registration with weak password"""
         weak_passwords = ['123', 'password', 'abc', '111111']
-        
+
         for pwd in weak_passwords:
             response = client.post(
                 '/api/auth/register',
@@ -348,7 +347,7 @@ class TestAuthenticationEdgeCases:
             'user@',
             'user@@example.com'
         ]
-        
+
         for email in invalid_emails:
             response = client.post(
                 '/api/auth/register',
@@ -454,14 +453,14 @@ class TestRateLimitingScenarios:
             responses.append(response.status_code)
             if response.status_code == 429:
                 break
-        
+
         # Should eventually rate limit, succeed, or return error
         assert all(code in [200, 429, 500, 503] for code in responses)
 
     def test_rate_limit_different_endpoints(self, client, auth_headers, mock_auth_service, mock_db):
         """Test rate limits across different endpoints"""
         endpoints = ['/api/mood', '/api/memory/list', '/api/feedback/list']
-        
+
         for endpoint in endpoints:
             response = client.get(endpoint, headers=auth_headers)
             # Should handle gracefully
@@ -489,7 +488,7 @@ class TestUnicodeAndInternationalization:
             'Привет мир',  # Russian
             '🎉🎊😊🌟',  # Emoji
         ]
-        
+
         for text in unicode_texts:
             response = client.post(
                 '/api/mood/log',
@@ -544,7 +543,7 @@ class TestPaginationAndSorting:
             '/api/mood?page=abc&limit=def',
             '/api/mood?page=0&limit=0',
         ]
-        
+
         for url in test_cases:
             response = client.get(url, headers=auth_headers)
             # Should handle gracefully

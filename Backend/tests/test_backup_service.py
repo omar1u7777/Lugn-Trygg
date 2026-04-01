@@ -3,7 +3,7 @@
 import gzip
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 from src.services.backup_service import BackupService
@@ -48,7 +48,7 @@ def test_cleanup_old_backups_removes_expired_files(tmp_path):
     new_file = tmp_path / 'hourly_new.backup.gz'
     new_file.write_bytes(b'new')
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=service.backup_schedules['hourly']['retention'] + 1)
+    cutoff = datetime.now(UTC) - timedelta(days=service.backup_schedules['hourly']['retention'] + 1)
     os.utime(old_file, (cutoff.timestamp(), cutoff.timestamp()))
 
     service._cleanup_old_backups('hourly')

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,21 +22,21 @@ class ClinicalFlaggingService:
     - Rapid mood decline
     - Persistent negative patterns
     """
-    
+
     # Clinical thresholds based on evidence-based practice
     LOW_MOOD_THRESHOLD = 3  # Score below this is considered "low mood"
     CONSECUTIVE_DAYS_THRESHOLD = 5  # Number of consecutive low days to trigger flag
     RAPID_DECLINE_THRESHOLD = -3  # Drop of 3+ points in 3 days
     PERSISTENT_LOW_THRESHOLD = 7  # 7+ low mood days in 14 days
-    
+
     def __init__(self):
         self.logger = logger
-    
+
     def check_mood_flags(
-        self, 
-        mood_entries: List[Dict[str, Any]],
+        self,
+        mood_entries: list[dict[str, Any]],
         user_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Check for clinical flags in mood data.
         
@@ -54,45 +54,45 @@ class ClinicalFlaggingService:
                 'flags': [],
                 'recommendations': []
             }
-        
+
         # Sort by timestamp (newest first)
         sorted_entries = sorted(
             mood_entries,
             key=lambda x: self._parse_timestamp(x.get('timestamp')),
             reverse=True
         )
-        
+
         flags = []
         risk_level = 'none'
-        
+
         # Check 1: Consecutive low mood days
         consecutive_flag = self._check_consecutive_low_mood(sorted_entries)
         if consecutive_flag:
             flags.append(consecutive_flag)
             risk_level = self._escalate_risk(risk_level, 'high')
-        
+
         # Check 2: Rapid mood decline
         decline_flag = self._check_rapid_decline(sorted_entries)
         if decline_flag:
             flags.append(decline_flag)
             risk_level = self._escalate_risk(risk_level, 'medium')
-        
+
         # Check 3: Persistent low mood over 2 weeks
         persistent_flag = self._check_persistent_low_mood(sorted_entries)
         if persistent_flag:
             flags.append(persistent_flag)
             risk_level = self._escalate_risk(risk_level, 'high')
-        
+
         # Generate recommendations based on flags
         recommendations = self._generate_recommendations(flags, risk_level)
-        
+
         # Log flagging event
         if flags:
             self.logger.warning(
                 f"Clinical flags detected for user {user_id[:8]}...: "
                 f"{len(flags)} flags, risk level: {risk_level}"
             )
-        
+
         return {
             'flagged': len(flags) > 0,
             'risk_level': risk_level,
@@ -100,11 +100,11 @@ class ClinicalFlaggingService:
             'recommendations': recommendations,
             'checked_at': datetime.utcnow().isoformat()
         }
-    
+
     def _check_consecutive_low_mood(
-        self, 
-        sorted_entries: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        self,
+        sorted_entries: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """
         Check for consecutive days with mood < 3.
         
@@ -112,24 +112,24 @@ class ClinicalFlaggingService:
         """
         if len(sorted_entries) < self.CONSECUTIVE_DAYS_THRESHOLD:
             return None
-        
+
         # Group entries by calendar day
         daily_moods = self._group_by_day(sorted_entries)
-        
+
         # Check for consecutive low mood days
         consecutive_count = 0
         consecutive_dates = []
-        
+
         # Sort days chronologically
         sorted_days = sorted(daily_moods.keys(), reverse=True)
-        
+
         for i, day in enumerate(sorted_days):
             avg_mood = daily_moods[day]['average']
-            
+
             if avg_mood < self.LOW_MOOD_THRESHOLD:
                 consecutive_count += 1
                 consecutive_dates.append(day)
-                
+
                 # Check if this is truly consecutive (no gaps)
                 if i > 0:
                     prev_day = sorted_days[i - 1]
@@ -145,7 +145,7 @@ class ClinicalFlaggingService:
                     break
                 consecutive_count = 0
                 consecutive_dates = []
-        
+
         if consecutive_count >= self.CONSECUTIVE_DAYS_THRESHOLD:
             return {
                 'type': 'consecutive_low_mood',
@@ -162,32 +162,32 @@ class ClinicalFlaggingService:
                 },
                 'clinical_significance': True
             }
-        
+
         return None
-    
+
     def _check_rapid_decline(
-        self, 
-        sorted_entries: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        self,
+        sorted_entries: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """Check for rapid mood decline (3+ points drop in 3 days)."""
         if len(sorted_entries) < 2:
             return None
-        
+
         # Get mood from last 3 days
         three_days_ago = datetime.utcnow() - timedelta(days=3)
         recent_entries = [
             e for e in sorted_entries
             if self._parse_timestamp(e.get('timestamp')) >= three_days_ago
         ]
-        
+
         if len(recent_entries) < 2:
             return None
-        
+
         # Calculate mood change
         latest_mood = recent_entries[0].get('score', 5)
         earliest_mood = recent_entries[-1].get('score', 5)
         mood_change = latest_mood - earliest_mood
-        
+
         if mood_change <= self.RAPID_DECLINE_THRESHOLD:
             return {
                 'type': 'rapid_decline',
@@ -202,30 +202,30 @@ class ClinicalFlaggingService:
                 'days': 3,
                 'clinical_significance': True
             }
-        
+
         return None
-    
+
     def _check_persistent_low_mood(
-        self, 
-        sorted_entries: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        self,
+        sorted_entries: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """Check for persistent low mood over 2 weeks (7+ low days in 14 days)."""
         two_weeks_ago = datetime.utcnow() - timedelta(days=14)
         recent_entries = [
             e for e in sorted_entries
             if self._parse_timestamp(e.get('timestamp')) >= two_weeks_ago
         ]
-        
+
         if not recent_entries:
             return None
-        
+
         # Count low mood days
         daily_moods = self._group_by_day(recent_entries)
         low_mood_days = sum(
             1 for day_data in daily_moods.values()
             if day_data['average'] < self.LOW_MOOD_THRESHOLD
         )
-        
+
         if low_mood_days >= self.PERSISTENT_LOW_THRESHOLD:
             return {
                 'type': 'persistent_low_mood',
@@ -240,35 +240,35 @@ class ClinicalFlaggingService:
                 'total_days': 14,
                 'clinical_significance': True
             }
-        
+
         return None
-    
+
     def _group_by_day(
-        self, 
-        entries: List[Dict[str, Any]]
-    ) -> Dict[datetime, Dict[str, Any]]:
+        self,
+        entries: list[dict[str, Any]]
+    ) -> dict[datetime, dict[str, Any]]:
         """Group mood entries by calendar day and calculate daily averages."""
         daily_moods = {}
-        
+
         for entry in entries:
             timestamp = self._parse_timestamp(entry.get('timestamp'))
             day = timestamp.date()
             score = entry.get('score', 5)
-            
+
             if day not in daily_moods:
                 daily_moods[day] = {'scores': [], 'entries': []}
-            
+
             daily_moods[day]['scores'].append(score)
             daily_moods[day]['entries'].append(entry)
-        
+
         # Calculate averages
         for day in daily_moods:
             scores = daily_moods[day]['scores']
             daily_moods[day]['average'] = sum(scores) / len(scores)
             daily_moods[day]['count'] = len(scores)
-        
+
         return daily_moods
-    
+
     def _parse_timestamp(self, timestamp: Any) -> datetime:
         """Parse timestamp from various formats."""
         if isinstance(timestamp, datetime):
@@ -280,28 +280,28 @@ class ClinicalFlaggingService:
                 return datetime.utcnow()
         else:
             return datetime.utcnow()
-    
+
     def _escalate_risk(self, current: str, new: str) -> str:
         """Escalate risk level if new level is higher."""
         risk_levels = {'none': 0, 'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
         current_level = risk_levels.get(current, 0)
         new_level = risk_levels.get(new, 0)
-        
+
         if new_level > current_level:
             return new
         return current
-    
+
     def _generate_recommendations(
-        self, 
-        flags: List[Dict[str, Any]], 
+        self,
+        flags: list[dict[str, Any]],
         risk_level: str
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Generate actionable recommendations based on flags."""
         recommendations = []
-        
+
         if not flags:
             return recommendations
-        
+
         # High-risk recommendations
         if risk_level in ['high', 'critical']:
             recommendations.append({
@@ -318,7 +318,7 @@ class ClinicalFlaggingService:
                     {'name': 'Jourhavande präst', 'phone': '112', 'available': '24/7'}
                 ]
             })
-        
+
         # Medium-risk recommendations
         if risk_level == 'medium':
             recommendations.append({
@@ -331,7 +331,7 @@ class ClinicalFlaggingService:
                 'action': 'seek_support',
                 'resources': []
             })
-        
+
         # Self-care recommendations (always include)
         recommendations.append({
             'priority': 'low',
@@ -343,7 +343,7 @@ class ClinicalFlaggingService:
             'action': 'self_care',
             'resources': []
         })
-        
+
         return recommendations
 
 

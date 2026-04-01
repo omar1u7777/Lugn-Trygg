@@ -18,9 +18,6 @@ Key facts (verified against ai_routes.py + main.py + conftest.py):
 
 from unittest.mock import Mock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

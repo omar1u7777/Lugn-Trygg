@@ -4,10 +4,8 @@ Sends SMS, email, and push notifications for crisis situations.
 """
 
 import logging
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List
 from enum import Enum
 
 # These will be imported when available, graceful fallback if not configured
@@ -19,7 +17,7 @@ except ImportError:
 
 try:
     from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To, Content
+    from sendgrid.helpers.mail import Content, Email, Mail, To
     SENDGRID_AVAILABLE = True
 except ImportError:
     SENDGRID_AVAILABLE = False
@@ -58,8 +56,8 @@ class CrisisAlert:
 class EmergencyContact:
     """Emergency contact for a user."""
     name: str
-    phone: Optional[str] = None
-    email: Optional[str] = None
+    phone: str | None = None
+    email: str | None = None
     relationship: str = ""
     notify_sms: bool = True
     notify_email: bool = True
@@ -71,7 +69,7 @@ class EscalationResult:
     success: bool
     channels_used: list[EscalationChannel]
     failures: list[tuple[EscalationChannel, str]]
-    alert_id: Optional[str] = None
+    alert_id: str | None = None
 
 
 class CrisisEscalationService:
@@ -80,59 +78,59 @@ class CrisisEscalationService:
     Sends real-time notifications via SMS (Twilio), email (SendGrid), 
     and push notifications (Firebase Cloud Messaging).
     """
-    
+
     def __init__(self):
         logger.info("🚨 Initializing Crisis Escalation Service...")
-        
-        self.twilio_client: Optional[TwilioClient] = None
-        self.sendgrid_client: Optional[SendGridAPIClient] = None
-        
+
+        self.twilio_client: TwilioClient | None = None
+        self.sendgrid_client: SendGridAPIClient | None = None
+
         # Initialize Twilio if configured
         if TWILIO_AVAILABLE:
             self._init_twilio()
         else:
             logger.warning("⚠️ Twilio not available - SMS escalation disabled")
-        
+
         # Initialize SendGrid if configured
         if SENDGRID_AVAILABLE:
             self._init_sendgrid()
         else:
             logger.warning("⚠️ SendGrid not available - email escalation disabled")
-        
+
         if not FCM_AVAILABLE:
             logger.warning("⚠️ Firebase Cloud Messaging not available - push notifications disabled")
-        
+
         logger.info("✅ Crisis Escalation Service initialized")
-    
+
     def _init_twilio(self):
         """Initialize Twilio SMS client."""
         import os
-        
+
         account_sid = os.getenv("TWILIO_ACCOUNT_SID")
         auth_token = os.getenv("TWILIO_AUTH_TOKEN")
         self.twilio_phone = os.getenv("TWILIO_PHONE_NUMBER")
-        
+
         if account_sid and auth_token and self.twilio_phone:
             self.twilio_client = TwilioClient(account_sid, auth_token)
             logger.info("📱 Twilio SMS client initialized")
         else:
             logger.warning("⚠️ Twilio credentials not configured")
             self.twilio_client = None
-    
+
     def _init_sendgrid(self):
         """Initialize SendGrid email client."""
         import os
-        
+
         api_key = os.getenv("SENDGRID_API_KEY")
         self.from_email = os.getenv("SENDGRID_FROM_EMAIL", "alerts@lugn-trygg.se")
-        
+
         if api_key:
             self.sendgrid_client = SendGridAPIClient(api_key)
             logger.info("📧 SendGrid email client initialized")
         else:
             logger.warning("⚠️ SendGrid API key not configured")
             self.sendgrid_client = None
-    
+
     async def escalate(self, alert: CrisisAlert) -> EscalationResult:
         """
         Execute full escalation protocol for a crisis alert.
@@ -148,17 +146,17 @@ class CrisisEscalationService:
             f"🚨 CRISIS ESCALATION: user={alert.user_id[:8]}... "
             f"risk={alert.risk_level} score={alert.risk_score:.2f}"
         )
-        
+
         channels_used = []
         failures = []
-        
+
         try:
             # 1. Persist alert to database immediately
             alert_id = await self._persist_alert(alert)
-            
+
             # 2. Get user info including emergency contacts
             user_data = await self._get_user_data(alert.user_id)
-            
+
             # 3. Send immediate SMS to user
             if alert.risk_level in ['high', 'critical']:
                 try:
@@ -167,7 +165,7 @@ class CrisisEscalationService:
                 except Exception as e:
                     logger.error(f"❌ Failed to send user SMS: {e}")
                     failures.append((EscalationChannel.SMS, str(e)))
-            
+
             # 4. Notify emergency contacts (critical/high only)
             if alert.risk_level in ['high', 'critical'] and user_data.get('emergency_contacts'):
                 try:
@@ -177,7 +175,7 @@ class CrisisEscalationService:
                 except Exception as e:
                     logger.error(f"❌ Failed to notify emergency contacts: {e}")
                     failures.append((EscalationChannel.EMAIL, str(e)))
-            
+
             # 5. Send push notification
             try:
                 await self._send_push_notification(alert, user_data)
@@ -185,7 +183,7 @@ class CrisisEscalationService:
             except Exception as e:
                 logger.warning(f"⚠️ Push notification failed: {e}")
                 failures.append((EscalationChannel.PUSH, str(e)))
-            
+
             # 6. Create dashboard alert (for Phase 6 clinician dashboard)
             try:
                 await self._create_dashboard_alert(alert, alert_id)
@@ -193,24 +191,24 @@ class CrisisEscalationService:
             except Exception as e:
                 logger.error(f"❌ Failed to create dashboard alert: {e}")
                 failures.append((EscalationChannel.DASHBOARD, str(e)))
-            
+
             # Log escalation
             await self._log_escalation(alert, channels_used, failures, alert_id)
-            
+
             success = len(channels_used) > 0
-            
+
             if success:
                 logger.info(f"✅ Crisis escalation completed: {len(channels_used)} channels")
             else:
-                logger.error(f"❌ Crisis escalation failed: all channels failed")
-            
+                logger.error("❌ Crisis escalation failed: all channels failed")
+
             return EscalationResult(
                 success=success,
                 channels_used=list(set(channels_used)),  # Deduplicate
                 failures=failures,
                 alert_id=alert_id
             )
-            
+
         except Exception as e:
             logger.exception(f"🔥 Critical escalation failure: {e}")
             return EscalationResult(
@@ -219,11 +217,11 @@ class CrisisEscalationService:
                 failures=failures + [(EscalationChannel.SMS, f"Critical failure: {e}")],
                 alert_id=None
             )
-    
+
     async def _persist_alert(self, alert: CrisisAlert) -> str:
         """Persist crisis alert to Firestore."""
         doc_ref = db.collection('crisis_alerts').document()
-        
+
         doc_ref.set({
             'user_id': alert.user_id,
             'risk_level': alert.risk_level,
@@ -236,9 +234,9 @@ class CrisisEscalationService:
             'requires_immediate_action': alert.requires_immediate_action,
             'notification_attempts': []
         })
-        
+
         return doc_ref.id
-    
+
     async def _get_user_data(self, user_id: str) -> dict:
         """Fetch user data including emergency contacts."""
         try:
@@ -246,9 +244,9 @@ class CrisisEscalationService:
             if not user_doc.exists:
                 logger.warning(f"User {user_id[:8]}... not found")
                 return {}
-            
+
             data = user_doc.to_dict() or {}
-            
+
             # Get phone from profile
             phone = data.get('phone')
             if not phone:
@@ -259,7 +257,7 @@ class CrisisEscalationService:
                     phone = user_record.phone_number
                 except Exception:
                     pass
-            
+
             return {
                 'name': data.get('display_name', data.get('name', 'Användare')),
                 'phone': phone,
@@ -267,17 +265,17 @@ class CrisisEscalationService:
                 'emergency_contacts': data.get('emergency_contacts', []),
                 'fcm_token': data.get('fcm_token')  # For push notifications
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to fetch user data: {e}")
             return {}
-    
+
     async def _send_user_sms(self, alert: CrisisAlert, user_data: dict):
         """Send immediate grounding SMS to the user."""
         if not self.twilio_client or not user_data.get('phone'):
             logger.warning("Cannot send user SMS - Twilio or phone not configured")
             return
-        
+
         # Swedish messages based on risk level
         if alert.risk_level == 'critical':
             message_body = (
@@ -291,7 +289,7 @@ class CrisisEscalationService:
                 f"Öppna Lugn & Trygg för en grounding-övning, eller ring "
                 f"Krisjouren på 90101. Du är inte ensam."
             )
-        
+
         try:
             message = self.twilio_client.messages.create(
                 body=message_body,
@@ -302,18 +300,18 @@ class CrisisEscalationService:
         except Exception as e:
             logger.error(f"❌ Twilio SMS failed: {e}")
             raise
-    
-    async def _notify_emergency_contacts(self, alert: CrisisAlert, contacts: List[dict]):
+
+    async def _notify_emergency_contacts(self, alert: CrisisAlert, contacts: list[dict]):
         """Notify emergency contacts via SMS and email."""
         user_name = "Användaren"  # Privacy - don't reveal full name
-        
+
         for contact in contacts:
             contact_name = contact.get('name', 'Kontakt')
             phone = contact.get('phone')
             email = contact.get('email')
             notify_sms = contact.get('notify_sms', True)
             notify_email = contact.get('notify_email', True)
-            
+
             # SMS to contact
             if phone and notify_sms and self.twilio_client:
                 try:
@@ -330,17 +328,17 @@ class CrisisEscalationService:
                             f"i Lugn & Trygg-appen. Risknivå: HÖG. "
                             f"Kontakta personen snarast möjligt. "
                         )
-                    
+
                     message = self.twilio_client.messages.create(
                         body=sms_body,
                         from_=self.twilio_phone,
                         to=phone
                     )
                     logger.info(f"📱 Emergency contact SMS sent to {contact_name[:3]}***")
-                    
+
                 except Exception as e:
                     logger.error(f"❌ Failed to SMS contact {contact_name[:3]}***: {str(e)[:50]}")
-            
+
             # Email to contact
             if email and notify_email and self.sendgrid_client:
                 try:
@@ -351,23 +349,23 @@ class CrisisEscalationService:
                         user_name=user_name
                     )
                     logger.info(f"📧 Emergency contact email sent to {contact_name[:3]}***")
-                    
+
                 except Exception as e:
                     logger.error(f"❌ Failed to email contact {contact_name[:3]}***: {str(e)[:50]}")
-    
-    async def _send_contact_email(self, to_email: str, to_name: str, 
+
+    async def _send_contact_email(self, to_email: str, to_name: str,
                                    alert: CrisisAlert, user_name: str):
         """Send detailed email to emergency contact."""
-        
+
         subject = f"VIKTIGT: {user_name} behöver stöd - Lugn & Trygg"
-        
+
         if alert.risk_level == 'critical':
             urgency_text = "KRITISKT LÄGE"
             action_text = "Kontakta personen omedelbart eller ring 112."
         else:
             urgency_text = "Högriskläge"
             action_text = "Kontakta personen snarast möjligt."
-        
+
         html_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -421,33 +419,33 @@ class CrisisEscalationService:
         </body>
         </html>
         """
-        
+
         message = Mail(
             from_email=Email(self.from_email, "Lugn & Trygg - Krislarm"),
             to_emails=To(to_email, to_name),
             subject=subject,
             html_content=Content("text/html", html_content)
         )
-        
+
         response = self.sendgrid_client.send(message)
-        
+
         if response.status_code not in [200, 202]:
             raise Exception(f"SendGrid returned {response.status_code}")
-    
+
     async def _send_push_notification(self, alert: CrisisAlert, user_data: dict):
         """Send Firebase Cloud Messaging push notification."""
         if not FCM_AVAILABLE or not user_data.get('fcm_token'):
             return
-        
+
         fcm_token = user_data['fcm_token']
-        
+
         if alert.risk_level == 'critical':
             title = "🚨 Viktigt meddelande"
             body = "Du verkar ha det tufft just nu. Tryck för att få stöd."
         else:
             title = "Lugn & Trygg"
             body = "Vi ser att du har det svårt. Öppna appen för hjälp."
-        
+
         message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
@@ -479,14 +477,14 @@ class CrisisEscalationService:
                 )
             )
         )
-        
+
         try:
             response = messaging.send(message)
             logger.info(f"📲 Push notification sent: {response}")
         except Exception as e:
             logger.error(f"❌ Push notification failed: {e}")
             raise
-    
+
     async def _create_dashboard_alert(self, alert: CrisisAlert, alert_id: str):
         """Create alert in clinician dashboard (Phase 6)."""
         # Store in real-time alerts collection for dashboard
@@ -501,14 +499,14 @@ class CrisisEscalationService:
             'requires_immediate': alert.requires_immediate_action,
             'escalation_channels_used': []
         })
-        
+
         logger.info(f"📊 Dashboard alert created: {alert_id}")
-    
-    async def _log_escalation(self, alert: CrisisAlert, channels: list, 
+
+    async def _log_escalation(self, alert: CrisisAlert, channels: list,
                                failures: list, alert_id: str):
         """Log escalation for audit trail."""
         from ..services.audit_service import audit_log
-        
+
         audit_log('CRISIS_ESCALATION', alert.user_id, {
             'alert_id': alert_id,
             'risk_level': alert.risk_level,
@@ -519,7 +517,7 @@ class CrisisEscalationService:
 
 
 # Singleton instance
-_escalation_service: Optional[CrisisEscalationService] = None
+_escalation_service: CrisisEscalationService | None = None
 
 
 def get_crisis_escalation_service() -> CrisisEscalationService:

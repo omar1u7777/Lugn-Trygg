@@ -11,9 +11,7 @@ print("TEST 1: Import Professional Voice Emotion Service")
 print("-" * 50)
 try:
     from src.services.voice_emotion_service import (
-        ProfessionalVoiceEmotionAnalyzer,
-        analyze_voice_emotion_professional,
-        get_voice_emotion_analyzer
+        get_voice_emotion_analyzer,
     )
     print("✅ ProfessionalVoiceEmotionAnalyzer imported successfully")
 except Exception as e:
@@ -40,7 +38,7 @@ try:
     from src.services.voice_emotion_service import LIBROSA_AVAILABLE, SCIPY_AVAILABLE
     print(f"✅ librosa available: {LIBROSA_AVAILABLE}")
     print(f"✅ scipy available: {SCIPY_AVAILABLE}")
-    
+
     if not LIBROSA_AVAILABLE:
         print("   ⚠️  Warning: librosa not installed. Will use fallback analysis.")
         print("   💡 Install with: pip install librosa soundfile")
@@ -52,7 +50,6 @@ print()
 print("TEST 4: Emotion Acoustic Profiles")
 print("-" * 50)
 try:
-    from src.services.voice_emotion_service import EmotionCategory
     profiles = analyzer.emotion_profiles
     print(f"✅ {len(profiles)} emotion profiles loaded:")
     for emotion in profiles.keys():
@@ -65,10 +62,7 @@ print()
 print("TEST 5: Voice Routes Integration")
 print("-" * 50)
 try:
-    from src.routes.voice_routes import (
-        voice_bp, 
-        PROFESSIONAL_VOICE_ANALYSIS
-    )
+    from src.routes.voice_routes import PROFESSIONAL_VOICE_ANALYSIS, voice_bp
     print(f"✅ Voice blueprint loaded: {voice_bp.name}")
     print(f"✅ Professional analysis enabled: {PROFESSIONAL_VOICE_ANALYSIS}")
 except Exception as e:

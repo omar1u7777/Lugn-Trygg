@@ -2,9 +2,9 @@
 Tests for health_routes.py
 Covers: liveness, readiness, db health, metrics (admin), advanced health.
 """
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 BASE = "/api/health"
 

@@ -11,26 +11,24 @@ print("TEST 1: Memory Analysis Service")
 print("-" * 40)
 try:
     from src.services.memory_analysis_service import (
-        MemoryAnalysisService, 
-        analyze_memory_entry,
-        get_memory_analysis_service
+        get_memory_analysis_service,
     )
-    
+
     service = get_memory_analysis_service()
-    print(f"✅ MemoryAnalysisService initialized")
-    
+    print("✅ MemoryAnalysisService initialized")
+
     # Test text analysis
     test_text = "Idag kände jag mig så glad och tacksam för min familj. " \
                 "Vi hade en underbar dag tillsammans i parken."
-    
+
     result = service.analyze_text_memory(test_text)
-    print(f"✅ Text analysis complete")
+    print("✅ Text analysis complete")
     print(f"   Primary emotion: {max(result.emotions, key=result.emotions.get)}")
     print(f"   Sentiment: {result.sentiment_score:.2f}")
     print(f"   Themes: {', '.join(result.themes)}")
     print(f"   Significance: {result.significance_score:.2f}")
     print(f"   Insights: {len(result.therapeutic_insights)}")
-    
+
 except Exception as e:
     print(f"❌ Service error: {e}")
     import traceback
@@ -43,7 +41,7 @@ print("-" * 40)
 try:
     from src.routes.memory_analysis_routes import memory_analysis_bp
     print(f"✅ memory_analysis_bp loaded: {memory_analysis_bp.name}")
-    print(f"✅ Endpoints: /analyze, /patterns, /narrative, /insights")
+    print("✅ Endpoints: /analyze, /patterns, /narrative, /insights")
 except Exception as e:
     print(f"❌ Routes error: {e}")
 
@@ -52,10 +50,10 @@ print()
 print("TEST 3: Memory Routes (Audio/Storage)")
 print("-" * 40)
 try:
-    from src.routes.memory_routes import memory_bp, ALLOWED_EXTENSIONS
+    from src.routes.memory_routes import ALLOWED_EXTENSIONS, memory_bp
     print(f"✅ memory_bp loaded: {memory_bp.name}")
     print(f"✅ Allowed formats: {', '.join(ALLOWED_EXTENSIONS)}")
-    print(f"✅ Firebase Storage integration active")
+    print("✅ Firebase Storage integration active")
 except Exception as e:
     print(f"❌ Memory routes error: {e}")
 
@@ -66,8 +64,8 @@ print("-" * 40)
 try:
     from src.routes.journal_routes import journal_bp
     print(f"✅ journal_bp loaded: {journal_bp.name}")
-    print(f"✅ Text journaling with mood tracking")
-    print(f"✅ Tag system for organization")
+    print("✅ Text journaling with mood tracking")
+    print("✅ Tag system for organization")
 except Exception as e:
     print(f"❌ Journal routes error: {e}")
 
@@ -78,20 +76,20 @@ print("-" * 40)
 try:
     # Test with text + audio simulation
     service = get_memory_analysis_service()
-    
+
     text = "Jag är så stolt över att ha klarat tentan! Allt slit har lönat sig."
-    
+
     result = service.analyze_multimodal_memory(
         text=text,
         audio_bytes=None,  # No audio in test
         metadata={'memory_id': 'test_123'}
     )
-    
-    print(f"✅ Multi-modal analysis working")
+
+    print("✅ Multi-modal analysis working")
     print(f"   Method: {result.analysis_method}")
     print(f"   Emotions: {dict(sorted(result.emotions.items(), key=lambda x: -x[1])[:3])}")
     print(f"   VAD: V={result.valence:.2f}, A={result.arousal:.2f}, D={result.dominance:.2f}")
-    
+
 except Exception as e:
     print(f"❌ Multi-modal error: {e}")
 
@@ -109,7 +107,7 @@ try:
             'mood': 7
         },
         {
-            'id': '2', 
+            'id': '2',
             'content': 'Första veckan på jobbet avklarad. Lär mig nya saker varje dag.',
             'timestamp': '2024-01-22T10:00:00',
             'mood': 8
@@ -127,13 +125,13 @@ try:
             'mood': 10
         }
     ]
-    
+
     patterns = service.detect_memory_patterns(test_memories)
-    print(f"✅ Pattern detection working")
+    print("✅ Pattern detection working")
     print(f"   Detected {len(patterns)} patterns")
     for p in patterns:
         print(f"   - {p.pattern_type}: {p.description[:50]}...")
-    
+
 except Exception as e:
     print(f"❌ Pattern detection error: {e}")
 
@@ -143,11 +141,11 @@ print("TEST 7: Life Narrative Generation")
 print("-" * 40)
 try:
     narrative = service.generate_life_narrative(test_memories)
-    print(f"✅ Narrative generation working")
+    print("✅ Narrative generation working")
     print(f"   Chapters: {len(narrative['chapters'])}")
     print(f"   Themes: {', '.join(narrative['themes'][:3])}")
     print(f"   Growth areas: {', '.join(narrative['growth_areas'])}")
-    
+
 except Exception as e:
     print(f"❌ Narrative error: {e}")
 

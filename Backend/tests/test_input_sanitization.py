@@ -2,7 +2,6 @@
 Tests for input_sanitization.py
 Covers: text/HTML/URL/email/filename sanitization, input validation, XSS prevention.
 """
-import pytest
 
 
 class TestSanitizeText:

@@ -14,7 +14,6 @@ from typing import Any
 
 import requests
 
-
 REQUIRED_ENV_VARS = [
     "LIVE_FIREBASE_E2E",
     "LIVE_BASE_URL",

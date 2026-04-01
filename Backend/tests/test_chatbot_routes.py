@@ -8,12 +8,9 @@ Response envelope:
   Success: {"success": true, "data": {...}, "message": "..."}
   Error:   {"success": false, "error": "ERROR_CODE", "message": "...", "details": ...}
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
-import json
-from src.services.subscription_service import SubscriptionLimitError
+from unittest.mock import Mock, patch
 
+from src.services.subscription_service import SubscriptionLimitError
 
 # ---------------------------------------------------------------------------
 # Helpers

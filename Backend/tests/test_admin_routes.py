@@ -7,9 +7,8 @@ Tests all endpoints:
 - OPTIONS /performance-metrics
 """
 
-import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock
 
 
 def _mock_admin_db(mocker):
@@ -57,16 +56,16 @@ def test_get_performance_metrics_success(client, mocker):
         },
         "slow_requests_count": 8
     }
-    
+
     # Mock performance_monitor.get_metrics()
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics = Mock(return_value=mock_metrics)
 
     # Ensure hasattr returns True for get_metrics check
     mocker.patch('src.routes.admin_routes.hasattr', return_value=True)
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -85,12 +84,12 @@ def test_get_performance_metrics_empty(client, mocker):
         "error_counts": {},
         "slow_requests_count": 0
     }
-    
+
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.return_value = mock_metrics
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -105,12 +104,12 @@ def test_get_performance_metrics_no_get_metrics_method(client, mocker):
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     # Remove get_metrics attribute
     delattr(mock_monitor, 'get_metrics')
-    
+
     # Mock hasattr to return False
     mocker.patch('src.routes.admin_routes.hasattr', return_value=False)
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -130,12 +129,12 @@ def test_get_performance_metrics_with_many_endpoints(client, mocker):
         "error_counts": {"500": 10},
         "slow_requests_count": 50
     }
-    
+
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.return_value = mock_metrics
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -147,9 +146,9 @@ def test_get_performance_metrics_exception(client, mocker):
     _mock_admin_db(mocker)
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.side_effect = Exception('Database connection failed')
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 500
     data = response.get_json()
     assert data['success'] is False
@@ -162,9 +161,9 @@ def test_get_performance_metrics_runtime_error(client, mocker):
     _mock_admin_db(mocker)
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.side_effect = RuntimeError('Performance monitor not initialized')
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 500
     data = response.get_json()
     assert data['success'] is False
@@ -177,16 +176,16 @@ def test_get_performance_metrics_value_error(client, mocker):
     _mock_admin_db(mocker)
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.side_effect = ValueError('Invalid metrics data')
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 500
 
 
 def test_performance_metrics_options_request(client):
     """Test OPTIONS request for CORS preflight"""
     response = client.options('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 204
     assert response.data == b''
 
@@ -194,7 +193,7 @@ def test_performance_metrics_options_request(client):
 def test_performance_metrics_options_no_data(client):
     """Test OPTIONS returns no content"""
     response = client.options('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 204
     assert len(response.data) == 0
 
@@ -204,11 +203,11 @@ def test_get_performance_metrics_with_logger_call(client, mocker):
     _mock_admin_db(mocker)
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.side_effect = Exception('Test error')
-    
+
     mock_logger = mocker.patch('src.routes.admin_routes.logger')
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 500
     # Verify logger.exception was called
     mock_logger.exception.assert_called_once()
@@ -238,12 +237,12 @@ def test_get_performance_metrics_with_nested_data(client, mocker):
         "error_counts": {},
         "slow_requests_count": 0
     }
-    
+
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.return_value = mock_metrics
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -265,12 +264,12 @@ def test_get_performance_metrics_with_float_values(client, mocker):
         "error_counts": {},
         "slow_requests_count": 15
     }
-    
+
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.return_value = mock_metrics
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -281,18 +280,18 @@ def test_get_performance_metrics_multiple_calls(client, mocker):
     """Test multiple sequential calls to metrics endpoint"""
     _mock_admin_db(mocker)
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
-    
+
     # Different metrics for each call
     metrics_sequence = [
         {"total_requests": 100, "endpoints": {}, "error_counts": {}, "slow_requests_count": 0},
         {"total_requests": 200, "endpoints": {}, "error_counts": {}, "slow_requests_count": 5},
         {"total_requests": 300, "endpoints": {}, "error_counts": {}, "slow_requests_count": 10}
     ]
-    
+
     for expected_metrics in metrics_sequence:
         mock_monitor.get_metrics.return_value = expected_metrics
         response = client.get('/api/v1/admin/performance-metrics')
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['data']['total_requests'] == expected_metrics['total_requests']
@@ -307,12 +306,12 @@ def test_performance_metrics_json_serializable(client, mocker):
         "error_counts": {"404": 1},
         "slow_requests_count": 0
     }
-    
+
     mock_monitor = mocker.patch('src.routes.admin_routes.performance_monitor')
     mock_monitor.get_metrics.return_value = mock_metrics
-    
+
     response = client.get('/api/v1/admin/performance-metrics')
-    
+
     assert response.status_code == 200
     # Should be valid JSON
     data = response.get_json()

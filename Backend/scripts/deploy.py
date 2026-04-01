@@ -10,13 +10,12 @@ Handles complete deployment lifecycle including:
 - Rollback procedures
 """
 
-import os
-import sys
-import subprocess
 import logging
+import os
+import subprocess
+import sys
 import time
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add Backend directory to path (one level up from scripts/)
@@ -37,7 +36,7 @@ class DeploymentManager:
     def __init__(self, environment: str = 'production'):
         self.environment = environment
         self.project_root = Path(__file__).parent.parent  # Backend/ directory
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.deployment_id = f"deploy_{int(time.time())}"
 
         logger.info(f"Starting deployment {self.deployment_id} to {environment}")
@@ -78,7 +77,7 @@ class DeploymentManager:
             # Update deployment metadata
             self._update_deployment_metadata()
 
-            duration = (datetime.now(timezone.utc) - self.start_time).total_seconds()
+            duration = (datetime.now(UTC) - self.start_time).total_seconds()
             logger.info(f"✅ Deployment {self.deployment_id} completed successfully in {duration:.1f}s")
             return True
 
@@ -130,9 +129,9 @@ class DeploymentManager:
     def _check_dependencies(self) -> bool:
         """Check if all required dependencies are installed"""
         try:
-            import flask
-            import firebase_admin
             import bcrypt
+            import firebase_admin
+            import flask
             logger.info("✅ Python dependencies validated")
             return True
         except ImportError as e:
@@ -145,7 +144,7 @@ class DeploymentManager:
             from firebase_config import db
             # Simple connectivity test
             test_ref = db.collection('_health_check').document('test')
-            test_ref.set({'timestamp': datetime.now(timezone.utc).isoformat()})
+            test_ref.set({'timestamp': datetime.now(UTC).isoformat()})
             test_ref.delete()
             logger.info("✅ Database connectivity validated")
             return True
@@ -393,7 +392,7 @@ class DeploymentManager:
             'environment': self.environment,
             'timestamp': self.start_time.isoformat(),
             'status': 'successful',
-            'duration': (datetime.now(timezone.utc) - self.start_time).total_seconds()
+            'duration': (datetime.now(UTC) - self.start_time).total_seconds()
         }
 
         # Save metadata (could be to database or file)

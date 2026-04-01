@@ -1,9 +1,7 @@
 """Integration routes targeted tests for OAuth and health integrations."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
-
-import pytest
 
 
 class TestIntegrationRoutes:
@@ -65,8 +63,8 @@ class TestIntegrationRoutes:
             exists=True,
             to_dict=lambda: {
                 'scope': 'profile',
-                'obtained_at': datetime.now(timezone.utc).isoformat(),
-                'expires_at': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+                'obtained_at': datetime.now(UTC).isoformat(),
+                'expires_at': (datetime.now(UTC) + timedelta(hours=1)).isoformat()
             }
         )
 
@@ -112,7 +110,6 @@ class TestIntegrationRoutes:
         integrations_doc.set.assert_called()
 
     def test_check_health_alerts_triggers_warning(self, client, auth_csrf_headers, mock_auth_service, mock_db, mocker):
-        from types import SimpleNamespace
 
         integrations_doc = mock_db.collection('integrations').document('test-user-id')
         integrations_doc.get.return_value = MagicMock(

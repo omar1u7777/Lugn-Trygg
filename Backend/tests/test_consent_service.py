@@ -2,9 +2,10 @@
 Tests for consent_service.py
 Covers: check, grant, withdraw consent, user consents, feature access.
 """
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ class TestCheckConsent:
                 "consents": {
                     "terms_of_service": {
                         "granted": True,
-                        "granted_at": datetime.now(timezone.utc).isoformat(),
+                        "granted_at": datetime.now(UTC).isoformat(),
                         "version": "1.0",
                         "withdrawn": False,
                     }

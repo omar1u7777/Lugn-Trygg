@@ -2,8 +2,8 @@
 Tests for security_headers.py middleware
 Covers: header injection, CSP, HSTS, nonce generation, security status.
 """
+
 import pytest
-from unittest.mock import MagicMock, patch
 from flask import Flask
 
 

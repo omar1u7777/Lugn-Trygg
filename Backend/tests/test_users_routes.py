@@ -8,9 +8,9 @@ Tests all endpoints:
 - POST /<user_id>/notification-schedule
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-import json
-from unittest.mock import MagicMock, Mock, patch
 
 
 def test_get_notification_settings_success(client, auth_csrf_headers):
@@ -18,17 +18,17 @@ def test_get_notification_settings_success(client, auth_csrf_headers):
     response = client.get('/api/users/notification-settings', headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
-    
+
     # Response may be wrapped in 'data' key or be direct
     settings = data.get('data', data) if isinstance(data, dict) else data
-    
+
     # Check all expected fields
     assert 'morningReminder' in settings
     assert 'eveningReminder' in settings
     assert 'moodCheckInTime' in settings
     assert 'enableMoodReminders' in settings
     assert 'enableMeditationReminders' in settings
-    
+
     # Check default values
     assert settings['morningReminder'] == '08:00'
     assert settings['eveningReminder'] == '20:00'
@@ -42,7 +42,7 @@ def test_get_notification_settings_different_user(client, auth_csrf_headers):
     # Same headers = same user, should get same settings
     response1 = client.get('/api/users/notification-settings', headers=auth_csrf_headers)
     response2 = client.get('/api/users/notification-settings', headers=auth_csrf_headers)
-    
+
     assert response1.status_code == 200
     assert response2.status_code == 200
     assert response1.get_json() == response2.get_json()
@@ -55,13 +55,13 @@ def test_update_notification_preferences_success(client, auth_csrf_headers):
         'enableMeditationReminders': True,
         'notificationFrequency': 'daily'
     }
-    
+
     response = client.put(
         '/api/users/notification-preferences',
         json=preferences,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Preferences updated'
@@ -74,7 +74,7 @@ def test_update_notification_preferences_empty_data(client, auth_csrf_headers):
         json={},
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Preferences updated'
@@ -83,7 +83,7 @@ def test_update_notification_preferences_empty_data(client, auth_csrf_headers):
 def test_update_notification_preferences_no_json(client, auth_csrf_headers):
     """Test updating preferences without JSON body"""
     response = client.put('/api/users/notification-preferences', headers=auth_csrf_headers)
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Preferences updated'
@@ -97,7 +97,7 @@ def test_update_notification_preferences_invalid_json(client, auth_csrf_headers)
         content_type='application/json',
         headers=auth_csrf_headers
     )
-    
+
     # Should handle gracefully with silent=True
     assert response.status_code == 200
 
@@ -113,13 +113,13 @@ def test_update_notification_preferences_with_all_fields(client, auth_csrf_heade
         'quietHoursStart': '22:00',
         'quietHoursEnd': '07:00'
     }
-    
+
     response = client.put(
         '/api/users/notification-preferences',
         json=preferences,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
 
 
@@ -130,13 +130,13 @@ def test_set_notification_schedule_success(client, auth_csrf_headers):
         'eveningReminder': '21:00',
         'moodCheckInTime': '13:00'
     }
-    
+
     response = client.post(
         '/api/users/notification-schedule',
         json=schedule,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Schedule saved'
@@ -149,7 +149,7 @@ def test_set_notification_schedule_empty_data(client, auth_csrf_headers):
         json={},
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Schedule saved'
@@ -158,7 +158,7 @@ def test_set_notification_schedule_empty_data(client, auth_csrf_headers):
 def test_set_notification_schedule_no_json(client, auth_csrf_headers):
     """Test setting schedule without JSON body"""
     response = client.post('/api/users/notification-schedule', headers=auth_csrf_headers)
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['message'] == 'Schedule saved'
@@ -173,13 +173,13 @@ def test_set_notification_schedule_custom_times(client, auth_csrf_headers):
         'medicationReminder': '09:00',
         'therapySessionReminder': '16:00'
     }
-    
+
     response = client.post(
         '/api/users/notification-schedule',
         json=schedule,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
 
 
@@ -191,7 +191,7 @@ def test_set_notification_schedule_invalid_json(client, auth_csrf_headers):
         content_type='application/json',
         headers=auth_csrf_headers
     )
-    
+
     # Should handle gracefully with silent=True
     assert response.status_code == 200
 
@@ -202,10 +202,10 @@ def test_authentication_required(client):
     # Without auth headers, should get 401
     response = client.get('/api/users/notification-settings')
     assert response.status_code == 401
-    
+
     response = client.put('/api/users/notification-preferences', json={})
     assert response.status_code == 401
-    
+
     response = client.post('/api/users/notification-schedule', json={})
     assert response.status_code == 401
 
@@ -216,13 +216,13 @@ def test_update_preferences_special_characters(client, auth_csrf_headers):
         'customMessage': 'Hej! 👋 Dags för humörkoll? 😊',
         'timezone': 'Europe/Stockholm'
     }
-    
+
     response = client.put(
         '/api/users/notification-preferences',
         json=preferences,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
 
 
@@ -233,13 +233,13 @@ def test_schedule_with_boolean_values(client, auth_csrf_headers):
         'enableMorning': True,
         'enableEvening': False
     }
-    
+
     response = client.post(
         '/api/users/notification-schedule',
         json=schedule,
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code == 200
 
 
@@ -265,7 +265,7 @@ def test_update_preferences_with_logger_exception(client, auth_csrf_headers, moc
         json={'enableMoodReminders': False},
         headers=auth_csrf_headers
     )
-    
+
     # Should return a valid response code
     assert response.status_code in [200, 201, 400, 500]
 
@@ -278,7 +278,7 @@ def test_schedule_with_logger_exception(client, auth_csrf_headers, mocker):
         json={'schedule': 'daily'},
         headers=auth_csrf_headers
     )
-    
+
     assert response.status_code in [200, 201, 400, 500]
 
 

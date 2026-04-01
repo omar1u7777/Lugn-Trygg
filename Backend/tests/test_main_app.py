@@ -2,9 +2,7 @@
 Tests for main.py app configuration, error handlers, and health endpoint.
 Covers: MAX_CONTENT_LENGTH, CORS, error handlers (401/403/405/413/500), health check.
 """
-import pytest
 import json
-from unittest.mock import patch, MagicMock
 
 
 class TestAppConfiguration:
@@ -78,7 +76,6 @@ class TestErrorHandlers:
         """Unhandled exceptions should return JSON 500, not HTML."""
         # We can't easily trigger an unhandled exception via a route,
         # but we can verify the handler is registered
-        from werkzeug.exceptions import InternalServerError
         with client.application.test_request_context():
             # Simulate what Flask does with unhandled exception
             handlers = client.application.error_handler_spec.get(None, {})

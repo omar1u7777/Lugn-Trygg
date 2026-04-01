@@ -11,6 +11,7 @@ print("TEST 1: Mood NLP Analysis")
 print("-" * 30)
 
 from src.services.mood_nlp_service import SwedishMoodNLP
+
 analyzer = SwedishMoodNLP()
 
 texts = [
@@ -32,9 +33,9 @@ for text in texts:
 print("TEST 2: Mood Routes")
 print("-" * 30)
 
+from src.routes.advanced_mood_routes import advanced_mood_bp
 from src.routes.mood_routes import mood_bp
 from src.routes.mood_stats_routes import mood_stats_bp
-from src.routes.advanced_mood_routes import advanced_mood_bp
 
 print(f"mood_bp: {mood_bp.name}")
 print(f"mood_stats_bp: {mood_stats_bp.name}")
@@ -46,6 +47,7 @@ print("TEST 3: Predictive Analytics")
 print("-" * 30)
 
 from src.services.predictive_service import PredictiveAnalyticsService
+
 service = PredictiveAnalyticsService()
 print(f"PredictiveAnalyticsService: {service.model_type}")
 print()

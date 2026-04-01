@@ -2,10 +2,10 @@
 Tests for challenges_routes.py
 Covers: list, get, join, leave, contribute, user challenges, cleanup.
 """
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
-from datetime import datetime, timezone, timedelta
 
+import pytest
 
 BASE = "/api/v1/challenges"
 USER_ID = "testuser1234567890ab"
@@ -17,7 +17,7 @@ USER_ID = "testuser1234567890ab"
 
 def _make_challenge_data(user_is_member=True):
     """Build a challenge dict matching the Firestore document format the routes expect."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     members = []
     if user_is_member:
         members.append({

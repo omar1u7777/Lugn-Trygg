@@ -7,7 +7,7 @@ print()
 # Test 1: Import mood services
 print("Test 1: Import mood services")
 try:
-    from src.services.mood_nlp_service import SwedishMoodNLP, MoodAnalysis
+    from src.services.mood_nlp_service import SwedishMoodNLP
     print("✅ SwedishMoodNLP imported")
 except Exception as e:
     print(f"❌ Import failed: {e}")
@@ -42,9 +42,9 @@ for text, expected in test_cases:
 print()
 print("Test 4: Check mood routes")
 try:
+    from src.routes.advanced_mood_routes import advanced_mood_bp
     from src.routes.mood_routes import mood_bp
     from src.routes.mood_stats_routes import mood_stats_bp
-    from src.routes.advanced_mood_routes import advanced_mood_bp
     print(f"✅ mood_bp: {mood_bp.name}")
     print(f"✅ mood_stats_bp: {mood_stats_bp.name}")
     print(f"✅ advanced_mood_bp: {advanced_mood_bp.name}")

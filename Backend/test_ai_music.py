@@ -4,8 +4,9 @@ AI Music Generation System - Comprehensive Test
 Tests neural ambient synthesis, binaural beats, and brainwave entrainment.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 print('='*70)
@@ -17,65 +18,66 @@ print()
 print('TEST 1: Neural Ambient Synthesizer')
 print('-'*70)
 try:
-    from src.services.ai_music_service import NeuralAmbientSynthesizer, BrainwaveFrequency
     import numpy as np
-    
+
+    from src.services.ai_music_service import BrainwaveFrequency, NeuralAmbientSynthesizer
+
     synth = NeuralAmbientSynthesizer()
-    print(f'✅ NeuralAmbientSynthesizer initialized')
+    print('✅ NeuralAmbientSynthesizer initialized')
     print(f'   - Sample rate: {synth.sample_rate} Hz')
     print(f'   - Base frequency: {synth.base_freq} Hz (A4=432Hz tuning)')
-    print(f'   - Scale ratios: Just intonation')
-    
+    print('   - Scale ratios: Just intonation')
+
     # Test binaural beat generation
     duration = 5  # seconds
     binaural_freq = 10.0  # Alpha
     carrier = 200
-    
+
     stereo_audio = synth.generate_binaural_beat(duration, binaural_freq, carrier)
-    
-    print(f'\n✅ Binaural beat generated:')
+
+    print('\n✅ Binaural beat generated:')
     print(f'   - Duration: {duration}s')
     print(f'   - Binaural frequency: {binaural_freq} Hz (Alpha)')
     print(f'   - Carrier: {carrier} Hz')
     print(f'   - Shape: {stereo_audio.shape} (stereo)')
     print(f'   - Amplitude range: [{np.min(stereo_audio):.3f}, {np.max(stereo_audio):.3f}]')
-    
+
     # Verify stereo
     assert stereo_audio.shape[1] == 2, "Should be stereo (2 channels)"
     assert len(stereo_audio) == duration * synth.sample_rate, "Wrong sample count"
-    
+
     # Test isochronic tone
     isochronic = synth.generate_isochronic_tone(duration, binaural_freq, carrier)
-    print(f'\n✅ Isochronic tone generated:')
-    print(f'   - Mono-compatible (works without headphones)')
+    print('\n✅ Isochronic tone generated:')
+    print('   - Mono-compatible (works without headphones)')
     print(f'   - Shape: {isochronic.shape}')
-    
+
     # Test fractal ambient
     fractal = synth.generate_fractal_ambient(duration, complexity=4)
-    print(f'\n✅ Fractal ambient generated:')
-    print(f'   - Complexity: 4 octaves')
-    print(f'   - Algorithm: Fractal Brownian Motion (fBM)')
+    print('\n✅ Fractal ambient generated:')
+    print('   - Complexity: 4 octaves')
+    print('   - Algorithm: Fractal Brownian Motion (fBM)')
     print(f'   - Shape: {fractal.shape}')
-    
+
     # Test procedural nature
     rain = synth.generate_procedural_nature(duration, 'rain')
     waves = synth.generate_procedural_nature(duration, 'waves')
     wind = synth.generate_procedural_nature(duration, 'wind')
-    
-    print(f'\n✅ Procedural nature sounds:')
+
+    print('\n✅ Procedural nature sounds:')
     print(f'   - Rain: {rain.shape}')
     print(f'   - Waves: {waves.shape}')
     print(f'   - Wind: {wind.shape}')
-    
+
     # Test harmonic drone
     drone = synth.generate_harmonic_drone(duration, root_freq=110)
-    print(f'\n✅ Harmonic drone generated:')
-    print(f'   - Root: 110 Hz (A2)')
-    print(f'   - Scale: Just intonation')
+    print('\n✅ Harmonic drone generated:')
+    print('   - Root: 110 Hz (A2)')
+    print('   - Scale: Just intonation')
     print(f'   - Shape: {drone.shape}')
-    
-    print(f'\n✅ All synthesis methods working')
-    
+
+    print('\n✅ All synthesis methods working')
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback
@@ -88,7 +90,7 @@ print('TEST 2: Brainwave Frequency Validation')
 print('-'*70)
 try:
     from src.services.ai_music_service import BrainwaveFrequency
-    
+
     frequencies = {
         'DELTA': (BrainwaveFrequency.DELTA.value, 0.5, 4, 'Deep sleep'),
         'THETA': (BrainwaveFrequency.THETA.value, 4, 8, 'Meditation'),
@@ -96,15 +98,15 @@ try:
         'BETA': (BrainwaveFrequency.BETA.value, 13, 30, 'Focus'),
         'GAMMA': (BrainwaveFrequency.GAMMA.value, 30, 100, 'Peak concentration')
     }
-    
-    print(f'✅ Brainwave frequency ranges validated:')
+
+    print('✅ Brainwave frequency ranges validated:')
     for name, (freq, min_hz, max_hz, state) in frequencies.items():
         in_range = min_hz <= freq <= max_hz
         print(f'   - {name}: {freq} Hz ({state}) - {"✅" if in_range else "❌"}')
         assert in_range, f"{name} frequency out of range"
-    
-    print(f'\n✅ All brainwave frequencies within physiological ranges')
-    
+
+    print('\n✅ All brainwave frequencies within physiological ranges')
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback
@@ -117,20 +119,20 @@ print('TEST 3: Soundscape Type Configurations')
 print('-'*70)
 try:
     from src.services.ai_music_service import SoundscapeType
-    
-    print(f'✅ Available soundscape types:')
+
+    print('✅ Available soundscape types:')
     for st in SoundscapeType:
         print(f'   - {st.name}: {st.value}')
-    
+
     # Verify expected types
     expected = ['deep_sleep', 'meditation', 'focus', 'anxiety_relief', 'energy_boost', 'nature_sim', 'cosmic']
     actual = [st.value for st in SoundscapeType]
-    
+
     for exp in expected:
         assert exp in actual, f"Missing soundscape type: {exp}"
-    
+
     print(f'\n✅ All {len(expected)} soundscape types available')
-    
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback
@@ -143,30 +145,28 @@ print('TEST 4: AI Music Generation Service')
 print('-'*70)
 try:
     from src.services.ai_music_service import (
-        AIMusicGenerationService,
-        get_ai_music_service,
         SoundscapeType,
-        GeneratedTrack
+        get_ai_music_service,
     )
-    
+
     # Get singleton
     service = get_ai_music_service()
-    print(f'✅ AIMusicGenerationService initialized (singleton)')
-    
+    print('✅ AIMusicGenerationService initialized (singleton)')
+
     # Check synthesizer
     assert service.synthesizer is not None, "Synthesizer not initialized"
-    print(f'   - Synthesizer ready')
-    
+    print('   - Synthesizer ready')
+
     # Test soundscape generation (short duration for testing)
-    print(f'\n⏳ Generating meditation soundscape (5s)...')
+    print('\n⏳ Generating meditation soundscape (5s)...')
     track = service.generate_soundscape(
         user_id='test_user_123',
         soundscape_type=SoundscapeType.MEDITATION,
         duration=5,  # 5 seconds for testing
         target_mood='anxious'
     )
-    
-    print(f'✅ Soundscape generated:')
+
+    print('✅ Soundscape generated:')
     print(f'   - Track ID: {track.track_id}')
     print(f'   - Type: {track.soundscape_type.value}')
     print(f'   - Duration: {track.duration_seconds}s')
@@ -174,25 +174,25 @@ try:
     print(f'   - Audio data: {"✅" if track.audio_data else "❌"} ({len(track.audio_data) if track.audio_data else 0} bytes)')
     print(f'   - Binaural freq: {track.parameters.binaural_freq} Hz')
     print(f'   - Carrier freq: {track.parameters.carrier_freq} Hz')
-    
+
     # Verify track is stored
     assert track.track_id in service.generated_tracks, "Track not stored in memory"
-    print(f'   - Stored in memory: ✅')
-    
+    print('   - Stored in memory: ✅')
+
     # Test track retrieval
     retrieved = service.get_track(track.track_id)
     assert retrieved is not None, "Could not retrieve track"
     assert retrieved.track_id == track.track_id, "Retrieved wrong track"
-    print(f'   - Track retrieval: ✅')
-    
+    print('   - Track retrieval: ✅')
+
     # Test available soundscapes info
     soundscapes_info = service.get_available_soundscapes()
-    print(f'\n✅ Soundscape metadata available:')
+    print('\n✅ Soundscape metadata available:')
     for info in soundscapes_info[:3]:  # Show first 3
         print(f'   - {info.get("name")}: {info.get("brainwave")}')
-    
-    print(f'\n✅ AI Music Generation Service fully operational')
-    
+
+    print('\n✅ AI Music Generation Service fully operational')
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback
@@ -204,20 +204,21 @@ print()
 print('TEST 5: API Routes Structure')
 print('-'*70)
 try:
-    from src.routes.ai_music_routes import ai_music_bp, _get_adaptive_recommendation
     from flask import Flask
-    
+
+    from src.routes.ai_music_routes import _get_adaptive_recommendation, ai_music_bp
+
     # Test blueprint loading
     app = Flask(__name__)
     app.register_blueprint(ai_music_bp, url_prefix='/api/v1/ai-music')
-    
+
     # Check routes
     routes = [str(rule.rule) for rule in app.url_map.iter_rules() if 'ai-music' in str(rule.rule)]
-    
-    print(f'✅ API routes registered:')
+
+    print('✅ API routes registered:')
     for route in routes:
         print(f'   - {route}')
-    
+
     # Check for expected endpoints
     expected = ['/soundscapes', '/generate', '/stream/', '/download/', '/preview/', '/brainwave-info']
     for endpoint in expected:
@@ -226,16 +227,16 @@ try:
             print(f'   ✅ Endpoint {endpoint} found')
         else:
             print(f'   ⚠️ Endpoint {endpoint} not found')
-    
+
     # Test adaptive recommendation logic
     rec = _get_adaptive_recommendation('anxious', 'evening', 'relaxing')
-    print(f'\n✅ Adaptive recommendation:')
+    print('\n✅ Adaptive recommendation:')
     print(f'   - Mood: anxious → Recommended: {rec["recommended_soundscape"]}')
     print(f'   - Reasoning: {rec["reasoning"][:50]}...')
     print(f'   - Alternatives: {", ".join(rec["alternatives"])}')
-    
-    print(f'\n✅ API routes validated')
-    
+
+    print('\n✅ API routes validated')
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback
@@ -247,12 +248,11 @@ print()
 print('TEST 6: Audio Parameter Validation')
 print('-'*70)
 try:
-    from src.services.ai_music_service import AudioParameters, SoundscapeType
-    from src.services.ai_music_service import get_ai_music_service
-    
+    from src.services.ai_music_service import SoundscapeType, get_ai_music_service
+
     service = get_ai_music_service()
-    
-    print(f'✅ Audio parameters by soundscape type:')
+
+    print('✅ Audio parameters by soundscape type:')
     for st in [SoundscapeType.DEEP_SLEEP, SoundscapeType.MEDITATION, SoundscapeType.FOCUS]:
         params = service._get_parameters(st, None)
         print(f'\n   {st.value}:')
@@ -260,16 +260,16 @@ try:
         print(f'      - Carrier: {params.carrier_freq} Hz')
         print(f'      - Volume: {params.volume}')
         print(f'      - Sample rate: {params.sample_rate} Hz')
-    
+
     # Test mood adaptation
-    print(f'\n✅ Mood-based adaptations:')
+    print('\n✅ Mood-based adaptations:')
     moods = ['anxious', 'stressed', 'tired', 'depressed', 'energetic', 'calm']
     for mood in moods:
         params = service._get_parameters(SoundscapeType.MEDITATION, mood)
         print(f'   - {mood}: vol={params.volume}, binaural={params.binaural_freq}Hz')
-    
-    print(f'\n✅ Audio parameters validated')
-    
+
+    print('\n✅ Audio parameters validated')
+
 except Exception as e:
     print(f'❌ Failed: {e}')
     import traceback

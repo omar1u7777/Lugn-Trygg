@@ -2,11 +2,11 @@
 Tests for dashboard_routes.py
 Covers: CSRF token, dashboard summary, quick stats.
 """
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
 import pytest
 from flask import g
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
-
 
 BASE = "/api/v1/dashboard"
 
@@ -37,7 +37,7 @@ def mock_dashboard_db(mock_db):
     mood_entry.to_dict.return_value = {
         "score": 7,
         "mood_text": "glad",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     moods_col.order_by.return_value.limit.return_value.stream.return_value = [mood_entry]
     moods_col.limit.return_value.stream.return_value = [mood_entry]
