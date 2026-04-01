@@ -461,17 +461,17 @@ class ProfessionalVoiceEmotionAnalyzer:
             hnr_target = (profile['hnr'][0] + profile['hnr'][1]) / 2
             hnr_dev = abs(prosody.hnr - hnr_target) / (hnr_target + 1)
             score += max(0, 1 - hnr_dev) * 0.20
-            
+
             scores[emotion.value] = score
-        
+
         # Normalize to probabilities
         total = sum(scores.values())
         if total > 0:
             scores = {k: v/total for k, v in scores.items()}
-        
+
         return scores
-    
-    def _calculate_vad(self, prosody: ProsodicFeatures, spectral: SpectralFeatures) -> Tuple[float, float, float]:
+
+    def _calculate_vad(self, prosody: ProsodicFeatures, spectral: SpectralFeatures) -> tuple[float, float, float]:
         """
         Calculate Valence-Arousal-Dominance dimensions
         Based on acoustic features (Russell's circumplex model)
@@ -484,7 +484,7 @@ class ProfessionalVoiceEmotionAnalyzer:
             (prosody.intensity_std / 0.2) * 0.3  # Variable intensity = engaged
         )
         valence = np.clip(valence * 2 - 1, -1, 1)  # Scale to -1 to 1
-        
+
         # Arousal (activation) - pitch, intensity, rate
         arousal = (
             (prosody.pitch_mean / 400) * 0.3 +
@@ -492,7 +492,7 @@ class ProfessionalVoiceEmotionAnalyzer:
             (prosody.syllables_per_second / 8) * 0.4
         )
         arousal = np.clip(arousal, 0, 1)
-        
+
         # Dominance (power/control) - intensity, low jitter, steady pitch
         dominance = (
             (prosody.intensity_mean / 0.8) * 0.4 +
@@ -500,23 +500,23 @@ class ProfessionalVoiceEmotionAnalyzer:
             (1 - prosody.pitch_std / 100) * 0.3
         )
         dominance = np.clip(dominance, 0, 1)
-        
+
         return float(valence), float(arousal), float(dominance)
-    
+
     def _analyze_fallback(self, audio_bytes: bytes) -> VoiceEmotionResult:
         """
         Fallback analysis when librosa is not available
         Uses naive byte-level statistics (limited accuracy)
         """
         logger.warning("Using fallback audio analysis - install librosa for professional results")
-        
+
         # Basic byte-level analysis (limited)
-        amplitudes = np.array([int.from_bytes(audio_bytes[i:i+2], 'little', signed=True) 
+        amplitudes = np.array([int.from_bytes(audio_bytes[i:i+2], 'little', signed=True)
                                for i in range(0, min(len(audio_bytes), 100000), 2)])
-        
+
         if len(amplitudes) == 0:
             return self._create_neutral_result()
-        
+
         # Basic statistics
         rms = np.sqrt(np.mean(amplitudes ** 2))
         peak = np.max(np.abs(amplitudes))
@@ -537,7 +537,7 @@ class ProfessionalVoiceEmotionAnalyzer:
             shimmer=0.5,
             hnr=15.0
         )
-        
+
         spectral = SpectralFeatures(
             mfcc_means=np.zeros(13),
             mfcc_vars=np.zeros(13),
@@ -550,7 +550,7 @@ class ProfessionalVoiceEmotionAnalyzer:
             formant_2_mean=1500.0,
             formant_dispersion=200.0
         )
-        
+
         # Low confidence fallback
         return VoiceEmotionResult(
             primary_emotion='neutral',
@@ -565,7 +565,7 @@ class ProfessionalVoiceEmotionAnalyzer:
             sample_rate=16000,
             duration_seconds=len(audio_bytes) / 32000  # Rough estimate
         )
-    
+
     def _create_neutral_result(self) -> VoiceEmotionResult:
         """Create neutral result for empty/invalid audio"""
         return VoiceEmotionResult(
@@ -581,15 +581,15 @@ class ProfessionalVoiceEmotionAnalyzer:
             sample_rate=16000,
             duration_seconds=0.0
         )
-    
-    def analyze_with_openai(self, audio_bytes: bytes, transcript: Optional[str] = None) -> Optional[VoiceEmotionResult]:
+
+    def analyze_with_openai(self, audio_bytes: bytes, transcript: str | None = None) -> VoiceEmotionResult | None:
         """
         Advanced analysis using OpenAI for multimodal emotion recognition
         Requires OpenAI API key and appropriate model access
         """
         if not OPENAI_AVAILABLE:
             return None
-        
+
         try:
             # This would use OpenAI's audio models (if available)
             # For now, fallback to librosa analysis
@@ -600,7 +600,7 @@ class ProfessionalVoiceEmotionAnalyzer:
 
 
 # Global analyzer instance
-_voice_emotion_analyzer: Optional[ProfessionalVoiceEmotionAnalyzer] = None
+_voice_emotion_analyzer: ProfessionalVoiceEmotionAnalyzer | None = None
 
 
 def get_voice_emotion_analyzer() -> ProfessionalVoiceEmotionAnalyzer:
@@ -611,19 +611,19 @@ def get_voice_emotion_analyzer() -> ProfessionalVoiceEmotionAnalyzer:
     return _voice_emotion_analyzer
 
 
-def analyze_voice_emotion_professional(audio_bytes: bytes, transcript: Optional[str] = None) -> VoiceEmotionResult:
+def analyze_voice_emotion_professional(audio_bytes: bytes, transcript: str | None = None) -> VoiceEmotionResult:
     """
     Convenience function for voice emotion analysis
-    
+
     Args:
         audio_bytes: Raw audio data (WAV, MP3, etc.)
         transcript: Optional transcript for multimodal analysis
-    
+
     Returns:
         ProfessionalVoiceEmotionResult with emotion analysis
     """
     analyzer = get_voice_emotion_analyzer()
-    
+
     # Try professional analysis first
     result = analyzer.analyze_audio(audio_bytes)
 
