@@ -317,3 +317,12 @@ scripts/replace-mui-imports.mjs
 scripts/replace_all_icons.py
 scripts/replace_missing_icons.py
 scripts/revert-grid-imports.mjs
+
+# Git worktrees (auto-generated, should not be tracked)
+.kilo/worktrees/
+.git/worktrees/
+
+# Git lock files (auto-generated, should not be tracked)
+*.lock
+.git/index.lock
+.git/worktrees/*/index.lock
