@@ -4,7 +4,6 @@ Generates structured therapeutic exercises based on conversation content.
 """
 
 import logging
-from typing import Any, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -18,8 +17,8 @@ class WorksheetSection:
     title: str
     prompt: str
     input_type: str  # 'text_area', 'bullet_points', 'scale', 'multiple_choice', 'emotion_scale'
-    placeholder: Optional[str] = None
-    helper_text: Optional[str] = None
+    placeholder: str | None = None
+    helper_text: str | None = None
     ai_assisted: bool = False
     required: bool = True
     validation_rules: dict = field(default_factory=dict)
@@ -32,10 +31,10 @@ class Worksheet:
     type: str  # 'cbt_thought_record', 'act_values', 'act_committed_action', 'mood_log'
     title: str
     description: str
-    sections: List[WorksheetSection]
+    sections: list[WorksheetSection]
     estimated_duration: str
     can_save_progress: bool = True
-    ai_instructions: Optional[str] = None
+    ai_instructions: str | None = None
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -43,42 +42,42 @@ class WorksheetGenerator:
     """
     Generates dynamic therapeutic worksheets based on conversation content.
     """
-    
+
     def __init__(self):
         logger.info("📝 Initializing Worksheet Generator...")
-    
-    def generate_from_conversation(self, conversation_id: str, 
-                                   messages: List[dict],
-                                   detected_distortions: List[str] = None) -> Optional[Worksheet]:
+
+    def generate_from_conversation(self, conversation_id: str,
+                                   messages: list[dict],
+                                   detected_distortions: list[str] | None = None) -> Worksheet | None:
         """
         Analyze conversation and generate targeted worksheet.
-        
+
         Args:
             conversation_id: ID of the conversation to analyze
             messages: List of conversation messages
             detected_distortions: Pre-detected cognitive distortions
-            
+
         Returns:
             Worksheet or None if no appropriate worksheet can be generated
         """
         if not messages:
             return None
-        
+
         # Extract user messages
         user_messages = [m['content'] for m in messages if m.get('role') == 'user']
         
         if not user_messages:
             return None
-        
+
         # Analyze content for worksheet type
         combined_text = " ".join(user_messages).lower()
         
         # Determine appropriate worksheet type
         worksheet_type = self._determine_worksheet_type(
-            combined_text, 
+            combined_text,
             detected_distortions or []
         )
-        
+
         # Generate specific worksheet
         if worksheet_type == 'cbt_thought_record':
             return self._generate_thought_record(conversation_id, messages)
@@ -90,7 +89,7 @@ class WorksheetGenerator:
             return self._generate_exposure_hierarchy(conversation_id, messages)
         elif worksheet_type == 'mood_patterns':
             return self._generate_mood_analysis(conversation_id)
-        
+
         return None
 
     def _determine_worksheet_type(self, text: str,
@@ -152,7 +151,7 @@ class WorksheetGenerator:
         # Extract situation from messages
         user_messages = [m['content'] for m in messages if m.get('role') == 'user']
         triggering_situation = self._extract_situation(user_messages[0] if user_messages else "")
-        
+
         return Worksheet(
             id=f"tr_{conversation_id}_{datetime.now().timestamp()}",
             type="cbt_thought_record",
