@@ -11,7 +11,7 @@ services:
     rootDir: Backend
 
     buildCommand: pip install -r requirements.txt
-    startCommand: python start_waitress.py
+    startCommand: python scripts/start_waitress.py
 
     envVars:
       - key: FLASK_ENV
