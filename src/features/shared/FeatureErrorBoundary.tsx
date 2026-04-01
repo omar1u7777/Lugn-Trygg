@@ -18,10 +18,8 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
-  user: null; // Added to satisfy phantom ESLint error
 }
 
 export class FeatureErrorBoundary extends Component<Props, State> {

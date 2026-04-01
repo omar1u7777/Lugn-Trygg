@@ -66,7 +66,7 @@ const DEFAULT_PERSONALITIES: Record<string, PersonalityProfile> = {
 
 export const useAIPersonality = (userId: string) => {
   const [currentPersonality, setCurrentPersonality] = useState<PersonalityProfile>(DEFAULT_PERSONALITIES.gentle_coach);
-  const [userPreferences: _userPreferences, setUserPreferences] = useState<any>(null);
+  const [_userPreferences, setUserPreferences] = useState<Record<string, unknown> | null>(null);
   const [adaptationHistory, setAdaptationHistory] = useState<Array<{
     timestamp: Date;
     from: string;
@@ -97,13 +97,13 @@ export const useAIPersonality = (userId: string) => {
   }, [userId]);
 
   // Analyze message to understand user preferences
-  const analyzeMessage = useCallback((message: string, messageHistory: _messageHistory: any[] = []): MessageAnalysis => {
+  const analyzeMessage = useCallback((_message: string, _messageHistory: Array<Record<string, unknown>> = []): MessageAnalysis => {
     // Simple sentiment analysis (in real app, use NLP service)
     const positiveWords = ['glad', 'happy', 'bra', 'rolig', 'fantastisk'];
     const negativeWords = ['sad', 'ledsen', 'orolig', 'stressad', 'dålig'];
     const questionWords = ['?', 'hur', 'varför', 'när', 'vad'];
     
-    const lowerMessage = message.toLowerCase();
+    const lowerMessage = _message.toLowerCase();
     
     let sentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
     if (positiveWords.some(word => lowerMessage.includes(word))) sentiment = 'positive';
@@ -112,8 +112,8 @@ export const useAIPersonality = (userId: string) => {
     // Detect communication style
     let communicationStyle: 'brief' | 'detailed' | 'questioning' | 'declarative' = 'declarative';
     if (questionWords.some(word => lowerMessage.includes(word))) communicationStyle = 'questioning';
-    else if (message.length < 50) communicationStyle = 'brief';
-    else if (message.length > 200) communicationStyle = 'detailed';
+    else if (_message.length < 50) communicationStyle = 'brief';
+    else if (_message.length > 200) communicationStyle = 'detailed';
     
     // Detect emotional state (simplified)
     let emotionalState: 'calm' | 'stressed' | 'excited' | 'sad' | 'anxious' = 'calm';
