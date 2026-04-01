@@ -26,7 +26,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const streamMessage = useCallback(async (
     userId: string,
     message: string,
-    conversationHistory: Array<{ role: string; content: string }> = []
+    _conversationHistory: Array<{ role: string; content: string }> = []
   ) => {
     // Cancel any existing stream
     if (abortControllerRef.current) {
