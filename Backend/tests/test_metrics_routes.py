@@ -2,9 +2,8 @@
 Tests for metrics_routes.py
 Covers: health, ready, live, metrics, business metrics.
 """
-import pytest
-from unittest.mock import patch, MagicMock
 
+import pytest
 
 BASE = "/api/v1/metrics"
 

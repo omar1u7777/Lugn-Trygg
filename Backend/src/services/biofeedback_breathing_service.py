@@ -9,12 +9,12 @@ Psychological basis:
 """
 
 import logging
-import asyncio
-import numpy as np
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
 from enum import Enum
+from typing import Any
+
+import numpy as np
 
 # WebSocket support
 try:
@@ -44,7 +44,7 @@ class HRVMetrics:
     """Heart Rate Variability metrics from real-time data."""
     timestamp: datetime
     heart_rate: float  # BPM
-    rr_intervals: List[float]  # R-R intervals in ms
+    rr_intervals: list[float]  # R-R intervals in ms
     sdnn: float  # Standard deviation of NN intervals
     rmssd: float  # Root mean square of successive differences
     coherence_ratio: float  # LF/HF ratio
@@ -60,10 +60,10 @@ class BreathingSession:
     pattern: BreathingPattern
     start_time: datetime
     target_duration: int  # minutes
-    hrv_data: List[HRVMetrics] = None
+    hrv_data: list[HRVMetrics] = None
     coherence_score: float = 0.0
     resonance_achieved: bool = False
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
 
 
 @dataclass
@@ -76,7 +76,7 @@ class RealTimeFeedback:
     coherence_indicator: float  # 0-100
     resonance_indicator: float  # 0-100
     guidance: str  # "Breathe slower", "Perfect!", "Slightly deeper"
-    visualization_data: Dict[str, Any]  # For animated circle/ball
+    visualization_data: dict[str, Any]  # For animated circle/ball
 
 
 class HRVAnalyzer:
@@ -84,17 +84,17 @@ class HRVAnalyzer:
     HRV analysis for biofeedback breathing.
     Implements resonance frequency detection (Lehrer et al., 2003).
     """
-    
+
     # Optimal resonance frequency: ~0.1 Hz (6 breaths/min)
     RESONANCE_FREQ = 0.1  # Hz
     RESONANCE_RANGE = (0.08, 0.12)  # Acceptable resonance band
-    
+
     def __init__(self):
         self.window_size = 30  # seconds for HRV calculation
         self.sampling_rate = 5  # Hz for interpolation
-    
-    def calculate_hrv_metrics(self, rr_intervals: List[float], 
-                              timestamps: List[datetime]) -> HRVMetrics:
+
+    def calculate_hrv_metrics(self, rr_intervals: list[float],
+                              timestamps: list[datetime]) -> HRVMetrics:
         """
         Calculate HRV metrics from R-R intervals.
         
@@ -107,49 +107,49 @@ class HRVAnalyzer:
         """
         if len(rr_intervals) < 10:
             return self._empty_metrics()
-        
+
         try:
             # Convert to numpy
             rr = np.array(rr_intervals)
-            
+
             # Basic time-domain metrics
             sdnn = np.std(rr, ddof=1)
-            
+
             # RMSSD
             diff_rr = np.diff(rr)
             rmssd = np.sqrt(np.mean(diff_rr ** 2))
-            
+
             # Heart rate
             heart_rate = 60000 / np.mean(rr)
-            
+
             # Frequency domain - interpolate for even sampling
             interpolated = self._interpolate_rr(rr, timestamps)
-            
+
             if len(interpolated) > 10:
                 # FFT for frequency analysis
                 freqs, power = self._calculate_psd(interpolated)
-                
+
                 # LF (0.04-0.15 Hz) and HF (0.15-0.4 Hz) power
                 lf_mask = (freqs >= 0.04) & (freqs <= 0.15)
                 hf_mask = (freqs >= 0.15) & (freqs <= 0.4)
-                
+
                 lf_power = np.sum(power[lf_mask])
                 hf_power = np.sum(power[hf_mask])
-                
+
                 coherence_ratio = lf_power / hf_power if hf_power > 0 else 0
-                
+
                 # Resonance score: power in 0.08-0.12 Hz band
                 resonance_mask = (freqs >= self.RESONANCE_RANGE[0]) & \
                                 (freqs <= self.RESONANCE_RANGE[1])
                 resonance_power = np.sum(power[resonance_mask])
                 total_power = np.sum(power)
-                
+
                 resonance_score = (resonance_power / total_power * 100) \
                                  if total_power > 0 else 0
             else:
                 coherence_ratio = 0
                 resonance_score = 0
-            
+
             return HRVMetrics(
                 timestamp=datetime.now(),
                 heart_rate=heart_rate,
@@ -160,40 +160,40 @@ class HRVAnalyzer:
                 resonance_score=min(100, resonance_score),
                 breath_sync_quality=0.0  # Calculated separately
             )
-            
+
         except Exception as e:
             logger.error(f"HRV calculation failed: {e}")
             return self._empty_metrics()
-    
-    def _interpolate_rr(self, rr_intervals: np.ndarray, 
-                       timestamps: List[datetime]) -> np.ndarray:
+
+    def _interpolate_rr(self, rr_intervals: np.ndarray,
+                       timestamps: list[datetime]) -> np.ndarray:
         """Interpolate R-R intervals to even time grid."""
         try:
             # Convert timestamps to seconds
-            times = [(ts - timestamps[0]).total_seconds() 
+            times = [(ts - timestamps[0]).total_seconds()
                     for ts in timestamps]
-            
+
             # Cumulative time
             cum_time = np.cumsum(rr_intervals) / 1000.0  # Convert to seconds
-            
+
             # Create even grid
             grid_time = np.arange(0, cum_time[-1], 1.0 / self.sampling_rate)
-            
+
             # Interpolate
             interpolated = np.interp(grid_time, cum_time, rr_intervals)
-            
+
             return interpolated
-            
+
         except Exception:
             return rr_intervals
-    
-    def _calculate_psd(self, signal: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+
+    def _calculate_psd(self, signal: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Calculate power spectral density."""
         try:
             # Welch's method for PSD
             from scipy import signal as scipy_signal
             freqs, power = scipy_signal.welch(
-                signal, 
+                signal,
                 fs=self.sampling_rate,
                 nperseg=min(256, len(signal) // 4)
             )
@@ -204,13 +204,13 @@ class HRVAnalyzer:
             fft = np.fft.fft(signal)
             power = np.abs(fft) ** 2
             freqs = np.fft.fftfreq(n, 1.0 / self.sampling_rate)
-            
+
             # Keep positive frequencies only
             pos_mask = freqs > 0
             return freqs[pos_mask], power[pos_mask]
         except Exception:
             return np.array([0]), np.array([0])
-    
+
     def _empty_metrics(self) -> HRVMetrics:
         """Return empty metrics when calculation fails."""
         return HRVMetrics(
@@ -223,8 +223,8 @@ class HRVAnalyzer:
             resonance_score=0,
             breath_sync_quality=0
         )
-    
-    def detect_resonance_breathing_rate(self, hrv_history: List[HRVMetrics]) -> float:
+
+    def detect_resonance_breathing_rate(self, hrv_history: list[HRVMetrics]) -> float:
         """
         Detect user's personal resonance breathing rate.
         Based on maximum HRV amplitude (Lehrer & Gevirtz, 2014).
@@ -234,22 +234,22 @@ class HRVAnalyzer:
         """
         if len(hrv_history) < 5:
             return 6.0  # Default 6 breaths/min
-        
+
         try:
             # Find the breathing rate that maximizes resonance score
             resonance_scores = [m.resonance_score for m in hrv_history]
             breath_rates = [60.0 / (m.heart_rate / 10) for m in hrv_history]  # Approximate
-            
+
             if not resonance_scores or not breath_rates:
                 return 6.0
-            
+
             # Find rate with max resonance
             max_idx = np.argmax(resonance_scores)
             optimal_rate = breath_rates[max_idx]
-            
+
             # Constrain to reasonable range (4-8 breaths/min)
             return max(4.0, min(8.0, optimal_rate))
-            
+
         except Exception:
             return 6.0
 
@@ -259,13 +259,13 @@ class BiofeedbackBreathingService:
     Real-time biofeedback breathing service with WebSocket support.
     Provides HRV-based guidance for optimal breathing.
     """
-    
+
     def __init__(self, socketio=None):
         self.socketio = socketio
         self.hrv_analyzer = HRVAnalyzer()
-        self.active_sessions: Dict[str, BreathingSession] = {}
-        self.session_data: Dict[str, List[HRVMetrics]] = {}
-        
+        self.active_sessions: dict[str, BreathingSession] = {}
+        self.session_data: dict[str, list[HRVMetrics]] = {}
+
         # Breathing patterns (durations in seconds)
         self.patterns = {
             BreathingPattern.COHERENCE_6BPM: {
@@ -297,7 +297,7 @@ class BiofeedbackBreathingService:
                 'description': '4-4-6 for sleep onset'
             }
         }
-    
+
     def start_session(self, user_id: str, pattern_type: str = 'coherence',
                      duration: int = 5) -> BreathingSession:
         """Start a new biofeedback breathing session."""
@@ -305,9 +305,9 @@ class BiofeedbackBreathingService:
             pattern = BreathingPattern(pattern_type)
         except ValueError:
             pattern = BreathingPattern.COHERENCE_6BPM
-        
+
         session_id = f"breath_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        
+
         session = BreathingSession(
             session_id=session_id,
             user_id=user_id,
@@ -316,17 +316,17 @@ class BiofeedbackBreathingService:
             target_duration=duration,
             hrv_data=[]
         )
-        
+
         self.active_sessions[session_id] = session
         self.session_data[session_id] = []
-        
+
         logger.info(f"Started biofeedback session {session_id} for {user_id}")
-        
+
         return session
-    
-    def process_heart_rate_data(self, session_id: str, 
-                                 rr_intervals: List[float],
-                                 timestamps: List[datetime]) -> RealTimeFeedback:
+
+    def process_heart_rate_data(self, session_id: str,
+                                 rr_intervals: list[float],
+                                 timestamps: list[datetime]) -> RealTimeFeedback:
         """
         Process incoming heart rate data and generate real-time feedback.
         
@@ -337,50 +337,50 @@ class BiofeedbackBreathingService:
         """
         if session_id not in self.active_sessions:
             return self._default_feedback()
-        
+
         session = self.active_sessions[session_id]
-        
+
         # Calculate HRV metrics
         metrics = self.hrv_analyzer.calculate_hrv_metrics(rr_intervals, timestamps)
-        
+
         # Store
         self.session_data[session_id].append(metrics)
-        
+
         # Calculate session coherence
         if len(self.session_data[session_id]) > 0:
             recent_scores = [m.resonance_score for m in self.session_data[session_id][-5:]]
             session.coherence_score = np.mean(recent_scores)
             session.resonance_achieved = any(s > 60 for s in recent_scores)
-        
+
         # Generate real-time guidance
         feedback = self._generate_feedback(session, metrics)
-        
+
         # Broadcast via WebSocket if available
         if self.socketio and SOCKETIO_AVAILABLE:
             self._emit_feedback(session.user_id, feedback)
-        
+
         return feedback
-    
-    def _generate_feedback(self, session: BreathingSession, 
+
+    def _generate_feedback(self, session: BreathingSession,
                           metrics: HRVMetrics) -> RealTimeFeedback:
         """Generate personalized real-time breathing guidance."""
-        
+
         pattern_config = self.patterns[session.pattern]
-        
+
         # Calculate current phase based on time
         elapsed = (datetime.now() - session.start_time).total_seconds()
         # Sum only numeric duration values (exclude 'description')
         cycle_duration = sum(v for v in pattern_config.values() if isinstance(v, (int, float)))
         cycle_progress = (elapsed % cycle_duration) / cycle_duration if cycle_duration > 0 else 0
-        
+
         # Determine phase
         phase, phase_progress = self._get_phase_and_progress(
             pattern_config, elapsed % cycle_duration
         )
-        
+
         # Calculate resonance quality
         resonance = metrics.resonance_score
-        
+
         # Generate guidance based on HRV
         if resonance < 30:
             guidance = "Försök slappna av mer i axlar och käke"
@@ -390,19 +390,19 @@ class BiofeedbackBreathingService:
             guidance = "Utmärkt! Håll denna rytm"
         else:
             guidance = "Perfekt! Du har hittat resonans"
-        
+
         # Target breath rate
         target_rate = 60.0 / (pattern_config['inhale'] + pattern_config['exhale'])
-        
+
         # Visualization data for animated circle
         visualization = {
-            'circle_scale': 0.5 + 0.5 * phase_progress if phase == 'inhale' else 
+            'circle_scale': 0.5 + 0.5 * phase_progress if phase == 'inhale' else
                            1.0 - 0.5 * phase_progress if phase == 'exhale' else 0.5,
             'color_hue': 120 + (resonance / 100) * 60,  # Green to blue
             'coherence_ring': resonance / 100,
             'phase_indicator': phase
         }
-        
+
         return RealTimeFeedback(
             phase=phase,
             phase_progress=phase_progress,
@@ -413,8 +413,8 @@ class BiofeedbackBreathingService:
             guidance=guidance,
             visualization_data=visualization
         )
-    
-    def _get_phase_and_progress(self, pattern: Dict, elapsed_in_cycle: float) -> Tuple[str, float]:
+
+    def _get_phase_and_progress(self, pattern: dict, elapsed_in_cycle: float) -> tuple[str, float]:
         """Determine current breathing phase and progress."""
         phases = [
             ('inhale', pattern.get('inhale', 0)),
@@ -422,7 +422,7 @@ class BiofeedbackBreathingService:
             ('exhale', pattern.get('exhale', 0)),
             ('hold_empty', pattern.get('hold_empty', 0))
         ]
-        
+
         cumulative = 0
         for phase_name, duration in phases:
             if duration == 0:
@@ -431,14 +431,14 @@ class BiofeedbackBreathingService:
                 progress = (elapsed_in_cycle - cumulative) / duration
                 return phase_name, progress
             cumulative += duration
-        
+
         return 'inhale', 0.0
-    
+
     def _emit_feedback(self, user_id: str, feedback: RealTimeFeedback):
         """Emit real-time feedback via WebSocket."""
         if not SOCKETIO_AVAILABLE:
             return
-        
+
         try:
             emit('biofeedback_update', {
                 'phase': feedback.phase,
@@ -453,18 +453,18 @@ class BiofeedbackBreathingService:
             }, room=user_id)
         except Exception as e:
             logger.error(f"WebSocket emit failed: {e}")
-    
-    def end_session(self, session_id: str) -> Dict[str, Any]:
+
+    def end_session(self, session_id: str) -> dict[str, Any]:
         """End session and return summary."""
         if session_id not in self.active_sessions:
             return {}
-        
+
         session = self.active_sessions[session_id]
         session.end_time = datetime.now()
-        
+
         # Calculate summary statistics
         hrv_data = self.session_data.get(session_id, [])
-        
+
         summary = {
             'session_id': session_id,
             'duration_minutes': (session.end_time - session.start_time).seconds / 60,
@@ -475,34 +475,34 @@ class BiofeedbackBreathingService:
             'hrv_improvement': self._calculate_hrv_improvement(hrv_data),
             'data_points': len(hrv_data)
         }
-        
+
         # Save to Firestore
         self._save_session_summary(session, summary)
-        
+
         # Cleanup
         del self.active_sessions[session_id]
         del self.session_data[session_id]
-        
+
         return summary
-    
-    def _calculate_hrv_improvement(self, hrv_data: List[HRVMetrics]) -> float:
+
+    def _calculate_hrv_improvement(self, hrv_data: list[HRVMetrics]) -> float:
         """Calculate HRV improvement during session."""
         if len(hrv_data) < 4:
             return 0.0
-        
+
         first_half = hrv_data[:len(hrv_data)//2]
         second_half = hrv_data[len(hrv_data)//2:]
-        
+
         first_rmssd = np.mean([m.rmssd for m in first_half])
         second_rmssd = np.mean([m.rmssd for m in second_half])
-        
+
         if first_rmssd == 0:
             return 0.0
-        
+
         improvement = ((second_rmssd - first_rmssd) / first_rmssd) * 100
         return improvement
-    
-    def _save_session_summary(self, session: BreathingSession, summary: Dict):
+
+    def _save_session_summary(self, session: BreathingSession, summary: dict):
         """Save session to Firestore."""
         try:
             db.collection('breathing_sessions').document(session.session_id).set({
@@ -515,7 +515,7 @@ class BiofeedbackBreathingService:
                 'hrv_data_count': len(self.session_data.get(session.session_id, [])),
                 'created_at': datetime.now()
             })
-            
+
             # Audit log
             audit_log(
                 event_type="BREATHING_SESSION_COMPLETED",
@@ -527,10 +527,10 @@ class BiofeedbackBreathingService:
                     "resonance_achieved": summary['resonance_achieved']
                 }
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to save breathing session: {e}")
-    
+
     def _default_feedback(self) -> RealTimeFeedback:
         """Return default feedback when session not found."""
         return RealTimeFeedback(
@@ -546,7 +546,7 @@ class BiofeedbackBreathingService:
 
 
 # Singleton instance
-_biofeedback_service: Optional[BiofeedbackBreathingService] = None
+_biofeedback_service: BiofeedbackBreathingService | None = None
 
 
 def get_biofeedback_service(socketio=None) -> BiofeedbackBreathingService:

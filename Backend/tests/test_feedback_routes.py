@@ -5,9 +5,9 @@ Tests feedback submission, listing, statistics, and user feedback history.
 NOTE: Uses client fixture from conftest.py which properly mocks Firebase.
 Blueprint registered at /api/v1/feedback in main.py.
 """
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Constants

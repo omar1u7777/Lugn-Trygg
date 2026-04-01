@@ -6,14 +6,13 @@ Usage:
   python scripts/create_admin.py <existing_email>  # Promotes existing user to admin
 """
 
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.firebase_config import db, auth
-
+from src.firebase_config import auth, db
 
 ADMIN_EMAIL = "admin@lugn-trygg.com"
 ADMIN_PASSWORD = "LugnTrygg@Admin2026!"
@@ -76,7 +75,7 @@ def create_admin(email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
     print(f"  Email:    {email}")
     print(f"  Password: {'*' * 8} (set during creation)")
     print(f"  UID:      {uid[:8]}***")
-    print(f"  Role:     admin")
+    print("  Role:     admin")
     print("=" * 50)
     print()
     print("Use these to log in via the frontend login page.")

@@ -6,12 +6,10 @@ OWASP ZAP integration and security vulnerability scanning
 
 import os
 import sys
-import json
 import time
+from typing import Any
+
 import requests
-import subprocess
-from typing import Dict, List, Any
-from urllib.parse import urljoin
 
 # Add Backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -22,8 +20,8 @@ class SecurityTester:
     def __init__(self, base_url: str = "http://localhost:5001"):
         self.base_url = base_url
         self.session = requests.Session()
-        self.vulnerabilities: List[Dict[str, Any]] = []
-        self.test_results: Dict[str, Any] = {}
+        self.vulnerabilities: list[dict[str, Any]] = []
+        self.test_results: dict[str, Any] = {}
 
     def log_vulnerability(self, severity: str, title: str, description: str,
                          endpoint: str, impact: str, remediation: str):
@@ -69,7 +67,7 @@ class SecurityTester:
                         vulnerable_endpoints.append('/api/auth/login')
                         break
 
-            except Exception as e:
+            except Exception:
                 continue
 
         if vulnerable_endpoints:
@@ -126,7 +124,7 @@ class SecurityTester:
                             vulnerable_endpoints.append('/api/mood/log')
                             break
 
-            except Exception as e:
+            except Exception:
                 continue
 
         if vulnerable_endpoints:
@@ -168,7 +166,7 @@ class SecurityTester:
                     bypass_success = True
                     break
 
-            except Exception as e:
+            except Exception:
                 continue
 
         if bypass_success:
@@ -201,7 +199,7 @@ class SecurityTester:
                 # Small delay to avoid overwhelming
                 time.sleep(0.01)
 
-            except Exception as e:
+            except Exception:
                 responses.append(0)  # Connection error
 
         # Check if we got rate limited (429 status)
@@ -306,7 +304,7 @@ class SecurityTester:
         print("✅ No sensitive data exposure detected")
         return True
 
-    def run_all_security_tests(self) -> Dict[str, Any]:
+    def run_all_security_tests(self) -> dict[str, Any]:
         """Run all security tests"""
         print("🔒 Starting Security Testing Suite")
         print("=" * 50)
@@ -367,7 +365,7 @@ class SecurityTester:
         else:
             return 'SECURE'
 
-    def print_report(self, report: Dict[str, Any]):
+    def print_report(self, report: dict[str, Any]):
         """Print security test report"""
         print("\n" + "=" * 60)
         print("🔒 SECURITY TEST REPORT")

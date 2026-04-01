@@ -15,7 +15,6 @@ from typing import Any
 import pytest
 import requests
 
-
 pytestmark = [pytest.mark.e2e, pytest.mark.live]
 
 

@@ -4,15 +4,15 @@ Early detection and intervention for mental health crises
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Import semantic crisis detector when available
 try:
-    from .crisis_nlp import get_semantic_crisis_detector, SemanticCrisisAssessment
+    from .crisis_nlp import SemanticCrisisAssessment, get_semantic_crisis_detector
     SEMANTIC_DETECTOR_AVAILABLE = True
 except ImportError:
     SEMANTIC_DETECTOR_AVAILABLE = False
@@ -78,7 +78,7 @@ class CrisisInterventionService:
             except Exception as e:
                 logger.warning(f"⚠️ Failed to load semantic detector: {e}")
 
-    def assess_text_crisis_risk(self, text: str, conversation_context: Optional[list] = None) -> CrisisAssessment:
+    def assess_text_crisis_risk(self, text: str, conversation_context: list | None = None) -> CrisisAssessment:
         """
         Assess crisis risk from user text using semantic NLP.
         This is the NEW primary method for chat-based crisis detection.

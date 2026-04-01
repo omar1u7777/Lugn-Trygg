@@ -2,7 +2,6 @@
 Comprehensive tests for referral routes.
 Blueprint registered at: /api/v1/referral
 """
-import pytest
 from unittest.mock import MagicMock, patch
 
 TEST_USER_ID = "testuser1234567890ab"

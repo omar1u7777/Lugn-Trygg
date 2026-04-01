@@ -5,10 +5,12 @@ Tests for the most critical security vulnerabilities and business logic paths.
 These tests ensure the application is secure and functions correctly.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.services.auth_service import AuthService
-from src.utils.error_handling import ServiceError, ValidationError, AuthenticationError
+from src.utils.error_handling import ServiceError, ValidationError
 
 
 class TestCriticalSecurity:
@@ -59,8 +61,8 @@ class TestCriticalSecurity:
         mock_auth.verify_id_token.side_effect = Exception("Invalid token")
 
         # Create a valid JWT token format with email for testing
+
         import jwt
-        import os
         test_email = "test@example.com"
         token_data = {"email": test_email, "exp": 9999999999}
         test_token = jwt.encode(token_data, "test_key", algorithm="HS256")
@@ -115,7 +117,7 @@ class TestBusinessLogic:
 
         # Test invalid emails - AuthService validates and returns error or succeeds
         invalid_emails = ["", "not-an-email", "@example.com", "user@"]
-        
+
         # Just test that the function handles various inputs without crashing
         for email in invalid_emails:
             result = AuthService.register_user(email, "ValidPass123!")
@@ -156,7 +158,7 @@ class TestBusinessLogic:
 
         # Test that AIServices can be instantiated (lazy loading means no direct patching)
         ai_services = AIServices()
-        
+
         # Test fallback for sentiment analysis - uses keyword_fallback when no API
         result = ai_services.analyze_sentiment("I feel happy today")
         # Should return a result with method key indicating fallback
@@ -192,12 +194,13 @@ class TestBusinessLogic:
     def test_data_encryption(self):
         """Test data encryption/decryption using AuditService"""
         import os
+
         from cryptography.fernet import Fernet
-        
+
         # Set up test encryption key
         test_key = Fernet.generate_key().decode()
         os.environ['HIPAA_ENCRYPTION_KEY'] = test_key
-        
+
         from src.services.audit_service import AuditService
         audit_svc = AuditService()
 

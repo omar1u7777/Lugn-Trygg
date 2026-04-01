@@ -5,9 +5,10 @@ This package contains all tests for the backend application.
 Tests are organized by functionality and marked with appropriate pytest markers.
 """
 
-import pytest
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from unittest.mock import MagicMock
+
+import pytest
 
 # Test constants
 TEST_USER_ID = "test-user-123"
@@ -15,7 +16,7 @@ TEST_EMAIL = "test@example.com"
 TEST_PASSWORD = "TestPassword123!"
 
 # Common test data
-def create_test_user(user_id: str = TEST_USER_ID, email: str = TEST_EMAIL) -> Dict[str, Any]:
+def create_test_user(user_id: str = TEST_USER_ID, email: str = TEST_EMAIL) -> dict[str, Any]:
     """Create a test user dictionary"""
     return {
         "uid": user_id,
@@ -26,7 +27,7 @@ def create_test_user(user_id: str = TEST_USER_ID, email: str = TEST_EMAIL) -> Di
         "is_active": True
     }
 
-def create_test_mood(user_id: str = TEST_USER_ID, mood_value: int = 7) -> Dict[str, Any]:
+def create_test_mood(user_id: str = TEST_USER_ID, mood_value: int = 7) -> dict[str, Any]:
     """Create a test mood entry"""
     return {
         "user_id": user_id,
@@ -36,7 +37,7 @@ def create_test_mood(user_id: str = TEST_USER_ID, mood_value: int = 7) -> Dict[s
         "created_at": "2024-01-01T12:00:00Z"
     }
 
-def create_auth_headers(token: str = "test-jwt-token") -> Dict[str, str]:
+def create_auth_headers(token: str = "test-jwt-token") -> dict[str, str]:
     """Create authentication headers for tests"""
     return {
         "Authorization": f"Bearer {token}",
@@ -44,7 +45,7 @@ def create_auth_headers(token: str = "test-jwt-token") -> Dict[str, str]:
     }
 
 # Mock factories
-def create_mock_firestore_document(data: Optional[Dict[str, Any]] = None, exists: bool = True) -> MagicMock:
+def create_mock_firestore_document(data: dict[str, Any] | None = None, exists: bool = True) -> MagicMock:
     """Create a mock Firestore document"""
     mock_doc = MagicMock()
     mock_doc.exists = exists

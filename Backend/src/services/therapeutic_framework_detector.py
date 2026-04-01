@@ -5,13 +5,10 @@ Implements CBT, ACT, DBT, and Person-Centered therapy pattern recognition
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Any
-import re
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +74,9 @@ class ConversationQualityMetrics:
     specificity_score: float  # How specific are suggestions
     collaboration_score: float  # Degree of collaboration
     structure_score: float  # Structured vs unstructured
-    technique_usage: Dict[str, int]  # Count of techniques used
+    technique_usage: dict[str, int]  # Count of techniques used
     overall_quality: float  # Composite score
-    
+
     # Clinical indicators
     safety_assessment: float  # Crisis/safety assessment quality
     goal_alignment: float  # Alignment with user's goals
@@ -92,14 +89,14 @@ class TherapeuticSession:
     session_id: str
     user_id: str
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime | None
     framework: TherapeuticFramework
-    techniques_used: List[TechniqueDetection]
+    techniques_used: list[TechniqueDetection]
     quality_metrics: ConversationQualityMetrics
-    emotional_progression: List[Dict]
-    key_moments: List[Dict]
-    homework_assigned: List[Dict]
-    insights_gained: List[str]
+    emotional_progression: list[dict]
+    key_moments: list[dict]
+    homework_assigned: list[dict]
+    insights_gained: list[str]
 
 
 class TherapeuticFrameworkDetector:
@@ -107,10 +104,10 @@ class TherapeuticFrameworkDetector:
     Professional therapeutic framework detector using pattern matching
     and semantic analysis to identify evidence-based approaches
     """
-    
+
     def __init__(self):
         self.confidence_threshold = 0.6
-        
+
         # CBT patterns
         self.cbt_patterns = {
             CBTTTechnique.COGNITIVE_RESTRUCTURING: [
@@ -134,7 +131,7 @@ class TherapeuticFrameworkDetector:
                 r"behavioral experiment|test.*?hypothesis|try.*?behavior",
             ],
         }
-        
+
         # ACT patterns
         self.act_patterns = {
             ACTTechnique.COGNITIVE_DEFUSION: [
@@ -158,7 +155,7 @@ class TherapeuticFrameworkDetector:
                 r"present moment|here and now|grounding|anchor",
             ],
         }
-        
+
         # DBT patterns
         self.dbt_patterns = {
             DBTTechnique.MINDFULNESS: [
@@ -186,8 +183,8 @@ class TherapeuticFrameworkDetector:
                 r"förbättra|inre.*?bilder|betydelse|avslappning|semester",
             ],
         }
-    
-    def detect_framework(self, message: str) -> Tuple[TherapeuticFramework, float]:
+
+    def detect_framework(self, message: str) -> tuple[TherapeuticFramework, float]:
         """
         Detect the primary therapeutic framework used in a message
         
@@ -195,13 +192,13 @@ class TherapeuticFrameworkDetector:
             Tuple of (framework, confidence_score)
         """
         message_lower = message.lower()
-        
-        framework_scores: Dict[TherapeuticFramework, float] = {
+
+        framework_scores: dict[TherapeuticFramework, float] = {
             TherapeuticFramework.CBT: 0.0,
             TherapeuticFramework.ACT: 0.0,
             TherapeuticFramework.DBT: 0.0,
         }
-        
+
         # Check CBT patterns
         cbt_score = 0.0
         cbt_matches = 0
@@ -211,7 +208,7 @@ class TherapeuticFrameworkDetector:
                     cbt_score += 0.3
                     cbt_matches += 1
         framework_scores[TherapeuticFramework.CBT] = min(cbt_score, 1.0)
-        
+
         # Check ACT patterns
         act_score = 0.0
         act_matches = 0
@@ -221,7 +218,7 @@ class TherapeuticFrameworkDetector:
                     act_score += 0.3
                     act_matches += 1
         framework_scores[TherapeuticFramework.ACT] = min(act_score, 1.0)
-        
+
         # Check DBT patterns
         dbt_score = 0.0
         dbt_matches = 0
@@ -231,28 +228,28 @@ class TherapeuticFrameworkDetector:
                     dbt_score += 0.3
                     dbt_matches += 1
         framework_scores[TherapeuticFramework.DBT] = min(dbt_score, 1.0)
-        
+
         # Determine primary framework
         if not any(framework_scores.values()):
             return TherapeuticFramework.PERSON_CENTERED, 0.5
-        
+
         primary_framework = max(framework_scores, key=framework_scores.get)
         confidence = framework_scores[primary_framework]
-        
+
         return primary_framework, confidence
-    
-    def detect_techniques(self, message: str) -> List[TechniqueDetection]:
+
+    def detect_techniques(self, message: str) -> list[TechniqueDetection]:
         """Detect specific therapeutic techniques used"""
         detected = []
         message_lower = message.lower()
-        
+
         # Check all technique patterns
         all_patterns = [
             (TherapeuticFramework.CBT, self.cbt_patterns),
             (TherapeuticFramework.ACT, self.act_patterns),
             (TherapeuticFramework.DBT, self.dbt_patterns),
         ]
-        
+
         for framework, patterns in all_patterns:
             for technique, pattern_list in patterns.items():
                 for pattern in pattern_list:
@@ -260,7 +257,7 @@ class TherapeuticFrameworkDetector:
                     if match:
                         # Calculate confidence based on match quality
                         confidence = 0.7 + (0.3 * (len(match.group()) / len(message_lower)))
-                        
+
                         detected.append(TechniqueDetection(
                             framework=framework,
                             technique=technique.value,
@@ -269,15 +266,15 @@ class TherapeuticFrameworkDetector:
                             timestamp=datetime.now()
                         ))
                         break  # Only count first match per technique
-        
+
         # Sort by confidence
         detected.sort(key=lambda x: x.confidence, reverse=True)
         return detected[:5]  # Return top 5 techniques
-    
+
     def analyze_conversation_quality(
         self,
-        messages: List[Dict],
-        user_goals: Optional[List[str]] = None
+        messages: list[dict],
+        user_goals: list[str] | None = None
     ) -> ConversationQualityMetrics:
         """
         Analyze conversation quality using evidence-based metrics
@@ -299,10 +296,10 @@ class TherapeuticFrameworkDetector:
                 goal_alignment=0.0,
                 cultural_sensitivity=0.5
             )
-        
+
         ai_messages = [m for m in messages if m.get('role') == 'assistant']
         user_messages = [m for m in messages if m.get('role') == 'user']
-        
+
         if not ai_messages:
             return ConversationQualityMetrics(
                 empathy_score=0.0,
@@ -315,7 +312,7 @@ class TherapeuticFrameworkDetector:
                 goal_alignment=0.0,
                 cultural_sensitivity=0.5
             )
-        
+
         # 1. Empathy Score (0-1)
         empathy_markers = [
             "förstår", "förstå", "hör att du", "det låter", "det måste vara",
@@ -327,7 +324,7 @@ class TherapeuticFrameworkDetector:
                           for marker in empathy_markers
                           if marker.lower() in msg.get('content', '').lower())
         empathy_score = min(empathy_count / max(len(ai_messages) * 0.5, 1), 1.0)
-        
+
         # 2. Specificity Score (0-1)
         specific_action_words = [
             "nästa gång", "när det händer", "försök", "öva", "konkret",
@@ -337,7 +334,7 @@ class TherapeuticFrameworkDetector:
                               for word in specific_action_words
                               if word.lower() in msg.get('content', '').lower())
         specificity_score = min(specificity_count / max(len(ai_messages) * 0.3, 1), 1.0)
-        
+
         # 3. Collaboration Score (0-1)
         collaboration_markers = [
             "vad tycker du", "tillsammans", "låt oss", "hur känns det",
@@ -347,7 +344,7 @@ class TherapeuticFrameworkDetector:
                           for marker in collaboration_markers
                           if marker.lower() in msg.get('content', '').lower())
         collaboration_score = min(collab_count / max(len(ai_messages) * 0.3, 1), 1.0)
-        
+
         # 4. Structure Score (0-1)
         # Check for agenda, summaries, homework
         structure_markers = [
@@ -358,18 +355,18 @@ class TherapeuticFrameworkDetector:
                              for marker in structure_markers
                              if marker.lower() in msg.get('content', '').lower())
         structure_score = min(structure_count / max(len(ai_messages) * 0.2, 1), 1.0)
-        
+
         # 5. Technique Usage
         all_techniques = []
         for msg in ai_messages:
             techniques = self.detect_techniques(msg.get('content', ''))
             all_techniques.extend(techniques)
-        
+
         technique_usage = {}
         for tech in all_techniques:
             key = f"{tech.framework.value}:{tech.technique}"
             technique_usage[key] = technique_usage.get(key, 0) + 1
-        
+
         # 6. Safety Assessment (0-1)
         safety_keywords = [
             "säkerhet", "säker", "risk", "farligt", "skada", "crisis",
@@ -380,7 +377,7 @@ class TherapeuticFrameworkDetector:
                            if keyword.lower() in msg.get('content', '').lower())
         safety_score = min(safety_mentions / max(len(ai_messages) * 0.2, 1), 1.0)
         safety_score = max(safety_score, 0.3)  # Minimum for acknowledging safety
-        
+
         # 7. Goal Alignment (0-1)
         goal_score = 0.5
         if user_goals:
@@ -390,7 +387,7 @@ class TherapeuticFrameworkDetector:
                                if keyword in msg.get('content', '').lower())
             goal_score = min(goal_mentions / max(len(ai_messages) * 0.2, 1), 1.0)
             goal_score = max(goal_score, 0.3)
-        
+
         # Calculate overall quality (weighted composite)
         overall_quality = (
             empathy_score * 0.25 +
@@ -400,7 +397,7 @@ class TherapeuticFrameworkDetector:
             safety_score * 0.15 +
             goal_score * 0.10
         )
-        
+
         return ConversationQualityMetrics(
             empathy_score=empathy_score,
             specificity_score=specificity_score,
@@ -412,18 +409,18 @@ class TherapeuticFrameworkDetector:
             goal_alignment=goal_score,
             cultural_sensitivity=0.7  # Baseline, could be improved with more analysis
         )
-    
+
     def generate_therapeutic_recommendations(
         self,
         current_framework: TherapeuticFramework,
         quality_metrics: ConversationQualityMetrics,
-        user_progress: Optional[Dict] = None
-    ) -> List[Dict]:
+        user_progress: dict | None = None
+    ) -> list[dict]:
         """
         Generate evidence-based recommendations for improving therapy
         """
         recommendations = []
-        
+
         # Empathy recommendations
         if quality_metrics.empathy_score < 0.6:
             recommendations.append({
@@ -433,7 +430,7 @@ class TherapeuticFrameworkDetector:
                 'example': "Det låter som att det har varit riktigt tufft för dig...",
                 'evidence': 'Carl Rogers\' research shows empathy is the strongest predictor of outcomes'
             })
-        
+
         # Specificity recommendations
         if quality_metrics.specificity_score < 0.5:
             recommendations.append({
@@ -443,7 +440,7 @@ class TherapeuticFrameworkDetector:
                 'example': "Nästa gång du känner ångest, prova 5-4-3-2-1 tekniken...",
                 'evidence': 'Behavioral specificity increases treatment adherence'
             })
-        
+
         # Structure recommendations
         if quality_metrics.structure_score < 0.4:
             recommendations.append({
@@ -453,7 +450,7 @@ class TherapeuticFrameworkDetector:
                 'example': "Låt oss sammanfatta vad vi pratat om idag...",
                 'evidence': 'Structured therapy shows better outcomes in research'
             })
-        
+
         # Framework-specific recommendations
         if current_framework == TherapeuticFramework.CBT:
             if 'cognitive_restructuring' not in str(quality_metrics.technique_usage):
@@ -464,7 +461,7 @@ class TherapeuticFrameworkDetector:
                     'example': "Låt oss titta på bevisen för och emot den tanken...",
                     'evidence': 'Cognitive restructuring is a core CBT technique with strong evidence'
                 })
-        
+
         elif current_framework == TherapeuticFramework.ACT:
             if 'values' not in str(quality_metrics.technique_usage).lower():
                 recommendations.append({
@@ -474,7 +471,7 @@ class TherapeuticFrameworkDetector:
                     'example': "Vad är viktigast för dig i livet?",
                     'evidence': 'Values-based action is central to ACT effectiveness'
                 })
-        
+
         return recommendations
 
 

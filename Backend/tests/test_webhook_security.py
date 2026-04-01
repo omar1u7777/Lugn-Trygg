@@ -2,10 +2,9 @@
 Tests for Stripe webhook security — production guard against unverified webhooks.
 Covers: STRIPE_WEBHOOK_SECRET enforcement, signature verification, event handling.
 """
-import pytest
 import json
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 class TestWebhookProductionGuard:

@@ -11,11 +11,10 @@ Features:
 """
 
 import logging
-import io
 import tempfile
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
+
 import numpy as np
 
 # Professional audio analysis with graceful fallback
@@ -33,13 +32,6 @@ try:
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
-
-# OpenAI for advanced emotion analysis
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -65,17 +57,17 @@ class ProsodicFeatures:
     pitch_std: float   # Pitch variation (monotone vs. animated)
     pitch_range: float # Max - min pitch (emotional expressiveness)
     pitch_slope: float # Rising/falling contour trend
-    
+
     # Intensity (loudness)
     intensity_mean: float
     intensity_std: float
     intensity_range: float
-    
+
     # Speaking rate
     syllables_per_second: float
     pause_ratio: float  # Silence vs. speech ratio
     pause_count: int
-    
+
     # Voice quality
     jitter: float  # Pitch perturbation (roughness)
     shimmer: float # Amplitude perturbation
@@ -88,14 +80,14 @@ class SpectralFeatures:
     # MFCCs (Mel-frequency cepstral coefficients)
     mfcc_means: np.ndarray  # 13-dimensional
     mfcc_vars: np.ndarray
-    
+
     # Spectral shape
     spectral_centroid: float  # "brightness" of voice
     spectral_rolloff: float
     spectral_bandwidth: float
     spectral_contrast: np.ndarray
     spectral_flatness: float
-    
+
     # Formants (vowel characteristics)
     formant_1_mean: float
     formant_2_mean: float
@@ -106,15 +98,15 @@ class SpectralFeatures:
 class VoiceEmotionResult:
     """Complete voice emotion analysis result"""
     primary_emotion: str
-    emotion_confidences: Dict[str, float]
+    emotion_confidences: dict[str, float]
     valence: float  # -1 (negative) to +1 (positive)
     arousal: float  # 0 (calm) to 1 (excited)
     dominance: float  # 0 (submissive) to 1 (dominant)
-    
+
     # Audio characteristics
     prosody: ProsodicFeatures
     spectral: SpectralFeatures
-    
+
     # Analysis metadata
     analysis_method: str
     confidence: float
@@ -125,18 +117,17 @@ class VoiceEmotionResult:
 class ProfessionalVoiceEmotionAnalyzer:
     """
     Professional voice emotion analyzer using evidence-based acoustic features
-    
     Research basis:
     - Scherer (2003): Vocal communication of emotion
     - Juslin & Laukka (2003): Emotional expression in speech
     - Cowie et al. (2001): Emotion recognition from voice
     """
-    
+
     def __init__(self):
         self.sample_rate = 16000  # Standard for speech analysis
         self.frame_size = 2048
         self.hop_length = 512
-        
+
         # Emotion acoustic profiles (from research literature)
         self.emotion_profiles = {
             EmotionCategory.HAPPY: {
@@ -188,11 +179,11 @@ class ProfessionalVoiceEmotionAnalyzer:
                 'hnr': (12, 25),               # Clear
             }
         }
-    
+
     def analyze_audio(self, audio_bytes: bytes) -> VoiceEmotionResult:
         """
         Analyze emotion from audio bytes
-        
+
         Returns professional emotion analysis with acoustic features
         """
         if LIBROSA_AVAILABLE:
@@ -200,17 +191,16 @@ class ProfessionalVoiceEmotionAnalyzer:
                 return self._analyze_with_librosa(audio_bytes)
             except Exception as e:
                 logger.warning(f"Librosa analysis failed: {e}, using fallback")
-        
+
         return self._analyze_fallback(audio_bytes)
-    
+
     def _analyze_with_librosa(self, audio_bytes: bytes) -> VoiceEmotionResult:
         """Professional analysis using librosa"""
-        import tempfile
         import os
-        
+
         # Check if audio_bytes is raw PCM or already a WAV file
         is_wav = audio_bytes[:4] == b'RIFF' and audio_bytes[8:12] == b'WAVE'
-        
+
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
             if is_wav:
                 # Already a WAV file
@@ -229,30 +219,30 @@ class ProfessionalVoiceEmotionAnalyzer:
                     logger.warning(f"soundfile write failed: {e}, trying raw fallback")
                     # Fallback: just write raw bytes and hope librosa can handle it
                     tmp.write(audio_bytes)
-            
+
             tmp_path = tmp.name
-        
+
         try:
             # Load audio
             y, sr = librosa.load(tmp_path, sr=self.sample_rate, mono=True)
             duration = len(y) / sr
-            
+
             # Extract prosodic features
             prosody = self._extract_prosodic_features(y, sr)
-            
+
             # Extract spectral features
             spectral = self._extract_spectral_features(y, sr)
-            
+
             # Map to emotions
             emotion_scores = self._map_acoustics_to_emotions(prosody, spectral)
-            
+
             # Calculate VAD (Valence-Arousal-Dominance)
             valence, arousal, dominance = self._calculate_vad(prosody, spectral)
-            
+
             # Determine primary emotion
             primary_emotion = max(emotion_scores, key=emotion_scores.get)
             confidence = emotion_scores[primary_emotion]
-            
+
             return VoiceEmotionResult(
                 primary_emotion=primary_emotion,
                 emotion_confidences=emotion_scores,
@@ -266,31 +256,31 @@ class ProfessionalVoiceEmotionAnalyzer:
                 sample_rate=sr,
                 duration_seconds=duration
             )
-            
+
         finally:
             import os
             os.unlink(tmp_path)
-    
+
     def _extract_prosodic_features(self, y: np.ndarray, sr: int) -> ProsodicFeatures:
         """Extract prosodic (pitch, intensity, timing) features"""
         # Pitch (F0) using pip algorithm (state-of-the-art)
         f0, voiced_flag, _ = librosa.pyin(
-            y, 
+            y,
             fmin=librosa.note_to_hz('C2'),
             fmax=librosa.note_to_hz('C7'),
             sr=sr,
             frame_length=self.frame_size,
             hop_length=self.hop_length
         )
-        
+
         # Filter out unvoiced frames
         f0_voiced = f0[voiced_flag]
-        
+
         if len(f0_voiced) > 0:
             pitch_mean = float(np.mean(f0_voiced))
             pitch_std = float(np.std(f0_voiced))
             pitch_range = float(np.max(f0_voiced) - np.min(f0_voiced))
-            
+
             # Pitch slope (trend)
             if len(f0_voiced) > 1:
                 x = np.arange(len(f0_voiced))

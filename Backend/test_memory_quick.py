@@ -5,11 +5,13 @@ print('='*50)
 print('MEMORY JOURNAL - QUICK TEST')
 print('='*50)
 
-from PIL import Image
 import io
+
+from PIL import Image
 
 # Test Photo Analysis
 from src.services.photo_analysis_service import PhotoAnalysisService
+
 service = PhotoAnalysisService()
 print(f'✅ PhotoAnalysisService: {type(service).__name__}')
 
@@ -21,10 +23,12 @@ print(f'✅ Photo analysis: {result.dominant_emotion}, {result.color_mood}')
 
 # Test Routes
 from src.routes.multimedia_memory_routes import multimedia_memory_bp
+
 print(f'✅ Blueprint: {multimedia_memory_bp.name}')
 
 # Test Memory Analysis
 from src.services.memory_analysis_service import get_memory_analysis_service
+
 mas = get_memory_analysis_service()
 result = mas.analyze_text_memory('Glad idag!')
 print(f'✅ Text analysis: {result.primary_emotion}')

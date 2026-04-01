@@ -7,12 +7,11 @@ Usage:
     python backup_firestore.py [--collection COLLECTION] [--output-dir DIR]
 """
 
-import os
-import json
 import argparse
+import json
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
 from typing import Any
 
 # Add Backend directory to path (one level up from scripts/)
@@ -20,7 +19,6 @@ backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
 from src.firebase_config import initialize_firebase
-
 
 BackupResult = dict[str, Any]
 
@@ -51,7 +49,7 @@ def backup_collection(collection_name: str, output_dir: Path) -> BackupResult:
         dict: Backup statistics
     """
     print(f"📦 Backing up collection: {collection_name}")
-    
+
     try:
         db = _get_db()
         # Get all documents from collection
@@ -77,10 +75,10 @@ def backup_collection(collection_name: str, output_dir: Path) -> BackupResult:
         _write_json_file(filename, backup_data)
 
         file_size_mb = filename.stat().st_size / (1024 * 1024)
-        
+
         print(f"✅ Backup complete: {doc_count} documents ({file_size_mb:.2f} MB)")
         print(f"   Saved to: {filename}")
-        
+
         return {
             'collection': collection_name,
             'documents': doc_count,
@@ -88,7 +86,7 @@ def backup_collection(collection_name: str, output_dir: Path) -> BackupResult:
             'size_mb': file_size_mb,
             'timestamp': timestamp
         }
-        
+
     except Exception as e:
         print(f"❌ Error backing up {collection_name}: {e}")
         return {
@@ -121,32 +119,32 @@ def backup_all_collections(output_dir: Path) -> list[BackupResult]:
         'feedback',
         'subscriptions'
     ]
-    
+
     results = []
     total_docs = 0
     total_size = 0
-    
+
     print(f"\n🚀 Starting full backup of {len(collections)} collections...")
     print(f"📁 Output directory: {output_dir}")
     print("=" * 60)
-    
+
     for collection in collections:
         try:
             result = backup_collection(collection, output_dir)
             results.append(result)
-            
+
             if 'documents' in result:
                 total_docs += result['documents']
                 total_size += result['size_mb']
         except Exception as e:
             print(f"⚠️  Skipping {collection}: {e}")
-    
+
     print("\n" + "=" * 60)
-    print(f"✅ BACKUP COMPLETE!")
+    print("✅ BACKUP COMPLETE!")
     print(f"   Total documents: {total_docs}")
     print(f"   Total size: {total_size:.2f} MB")
     print(f"   Collections backed up: {len([r for r in results if 'documents' in r])}")
-    
+
     # Save summary
     summary_file = output_dir / f"backup_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     _write_json_file(
@@ -158,9 +156,9 @@ def backup_all_collections(output_dir: Path) -> list[BackupResult]:
             'collections': results
         }
     )
-    
+
     print(f"📊 Summary saved to: {summary_file}")
-    
+
     return results
 
 def restore_collection(collection_name: str, backup_file: Path) -> BackupResult:
@@ -176,11 +174,11 @@ def restore_collection(collection_name: str, backup_file: Path) -> BackupResult:
     """
     print(f"📥 Restoring collection: {collection_name}")
     print(f"   From file: {backup_file}")
-    
+
     try:
         db = _get_db()
         # Load backup data
-        with open(backup_file, 'r', encoding='utf-8') as f:
+        with open(backup_file, encoding='utf-8') as f:
             backup_data = json.load(f)
 
         if not isinstance(backup_data, list):
@@ -215,15 +213,15 @@ def restore_collection(collection_name: str, backup_file: Path) -> BackupResult:
         # Commit remaining
         if pending_in_batch > 0:
             batch.commit()
-        
+
         print(f"✅ Restore complete: {doc_count} documents")
-        
+
         return {
             'collection': collection_name,
             'documents': doc_count,
             'status': 'success'
         }
-        
+
     except Exception as e:
         print(f"❌ Error restoring {collection_name}: {e}")
         return {
@@ -235,19 +233,19 @@ def restore_collection(collection_name: str, backup_file: Path) -> BackupResult:
 def main():
     parser = argparse.ArgumentParser(description='Backup/Restore Firestore data')
     parser.add_argument('--collection', type=str, help='Specific collection to backup')
-    parser.add_argument('--output-dir', type=str, default='backups', 
+    parser.add_argument('--output-dir', type=str, default='backups',
                         help='Output directory for backups')
     parser.add_argument('--restore', type=str, help='Restore from backup file')
-    parser.add_argument('--restore-collection', type=str, 
+    parser.add_argument('--restore-collection', type=str,
                         help='Collection name for restore (required with --restore)')
     parser.add_argument(
         '--force',
         action='store_true',
         help='Required with --restore to confirm write operations to Firestore'
     )
-    
+
     args = parser.parse_args()
-    
+
     # Initialize Firebase
     print("🔥 Initializing Firebase...")
     try:

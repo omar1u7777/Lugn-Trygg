@@ -1,12 +1,14 @@
 import os
 import random
 import sys
-import pytest
+from unittest.mock import MagicMock, Mock, patch
+
 import bcrypt
-from unittest.mock import Mock, MagicMock, patch
-from firebase_admin import auth, firestore
-from src.utils import convert_email_to_punycode  # Ändrat från src.routes.auth
+import pytest
+from firebase_admin import auth
+
 from main import app as flask_app
+from src.utils import convert_email_to_punycode  # Ändrat från src.routes.auth
 
 # Lägg till projektets rot till sys.path för korrekta importer
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -178,10 +180,10 @@ def mock_firestore(mocker, mock_firebase_auth):
         # Don't include registered_users to avoid pollution between tests
         if field == 'email' and operator == '==' and punycode_value in existing_users:
             user_data = existing_users[punycode_value]
-            print(f"DEBUG: Found existing user, returning user data")
+            print("DEBUG: Found existing user, returning user data")
             mock_query.get.return_value = [Mock(id="test-uid-123", to_dict=lambda: user_data)]
         else:
-            print(f"DEBUG: User not found, returning empty")
+            print("DEBUG: User not found, returning empty")
             # For new users or non-existent emails, return empty result
             mock_query.get.return_value = []
 

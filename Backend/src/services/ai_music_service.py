@@ -15,17 +15,15 @@ References:
 - Dr. Alfred Tomatis - Sound therapy principles
 """
 
-import logging
-import numpy as np
-import wave
 import io
-import asyncio
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-from enum import Enum
-from datetime import datetime
-import math
+import logging
 import random
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+import numpy as np
 
 # Optional: Try to import advanced synthesis libraries
 try:
@@ -88,7 +86,7 @@ class GeneratedTrack:
     soundscape_type: SoundscapeType
     parameters: AudioParameters
     created_at: datetime
-    audio_data: Optional[bytes] = None
+    audio_data: bytes | None = None
     duration_seconds: float = 0.0
     file_format: str = "wav"
 
@@ -98,13 +96,13 @@ class NeuralAmbientSynthesizer:
     Procedural ambient soundscape generator.
     Uses mathematical models to create "infinite" unique ambient music.
     """
-    
+
     def __init__(self):
         self.sample_rate = 44100
         self.base_freq = 432  # "Healing" frequency (A4)
         self.scale_ratios = [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8, 2]  # Just intonation
-        
-    def generate_binaural_beat(self, 
+
+    def generate_binaural_beat(self,
                                duration: float,
                                binaural_freq: float,
                                carrier_freq: float = 200) -> np.ndarray:
@@ -120,28 +118,28 @@ class NeuralAmbientSynthesizer:
             Stereo audio array (left/right channels)
         """
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
-        
+
         # Left ear: carrier frequency
         left = np.sin(2 * np.pi * carrier_freq * t)
-        
+
         # Right ear: carrier + binaural frequency
         right = np.sin(2 * np.pi * (carrier_freq + binaural_freq) * t)
-        
+
         # Add harmonic richness
         for harmonic in [2, 3]:
             left += 0.1 * np.sin(2 * np.pi * carrier_freq * harmonic * t) / harmonic
             right += 0.1 * np.sin(2 * np.pi * (carrier_freq + binaural_freq) * harmonic * t) / harmonic
-        
+
         # Soft envelope to avoid clicking
         envelope = self._create_envelope(len(t), self.sample_rate, 2.0, 2.0)
         left *= envelope
         right *= envelope
-        
+
         # Combine into stereo
         stereo = np.column_stack((left, right))
-        
+
         return stereo
-    
+
     def generate_isochronic_tone(self,
                                 duration: float,
                                 pulse_freq: float,
@@ -151,30 +149,30 @@ class NeuralAmbientSynthesizer:
         Pulses the carrier frequency on/off at the target brainwave rate.
         """
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
-        
+
         # Create pulse envelope (square wave with soft edges)
         pulse_period = 1.0 / pulse_freq
         pulse = (np.sin(2 * np.pi * pulse_freq * t) > 0).astype(float)
         # Soften the edges
         pulse = self._soften_edges(pulse, samples=int(self.sample_rate * 0.01))
-        
+
         # Carrier tone
         carrier = np.sin(2 * np.pi * carrier_freq * t)
-        
+
         # Modulate
         audio = carrier * pulse
-        
+
         # Add harmonics for richness
         for harmonic in [2, 3, 4]:
             audio += 0.05 * np.sin(2 * np.pi * carrier_freq * harmonic * t) / harmonic * pulse
-        
+
         # Envelope
         envelope = self._create_envelope(len(t), self.sample_rate, 2.0, 2.0)
         audio *= envelope
-        
+
         # Return as stereo (mono content in both channels)
         return np.column_stack((audio, audio))
-    
+
     def generate_fractal_ambient(self,
                                duration: float,
                                complexity: int = 4) -> np.ndarray:
@@ -183,10 +181,10 @@ class NeuralAmbientSynthesizer:
         Creates organic, evolving soundscapes.
         """
         samples = int(self.sample_rate * duration)
-        
+
         # Start with white noise
         noise = np.random.randn(samples)
-        
+
         # Apply multiple octaves (fractal layering)
         ambient = np.zeros(samples)
         for octave in range(complexity):
@@ -199,20 +197,20 @@ class NeuralAmbientSynthesizer:
                 # Basic low-pass using moving average
                 window = int(self.sample_rate / cutoff)
                 filtered = np.convolve(noise, np.ones(window)/window, mode='same')
-            
+
             # Add with decreasing amplitude
             ambient += filtered * (0.5 ** octave)
-        
+
         # Scale to prevent clipping
         ambient = ambient / np.max(np.abs(ambient)) * 0.5
-        
+
         # Create stereo field with slight phase difference
         left = ambient
         right = np.roll(ambient, int(self.sample_rate * 0.02))  # 20ms delay
-        
+
         stereo = np.column_stack((left, right))
         return stereo
-    
+
     def generate_procedural_nature(self,
                                   duration: float,
                                   nature_type: str = "rain") -> np.ndarray:
@@ -222,14 +220,14 @@ class NeuralAmbientSynthesizer:
         """
         samples = int(self.sample_rate * duration)
         t = np.linspace(0, duration, samples, False)
-        
+
         audio = np.zeros(samples)
-        
+
         if nature_type == "rain":
             # Brown noise + random impulses
             brown = np.cumsum(np.random.randn(samples))
             brown = brown / np.max(np.abs(brown))
-            
+
             # Add random drops
             drops = np.zeros(samples)
             for _ in range(int(duration * 10)):  # ~10 drops per second
@@ -239,18 +237,18 @@ class NeuralAmbientSynthesizer:
                 drop = np.random.randn(drop_len) * np.exp(-np.arange(drop_len) / 100)
                 if pos + drop_len < samples:
                     drops[pos:pos+drop_len] += drop * 0.3
-            
+
             audio = brown * 0.5 + drops * 0.3
-            
+
         elif nature_type == "waves":
             # Modulated brown noise for wave effect
             brown = np.cumsum(np.random.randn(samples))
             brown = brown / np.max(np.abs(brown))
-            
+
             # Slow modulation (0.1 Hz for wave rhythm)
             modulation = (np.sin(2 * np.pi * 0.1 * t) + 1) / 2
             audio = brown * modulation * 0.7
-            
+
         elif nature_type == "wind":
             # Filtered white noise with spectral shifting
             white = np.random.randn(samples)
@@ -265,14 +263,14 @@ class NeuralAmbientSynthesizer:
                     filtered[j] = alpha * white[i+j] + (1-alpha) * filtered[j-1]
                 end_idx = min(i + 1000, samples)
                 audio[i:end_idx] = filtered[:end_idx-i]
-        
+
         # Normalize
         if np.max(np.abs(audio)) > 0:
             audio = audio / np.max(np.abs(audio)) * 0.6
-        
+
         # Stereo
         return np.column_stack((audio, audio * 0.9))
-    
+
     def generate_harmonic_drone(self,
                                duration: float,
                                root_freq: float = 110) -> np.ndarray:
@@ -282,30 +280,30 @@ class NeuralAmbientSynthesizer:
         """
         samples = int(self.sample_rate * duration)
         t = np.linspace(0, duration, samples, False)
-        
+
         drone = np.zeros(samples)
-        
+
         # Add notes from the scale
         for i, ratio in enumerate(self.scale_ratios[:6]):  # First 6 notes
             freq = root_freq * ratio
             # Slight detuning for richness
             detune = random.uniform(-0.5, 0.5)
-            
+
             # ADSR envelope for each note (long attack, long release)
             attack = int(self.sample_rate * (2 + i * 0.5))
             release = int(self.sample_rate * 5)
-            
+
             note = np.sin(2 * np.pi * (freq + detune) * t)
-            
+
             # Create envelope
             env = np.ones(samples)
             env[:attack] = np.linspace(0, 1, attack)
             env[-release:] = np.linspace(1, 0, release)
-            
+
             # Decreasing amplitude for higher harmonics
             amplitude = 1.0 / (i + 1)
             drone += note * env * amplitude
-        
+
         # Add slow filter sweep
         if SCIPY_AVAILABLE:
             for i in range(0, samples, 10000):
@@ -313,31 +311,31 @@ class NeuralAmbientSynthesizer:
                 b, a = scipy_signal.butter(2, cutoff / (self.sample_rate/2), btype='low')
                 end = min(i + 10000, samples)
                 drone[i:end] = scipy_signal.lfilter(b, a, drone[i:end])
-        
+
         # Stereo width
         left = drone
         right = np.roll(drone, int(self.sample_rate * 0.03))
-        
+
         return np.column_stack((left, right))
-    
-    def _create_envelope(self, samples: int, sample_rate: int, 
+
+    def _create_envelope(self, samples: int, sample_rate: int,
                         fade_in: float, fade_out: float) -> np.ndarray:
         """Create fade in/out envelope."""
         envelope = np.ones(samples)
-        
+
         fade_in_samples = int(sample_rate * fade_in)
         fade_out_samples = int(sample_rate * fade_out)
-        
+
         # Fade in
         if fade_in_samples > 0:
             envelope[:fade_in_samples] = np.linspace(0, 1, fade_in_samples)
-        
+
         # Fade out
         if fade_out_samples > 0:
             envelope[-fade_out_samples:] = np.linspace(1, 0, fade_out_samples)
-        
+
         return envelope
-    
+
     def _soften_edges(self, signal: np.ndarray, samples: int = 100) -> np.ndarray:
         """Apply moving average to soften sharp edges."""
         kernel = np.ones(samples) / samples
@@ -349,16 +347,16 @@ class AIMusicGenerationService:
     Service for generating AI-powered adaptive music.
     Combines multiple synthesis techniques based on user needs.
     """
-    
+
     def __init__(self):
         self.synthesizer = NeuralAmbientSynthesizer()
-        self.generated_tracks: Dict[str, GeneratedTrack] = {}
-    
+        self.generated_tracks: dict[str, GeneratedTrack] = {}
+
     def generate_soundscape(self,
                           user_id: str,
                           soundscape_type: SoundscapeType,
                           duration: int = 300,
-                          target_mood: Optional[str] = None) -> GeneratedTrack:
+                          target_mood: str | None = None) -> GeneratedTrack:
         """
         Generate a personalized AI soundscape.
         
@@ -372,14 +370,14 @@ class AIMusicGenerationService:
             GeneratedTrack with audio data
         """
         track_id = f"ai_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{soundscape_type.value}"
-        
+
         # Determine parameters based on type and mood
         params = self._get_parameters(soundscape_type, target_mood)
         params.duration = duration
-        
+
         # Generate audio layers
         audio_layers = []
-        
+
         if soundscape_type == SoundscapeType.DEEP_SLEEP:
             # Delta binaural + brown noise
             binaural = self.synthesizer.generate_binaural_beat(
@@ -387,7 +385,7 @@ class AIMusicGenerationService:
             )
             ambient = self.synthesizer.generate_fractal_ambient(duration, 3)
             audio_layers = [binaural * 0.4, ambient * 0.6]
-            
+
         elif soundscape_type == SoundscapeType.MEDITATION:
             # Theta binaural + harmonic drone
             binaural = self.synthesizer.generate_binaural_beat(
@@ -395,7 +393,7 @@ class AIMusicGenerationService:
             )
             drone = self.synthesizer.generate_harmonic_drone(duration, 110)
             audio_layers = [binaural * 0.3, drone * 0.7]
-            
+
         elif soundscape_type == SoundscapeType.FOCUS:
             # Alpha/Isochronic + nature
             isochronic = self.synthesizer.generate_isochronic_tone(
@@ -403,7 +401,7 @@ class AIMusicGenerationService:
             )
             nature = self.synthesizer.generate_procedural_nature(duration, "wind")
             audio_layers = [isochronic * 0.2, nature * 0.8]
-            
+
         elif soundscape_type == SoundscapeType.ANXIETY_RELIEF:
             # Theta + pink noise + nature
             binaural = self.synthesizer.generate_binaural_beat(
@@ -412,14 +410,14 @@ class AIMusicGenerationService:
             ambient = self.synthesizer.generate_fractal_ambient(duration, 4)
             nature = self.synthesizer.generate_procedural_nature(duration, "waves")
             audio_layers = [binaural * 0.3, ambient * 0.4, nature * 0.3]
-            
+
         elif soundscape_type == SoundscapeType.NATURE_SIM:
             # Procedural nature (rain, waves, wind)
             rain = self.synthesizer.generate_procedural_nature(duration, "rain")
             waves = self.synthesizer.generate_procedural_nature(duration, "waves")
             wind = self.synthesizer.generate_procedural_nature(duration, "wind")
             audio_layers = [rain * 0.4, waves * 0.4, wind * 0.2]
-            
+
         elif soundscape_type == SoundscapeType.COSMIC:
             # Cosmic ambient + gamma binaural
             ambient = self.synthesizer.generate_fractal_ambient(duration, 6)
@@ -427,19 +425,19 @@ class AIMusicGenerationService:
                 duration, BrainwaveFrequency.GAMMA.value, params.carrier_freq * 2
             )
             audio_layers = [ambient * 0.7, binaural * 0.3]
-        
+
         # Mix layers
         final_audio = self._mix_layers(audio_layers)
-        
+
         # Apply master envelope
         envelope = self.synthesizer._create_envelope(
             len(final_audio), self.synthesizer.sample_rate, params.fade_in, params.fade_out
         )
         final_audio = final_audio * envelope[:, np.newaxis]
-        
+
         # Convert to WAV bytes
         audio_bytes = self._array_to_wav_bytes(final_audio, self.synthesizer.sample_rate)
-        
+
         track = GeneratedTrack(
             track_id=track_id,
             soundscape_type=soundscape_type,
@@ -449,22 +447,22 @@ class AIMusicGenerationService:
             duration_seconds=duration,
             file_format="wav"
         )
-        
+
         # Store
         self.generated_tracks[track_id] = track
-        
+
         # Save to Firestore metadata
         self._save_track_metadata(track, user_id)
-        
+
         logger.info(f"Generated AI soundscape: {track_id} ({duration}s, {soundscape_type.value})")
-        
+
         return track
-    
-    def _get_parameters(self, soundscape_type: SoundscapeType, 
-                       target_mood: Optional[str]) -> AudioParameters:
+
+    def _get_parameters(self, soundscape_type: SoundscapeType,
+                       target_mood: str | None) -> AudioParameters:
         """Get audio parameters based on soundscape type and mood."""
         params = AudioParameters()
-        
+
         # Base parameters by type
         type_params = {
             SoundscapeType.DEEP_SLEEP: {
@@ -498,13 +496,13 @@ class AIMusicGenerationService:
                 'volume': 0.6
             }
         }
-        
+
         if soundscape_type in type_params:
             p = type_params[soundscape_type]
             params.binaural_freq = p['binaural_freq']
             params.carrier_freq = p['carrier_freq']
             params.volume = p['volume']
-        
+
         # Adjust for mood if specified
         if target_mood:
             mood_adjustments = {
@@ -519,38 +517,38 @@ class AIMusicGenerationService:
                 if soundscape_type != SoundscapeType.NATURE_SIM:
                     params.binaural_freq = adj['binaural_freq']
                 params.volume = adj['volume']
-        
+
         return params
-    
-    def _mix_layers(self, layers: List[np.ndarray]) -> np.ndarray:
+
+    def _mix_layers(self, layers: list[np.ndarray]) -> np.ndarray:
         """Mix multiple audio layers together."""
         if not layers:
             return np.zeros((1, 2))
-        
+
         # Find minimum length
         min_len = min(len(layer) for layer in layers)
-        
+
         # Trim all to same length
         trimmed = [layer[:min_len] for layer in layers]
-        
+
         # Mix
         mixed = np.sum(trimmed, axis=0)
-        
+
         # Normalize to prevent clipping
         max_val = np.max(np.abs(mixed))
         if max_val > 1.0:
             mixed = mixed / max_val * 0.95
-        
+
         return mixed
-    
+
     def _array_to_wav_bytes(self, audio: np.ndarray, sample_rate: int) -> bytes:
         """Convert numpy array to WAV format bytes."""
         # Ensure int16 format
         audio_int = (audio * 32767).astype(np.int16)
-        
+
         # Create WAV in memory
         buffer = io.BytesIO()
-        
+
         if SOUNDFILE_AVAILABLE:
             sf.write(buffer, audio_int, sample_rate, format='WAV', subtype='PCM_16')
         else:
@@ -569,10 +567,10 @@ class AIMusicGenerationService:
             buffer.write(b'data')
             buffer.write((audio_int.nbytes).to_bytes(4, 'little'))
             buffer.write(audio_int.tobytes())
-        
+
         buffer.seek(0)
         return buffer.read()
-    
+
     def _save_track_metadata(self, track: GeneratedTrack, user_id: str):
         """Save track metadata to Firestore."""
         try:
@@ -591,9 +589,9 @@ class AIMusicGenerationService:
                 'file_format': track.file_format,
                 'has_audio_data': track.audio_data is not None
             }
-            
+
             db.collection('ai_generated_tracks').document(track.track_id).set(doc_data)
-            
+
             audit_log(
                 event_type="AI_MUSIC_GENERATED",
                 user_id=user_id,
@@ -603,15 +601,15 @@ class AIMusicGenerationService:
                     "duration": track.duration_seconds
                 }
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to save track metadata: {e}")
-    
-    def get_track(self, track_id: str) -> Optional[GeneratedTrack]:
+
+    def get_track(self, track_id: str) -> GeneratedTrack | None:
         """Get a previously generated track."""
         return self.generated_tracks.get(track_id)
-    
-    def get_available_soundscapes(self) -> List[Dict[str, Any]]:
+
+    def get_available_soundscapes(self) -> list[dict[str, Any]]:
         """Get list of available soundscape types with descriptions."""
         descriptions = {
             SoundscapeType.DEEP_SLEEP: {
@@ -663,19 +661,19 @@ class AIMusicGenerationService:
                 'best_for': ['Deep meditation', 'Peak experiences', 'Consciousness exploration']
             }
         }
-        
+
         result = []
         for st in SoundscapeType:
             info = descriptions.get(st, {})
             info['id'] = st.value
             info['type'] = st.name
             result.append(info)
-        
+
         return result
 
 
 # Singleton instance
-_ai_music_service: Optional[AIMusicGenerationService] = None
+_ai_music_service: AIMusicGenerationService | None = None
 
 
 def get_ai_music_service() -> AIMusicGenerationService:

@@ -2,10 +2,10 @@
 Tests for sync_history_routes.py
 Covers: list, log, stats, retry.
 """
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
-from datetime import datetime, timezone, timedelta
 
+import pytest
 
 BASE = "/api/v1/sync-history"
 USER_ID = "testuser1234567890ab"
@@ -25,7 +25,7 @@ def mock_sync_db(mock_db):
         "data_types": ["steps", "heart_rate"],
         "record_count": 50,
         "duration_seconds": 3.5,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     failed_doc = MagicMock()
@@ -35,7 +35,7 @@ def mock_sync_db(mock_db):
         "provider": "fitbit",
         "status": "failed",
         "error_message": "Connection timeout",
-        "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+        "timestamp": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
     }
 
     sync_col.where.return_value = sync_col

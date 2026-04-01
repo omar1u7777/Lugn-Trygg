@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Add Backend directory to sys.path (one level up from tests/)
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,6 +9,7 @@ if backend_dir not in sys.path:
 os.environ['SKIP_BACKGROUND_SERVICES'] = '1'
 
 from flask import Flask
+
 from src.routes.cbt_routes import cbt_bp
 from src.services.auth_service import AuthService
 
@@ -20,10 +21,10 @@ with app.test_client() as client:
     # Test without auth (should fail)
     response = client.get('/api/cbt/modules')
     print(f'Without auth: {response.status_code}')
-    
+
     # Get a real token by simulating login
     token = AuthService.generate_access_token('test-user-123')
-    
+
     # Test with auth
     headers = {'Authorization': f'Bearer {token}'}
     response = client.get('/api/cbt/modules', headers=headers)

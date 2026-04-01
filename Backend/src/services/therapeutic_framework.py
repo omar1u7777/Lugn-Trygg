@@ -4,10 +4,9 @@ Provides structured therapeutic interventions with dynamic technique selection.
 """
 
 import logging
-from typing import Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +72,9 @@ class TherapeuticResponse:
     response_text: str
     modality_used: TherapeuticModality
     technique_used: str
-    suggested_exercise: Optional[dict] = None
+    suggested_exercise: dict | None = None
     follow_up_questions: list[str] = field(default_factory=list)
-    psychoeducation: Optional[str] = None
+    psychoeducation: str | None = None
     grounding_offer: bool = False
 
 
@@ -106,7 +105,7 @@ class TherapeuticFramework:
     Evidence-based therapeutic framework combining CBT and ACT.
     Dynamically selects techniques based on user context and detected patterns.
     """
-    
+
     # Distortion keywords for detection (Swedish)
     DISTORTION_PATTERNS = {
         CognitiveDistortion.ALL_OR_NOTHING: [
@@ -131,13 +130,13 @@ class TherapeuticFramework:
             "borde kunna", "måste vara"
         ]
     }
-    
+
     def __init__(self):
         logger.info("🧠 Initializing Therapeutic Framework (CBT/ACT)...")
         self.cbt_prompts = self._load_cbt_prompts()
         self.act_prompts = self._load_act_prompts()
         logger.info("✅ Therapeutic Framework initialized")
-    
+
     def _load_cbt_prompts(self) -> dict:
         """Load CBT-specific system prompts."""
         return {
@@ -150,7 +149,7 @@ PRINCIPER:
 4. Använd behavioral experiments för att testa trovärdighet
 
 TONE: Empatisk, nyfiken, icke-dömande. Undvik att ge direkt råd - ställ frågor som leder till insikt.""",
-            
+
             "behavioral_activation": """Du är en KBT-terapeut som fokuserar på behavioral activation vid depression.
 
 PRINCIPER:
@@ -174,7 +173,7 @@ STRUKTUR:
 
 Steg-för-steg - vänta på användarens svar mellan stegen."""
         }
-    
+
     def _load_act_prompts(self) -> dict:
         """Load ACT-specific system prompts."""
         return {
@@ -221,7 +220,7 @@ METAFORER:
 
 TONE: Varm, klok, inbjudande till öppenhet."""
         }
-    
+
     def analyze_input(self, user_message: str, context: TherapeuticContext) -> dict:
         """
         Analyze user input for therapeutic content.
@@ -235,35 +234,35 @@ TONE: Varm, klok, inbjudande till öppenhet."""
             'recommended_modality': None,
             'recommended_technique': None
         }
-        
+
         # Detect cognitive distortions
         message_lower = user_message.lower()
         for distortion, keywords in self.DISTORTION_PATTERNS.items():
             if any(kw in message_lower for kw in keywords):
                 analysis['detected_distortions'].append(distortion)
-        
+
         # Detect avoidance patterns
         avoidance_signals = ["undviker", "skjuter upp", "kan inte börja", "orkar inte", "struntar i"]
         if any(sig in message_lower for sig in avoidance_signals):
             analysis['avoidance_detected'] = True
-        
+
         # Detect values conflict
         values_signals = ["men jag vill egentligen", "borde men vill inte", "värderar", "viktigt för mig"]
         if any(sig in message_lower for sig in values_signals):
             analysis['values_conflict'] = True
-        
+
         # Recommend modality and technique
         analysis['recommended_modality'], analysis['recommended_technique'] = \
             self._select_intervention(analysis, context)
-        
+
         return analysis
-    
+
     def _select_intervention(self, analysis: dict, context: TherapeuticContext) -> tuple:
         """
         Select appropriate therapeutic modality and technique.
         """
         # Priority: Crisis > Values conflict > Distortions > Avoidance > General
-        
+
         # If cognitive distortions detected -> CBT cognitive restructuring
         if analysis['detected_distortions']:
             if CognitiveDistortion.CATASTROPHIZING in analysis['detected_distortions']:
@@ -272,15 +271,15 @@ TONE: Varm, klok, inbjudande till öppenhet."""
                 return TherapeuticModality.CBT, CBTTechnique.THOUGHT_RECORDS
             else:
                 return TherapeuticModality.CBT, CBTTechnique.COGNITIVE_RESTRUCTURING
-        
+
         # If avoidance detected -> CBT behavioral activation
         if analysis['avoidance_detected']:
             return TherapeuticModality.CBT, CBTTechnique.BEHAVIORAL_ACTIVATION
-        
+
         # If values conflict detected -> ACT values clarification
         if analysis['values_conflict']:
             return TherapeuticModality.ACT, ACTTechnique.VALUES_CLARIFICATION
-        
+
         # Check past effectiveness
         if context.past_effective_techniques:
             last_effective = context.past_effective_techniques[-1]
@@ -288,7 +287,7 @@ TONE: Varm, klok, inbjudande till öppenhet."""
                 return TherapeuticModality.ACT, ACTTechnique.COGNITIVE_DEFUSION
             elif 'acceptance' in last_effective:
                 return TherapeuticModality.ACT, ACTTechnique.ACCEPTANCE
-        
+
         # Default based on emotion
         emotion = context.current_emotion.lower()
         if any(word in emotion for word in ['arg', 'ilska', 'frustrerad']):
@@ -297,11 +296,11 @@ TONE: Varm, klok, inbjudande till öppenhet."""
             return TherapeuticModality.CBT, CBTTechnique.BEHAVIORAL_ACTIVATION
         elif any(word in emotion for word in ['orolig', 'ängslig', 'stressad']):
             return TherapeuticModality.ACT, ACTTechnique.COGNITIVE_DEFUSION
-        
+
         # Default
         return TherapeuticModality.CBT, CBTTechnique.COGNITIVE_RESTRUCTURING
-    
-    def generate_therapeutic_prompt(self, modality: TherapeuticModality, 
+
+    def generate_therapeutic_prompt(self, modality: TherapeuticModality,
                                      technique: Any) -> str:
         """
         Generate appropriate system prompt for OpenAI based on selected intervention.
@@ -317,7 +316,7 @@ GRUNDLÄGGANDE PRINCIPER:
 - Undvik att ge direkt råd - hjälp användaren hitta sina egna insikter
 
 SVARA PÅ SVENSKA med värme och medkänsla."""
-        
+
         # Add modality-specific prompt
         if modality == TherapeuticModality.CBT:
             if technique == CBTTechnique.COGNITIVE_RESTRUCTURING:
@@ -326,7 +325,7 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
                 return base_prompt + "\n\n" + self.cbt_prompts["behavioral_activation"]
             elif technique == CBTTechnique.THOUGHT_RECORDS:
                 return base_prompt + "\n\n" + self.cbt_prompts["thought_records"]
-        
+
         elif modality == TherapeuticModality.ACT:
             if technique == ACTTechnique.COGNITIVE_DEFUSION:
                 return base_prompt + "\n\n" + self.act_prompts["defusion"]
@@ -334,11 +333,11 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
                 return base_prompt + "\n\n" + self.act_prompts["values"]
             elif technique == ACTTechnique.ACCEPTANCE:
                 return base_prompt + "\n\n" + self.act_prompts["acceptance"]
-        
+
         return base_prompt
-    
-    def generate_interactive_exercise(self, technique: Any, 
-                                       context: TherapeuticContext) -> Optional[dict]:
+
+    def generate_interactive_exercise(self, technique: Any,
+                                       context: TherapeuticContext) -> dict | None:
         """
         Generate interactive exercise based on technique and context.
         Returns exercise structure for frontend rendering.
@@ -351,9 +350,9 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
             return self._generate_values_exercise(context)
         elif technique == ACTTechnique.COMMITTED_ACTION:
             return self._generate_committed_action_plan(context)
-        
+
         return None
-    
+
     def _generate_thought_record_exercise(self, context: TherapeuticContext) -> dict:
         """Generate interactive thought record."""
         return {
@@ -414,7 +413,7 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
             "estimated_duration": "10-15 minuter",
             "can_save_progress": True
         }
-    
+
     def _generate_exposure_hierarchy(self, context: TherapeuticContext) -> dict:
         """Generate exposure hierarchy for anxiety."""
         return {
@@ -450,7 +449,7 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
                 }
             ]
         }
-    
+
     def _generate_values_exercise(self, context: TherapeuticContext) -> dict:
         """Generate ACT values clarification exercise."""
         return {
@@ -486,7 +485,7 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
             ],
             "format": "card_selection_with_reflection"
         }
-    
+
     def _generate_committed_action_plan(self, context: TherapeuticContext) -> dict:
         """Generate committed action plan."""
         return {
@@ -524,7 +523,7 @@ SVARA PÅ SVENSKA med värme och medkänsla."""
 
 
 # Singleton instance
-_therapeutic_framework: Optional[TherapeuticFramework] = None
+_therapeutic_framework: TherapeuticFramework | None = None
 
 
 def get_therapeutic_framework() -> TherapeuticFramework:

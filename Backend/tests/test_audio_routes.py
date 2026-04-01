@@ -2,7 +2,6 @@
 Tests for audio_routes.py
 Covers: categories, category tracks, full library, single track, search.
 """
-import pytest
 
 
 BASE = "/api/v1/audio"

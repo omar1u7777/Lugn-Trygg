@@ -4,10 +4,10 @@ Production-ready server that doesn't timeout like Flask dev server
 """
 import os
 import sys
+
 from waitress import serve
 
 # Add Backend directory to path (one level up from scripts/)
-import os
 backend_dir = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, backend_dir)
 
@@ -17,11 +17,11 @@ if __name__ == '__main__':
     host = os.getenv('HOST', '0.0.0.0')
     port = int(os.getenv('PORT', 5001))
     threads = int(os.getenv('WAITRESS_THREADS', 16))  # Ökat från 4 till 16 för 1000+ users
-    
+
     print(f"🚀 Starting Waitress server on {host}:{port} with {threads} threads...")
     print(f"📊 Environment: {os.getenv('FLASK_ENV', 'development')}")
-    print(f"⚙️  Press Ctrl+C to quit")
-    
+    print("⚙️  Press Ctrl+C to quit")
+
     serve(
         app,
         host=host,

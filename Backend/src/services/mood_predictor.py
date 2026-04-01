@@ -4,28 +4,29 @@ Replaces np.polyfit() with sophisticated ML models.
 """
 
 import logging
-import numpy as np
-from typing import Any, Optional, List, Dict, Tuple
+import os
+import pickle
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import pickle
-import os
+from typing import Any
+
+import numpy as np
 
 # ML libraries with graceful fallback
 try:
     from sklearn.ensemble import RandomForestRegressor
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import mean_absolute_error, mean_squared_error
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
 
 try:
     import tensorflow as tf
-    from tensorflow.keras.models import Sequential, load_model
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
     from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    from tensorflow.keras.layers import LSTM, BatchNormalization, Dense, Dropout
+    from tensorflow.keras.models import Sequential, load_model
     from tensorflow.keras.optimizers import Adam
     TENSORFLOW_AVAILABLE = True
 except ImportError:
@@ -54,9 +55,9 @@ class MoodPrediction:
     predicted_mood: float  # -1.0 to 1.0
     confidence: float  # 0.0 to 1.0
     prediction_date: datetime
-    feature_importance: Dict[str, float]
-    risk_factors: List[str]
-    recommendations: List[str]
+    feature_importance: dict[str, float]
+    risk_factors: list[str]
+    recommendations: list[str]
     model_version: str
 
 
@@ -75,11 +76,11 @@ class FeatureEngineer:
     Feature engineering for mood prediction.
     Creates ML features from user data including mood history, sleep, activity, etc.
     """
-    
+
     def __init__(self):
         logger.info("🔧 Initializing Feature Engineer...")
-    
-    def engineer_features(self, user_id: str, days_history: int = 30) -> Optional[np.ndarray]:
+
+    def engineer_features(self, user_id: str, days_history: int = 30) -> np.ndarray | None:
         """
         Create feature vector for mood prediction.
         
@@ -93,13 +94,13 @@ class FeatureEngineer:
         """
         try:
             features = {}
-            
+
             # 1. Mood features
             mood_data = self._get_mood_history(user_id, days=days_history)
             if len(mood_data) < 7:
                 logger.warning(f"Insufficient mood data for user {user_id[:8]}...")
                 return None
-            
+
             # Mood statistics
             mood_scores = np.array([m.get('score', 0) for m in mood_data])
             features['mood_mean_7d'] = np.mean(mood_scores[-7:])
@@ -107,11 +108,11 @@ class FeatureEngineer:
             features['mood_mean_30d'] = np.mean(mood_scores)
             features['mood_std_7d'] = np.std(mood_scores[-7:])
             features['mood_volatility'] = np.std(mood_scores)
-            
+
             # Mood trend (linear regression)
             x = np.arange(len(mood_scores))
             features['mood_trend'] = np.polyfit(x, mood_scores, 1)[0]
-            
+
             # Recent momentum (last 3 days vs previous 3)
             if len(mood_scores) >= 6:
                 recent = np.mean(mood_scores[-3:])
@@ -119,15 +120,15 @@ class FeatureEngineer:
                 features['mood_momentum'] = recent - previous
             else:
                 features['mood_momentum'] = 0.0
-            
+
             # Min/max extremes
             features['mood_min_7d'] = np.min(mood_scores[-7:])
             features['mood_max_7d'] = np.max(mood_scores[-7:])
-            
+
             # Count of negative days
             features['negative_days_7d'] = np.sum(mood_scores[-7:] < -0.3)
             features['negative_days_14d'] = np.sum(mood_scores[-14:] < -0.3) if len(mood_scores) >= 14 else features['negative_days_7d']
-            
+
             # 2. Sleep features (from wearables or user input)
             sleep_data = self._get_sleep_data(user_id, days=14)
             if sleep_data:
@@ -144,7 +145,7 @@ class FeatureEngineer:
                 features['sleep_trend'] = 0.0
                 features['sleep_deficit_days'] = 0
                 features['sleep_quality_mean'] = 5.0
-            
+
             # 3. Activity features
             activity_data = self._get_activity_data(user_id, days=14)
             if activity_data:
@@ -158,7 +159,7 @@ class FeatureEngineer:
                 features['steps_std'] = 2000
                 features['steps_trend'] = 0.0
                 features['sedentary_days'] = 0
-            
+
             # 4. Semantic sentiment features
             sentiment_data = self._get_sentiment_history(user_id, days=7)
             if sentiment_data:
@@ -168,13 +169,13 @@ class FeatureEngineer:
             else:
                 features['sentiment_mean'] = 0.0
                 features['sentiment_trend'] = 0.0
-            
+
             # 5. App engagement features
             engagement = self._get_app_engagement(user_id, days=7)
             features['app_opens_7d'] = engagement.get('opens', 0)
             features['chat_messages_7d'] = engagement.get('chat_messages', 0)
             features['exercises_completed_7d'] = engagement.get('exercises_completed', 0)
-            
+
             # 6. Temporal features
             now = datetime.now()
             features['day_of_week'] = now.weekday()  # 0=Monday
@@ -182,11 +183,11 @@ class FeatureEngineer:
             features['hour_of_day'] = now.hour
             features['month'] = now.month
             features['days_since_start'] = (now - mood_data[0].get('timestamp', now)).days if mood_data else 0
-            
+
             # 7. Crisis/intervention history
             crisis_count = self._get_crisis_count(user_id, days=30)
             features['crisis_count_30d'] = crisis_count
-            
+
             # Convert to array (maintain consistent ordering)
             feature_names = [
                 'mood_mean_7d', 'mood_mean_14d', 'mood_mean_30d', 'mood_std_7d', 'mood_volatility',
@@ -199,32 +200,32 @@ class FeatureEngineer:
                 'day_of_week', 'is_weekend', 'hour_of_day', 'month', 'days_since_start',
                 'crisis_count_30d'
             ]
-            
+
             feature_vector = np.array([features[name] for name in feature_names])
-            
+
             return feature_vector
-            
+
         except Exception as e:
             logger.error(f"Feature engineering failed for user {user_id[:8]}...: {e}")
             return None
-    
-    def _get_mood_history(self, user_id: str, days: int) -> List[dict]:
+
+    def _get_mood_history(self, user_id: str, days: int) -> list[dict]:
         """Fetch mood history from Firestore."""
         try:
             start_date = datetime.now() - timedelta(days=days)
-            
+
             mood_docs = db.collection('users').document(user_id)\
                 .collection('moods')\
                 .where('timestamp', '>=', start_date.isoformat())\
                 .order_by('timestamp')\
                 .get()
-            
+
             return [doc.to_dict() for doc in mood_docs]
         except Exception as e:
             logger.warning(f"Failed to fetch mood history: {e}")
             return []
-    
-    def _get_sleep_data(self, user_id: str, days: int) -> List[dict]:
+
+    def _get_sleep_data(self, user_id: str, days: int) -> list[dict]:
         """Fetch sleep data from wearables or user input."""
         try:
             # Try to get from biometric data first
@@ -234,13 +235,13 @@ class FeatureEngineer:
                 .order_by('timestamp', direction='DESCENDING')\
                 .limit(days)\
                 .get()
-            
+
             return [doc.to_dict() for doc in sleep_docs]
         except Exception as e:
             logger.warning(f"Failed to fetch sleep data: {e}")
             return []
-    
-    def _get_activity_data(self, user_id: str, days: int) -> List[dict]:
+
+    def _get_activity_data(self, user_id: str, days: int) -> list[dict]:
         """Fetch activity data."""
         try:
             activity_docs = db.collection('users').document(user_id)\
@@ -249,13 +250,13 @@ class FeatureEngineer:
                 .order_by('timestamp', direction='DESCENDING')\
                 .limit(days)\
                 .get()
-            
+
             return [doc.to_dict() for doc in activity_docs]
         except Exception as e:
             logger.warning(f"Failed to fetch activity data: {e}")
             return []
-    
-    def _get_sentiment_history(self, user_id: str, days: int) -> List[dict]:
+
+    def _get_sentiment_history(self, user_id: str, days: int) -> list[dict]:
         """Fetch sentiment analysis from chat messages."""
         try:
             # Get chat sentiments from conversations
@@ -265,40 +266,40 @@ class FeatureEngineer:
                 .order_by('timestamp', direction='DESCENDING')\
                 .limit(days * 2)\
                 .get()
-            
+
             sentiments = []
             for doc in conv_docs:
                 data = doc.to_dict()
                 if 'sentiment_score' in data:
                     sentiments.append({'score': data['sentiment_score']})
-            
+
             return sentiments
         except Exception as e:
             logger.warning(f"Failed to fetch sentiment history: {e}")
             return []
-    
+
     def _get_app_engagement(self, user_id: str, days: int) -> dict:
         """Fetch app engagement metrics."""
         try:
             start_date = datetime.now() - timedelta(days=days)
-            
+
             # Count various interactions
             opens = db.collection('users').document(user_id)\
                 .collection('analytics')\
                 .where('event', '==', 'app_open')\
                 .where('timestamp', '>=', start_date.isoformat())\
                 .get()
-            
+
             chats = db.collection('users').document(user_id)\
                 .collection('conversations')\
                 .where('timestamp', '>=', start_date.isoformat())\
                 .get()
-            
+
             exercises = db.collection('users').document(user_id)\
                 .collection('completed_exercises')\
                 .where('completed_at', '>=', start_date.isoformat())\
                 .get()
-            
+
             return {
                 'opens': len(opens),
                 'chat_messages': len(chats),
@@ -307,17 +308,17 @@ class FeatureEngineer:
         except Exception as e:
             logger.warning(f"Failed to fetch engagement data: {e}")
             return {'opens': 0, 'chat_messages': 0, 'exercises_completed': 0}
-    
+
     def _get_crisis_count(self, user_id: str, days: int) -> int:
         """Count recent crisis events."""
         try:
             start_date = datetime.now() - timedelta(days=days)
-            
+
             crisis_docs = db.collection('crisis_alerts')\
                 .where('user_id', '==', user_id)\
                 .where('created_at', '>=', start_date.isoformat())\
                 .get()
-            
+
             return len(crisis_docs)
         except Exception as e:
             logger.warning(f"Failed to fetch crisis count: {e}")
@@ -329,23 +330,23 @@ class MoodPredictor:
     Hybrid ML model: Random Forest for feature importance + LSTM for time-series patterns.
     Replaces np.polyfit() with sophisticated predictive modeling.
     """
-    
-    def __init__(self, model_path: Optional[str] = None):
+
+    def __init__(self, model_path: str | None = None):
         logger.info("🤖 Initializing Mood Predictor (Random Forest + LSTM)...")
-        
+
         self.feature_engineer = FeatureEngineer()
         self.scaler = StandardScaler() if SKLEARN_AVAILABLE else None
-        
+
         # Initialize models
-        self.rf_model: Optional[RandomForestRegressor] = None
-        self.lstm_model: Optional[Any] = None
+        self.rf_model: RandomForestRegressor | None = None
+        self.lstm_model: Any | None = None
         self.model_path = model_path or os.getenv('MODEL_PATH', './models')
-        
+
         # Try to load pre-trained models
         self._load_models()
-        
+
         logger.info("✅ Mood Predictor initialized")
-    
+
     def _load_models(self):
         """Load pre-trained models from disk."""
         try:
@@ -357,7 +358,7 @@ class MoodPredictor:
                 logger.info("✅ Loaded Random Forest model")
             else:
                 logger.warning("⚠️ No pre-trained RF model found, will use fallback")
-            
+
             # Load LSTM
             lstm_path = os.path.join(self.model_path, 'mood_lstm_model.keras')
             if os.path.exists(lstm_path) and TENSORFLOW_AVAILABLE:
@@ -365,18 +366,18 @@ class MoodPredictor:
                 logger.info("✅ Loaded LSTM model")
             else:
                 logger.warning("⚠️ No pre-trained LSTM model found, will use fallback")
-            
+
             # Load scaler
             scaler_path = os.path.join(self.model_path, 'mood_scaler.pkl')
             if os.path.exists(scaler_path):
                 with open(scaler_path, 'rb') as f:
                     self.scaler = pickle.load(f)
                 logger.info("✅ Loaded feature scaler")
-                
+
         except Exception as e:
             logger.error(f"Failed to load models: {e}")
-    
-    def predict_next_week(self, user_id: str) -> Optional[MoodPrediction]:
+
+    def predict_next_week(self, user_id: str) -> MoodPrediction | None:
         """
         Predict mood for the next 7 days with confidence intervals.
         
@@ -386,36 +387,36 @@ class MoodPredictor:
         if not SKLEARN_AVAILABLE:
             logger.warning("scikit-learn not available, using heuristic prediction")
             return self._heuristic_prediction(user_id)
-        
+
         try:
             # Engineer features
             features = self.feature_engineer.engineer_features(user_id, days_history=30)
             if features is None:
                 logger.warning(f"Could not engineer features for user {user_id[:8]}...")
                 return self._heuristic_prediction(user_id)
-            
+
             # Scale features
             if self.scaler:
                 features_scaled = self.scaler.transform(features.reshape(1, -1))
             else:
                 features_scaled = features.reshape(1, -1)
-            
+
             # Random Forest prediction (with feature importance)
             rf_pred = None
             feature_importance = {}
             if self.rf_model:
                 rf_pred = self.rf_model.predict(features_scaled)[0]
-                
+
                 # Get feature importance
                 importance = self.rf_model.feature_importances_
                 feature_names = self._get_feature_names()
                 feature_importance = dict(zip(feature_names, importance))
                 feature_importance = dict(sorted(
-                    feature_importance.items(), 
-                    key=lambda x: x[1], 
+                    feature_importance.items(),
+                    key=lambda x: x[1],
                     reverse=True
                 )[:10])  # Top 10 features
-            
+
             # LSTM prediction (if available)
             lstm_pred = None
             if self.lstm_model and TENSORFLOW_AVAILABLE:
@@ -423,7 +424,7 @@ class MoodPredictor:
                 # For now, use features as single timestep
                 lstm_input = features_scaled.reshape(1, 1, -1)
                 lstm_pred = self.lstm_model.predict(lstm_input, verbose=0)[0][0]
-            
+
             # Ensemble prediction (weighted average)
             if rf_pred is not None and lstm_pred is not None:
                 # Weight LSTM higher for temporal patterns
@@ -435,21 +436,21 @@ class MoodPredictor:
             else:
                 # Fallback to simple heuristic
                 return self._heuristic_prediction(user_id)
-            
+
             # Clip prediction to valid range
             ensemble_pred = np.clip(ensemble_pred, -1.0, 1.0)
-            
+
             # Calculate confidence based on data quality and model agreement
             confidence = self._calculate_confidence(features, rf_pred, lstm_pred)
-            
+
             # Identify risk factors
             risk_factors = self._identify_risk_factors(features, feature_importance)
-            
+
             # Generate recommendations
             recommendations = self._generate_recommendations(
                 ensemble_pred, risk_factors, feature_importance
             )
-            
+
             return MoodPrediction(
                 predicted_mood=ensemble_pred,
                 confidence=confidence,
@@ -459,17 +460,17 @@ class MoodPredictor:
                 recommendations=recommendations,
                 model_version="2.0.0"
             )
-            
+
         except Exception as e:
             logger.error(f"Prediction failed for user {user_id[:8]}...: {e}")
             return self._heuristic_prediction(user_id)
-    
+
     def _heuristic_prediction(self, user_id: str) -> MoodPrediction:
         """Fallback heuristic prediction using recent trends."""
         try:
             # Get recent mood data
             mood_data = self.feature_engineer._get_mood_history(user_id, days=14)
-            
+
             if not mood_data:
                 return MoodPrediction(
                     predicted_mood=0.0,
@@ -480,18 +481,18 @@ class MoodPredictor:
                     recommendations=['Fortsätt logga ditt humör för bättre prediktioner'],
                     model_version="heuristic"
                 )
-            
+
             mood_scores = [m.get('score', 0) for m in mood_data]
-            
+
             # Simple trend extrapolation
             if len(mood_scores) >= 3:
                 trend = (mood_scores[-1] - mood_scores[-3]) / 3
                 prediction = mood_scores[-1] + (trend * 7)  # Project 7 days
             else:
                 prediction = np.mean(mood_scores)
-            
+
             prediction = np.clip(prediction, -1.0, 1.0)
-            
+
             return MoodPrediction(
                 predicted_mood=prediction,
                 confidence=0.4,  # Lower confidence for heuristic
@@ -501,7 +502,7 @@ class MoodPredictor:
                 recommendations=['Fortsätt logga humör för att aktivera ML-prediktioner'],
                 model_version="heuristic"
             )
-            
+
         except Exception as e:
             logger.error(f"Heuristic prediction failed: {e}")
             return MoodPrediction(
@@ -513,10 +514,10 @@ class MoodPredictor:
                 recommendations=['Prediktion tillfälligt otillgänglig'],
                 model_version="error"
             )
-    
-    def _calculate_confidence(self, features: np.ndarray, 
-                               rf_pred: Optional[float],
-                               lstm_pred: Optional[float]) -> float:
+
+    def _calculate_confidence(self, features: np.ndarray,
+                               rf_pred: float | None,
+                               lstm_pred: float | None) -> float:
         """
         Calculate prediction confidence based on:
         - Data completeness
@@ -524,17 +525,17 @@ class MoodPredictor:
         - Historical volatility
         """
         confidence = 0.5  # Base confidence
-        
+
         # Data completeness boost
         if np.any(features != 0):
             non_zero_ratio = np.sum(features != 0) / len(features)
             confidence += 0.1 * non_zero_ratio
-        
+
         # Model agreement boost
         if rf_pred is not None and lstm_pred is not None:
             agreement = 1.0 - abs(rf_pred - lstm_pred) / 2.0  # Normalized difference
             confidence += 0.2 * agreement
-        
+
         # Volatility penalty (if mood is very volatile, prediction is less certain)
         if 'mood_volatility' in str(features):
             # Extract volatility feature (approximate position)
@@ -542,57 +543,57 @@ class MoodPredictor:
             if len(features) > volatility_idx:
                 volatility = features[volatility_idx]
                 confidence -= 0.1 * min(volatility, 0.5)  # Cap penalty
-        
+
         return np.clip(confidence, 0.0, 0.95)
-    
-    def _identify_risk_factors(self, features: np.ndarray, 
-                                feature_importance: Dict[str, float]) -> List[str]:
+
+    def _identify_risk_factors(self, features: np.ndarray,
+                                feature_importance: dict[str, float]) -> list[str]:
         """Identify risk factors based on features."""
         risk_factors = []
-        
+
         feature_names = self._get_feature_names()
         feature_dict = dict(zip(feature_names, features))
-        
+
         # Check various risk indicators
         if feature_dict.get('mood_trend', 0) < -0.05:
             risk_factors.append('negative_trend')
-        
+
         if feature_dict.get('negative_days_7d', 0) >= 4:
             risk_factors.append('persistent_low_mood')
-        
+
         if feature_dict.get('sleep_mean', 7) < 5.5:
             risk_factors.append('sleep_deprivation')
-        
+
         if feature_dict.get('crisis_count_30d', 0) > 0:
             risk_factors.append('recent_crisis')
-        
+
         if feature_dict.get('mood_volatility', 0) > 0.5:
             risk_factors.append('high_volatility')
-        
+
         if feature_dict.get('sentiment_trend', 0) < -0.1:
             risk_factors.append('negative_sentiment_trend')
-        
+
         return risk_factors
-    
+
     def _generate_recommendations(self, predicted_mood: float,
-                                   risk_factors: List[str],
-                                   feature_importance: Dict[str, float]) -> List[str]:
+                                   risk_factors: list[str],
+                                   feature_importance: dict[str, float]) -> list[str]:
         """Generate personalized recommendations based on prediction."""
         recommendations = []
-        
+
         # Risk-based recommendations
         if 'sleep_deprivation' in risk_factors:
             recommendations.append('Prioritera sömn: Fast läggdags och minska skärmar kvällstid')
-        
+
         if 'persistent_low_mood' in risk_factors:
             recommendations.append('Överväg att kontakta vårdcentral eller terapeut')
-        
+
         if 'negative_trend' in risk_factors:
             recommendations.append('Prova daglig aktivitetsplanering: Små meningsfulla handlingar')
-        
+
         if 'high_volatility' in risk_factors:
             recommendations.append('Öva daglig mindfulness för att stabilisera humör')
-        
+
         # Prediction-based recommendations
         if predicted_mood < -0.3:
             recommendations.extend([
@@ -605,10 +606,10 @@ class MoodPredictor:
                 'Fortsätt med regelbunden humör-loggning',
                 'Prova en ny coping-strategi från appen'
             ])
-        
+
         return recommendations[:5]
-    
-    def _get_feature_names(self) -> List[str]:
+
+    def _get_feature_names(self) -> list[str]:
         """Get ordered list of feature names."""
         return [
             'mood_mean_7d', 'mood_mean_14d', 'mood_mean_30d', 'mood_std_7d', 'mood_volatility',
@@ -621,29 +622,29 @@ class MoodPredictor:
             'day_of_week', 'is_weekend', 'hour_of_day', 'month', 'days_since_start',
             'crisis_count_30d'
         ]
-    
-    def explain_prediction(self, user_id: str) -> Optional[Dict[str, Any]]:
+
+    def explain_prediction(self, user_id: str) -> dict[str, Any] | None:
         """
         Generate SHAP-based explanation for prediction.
         Returns human-readable explanation of why this prediction was made.
         """
         if not SHAP_AVAILABLE or self.rf_model is None:
             return None
-        
+
         try:
             features = self.feature_engineer.engineer_features(user_id)
             if features is None:
                 return None
-            
+
             # Create SHAP explainer
             explainer = shap.TreeExplainer(self.rf_model)
-            
+
             # Calculate SHAP values
             shap_values = explainer.shap_values(features.reshape(1, -1))
-            
+
             # Get feature names
             feature_names = self._get_feature_names()
-            
+
             # Create explanation
             top_features = []
             for i, (name, value) in enumerate(zip(feature_names, shap_values[0])):
@@ -653,24 +654,24 @@ class MoodPredictor:
                         'contribution': float(value),
                         'direction': 'positive' if value > 0 else 'negative'
                     })
-            
+
             # Sort by absolute contribution
             top_features.sort(key=lambda x: abs(x['contribution']), reverse=True)
-            
+
             return {
                 'top_features': top_features[:10],
                 'base_value': float(explainer.expected_value),
                 'explanation_text': self._generate_shap_explanation(top_features[:5])
             }
-            
+
         except Exception as e:
             logger.error(f"SHAP explanation failed: {e}")
             return None
-    
-    def _generate_shap_explanation(self, top_features: List[dict]) -> str:
+
+    def _generate_shap_explanation(self, top_features: list[dict]) -> str:
         """Generate natural language explanation from SHAP values."""
         explanations = []
-        
+
         feature_descriptions = {
             'mood_trend': 'Ditt humör har visat en trend',
             'negative_days_7d': 'Antal dagar med negativt humör',
@@ -681,32 +682,32 @@ class MoodPredictor:
             'steps_mean': 'Din aktivitetsnivå',
             'crisis_count_30d': 'Nyligen upplevda kriser'
         }
-        
+
         for feat in top_features:
             name = feat['feature']
             contribution = feat['contribution']
             direction = feat['direction']
-            
+
             desc = feature_descriptions.get(name, name)
-            
+
             if 'mood_trend' in name and direction == 'negative':
-                explanations.append(f"Ditt humör har sjunkit de senaste dagarna")
+                explanations.append("Ditt humör har sjunkit de senaste dagarna")
             elif 'negative_days' in name:
-                explanations.append(f"Du har haft flera dagar med svåra känslor")
+                explanations.append("Du har haft flera dagar med svåra känslor")
             elif 'sleep' in name and direction == 'negative':
-                explanations.append(f"Din sömn verkar påverka ditt mående negativt")
+                explanations.append("Din sömn verkar påverka ditt mående negativt")
             elif 'sentiment' in name and direction == 'negative':
-                explanations.append(f"Dina texter visar ökad negativitet")
+                explanations.append("Dina texter visar ökad negativitet")
             elif 'steps' in name and direction == 'positive':
-                explanations.append(f"Din fysiska aktivitet har positiv effekt")
+                explanations.append("Din fysiska aktivitet har positiv effekt")
             elif 'crisis' in name:
-                explanations.append(f"Nyligen upplevda svåra händelser påverkar prediktionen")
-        
+                explanations.append("Nyligen upplevda svåra händelser påverkar prediktionen")
+
         return "Vi förutser ditt humör baserat på: " + "; ".join(explanations) if explanations else ""
 
 
 # Singleton instance
-_mood_predictor: Optional[MoodPredictor] = None
+_mood_predictor: MoodPredictor | None = None
 
 
 def get_mood_predictor() -> MoodPredictor:

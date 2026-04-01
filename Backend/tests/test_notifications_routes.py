@@ -10,9 +10,9 @@ Responses follow the APIResponse envelope:
 """
 
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 PREFIX = '/api/v1/notifications'
 

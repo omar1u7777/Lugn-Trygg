@@ -2,9 +2,9 @@
 Tests for docs_routes.py
 Covers: Swagger UI, ReDoc, OpenAPI spec, health, test-auth page.
 """
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pytest
 
 BASE = "/api/docs"
 

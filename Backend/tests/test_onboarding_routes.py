@@ -2,9 +2,9 @@
 Tests for onboarding_routes.py
 Covers: save goals, get goals, update goals, status, skip onboarding.
 """
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 
 BASE = "/api/v1/onboarding"
 USER_ID = "testuser1234567890ab"

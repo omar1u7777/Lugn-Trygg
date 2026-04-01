@@ -4,9 +4,8 @@ Provides human-readable explanations for why the AI made specific predictions.
 """
 
 import logging
-from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
-from datetime import datetime
+from typing import Any
 
 # SHAP with graceful fallback
 try:
@@ -42,9 +41,9 @@ class PredictionExplanation:
     prediction_value: Any
     confidence: float
     base_value: float
-    top_features: List[FeatureExplanation]
+    top_features: list[FeatureExplanation]
     summary_text: str
-    visualization_data: Optional[Dict] = None
+    visualization_data: dict | None = None
     model_version: str = "1.0"
 
 
@@ -53,7 +52,7 @@ class ExplainabilityService:
     SHAP-based explainability for all AI predictions.
     Answers the question: "Why did the AI think this?"
     """
-    
+
     # Feature name translations (Swedish)
     FEATURE_DESCRIPTIONS = {
         # Mood features
@@ -64,66 +63,66 @@ class ExplainabilityService:
         'mood_momentum': 'Nylig förändring i humör',
         'negative_days_7d': 'Antal dagar med negativt humör',
         'negative_days_14d': 'Antal negativa dagar (2 veckor)',
-        
+
         # Sleep features
         'sleep_mean': 'Din genomsnittliga sömn',
         'sleep_std': 'Sömnens regelbundenhet',
         'sleep_trend': 'Sömntrend',
         'sleep_deficit_days': 'Dagar med för lite sömn',
         'sleep_quality_mean': 'Sömnkvalitet',
-        
+
         # Activity features
         'steps_mean': 'Din dagliga aktivitet',
         'steps_trend': 'Aktivitetstrend',
         'sedentary_days': 'Dagar med låg aktivitet',
-        
+
         # Semantic features
         'sentiment_mean': 'Tonen i dina texter',
         'sentiment_trend': 'Förändring i textton',
-        
+
         # Engagement features
         'app_opens_7d': 'Hur ofta du öppnat appen',
         'chat_messages_7d': 'Antal meddelanden i chatten',
         'exercises_completed_7d': 'Genomförda övningar',
-        
+
         # Context features
         'day_of_week': 'Dag i veckan',
         'is_weekend': 'Helg eller vardag',
         'hour_of_day': 'Tid på dygnet',
         'crisis_count_30d': 'Nyligen upplevda kriser'
     }
-    
+
     def __init__(self):
         logger.info("🔍 Initializing Explainability Service (XAI)...")
-        
+
         if not SHAP_AVAILABLE:
             logger.warning("⚠️ SHAP not available - explanations will be heuristic-based")
-        
+
         logger.info("✅ Explainability Service initialized")
-    
-    def explain_mood_prediction(self, user_id: str, 
+
+    def explain_mood_prediction(self, user_id: str,
                                  prediction: 'MoodPrediction') -> PredictionExplanation:
         """
         Generate SHAP-based explanation for mood prediction.
         """
         if not SHAP_AVAILABLE or not prediction.feature_importance:
             return self._heuristic_mood_explanation(prediction)
-        
+
         try:
             # Create feature explanations from feature importance
             top_features = []
-            
+
             for i, (feature_name, importance) in enumerate(
-                sorted(prediction.feature_importance.items(), 
+                sorted(prediction.feature_importance.items(),
                        key=lambda x: abs(x[1]), reverse=True)[:5]
             ):
                 description = self.FEATURE_DESCRIPTIONS.get(
                     feature_name, feature_name
                 )
-                
+
                 # Determine direction (simplified)
                 direction = 'positive' if importance > 0 else 'negative'
-                
+
                 top_features.append(FeatureExplanation(
                     feature_name=feature_name,
                     feature_value=0.0,  # Would need actual value
@@ -132,14 +131,14 @@ class ExplainabilityService:
                     description=description,
                     importance_rank=i + 1
                 ))
-            
+
             # Generate natural language summary
             summary = self._generate_mood_summary(
                 prediction.predicted_mood,
                 prediction.risk_factors,
                 top_features
             )
-            
+
             return PredictionExplanation(
                 prediction_type='mood',
                 prediction_value=prediction.predicted_mood,
@@ -149,16 +148,16 @@ class ExplainabilityService:
                 summary_text=summary,
                 model_version=prediction.model_version
             )
-            
+
         except Exception as e:
             logger.error(f"SHAP explanation failed: {e}")
             return self._heuristic_mood_explanation(prediction)
-    
+
     def _heuristic_mood_explanation(self, prediction: 'MoodPrediction') -> PredictionExplanation:
         """Fallback explanation using heuristics."""
-        
+
         explanations = []
-        
+
         # Build explanation from risk factors
         if 'declining_trend' in prediction.risk_factors:
             explanations.append(FeatureExplanation(
@@ -169,7 +168,7 @@ class ExplainabilityService:
                 description='Ditt humör har sjunkit de senaste dagarna',
                 importance_rank=1
             ))
-        
+
         if 'negative_days_7d' in str(prediction.risk_factors):
             explanations.append(FeatureExplanation(
                 feature_name='negative_days',
@@ -179,7 +178,7 @@ class ExplainabilityService:
                 description='Du har haft flera svåra dagar i rad',
                 importance_rank=2
             ))
-        
+
         if 'sleep_deprivation' in str(prediction.risk_factors):
             explanations.append(FeatureExplanation(
                 feature_name='sleep',
@@ -189,13 +188,13 @@ class ExplainabilityService:
                 description='Din sömn verkar påverka ditt mående',
                 importance_rank=3
             ))
-        
+
         summary = self._generate_mood_summary(
             prediction.predicted_mood,
             prediction.risk_factors,
             explanations
         )
-        
+
         return PredictionExplanation(
             prediction_type='mood',
             prediction_value=prediction.predicted_mood,
@@ -205,12 +204,12 @@ class ExplainabilityService:
             summary_text=summary,
             model_version='heuristic'
         )
-    
-    def _generate_mood_summary(self, predicted_mood: float, 
-                                risk_factors: List[str],
-                                top_features: List[FeatureExplanation]) -> str:
+
+    def _generate_mood_summary(self, predicted_mood: float,
+                                risk_factors: list[str],
+                                top_features: list[FeatureExplanation]) -> str:
         """Generate natural language summary of mood prediction."""
-        
+
         # Determine prediction category
         if predicted_mood < -0.5:
             mood_desc = "lågt"
@@ -224,13 +223,13 @@ class ExplainabilityService:
         else:
             mood_desc = "positivt"
             advice = "Fantastiskt! Vad tror du bidrar till detta?"
-        
+
         # Build factor explanations
         factor_texts = []
         for feat in top_features[:3]:
             if feat.direction == 'negative' and abs(feat.contribution) > 0.1:
                 factor_texts.append(feat.description)
-        
+
         if factor_texts:
             factors_str = "; ".join(factor_texts)
             summary = (
@@ -243,17 +242,17 @@ class ExplainabilityService:
                 f"Vi förutser att ditt humör kommer vara {mood_desc} kommande vecka. "
                 f"{advice}"
             )
-        
+
         return summary
-    
-    def explain_crisis_detection(self, text: str, 
+
+    def explain_crisis_detection(self, text: str,
                                   assessment: 'CrisisAssessment') -> PredictionExplanation:
         """
         Generate explanation for crisis detection.
         """
         try:
             explanations = []
-            
+
             # Explain each active indicator
             for i, indicator in enumerate(assessment.active_indicators[:5]):
                 explanations.append(FeatureExplanation(
@@ -264,7 +263,7 @@ class ExplainabilityService:
                     description=indicator.swedish_description,
                     importance_rank=i + 1
                 ))
-            
+
             # Generate summary
             if assessment.overall_risk_level == 'critical':
                 summary = (
@@ -285,7 +284,7 @@ class ExplainabilityService:
                     f"Vissa tecken på påfrestning upptäckta. "
                     f"Fortsätt att monitorera ditt mående."
                 )
-            
+
             return PredictionExplanation(
                 prediction_type='crisis',
                 prediction_value=assessment.overall_risk_level,
@@ -294,7 +293,7 @@ class ExplainabilityService:
                 top_features=explanations,
                 summary_text=summary
             )
-            
+
         except Exception as e:
             logger.error(f"Crisis explanation failed: {e}")
             return PredictionExplanation(
@@ -306,9 +305,9 @@ class ExplainabilityService:
                 summary_text=f"Risknivå: {assessment.overall_risk_level.upper()}. "
                            f"Kontakta professionell hjälp vid behov."
             )
-    
-    def explain_sentiment_analysis(self, text: str, 
-                                    sentiment_result: Dict[str, Any]) -> PredictionExplanation:
+
+    def explain_sentiment_analysis(self, text: str,
+                                    sentiment_result: dict[str, Any]) -> PredictionExplanation:
         """
         Generate explanation for sentiment analysis.
         """
@@ -316,7 +315,7 @@ class ExplainabilityService:
             sentiment = sentiment_result.get('sentiment', 'NEUTRAL')
             score = sentiment_result.get('score', 0)
             emotions = sentiment_result.get('emotions', [])
-            
+
             # Build feature explanations from detected emotions
             explanations = []
             for i, emotion in enumerate(emotions[:5]):
@@ -328,7 +327,7 @@ class ExplainabilityService:
                     'anxiety': 'Ångest',
                     'hopelessness': 'Hopplöshet'
                 }
-                
+
                 descriptions = {
                     'sadness': 'Texter innehåller ord kopplade till sorg',
                     'anger': 'Ord som uttrycker ilska eller frustration',
@@ -336,7 +335,7 @@ class ExplainabilityService:
                     'joy': 'Positiva ord och uttryck',
                     'anxiety': 'Ord kopplade till ångest'
                 }
-                
+
                 explanations.append(FeatureExplanation(
                     feature_name=f'emotion_{emotion}',
                     feature_value=1.0,
@@ -345,7 +344,7 @@ class ExplainabilityService:
                     description=descriptions.get(emotion, emotion),
                     importance_rank=i + 1
                 ))
-            
+
             # Generate summary
             if sentiment == 'NEGATIVE':
                 summary = (
@@ -364,7 +363,7 @@ class ExplainabilityService:
                     f"Din text har neutral känslomässig ton. "
                     f"Konfidens: {sentiment_result.get('confidence', 0):.0%}."
                 )
-            
+
             return PredictionExplanation(
                 prediction_type='sentiment',
                 prediction_value=sentiment,
@@ -373,7 +372,7 @@ class ExplainabilityService:
                 top_features=explanations,
                 summary_text=summary
             )
-            
+
         except Exception as e:
             logger.error(f"Sentiment explanation failed: {e}")
             return PredictionExplanation(
@@ -384,20 +383,20 @@ class ExplainabilityService:
                 top_features=[],
                 summary_text="Känsloanalys tillfälligt otillgänglig."
             )
-    
-    def generate_feature_importance_plot(self, explanation: PredictionExplanation) -> Optional[Dict]:
+
+    def generate_feature_importance_plot(self, explanation: PredictionExplanation) -> dict | None:
         """
         Generate visualization data for feature importance.
         """
         try:
             if not explanation.top_features:
                 return None
-            
+
             # Prepare data for bar chart
             features = [f.description[:30] for f in explanation.top_features[:10]]
             contributions = [f.contribution for f in explanation.top_features[:10]]
             colors = ['#ef4444' if c < 0 else '#22c55e' for c in contributions]
-            
+
             return {
                 'type': 'bar',
                 'data': {
@@ -409,14 +408,14 @@ class ExplainabilityService:
                 'xlabel': 'Bidrag till prediktion',
                 'ylabel': 'Faktor'
             }
-            
+
         except Exception as e:
             logger.error(f"Plot generation failed: {e}")
             return None
 
 
 # Singleton
-_explainability_service: Optional[ExplainabilityService] = None
+_explainability_service: ExplainabilityService | None = None
 
 
 def get_explainability_service() -> ExplainabilityService:

@@ -13,10 +13,7 @@ from ..services.rate_limiting import rate_limit_by_endpoint
 
 # Import professional voice emotion analyzer
 try:
-    from ..services.voice_emotion_service import (
-        get_voice_emotion_analyzer,
-        analyze_voice_emotion_professional
-    )
+    from ..services.voice_emotion_service import analyze_voice_emotion_professional, get_voice_emotion_analyzer
     PROFESSIONAL_VOICE_ANALYSIS = True
 except ImportError:
     PROFESSIONAL_VOICE_ANALYSIS = False
@@ -171,9 +168,9 @@ def analyze_voice_emotion():
         # Use professional voice emotion analysis if available
         if PROFESSIONAL_VOICE_ANALYSIS:
             from ..services.voice_emotion_service import analyze_voice_emotion_professional
-            
+
             result = analyze_voice_emotion_professional(audio_bytes, transcript)
-            
+
             # Convert dataclass to response format
             emotions_dict = {
                 "happy": result.emotion_confidences.get("happy", 0),
@@ -183,7 +180,7 @@ def analyze_voice_emotion():
                 "calm": result.emotion_confidences.get("calm", 0),
                 "neutral": result.emotion_confidences.get("neutral", 0)
             }
-            
+
             audit_log(
                 event_type="VOICE_EMOTION_ANALYZED_PROFESSIONAL",
                 user_id=user_id,
@@ -197,11 +194,11 @@ def analyze_voice_emotion():
                     "arousal": result.arousal
                 }
             )
-            
+
             logger.info(f"✅ Professional voice emotion analysis for user {user_id}: "
                        f"primary={result.primary_emotion}, confidence={result.confidence:.2f}, "
                        f"method={result.analysis_method}")
-            
+
             # Determine energy level from prosodic features
             if result.prosody.intensity_mean > 0.6:
                 energy_level = "high"
@@ -209,7 +206,7 @@ def analyze_voice_emotion():
                 energy_level = "medium"
             else:
                 energy_level = "low"
-            
+
             # Determine speaking pace
             if result.prosody.syllables_per_second > 5.5:
                 pace = "fast"
@@ -217,7 +214,7 @@ def analyze_voice_emotion():
                 pace = "normal"
             else:
                 pace = "slow"
-            
+
             return APIResponse.success({
                 "emotions": emotions_dict,
                 "primaryEmotion": result.primary_emotion,
@@ -237,17 +234,17 @@ def analyze_voice_emotion():
                 "analysisMethod": result.analysis_method,
                 "confidence": result.confidence
             }, "Voice emotion analysis successful (professional)")
-        
+
         else:
             # Fallback to legacy analysis
             audio_analysis = analyze_audio_features(audio_bytes)
-            
+
             text_sentiment = None
             if transcript:
                 text_sentiment = analyze_text_sentiment(transcript)
-            
+
             emotions = combine_emotion_analysis(audio_analysis, text_sentiment)
-            
+
             audit_log(
                 event_type="VOICE_EMOTION_ANALYZED_LEGACY",
                 user_id=user_id,
@@ -257,9 +254,9 @@ def analyze_voice_emotion():
                     "audio_size_bytes": len(audio_bytes)
                 }
             )
-            
+
             logger.info(f"⚠️ Legacy voice emotion analysis for user {user_id}: primary={emotions['primary']}")
-            
+
             return APIResponse.success({
                 "emotions": emotions['all'],
                 "primaryEmotion": emotions['primary'],

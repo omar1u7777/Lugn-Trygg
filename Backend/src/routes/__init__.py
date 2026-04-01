@@ -22,12 +22,12 @@ from .health_routes import health_bp
 from .integration_routes import integration_bp
 from .journal_routes import journal_bp
 from .leaderboard_routes import leaderboard_bp
-from .memory_routes import memory_bp
 from .memory_analysis_routes import memory_analysis_bp
-from .multimedia_memory_routes import multimedia_memory_bp
+from .memory_routes import memory_bp
 from .metrics_routes import metrics_bp
 from .mood_routes import mood_bp
 from .mood_stats_routes import mood_stats_bp
+from .multimedia_memory_routes import multimedia_memory_bp
 from .notifications_routes import notifications_bp
 from .onboarding_routes import onboarding_bp
 from .peer_chat_routes import peer_chat_bp

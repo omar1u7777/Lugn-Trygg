@@ -2,10 +2,9 @@
 Tests for leaderboard_routes.py
 Covers: XP, streaks, moods, user rank, weekly winners.
 """
-import pytest
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
 
+import pytest
 
 BASE = "/api/v1/leaderboard"
 USER_ID = "testuser1234567890ab"

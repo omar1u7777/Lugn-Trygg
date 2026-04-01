@@ -19,7 +19,7 @@ from sklearn.preprocessing import StandardScaler
 
 # Import new Swedish BERT NLP service
 try:
-    from .mood_nlp_service import get_mood_nlp, MoodAnalysis
+    from .mood_nlp_service import MoodAnalysis, get_mood_nlp
     NLP_AVAILABLE = True
 except ImportError:
     NLP_AVAILABLE = False
@@ -284,7 +284,7 @@ class PredictiveAnalyticsService:
             Single prediction for next mood
         """
         result = self.predict_mood_trend(mood_entries, days_ahead=1)
-        
+
         if result['success'] and result['predictions']:
             next_prediction = result['predictions'][0]
             return {
@@ -293,7 +293,7 @@ class PredictiveAnalyticsService:
                 'trend_direction': self._calculate_trend_direction(mood_entries),
                 'model_info': result.get('model_info', {})
             }
-        
+
         return {
             'success': False,
             'error': result.get('error', 'Unable to predict next mood'),
@@ -304,7 +304,7 @@ class PredictiveAnalyticsService:
         """Calculate trend direction from recent entries"""
         if len(mood_entries) < 3:
             return 'insufficient_data'
-        
+
         recent_scores = [entry.get('mood_score', 3) for entry in mood_entries[-7:]]
         if len(recent_scores) >= 3:
             if recent_scores[-1] > recent_scores[0]:

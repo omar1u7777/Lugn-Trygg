@@ -5,12 +5,11 @@ Based on: Behavioral Activation (Martell et al.), CBT patterns, Positive Psychol
 """
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any, Tuple
-from enum import Enum
 import statistics
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -47,14 +46,14 @@ class MemoryPattern:
     """Detected pattern with statistical significance."""
     pattern_type: str
     confidence: float
-    evidence: List[Dict]
+    evidence: list[dict]
     trend_direction: str
     statistical_significance: float = 0.0  # p-value equivalent
     effect_size: float = 0.0  # Cohen's d equivalent
-    domain: Optional[TherapeuticDomain] = None
+    domain: TherapeuticDomain | None = None
 
 
-@dataclass  
+@dataclass
 class TherapeuticInsight:
     """Evidence-based therapeutic recommendation."""
     insight_id: str
@@ -64,16 +63,16 @@ class TherapeuticInsight:
     title: str
     message: str
     recommendation: str
-    evidence: Dict
+    evidence: dict
     urgency: str
     suggested_action: str
-    related_memories: List[str] = field(default_factory=list)
-    created_at: Optional[datetime] = None
-    
+    related_memories: list[str] = field(default_factory=list)
+    created_at: datetime | None = None
+
     # CBT/ACT specific fields
-    cognitive_distortion: Optional[str] = None  # If detected
-    behavioral_target: Optional[str] = None  # What to increase
-    values_alignment: Optional[str] = None  # ACT values
+    cognitive_distortion: str | None = None  # If detected
+    behavioral_target: str | None = None  # What to increase
+    values_alignment: str | None = None  # ACT values
 
 
 class DailyInsightGeneratorV2:
@@ -89,13 +88,13 @@ class DailyInsightGeneratorV2:
     6. Circadian rhythm correlation
     7. Social rhythm metrics
     """
-    
+
     def __init__(self):
         self.min_memories = 5  # Increased for statistical power
         self.analysis_window = 14  # 2 weeks for better patterns
         self.statistical_threshold = 0.05
         self.min_effect_size = 0.3  # Small to medium effect
-        
+
         # Evidence-based templates with CBT/ACT grounding
         self.TEMPLATES = {
             'nature_ba_target': {
@@ -190,8 +189,8 @@ class DailyInsightGeneratorV2:
                 'act_value': 'självomsorg/terapi'
             }
         }
-    
-    def generate_insights(self, user_id: str) -> List[TherapeuticInsight]:
+
+    def generate_insights(self, user_id: str) -> list[TherapeuticInsight]:
         """
         Generate statistically-validated therapeutic insights.
         
@@ -202,57 +201,57 @@ class DailyInsightGeneratorV2:
         4. Multi-modal fusion with confidence weighting
         """
         insights = []
-        
+
         try:
             # Extended data collection
             memories = self._fetch_memories(user_id, days=self.analysis_window)
             mood_data = self._fetch_mood_history(user_id, days=self.analysis_window)
             activity_data = self._fetch_activity_patterns(user_id)
-            
+
             if len(memories) < self.min_memories:
                 logger.info(f"Insufficient data for {user_id}")
                 return insights
-            
+
             # 1. Temporal trend analysis (linear regression on mood)
             trend_insight = self._analyze_trend_statistical(memories, mood_data, user_id)
             if trend_insight:
                 insights.append(trend_insight)
-            
+
             # 2. Behavioral activation opportunities
             ba_insights = self._detect_behavioral_activation_targets(
                 memories, mood_data, user_id
             )
             insights.extend(ba_insights)
-            
+
             # 3. Social rhythm analysis
             social_insight = self._analyze_social_rhythm(memories, user_id)
             if social_insight:
                 insights.append(social_insight)
-            
+
             # 4. Circadian-mood correlation
             circadian_insight = self._analyze_circadian_patterns(mood_data, user_id)
             if circadian_insight:
                 insights.append(circadian_insight)
-            
+
             # 5. Mind-body contrast detection
             contrast_insight = self._detect_mind_body_contrast(memories, user_id)
             if contrast_insight:
                 insights.append(contrast_insight)
-            
+
             # 6. Positive psychology interventions (savoring, gratitude)
             positive_insights = self._detect_positive_psychology_opportunities(
                 memories, user_id
             )
             insights.extend(positive_insights)
-            
+
             # 7. Values-based ACT interventions
             act_insights = self._generate_act_interventions(memories, user_id)
             insights.extend(act_insights)
-            
+
             # Save all insights
             for insight in insights:
                 self._save_insight(insight)
-            
+
             # Audit logging with full statistical data
             audit_log(
                 event_type="DAILY_INSIGHTS_V2_GENERATED",
@@ -265,52 +264,52 @@ class DailyInsightGeneratorV2:
                     "statistical_tests_performed": len(insights)
                 }
             )
-            
+
         except Exception as e:
             logger.exception(f"Insight generation failed: {e}")
-        
+
         # Sort by clinical priority
         return self._prioritize_insights(insights)
-    
-    def _analyze_trend_statistical(self, memories: List[Dict], 
-                                   mood_data: List[Dict], user_id: str) -> Optional[TherapeuticInsight]:
+
+    def _analyze_trend_statistical(self, memories: list[dict],
+                                   mood_data: list[dict], user_id: str) -> TherapeuticInsight | None:
         """
         Linear regression on mood scores with statistical validation.
         Returns insight if trend is statistically significant.
         """
         if len(mood_data) < 5:
             return None
-        
+
         try:
             # Extract time series
             times = list(range(len(mood_data)))
             scores = [m.get('score', 5) for m in mood_data]
-            
+
             # Simple linear regression
             n = len(times)
             mean_t = statistics.mean(times)
             mean_s = statistics.mean(scores)
-            
+
             # Calculate slope (beta)
             numerator = sum((t - mean_t) * (s - mean_s) for t, s in zip(times, scores))
             denominator = sum((t - mean_t) ** 2 for t in times)
-            
+
             if denominator == 0:
                 return None
-            
+
             beta = numerator / denominator
-            
+
             # Calculate effect size (approximate)
             if len(scores) > 1:
                 std_s = statistics.stdev(scores)
                 effect_size = abs(beta * n / std_s) if std_s > 0 else 0
             else:
                 effect_size = 0
-            
+
             # Only flag if clinically relevant decline
             if beta < -0.1 and effect_size >= self.min_effect_size:
                 template = self.TEMPLATES['declining_trend']
-                
+
                 return TherapeuticInsight(
                     insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_trend",
                     user_id=user_id,
@@ -329,61 +328,61 @@ class DailyInsightGeneratorV2:
                     suggested_action=template['action'],
                     values_alignment=template['act_value']
                 )
-            
+
         except Exception as e:
             logger.error(f"Trend analysis failed: {e}")
-        
+
         return None
-    
-    def _detect_behavioral_activation_targets(self, memories: List[Dict],
-                                               mood_data: List[Dict],
-                                               user_id: str) -> List[TherapeuticInsight]:
+
+    def _detect_behavioral_activation_targets(self, memories: list[dict],
+                                               mood_data: list[dict],
+                                               user_id: str) -> list[TherapeuticInsight]:
         """
         Detect opportunities for behavioral activation.
         Correlates activities with mood improvement.
         """
         insights = []
-        
+
         try:
             # Group memories by activity type
             activity_groups = defaultdict(list)
-            
+
             for memory in memories:
                 # Categorize by content and photo analysis
                 activity_type = self._categorize_activity(memory)
                 if activity_type:
                     activity_groups[activity_type].append(memory)
-            
+
             # Calculate mood correlation for each activity
             for activity_type, activity_memories in activity_groups.items():
                 if len(activity_memories) < 3:
                     continue
-                
+
                 # Get mood scores for these memories
                 mood_scores = []
                 for m in activity_memories:
                     sentiment = m.get('ai_analysis', {}).get('sentiment_score', 0)
                     mood_scores.append(sentiment)
-                
+
                 avg_mood = statistics.mean(mood_scores)
-                
+
                 # Compare to baseline (all memories)
-                all_sentiments = [m.get('ai_analysis', {}).get('sentiment_score', 0) 
+                all_sentiments = [m.get('ai_analysis', {}).get('sentiment_score', 0)
                                  for m in memories]
                 baseline = statistics.mean(all_sentiments) if all_sentiments else 0
-                
+
                 improvement = ((avg_mood - baseline) / abs(baseline) * 100) if baseline != 0 else 0
-                
+
                 # If activity correlates with better mood
                 if improvement > 20 and activity_type == 'nature':
                     template = self.TEMPLATES['nature_ba_target']
-                    
+
                     # Calculate correlation coefficient
                     correlation = self._calculate_correlation(
                         [len(activity_groups['nature'])] if 'nature' in activity_groups else [0],
                         mood_scores
                     )
-                    
+
                     insights.append(TherapeuticInsight(
                         insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_nature",
                         user_id=user_id,
@@ -406,47 +405,47 @@ class DailyInsightGeneratorV2:
                         values_alignment=template['act_value'],
                         behavioral_target='nature_exposure'
                     ))
-        
+
         except Exception as e:
             logger.error(f"BA detection failed: {e}")
-        
+
         return insights
-    
-    def _calculate_correlation(self, x: List[float], y: List[float]) -> float:
+
+    def _calculate_correlation(self, x: list[float], y: list[float]) -> float:
         """Calculate Pearson correlation coefficient."""
         if len(x) != len(y) or len(x) < 2:
             return 0.0
-        
+
         try:
             mean_x = statistics.mean(x)
             mean_y = statistics.mean(y)
-            
+
             numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
             denom_x = sum((xi - mean_x) ** 2 for xi in x)
             denom_y = sum((yi - mean_y) ** 2 for yi in y)
-            
+
             if denom_x == 0 or denom_y == 0:
                 return 0.0
-            
+
             return numerator / (denom_x * denom_y) ** 0.5
-            
+
         except Exception:
             return 0.0
-    
-    def _categorize_activity(self, memory: Dict) -> Optional[str]:
+
+    def _categorize_activity(self, memory: dict) -> str | None:
         """Categorize memory into activity type."""
         content = memory.get('content', '').lower()
         photo_scene = memory.get('ai_analysis', {}).get('photo_analysis', {}).get('scene', '')
-        
+
         nature_keywords = ['skog', 'natur', 'park', 'promenad', 'vandra', 'träd', 'sjö']
         social_keywords = ['vän', 'familj', 'kompis', 'träff', 'fest', 'middag', 'pratade']
         creative_keywords = ['måla', 'rita', 'skriva', 'musik', 'laga mat', 'baka', 'sy']
         physical_keywords = ['springa', 'träna', 'gym', 'yoga', 'simma', 'cykla']
-        
+
         # Check photo scene first (more reliable)
         if photo_scene in ['nature', 'forest', 'park', 'outdoor']:
             return 'nature'
-        
+
         # Check content
         if any(kw in content for kw in nature_keywords):
             return 'nature'
@@ -456,28 +455,28 @@ class DailyInsightGeneratorV2:
             return 'creative'
         if any(kw in content for kw in physical_keywords):
             return 'physical'
-        
+
         return None
-    
-    def _analyze_social_rhythm(self, memories: List[Dict], user_id: str) -> Optional[TherapeuticInsight]:
+
+    def _analyze_social_rhythm(self, memories: list[dict], user_id: str) -> TherapeuticInsight | None:
         """Analyze social connection patterns (Social Rhythm Metric)."""
         # Check for social memories in last 7 days
         week_ago = datetime.now() - timedelta(days=7)
-        
+
         social_memories = [
             m for m in memories
             if m.get('ai_analysis', {}).get('photo_analysis', {}).get('has_faces', False)
-            or any(kw in m.get('content', '').lower() 
+            or any(kw in m.get('content', '').lower()
                    for kw in ['vän', 'familj', 'träff', 'pratade', 'samman'])
         ]
-        
-        recent_social = [m for m in social_memories 
+
+        recent_social = [m for m in social_memories
                         if m.get('created_at', datetime.now()) > week_ago]
-        
+
         # If no social contact in 7 days, flag it
         if len(recent_social) == 0 and len(memories) > 3:
             template = self.TEMPLATES['social_connection_deficit']
-            
+
             return TherapeuticInsight(
                 insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_social",
                 user_id=user_id,
@@ -495,40 +494,40 @@ class DailyInsightGeneratorV2:
                 suggested_action=template['action'],
                 values_alignment=template['act_value']
             )
-        
+
         return None
-    
-    def _analyze_circadian_patterns(self, mood_data: List[Dict], user_id: str) -> Optional[TherapeuticInsight]:
+
+    def _analyze_circadian_patterns(self, mood_data: list[dict], user_id: str) -> TherapeuticInsight | None:
         """Analyze time-of-day mood patterns."""
         if len(mood_data) < 7:
             return None
-        
+
         try:
             # Group by time of day
             morning_scores = []
             afternoon_scores = []
             evening_scores = []
-            
+
             for entry in mood_data:
                 timestamp = entry.get('timestamp') or entry.get('created_at')
                 if not timestamp:
                     continue
-                
+
                 hour = timestamp.hour if isinstance(timestamp, datetime) else 12
                 score = entry.get('score', 5)
-                
+
                 if 6 <= hour < 12:
                     morning_scores.append(score)
                 elif 12 <= hour < 18:
                     afternoon_scores.append(score)
                 else:
                     evening_scores.append(score)
-            
+
             # Detect pattern
             if morning_scores and evening_scores:
                 morning_avg = statistics.mean(morning_scores)
                 evening_avg = statistics.mean(evening_scores)
-                
+
                 if morning_avg < evening_avg - 1.5:  # Morning dip
                     template = self.TEMPLATES['circadian_mood_pattern']
                     return TherapeuticInsight(
@@ -550,33 +549,33 @@ class DailyInsightGeneratorV2:
                         suggested_action=template['action'],
                         values_alignment=template['act_value']
                     )
-        
+
         except Exception as e:
             logger.error(f"Circadian analysis failed: {e}")
-        
+
         return None
-    
-    def _detect_mind_body_contrast(self, memories: List[Dict], user_id: str) -> Optional[TherapeuticInsight]:
+
+    def _detect_mind_body_contrast(self, memories: list[dict], user_id: str) -> TherapeuticInsight | None:
         """Detect dissociation between body state (photos) and mind state (text)."""
         if not memories:
             return None
-        
+
         recent = memories[0]
-        
+
         photo_emotion = recent.get('ai_analysis', {}).get('photo_analysis', {}).get('emotion', 'neutral')
         text_emotion = recent.get('ai_analysis', {}).get('primary_emotion', 'neutral')
         sentiment = recent.get('ai_analysis', {}).get('sentiment_score', 0)
-        
+
         # Define calm vs stressed states
         calm_states = ['calm', 'peace', 'joy', 'happy']
         stressed_states = ['stress', 'anxiety', 'sadness', 'anger', 'worry']
-        
+
         photo_calm = any(s in photo_emotion.lower() for s in calm_states)
         text_stressed = any(s in text_emotion.lower() for s in stressed_states) or sentiment < -0.3
-        
+
         if photo_calm and text_stressed:
             template = self.TEMPLATES['contrast_mind_body']
-            
+
             return TherapeuticInsight(
                 insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_contrast",
                 user_id=user_id,
@@ -598,31 +597,31 @@ class DailyInsightGeneratorV2:
                 suggested_action=template['action'],
                 values_alignment=template['act_value']
             )
-        
+
         return None
-    
-    def _detect_positive_psychology_opportunities(self, memories: List[Dict], 
-                                                   user_id: str) -> List[TherapeuticInsight]:
+
+    def _detect_positive_psychology_opportunities(self, memories: list[dict],
+                                                   user_id: str) -> list[TherapeuticInsight]:
         """Detect opportunities for savoring, gratitude, and strengths."""
         insights = []
-        
+
         # Find highest valence memory
         positive_memories = [
             m for m in memories
             if m.get('ai_analysis', {}).get('sentiment_score', 0) > 0.6
         ]
-        
+
         if positive_memories:
-            strongest = max(positive_memories, 
+            strongest = max(positive_memories,
                           key=lambda m: m.get('ai_analysis', {}).get('sentiment_score', 0))
-            
+
             valence = strongest.get('ai_analysis', {}).get('sentiment_score', 0)
-            
+
             # Savoring opportunity
             if valence > 0.7:
                 template = self.TEMPLATES['positive_savoring']
                 event_type = self._categorize_activity(strongest) or 'positiv händelse'
-                
+
                 insights.append(TherapeuticInsight(
                     insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_savoring",
                     user_id=user_id,
@@ -643,16 +642,16 @@ class DailyInsightGeneratorV2:
                     suggested_action=template['action'],
                     values_alignment=template['act_value']
                 ))
-        
+
         return insights
-    
-    def _generate_act_interventions(self, memories: List[Dict], user_id: str) -> List[TherapeuticInsight]:
+
+    def _generate_act_interventions(self, memories: list[dict], user_id: str) -> list[TherapeuticInsight]:
         """Generate Acceptance and Commitment Therapy based interventions."""
         # Detect values-work alignment issues
         # This is a simplified version - full ACT would require values assessment
         return []
-    
-    def _prioritize_insights(self, insights: List[TherapeuticInsight]) -> List[TherapeuticInsight]:
+
+    def _prioritize_insights(self, insights: list[TherapeuticInsight]) -> list[TherapeuticInsight]:
         """Clinical prioritization of insights."""
         urgency_order = {'high': 0, 'medium': 1, 'low': 2}
         domain_priority = {
@@ -664,63 +663,63 @@ class DailyInsightGeneratorV2:
             TherapeuticDomain.PHYSICAL_ACTIVITY: 5,
             TherapeuticDomain.COGNITIVE_RESTRUCTURING: 6
         }
-        
+
         # Sort by urgency, then domain priority
         insights.sort(key=lambda i: (
             urgency_order.get(i.urgency, 3),
             domain_priority.get(i.domain, 99)
         ))
-        
+
         return insights[:3]
-    
-    def _fetch_memories(self, user_id: str, days: int) -> List[Dict]:
+
+    def _fetch_memories(self, user_id: str, days: int) -> list[dict]:
         """Fetch memories from Firestore."""
         try:
             from google.cloud.firestore import FieldFilter
-            
+
             cutoff = datetime.now() - timedelta(days=days)
-            
+
             query = db.collection('memories').where(
                 filter=FieldFilter('user_id', '==', user_id)
             ).where(
                 filter=FieldFilter('created_at', '>=', cutoff)
             ).order_by('created_at', direction='DESCENDING')
-            
+
             memories = []
             for doc in query.stream():
                 data = doc.to_dict()
                 data['id'] = doc.id
                 memories.append(data)
-            
+
             return memories
-            
+
         except Exception as e:
             logger.error(f"Failed to fetch memories: {e}")
             return []
-    
-    def _fetch_mood_history(self, user_id: str, days: int) -> List[Dict]:
+
+    def _fetch_mood_history(self, user_id: str, days: int) -> list[dict]:
         """Fetch mood entries."""
         try:
             from google.cloud.firestore import FieldFilter
-            
+
             cutoff = datetime.now() - timedelta(days=days)
-            
+
             query = db.collection('mood_entries').where(
                 filter=FieldFilter('user_id', '==', user_id)
             ).where(
                 filter=FieldFilter('timestamp', '>=', cutoff)
             ).order_by('timestamp', direction='DESCENDING')
-            
+
             return [doc.to_dict() for doc in query.stream()]
-            
+
         except Exception as e:
             logger.error(f"Failed to fetch mood data: {e}")
             return []
-    
-    def _fetch_activity_patterns(self, user_id: str) -> Dict:
+
+    def _fetch_activity_patterns(self, user_id: str) -> dict:
         """Fetch user activity patterns."""
         return {}  # Placeholder for activity tracking integration
-    
+
     def _save_insight(self, insight: TherapeuticInsight):
         """Save to Firestore."""
         try:
@@ -743,9 +742,9 @@ class DailyInsightGeneratorV2:
                 'notification_sent': False,
                 'version': '2.0'
             }
-            
+
             db.collection('insights').document(insight.insight_id).set(doc_data)
-            
+
         except Exception as e:
             logger.error(f"Failed to save insight: {e}")
 

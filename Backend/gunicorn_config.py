@@ -1,5 +1,5 @@
-import os
 import multiprocessing
+import os
 
 # Gunicorn PRODUCTION configuration optimized for 10k concurrent users
 bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"

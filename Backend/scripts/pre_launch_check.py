@@ -4,13 +4,13 @@ Pre-Launch Validation Script
 Checks all critical items before production launch
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
-from datetime import datetime
+import sys
 import urllib.request
-import socket
+from datetime import datetime
+
 
 class Colors:
     HEADER = '\033[95m'
@@ -42,18 +42,18 @@ def print_info(text):
 def check_env_file():
     """Check if .env file exists and has required variables."""
     print_header("1. Environment Configuration Check")
-    
+
     # Backend directory is one level up from scripts/
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     env_path = os.path.join(backend_dir, '.env')
-    
+
     if not os.path.exists(env_path):
         print_error(".env file not found")
         print_info("Run: cp .env.production .env")
         return False
-    
+
     print_success(".env file exists")
-    
+
     required_vars = [
         'JWT_SECRET_KEY',
         'JWT_REFRESH_SECRET_KEY',
@@ -61,13 +61,13 @@ def check_env_file():
         'FIREBASE_PROJECT_ID',
         'OPENAI_API_KEY',
     ]
-    
-    with open(env_path, 'r') as f:
+
+    with open(env_path) as f:
         env_content = f.read()
-    
+
     missing = []
     weak = []
-    
+
     for var in required_vars:
         if var not in env_content:
             missing.append(var)
@@ -75,7 +75,7 @@ def check_env_file():
             # Check if it's a placeholder
             if 'your-' in env_content or 'change-me' in env_content.lower():
                 weak.append(var)
-            
+
             # Check JWT secret strength
             if 'JWT_SECRET_KEY' in var:
                 lines = [l for l in env_content.split('\n') if l.startswith(var)]
@@ -84,28 +84,28 @@ def check_env_file():
                     if len(value) < 32:
                         print_warning(f"{var} is too short (< 32 chars)")
                         weak.append(var)
-    
+
     if missing:
         print_error(f"Missing variables: {', '.join(missing)}")
         return False
-    
+
     if weak:
         print_warning(f"Weak/placeholder variables: {', '.join(weak)}")
         print_info("Run: python generate_secrets.py")
         return False
-    
+
     print_success("All required environment variables present and valid")
     return True
 
 def check_backend_health():
     """Check if backend is running and healthy."""
     print_header("2. Backend Health Check")
-    
+
     try:
         req = urllib.request.Request('http://localhost:5001/api/health')
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
-            
+
             if data.get('status') == 'healthy':
                 print_success("Backend is healthy")
                 print_info(f"  Version: {data.get('version', 'unknown')}")
@@ -114,7 +114,7 @@ def check_backend_health():
             else:
                 print_error(f"Backend unhealthy: {data}")
                 return False
-                
+
     except Exception as e:
         print_error(f"Backend not accessible: {e}")
         print_info("Start backend: cd Backend && python main.py")
@@ -123,30 +123,30 @@ def check_backend_health():
 def check_frontend_build():
     """Check if frontend build exists and is recent."""
     print_header("3. Frontend Build Check")
-    
+
     # Project root is two levels up from scripts/ (Backend/scripts/ -> Backend/ -> Project root)
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     dist_path = os.path.join(project_root, 'dist')
-    
+
     if not os.path.exists(dist_path):
         print_error("Frontend build not found")
         print_info("Run: npm run build")
         return False
-    
+
     print_success("Frontend build exists")
-    
+
     # Check build timestamp
     index_path = os.path.join(dist_path, 'index.html')
     if os.path.exists(index_path):
         mtime = os.path.getmtime(index_path)
         build_age = (datetime.now().timestamp() - mtime) / 3600  # hours
-        
+
         if build_age < 24:
             print_success(f"Build is recent ({build_age:.1f} hours old)")
         else:
             print_warning(f"Build is {build_age:.1f} hours old")
             print_info("Consider rebuilding: npm run build")
-    
+
     # Check bundle size
     try:
         import glob
@@ -159,26 +159,26 @@ def check_frontend_build():
                 print_warning(f"Bundle size large: {total_size:.1f} KB (target < 250KB)")
     except:
         pass
-    
+
     return True
 
 def check_ssl_certificate():
     """Check if SSL certificate is configured."""
     print_header("4. SSL/HTTPS Check")
-    
+
     # Check if nginx config exists
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     nginx_config = os.path.join(project_root, 'infra', 'nginx', 'nginx-production.conf')
-    
+
     if not os.path.exists(nginx_config):
         print_error("infra/nginx/nginx-production.conf not found")
         return False
-    
+
     print_success("Nginx production config exists")
-    
+
     # Try to check if HTTPS is working (only if domain configured)
     domain = os.getenv('DOMAIN', '').strip()
-    
+
     if domain and domain != 'localhost':
         try:
             req = urllib.request.Request(f'https://{domain}/api/health')
@@ -197,12 +197,12 @@ def check_ssl_certificate():
 def check_monitoring():
     """Check if monitoring is configured."""
     print_header("5. Monitoring Configuration Check")
-    
+
     sentry_dsn = os.getenv('SENTRY_DSN', '').strip()
-    
+
     if sentry_dsn and sentry_dsn != '' and 'your-' not in sentry_dsn:
         print_success("Sentry DSN configured")
-        
+
         # Try to verify Sentry is working
         try:
             import sentry_sdk
@@ -222,11 +222,11 @@ def check_monitoring():
 def check_load_test():
     """Check if load test has been run."""
     print_header("6. Load Test Status")
-    
+
     # Check if Locust is installed
     try:
-        subprocess.run(['locust', '--version'], 
-                      capture_output=True, 
+        subprocess.run(['locust', '--version'],
+                      capture_output=True,
                       check=True,
                       timeout=5)
         print_success("Locust installed")
@@ -234,22 +234,22 @@ def check_load_test():
         print_error("Locust not installed")
         print_info("Run: pip install locust")
         return False
-    
+
     # Check for recent test results
     import glob
     reports = glob.glob(os.path.join(os.path.dirname(__file__), 'load_test_report_*.html'))
-    
+
     if reports:
         latest = max(reports, key=os.path.getmtime)
         age = (datetime.now().timestamp() - os.path.getmtime(latest)) / 3600
-        
+
         if age < 24:
             print_success(f"Load test report found ({age:.1f} hours old)")
             print_info(f"Report: {os.path.basename(latest)}")
         else:
             print_warning(f"Load test report is {age:.1f} hours old")
             print_info("Run: python run_load_test.py")
-        
+
         return True
     else:
         print_warning("No load test reports found")
@@ -259,35 +259,35 @@ def check_load_test():
 def check_backups():
     """Check if backup system has been tested."""
     print_header("7. Backup System Check")
-    
+
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     backup_script = os.path.join(backend_dir, 'scripts', 'backup_firestore.py')
-    
+
     if not os.path.exists(backup_script):
         print_error("Backup script not found")
         return False
-    
+
     print_success("Backup script exists")
-    
+
     # Check for recent backups
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     backup_dir = os.path.join(backend_dir, 'backups')
-    
+
     if os.path.exists(backup_dir):
         backups = os.listdir(backup_dir)
         if backups:
             print_success(f"Found {len(backups)} backup files")
-            
+
             # Check age of most recent backup
-            latest = max([os.path.join(backup_dir, f) for f in backups], 
+            latest = max([os.path.join(backup_dir, f) for f in backups],
                         key=os.path.getmtime)
             age = (datetime.now().timestamp() - os.path.getmtime(latest)) / 3600
-            
+
             if age < 24:
                 print_success(f"Recent backup found ({age:.1f} hours old)")
             else:
                 print_warning(f"Latest backup is {age:.1f} hours old")
-            
+
             return True
         else:
             print_warning("No backup files found")
@@ -301,22 +301,22 @@ def check_backups():
 def check_security():
     """Run basic security checks."""
     print_header("8. Security Check")
-    
+
     checks_passed = 0
     total_checks = 4
-    
+
     # Check if .env is in gitignore
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     gitignore_path = os.path.join(project_root, '.gitignore')
     if os.path.exists(gitignore_path):
-        with open(gitignore_path, 'r') as f:
+        with open(gitignore_path) as f:
             content = f.read()
             if '.env' in content:
                 print_success(".env in .gitignore")
                 checks_passed += 1
             else:
                 print_error(".env not in .gitignore - SECURITY RISK!")
-    
+
     # Check if secrets_backup should be deleted
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     secrets_backup = os.path.join(backend_dir, 'secrets_backup')
@@ -326,19 +326,19 @@ def check_security():
     else:
         print_success("secrets_backup/ cleaned up")
         checks_passed += 1
-    
+
     # Check JWT secret strength
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     env_path = os.path.join(backend_dir, '.env')
     if os.path.exists(env_path):
-        with open(env_path, 'r') as f:
+        with open(env_path) as f:
             content = f.read()
             if 'dev-secret-key' in content or 'change-in-production' in content:
                 print_error("Default secrets detected - MUST CHANGE!")
             else:
                 print_success("Custom secrets in use")
                 checks_passed += 1
-    
+
     # Check CORS configuration
     if 'CORS_ORIGINS' in os.environ or 'CORS_ALLOWED_ORIGINS' in os.environ:
         cors = os.getenv('CORS_ORIGINS', os.getenv('CORS_ALLOWED_ORIGINS', ''))
@@ -348,7 +348,7 @@ def check_security():
         else:
             print_success("CORS configured for production")
             checks_passed += 1
-    
+
     return checks_passed >= 3
 
 def main():
@@ -358,7 +358,7 @@ def main():
     print(f"{Colors.BOLD}{'Lugn & Trygg - Pre-Launch Validation':^70}{Colors.ENDC}")
     print(f"{Colors.BOLD}{'*':^70}{Colors.ENDC}")
     print(f"{Colors.BOLD}{'*'*70}{Colors.ENDC}")
-    
+
     checks = [
         ("Environment", check_env_file),
         ("Backend", check_backend_health),
@@ -369,33 +369,33 @@ def main():
         ("Backups", check_backups),
         ("Security", check_security),
     ]
-    
+
     results = {}
-    
+
     for name, check_func in checks:
         try:
             results[name] = check_func()
         except Exception as e:
             print_error(f"Check failed with error: {e}")
             results[name] = False
-    
+
     # Summary
     print_header("Summary")
-    
+
     passed = sum(results.values())
     total = len(results)
     percentage = (passed / total) * 100
-    
+
     print(f"\nChecks Passed: {passed}/{total} ({percentage:.1f}%)\n")
-    
+
     for name, result in results.items():
         if result:
             print_success(f"{name}: PASS")
         else:
             print_error(f"{name}: FAIL")
-    
+
     print("\n" + "="*70 + "\n")
-    
+
     if passed == total:
         print(f"{Colors.OKGREEN}{Colors.BOLD}✅ ALL CHECKS PASSED - READY FOR LAUNCH!{Colors.ENDC}\n")
         return 0

@@ -3,22 +3,22 @@ Lugn & Trygg - Mental Health Platform Backend
 Production-ready Flask application with comprehensive security and monitoring
 """
 
+import logging
 import os
 import sys
-from typing import Any, Dict
-from flask import Flask, request, jsonify, g
+from datetime import UTC, datetime
+from typing import Any
+
+from dotenv import load_dotenv
+from flask import Flask, g, jsonify, request
+
 # NOTE: flask_cors removed - we handle CORS manually for full control over allowed headers
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_jwt_extended import JWTManager  # kept for test compatibility (not used at runtime)
-from dotenv import load_dotenv
-import logging
-from datetime import datetime, UTC
-
-from src.utils.hf_cache import configure_hf_cache
 
 # Initialize Sentry for production error tracking (must be before Flask app creation)
 from src.monitoring.sentry_config import init_sentry
+from src.utils.hf_cache import configure_hf_cache
 
 # Add Backend directory to sys.path to enable imports from src
 backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -34,10 +34,9 @@ try:
     from src.config.settings import get_settings
     settings = get_settings()
     USE_PYDANTIC_SETTINGS = True
-except Exception as e:
+except Exception:
     # Fallback to old config if pydantic-settings fails
     USE_PYDANTIC_SETTINGS = False
-    from src.config import config as old_config
     logger = logging.getLogger(__name__)
 
 # Configure structured logging (2026 standard)
@@ -45,8 +44,9 @@ USE_STRUCTURED_LOGGING = os.getenv('USE_STRUCTURED_LOGGING', 'true').lower() == 
 
 if USE_STRUCTURED_LOGGING:
     try:
-        from src.utils.structured_logging import JSONFormatter, get_logger
         import logging
+
+        from src.utils.structured_logging import JSONFormatter, get_logger
         root_logger = logging.getLogger()
         root_logger.handlers.clear()
         handler = logging.StreamHandler(sys.stdout)
@@ -54,7 +54,7 @@ if USE_STRUCTURED_LOGGING:
         root_logger.addHandler(handler)
         root_logger.setLevel(logging.INFO)
         logger = get_logger(__name__)
-    except Exception as e:
+    except Exception:
         # Fallback to standard logging
         logging.basicConfig(
             level=logging.INFO,
@@ -189,7 +189,7 @@ def _handle_cors_preflight():
         from flask import Response
         response = Response('', status=204)
         origin = request.headers.get('Origin', '')
-        
+
         if is_origin_allowed(origin):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
@@ -198,23 +198,23 @@ def _handle_cors_preflight():
             response.headers['Access-Control-Max-Age'] = '86400'
         else:
             logger.warning(f"CORS preflight rejected - Origin not allowed: {origin}")
-        
+
         return response
     return None
 
 def _add_cors_to_response(response):
     """Add CORS headers to ALL responses (runs LAST in after_request chain)"""
     origin = request.headers.get('Origin', '')
-    
+
     origin_allowed = is_origin_allowed(origin)
-    
+
     if origin_allowed:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = CORS_ALLOWED_HEADERS
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = '86400'
-    
+
     return response
 
 # NOTE: Removed CORS(app, ...) - we handle CORS manually above to ensure X-CSRF-Token is allowed
@@ -248,64 +248,59 @@ try:
     # Core services
     from src.config import config
     from src.firebase_config import initialize_firebase
-    from src.services.rate_limiting import rate_limit_by_endpoint
-    from src.services.api_key_rotation import start_key_rotation
-    from src.services.backup_service import backup_service
-    from src.services.monitoring_service import monitoring_service
+    from src.middleware.csrf_middleware import init_csrf_middleware
 
     # Middleware
     from src.middleware.security_headers import init_security_headers
-    from src.middleware.csrf_middleware import init_csrf_middleware
     from src.middleware.validation import init_validation_middleware
-    from src.utils.input_sanitization import sanitize_request
-    # sql_injection_protection removed - not used in main.py (Firestore is NoSQL)
 
+    # sql_injection_protection removed - not used in main.py (Firestore is NoSQL)
     # Routes
     from src.routes.admin_routes import admin_bp
-    from src.routes.auth_routes import auth_bp
-    from src.routes.mood_routes import mood_bp
-    from src.routes.mood_stats_routes import mood_stats_bp
-    from src.routes.mood_analytics_routes import mood_analytics_bp
-    from src.routes.memory_routes import memory_bp
-    from src.routes.multimedia_memory_routes import multimedia_memory_bp
-    from src.routes.memory_analysis_routes import memory_analysis_bp
-    from src.routes.ai_routes import ai_bp
+    from src.routes.advanced_mood_routes import advanced_mood_bp
     from src.routes.ai_helpers_routes import ai_helpers_bp
-    from src.routes.chatbot_routes import chatbot_bp
-    from src.routes.feedback_routes import feedback_bp
-    from src.routes.notifications_routes import notifications_bp
-    from src.routes.referral_routes import referral_bp
-    from src.routes.users_routes import users_bp
-    from src.routes.integration_routes import integration_bp
-    from src.routes.subscription_routes import subscription_bp
-    from src.routes.docs_routes import docs_bp
-    from src.routes.metrics_routes import metrics_bp
-    from src.routes.security_routes import security_bp
-    from src.routes.predictive_routes import predictive_bp
-    from src.routes.rate_limit_routes import rate_limit_bp
-    from src.routes.dashboard_routes import dashboard_bp
-    from src.routes.onboarding_routes import onboarding_bp
-    from src.routes.privacy_routes import privacy_bp
-    from src.routes.health_routes import health_bp
-    from src.routes.journal_routes import journal_bp
-    from src.routes.challenges_routes import challenges_bp, init_challenges_defaults
-    from src.routes.rewards_routes import rewards_bp
+    from src.routes.ai_music_routes import ai_music_bp
+    from src.routes.ai_routes import ai_bp
     from src.routes.audio_routes import audio_bp
-    from src.routes.peer_chat_routes import peer_chat_bp
-    from src.routes.leaderboard_routes import leaderboard_bp
-    from src.routes.voice_routes import voice_bp
-    from src.routes.sync_history_routes import sync_history_bp
+    from src.routes.auth_routes import auth_bp
+    from src.routes.biofeedback_ws_routes import biofeedback_ws_bp
     from src.routes.cbt_routes import cbt_bp
+    from src.routes.challenges_routes import challenges_bp, init_challenges_defaults
+    from src.routes.chatbot_routes import chatbot_bp
     from src.routes.consent_routes import consent_bp
     from src.routes.crisis_routes import crisis_bp
-    from src.routes.advanced_mood_routes import advanced_mood_bp
-    from src.routes.biofeedback_ws_routes import biofeedback_ws_bp, register_biofeedback_websocket_handlers
-    from src.routes.ai_music_routes import ai_music_bp
+    from src.routes.dashboard_routes import dashboard_bp
+    from src.routes.docs_routes import docs_bp
+    from src.routes.feedback_routes import feedback_bp
+    from src.routes.health_routes import health_bp
     from src.routes.insights_routes import insights_bp
+    from src.routes.integration_routes import integration_bp
+    from src.routes.journal_routes import journal_bp
+    from src.routes.leaderboard_routes import leaderboard_bp
+    from src.routes.memory_analysis_routes import memory_analysis_bp
+    from src.routes.memory_routes import memory_bp
+    from src.routes.metrics_routes import metrics_bp
+    from src.routes.mood_analytics_routes import mood_analytics_bp
+    from src.routes.mood_routes import mood_bp
+    from src.routes.mood_stats_routes import mood_stats_bp
+    from src.routes.multimedia_memory_routes import multimedia_memory_bp
+    from src.routes.notifications_routes import notifications_bp
+    from src.routes.onboarding_routes import onboarding_bp
+    from src.routes.peer_chat_routes import peer_chat_bp
+    from src.routes.predictive_routes import predictive_bp
+    from src.routes.privacy_routes import privacy_bp
+    from src.routes.rate_limit_routes import rate_limit_bp
+    from src.routes.referral_routes import referral_bp
+    from src.routes.rewards_routes import rewards_bp
+    from src.routes.security_routes import security_bp
+    from src.routes.subscription_routes import subscription_bp
+    from src.routes.sync_history_routes import sync_history_bp
+    from src.routes.users_routes import users_bp
+    from src.routes.voice_routes import voice_bp
 
     # Initialize Firebase
     initialize_firebase()
-    
+
     # Initialize monitoring service
     try:
         from src.services.monitoring_service import init_monitoring_service
@@ -341,10 +336,10 @@ try:
     csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
     app.extensions['csrf_middleware'] = csrf_middleware
     logger.info("✅ CSRF middleware registered with strict double-submit validation")
-    
+
     # 2026-Compliant: Setup correlation IDs for distributed tracing
     try:
-        from src.middleware.correlation import setup_correlation_ids, add_correlation_headers
+        from src.middleware.correlation import add_correlation_headers, setup_correlation_ids
         app.before_request(setup_correlation_ids)
         logger.info("✅ Correlation ID middleware registered (2026 standard)")
     except Exception as e:
@@ -369,19 +364,19 @@ try:
         return None
 
     app.before_request(_check_db_available)
-    
+
     # CRITICAL: Register CORS handlers AFTER all other middleware
     # This ensures CORS headers are the LAST thing set on responses
     app.before_request(_handle_cors_preflight)
     app.after_request(_add_cors_to_response)
-    
+
     # 2026-Compliant: Add correlation headers to responses
     try:
         from src.middleware.correlation import add_correlation_headers
         app.after_request(add_correlation_headers)
     except Exception:
         pass
-    
+
     logger.info("✅ CORS handlers registered (will run last in after_request chain)")
 
     # 2026-Compliant: Register blueprints with API versioning
@@ -680,10 +675,10 @@ try:
         # Skip processing for OPTIONS (handled by handle_preflight) and static files
         if request.method == 'OPTIONS':
             return  # Already handled by handle_preflight
-        
+
         if request.path.startswith('/static/') or request.path in ['/health', '/favicon.ico']:
             return  # Skip logging for static/health endpoints
-        
+
         # 2026-Compliant: Use correlation IDs from middleware
         g.request_start_time = datetime.now(UTC)
         if not hasattr(g, 'request_id'):
@@ -722,7 +717,7 @@ try:
     @app.route('/health')
     def health_check():
         """Health check endpoint - no versioning for compatibility"""
-        health_data: Dict[str, Any] = {
+        health_data: dict[str, Any] = {
             'status': 'healthy',
             'timestamp': datetime.now(UTC).isoformat(),
             'version': '2.0.0',
@@ -754,13 +749,13 @@ try:
                 health_data['redis'] = 'unavailable'
         except Exception:
             health_data['redis'] = 'unavailable'
-        
+
         # Add correlation IDs if available
         if hasattr(g, 'request_id'):
             health_data['request_id'] = g.request_id
         if hasattr(g, 'trace_id'):
             health_data['trace_id'] = g.trace_id
-        
+
         return jsonify(health_data)
 
     # Root endpoint (2026 compliant)
@@ -800,7 +795,7 @@ try:
         from flask import Response
         response = Response('', status=204)
         origin = request.headers.get('Origin', '')
-        
+
         # Allow origins based on environment (localhost only in non-production)
         if is_origin_allowed(origin):
             response.headers['Access-Control-Allow-Origin'] = origin
@@ -811,7 +806,7 @@ try:
             logger.info(f"✅ OPTIONS preflight handled for {request.path} - Headers: {CORS_ALLOWED_HEADERS}")
         else:
             logger.warning(f"⚠️ OPTIONS preflight rejected - Origin not allowed: {origin}")
-        
+
         return response
 
     # Error handlers
@@ -897,7 +892,7 @@ try:
     logger.info("🚀 Lugn & Trygg backend started successfully")
     logger.info(f"📊 Environment: {os.getenv('FLASK_ENV', 'development')}")
     logger.info(f"🔗 CORS Origins: {_get_cors_origins_list()}")
-    logger.info(f"📚 API Documentation: /api/docs")
+    logger.info("📚 API Documentation: /api/docs")
 
 except Exception as e:
     logger.error(f"❌ Failed to initialize application: {e}")

@@ -3,8 +3,9 @@ OpenAPI/Swagger Documentation Generator for Lugn-Trygg Backend API
 Generates comprehensive API documentation with examples
 """
 
+from typing import Any
+
 from fastapi import FastAPI
-from typing import Dict, List, Any
 
 # API Metadata
 API_METADATA = {
@@ -317,24 +318,24 @@ REQUEST_EXAMPLES = {
     }
 }
 
-def generate_openapi_spec(app: FastAPI) -> Dict[str, Any]:
+def generate_openapi_spec(app: FastAPI) -> dict[str, Any]:
     """
     Generate comprehensive OpenAPI specification
     """
     spec = app.openapi()
-    
+
     # Add custom metadata
     spec.update(API_METADATA)
     spec["tags"] = TAGS_METADATA
-    
+
     # Add security schemes
     if "components" not in spec:
         spec["components"] = {}
     spec["components"]["securitySchemes"] = SECURITY_SCHEMES
-    
+
     # Add global security requirement
     spec["security"] = [{"bearerAuth": []}]
-    
+
     return spec
 
 
@@ -454,7 +455,7 @@ if __name__ == "__main__":
     print("OpenAPI Documentation Generator for Lugn-Trygg API")
     print("=" * 60)
     print(f"API Version: {API_METADATA['version']}")
-    print(f"Total Endpoints: 50+")
+    print("Total Endpoints: 50+")
     print(f"Tags: {len(TAGS_METADATA)}")
     print("\nTo generate full docs, add to main.py:")
     print("  from openapi_docs import generate_openapi_spec")

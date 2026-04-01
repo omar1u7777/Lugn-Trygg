@@ -3,9 +3,9 @@ Tests for security_routes.py
 Covers: key rotation status, tamper events, security monitoring metrics.
 All endpoints require admin role.
 """
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 BASE = "/api/v1/security"
 

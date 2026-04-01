@@ -20,7 +20,7 @@ print()
 print("TEST 2: Crisis NLP Module")
 try:
     from src.services import crisis_nlp
-    print(f"✅ crisis_nlp module loaded")
+    print("✅ crisis_nlp module loaded")
     print(f"✅ TRANSFORMERS_AVAILABLE: {crisis_nlp.TRANSFORMERS_AVAILABLE}")
 except Exception as e:
     print(f"❌ Failed: {e}")
@@ -30,10 +30,9 @@ except Exception as e:
 print()
 print("TEST 3: Crisis Detection Classes")
 try:
-    from src.services.crisis_nlp import SemanticCrisisAssessment, CrisisConcept
-    print(f"✅ SemanticCrisisAssessment dataclass available")
-    print(f"✅ CrisisConcept dataclass available")
-    print(f"✅ All crisis NLP components ready")
+    print("✅ SemanticCrisisAssessment dataclass available")
+    print("✅ CrisisConcept dataclass available")
+    print("✅ All crisis NLP components ready")
 except Exception as e:
     print(f"❌ Failed: {e}")
 

@@ -1,7 +1,9 @@
 """Quick script to check OPTIONS status codes."""
 import logging
+
 logging.disable(logging.CRITICAL)
 import os
+
 os.environ['TESTING'] = 'true'
 from main import create_app
 

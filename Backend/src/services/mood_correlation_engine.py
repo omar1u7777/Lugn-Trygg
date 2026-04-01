@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple
+from datetime import datetime
+from typing import Any
 
 import numpy as np
 from scipy import stats
@@ -24,18 +24,18 @@ class MoodCorrelationEngine:
     Uses Pearson correlation coefficient for statistical accuracy.
     Implements minimum sample size requirements for clinical validity.
     """
-    
+
     MIN_SAMPLE_SIZE = 5  # Minimum entries needed for correlation analysis
     SIGNIFICANCE_THRESHOLD = 0.05  # p-value threshold (95% confidence)
-    
+
     def __init__(self):
         self.logger = logger
-    
+
     def analyze_tag_correlations(
-        self, 
-        mood_entries: List[Dict[str, Any]],
+        self,
+        mood_entries: list[dict[str, Any]],
         min_occurrences: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze correlation between tags and mood scores.
         
@@ -53,17 +53,17 @@ class MoodCorrelationEngine:
                 'total_entries': len(mood_entries),
                 'correlations': []
             }
-        
+
         # Extract tag occurrences and mood scores
         tag_mood_map = self._build_tag_mood_map(mood_entries)
-        
+
         # Filter tags by minimum occurrences
         filtered_tags = {
-            tag: scores 
-            for tag, scores in tag_mood_map.items() 
+            tag: scores
+            for tag, scores in tag_mood_map.items()
             if len(scores) >= min_occurrences
         }
-        
+
         if not filtered_tags:
             return {
                 'status': 'no_tags',
@@ -71,12 +71,12 @@ class MoodCorrelationEngine:
                 'total_entries': len(mood_entries),
                 'correlations': []
             }
-        
+
         # Calculate correlations for each tag
         correlations = []
         all_scores = [entry.get('score', 5) for entry in mood_entries]
         baseline_mean = np.mean(all_scores)
-        
+
         for tag, scores_with_tag in filtered_tags.items():
             correlation_result = self._calculate_tag_correlation(
                 tag=tag,
@@ -86,13 +86,13 @@ class MoodCorrelationEngine:
             )
             if correlation_result:
                 correlations.append(correlation_result)
-        
+
         # Sort by impact (absolute percentage change)
         correlations.sort(key=lambda x: abs(x['impact_percentage']), reverse=True)
-        
+
         # Generate insights
         insights = self._generate_insights(correlations, baseline_mean)
-        
+
         return {
             'status': 'success',
             'total_entries': len(mood_entries),
@@ -102,37 +102,37 @@ class MoodCorrelationEngine:
             'insights': insights,
             'analysis_period': self._get_analysis_period(mood_entries)
         }
-    
+
     def _build_tag_mood_map(
-        self, 
-        mood_entries: List[Dict[str, Any]]
-    ) -> Dict[str, List[float]]:
+        self,
+        mood_entries: list[dict[str, Any]]
+    ) -> dict[str, list[float]]:
         """Build mapping of tags to mood scores."""
         tag_mood_map = defaultdict(list)
-        
+
         for entry in mood_entries:
             score = entry.get('score')
             tags = entry.get('tags', [])
-            
+
             if score is None or not isinstance(score, (int, float)):
                 continue
-            
+
             if not isinstance(tags, list):
                 continue
-            
+
             for tag in tags:
                 if isinstance(tag, str) and tag.strip():
                     tag_mood_map[tag.strip().lower()].append(float(score))
-        
+
         return dict(tag_mood_map)
-    
+
     def _calculate_tag_correlation(
         self,
         tag: str,
-        scores_with_tag: List[float],
-        all_scores: List[float],
+        scores_with_tag: list[float],
+        all_scores: list[float],
         baseline_mean: float
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """
         Calculate statistical correlation for a single tag.
         
@@ -142,25 +142,25 @@ class MoodCorrelationEngine:
             # Calculate mean mood when tag is present
             tag_mean = np.mean(scores_with_tag)
             tag_std = np.std(scores_with_tag)
-            
+
             # Calculate impact (difference from baseline)
             impact = tag_mean - baseline_mean
             impact_percentage = (impact / baseline_mean) * 100 if baseline_mean > 0 else 0
-            
+
             # Perform t-test to check if difference is statistically significant
             # Compare scores with tag vs all scores
             if len(scores_with_tag) >= 2:
                 t_stat, p_value = stats.ttest_ind(scores_with_tag, all_scores)
             else:
                 t_stat, p_value = 0, 1.0
-            
+
             # Determine significance
             is_significant = p_value < self.SIGNIFICANCE_THRESHOLD
-            
+
             # Calculate effect size (Cohen's d)
             pooled_std = np.std(all_scores)
             cohens_d = impact / pooled_std if pooled_std > 0 else 0
-            
+
             # Determine impact level
             if abs(impact_percentage) >= 15:
                 impact_level = 'high'
@@ -168,7 +168,7 @@ class MoodCorrelationEngine:
                 impact_level = 'medium'
             else:
                 impact_level = 'low'
-            
+
             return {
                 'tag': tag,
                 'occurrences': len(scores_with_tag),
@@ -186,14 +186,14 @@ class MoodCorrelationEngine:
         except Exception as e:
             self.logger.warning(f"Failed to calculate correlation for tag '{tag}': {e}")
             return None
-    
+
     def _calculate_confidence(self, sample_size: int, p_value: float) -> float:
         """
         Calculate confidence score (0-1) based on sample size and statistical significance.
         """
         # Base confidence on sample size
         size_confidence = min(sample_size / 20, 1.0)  # Max at 20+ samples
-        
+
         # Adjust by statistical significance
         if p_value < 0.01:
             sig_confidence = 1.0
@@ -203,22 +203,22 @@ class MoodCorrelationEngine:
             sig_confidence = 0.6
         else:
             sig_confidence = 0.4
-        
+
         # Weighted average
         confidence = (size_confidence * 0.4) + (sig_confidence * 0.6)
         return round(confidence, 2)
-    
+
     def _generate_insights(
-        self, 
-        correlations: List[Dict[str, Any]], 
+        self,
+        correlations: list[dict[str, Any]],
         baseline_mean: float
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Generate human-readable insights from correlation data."""
         insights = []
-        
+
         if not correlations:
             return insights
-        
+
         # Find most positive impact
         positive_correlations = [c for c in correlations if c['impact'] > 0 and c['is_significant']]
         if positive_correlations:
@@ -235,7 +235,7 @@ class MoodCorrelationEngine:
                 'confidence': top_positive['confidence'],
                 'actionable': True
             })
-        
+
         # Find most negative impact
         negative_correlations = [c for c in correlations if c['impact'] < 0 and c['is_significant']]
         if negative_correlations:
@@ -251,7 +251,7 @@ class MoodCorrelationEngine:
                 'confidence': top_negative['confidence'],
                 'actionable': True
             })
-        
+
         # Find high-frequency tags
         high_freq_tags = [c for c in correlations if c['occurrences'] >= 10]
         if high_freq_tags:
@@ -267,14 +267,14 @@ class MoodCorrelationEngine:
                 'confidence': tag['confidence'],
                 'actionable': False
             })
-        
+
         return insights
-    
-    def _get_analysis_period(self, mood_entries: List[Dict[str, Any]]) -> Dict[str, str]:
+
+    def _get_analysis_period(self, mood_entries: list[dict[str, Any]]) -> dict[str, str]:
         """Get the time period covered by the analysis."""
         if not mood_entries:
             return {'start': None, 'end': None, 'days': 0}
-        
+
         timestamps = []
         for entry in mood_entries:
             ts = entry.get('timestamp')
@@ -285,14 +285,14 @@ class MoodCorrelationEngine:
                     timestamps.append(datetime.fromisoformat(ts.replace('Z', '+00:00')))
                 except Exception:
                     continue
-        
+
         if not timestamps:
             return {'start': None, 'end': None, 'days': 0}
-        
+
         start = min(timestamps)
         end = max(timestamps)
         days = (end - start).days + 1
-        
+
         return {
             'start': start.isoformat(),
             'end': end.isoformat(),

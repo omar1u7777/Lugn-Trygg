@@ -1,10 +1,10 @@
 """
 Unit tests for AuthService (isolated, mocks only)
 """
-import pytest
-import json
 import base64
-from datetime import datetime, timezone
+import json
+
+import pytest
 from flask import Flask
 
 import src.services.auth_service as auth_mod
@@ -123,7 +123,7 @@ def test_register_user_email_exists(monkeypatch):
 def test_login_user_success(monkeypatch):
     def fake_post(url, json=None, timeout=None):
         return FakeResponse(200, {
-            'idToken': 'id-123', 
+            'idToken': 'id-123',
             'refreshToken': 'rt-123',
             'localId': 'uid-123',
             'email': 'a@b.com'
@@ -179,10 +179,10 @@ def test_verify_token_special_cases():
     uid, err = AuthService.verify_token('mock-access-token')
     # Accept either success or failure based on implementation
     assert uid is not None or err is not None
-    
+
     uid2, err2 = AuthService.verify_token('test-token')
     assert uid2 is not None or err2 is not None
-    
+
     # Clearly invalid token
     bad_uid, bad_err = AuthService.verify_token('this-is-not-a-token')
     assert bad_uid is None
@@ -207,13 +207,13 @@ def test_jwt_required_decorator():
         return 'ok'
 
     client = app.test_client()
-    
+
     # Generate a real valid token
     valid_token = AuthService.generate_access_token(test_uid)
     resp = client.get('/test', headers={'Authorization': f'Bearer {valid_token}'})
     # Should succeed with valid token
     assert resp.status_code == 200
-    
+
     # Without auth header - may return 401 or 200 depending on test env patches
     resp2 = client.get('/test')
     # In test environment with mock db, the decorator may pass through

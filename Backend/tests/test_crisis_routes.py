@@ -2,10 +2,9 @@
 Tests for crisis_routes.py
 Covers: crisis assessment, safety plans, protocols, history, indicators, escalation.
 """
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 BASE = "/api/v1/crisis"
 

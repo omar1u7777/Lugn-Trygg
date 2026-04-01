@@ -1,11 +1,12 @@
+import base64
 import os
 import sys
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from types import SimpleNamespace
-from datetime import datetime, timezone, timedelta
-import base64
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 # Lägg till projektets rot till sys.path för korrekta importer
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))  # Backend
@@ -20,19 +21,19 @@ def client(app):
 def mock_firestore(mocker):
     """Mockar Firestore för mood routes."""
     mock_db = Mock()
-    
+
     # Mock user document
     mock_user_doc = Mock()
     mock_user_doc.exists = True
     mock_user_doc.to_dict.return_value = {"email": "test@example.com"}
-    
+
     # Mock moods collection with add() method
     mock_moods_ref = Mock()
     mock_doc_ref = Mock()
     mock_doc_ref.id = 'mock-mood-id'
     # add() returns tuple (timestamp, DocumentReference) in some versions
     mock_moods_ref.add.return_value = (None, mock_doc_ref)
-    
+
     # Create mock mood documents with proper to_dict() methods
     mock_mood1 = Mock()
     mock_mood1.id = 'mood1'
@@ -42,7 +43,7 @@ def mock_firestore(mocker):
         "sentiment": "POSITIVE",
         "score": 0.8
     })
-    
+
     mock_mood2 = Mock()
     mock_mood2.id = 'mood2'
     mock_mood2.to_dict = Mock(return_value={
@@ -51,20 +52,20 @@ def mock_firestore(mocker):
         "sentiment": "NEGATIVE",
         "score": -0.5
     })
-    
+
     # Mock query chain: order_by().limit().stream()
     mock_query = Mock()
     mock_query.stream.return_value = [mock_mood1, mock_mood2]
     mock_order_by = Mock()
     mock_order_by.limit.return_value = mock_query
     mock_moods_ref.order_by.return_value = mock_order_by
-    
+
     # Setup document/collection chain
     mock_user_collection = Mock()
     mock_user_collection.document.return_value.get.return_value = mock_user_doc
     mock_user_collection.document.return_value.collection.return_value = mock_moods_ref
     mock_db.collection.return_value = mock_user_collection
-    
+
     mocker.patch('src.firebase_config.db', mock_db)
     return mock_db
 
@@ -237,12 +238,12 @@ def test_log_mood_with_sentiment_analysis(client, mock_firestore, mocker, auth_c
         "emotions": ["joy", "happiness"]
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
-    
+
     response = client.post("/api/mood/log", json={
         "mood_text": "Idag var en fantastisk dag!",
         "timestamp": "2024-01-15T10:00:00Z"
     }, headers=auth_csrf_headers)
-    
+
     assert response.status_code == 201
     data = response.get_json()
     assert data['success'] is True
@@ -261,16 +262,16 @@ def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_csr
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
     mocker.patch('src.utils.speech_utils.transcribe_audio_google', return_value="Jag är ledsen")
-    
+
     # Create fake audio data
     audio_b64 = base64.b64encode(b'fake audio data').decode('utf-8')
-    
+
     response = client.post("/api/mood/log", json={
         "mood_text": "",
         "voice_data": f"data:audio/wav;base64,{audio_b64}",
         "timestamp": "2024-01-15T10:00:00Z"
     }, headers=auth_csrf_headers)
-    
+
     assert response.status_code == 201
 
 
@@ -291,11 +292,11 @@ def test_weekly_analysis_different_locales(client, mock_firestore, mocker, auth_
         "ai_generated": True
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
-    
+
     # Test Swedish locale
     response = client.get("/api/mood/weekly-analysis?locale=sv", headers=auth_csrf_headers)
     assert response.status_code == 200
-    
+
     # Test English locale
     response = client.get("/api/mood/weekly-analysis?locale=en", headers=auth_csrf_headers)
     assert response.status_code == 200
@@ -310,10 +311,10 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_c
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
     mocker.patch('src.utils.speech_utils.transcribe_audio_google', return_value="Glad idag")
-    
+
     # Create fake audio file
     audio_data = BytesIO(b'fake audio content')
-    
+
     response = client.post("/api/mood/log",
         headers=auth_csrf_headers,
         content_type='multipart/form-data',
@@ -323,7 +324,7 @@ def test_log_mood_with_multipart_formdata(client, mock_firestore, mocker, auth_c
             'timestamp': '2024-01-15T10:00:00Z'
         }
     )
-    
+
     assert response.status_code == 200
     data = response.get_json()
     assert data['success'] is True
@@ -340,7 +341,7 @@ def test_recommendations_with_mood_data(client, mock_firestore, mocker, auth_csr
         "personalized": True
     }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
-    
+
     response = client.get("/api/mood/recommendations", headers=auth_csrf_headers)
     assert response.status_code == 200
     data = response.get_json()
@@ -421,7 +422,7 @@ def test_update_mood_recalculates_sentiment(client, mocker, auth_csrf_headers, m
 
 def test_mood_streaks_reports_consecutive_days(client, mocker, auth_csrf_headers, mock_auth_service):
     """GET /api/mood/streaks should calculate streaks from stored timestamps"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamps = [
         now.isoformat(),
         (now - timedelta(days=1)).isoformat(),
