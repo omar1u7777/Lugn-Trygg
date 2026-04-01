@@ -187,7 +187,7 @@ class TherapeuticFrameworkDetector:
     def detect_framework(self, message: str) -> tuple[TherapeuticFramework, float]:
         """
         Detect the primary therapeutic framework used in a message
-        
+
         Returns:
             Tuple of (framework, confidence_score)
         """
@@ -202,7 +202,7 @@ class TherapeuticFrameworkDetector:
         # Check CBT patterns
         cbt_score = 0.0
         cbt_matches = 0
-        for technique, patterns in self.cbt_patterns.items():
+        for _technique, patterns in self.cbt_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, message_lower, re.IGNORECASE):
                     cbt_score += 0.3
@@ -212,7 +212,7 @@ class TherapeuticFrameworkDetector:
         # Check ACT patterns
         act_score = 0.0
         act_matches = 0
-        for technique, patterns in self.act_patterns.items():
+        for _technique, patterns in self.act_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, message_lower, re.IGNORECASE):
                     act_score += 0.3
@@ -222,7 +222,7 @@ class TherapeuticFrameworkDetector:
         # Check DBT patterns
         dbt_score = 0.0
         dbt_matches = 0
-        for technique, patterns in self.dbt_patterns.items():
+        for _technique, patterns in self.dbt_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, message_lower, re.IGNORECASE):
                     dbt_score += 0.3
@@ -278,7 +278,7 @@ class TherapeuticFrameworkDetector:
     ) -> ConversationQualityMetrics:
         """
         Analyze conversation quality using evidence-based metrics
-        
+
         Metrics based on:
         - Hill's Helping Skills Model
         - Working Alliance Inventory
@@ -298,7 +298,7 @@ class TherapeuticFrameworkDetector:
             )
 
         ai_messages = [m for m in messages if m.get('role') == 'assistant']
-        user_messages = [m for m in messages if m.get('role') == 'user']
+        _user_messages = [m for m in messages if m.get('role') == 'user']
 
         if not ai_messages:
             return ConversationQualityMetrics(

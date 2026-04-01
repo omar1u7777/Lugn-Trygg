@@ -33,6 +33,13 @@ try:
 except ImportError:
     SCIPY_AVAILABLE = False
 
+# Optional OpenAI integration for advanced multimodal analysis
+try:
+    import openai  # noqa: F401
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
