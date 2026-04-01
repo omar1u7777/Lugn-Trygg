@@ -303,13 +303,13 @@ class ProfessionalVoiceEmotionAnalyzer:
             pitch_std = 0.0
             pitch_range = 0.0
             pitch_slope = 0.0
-        
+
         # Intensity (RMS energy)
         rms = librosa.feature.rms(y=y, frame_length=self.frame_size, hop_length=self.hop_length)[0]
         intensity_mean = float(np.mean(rms))
         intensity_std = float(np.std(rms))
         intensity_range = float(np.max(rms) - np.min(rms))
-        
+
         # Speaking rate estimation (syllable detection via onset strength)
         onset_env = librosa.onset.onset_strength(y=y, sr=sr)
         # Use keyword arguments for peak_pick (librosa 0.11+ API)
@@ -325,23 +325,23 @@ class ProfessionalVoiceEmotionAnalyzer:
         syllable_count = len(peaks)
         duration = len(y) / sr
         syllables_per_second = syllable_count / duration if duration > 0 else 0.0
-        
+
         # Pauses (silence detection)
         intervals = librosa.effects.split(y, top_db=20)
         total_speech = sum(end - start for start, end in intervals)
         pause_ratio = 1.0 - (total_speech / len(y))
         pause_count = len(intervals) - 1 if len(intervals) > 0 else 0
-        
+
         # Voice quality (using harmonic-percussive separation)
         y_harmonic, y_percussive = librosa.effects.hpss(y)
-        
+
         # Estimate jitter (pitch perturbation)
         if len(f0_voiced) > 1:
             pitch_diffs = np.diff(f0_voiced)
             jitter = float(np.mean(np.abs(pitch_diffs)) / pitch_mean * 100)
         else:
             jitter = 0.0
-        
+
         # Estimate shimmer (amplitude perturbation)
         amp_peaks = rms[rms > np.mean(rms)]
         if len(amp_peaks) > 1:
@@ -349,12 +349,12 @@ class ProfessionalVoiceEmotionAnalyzer:
             shimmer = float(np.mean(np.abs(amp_diffs)) / np.mean(amp_peaks) * 100)
         else:
             shimmer = 0.0
-        
+
         # HNR (Harmonics-to-Noise Ratio) estimate
         harmonic_energy = np.sum(y_harmonic ** 2)
         noise_energy = np.sum(y_percussive ** 2)
         hnr = 10 * np.log10(harmonic_energy / (noise_energy + 1e-10)) if noise_energy > 0 else 20.0
-        
+
         return ProsodicFeatures(
             pitch_mean=pitch_mean,
             pitch_std=pitch_std,
@@ -370,50 +370,50 @@ class ProfessionalVoiceEmotionAnalyzer:
             shimmer=shimmer,
             hnr=float(hnr)
         )
-    
+
     def _extract_spectral_features(self, y: np.ndarray, sr: int) -> SpectralFeatures:
         """Extract spectral (timbre) features"""
         # MFCCs (Mel-frequency cepstral coefficients)
         mfccs = librosa.feature.mfcc(
-            y=y, 
-            sr=sr, 
+            y=y,
+            sr=sr,
             n_mfcc=13,
             hop_length=self.hop_length
         )
         mfcc_means = np.mean(mfccs, axis=1)
         mfcc_vars = np.var(mfccs, axis=1)
-        
+
         # Spectral centroid (brightness)
         spectral_centroid = librosa.feature.spectral_centroid(
             y=y, sr=sr, hop_length=self.hop_length
         )[0]
-        
+
         # Spectral rolloff
         spectral_rolloff = librosa.feature.spectral_rolloff(
             y=y, sr=sr, hop_length=self.hop_length
         )[0]
-        
+
         # Spectral bandwidth
         spectral_bandwidth = librosa.feature.spectral_bandwidth(
             y=y, sr=sr, hop_length=self.hop_length
         )[0]
-        
+
         # Spectral contrast
         spectral_contrast = librosa.feature.spectral_contrast(
             y=y, sr=sr, hop_length=self.hop_length
         )
-        
+
         # Spectral flatness
         spectral_flatness = librosa.feature.spectral_flatness(
             y=y, hop_length=self.hop_length
         )[0]
-        
+
         # Estimate formants using LPC (simplified)
         # In production, use dedicated formant tracking
         formant_1_mean = float(np.mean(spectral_centroid) * 0.5)
         formant_2_mean = float(np.mean(spectral_centroid) * 0.8)
         formant_dispersion = float(np.std(spectral_centroid))
-        
+
         return SpectralFeatures(
             mfcc_means=mfcc_means,
             mfcc_vars=mfcc_vars,
@@ -426,37 +426,37 @@ class ProfessionalVoiceEmotionAnalyzer:
             formant_2_mean=formant_2_mean,
             formant_dispersion=formant_dispersion
         )
-    
-    def _map_acoustics_to_emotions(self, prosody: ProsodicFeatures, spectral: SpectralFeatures) -> Dict[str, float]:
+
+    def _map_acoustics_to_emotions(self, prosody: ProsodicFeatures, spectral: SpectralFeatures) -> dict[str, float]:
         """
         Map acoustic features to emotion probabilities
         Based on research literature (Scherer, Juslin & Laukka, etc.)
         """
         scores = {}
-        
+
         for emotion, profile in self.emotion_profiles.items():
             score = 0.0
-            
+
             # Pitch features
             pitch_mean_target = (profile['pitch_mean'][0] + profile['pitch_mean'][1]) / 2
             pitch_dev = abs(prosody.pitch_mean - pitch_mean_target) / pitch_mean_target
             score += max(0, 1 - pitch_dev) * 0.25
-            
+
             # Pitch range
             pitch_range_target = (profile['pitch_range'][0] + profile['pitch_range'][1]) / 2
             range_dev = abs(prosody.pitch_range - pitch_range_target) / (pitch_range_target + 1)
             score += max(0, 1 - range_dev) * 0.15
-            
+
             # Intensity
             intensity_target = (profile['intensity_mean'][0] + profile['intensity_mean'][1]) / 2
             intensity_dev = abs(prosody.intensity_mean - intensity_target)
             score += max(0, 1 - intensity_dev) * 0.20
-            
+
             # Speaking rate
             rate_target = (profile['speaking_rate'][0] + profile['speaking_rate'][1]) / 2
             rate_dev = abs(prosody.syllables_per_second - rate_target) / rate_target
             score += max(0, 1 - rate_dev) * 0.20
-            
+
             # Voice quality (HNR)
             hnr_target = (profile['hnr'][0] + profile['hnr'][1]) / 2
             hnr_dev = abs(prosody.hnr - hnr_target) / (hnr_target + 1)
@@ -520,7 +520,7 @@ class ProfessionalVoiceEmotionAnalyzer:
         # Basic statistics
         rms = np.sqrt(np.mean(amplitudes ** 2))
         peak = np.max(np.abs(amplitudes))
-        
+
         # Create minimal prosody features
         prosody = ProsodicFeatures(
             pitch_mean=150.0,
