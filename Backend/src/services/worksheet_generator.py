@@ -92,42 +92,42 @@ class WorksheetGenerator:
             return self._generate_mood_analysis(conversation_id)
         
         return None
-    
-    def _determine_worksheet_type(self, text: str, 
-                                   distortions: List[str]) -> str:
+
+    def _determine_worksheet_type(self, text: str,
+                                   distortions: list[str]) -> str:
         """Determine which worksheet type is most appropriate."""
-        
+
         # Check for cognitive distortions -> Thought record
         if distortions:
             return 'cbt_thought_record'
-        
+
         # Check for specific patterns
         thought_record_signals = [
             'tänkte att', 'tro att', 'antar att', 'måste vara', 'alla tycker',
             'aldrig', 'alltid', 'ingen', 'alla', 'förstör allt'
         ]
-        
+
         values_signals = [
             'vet inte vad jag vill', 'meningslöst', 'vad är viktigt',
             'vem vill jag vara', 'vad vill jag', 'värderingar', 'inte vet'
         ]
-        
+
         avoidance_signals = [
             'undviker', 'skjuter upp', 'vågar inte', 'rädd för',
             'ångest över att', 'panik vid tanken'
         ]
-        
+
         mood_pattern_signals = [
             'mår dåligt hela tiden', 'humör svänger', 'aldrig glad',
             'alltid trött', 'mönster', 'starka känslor'
         ]
-        
+
         # Count signals
         thought_count = sum(1 for s in thought_record_signals if s in text)
         values_count = sum(1 for s in values_signals if s in text)
         avoidance_count = sum(1 for s in avoidance_signals if s in text)
         mood_count = sum(1 for s in mood_pattern_signals if s in text)
-        
+
         # Determine winner
         scores = [
             ('cbt_thought_record', thought_count),
@@ -135,20 +135,20 @@ class WorksheetGenerator:
             ('cbt_exposure_hierarchy', avoidance_count),
             ('mood_patterns', mood_count)
         ]
-        
+
         scores.sort(key=lambda x: x[1], reverse=True)
-        
+
         # Only generate if there's a clear signal
         if scores[0][1] > 0:
             return scores[0][0]
-        
+
         # Default: generic mood/thought exploration
         return 'cbt_thought_record'
-    
-    def _generate_thought_record(self, conversation_id: str, 
-                                  messages: List[dict]) -> Worksheet:
+
+    def _generate_thought_record(self, conversation_id: str,
+                                  messages: list[dict]) -> Worksheet:
         """Generate CBT thought record worksheet."""
-        
+
         # Extract situation from messages
         user_messages = [m['content'] for m in messages if m.get('role') == 'user']
         triggering_situation = self._extract_situation(user_messages[0] if user_messages else "")
@@ -241,10 +241,10 @@ class WorksheetGenerator:
             3. Exempel: "Jag är orolig, men jag har hanterat liknande situationer förut"
             """
         )
-    
+
     def _generate_values_clarification(self, conversation_id: str) -> Worksheet:
         """Generate ACT values clarification worksheet."""
-        
+
         return Worksheet(
             id=f"act_v_{conversation_id}_{datetime.now().timestamp()}",
             type="act_values",
@@ -318,20 +318,17 @@ class WorksheetGenerator:
             - Livsriktningar (inte mål som kan 'uppnås')
             - Personligt meningsfulla (inte vad andra tycker)
             - Flexibla (kan uttryckas på många sätt)
-            
+
             Om användaren har svårt att svara, ställ uppföljande frågor om:
             - Vilka personer de beundrar och varför
             - Vad de skulle vilja stå för i livet
             - Vad som skulle vara viktigt om de var friska om 10 år
             """
         )
-    
+
     def _generate_committed_action(self, conversation_id: str,
                                     messages: list[dict]) -> Worksheet:
         """Generate ACT committed action worksheet."""
-        
-        # Try to extract a value from messages
-        user_text = " ".join([m['content'] for m in messages if m.get('role') == 'user'])
 
         return Worksheet(
             id=f"act_ca_{conversation_id}_{datetime.now().timestamp()}",
