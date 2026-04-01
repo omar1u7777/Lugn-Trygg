@@ -188,8 +188,8 @@ def get_breathing_patterns():
         }
         
     except Exception as e:
-        logger.error(f"Failed to get patterns: {e}")
-        return {'success': False, 'error': str(e)}, 500
+        logger.error(f"Failed to get patterns: {str(e)[:100]}")
+        return {'success': False, 'error': 'Failed to retrieve patterns'}, 500
 
 
 @biofeedback_ws_bp.route('/start', methods=['POST'])

@@ -556,7 +556,7 @@ def _send_emergency_contact_notification(email: str, name: str) -> None:
             server.login(smtp_user, smtp_pass)
             server.sendmail(from_email, [email], msg.as_string())
 
-        logger.info("Emergency contact notification sent to %s", str(name).replace('\n', '').replace('\r', '')[:50])
+        logger.info("Emergency contact notification sent to %s***", str(name)[:3])
 
     except Exception as e:
         logger.error("Failed to notify emergency contact: %s", str(e).replace('\n', '').replace('\r', '')[:200])

@@ -248,7 +248,7 @@ class AuthService:
                 logger.warning("Failed to update last_login for user %s***", str(user_uid)[:8])
 
             user = User(uid=str(user_uid), email=str(user_email))
-            logger.info("Login successful for user: %s", str(user_uid).replace('\n', '').replace('\r', '')[:100])
+            logger.info("Login successful for user: %s***", str(user_uid)[:8])
 
             # Audit log
             AuthService._audit_log("USER_LOGIN", str(user_uid), {"email": _mask_email(email)})
