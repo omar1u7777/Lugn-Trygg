@@ -13,7 +13,7 @@ import OptimizedImage from './ui/OptimizedImage';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useDebouncedSave } from '../hooks/useDebouncedSave';
-import { getMoods, getChatHistory, getMemories, changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
+import { changeEmail, changePassword, setup2FA, verify2FASetup, exportUserData, deleteAccount } from '../api/api';
 import { getUserProfile, getUserStats, updateUserPreferences } from '../api/users';
 import { getApiErrorMessage } from '../api/errorUtils';
 import { logger } from '../utils/logger';
@@ -217,7 +217,7 @@ const ProfileHub: React.FC = () => {
     return null;
   };
 
-  const validatePassword = (password: string): string | null => {
+  const _validatePassword = (password: string): string | null => {
     if (!password) return 'Lösenord krävs';
     if (password.length < 8) return 'Lösenord måste vara minst 8 tecken';
     // Only show error for missing requirements if user has tried to submit

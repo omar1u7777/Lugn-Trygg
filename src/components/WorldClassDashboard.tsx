@@ -18,7 +18,7 @@ import { Snackbar } from './ui/tailwind';
 // Dashboard Components (Extracted for maintainability)
 import { DashboardHeader } from './Dashboard/DashboardHeader';
 import { DashboardStats } from './Dashboard/DashboardStats';
-import { DashboardActivity, type ActivityItem } from './Dashboard/DashboardActivity';
+import { DashboardActivity } from './Dashboard/DashboardActivity';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 
 // Feature Components - Direct imports to prevent code splitting

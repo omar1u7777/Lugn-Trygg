@@ -97,7 +97,6 @@ export const AIChatInsights: React.FC = () => {
         setProgress(progressRes.value.data.data);
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('Failed to fetch insights:', e);
     } finally {
       setLoading(false);

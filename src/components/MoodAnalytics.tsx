@@ -24,7 +24,6 @@ import { logger } from '../utils/logger';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
-import { MoodEntry } from '../features/mood/types';
 import { getWellnessInsights, WellnessInsight } from '../api/insights';
 
 

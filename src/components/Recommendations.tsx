@@ -25,8 +25,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { KBTPhaseName, Recommendation, RecommendationsProps } from '../types/recommendation';
-import { RECOMMENDATIONS_POOL, getMuscleGroups, getBreathingPhases, getRecommendationsPool, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
-import { getWellnessGoalIcon, getWellnessGoalLabel } from '../constants/wellnessGoals';
+import { getMuscleGroups, getBreathingPhases, getRecommendationsPool, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
+import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { useBreathingExercise } from '../hooks/useBreathingExercise';
 import { useKBTExercise } from '../hooks/useKBTExercise';
 import { usePMR } from '../hooks/usePMR';
@@ -228,7 +228,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const { user } = useAuth();
   const { t } = useTranslation();
   const translatedMuscleGroups = getMuscleGroups(t);
-  const translatedBreathingPhases = getBreathingPhases(t);
+  const _translatedBreathingPhases = getBreathingPhases(t);
   const lastRecommendationsSignatureRef = useRef<string>('');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
