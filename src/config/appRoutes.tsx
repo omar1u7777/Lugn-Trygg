@@ -42,7 +42,7 @@ const HealthMonitoring = lazy(() => import('@/components/HealthMonitoring'));
 const SecurityMonitor = lazy(() => import('@/components/Admin/SecurityMonitor'));
 
 // Advanced Mood Tracking Components (2026)
-const AdvancedMoodLogger = lazy(() => import('@/components/AdvancedMoodLogger'));
+import { SuperMoodLogger } from '@/components/SuperMoodLogger';
 const ClinicalAssessment = lazy(() => import('@/components/ClinicalAssessment'));
 const MoodForecastView = lazy(() => import('@/components/MoodForecastView'));
 
@@ -89,7 +89,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
   { path: '/mood-list', component: MoodListWrapper, protected: true },
   // Advanced Mood Tracking Routes (2026)
-  { path: '/mood/advanced', component: AdvancedMoodLogger, protected: true, feature: 'advancedMood', featureTitle: 'Avancerad humörloggning är en Premium-funktion' },
+  { path: '/mood/advanced', component: SuperMoodLogger, protected: true, feature: 'advancedMood', featureTitle: 'Avancerad humörloggning är en Premium-funktion' },
   { path: '/mood/assessment', component: ClinicalAssessment, protected: true },
   { path: '/mood/forecast', component: MoodForecastView, protected: true, feature: 'moodForecast', featureTitle: 'AI-prognoser är en Premium-funktion' },
   { path: '/daily-insights', component: DailyInsightsWrapper, protected: true },
