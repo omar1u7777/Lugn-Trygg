@@ -57,9 +57,10 @@ const EMOTION_META: Record<string, { emoji: string; label: string; bg: string; t
   connection: { emoji: '🤝', label: 'Samhörighet', bg: 'bg-pink-50 dark:bg-pink-900/20', text: 'text-pink-700 dark:text-pink-300' },
 };
 
-function getEmotionMeta(emotion: string) {
+function getEmotionMeta(emotion: string): { emoji: string; label: string; bg: string; text: string } {
   const key = (emotion || 'neutral').toLowerCase();
-  return EMOTION_META[key] ?? EMOTION_META['neutral'];
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return (EMOTION_META[key] ?? EMOTION_META['neutral'])!;
 }
 
 const PRESET_TAGS = ['Familj', 'Vänner', 'Natur', 'Arbete', 'Hälsa', 'Resa', 'Hobby', 'Vila'];
@@ -227,7 +228,7 @@ const MemoryJournal: React.FC = () => {
 
   const removePhoto = (idx: number) => {
     setPhotos((prev) => {
-      URL.revokeObjectURL(prev[idx].previewUrl);
+      URL.revokeObjectURL(prev[idx]?.previewUrl ?? '');
       return prev.filter((_, i) => i !== idx);
     });
   };

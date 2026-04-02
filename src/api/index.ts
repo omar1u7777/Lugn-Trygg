@@ -31,9 +31,7 @@ export * from './crisis';
 export * from './cbt';
 export * from './dataRetention';
 export * from './biofeedback';
-export * from './advancedMood';
 export * from './insights';
-export * from './memoryUnified';
 
 // Mood Analytics - explicit exports to avoid conflicts
 export {
