@@ -6,10 +6,17 @@ Supports text, audio, and photos in a single memory entry
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 
 from firebase_admin import storage
 from flask import Blueprint, g, request
 from werkzeug.utils import secure_filename
+
+try:
+    from PIL import Image as PilImage
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -38,6 +45,29 @@ def allowed_audio(filename: str) -> bool:
 def allowed_image(filename: str) -> bool:
     """Check if file is allowed image format."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGES
+
+
+def _get_storage_url(blob) -> str:
+    """
+    Get a publicly accessible URL for a Firebase Storage blob.
+
+    Strategy:
+    1. Try generate_signed_url() — works when the service account has
+       roles/iam.serviceAccountTokenCreator.
+    2. Fall back to make_public() + blob.public_url — works when the Storage
+       bucket/object allows public access (e.g. allUsers has Storage Object Viewer).
+    3. Last resort: return the gs:// path so callers know where the file is.
+    """
+    try:
+        return blob.generate_signed_url(expiration=timedelta(hours=24), method='GET')
+    except Exception as sign_err:
+        logger.warning(f"Signed URL failed ({sign_err}), trying make_public fallback")
+        try:
+            blob.make_public()
+            return blob.public_url
+        except Exception as pub_err:
+            logger.warning(f"make_public failed ({pub_err}), returning gs:// path")
+            return f"gs://{blob.bucket.name}/{blob.name}"
 
 
 @multimedia_memory_bp.route("/create", methods=["POST"])
@@ -225,8 +255,8 @@ def _process_audio_file(audio_file, user_id: str) -> dict:
         content_type = "audio/webm" if ext == "webm" else f"audio/{ext}"
         blob.upload_from_file(audio_file, content_type=content_type)
 
-        # Get signed URL (24h validity)
-        public_url = blob.generate_signed_url(expiration=timedelta(hours=24), method='GET')
+        # Get URL — signed with fallback to public
+        public_url = _get_storage_url(blob)
 
         return {
             'success': True,
@@ -275,15 +305,32 @@ def _process_photo_file(photo_file, user_id: str) -> dict:
         bucket = storage.bucket()
         blob = bucket.blob(storage_path)
         blob.upload_from_string(photo_bytes, content_type=f"image/{ext}")
+        public_url = _get_storage_url(blob)
 
-        # Get signed URL (24h validity)
-        public_url = blob.generate_signed_url(expiration=timedelta(hours=24), method='GET')
+        # Generate and upload real thumbnail (400px wide) using Pillow
+        thumbnail_url = public_url  # default: same as original
+        if PIL_AVAILABLE:
+            try:
+                thumb_img = PilImage.open(BytesIO(photo_bytes))
+                thumb_img.thumbnail((400, 400), PilImage.LANCZOS)
+                # Always save thumbnail as JPEG for universality
+                thumb_buf = BytesIO()
+                thumb_img.convert('RGB').save(thumb_buf, format='JPEG', quality=75, optimize=True)
+                thumb_buf.seek(0)
+                thumb_basename = secure_filename(f"{photo_id}_thumb.jpg")
+                thumb_path = f"memories/{user_id}/{thumb_basename}"
+                thumb_blob = bucket.blob(thumb_path)
+                thumb_blob.upload_from_file(thumb_buf, content_type='image/jpeg')
+                thumbnail_url = _get_storage_url(thumb_blob)
+                logger.debug(f"Thumbnail uploaded: {thumb_path} ({thumb_img.size})")
+            except Exception as thumb_err:
+                logger.warning(f"Thumbnail generation failed: {thumb_err}")
 
         return {
             'success': True,
             'storage_path': storage_path,
             'public_url': public_url,
-            'thumbnail_url': public_url,  # Same URL; thumbnail generation requires PIL
+            'thumbnail_url': thumbnail_url,
             'size': size,
             'format': ext,
             'analysis': {
