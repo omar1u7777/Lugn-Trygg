@@ -32,6 +32,8 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioLoadingFallback, setAudioLoadingFallback] = useState(false);
+  const [usingFallbackAudio, setUsingFallbackAudio] = useState(false);
 
   // Fetch audio library from backend
   const fetchAudioLibrary = useCallback(async () => {
@@ -86,8 +88,14 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     const updateDuration = () => setDuration(audio.duration || 0);
     const handleEnded = () => handleNextTrack();
     const handleError = () => {
-      setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet. Försök med ett annat spår.'));
-      setIsPlaying(false);
+      logger.warn(`Audio error for track: ${selectedTrack?.id}`);
+      // Try fallback generation before giving up
+      if (selectedTrack && !usingFallbackAudio) {
+        loadFallbackAudio('alpha', 300);
+      } else {
+        setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet. Försök med ett annat spår.'));
+        setIsPlaying(false);
+      }
     };
 
     audio.addEventListener('timeupdate', updateTime);
@@ -116,6 +124,56 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       }
     }
   }, [selectedTrack, t]);
+
+    // Fallback audio generation endpoint
+    const loadFallbackAudio = async (brainwave: string = 'alpha', duration: number = 300) => {
+      if (audioLoadingFallback) return;
+    
+      setAudioLoadingFallback(true);
+      setAudioError(null);
+    
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setAudioError(t('audio.authRequired', 'Autentisering krävs för att generera audio.'));
+          return;
+        }
+      
+        // Call fallback audio generation endpoint
+        const response = await fetch(
+          `/api/v1/audio/generate?type=ambient&brainwave=${brainwave}&duration=${duration}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.load();
+          setUsingFallbackAudio(true);
+          setAudioError(t('audio.usingGeneratedAudio', 'Använder genererad meditation...'));
+        
+          if (isPlaying) {
+            await audioRef.current.play();
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to load fallback audio:', err);
+        setAudioError(t('audio.fallbackFailed', 'Kunde inte ladda meditation. Försök igen senare.'));
+        setIsPlaying(false);
+      } finally {
+        setAudioLoadingFallback(false);
+      }
+    };
 
   const selectTrack = (track: AudioTrack, index: number) => {
     setSelectedTrack(track);
