@@ -15,8 +15,7 @@ import { logger } from '../utils/logger';
 
 const JournalList = lazy(() => import('./JournalList'));
 const MoodList = lazy(() => import('./MoodList'));
-const MemoryRecorder = lazy(() => import('./MemoryRecorder'));
-const MemoryList = lazy(() => import('./MemoryList'));
+const MemoryJournal = lazy(() => import('./MemoryJournal'));
 
 const JOURNAL_HERO_IMAGE_ID = getJournalHeroImageId();
 
@@ -296,8 +295,7 @@ const JournalHub: React.FC = () => {
                 { label: 'Skriv', icon: BookOpenIcon },
                 { label: 'Historik', icon: DocumentTextIcon },
                 { label: 'Humör', icon: HeartIcon },
-                { label: 'Spara Minne', icon: SparklesIcon },
-                { label: 'Galleri', icon: ChartBarIcon },
+                { label: 'Minnesdagbok', icon: SparklesIcon },
               ].map((tab, idx) => (
                 <button
                   key={idx}
@@ -427,12 +425,7 @@ const JournalHub: React.FC = () => {
           </TabPanel>
           <TabPanel value={activeTab} index={3}>
             <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="animate-spin text-3xl">⏳</div></div>}>
-              <MemoryRecorder userId={user?.user_id || ''} onClose={() => { }} inline={true} />
-            </Suspense>
-          </TabPanel>
-          <TabPanel value={activeTab} index={4}>
-            <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="animate-spin text-3xl">⏳</div></div>}>
-              <MemoryList onClose={() => { }} inline={true} />
+              <MemoryJournal />
             </Suspense>
           </TabPanel>
         </div>

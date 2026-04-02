@@ -63,6 +63,16 @@ export const API_ENDPOINTS = {
     UPLOAD_MEMORY: '/api/v1/memory/upload',
   } as const,
 
+  /** Unified multimedia memory endpoints (text + audio + photos) */
+  MEMORY_UNIFIED: {
+    /** POST /api/v1/memory-unified/create - Create memory with text/audio/photos */
+    CREATE: '/api/v1/memory-unified/create',
+    /** GET /api/v1/memory-unified/list/{userId} - List user's multimedia memories */
+    LIST: '/api/v1/memory-unified/list',
+    /** GET /api/v1/memory-unified/{memoryId} - Get full memory detail */
+    DETAIL: '/api/v1/memory-unified',
+  } as const,
+
   /** Chatbot endpoints */
   CHATBOT: {
     /** POST send message to AI chatbot */
