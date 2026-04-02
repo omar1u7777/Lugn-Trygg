@@ -300,11 +300,30 @@ class BiofeedbackBreathingService:
 
     def start_session(self, user_id: str, pattern_type: str = 'coherence',
                      duration: int = 5) -> BreathingSession:
-        """Start a new biofeedback breathing session."""
-        try:
-            pattern = BreathingPattern(pattern_type)
-        except ValueError:
-            pattern = BreathingPattern.COHERENCE_6BPM
+        """Start a new biofeedback breathing session.
+        
+        Args:
+            user_id: User ID
+            pattern_type: Pattern name - accepts short ('coherence', 'relax', 'energize', 'sleep')
+                         or long form ('coherence_6bpm', 'relax_478', etc)
+            duration: Target duration in minutes
+        """
+        # Map short names to enum values
+        short_to_enum = {
+            'coherence': BreathingPattern.COHERENCE_6BPM,
+            'relax': BreathingPattern.RELAX_478,
+            'energize': BreathingPattern.ENERGIZE_555,
+            'sleep': BreathingPattern.SLEEP_446,
+        }
+        
+        # Try short name first, then full enum value, then default
+        if pattern_type in short_to_enum:
+            pattern = short_to_enum[pattern_type]
+        else:
+            try:
+                pattern = BreathingPattern(pattern_type)
+            except ValueError:
+                pattern = BreathingPattern.COHERENCE_6BPM
 
         session_id = f"breath_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 

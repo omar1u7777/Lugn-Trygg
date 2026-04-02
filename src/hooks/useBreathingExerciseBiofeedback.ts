@@ -113,6 +113,39 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
   const targetCycles = targetCyclesOption ?? 4;
   const cycleTotalTime = getCycleDuration();
 
+  // Update biofeedback visualization - MUST be defined before useEffect that uses it
+  const updateBiofeedbackVisualization = useCallback((
+    currentPhase: BreathingPhase, 
+    progress: number
+  ) => {
+    setBiofeedback(prev => {
+      // Calculate circle scale based on phase
+      let circleScale = 0.5;
+      if (currentPhase === 'inhale') {
+        circleScale = 0.5 + 0.5 * progress; // Expand
+      } else if (currentPhase === 'exhale' || currentPhase === 'exhale2') {
+        circleScale = 1.0 - 0.5 * progress; // Contract
+      } else if (currentPhase === 'hold') {
+        circleScale = 0.75; // Steady
+      }
+
+      // Color based on coherence
+      const colorHue = 120 + (prev.coherenceScore / 100) * 60; // Green to blue
+
+      return {
+        ...prev,
+        phase: currentPhase,
+        phaseProgress: progress,
+        visualization: {
+          circleScale,
+          colorHue,
+          coherenceRing: prev.coherenceScore / 100,
+          phaseIndicator: currentPhase
+        }
+      };
+    });
+  }, []);
+
   // Timer hook
   const {
     isActive,
@@ -223,49 +256,16 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
 
     setPhaseSecondsLeft(secondsLeft);
 
-    // Update phase and biofeedback
+    // Update visualization every tick for smooth circle animation
+    updateBiofeedbackVisualization(currentPhase, phaseProgress);
+
+    // Update phase and notify callbacks only when phase changes
     if (phase !== currentPhase) {
       setPhase(currentPhase);
       callbacksRef.current.onPhaseChange?.(currentPhase, phaseInstruction, secondsLeft);
-      
-      // Update biofeedback with new phase
-      updateBiofeedbackVisualization(currentPhase, phaseProgress);
     }
 
-  }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, pattern, targetCycles, stopTimer, useBiofeedback, biofeedback.coherenceScore]);
-
-  // Update biofeedback visualization
-  const updateBiofeedbackVisualization = useCallback((
-    currentPhase: BreathingPhase, 
-    progress: number
-  ) => {
-    setBiofeedback(prev => {
-      // Calculate circle scale based on phase
-      let circleScale = 0.5;
-      if (currentPhase === 'inhale') {
-        circleScale = 0.5 + 0.5 * progress; // Expand
-      } else if (currentPhase === 'exhale' || currentPhase === 'exhale2') {
-        circleScale = 1.0 - 0.5 * progress; // Contract
-      } else if (currentPhase === 'hold') {
-        circleScale = 0.75; // Steady
-      }
-
-      // Color based on coherence
-      const colorHue = 120 + (prev.coherenceScore / 100) * 60; // Green to blue
-
-      return {
-        ...prev,
-        phase: currentPhase,
-        phaseProgress: progress,
-        visualization: {
-          circleScale,
-          colorHue,
-          coherenceRing: prev.coherenceScore / 100,
-          phaseIndicator: currentPhase
-        }
-      };
-    });
-  }, []);
+  }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, pattern, targetCycles, stopTimer, useBiofeedback, biofeedback.coherenceScore, updateBiofeedbackVisualization]);
 
   // WebSocket connection for biofeedback
   const connectBiofeedback = useCallback(async (sessionId: string, token: string) => {
