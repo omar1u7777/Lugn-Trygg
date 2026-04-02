@@ -5,7 +5,7 @@ Supports text, audio, and photos in a single memory entry
 
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from firebase_admin import storage
 from flask import Blueprint, g, request
@@ -133,6 +133,7 @@ def create_multimedia_memory():
             'tags': tags,
             'location': location,
             'created_at': datetime.now(UTC),
+            'photo_count': len(uploaded_files['photos']),
             'media': {
                 'audio': uploaded_files['audio']['storage_path'] if uploaded_files['audio'] else None,
                 'photos': [p['storage_path'] for p in uploaded_files['photos']],
@@ -212,23 +213,24 @@ def _process_audio_file(audio_file, user_id: str) -> dict:
         if size > MAX_FILE_SIZE:
             return {'success': False, 'error': 'Audio file too large (max 10MB)'}
 
-        # Generate filename
+        # Generate filename — only secure the basename, not the full storage path
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         ext = audio_file.filename.rsplit(".", 1)[1].lower()
-        filename = f"memories/{user_id}/audio_{timestamp}.{ext}"
-        secure_name = secure_filename(filename)
+        safe_basename = secure_filename(f"audio_{timestamp}.{ext}")
+        storage_path = f"memories/{user_id}/{safe_basename}"
 
         # Upload
         bucket = storage.bucket()
-        blob = bucket.blob(secure_name)
-        blob.upload_from_file(audio_file, content_type=f"audio/{ext}")
+        blob = bucket.blob(storage_path)
+        content_type = "audio/webm" if ext == "webm" else f"audio/{ext}"
+        blob.upload_from_file(audio_file, content_type=content_type)
 
-        # Get URL
-        public_url = blob.public_url if bucket else blob.generate_signed_url(expiration=3600)
+        # Get signed URL (24h validity)
+        public_url = blob.generate_signed_url(expiration=timedelta(hours=24), method='GET')
 
         return {
             'success': True,
-            'storage_path': secure_name,
+            'storage_path': storage_path,
             'public_url': public_url,
             'size': size,
             'format': ext
@@ -262,29 +264,26 @@ def _process_photo_file(photo_file, user_id: str) -> dict:
         photo_service = get_photo_analysis_service()
         analysis = photo_service.analyze_photo(photo_bytes, "temp")
 
-        # Generate filename
+        # Generate filename — only secure the basename, not the full storage path
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         ext = photo_file.filename.rsplit(".", 1)[1].lower()
         photo_id = f"photo_{timestamp}_{os.urandom(4).hex()}"
-        filename = f"memories/{user_id}/{photo_id}.{ext}"
-        secure_name = secure_filename(filename)
+        safe_basename = secure_filename(f"{photo_id}.{ext}")
+        storage_path = f"memories/{user_id}/{safe_basename}"
 
         # Upload original
         bucket = storage.bucket()
-        blob = bucket.blob(secure_name)
+        blob = bucket.blob(storage_path)
         blob.upload_from_string(photo_bytes, content_type=f"image/{ext}")
 
-        # Generate thumbnail (would need PIL)
-        thumbnail_name = f"memories/{user_id}/{photo_id}_thumb.{ext}"
-
-        # Get URLs
-        public_url = blob.public_url if hasattr(blob, 'public_url') else blob.generate_signed_url(expiration=3600)
+        # Get signed URL (24h validity)
+        public_url = blob.generate_signed_url(expiration=timedelta(hours=24), method='GET')
 
         return {
             'success': True,
-            'storage_path': secure_name,
+            'storage_path': storage_path,
             'public_url': public_url,
-            'thumbnail_url': public_url,  # Would be separate thumbnail
+            'thumbnail_url': public_url,  # Same URL; thumbnail generation requires PIL
             'size': size,
             'format': ext,
             'analysis': {
@@ -378,7 +377,7 @@ def list_multimedia_memories(user_id: str):
                 'id': doc.id,
                 'contentPreview': data.get('content', '')[:100],
                 'hasAudio': data.get('has_audio', False),
-                'photoCount': data.get('photo_count', 0),
+                'photoCount': data.get('photo_count') or data.get('media', {}).get('photo_count', 0),
                 'mood': data.get('mood'),
                 'tags': data.get('tags', []),
                 'aiEmotion': data.get('ai_analysis', {}).get('primary_emotion'),
