@@ -7,6 +7,7 @@ Extracts emotion, scene context, and meaningful elements from photos
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
 from typing import Any
 
 import numpy as np
@@ -86,13 +87,13 @@ class PhotoAnalysisService:
 
         if TRANSFORMERS_VISION_AVAILABLE:
             try:
-                # Use lightweight model for efficiency
+                # Use ViT-base for image classification (well-supported across transformers versions)
                 self.vision_pipeline = pipeline(
                     "image-classification",
-                    model="microsoft/resnet-50",
+                    model="google/vit-base-patch16-224",
                     device=-1  # CPU
                 )
-                logger.info("✅ PhotoAnalysisService: Vision transformer loaded")
+                logger.info("✅ PhotoAnalysisService: Vision transformer loaded (ViT-base)")
             except Exception as e:
                 logger.warning(f"⚠️ Could not load vision model: {e}")
 
@@ -358,9 +359,6 @@ class PhotoAnalysisService:
             analysis_method='fallback'
         )
 
-
-# Dependencies for photo analysis
-from io import BytesIO
 
 # Global service instance
 _photo_service: PhotoAnalysisService | None = None
