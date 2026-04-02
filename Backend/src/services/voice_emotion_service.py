@@ -610,21 +610,117 @@ def get_voice_emotion_analyzer() -> ProfessionalVoiceEmotionAnalyzer:
 
 def analyze_voice_emotion_professional(audio_bytes: bytes, transcript: str | None = None) -> VoiceEmotionResult:
     """
-    Convenience function for voice emotion analysis
+    Multimodal voice emotion analysis: audio features + text sentiment fusion.
+
+    When a transcript is provided the text-based sentiment is combined with the
+    acoustic analysis using a weighted average (60 % audio / 40 % text) so that
+    the final result reflects both *how* the user sounds and *what* they say.
 
     Args:
-        audio_bytes: Raw audio data (WAV, MP3, etc.)
-        transcript: Optional transcript for multimodal analysis
+        audio_bytes: Raw audio data (WAV, WEBM, OGG, etc.)
+        transcript: Optional transcript for multimodal fusion
 
     Returns:
-        ProfessionalVoiceEmotionResult with emotion analysis
+        VoiceEmotionResult with fused emotion analysis
     """
     analyzer = get_voice_emotion_analyzer()
-
-    # Try professional analysis first
     result = analyzer.analyze_audio(audio_bytes)
 
-    # If text available, could enhance with text sentiment
-    # (multimodal fusion would go here)
+    # Multimodal text sentiment fusion
+    if transcript and transcript.strip():
+        result = _fuse_text_sentiment(result, transcript)
 
     return result
+
+
+# ---- Swedish + English keyword sentiment lexicon ----------------------------
+_POSITIVE_WORDS = {
+    # Swedish
+    'glad', 'glada', 'glädje', 'lycklig', 'lyckliga', 'fantastisk', 'underbar',
+    'bra', 'suverän', 'härlig', 'nöjd', 'nöjda', 'positiv', 'optimistisk',
+    'lugn', 'lugna', 'trygg', 'hoppfull', 'energisk', 'pigg',
+    # English
+    'happy', 'joy', 'great', 'wonderful', 'good', 'calm', 'peaceful',
+    'positive', 'hopeful', 'energetic', 'fine', 'excellent', 'love',
+}
+_NEGATIVE_WORDS = {
+    # Swedish crisis / distress keywords
+    'ledsen', 'ledset', 'sorgsen', 'sorgsna', 'nedstämd', 'nedstämda',
+    'orolig', 'oroliga', 'rädd', 'rädda', 'ångest', 'panik', 'arg', 'ilska',
+    'frustrerad', 'frustrerade', 'hopplös', 'hopplösa', 'ensam', 'ensamma',
+    'smärta', 'ont', 'mår dåligt', 'deprimerad', 'deprimerade',
+    'vill inte leva', 'vill dö', 'ta livet', 'självmord', 'suicid', 'döda mig',
+    # English
+    'sad', 'depressed', 'anxious', 'scared', 'fear', 'angry', 'frustrated',
+    'hopeless', 'alone', 'lonely', 'pain', 'hurt', 'terrible', 'awful', 'hate',
+    'want to die', 'kill myself', 'suicide',
+}
+_EMOTION_TEXT_SIGNALS: dict[str, list[str]] = {
+    'happy':      ['glad', 'glädje', 'lycklig', 'fantastisk', 'underbar', 'happy', 'joy', 'wonderful'],
+    'sad':        ['ledsen', 'sorgsen', 'nedstämd', 'gråter', 'sad', 'depressed', 'cry'],
+    'anxious':    ['orolig', 'ångest', 'nervös', 'panik', 'anxious', 'nervous', 'panic', 'worry'],
+    'angry':      ['arg', 'ilska', 'frustrerad', 'angry', 'furious', 'frustrated', 'rage'],
+    'fearful':    ['rädd', 'skrämd', 'skräck', 'scared', 'afraid', 'terrified', 'fear',
+                   'vill inte leva', 'vill dö', 'självmord', 'suicid', 'want to die', 'suicide'],
+    'neutral':    ['neutral', 'okej', 'ok', 'fine', 'alright'],
+}
+
+
+def _fuse_text_sentiment(audio_result: VoiceEmotionResult, transcript: str) -> VoiceEmotionResult:
+    """
+    Fuse audio-derived emotion scores with text-based signals.
+    Weights: 60 % audio, 40 % text.
+    """
+    text_lower = transcript.lower()
+    text_scores: dict[str, float] = {e: 0.0 for e in _EMOTION_TEXT_SIGNALS}
+
+    for emotion, keywords in _EMOTION_TEXT_SIGNALS.items():
+        for kw in keywords:
+            if kw in text_lower:
+                text_scores[emotion] += 1.0
+
+    total_text = sum(text_scores.values())
+    if total_text == 0:
+        # No text signals → return audio result unchanged
+        return audio_result
+
+    # Normalise text scores
+    text_scores = {k: v / total_text for k, v in text_scores.items()}
+
+    # Merge with audio scores
+    audio_confidences = audio_result.emotion_confidences
+    fused: dict[str, float] = {}
+    all_emotions = set(list(audio_confidences.keys()) + list(text_scores.keys()))
+    for em in all_emotions:
+        a = audio_confidences.get(em, 0.0)
+        t = text_scores.get(em, 0.0)
+        fused[em] = 0.6 * a + 0.4 * t
+
+    total_fused = sum(fused.values())
+    if total_fused > 0:
+        fused = {k: v / total_fused for k, v in fused.items()}
+
+    new_primary = max(fused, key=fused.get)
+
+    # Adjust valence: very negative text → drag valence lower
+    negative_hit = any(kw in text_lower for kw in _NEGATIVE_WORDS)
+    positive_hit = any(kw in text_lower for kw in _POSITIVE_WORDS)
+    valence_adj = audio_result.valence
+    if negative_hit and not positive_hit:
+        valence_adj = float(np.clip(valence_adj - 0.25, -1.0, 1.0))
+    elif positive_hit and not negative_hit:
+        valence_adj = float(np.clip(valence_adj + 0.15, -1.0, 1.0))
+
+    return VoiceEmotionResult(
+        primary_emotion=new_primary,
+        emotion_confidences=fused,
+        valence=valence_adj,
+        arousal=audio_result.arousal,
+        dominance=audio_result.dominance,
+        prosody=audio_result.prosody,
+        spectral=audio_result.spectral,
+        analysis_method=f'{audio_result.analysis_method}+text_fusion',
+        confidence=fused.get(new_primary, audio_result.confidence),
+        sample_rate=audio_result.sample_rate,
+        duration_seconds=audio_result.duration_seconds,
+    )
