@@ -247,44 +247,6 @@ export const API_ENDPOINTS = {
     HRV_ANALYSIS: '/api/v1/biofeedback/hrv/analysis',
   } as const,
 
-  /** Advanced Mood Tracking endpoints */
-  ADVANCED_MOOD: {
-    /** POST log advanced mood entry */
-    LOG: '/api/v1/advanced-mood/log',
-    /** GET mood entries */
-    ENTRIES: '/api/v1/advanced-mood/entries',
-    /** GET mood patterns analysis */
-    PATTERNS: '/api/v1/advanced-mood/patterns',
-    /** GET mood correlations */
-    CORRELATIONS: '/api/v1/advanced-mood/correlations',
-    /** GET mood forecast */
-    FORECAST: '/api/v1/advanced-mood/forecast',
-  } as const,
-
-  /** Unified Memory endpoints - Multimedia memories */
-  MEMORY_UNIFIED: {
-    /** GET all multimedia memories */
-    MEMORIES: '/api/v1/memory-unified/memories',
-    /** POST upload multimedia memory */
-    UPLOAD: '/api/v1/memory-unified/upload',
-    /** GET single memory - append /{memoryId} */
-    MEMORY: '/api/v1/memory-unified/memory',
-    /** DELETE memory - append /{memoryId} */
-    DELETE: '/api/v1/memory-unified/memory',
-  } as const,
-
-  /** Memory Analysis endpoints */
-  MEMORY_ANALYSIS: {
-    /** GET memory insights */
-    INSIGHTS: '/api/v1/memory-analysis/insights',
-    /** GET memory sentiment analysis */
-    SENTIMENT: '/api/v1/memory-analysis/sentiment',
-    /** GET memory trends */
-    TRENDS: '/api/v1/memory-analysis/trends',
-    /** GET memory recommendations */
-    RECOMMENDATIONS: '/api/v1/memory-analysis/recommendations',
-  } as const,
-
   /** Insights endpoints - AI-powered wellness insights */
   INSIGHTS: {
     /** GET all user insights */

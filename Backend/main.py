@@ -258,7 +258,6 @@ try:
     # Routes
     from src.routes.admin_routes import admin_bp
     from src.routes.advanced_mood_routes import advanced_mood_bp
-    from src.routes.ai_helpers_routes import ai_helpers_bp
     from src.routes.ai_music_routes import ai_music_bp
     from src.routes.ai_routes import ai_bp
     from src.routes.audio_routes import audio_bp
@@ -277,7 +276,6 @@ try:
     from src.routes.integration_routes import integration_bp
     from src.routes.journal_routes import journal_bp
     from src.routes.leaderboard_routes import leaderboard_bp
-    from src.routes.memory_analysis_routes import memory_analysis_bp
     from src.routes.memory_routes import memory_bp
     from src.routes.metrics_routes import metrics_bp
     from src.routes.mood_analytics_routes import mood_analytics_bp
@@ -391,13 +389,13 @@ try:
         """WSGI middleware that rewrites /api/<resource> to /api/v1/<resource>."""
 
         _V1_SEGMENTS = frozenset([
-            'auth', 'admin', 'mood', 'mood-stats', 'mood-analytics', 'memory', 'ai', 'ai-helpers',
+            'auth', 'admin', 'mood', 'mood-stats', 'mood-analytics', 'memory', 'ai',
             'chatbot', 'feedback', 'notifications', 'referral', 'users',
             'subscription', 'metrics', 'predictive', 'rate-limit', 'dashboard',
             'onboarding', 'privacy', 'journal', 'challenges', 'rewards', 'audio',
             'peer-chat', 'leaderboard', 'voice', 'sync-history', 'cbt', 'consent',
             'crisis', 'security', 'integration', 'advanced-mood', 'biofeedback',
-            'ai-music', 'memory-analysis', 'memory-unified', 'insights',
+            'ai-music', 'memory-unified', 'insights',
         ])
 
         def __init__(self, wsgi_app):
@@ -469,12 +467,6 @@ try:
         logger.info("✅ Registered ai_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register ai_bp: {e}")
-
-    try:
-        app.register_blueprint(ai_helpers_bp, url_prefix='/api/v1/ai-helpers')
-        logger.info("✅ Registered ai_helpers_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register ai_helpers_bp: {e}")
 
     try:
         app.register_blueprint(chatbot_bp, url_prefix='/api/v1/chatbot')
@@ -632,12 +624,6 @@ try:
         logger.info("✅ Registered multimedia_memory_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register multimedia_memory_bp: {e}")
-
-    try:
-        app.register_blueprint(memory_analysis_bp, url_prefix='/api/v1/memory-analysis')
-        logger.info("✅ Registered memory_analysis_bp")
-    except Exception as e:
-        logger.error(f"❌ Failed to register memory_analysis_bp: {e}")
 
     try:
         app.register_blueprint(advanced_mood_bp, url_prefix='/api/v1/advanced-mood')
