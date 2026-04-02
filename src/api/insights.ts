@@ -1,58 +1,41 @@
 /**
  * Insights API - AI-powered wellness insights and recommendations
+ * Connects to the v2 backend insight engine (CBT/ACT/statistical analysis).
  */
 
 import { api } from './client';
 import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
-export interface Insight {
-  id: string;
-  type: 'wellness' | 'behavioral' | 'mood' | 'sleep' | 'activity';
+/**
+ * Insight as returned by backend v2 engine.
+ * Maps directly to DailyInsightGeneratorV2 TherapeuticInsight fields.
+ */
+export interface BackendInsight {
+  insight_id: string;
+  user_id: string;
+  insight_type: string;
+  domain: string;
   title: string;
-  description: string;
-  severity: 'info' | 'warning' | 'positive';
+  message: string;
+  recommendation: string;
+  evidence: Record<string, unknown>;
+  urgency: 'high' | 'medium' | 'low';
+  suggested_action: string;
+  related_memories: string[];
+  values_alignment: string | null;
+  behavioral_target: string | null;
   created_at: string;
-  data?: Record<string, unknown>;
-}
-
-export interface WellnessInsight extends Insight {
-  type: 'wellness';
-  wellness_score: number;
-  areas: {
-    name: string;
-    score: number;
-    trend: 'up' | 'down' | 'stable';
-  }[];
-}
-
-export interface BehavioralInsight extends Insight {
-  type: 'behavioral';
-  behavior: string;
-  frequency: number;
-  impact: 'positive' | 'negative' | 'neutral';
-  suggestions: string[];
-}
-
-export interface PersonalizedRecommendation {
-  id: string;
-  category: string;
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  actions: string[];
-  expected_benefit: string;
+  status: 'pending' | 'dismissed' | 'action_taken';
 }
 
 /**
- * Get all user insights
- * @param limit - Number of insights to retrieve
+ * Trigger insight generation for a user.
+ * Backend runs v2 statistical analysis and saves insights to Firestore.
  */
-export const getAllInsights = async (limit: number = 20): Promise<Insight[]> => {
+export const generateInsights = async (userId: string): Promise<BackendInsight[]> => {
   try {
-    const response = await api.get(API_ENDPOINTS.INSIGHTS.ALL, {
-      params: { limit }
-    });
+    const response = await api.post(`${API_ENDPOINTS.INSIGHTS.GENERATE}/${userId}`);
     return response.data.data?.insights || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
@@ -61,11 +44,11 @@ export const getAllInsights = async (limit: number = 20): Promise<Insight[]> => 
 };
 
 /**
- * Get wellness insights
+ * Get all pending insights for a user (already generated, not yet dismissed).
  */
-export const getWellnessInsights = async (): Promise<WellnessInsight[]> => {
+export const getPendingInsights = async (userId: string): Promise<BackendInsight[]> => {
   try {
-    const response = await api.get(API_ENDPOINTS.INSIGHTS.WELLNESS);
+    const response = await api.get(`${API_ENDPOINTS.INSIGHTS.PENDING}/${userId}`);
     return response.data.data?.insights || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
@@ -74,12 +57,11 @@ export const getWellnessInsights = async (): Promise<WellnessInsight[]> => {
 };
 
 /**
- * Get behavioral insights
+ * Dismiss an insight (user chose to ignore it).
  */
-export const getBehavioralInsights = async (): Promise<BehavioralInsight[]> => {
+export const dismissInsight = async (insightId: string): Promise<void> => {
   try {
-    const response = await api.get(API_ENDPOINTS.INSIGHTS.BEHAVIORAL);
-    return response.data.data?.insights || [];
+    await api.post(`${API_ENDPOINTS.INSIGHTS.DISMISS}/${insightId}`);
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -87,12 +69,14 @@ export const getBehavioralInsights = async (): Promise<BehavioralInsight[]> => {
 };
 
 /**
- * Get personalized recommendations
+ * Log that the user took action on an insight.
  */
-export const getPersonalizedRecommendations = async (): Promise<PersonalizedRecommendation[]> => {
+export const markInsightActionTaken = async (
+  insightId: string,
+  action: string = 'completed'
+): Promise<void> => {
   try {
-    const response = await api.get(API_ENDPOINTS.INSIGHTS.RECOMMENDATIONS);
-    return response.data.data?.recommendations || [];
+    await api.post(`${API_ENDPOINTS.INSIGHTS.ACTION}/${insightId}`, { action });
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);

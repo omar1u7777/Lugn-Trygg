@@ -698,15 +698,14 @@ class DailyInsightGeneratorV2:
             return []
 
     def _fetch_mood_history(self, user_id: str, days: int) -> list[dict]:
-        """Fetch mood entries."""
+        """Fetch mood entries from users/{user_id}/moods subcollection."""
         try:
             from google.cloud.firestore import FieldFilter
 
             cutoff = datetime.now() - timedelta(days=days)
 
-            query = db.collection('mood_entries').where(
-                filter=FieldFilter('user_id', '==', user_id)
-            ).where(
+            mood_ref = db.collection('users').document(user_id).collection('moods')
+            query = mood_ref.where(
                 filter=FieldFilter('timestamp', '>=', cutoff)
             ).order_by('timestamp', direction='DESCENDING')
 
@@ -714,6 +713,23 @@ class DailyInsightGeneratorV2:
 
         except Exception as e:
             logger.error(f"Failed to fetch mood data: {e}")
+            return []
+
+    def get_pending_insights(self, user_id: str) -> list[dict]:
+        """Get pending insights for a user."""
+        try:
+            from google.cloud.firestore import FieldFilter
+
+            insights_query = db.collection('insights').where(
+                filter=FieldFilter('user_id', '==', user_id)
+            ).where(
+                filter=FieldFilter('status', '==', 'pending')
+            ).order_by('created_at', direction='DESCENDING')
+
+            return [doc.to_dict() for doc in insights_query.stream()]
+
+        except Exception as e:
+            logger.error(f"Failed to fetch pending insights: {e}")
             return []
 
     def _fetch_activity_patterns(self, user_id: str) -> dict:
@@ -751,3 +767,19 @@ class DailyInsightGeneratorV2:
 
 # Export both versions
 DailyInsightGenerator = DailyInsightGeneratorV2
+
+# Convenience exports (required by insights_routes.py)
+_v2_generator: DailyInsightGeneratorV2 | None = None
+
+
+def get_insight_generator() -> DailyInsightGeneratorV2:
+    """Get singleton instance of v2 insight generator."""
+    global _v2_generator
+    if _v2_generator is None:
+        _v2_generator = DailyInsightGeneratorV2()
+    return _v2_generator
+
+
+def generate_daily_insights(user_id: str) -> list[TherapeuticInsight]:
+    """Convenience function for generating insights using v2 engine."""
+    return get_insight_generator().generate_insights(user_id)

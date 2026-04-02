@@ -249,14 +249,14 @@ export const API_ENDPOINTS = {
 
   /** Insights endpoints - AI-powered wellness insights */
   INSIGHTS: {
-    /** GET all user insights */
-    ALL: '/api/v1/insights',
-    /** GET wellness insights */
-    WELLNESS: '/api/v1/insights/wellness',
-    /** GET behavioral insights */
-    BEHAVIORAL: '/api/v1/insights/behavioral',
-    /** GET personalized recommendations */
-    RECOMMENDATIONS: '/api/v1/insights/recommendations',
+    /** POST /api/v1/insights/generate/{userId} - Trigger insight generation */
+    GENERATE: '/api/v1/insights/generate',
+    /** GET /api/v1/insights/pending/{userId} - Fetch pending insights */
+    PENDING: '/api/v1/insights/pending',
+    /** POST /api/v1/insights/dismiss/{insightId} - Dismiss an insight */
+    DISMISS: '/api/v1/insights/dismiss',
+    /** POST /api/v1/insights/action/{insightId} - Log action taken */
+    ACTION: '/api/v1/insights/action',
   } as const,
 
   /** Admin dashboard endpoints (Admin only) */
