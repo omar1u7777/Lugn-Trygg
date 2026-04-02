@@ -18,16 +18,16 @@ print()
 print('TEST 1: Service Initialization')
 print('-'*70)
 try:
-    from src.services.daily_insight_service import DailyInsightGenerator
-    print('✅ DailyInsightGenerator imported successfully')
+    from src.services.daily_insight_service_v2 import DailyInsightGenerator
+    print('✅ DailyInsightGenerator (v2) imported successfully')
 
     generator = DailyInsightGenerator()
     print('✅ Generator initialized')
-    print(f'   - Analysis window: {generator.analysis_window_days} days')
-    print(f'   - Min memories: {generator.min_memories_for_analysis}')
-    print(f'   - Templates: {len(generator.INSIGHT_TEMPLATES)} types')
+    print(f'   - Analysis window: {generator.analysis_window} days')
+    print(f'   - Min memories: {generator.min_memories}')
+    print(f'   - Templates: {len(generator.TEMPLATES)} types')
 
-    for key in generator.INSIGHT_TEMPLATES.keys():
+    for key in generator.TEMPLATES.keys():
         print(f'   - Template: {key}')
 
 except Exception as e:

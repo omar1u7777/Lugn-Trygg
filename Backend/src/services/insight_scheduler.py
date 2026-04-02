@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from threading import Thread
 
 from src.firebase_config import db
-from src.services.daily_insight_service import get_insight_generator
+from src.services.daily_insight_service_v2 import get_insight_generator
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +208,7 @@ class InsightNotificationScheduler:
             Insight ID if created, None otherwise
         """
         try:
-            from src.services.daily_insight_service import InsightType
+            from src.services.daily_insight_service_v2 import InsightType
 
             insight_id = f"{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_immediate"
 
