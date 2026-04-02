@@ -10,6 +10,49 @@ const accessibilityMock = vi.hoisted(() => ({
   announceToScreenReader: vi.fn(),
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'registerForm.title': 'Skapa konto',
+        'registerForm.nameLabel': 'Namn',
+        'registerForm.namePlaceholder': 'Ange ditt namn',
+        'registerForm.nameRequired': 'Namn är obligatoriskt.',
+        'registerForm.emailLabel': 'E-postadress',
+        'registerForm.emailPlaceholder': 'Ange din e-postadress',
+        'registerForm.invalidEmail': 'Ange en giltig e-postadress.',
+        'registerForm.passwordLabel': 'Lösenord',
+        'registerForm.passwordPlaceholder': 'Skapa ett starkt lösenord',
+        'registerForm.passwordHelp': 'Minst 8 tecken.',
+        'registerForm.passwordTooShort': 'Lösenordet måste vara minst 8 tecken långt.',
+        'registerForm.passwordNeedsChars': 'Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.',
+        'registerForm.passwordNeedsSpecial': 'Lösenordet måste innehålla minst ett specialtecken.',
+        'registerForm.showPassword': 'Visa lösenord',
+        'registerForm.hidePassword': 'Dölj lösenord',
+        'registerForm.confirmPasswordLabel': 'Bekräfta lösenord',
+        'registerForm.confirmPasswordPlaceholder': 'Bekräfta ditt lösenord',
+        'registerForm.passwordMismatch': 'Lösenorden matchar inte.',
+        'registerForm.acceptTermsPrefix': 'Jag accepterar',
+        'registerForm.termsLink': 'användarvillkoren',
+        'registerForm.acceptPrivacyPrefix': 'Jag accepterar',
+        'registerForm.privacyLink': 'integritetspolicyn',
+        'registerForm.termsRequired': 'Du måste acceptera villkoren och integritetspolicyn.',
+        'registerForm.creating': 'Skapar konto...',
+        'registerForm.success': 'Registrering lyckades! Du kan nu logga in.',
+        'registerForm.failedPrefix': 'Registrering misslyckades:',
+        'registerForm.formErrors': 'Formuläret innehåller fel.',
+        'registerForm.hasAccount': 'Har du redan ett konto?',
+        'registerForm.loginLink': 'Logga in här',
+        'registerForm.goToLogin': 'Gå till inloggningssidan',
+        'registerForm.referralActive': 'Referenskod aktiv!',
+        'registerForm.referralCode': 'Kod:',
+      };
+      return translations[key] || key;
+    },
+    i18n: { language: 'sv' },
+  }),
+}));
+
 vi.mock('../../../api/api', () => ({
   registerUser: registerUserMock,
 }));

@@ -44,6 +44,34 @@ def _preflight_response():
     """Return a typed 204 No Content response for OPTIONS preflight requests."""
     return make_response('', 204)
 
+
+def _get_sse_cors_headers() -> dict:
+    """
+    Return CORS headers for SSE (streaming) responses.
+
+    Flask's after_request hooks do NOT run for streaming Response objects, so
+    we must set CORS headers manually here.  We reuse the same origin-allowlist
+    logic from main.py rather than falling back to the unsafe wildcard (*).
+    """
+    try:
+        from main import is_origin_allowed
+    except ImportError:
+        try:
+            # When imported as a package (e.g. in tests)
+            from src.main import is_origin_allowed  # type: ignore[no-redef]
+        except ImportError:
+            is_origin_allowed = None  # type: ignore[assignment]
+
+    origin = request.headers.get("Origin", "")
+    if origin and is_origin_allowed and is_origin_allowed(origin):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+    # Origin not allowed or allowlist unavailable — omit header so the browser
+    # blocks the response rather than accepting a wildcard.
+    return {}
+
 logger = logging.getLogger(__name__)
 
 # Maximum message length to prevent abuse
@@ -160,10 +188,10 @@ def chat_with_ai():
                 {"limit": exc.limit_value}
             )
 
-        # Get conversation history (last 10 messages) - CRITICAL: Cap at 20 to prevent token overflow
+        # Get conversation history - cap at MAX_CONVERSATION_HISTORY to prevent token overflow
         MAX_CONVERSATION_HISTORY = 20
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
-        recent_messages = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(10).stream())
+        recent_messages = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(MAX_CONVERSATION_HISTORY).stream())
 
         # Build conversation context - limited to prevent memory/token issues
         conversation_history = []
@@ -271,27 +299,65 @@ def chat_with_ai():
                     # Execute REAL escalation in background thread to avoid blocking
                     import threading
                     def escalate_async(alert):
-                        try:
-                            escalation_service = get_crisis_escalation_service()
-                            # Note: escalate may be async, use run_coroutine_threadsafe if needed
-                            import asyncio
+                        """
+                        Run crisis escalation with exponential-backoff retries.
+                        3 attempts: immediate → 2 s → 4 s.
+                        Logs CRITICAL if all attempts fail so ops can act.
+                        """
+                        import asyncio
+                        import time as _time
+
+                        MAX_RETRIES = 3
+                        BASE_DELAY = 2.0  # seconds
+                        last_error: str = "unknown"
+
+                        for attempt in range(1, MAX_RETRIES + 1):
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
-                            result = loop.run_until_complete(escalation_service.escalate(alert))
-                            loop.close()
-                            
-                            if result.success:
+                            try:
+                                escalation_service = get_crisis_escalation_service()
+                                result = loop.run_until_complete(
+                                    escalation_service.escalate(alert)
+                                )
+                                if result.success:
+                                    logger.info(
+                                        "✅ Crisis escalation completed (attempt %d/%d) "
+                                        "via channels: %s",
+                                        attempt, MAX_RETRIES,
+                                        [c.value for c in result.channels_used],
+                                    )
+                                    return  # Success — stop retrying
+                                else:
+                                    last_error = (
+                                        f"{len(result.failures)} channel(s) failed"
+                                    )
+                                    logger.error(
+                                        "❌ Crisis escalation attempt %d/%d: %s",
+                                        attempt, MAX_RETRIES, last_error,
+                                    )
+                            except Exception as esc_err:
+                                last_error = str(esc_err)
+                                logger.exception(
+                                    "Crisis escalation thread attempt %d/%d raised: %s",
+                                    attempt, MAX_RETRIES, esc_err,
+                                )
+                            finally:
+                                loop.close()
+
+                            if attempt < MAX_RETRIES:
+                                delay = BASE_DELAY * (2 ** (attempt - 1))  # 2 s, 4 s
                                 logger.info(
-                                    f"✅ Crisis escalation completed via channels: "
-                                    f"{[c.value for c in result.channels_used]}"
+                                    "⏳ Retrying crisis escalation in %.0f s "
+                                    "(attempt %d/%d)…",
+                                    delay, attempt + 1, MAX_RETRIES,
                                 )
-                            else:
-                                logger.error(
-                                    f"❌ Crisis escalation failed: "
-                                    f"{len(result.failures)} channels failed"
-                                )
-                        except Exception as esc_err:
-                            logger.exception(f"Crisis escalation thread failed: {esc_err}")
+                                _time.sleep(delay)
+
+                        logger.critical(
+                            "🚨 CRISIS ESCALATION FAILED after %d attempts for "
+                            "user=%s, risk=%s. Last error: %s. REQUIRES MANUAL REVIEW.",
+                            MAX_RETRIES, alert.user_id, alert.risk_level, last_error,
+                        )
                     
                     # Start escalation in background thread
                     escalation_thread = threading.Thread(
@@ -409,11 +475,11 @@ def chat_stream():
                 {"limit": exc.limit_value}
             )
 
-        # Fetch last 10 messages for context - CRITICAL: Cap at 20 to prevent token overflow
+        # Fetch conversation history - cap at MAX_STREAM_HISTORY to prevent token overflow
         MAX_STREAM_HISTORY = 20
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
         recent_docs = list(
-            conversation_ref.order_by("timestamp", direction="DESCENDING").limit(10).stream()
+            conversation_ref.order_by("timestamp", direction="DESCENDING").limit(MAX_STREAM_HISTORY).stream()
         )
         conversation_history = []
         for msg_doc in reversed(recent_docs[:MAX_STREAM_HISTORY]):
@@ -434,10 +500,7 @@ def chat_stream():
             "timestamp": timestamp
         })
 
-        analytics.track('AI Chat Stream Started', {
-            'user_id': user_id,
-            'message_length': len(user_message)
-        }) if False else None  # analytics optional
+        # Analytics optional - disabled to prevent undefined reference errors
 
         from src.services.ai_service import ai_services
 
@@ -448,7 +511,7 @@ def chat_stream():
             error_count = 0
             try:
                 for sse_chunk in ai_services.generate_therapeutic_conversation_stream(
-                    user_message, conversation_history
+                    user_message, conversation_history, user_id=user_id
                 ):
                     chunk_count += 1
                     # Accumulate non-DONE chunks
@@ -508,7 +571,10 @@ def chat_stream():
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
                 "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
+                # Use the validated request origin instead of wildcard (*) so the
+                # strict CORS policy is enforced even for streaming responses.
+                # Falls back to omitting the header if the origin is not allowed.
+                **_get_sse_cors_headers(),
             }
         )
 
@@ -861,14 +927,21 @@ def get_chat_history():
 
         # Get conversation history
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
-        messages = list(conversation_ref.order_by("timestamp").stream())
+        # Paginate: default 50 messages, max 200
+        limit = min(int(request.args.get("limit", 50)), 200)
+        messages = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(limit).stream())
+        messages.reverse()  # Return in chronological order
 
         conversation = []
         for msg_doc in messages:
             msg_data = msg_doc.to_dict()
             conversation.append(_to_camel_case_message(msg_data))
 
-        return APIResponse.success({"conversation": conversation})
+        return APIResponse.success({
+            "conversation": conversation,
+            "totalMessages": len(conversation),
+            "hasMore": len(conversation) >= limit
+        })
 
     except Exception as e:
         logger.exception(f"🔥 Fel vid hämtning av chatt-historik: {e}")

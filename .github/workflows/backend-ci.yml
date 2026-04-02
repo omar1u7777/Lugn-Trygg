@@ -123,3 +123,83 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: 'trivy-backend.sarif'
+
+  live-e2e-production-like:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: lint-and-test
+    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' && secrets.FIREBASE_WEB_API_KEY != '' }}
+    defaults:
+      run:
+        working-directory: ./Backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libsndfile1 curl
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create Firebase service account file from secret
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > serviceAccountKey.json
+          python -c "import json; json.load(open('serviceAccountKey.json', 'r', encoding='utf-8')); print('serviceAccountKey.json validated')"
+
+      - name: Start production-like Waitress server
+        env:
+          FLASK_ENV: production
+          FLASK_DEBUG: 'false'
+          HOST: 127.0.0.1
+          PORT: 5003
+          WAITRESS_THREADS: 4
+          WEBAUTHN_RP_ID: lugn-trygg-ci.local
+          WEBAUTHN_ORIGIN: https://lugn-trygg-ci.local
+          JWT_SECRET_KEY: ci-production-jwt-secret-key-that-is-intentionally-longer-than-sixty-four-characters
+          JWT_REFRESH_SECRET_KEY: ci-production-refresh-secret-key-that-is-also-longer-than-sixty-four-characters
+          PYTHONPATH: ${{ github.workspace }}/Backend
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/Backend/serviceAccountKey.json
+          FIREBASE_CREDENTIALS: ${{ github.workspace }}/Backend/serviceAccountKey.json
+          FIREBASE_CREDENTIALS_PATH: ${{ github.workspace }}/Backend/serviceAccountKey.json
+          SERVICE_ACCOUNT_PATH: ${{ github.workspace }}/Backend/serviceAccountKey.json
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+          TF_CPP_MIN_LOG_LEVEL: '3'
+        run: |
+          nohup python -m waitress --host=127.0.0.1 --port=5003 main:app > waitress.log 2>&1 &
+
+      - name: Wait for production-like server health
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5003/health > /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become healthy in time"
+          cat waitress.log || true
+          exit 1
+
+      - name: Run live mood tracking E2E
+        env:
+          BACKEND_URL: http://127.0.0.1:5003
+          SERVICE_ACCOUNT_PATH: ${{ github.workspace }}/Backend/serviceAccountKey.json
+          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+        run: python e2e_live_test.py
+
+      - name: Upload production-like server log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-waitress-log
+          path: Backend/waitress.log
+          if-no-files-found: ignore
+          retention-days: 7

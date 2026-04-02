@@ -476,7 +476,8 @@
     "welcomeHome": "Välkommen hem.",
     "welcomeText": "Här inne dömer ingen. Jag finns här för att lyssna, stötta och hjälpa dig sortera tankarna. Vad tänker du på just nu?",
     "inputPlaceholder": "Skriv ditt meddelande...",
-    "footer": "Lugn & Trygg AI • Privat & Säker"
+    "footer": "Lugn & Trygg AI • Privat & Säker",
+    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologisk hjelp. I krise, ring 116 123 (Kirkens SOS) eller 113."
   },
   "gamification": {
     "myJourney": "Min Resa 🏆",

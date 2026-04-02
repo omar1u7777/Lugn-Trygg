@@ -541,10 +541,12 @@ def log_mood() -> Response | tuple[Response, int]:
             # 2. Text containing crisis keywords (not just any text)
             try:
                 from ..services.crisis_intervention import crisis_intervention_service
+                # Combine all user-provided text for crisis keyword scanning
+                crisis_text = ' '.join(filter(None, [note, mood_text, transcript or '']))
                 crisis_keywords = ['självmord', 'suicid', 'döda mig', 'döda', 'självskada',
                                    'hopplos', 'hopplös', 'vill inte leva', 'ta mitt liv',
                                    'hatar mig själv', 'värdelös', 'börda', 'far bättre utan mig']
-                has_crisis_keywords = crisis_text and any(kw in crisis_text.lower() for kw in crisis_keywords)
+                has_crisis_keywords = bool(crisis_text) and any(kw in crisis_text.lower() for kw in crisis_keywords)
                 
                 if final_score <= 3 or has_crisis_keywords:
                     crisis_context = {
@@ -833,15 +835,6 @@ def get_recent_moods() -> Response | tuple[Response, int]:
 
         try:
             mood_docs = list(query.stream())
-        except Exception as query_error:
-            # Fallback: if composite index is missing, fetch and sort client-side
-            logger.warning(f"Firestore query failed (likely missing composite index), using fallback: {query_error}")
-            fallback_docs = list(mood_ref.stream())
-            mood_docs = [
-                doc for doc in fallback_docs
-                if doc.to_dict().get('timestamp', '') >= seven_days_ago_str
-            ]
-            mood_docs.sort(key=lambda d: d.to_dict().get('timestamp', ''), reverse=True)
         except Exception as query_error:
             # Fallback: if composite index is missing, fetch and sort client-side
             logger.warning(f"Firestore query failed (likely missing composite index), using fallback: {query_error}")

@@ -32,6 +32,8 @@ export const API_ENDPOINTS = {
     GET_MOODS: '/api/v1/mood',
     MOOD_WEEKLY_ANALYSIS: '/api/v1/mood/weekly-analysis',
     MOOD_STATS: '/api/v1/mood-stats/statistics',
+    MOOD_DAILY: '/api/v1/mood-stats/daily',
+    MOOD_MONTHLY: '/api/v1/mood-stats/monthly',
     ANALYZE_TEXT: '/api/v1/mood/analyze-text',
     PREDICTIVE_FORECAST: '/api/v1/mood/predictive-forecast',
     DELETE: '/api/v1/mood/delete',

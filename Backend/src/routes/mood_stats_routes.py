@@ -6,7 +6,7 @@ Provides statistics, trends, and insights for user mood data
 import logging
 from datetime import UTC, datetime, timedelta
 
-from flask import Blueprint, g
+from flask import Blueprint, g, request
 
 # Absolute imports (project standard)
 from src.firebase_config import db
@@ -83,7 +83,7 @@ def get_mood_statistics():
 
                 # Sentiment analysis
                 sentiment = mood_data.get('sentiment', 'NEUTRAL')
-                score = mood_data.get('score', 0)
+                score = mood_data.get('score') or 5  # Default to 5 (neutral) if missing/zero
                 sentiment_scores.append(score)
 
                 if sentiment == 'POSITIVE':
@@ -161,14 +161,16 @@ def get_mood_statistics():
                 worst_day = min(avg_by_date, key=lambda x: avg_by_date[x])
 
             # Calculate recent trend (last 7 days vs previous 7 days)
+            # Threshold of 0.5 on 1-10 scale = meaningful change (5%)
             recent_trend = 'stable'
-            if len(sentiment_scores) >= 14:
-                recent_avg = sum(sentiment_scores[:7]) / 7
-                previous_avg = sum(sentiment_scores[7:14]) / 7
+            if len(sentiment_scores) >= 4:
+                half = max(len(sentiment_scores) // 2, 1)
+                recent_avg = sum(sentiment_scores[:half]) / half
+                previous_avg = sum(sentiment_scores[half:half * 2]) / half if len(sentiment_scores) >= half * 2 else recent_avg
 
-                if recent_avg > previous_avg + 0.1:
+                if recent_avg > previous_avg + 0.5:
                     recent_trend = 'improving'
-                elif recent_avg < previous_avg - 0.1:
+                elif recent_avg < previous_avg - 0.5:
                     recent_trend = 'declining'
 
             logger.info(f"📊 Mood statistics calculated for user {user_id}: {total_moods} moods, avg {average_sentiment:.2f}")
@@ -193,3 +195,266 @@ def get_mood_statistics():
     except Exception as e:
         logger.error(f"Failed to get mood statistics: {str(e)}", exc_info=True)
         return APIResponse.error("Failed to fetch statistics")
+
+
+# ============================================================================
+# Daily Analytics Endpoint
+# ============================================================================
+
+@mood_stats_bp.route('/daily', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_daily_analytics():
+    """
+    Get detailed daily mood analytics for the last N days.
+    Returns per-day averages, hour-of-day distribution, tag frequency,
+    and day-of-week patterns.
+
+    Query params:
+        days: Number of days to analyze (7-90, default 30)
+    """
+    try:
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.forbidden('User ID missing from context')
+
+        try:
+            days = max(7, min(90, int(request.args.get('days', 30))))
+        except (ValueError, TypeError):
+            return APIResponse.bad_request('Invalid days parameter — must be an integer between 7 and 90')
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        cutoff_iso = cutoff.isoformat()
+
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        try:
+            mood_docs = list(
+                mood_ref.where('timestamp', '>=', cutoff_iso)
+                .order_by('timestamp', direction='DESCENDING')
+                .limit(500)
+                .stream()
+            )
+        except Exception:
+            mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(500).stream())
+            mood_docs = [d for d in mood_docs if (d.to_dict() or {}).get('timestamp', '') >= cutoff_iso]
+
+        if not mood_docs:
+            return APIResponse.success({
+                'days': days,
+                'totalEntries': 0,
+                'dailyAverages': [],
+                'hourlyDistribution': [None] * 24,
+                'dayOfWeekAverages': [None] * 7,
+                'tagFrequency': [],
+                'intensityDistribution': {'low': 0, 'medium': 0, 'high': 0},
+            }, 'No mood data in the selected period')
+
+        # Aggregate data
+        from collections import defaultdict
+        daily: dict = defaultdict(list)
+        hourly: dict = defaultdict(list)
+        dow: dict = defaultdict(list)  # day of week (0=Monday)
+        tag_counts: dict = defaultdict(int)
+        intensity_dist = {'low': 0, 'medium': 0, 'high': 0}
+
+        for doc in mood_docs:
+            data = doc.to_dict() or {}
+            score = data.get('score') or 5
+            ts_raw = data.get('timestamp', '')
+            tags = data.get('tags') or []
+
+            # Parse timestamp
+            try:
+                if isinstance(ts_raw, str):
+                    ts = datetime.fromisoformat(ts_raw.replace('Z', '+00:00'))
+                elif hasattr(ts_raw, 'isoformat'):
+                    ts = ts_raw
+                else:
+                    ts = datetime.now(UTC)
+            except Exception:
+                ts = datetime.now(UTC)
+
+            date_key = ts.strftime('%Y-%m-%d')
+            daily[date_key].append(score)
+            hourly[ts.hour].append(score)
+            dow[ts.weekday()].append(score)
+
+            for tag in (tags if isinstance(tags, list) else []):
+                if tag:
+                    tag_counts[str(tag)] += 1
+
+            # Intensity based on score
+            if score <= 3:
+                intensity_dist['low'] += 1
+            elif score <= 6:
+                intensity_dist['medium'] += 1
+            else:
+                intensity_dist['high'] += 1
+
+        # Build per-day series (fill missing days with None)
+        daily_averages = []
+        for i in range(days - 1, -1, -1):
+            day = (datetime.now(UTC) - timedelta(days=i)).strftime('%Y-%m-%d')
+            scores = daily.get(day)
+            daily_averages.append({
+                'date': day,
+                'average': round(sum(scores) / len(scores), 2) if scores else None,
+                'count': len(scores) if scores else 0,
+            })
+
+        # Per-hour averages (0-23)
+        hourly_distribution = []
+        for h in range(24):
+            scores = hourly.get(h)
+            hourly_distribution.append(round(sum(scores) / len(scores), 2) if scores else None)
+
+        # Day-of-week averages (0=Monday … 6=Sunday)
+        DOW_LABELS = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag']
+        dow_averages = []
+        for d in range(7):
+            scores = dow.get(d)
+            dow_averages.append({
+                'day': DOW_LABELS[d],
+                'average': round(sum(scores) / len(scores), 2) if scores else None,
+                'count': len(scores) if scores else 0,
+            })
+
+        # Top tags by frequency
+        top_tags = sorted(
+            [{'tag': t, 'count': c} for t, c in tag_counts.items()],
+            key=lambda x: x['count'],
+            reverse=True
+        )[:20]
+
+        total_entries = sum(len(v) for v in daily.values())
+
+        return APIResponse.success({
+            'days': days,
+            'totalEntries': total_entries,
+            'dailyAverages': daily_averages,
+            'hourlyDistribution': hourly_distribution,
+            'dayOfWeekAverages': dow_averages,
+            'tagFrequency': top_tags,
+            'intensityDistribution': intensity_dist,
+        }, f'Daily analytics for {days} days')
+
+    except Exception as e:
+        logger.error(f'Failed to get daily analytics: {e}', exc_info=True)
+        return APIResponse.error('Failed to fetch daily analytics')
+
+
+# ============================================================================
+# Monthly Analytics Endpoint
+# ============================================================================
+
+@mood_stats_bp.route('/monthly', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_monthly_analytics():
+    """
+    Get monthly mood analytics for the last N months.
+    Returns per-month averages and month-over-month comparison.
+
+    Query params:
+        months: Number of months to analyze (1-12, default 6)
+    """
+    try:
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.forbidden('User ID missing from context')
+
+        try:
+            months = max(1, min(12, int(request.args.get('months', 6))))
+        except (ValueError, TypeError):
+            return APIResponse.bad_request('Invalid months parameter — must be an integer between 1 and 12')
+        # Go back 'months' calendar months from the start of this month
+        now = datetime.now(UTC)
+        cutoff = (now.replace(day=1) - timedelta(days=1)).replace(
+            day=1
+        ) - timedelta(days=28 * (months - 1))
+        cutoff = cutoff.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        cutoff_iso = cutoff.isoformat()
+
+        mood_ref = db.collection('users').document(user_id).collection('moods')
+        try:
+            mood_docs = list(
+                mood_ref.where('timestamp', '>=', cutoff_iso)
+                .order_by('timestamp', direction='DESCENDING')
+                .limit(1000)
+                .stream()
+            )
+        except Exception:
+            mood_docs = list(mood_ref.order_by('timestamp', direction='DESCENDING').limit(1000).stream())
+            mood_docs = [d for d in mood_docs if (d.to_dict() or {}).get('timestamp', '') >= cutoff_iso]
+
+        if not mood_docs:
+            return APIResponse.success({
+                'months': months,
+                'totalEntries': 0,
+                'monthlyData': [],
+                'overallTrend': 'stable',
+            }, 'No mood data in the selected period')
+
+        from collections import defaultdict
+        monthly: dict = defaultdict(list)
+
+        MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec']
+
+        for doc in mood_docs:
+            data = doc.to_dict() or {}
+            score = data.get('score') or 5
+            ts_raw = data.get('timestamp', '')
+            try:
+                if isinstance(ts_raw, str):
+                    ts = datetime.fromisoformat(ts_raw.replace('Z', '+00:00'))
+                elif hasattr(ts_raw, 'isoformat'):
+                    ts = ts_raw
+                else:
+                    ts = datetime.now(UTC)
+            except Exception:
+                ts = datetime.now(UTC)
+
+            month_key = ts.strftime('%Y-%m')
+            monthly[month_key].append(score)
+
+        # Build ordered monthly series
+        monthly_data = []
+        for i in range(months - 1, -1, -1):
+            # Calculate month offset
+            target = now.month - i
+            target_year = now.year + (target - 1) // 12
+            target_month = ((target - 1) % 12) + 1
+            key = f'{target_year:04d}-{target_month:02d}'
+            scores = monthly.get(key)
+            monthly_data.append({
+                'month': key,
+                'label': f"{MONTH_LABELS[target_month - 1]} {target_year}",
+                'average': round(sum(scores) / len(scores), 2) if scores else None,
+                'count': len(scores) if scores else 0,
+            })
+
+        # Overall trend: compare first half vs second half
+        filled = [m for m in monthly_data if m['average'] is not None]
+        overall_trend = 'stable'
+        if len(filled) >= 2:
+            mid = len(filled) // 2
+            first_avg = sum(m['average'] for m in filled[:mid]) / mid
+            last_avg = sum(m['average'] for m in filled[mid:]) / (len(filled) - mid)
+            if last_avg > first_avg + 0.5:
+                overall_trend = 'improving'
+            elif last_avg < first_avg - 0.5:
+                overall_trend = 'declining'
+
+        total_entries = sum(len(v) for v in monthly.values())
+
+        return APIResponse.success({
+            'months': months,
+            'totalEntries': total_entries,
+            'monthlyData': monthly_data,
+            'overallTrend': overall_trend,
+        }, f'Monthly analytics for {months} months')
+
+    except Exception as e:
+        logger.error(f'Failed to get monthly analytics: {e}', exc_info=True)
+        return APIResponse.error('Failed to fetch monthly analytics')
+

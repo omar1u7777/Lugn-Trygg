@@ -49,7 +49,7 @@ describe('useBreathingExercise', () => {
 
     act(() => result.current.start());
     expect(result.current.phase).toBe('exhale');
-    expect(onPhaseChange).toHaveBeenCalledWith('exhale', 'Andas ut...');
+    expect(onPhaseChange).toHaveBeenCalledWith('exhale', 'Andas ut...', expect.any(Number));
   });
 
   it('stop resets everything to rest', () => {

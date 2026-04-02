@@ -20,11 +20,12 @@ vi.mock('../../hooks/useAccessibility', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useAuth', () => ({
+vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { user_id: 'test-user-123', email: 'test@example.com' },
     token: 'test-token',
   }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('../../contexts/SubscriptionContext', () => ({
@@ -96,9 +97,8 @@ describe('MoodList Component', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Glad')).toBeInTheDocument();
+      expect(screen.getByText('Orolig')).toBeInTheDocument();
     }, { timeout: 3000 });
-    
-    expect(screen.getByText('Orolig')).toBeInTheDocument();
   });
 
   test('filters moods by sentiment', async () => {
@@ -112,8 +112,8 @@ describe('MoodList Component', () => {
       expect(screen.getByText('Glad')).toBeInTheDocument();
     }, { timeout: 3000 });
     
-    // Click on positive filter
-    const positiveButton = screen.getByText(/Positiva/i);
+    // Click on positive filter button (use role to distinguish from stats label)
+    const positiveButton = screen.getByRole('button', { name: /Positiva/i });
     fireEvent.click(positiveButton);
     
     // Should only show positive mood
@@ -161,7 +161,7 @@ describe('MoodList Component', () => {
     );
     
     await waitFor(() => {
-      expect(screen.getByText('Statistik')).toBeInTheDocument();
+      expect(screen.getByText(/Statistik/i)).toBeInTheDocument();
     }, { timeout: 3000 });
     
     // Should show stats

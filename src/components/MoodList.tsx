@@ -64,7 +64,8 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
     });
 
     announceToScreenReader('Mood list loaded. Showing all your mood entries.', 'polite');
-  }, [user?.user_id, announceToScreenReader]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_id]);
 
   useEffect(() => {
     if (!user) return;
@@ -147,7 +148,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         clearTimeout(retryTimeoutId);
       }
     };
-  }, [historyDays, user, refreshTrigger]);
+  }, [historyDays, user?.user_id, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter moods based on sentiment, search, and date range
   const filteredMoods = moods.filter(mood => {
@@ -532,7 +533,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
           {/* Statistics */}
           {filteredMoods.length > 0 && (
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">📊 Statistik</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2"><span aria-hidden="true">📊</span> Statistik</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">{stats.total}</div>

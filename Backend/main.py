@@ -120,7 +120,7 @@ else:
 # Flask-JWT-Extended: JWTManager not initialized here — we use custom AuthService.jwt_required
 # The flask-jwt-extended package is kept for test mocking compatibility only
 
-# Flask-WTF removed from requirements - CSRF protection disabled
+# CSRF protection is provided by src/middleware/csrf_middleware.py (double-submit cookie pattern)
 
 # CORS Headers configuration - ALL supported headers including CSRF variants
 # This is a constant and doesn't depend on environment variables
