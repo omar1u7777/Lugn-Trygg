@@ -233,18 +233,16 @@ export const API_ENDPOINTS = {
 
   /** Biofeedback Breathing endpoints - HRV analysis and guided breathing */
   BIOFEEDBACK: {
-    /** WebSocket endpoint for real-time biofeedback */
-    WS: '/api/v1/biofeedback/ws',
     /** GET available breathing patterns */
     PATTERNS: '/api/v1/biofeedback/patterns',
     /** POST start breathing session */
-    START_SESSION: '/api/v1/biofeedback/sessions/start',
-    /** POST end breathing session */
-    END_SESSION: '/api/v1/biofeedback/sessions/end',
+    START: '/api/v1/biofeedback/start',
+    /** POST end breathing session - append /{session_id} */
+    END: '/api/v1/biofeedback/end',
+    /** POST submit HRV data - append /{session_id} */
+    DATA: '/api/v1/biofeedback/data',
     /** GET session history */
-    SESSION_HISTORY: '/api/v1/biofeedback/sessions/history',
-    /** GET HRV analysis */
-    HRV_ANALYSIS: '/api/v1/biofeedback/hrv/analysis',
+    HISTORY: '/api/v1/biofeedback/history',
   } as const,
 
   /** Insights endpoints - AI-powered wellness insights */

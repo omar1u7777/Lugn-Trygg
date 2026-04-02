@@ -1,17 +1,53 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBreathingExerciseBiofeedback } from '../hooks/useBreathingExerciseBiofeedback';
+import { useBreathingExerciseBiofeedback, BreathingPattern } from '../hooks/useBreathingExerciseBiofeedback';
 import { Button } from './ui/tailwind';
 
 /**
  * BiofeedbackBreathingCircle - Animated breathing visualization
- * 
+ *
  * Features:
  * - Dynamic circle expansion/contraction synchronized with breath phases
  * - Color changes based on HRV coherence score
  * - Real-time biofeedback indicators
  * - Smooth animations using CSS transitions
  */
+
+// Pattern configs matching the backend breathing_breathing_service.py patterns
+const PATTERN_CONFIGS: Record<string, BreathingPattern> = {
+  coherence: {
+    id: 'coherence_6bpm',
+    name: 'Hjärtkoherens 6bpm',
+    description: 'Optimerad för HRV-resonans vid 0.1Hz',
+    durations: { inhale: 5, hold: 0, exhale: 5, holdEmpty: 0 },
+    breathsPerMinute: 6,
+    targetHrvResonance: true,
+  },
+  relax: {
+    id: 'relax_478',
+    name: 'Avslappning 4-7-8',
+    description: 'Aktiverar parasympatiska nervsystemet',
+    durations: { inhale: 4, hold: 7, exhale: 8, holdEmpty: 0 },
+    breathsPerMinute: 3.2,
+    targetHrvResonance: false,
+  },
+  energize: {
+    id: 'energize_box',
+    name: 'Box-andning',
+    description: 'Balanserar energi och fokus',
+    durations: { inhale: 5, hold: 5, exhale: 5, holdEmpty: 5 },
+    breathsPerMinute: 3,
+    targetHrvResonance: false,
+  },
+  sleep: {
+    id: 'sleep_446',
+    name: 'Sömn-andning 4-4-6',
+    description: 'Förbereder kroppen för sömn',
+    durations: { inhale: 4, hold: 0, exhale: 6, holdEmpty: 0 },
+    breathsPerMinute: 4,
+    targetHrvResonance: false,
+  },
+};
 
 interface BiofeedbackBreathingCircleProps {
   userId: string;
@@ -48,7 +84,8 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
   } = useBreathingExerciseBiofeedback({
     useBiofeedback: true,
     onComplete,
-    targetCycles: Math.ceil((duration * 60) / 10) // Approximate cycles
+    targetCycles: Math.ceil((duration * 60) / 10), // Approximate cycles
+    pattern: PATTERN_CONFIGS[pattern] ?? PATTERN_CONFIGS['coherence'],
   });
 
   const [showBiofeedback, setShowBiofeedback] = useState(true);
@@ -105,6 +142,18 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
 
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
+      {/* Medical Disclaimer */}
+      <div className="mb-6 w-full max-w-md bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
+        <div className="text-sm text-amber-800">
+          <div className="font-semibold mb-2">
+            {t('breathing.medical_disclaimer_title', '⚠️ Viktig medicinsk ansvarsfriskrivning')}
+          </div>
+          <div className="text-xs leading-relaxed">
+            {t('breathing.medical_disclaimer', 'Andningsövningar är ett komplement till medicinsk behandling, inte en ersättning. Om du känner dig oroad, matt, yrsel eller andra symtom under övningen - AVBRYT OMEDELBAR och konsultera en läkare.')}
+          </div>
+        </div>
+      </div>
+
       {/* Connection status */}
       {isConnecting && (
         <div className="mb-4 text-sm text-yellow-600">
@@ -177,10 +226,16 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
         </div>
       )}
 
-      {/* Guidance text */}
+      {/* Guidance text with abort instructions */}
       {biofeedback.guidance && (
         <div className="mt-4 text-center text-gray-700 max-w-xs">
           {biofeedback.guidance}
+        </div>
+      )}
+      
+      {isActive && (
+        <div className="mt-3 text-xs text-red-600 text-center max-w-xs">
+          {t('breathing.abort_info', '❗ Klicka "AVBRYT" omedelbar om du blir oroad, yr eller mår illa')}
         </div>
       )}
 
@@ -213,10 +268,10 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
             </Button>
             <Button
               onClick={handleStop}
-              variant="outline"
-              className="px-4 py-2 text-red-600 border-red-300 hover:bg-red-50"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold border-red-600"
+              title={t('breathing.abort_tooltip', 'Avbryt övningen omedelbar')}
             >
-              {t('common.stop', 'Avsluta')}
+              {t('breathing.abort', '⚠️ AVBRYT')}
             </Button>
           </>
         )}

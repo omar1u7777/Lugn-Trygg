@@ -28,6 +28,7 @@ import { KBTPhaseName, Recommendation, RecommendationsProps } from '../types/rec
 import { getMuscleGroups, getBreathingPhases, getRecommendationsPool, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { useBreathingExercise } from '../hooks/useBreathingExercise';
+import { BiofeedbackBreathingCircle } from './BiofeedbackBreathingCircle';
 import { useKBTExercise } from '../hooks/useKBTExercise';
 import { usePMR } from '../hooks/usePMR';
 import { usePomodoro } from '../hooks/usePomodoro';
@@ -287,6 +288,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [breathingStressAfter, setBreathingStressAfter] = useState<number | null>(null);
   const [showBreathingScience, setShowBreathingScience] = useState(false);
   const [isBreathingFullscreen, setIsBreathingFullscreen] = useState(false);
+  const [useBiofeedbackMode, setUseBiofeedbackMode] = useState(false);
+  const [biofeedbackPattern, setBiofeedbackPattern] = useState<'coherence' | 'relax' | 'energize' | 'sleep'>('coherence');
   const breathingAudioContextRef = useRef<AudioContext | null>(null);
   const breathingOutcomeSyncedRef = useRef(false);
   
@@ -2614,6 +2617,64 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {selectedRecommendation.id === 'stress-1' && (
                 <div className={`${isBreathingFullscreen ? 'fixed inset-0 z-[260] overflow-y-auto bg-black/80 p-4 sm:p-8' : ''}`}>
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
+
+                    {/* Mode toggle: Basic vs Biofeedback */}
+                    <div className="flex justify-center mb-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUseBiofeedbackMode(false)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${!useBiofeedbackMode ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-blue-100'}`}
+                      >
+                        🫁 Grundläge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseBiofeedbackMode(true)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${useBiofeedbackMode ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
+                      >
+                        💜 HRV Biofeedback
+                      </button>
+                    </div>
+
+                    {/* Biofeedback mode: pattern selector + component */}
+                    {useBiofeedbackMode && (
+                      <div className="mb-4">
+                        <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-3">
+                          Välj andningsmönster — cirkeln animeras i realtid baserat på din andningsrytm.
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2 mb-4">
+                          {([
+                            { key: 'coherence', label: '❤️ Koherens 6bpm', subtitle: '5-5' },
+                            { key: 'relax', label: '😴 4-7-8', subtitle: '4-7-8' },
+                            { key: 'energize', label: '⚡ Box', subtitle: '5-5-5-5' },
+                            { key: 'sleep', label: '🌙 Sömn', subtitle: '4-6' },
+                          ] as const).map(({ key, label, subtitle }) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setBiofeedbackPattern(key)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${biofeedbackPattern === key ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
+                            >
+                              {label}
+                              <span className="ml-1 opacity-70 text-[10px]">({subtitle}s)</span>
+                            </button>
+                          ))}
+                        </div>
+                        <BiofeedbackBreathingCircle
+                          userId={userId || user?.user_id || ''}
+                          pattern={biofeedbackPattern}
+                          duration={5}
+                          onComplete={(cycles, coherence) => {
+                            setBreathingStressAfter(null);
+                          }}
+                          onCancel={() => setUseBiofeedbackMode(false)}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    {/* Basic mode (original UI) */}
+                    {!useBiofeedbackMode && (<>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                       <h3 className="font-semibold text-gray-900 dark:text-white text-center sm:text-left">
                         🫁 Interaktiv Andningsguide
@@ -2805,6 +2866,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         Välj stressnivå före start för att kunna jämföra effekten efteråt.
                       </p>
                     )}
+                    </>)}
                   </div>
                 </div>
               )}

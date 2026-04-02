@@ -54,7 +54,8 @@ export interface SessionHistory {
 export const getBreathingPatterns = async (): Promise<BreathingPattern[]> => {
   try {
     const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.PATTERNS);
-    return response.data.data?.patterns || [];
+    // Backend returns { success: true, patterns: [...] } directly
+    return response.data.patterns || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -63,19 +64,21 @@ export const getBreathingPatterns = async (): Promise<BreathingPattern[]> => {
 
 /**
  * Start a breathing session
- * @param patternId - ID of the breathing pattern
- * @param durationSeconds - Target session duration
+ * @param patternId - ID of the breathing pattern (e.g. 'coherence', 'relax')
+ * @param durationMinutes - Target session duration in minutes (default 5)
  */
 export const startBreathingSession = async (
   patternId: string,
-  durationSeconds: number = 300
-): Promise<BreathingSession> => {
+  durationMinutes: number = 5
+): Promise<{ session_id: string; pattern: string; ws_namespace: string | null }> => {
   try {
-    const response = await api.post(API_ENDPOINTS.BIOFEEDBACK.START_SESSION, {
-      pattern_id: patternId,
-      duration_seconds: durationSeconds
+    // Backend expects { pattern, duration } where duration is in minutes
+    const response = await api.post(API_ENDPOINTS.BIOFEEDBACK.START, {
+      pattern: patternId,
+      duration: durationMinutes
     });
-    return response.data.data?.session;
+    // Backend returns { success: true, session_id, pattern, ws_namespace }
+    return response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -85,17 +88,14 @@ export const startBreathingSession = async (
 /**
  * End a breathing session
  * @param sessionId - ID of the session to end
- * @param hrvData - Optional HRV data from the session
  */
 export const endBreathingSession = async (
-  sessionId: string,
-  hrvData?: Partial<HRVData>
-): Promise<BreathingSession> => {
+  sessionId: string
+): Promise<{ success: boolean; summary: Record<string, unknown> }> => {
   try {
-    const response = await api.post(`${API_ENDPOINTS.BIOFEEDBACK.END_SESSION}/${sessionId}`, {
-      hrv_data: hrvData
-    });
-    return response.data.data?.session;
+    // Backend route: POST /api/v1/biofeedback/end/<session_id>
+    const response = await api.post(`${API_ENDPOINTS.BIOFEEDBACK.END}/${sessionId}`, {});
+    return response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -106,61 +106,15 @@ export const endBreathingSession = async (
  * Get breathing session history
  * @param limit - Number of sessions to retrieve
  */
-export const getSessionHistory = async (limit: number = 10): Promise<SessionHistory> => {
+export const getSessionHistory = async (limit: number = 10): Promise<{ sessions: SessionHistory['sessions']; total: number }> => {
   try {
-    const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.SESSION_HISTORY, {
+    const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.HISTORY, {
       params: { limit }
     });
-    return response.data.data;
+    // Backend returns { success: true, sessions: [...], total: n }
+    return response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
   }
-};
-
-/**
- * Get HRV analysis
- * @param timeRange - Time range for analysis (e.g., '7d', '30d')
- */
-export const getHRVAnalysis = async (timeRange: string = '7d'): Promise<HRVData> => {
-  try {
-    const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.HRV_ANALYSIS, {
-      params: { time_range: timeRange }
-    });
-    return response.data.data?.analysis;
-  } catch (error: unknown) {
-    if (error instanceof ApiError) throw error;
-    throw ApiError.fromAxiosError(error);
-  }
-};
-
-/**
- * Create WebSocket connection for real-time biofeedback
- * @param sessionId - Session ID for the WebSocket connection
- * @param onMessage - Callback for WebSocket messages
- * @param onError - Callback for WebSocket errors
- * @returns WebSocket instance
- */
-export const createBiofeedbackWebSocket = (
-  sessionId: string,
-  onMessage: (data: unknown) => void,
-  onError?: (error: Event) => void
-): WebSocket => {
-  const wsUrl = `${API_ENDPOINTS.BIOFEEDBACK.WS}?session_id=${sessionId}`;
-  const ws = new WebSocket(wsUrl);
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      onMessage(data);
-    } catch {
-      onMessage(event.data);
-    }
-  };
-  
-  if (onError) {
-    ws.onerror = onError;
-  }
-  
-  return ws;
 };
