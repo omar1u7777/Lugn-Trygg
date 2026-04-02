@@ -32,8 +32,6 @@ const DailyInsights = lazy(() => import('./DailyInsights'));
 const GamificationSystem = lazy(() => import('./GamificationSystem'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const GroupChallenges = lazy(() => import('./GroupChallenges'));
-const MemoryRecorder = lazy(() => import('./MemoryRecorder'));
-const MemoryList = lazy(() => import('./MemoryList'));
 const MoodList = lazy(() => import('./MoodList'));
 const RelaxingSounds = lazy(() => import('./RelaxingSounds'));
 const PeerSupportChat = lazy(() => import('./PeerSupportChat'));
@@ -180,26 +178,6 @@ export const AchievementSharingWrapper: React.FC = () => {
 export const GroupChallengesWrapper: React.FC = () => {
   const { user } = useAuth();
   return <GroupChallenges userId={getUserId(user)} />;
-};
-
-// MemoryRecorder Wrapper - Uses real MemoryRecorder component
-export const MemoryRecorderWrapper: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  return (
-    <MemoryRecorder 
-      userId={getUserId(user)} 
-      onSave={() => navigate('/memories')}
-      onCancel={() => navigate(-1)}
-    />
-  );
-};
-
-// MemoryList Wrapper - Uses real MemoryList component
-export const MemoryListWrapper: React.FC = () => {
-  const { user } = useAuth();
-  return <MemoryList userId={getUserId(user)} />;
 };
 
 // MoodLogger basic wrapper - uses SuperMoodLogger
