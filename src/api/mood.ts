@@ -245,37 +245,6 @@ export const analyzeText = async (text: string) => {
   }
 };
 
-/**
- * Export mood entries as CSV for data portability
- * @param userId - User ID
- * @returns Promise resolving to CSV string
- */
-export const exportMoodData = async (userId: string, format: 'csv' | 'json' = 'csv'): Promise<string> => {
-  try {
-    const moods = await getMoods(userId);
-    
-    if (format === 'json') {
-      return JSON.stringify(moods, null, 2);
-    }
-    
-    // CSV export
-    const headers = ['Datum', 'Humör', 'Poäng', 'Anteckning', 'Taggar', 'Valens', 'Arousal'];
-    const rows = moods.map((m: { timestamp?: string | Date; mood_text?: string; score?: number; note?: string; tags?: string[]; valence?: number; arousal?: number }) => {
-      const date = m.timestamp ? new Date(m.timestamp).toLocaleDateString('sv-SE') : '';
-      const mood = m.mood_text || '';
-      const score = m.score ?? '';
-      const note = (m.note || '').replace(/"/g, '""');
-      const tags = (m.tags || []).join(', ');
-      const valence = m.valence ?? '';
-      const arousal = m.arousal ?? '';
-      return `"${date}","${mood}",${score},"${note}","${tags}",${valence},${arousal}`;
-    });
-    
-    return [headers.join(','), ...rows].join('\n');
-  } catch (error: unknown) {
-    throw new Error(getApiErrorMessage(error, "An error occurred while exporting mood data."));
-  }
-};
 
 /**
  * Export mood entries as CSV for data portability

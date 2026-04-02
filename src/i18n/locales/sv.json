@@ -476,6 +476,7 @@
       "sleep": "Kan inte sova"
     },
     "footer": "Dina samtal är privata och säkra",
+    "disclaimer": "Lugn & Trygg ersätter inte professionell psykologhjälp. Vid akut kris, ring 90101 (Självmordslinjen) eller 112.",
     "limitReached": "Daglig gräns nådd",
     "dailyLimitReached": "Du har nått din dagliga gräns för meddelanden",
     "messagesLeft": "{{count}} kvar",

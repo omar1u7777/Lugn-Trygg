@@ -43,13 +43,13 @@ const RegisterForm: React.FC = () => {
 
   const validatePassword = (pw: string) => {
     if (pw.length < 8) {
-      return t('registerForm.passwordTooShort');
+      return t('registerForm.passwordTooShort', 'Lösenordet måste vara minst 8 tecken långt.');
     }
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(pw)) {
-      return t('registerForm.passwordNeedsChars');
+      return t('registerForm.passwordNeedsChars', 'Lösenordet måste innehålla minst en stor bokstav, en liten bokstav och en siffra.');
     }
     if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(pw)) {
-      return t('registerForm.passwordNeedsSpecial');
+      return t('registerForm.passwordNeedsSpecial', 'Lösenordet måste innehålla minst ett specialtecken.');
     }
     return "";
   };
@@ -77,8 +77,8 @@ const RegisterForm: React.FC = () => {
     }
 
     if (password !== confirmPassword) {
-      setValidationErrors(prev => ({ ...prev, confirmPassword: t('registerForm.passwordMismatch') }));
-      announceToScreenReader(t('registerForm.passwordMismatch'), "assertive");
+      setValidationErrors(prev => ({ ...prev, confirmPassword: t('registerForm.passwordMismatch', 'Lösenorden matchar inte.') }));
+      announceToScreenReader(t('registerForm.passwordMismatch', 'Lösenorden matchar inte.'), "assertive");
       return;
     }
 

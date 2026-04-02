@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { getBackendUrl } from '../config/env';
 import { tokenStorage } from '../utils/secureStorage';
 import { logger } from '../utils/logger';
+import { API_ENDPOINTS } from '../api/constants';
 
 export interface StreamingMessage {
   id: string;
@@ -22,6 +23,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const [currentMessage, setCurrentMessage] = useState<StreamingMessage | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const csrfTokenRef = useRef<string | null>(null);
   // CRITICAL FIX: Use ref to avoid dependency issues with useCallback
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -60,12 +62,28 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       }
 
       const baseUrl = getBackendUrl();
-      const response = await fetch(`${baseUrl}/chatbot/chat/stream`, {
+
+      // Fetch CSRF token once (cookie + header double-submit pattern in backend)
+      if (!csrfTokenRef.current) {
+        const csrfResponse = await fetch(`${baseUrl}${API_ENDPOINTS.AUTH.CSRF_TOKEN}`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (csrfResponse.ok) {
+          const csrfJson = await csrfResponse.json().catch(() => ({}));
+          const payload = csrfJson?.data || csrfJson;
+          csrfTokenRef.current = payload?.csrfToken || payload?.csrf_token || null;
+        }
+      }
+
+      const response = await fetch(`${baseUrl}${API_ENDPOINTS.CHATBOT.CHAT_STREAM}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          ...(csrfTokenRef.current ? { 'X-CSRF-Token': csrfTokenRef.current } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           message,
           user_id: userId,

@@ -561,10 +561,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="text-center mt-3">
+          <div className="text-center mt-3 space-y-1">
             <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
               {t('aiChat.footer')}
             </span>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug max-w-xs mx-auto">
+              {t('aiChat.disclaimer')}
+            </p>
           </div>
         </div>
       </div>

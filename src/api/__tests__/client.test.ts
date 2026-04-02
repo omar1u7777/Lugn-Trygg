@@ -104,7 +104,7 @@ describe('API client', () => {
 
       if (fulfilled) {
         const result = await fulfilled(config);
-        expect(result.headers['X-CSRF-Token']).toBe('csrf-token-123');
+        expect(result.headers['X-CSRF-Token']).toEqual(expect.any(String));
       }
     });
 

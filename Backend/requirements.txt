@@ -47,6 +47,9 @@ numpy==2.4.2
 pandas==3.0.0
 joblib==1.5.3
 
+# Deep Learning - LSTM Mood Forecasting
+tensorflow-cpu==2.18.0
+
 # Natural Language Processing (pinned)
 transformers==5.4.0
 # torch is optional - install separately if needed for ML features

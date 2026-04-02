@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 // Language configuration with display names and flags
 const LANGUAGE_CONFIG = {
-  sv: { code: 'sv', name: 'Svenska', flag: '🇸🇪', label: 'SV' },
-  en: { code: 'en', name: 'English', flag: '🇬🇧', label: 'EN' },
-  no: { code: 'no', name: 'Norsk', flag: '🇳🇴', label: 'NO' }
+  sv: { code: 'sv', name: 'Svenska', flag: '🇸🇪', label: 'SV', translationKey: 'language.swedish' },
+  en: { code: 'en', name: 'English', flag: '🇬🇧', label: 'EN', translationKey: 'language.english' },
+  no: { code: 'no', name: 'Norsk', flag: '🇳🇴', label: 'NO', translationKey: 'language.norwegian' }
 } as const;
 
 type LanguageCode = keyof typeof LANGUAGE_CONFIG;
@@ -36,6 +36,10 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
     try {
       i18n.changeLanguage(languageCode);
       localStorage.setItem('i18nextLng', languageCode);
+
+      // Update HTML lang attribute immediately
+      const htmlLang = languageCode === 'no' ? 'nb' : languageCode;
+      document.documentElement.lang = htmlLang;
       
       // Track language change for analytics
       if (typeof window !== 'undefined' && (window as any).analytics) {
@@ -70,7 +74,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
             key={lang.code} 
             value={lang.code}
           >
-            {lang.flag} {lang.label}
+            {lang.flag} {t(lang.translationKey)}
           </option>
         ))}
       </select>

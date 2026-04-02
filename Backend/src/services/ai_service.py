@@ -50,6 +50,10 @@ class AIServices:
         self.client = None
         self._openai_checked = False
         self._openai_available = False
+        self._sentiment_pipeline = None
+        self._transformer_sentiment_enabled = (
+            os.getenv("ENABLE_TRANSFORMER_SENTIMENT", "false").lower() == "true"
+        )
         self.google_nlp_available = self._check_google_nlp()
         # Cache for trained ML models to avoid retraining on every request
         self._ml_model_cache = {}
@@ -923,10 +927,16 @@ Långsiktiga välbefinnande-strategier:
         Critical for mental health apps - requires immediate attention
         """
         crisis_keywords = {
-            "suicidal": ["döda mig", "ta livet av mig", "självmord", "inte orka längre", "sluta leva"],
-            "self_harm": ["skada mig själv", "skära mig", "göra illa mig", "självskada"],
-            "hopelessness": ["hopplöst", "ingen mening", "allt är meningslöst", "ge upp"],
-            "severe_distress": ["kan inte fortsätta", "håller på att bryta ihop", "psykiskt sammanbrott"]
+            "suicidal": ["döda mig", "ta livet av mig", "självmord", "inte orka längre", "sluta leva",
+                         "vill inte leva", "vill dö", "vill inte vara här", "hoppas jag dör",
+                         "tänker ta mitt liv", "planerar att dö", "inte värd att leva"],
+            "self_harm": ["skada mig själv", "skära mig", "göra illa mig", "självskada",
+                          "skada mig", "slå mig"],
+            "hopelessness": ["hopplöst", "ingen mening", "allt är meningslöst", "ge upp",
+                             "ingen framtid", "bättre utan mig", "världen är bättre utan mig",
+                             "ingen bryr sig", "ingen skull sakna mig"],
+            "severe_distress": ["kan inte fortsätta", "håller på att bryta ihop", "psykiskt sammanbrott",
+                                "orkar inte mer", "klarar inte mer", "vill bara försvinna"]
         }
 
         text_lower = text.lower()
@@ -1276,24 +1286,31 @@ Långsiktiga välbefinnande-strategier:
         Enhanced sentiment analysis using transformers for Swedish
         Falls back to existing method if transformers unavailable
         """
+        if not self._transformer_sentiment_enabled:
+            # Keep chat path stable in constrained runtimes unless explicitly enabled.
+            return {
+                **self.analyze_sentiment(text),
+                "method": "keyword_based"
+            }
+
         try:
-            import torch
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+            from transformers import pipeline
 
             # Use a Swedish-capable model or multilingual model
             model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
             # For Swedish specifically, you might want to use: "KB/bert-base-swedish-cased-sentiment"
 
             try:
-                # type: ignore for transformers pipeline overload issue
-                sentiment_pipeline = pipeline(
-                    task="sentiment-analysis",  # type: ignore[arg-type]
-                    model=model_name,
-                    tokenizer=model_name,
-                    return_all_scores=True  # type: ignore[call-overload]
-                )
+                if self._sentiment_pipeline is None:
+                    # type: ignore for transformers pipeline overload issue
+                    self._sentiment_pipeline = pipeline(
+                        task="sentiment-analysis",  # type: ignore[arg-type]
+                        model=model_name,
+                        tokenizer=model_name,
+                        return_all_scores=True  # type: ignore[call-overload]
+                    )
 
-                results = sentiment_pipeline(text[:512])  # Truncate for model limits
+                results = self._sentiment_pipeline(text[:512])  # Truncate for model limits
 
                 if results and len(results) > 0:
                     scores = results[0]
@@ -1318,6 +1335,7 @@ Långsiktiga välbefinnande-strategier:
                     }
 
             except Exception as e:
+                self._transformer_sentiment_enabled = False
                 logger.warning(f"Transformer analysis failed: {str(e)}")
 
         except ImportError:
@@ -1691,19 +1709,107 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         return actions[:5]  # Return top 5
 
-    def generate_therapeutic_conversation_stream(self, user_message: str, conversation_history: list[dict]):
+    def _build_enhanced_system_prompt(self, user_message: str, user_id: str | None = None) -> str:
+        """
+        Build the enhanced therapeutic system prompt used by BOTH streaming and
+        non-streaming endpoints, ensuring consistent therapeutic quality.
+
+        Includes sentiment guidance and per-user mood history context.
+        """
+        # Sentiment guidance based on current message
+        try:
+            sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
+            sentiment_label = sentiment_analysis.get("sentiment", "NEUTRAL")
+        except Exception:
+            sentiment_label = "NEUTRAL"
+
+        if sentiment_label == "NEGATIVE":
+            sentiment_guidance = (
+                "Användaren verkar ha negativa känslor just nu – var extra stödjande, "
+                "validera deras känslor och erbjud konkreta coping-strategier."
+            )
+        elif sentiment_label == "POSITIVE":
+            sentiment_guidance = (
+                "Användaren verkar vara i ett positivt tillstånd – uppmärksamma och "
+                "förstärk dessa positiva känslor."
+            )
+        else:
+            sentiment_guidance = (
+                "Användarens sinnesstämning är neutral – var nyfiken och utforskande."
+            )
+
+        # Per-user mood history for personalised context
+        mood_context = ""
+        if user_id:
+            try:
+                from src.firebase_config import db
+                mood_ref = db.collection("users").document(user_id).collection("moods")
+                recent_moods = list(
+                    mood_ref.order_by("timestamp", direction="DESCENDING").limit(7).stream()
+                )
+                if recent_moods:
+                    mood_scores = [
+                        m.to_dict().get("score", m.to_dict().get("sentiment_score", 5))
+                        for m in recent_moods
+                    ]
+                    avg_mood = sum(mood_scores) / len(mood_scores)
+                    if len(mood_scores) >= 3:
+                        recent_avg = sum(mood_scores[:3]) / 3
+                        older_avg = sum(mood_scores[3:]) / max(len(mood_scores[3:]), 1)
+                        if recent_avg > older_avg + 1:
+                            trend = "förbättras"
+                        elif recent_avg < older_avg - 1:
+                            trend = "försämras"
+                        else:
+                            trend = "är stabilt"
+                    else:
+                        trend = "är okänt (för lite data)"
+                    mood_context = (
+                        f"\n\nAnvändarens humörkontext (senaste 7 dagarna):\n"
+                        f"- Genomsnittligt humör: {avg_mood:.1f}/10\n"
+                        f"- Humörtrend: {trend}\n"
+                        f"- Senaste humör: {mood_scores[0]}/10\n\n"
+                        "Ta hänsyn till användarens humörmönster när du svarar."
+                    )
+            except Exception as mood_err:
+                logger.warning("⚠️ Failed to fetch mood history for system prompt: %s", mood_err)
+
+        return (
+            "Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.\n\n"
+            "Din roll:\n"
+            "- Lyssna aktivt och empatiskt\n"
+            "- Ge stöd och validering\n"
+            "- Föreslå evidensbaserade coping-strategier (KBT, DBT, ACT, mindfulness)\n"
+            "- Ställ öppna frågor för att utforska känslor och tankar djupare\n"
+            "- Uppmuntra professionell hjälp vid behov\n"
+            "- Aldrig diagnostisera eller ge medicinsk rådgivning\n"
+            "- Skapa en säker, trygg atmosfär för reflektion\n\n"
+            f"{sentiment_guidance}"
+            f"{mood_context}\n\n"
+            "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). "
+            "Var empatisk och personlig."
+        )
+
+    def generate_therapeutic_conversation_stream(
+        self,
+        user_message: str,
+        conversation_history: list[dict],
+        user_id: str | None = None,
+    ):
         """
         Stream therapeutic response token-by-token using OpenAI stream=True.
         Yields SSE-formatted strings: 'data: <chunk>\\n\\n' and 'data: [DONE]\\n\\n'
         Falls back to yielding full response at once if streaming unavailable.
+
+        Uses the same enhanced system prompt as the non-streaming /chat endpoint
+        to guarantee consistent therapeutic quality across both transports.
         """
-        from collections.abc import Generator
+        import json
 
         if not self.openai_available or not self.client:
             logger.warning("⚠️ OpenAI not available, streaming fallback")
             fallback = self._generate_fallback_therapeutic_response(user_message)
             text = fallback.get("response", "")
-            import json
             for chunk in _split_into_chunks(text, 8):
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             yield "data: [DONE]\n\n"
@@ -1714,26 +1820,15 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             crisis_analysis = self.detect_crisis_indicators(user_message)
             if crisis_analysis["requires_immediate_attention"]:
                 crisis_text = self._generate_crisis_response(crisis_analysis)
-                import json
                 for chunk in _split_into_chunks(crisis_text, 8):
                     yield f"data: {json.dumps({'content': chunk, 'crisis': True})}\n\n"
                 yield "data: [DONE]\n\n"
                 return
         except Exception as e:
-            logger.warning(f"Crisis check failed during stream: {e}")
+            logger.warning("Crisis check failed during stream: %s", e)
 
-        system_prompt = """Du är en empatisk terapeutisk AI-assistent specialiserad på mental hälsa och välbefinnande.
-        Du hjälper användaren att reflektera lugnt och tryggt över sina känslor och tankar.
-
-        Dina principer:
-        - Var alltid empatisk, stödjande och icke-dömande
-        - Använd evidensbaserade tekniker (KBT, ACT, mindfulness, avslappning)
-        - Ställ öppna frågor för att utforska känslor och tankar djupare
-        - Ge konkreta coping-strategier när det känns rätt
-        - Uppmuntra professionell hjälp vid behov
-        - Svara på svenska med värme och medkänsla
-        - Var kortfattad men hjälpsam - fokusera på kvalitet över kvantitet
-        - Skapa en säker, trygg atmosfär för reflektion"""
+        # Build the same rich system prompt used by the non-streaming endpoint
+        system_prompt = self._build_enhanced_system_prompt(user_message, user_id)
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         for msg in conversation_history[-6:]:
@@ -1743,7 +1838,6 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             })
         messages.append({"role": "user", "content": user_message})
 
-        import json
         try:
             stream = self.client.chat.completions.create(
                 model="gpt-4o-mini",

@@ -127,7 +127,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
           }
 
           if (isQuotaReached) {
-            description = 'Vila eller uppgradera 🌙';
+            description = 'Kvot nådd idag';
           }
 
           return (

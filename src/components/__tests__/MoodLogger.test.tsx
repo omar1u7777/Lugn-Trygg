@@ -205,19 +205,12 @@ describe('MoodLogger', () => {
     expect(screen.getByText('Logga humör')).toBeInTheDocument();
   });
 
-  test('shows the "back to dashboard" button when onMoodLogged is provided', () => {
+  test('does not show a back button when no mood is selected', () => {
     const onMoodLogged = vi.fn();
     renderMoodLogger({ onMoodLogged });
 
-    expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
-  });
-
-  test('calls onMoodLogged when back button is clicked', () => {
-    const onMoodLogged = vi.fn();
-    renderMoodLogger({ onMoodLogged });
-
-    fireEvent.click(screen.getByText('Tillbaka till Dashboard'));
-    expect(onMoodLogged).toHaveBeenCalled();
+    // No standalone back button — onMoodLogged is invoked after successful log, not via extra button
+    expect(screen.queryByText('Tillbaka till Dashboard')).not.toBeInTheDocument();
   });
 
   test('renders usage limit banner', () => {
@@ -225,9 +218,10 @@ describe('MoodLogger', () => {
     expect(screen.getByTestId('usage-limit-banner')).toBeInTheDocument();
   });
 
-  test('shows empty moods message when no recent moods', () => {
+  test('does not show stale empty-moods message on initial render', () => {
     renderMoodLogger();
-    expect(screen.getByText('Inga humör loggade ännu')).toBeInTheDocument();
+    // Component no longer renders a misleading persistent "no moods" message
+    expect(screen.queryByText('Inga humör loggade ännu')).not.toBeInTheDocument();
   });
 
   test('typing in note textarea updates character count', () => {

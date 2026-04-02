@@ -5,6 +5,7 @@ Provides personalized context-aware conversations using vector similarity search
 
 import hashlib
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any

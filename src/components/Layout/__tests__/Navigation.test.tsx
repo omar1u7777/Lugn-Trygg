@@ -30,6 +30,11 @@ vi.mock('react-i18next', () => ({
       const translations: Record<string, string> = {
         'auth.login': 'Logga in',
         'auth.register': 'Registrera',
+        'navigation.switchToDark': 'Byt till mörkt läge',
+        'navigation.switchToLight': 'Byt till ljust läge',
+        'settings.darkMode': 'Mörkt läge',
+        'settings.lightMode': 'Ljust läge',
+        'navigation.unlockUnlimited': 'Uppgradera till premium',
       };
       return translations[key] || key;
     },
@@ -39,6 +44,28 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/components/LanguageSwitcher', () => ({
   __esModule: true,
   default: () => <div data-testid="language-switcher" />,
+}));
+
+vi.mock('../ProfileDropdown', () => ({
+  __esModule: true,
+  default: ({ isPremium, planLabel }: { isPremium?: boolean; planLabel?: string }) => (
+    <div>
+      <button
+        aria-label="Byt till mörkt läge"
+        onClick={() => mockToggleTheme()}
+      >
+        Tema
+      </button>
+      <div data-testid="language-switcher" />
+      <button
+        title="Logga ut"
+        onClick={() => mockLogout()}
+      >
+        Logga ut
+      </button>
+      {isPremium && planLabel && <span>{planLabel}</span>}
+    </div>
+  ),
 }));
 
 describe('Navigation', () => {

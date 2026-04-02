@@ -6,6 +6,7 @@ import React, { useState, useEffect, lazy } from 'react';
 import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../utils/logger';
+import { SuperMoodLogger } from './SuperMoodLogger';
 
 type AuthUserLike = {
   user_id?: string;
@@ -34,9 +35,6 @@ const GroupChallenges = lazy(() => import('./GroupChallenges'));
 const MemoryRecorder = lazy(() => import('./MemoryRecorder'));
 const MemoryList = lazy(() => import('./MemoryList'));
 const MoodList = lazy(() => import('./MoodList'));
-
-// SuperMoodLogger - The ultimate mood tracking system
-const SuperMoodLogger = lazy(() => import('./SuperMoodLogger').then(m => ({ default: m.SuperMoodLogger })));
 const RelaxingSounds = lazy(() => import('./RelaxingSounds'));
 const PeerSupportChat = lazy(() => import('./PeerSupportChat'));
 const CrisisAlert = lazy(() => import('./CrisisAlert'));

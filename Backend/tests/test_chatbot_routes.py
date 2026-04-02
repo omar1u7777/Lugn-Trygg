@@ -220,8 +220,8 @@ class TestChatEndpoint:
 
         mock_collection, mock_document, mock_subcollection = _mock_db_chain(mock_db)
         mock_subcollection.order_by.return_value.limit.return_value.stream.return_value = [
-            mock_msg1,
             mock_msg2,
+            mock_msg1,
         ]
 
         mock_response.return_value = {
@@ -429,9 +429,9 @@ class TestChatHistory:
         }
 
         _, mock_document, mock_subcollection = _mock_db_chain(mock_db)
-        mock_subcollection.order_by.return_value.stream.return_value = [
-            mock_msg1,
+        mock_subcollection.order_by.return_value.limit.return_value.stream.return_value = [
             mock_msg2,
+            mock_msg1,
         ]
 
         response = client.get(f"{BASE}/history")
@@ -453,7 +453,7 @@ class TestChatHistory:
     def test_get_history_no_messages(self, mock_db, client):
         """Test history when user has no messages"""
         _, _, mock_subcollection = _mock_db_chain(mock_db)
-        mock_subcollection.order_by.return_value.stream.return_value = []
+        mock_subcollection.order_by.return_value.limit.return_value.stream.return_value = []
 
         response = client.get(f"{BASE}/history")
 

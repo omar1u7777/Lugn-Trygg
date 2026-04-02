@@ -233,15 +233,6 @@ def login_user(validated_data):
                 message='Misslyckat inloggningsförsök.',
                 metadata={'email': _mask_email(email), 'ip': client_ip}
             )
-
-            # Trigger Tamper Detection för misslyckad inloggning
-            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
-            tamper_detection_service.record_event(
-                event_type='failed_login_attempt',
-                severity='MEDIUM',
-                message='Misslyckat inloggningsförsök.',
-                metadata={'email': _mask_email(email), 'ip': client_ip}
-            )
             return APIResponse.unauthorized(error or 'Ogiltig e-postadress eller lösenord')
 
         # Fetch user data from Firestore and update last_login

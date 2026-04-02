@@ -79,6 +79,7 @@ const LoginForm = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
   const forgotPasswordButtonRef = useRef<HTMLButtonElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   
   // ✅ Använd custom hook istället för local state
   const { showPassword, togglePassword } = usePasswordToggle();
@@ -280,7 +281,7 @@ const LoginForm = () => {
               id="password"
               data-testid="login-password-input"
               inputRef={passwordRef}
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               required
               value={password}

@@ -443,7 +443,8 @@
     "welcomeHome": "Welcome home.",
     "welcomeText": "No one judges you here. I'm here to listen, support and help you sort your thoughts. What's on your mind?",
     "inputPlaceholder": "Type your message...",
-    "footer": "Calm & Safe AI • Private & Secure"
+    "footer": "Calm & Safe AI • Private & Secure",
+    "disclaimer": "Lugn & Trygg does not replace professional psychological care. In a crisis, call 90101 or your local emergency number."
   },
   "gamification": {
     "myJourney": "My Journey 🏆",

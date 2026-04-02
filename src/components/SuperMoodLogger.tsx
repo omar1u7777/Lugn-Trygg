@@ -70,37 +70,6 @@ interface RecentMoodGroup {
   entries: RecentMood[];
 }
 
-interface RecentMood {
-  id?: string;
-  mood: string;
-  score: number;
-  timestamp: Date;
-  note?: string;
-  tags?: string[];
-  valence?: number;
-  arousal?: number;
-}
-
-/** Raw mood entry from API — fields may vary since backend is flexible */
-interface RawMoodEntry {
-  id?: string;
-  docId?: string;
-  score?: number;
-  sentiment_score?: number;
-  mood_text?: string;
-  note?: string;
-  tags?: string[];
-  valence?: number;
-  arousal?: number;
-  timestamp?: { toDate: () => Date } | string | number | Date;
-}
-
-interface RecentMoodGroup {
-  key: string;
-  label: string;
-  entries: RecentMood[];
-}
-
 const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
 
 const getMoodVisual = (score: number) => {
@@ -223,12 +192,6 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (showRecentMoods && user?.user_id) {
-      void loadRecentMoods();
-    }
-  }, [user?.user_id, showRecentMoods, loadRecentMoods]);
-
   const loadRecentMoods = useCallback(async () => {
     if (!user?.user_id) return;
 
@@ -263,6 +226,12 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       logger.error('Failed to load recent moods:', err);
     }
   }, [user?.user_id]);
+
+  useEffect(() => {
+    if (showRecentMoods && user?.user_id) {
+      void loadRecentMoods();
+    }
+  }, [user?.user_id, showRecentMoods, loadRecentMoods]);
 
   const handleMoodSelect = (mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
