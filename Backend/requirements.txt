@@ -61,6 +61,7 @@ sentence-transformers==5.3.0
 # Audio Analysis (optional - has fallback)
 librosa==0.11.0
 soundfile==0.13.1
+scipy==1.17.0
 
 # Explainable AI (optional - has fallback)
 shap==0.46.0

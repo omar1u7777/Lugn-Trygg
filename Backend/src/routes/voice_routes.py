@@ -10,21 +10,20 @@ from flask import Blueprint, g, request
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
-
-# Import professional voice emotion analyzer
-try:
-    from ..services.voice_emotion_service import analyze_voice_emotion_professional, get_voice_emotion_analyzer
-    PROFESSIONAL_VOICE_ANALYSIS = True
-except ImportError:
-    PROFESSIONAL_VOICE_ANALYSIS = False
-    logger.warning("Professional voice emotion service not available")
-
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 from ..utils.speech_utils import transcribe_audio_google
 
 voice_bp = Blueprint('voice', __name__)
 logger = logging.getLogger(__name__)
+
+# Import professional voice emotion analyzer (after logger is defined)
+try:
+    from ..services.voice_emotion_service import analyze_voice_emotion_professional, get_voice_emotion_analyzer
+    PROFESSIONAL_VOICE_ANALYSIS = True
+except ImportError:
+    PROFESSIONAL_VOICE_ANALYSIS = False
+    logger.warning("Professional voice emotion service not available")
 
 
 # ============================================================================

@@ -12,6 +12,7 @@ import {
   ChartBarIcon,
   TrophyIcon,
   UserGroupIcon,
+  MicrophoneIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -24,6 +25,7 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   TrophyIcon as TrophyIconSolid,
   UserGroupIcon as UserGroupIconSolid,
+  MicrophoneIcon as MicrophoneIconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {
@@ -38,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
+  { path: '/voice-chat', label: 'Röstanalys', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid, premium: true },
   { path: '/recommendations', label: 'Rekommendationer', icon: SparklesIcon, iconActive: SparklesIconSolid, premium: true },
   { path: '/wellness', label: 'Välmående', icon: HeartIcon, iconActive: HeartIconSolid, premium: true },
   { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, iconActive: BookOpenIconSolid, premium: true },
