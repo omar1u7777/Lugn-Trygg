@@ -25,7 +25,6 @@ import { exportMoodData } from '../api/mood';
 
 import MoodCalendar from './MoodCalendar';
 import { useMoodData } from '../features/mood/hooks/useMoodData';
-import { getWellnessInsights, WellnessInsight } from '../api/insights';
 import { jsPDF } from 'jspdf';
 
 // Lazy load heavy components - Analytics charts now using placeholder
@@ -70,11 +69,6 @@ interface MoodStatistics {
 
 
 const MoodAnalytics: React.FC = () => {
-    // Health-mood insights state
-    const [wellnessInsights, setWellnessInsights] = useState<WellnessInsight[]>([]);
-    useEffect(() => {
-      getWellnessInsights().then(setWellnessInsights).catch(() => setWellnessInsights([]));
-    }, []);
   const { t } = useTranslation();
   const { user } = useAuth();
   const [forecast, setForecast] = useState<ForecastData | null>(null);
@@ -493,35 +487,6 @@ const MoodAnalytics: React.FC = () => {
       transition={{ duration: 0.5 }}
     >
       <div className="space-y-6">
-        {/* Health-Mood Insights */}
-        {wellnessInsights.length > 0 && (
-          <Card>
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <LightBulbIcon className="w-5 h-5 text-primary-600 dark:text-primary-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Hälsa & Humör-insikter
-                </h3>
-              </div>
-              <ul className="space-y-2">
-                {wellnessInsights.map((insight) => (
-                  <li key={insight.id} className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold">{insight.title}:</span> {insight.description}
-                    {insight.areas && insight.areas.length > 0 && (
-                      <ul className="ml-4 mt-1 list-disc text-xs text-gray-500 dark:text-gray-400">
-                        {insight.areas.map((area) => (
-                          <li key={area.name}>
-                            {area.name}: {area.score} ({area.trend === 'up' ? '↑' : area.trend === 'down' ? '↓' : '→'})
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Card>
-        )}
         {/* Mood Calendar for Monthly Analytics */}
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 mb-6">
           <div className="flex items-center justify-between mb-2">
