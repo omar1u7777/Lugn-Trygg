@@ -342,7 +342,7 @@ const InsightsHub: React.FC = () => {
           <TabPanel value={activeTab} index={0}>
             {user?.user_id ? (
               <div className="animate-fade-in">
-                <DailyInsights userId={user.user_id} moodData={moodData} />
+                <DailyInsights userId={user.user_id} />
               </div>
             ) : (
               <div className="text-center py-20">

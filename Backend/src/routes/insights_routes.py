@@ -3,12 +3,13 @@ Daily Insights Routes - API for proactive therapeutic insights
 """
 
 import logging
+from datetime import datetime
 
 from flask import Blueprint, g, request
 
 from src.firebase_config import db
 from src.services.auth_service import AuthService
-from src.services.daily_insight_service import generate_daily_insights, get_insight_generator
+from src.services.daily_insight_service_v2 import generate_daily_insights, get_insight_generator
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
 
@@ -148,6 +149,3 @@ def insight_action_taken(insight_id: str):
     except Exception as e:
         logger.error(f"Failed to record action: {e}")
         return APIResponse.error("Failed to record action")
-
-
-from datetime import datetime

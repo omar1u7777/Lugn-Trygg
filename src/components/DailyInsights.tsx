@@ -1,271 +1,255 @@
 /**
  * Daily Insights Component
- * AI-powered mood analysis and personalized recommendations
+ * Fetches AI-powered personalised insights from the v2 backend engine.
+ * The backend performs: linear regression, Cohen's d, Pearson correlation,
+ * CBT/ACT domain classification, circadian analysis, and social rhythm metrics.
+ *
  * 100% Tailwind Native - No MUI Dependencies
  */
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { Button } from './ui/tailwind';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  MinusIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { trackEvent } from '../services/analytics';
+import {
+  generateInsights,
+  getPendingInsights,
+  dismissInsight,
+  markInsightActionTaken,
+  type BackendInsight,
+} from '../api/insights';
 
 interface DailyInsightsProps {
   userId: string;
-  moodData: MoodEntry[];
 }
 
-interface MoodEntry {
-  score?: number;
-  timestamp?: string;
-}
+/** Map urgency to visual styling */
+const URGENCY_STYLES: Record<string, { border: string; icon: React.ReactNode; badge: string }> = {
+  high: {
+    border: 'border-rose-300 dark:border-rose-700',
+    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300',
+    icon: <ExclamationTriangleIcon className="w-5 h-5 text-rose-500" />,
+  },
+  medium: {
+    border: 'border-amber-300 dark:border-amber-700',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+    icon: <InformationCircleIcon className="w-5 h-5 text-amber-500" />,
+  },
+  low: {
+    border: 'border-indigo-200 dark:border-indigo-700',
+    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
+    icon: <LightBulbIcon className="w-5 h-5 text-indigo-500" />,
+  },
+};
 
-interface Insight {
-  type: 'trend' | 'pattern' | 'recommendation' | 'achievement';
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  color: string;
-}
+/** Map CBT/ACT domain to Swedish label */
+const DOMAIN_LABELS: Record<string, string> = {
+  behavioral_activation: 'Beteendeaktivering',
+  cognitive_restructuring: 'Kognitiv omstrukturering',
+  sleep_hygiene: 'Sömnhygien',
+  social_connection: 'Social kontakt',
+  mindfulness: 'Mindfulness',
+  physical_activity: 'Fysisk aktivitet',
+  emotion_regulation: 'Känslohantering',
+};
 
-export const DailyInsights: React.FC<DailyInsightsProps> = ({
-  userId,
-  moodData,
-}) => {
+export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [moodScore, setMoodScore] = useState<number>(0);
-  const [trend, setTrend] = useState<'up' | 'down' | 'stable'>('stable');
+  const [insights, setInsights] = useState<BackendInsight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionStates, setActionStates] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
 
-  const analyzeData = useCallback(() => {
-    // Calculate average mood score
-    const scores = moodData.map((m) => m.score || 0);
-    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const loadInsights = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // Try pending insights first (already generated, no cost)
+      let pending = await getPendingInsights(userId);
 
-    // Handle different score ranges: normalize to 0-100
-    // Backend can return scores in range 0-10 or -1 to 1
-    let normalizedScore;
-    if (avgScore > 1) {
-      // Assume 0-10 range, convert to percentage
-      normalizedScore = Math.min(100, Math.max(0, (avgScore / 10) * 100));
-    } else {
-      // Assume -1 to 1 range, convert to 0-100
-      normalizedScore = Math.min(100, Math.max(0, (avgScore + 1) * 50));
-    }
-
-    setMoodScore(Math.round(normalizedScore));
-
-    // Determine trend
-    if (moodData.length >= 2) {
-      const recentScore = scores.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, scores.length);
-      const olderScore = scores.slice(0, -3).reduce((a, b) => a + b, 0) / Math.max(1, scores.length - 3);
-
-      if (recentScore > olderScore + 0.2) setTrend('up');
-      else if (recentScore < olderScore - 0.2) setTrend('down');
-      else setTrend('stable');
-    }
-
-    // Generate insights
-    const generatedInsights: Insight[] = [];
-
-    // Trend insight
-    if (trend === 'up') {
-      generatedInsights.push({
-        type: 'trend',
-        title: t('insights.trendUp', 'Mood Improving'),
-        description: t('insights.trendUpDesc', 'Your mood has been trending upward. Keep up the good work!'),
-        icon: <ArrowTrendingUpIcon className="w-5 h-5" />,
-        color: '#4CAF50',
-      });
-    } else if (trend === 'down') {
-      generatedInsights.push({
-        type: 'trend',
-        title: t('insights.trendDown', 'Need Support'),
-        description: t('insights.trendDownDesc', 'Your mood has been lower lately. Consider reaching out for support.'),
-        icon: <ArrowTrendingDownIcon className="w-5 h-5" />,
-        color: '#FF9800',
-      });
-    } else {
-      generatedInsights.push({
-        type: 'trend',
-        title: t('insights.trendStable', 'Mood Stable'),
-        description: t('insights.trendStableDesc', 'Your mood has been consistent. Great job maintaining balance!'),
-        icon: <MinusIcon className="w-5 h-5" />,
-        color: '#2196F3',
-      });
-    }
-
-    // Pattern insight
-    const morningMoods = moodData.filter((m) => {
-      const hour = m.timestamp ? new Date(m.timestamp).getHours() : -1;
-      return hour >= 6 && hour < 12;
-    });
-
-    if (morningMoods.length > 0) {
-      const avgMorningScore = morningMoods.reduce((a, m) => a + (m.score || 0), 0) / morningMoods.length;
-      if (avgMorningScore > 0.3) {
-        generatedInsights.push({
-          type: 'pattern',
-          title: t('insights.morningPattern', 'Morning Person'),
-          description: t('insights.morningPatternDesc', 'You tend to feel best in the mornings. Plan important tasks early!'),
-          icon: <LightBulbIcon className="w-5 h-5" />,
-          color: '#FFD54F',
-        });
+      // If none pending, trigger generation (runs v2 ML pipeline)
+      if (pending.length === 0) {
+        const generated = await generateInsights(userId);
+        pending = generated;
       }
-    }
 
-    // Recommendation
-    if (avgScore < -0.3) {
-      generatedInsights.push({
-        type: 'recommendation',
-        title: t('insights.recBreathing', 'Try Breathing Exercises'),
-        description: t('insights.recBreathingDesc', 'Deep breathing can help reduce stress and improve mood.'),
-        icon: <LightBulbIcon className="w-5 h-5" />,
-        color: '#81C784',
-      });
-    } else if (avgScore > 0.5) {
-      generatedInsights.push({
-        type: 'achievement',
-        title: t('insights.achievement', 'Great Week!'),
-        description: t('insights.achievementDesc', 'You\'ve had mostly positive moods this week. Celebrate your progress!'),
-        icon: <LightBulbIcon className="w-5 h-5" />,
-        color: '#4CAF50',
-      });
+      setInsights(pending);
+      trackEvent('daily_insights_viewed', { userId, count: pending.length });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Okänt fel';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
-
-    setInsights(generatedInsights);
-  }, [moodData, t, trend]);
+  }, [userId]);
 
   useEffect(() => {
-    if (moodData && moodData.length > 0) {
-      analyzeData();
-      trackEvent('daily_insights_viewed', { userId });
-    }
-  }, [analyzeData, moodData, userId]);
+    loadInsights();
+  }, [loadInsights]);
 
-  const getTrendIcon = () => {
-    switch (trend) {
-      case 'up':
-        return <ArrowTrendingUpIcon className="w-5 h-5 text-green-500" />;
-      case 'down':
-        return <ArrowTrendingDownIcon className="w-5 h-5 text-red-500" />;
-      default:
-        return <MinusIcon className="w-5 h-5 text-gray-500" />;
+  const handleDismiss = async (insightId: string) => {
+    setActionStates(s => ({ ...s, [insightId]: 'loading' }));
+    try {
+      await dismissInsight(insightId);
+      setInsights(prev => prev.filter(i => i.insight_id !== insightId));
+      trackEvent('insight_dismissed', { userId, insightId });
+    } catch {
+      setActionStates(s => ({ ...s, [insightId]: 'idle' }));
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Mood Score Card */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-slate-800/50 p-6 sm:p-8 shadow-xl border border-indigo-100 dark:border-slate-700">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="text-center sm:text-left">
-            <h6 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-              {t('insights.overallMood', 'Din Dagliga Puls')}
-            </h6>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Baserat på dina senaste loggar
-            </p>
-          </div>
+  const handleAction = async (insightId: string, action: string) => {
+    setActionStates(s => ({ ...s, [insightId]: 'loading' }));
+    try {
+      await markInsightActionTaken(insightId, action);
+      setActionStates(s => ({ ...s, [insightId]: 'done' }));
+      trackEvent('insight_action_taken', { userId, insightId, action });
+      // Remove after short delay to show confirmation
+      setTimeout(() => {
+        setInsights(prev => prev.filter(i => i.insight_id !== insightId));
+        setActionStates(s => { const n = { ...s }; delete n[insightId]; return n; });
+      }, 1200);
+    } catch {
+      setActionStates(s => ({ ...s, [insightId]: 'idle' }));
+    }
+  };
 
-          <div className="flex items-center gap-6">
-            <div className={`p-3 rounded-2xl bg-white dark:bg-slate-700 shadow-md ${trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-rose-500' : 'text-gray-400'
-              }`}>
-              {getTrendIcon()}
-            </div>
-            <div className="text-center">
-              <span className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
-                {moodScore}
-              </span>
-              <span className="text-lg text-gray-400 ml-1">%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <div className="h-4 w-full bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${moodScore}%` }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-              className={`h-full rounded-full ${moodScore > 70 ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
-                  moodScore > 40 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
-                    'bg-gradient-to-r from-rose-400 to-red-500'
-                }`}
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-            <span>Behöver Stöd</span>
-            <span>Balanserad</span>
-            <span>Fantastisk</span>
-          </div>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <ArrowPathIcon className="w-8 h-8 text-indigo-400 animate-spin" />
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t('insights.loading', 'Analyserar dina mönster…')}
+        </p>
       </div>
+    );
+  }
 
-      {/* Insights Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        {insights.map((insight, index) => (
-          <motion.div
-            key={insight.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="group h-full"
-          >
-            <div
-              className={`h-full p-6 rounded-[2rem] border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden`}
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                borderColor: `${insight.color}30`
-              }}
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-800 p-6 text-center space-y-3">
+        <ExclamationTriangleIcon className="w-8 h-8 text-rose-400 mx-auto" />
+        <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
+        <button
+          onClick={loadInsights}
+          className="text-xs px-4 py-2 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 transition-colors"
+        >
+          {t('common.retry', 'Försök igen')}
+        </button>
+      </div>
+    );
+  }
+
+  if (insights.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center space-y-3">
+        <LightBulbIcon className="w-10 h-10 text-indigo-300 mx-auto" />
+        <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
+          {t('insights.noInsights', 'Inga insikter just nu')}
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <AnimatePresence mode="popLayout">
+        {insights.map((insight, index) => {
+          const urgency = insight.urgency ?? 'low';
+          const style = URGENCY_STYLES[urgency] ?? URGENCY_STYLES.low;
+          const actionState = actionStates[insight.insight_id] ?? 'idle';
+          const domainLabel = DOMAIN_LABELS[insight.domain] ?? insight.domain;
+
+          return (
+            <motion.div
+              key={insight.insight_id}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: 60, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.3, delay: index * 0.07 }}
             >
-              <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl -mr-10 -mt-10`}
-                style={{ backgroundColor: insight.color }} />
-
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm`}
-                    style={{ backgroundColor: `${insight.color}15`, color: insight.color }}>
-                    {insight.icon}
+              <div className={`relative rounded-2xl border bg-white dark:bg-slate-800 p-5 shadow-sm hover:shadow-md transition-shadow ${style.border}`}>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex-shrink-0">{style.icon}</div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug truncate">
+                      {insight.title}
+                    </h3>
                   </div>
-                  <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full bg-white dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-700"
-                    style={{ color: insight.color }}>
-                    {insight.type}
-                  </span>
+                  <button
+                    onClick={() => handleDismiss(insight.insight_id)}
+                    disabled={actionState === 'loading'}
+                    className="flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    aria-label="Stäng"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <h6 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                  {insight.title}
-                </h6>
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                  {insight.description}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                {/* Domain badge */}
+                <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-3 ${style.badge}`}>
+                  {domainLabel}
+                </span>
 
-      {insights.length === 0 && (
-        <div className="relative overflow-hidden rounded-[2rem] bg-gray-50 dark:bg-slate-800/50 border-2 border-dashed border-gray-200 dark:border-slate-700 p-12 text-center group hover:border-indigo-300 transition-colors">
-          <div className="mb-4 text-4xl transform group-hover:scale-110 transition-transform duration-300">📝</div>
-          <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            Inga insikter ännu
-          </p>
-          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-            Logga ditt humör regelbundet för att låsa upp personliga insikter och trender.
-          </p>
-          <Button variant="primary" className="rounded-xl shadow-lg shadow-indigo-500/20">
-            {t('insights.logMood', 'Logga Humör')}
-          </Button>
-        </div>
-      )}
+                {/* Message */}
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+                  {insight.message}
+                </p>
+
+                {/* Recommendation block */}
+                {insight.recommendation && (
+                  <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-xl p-3 mb-4">
+                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-0.5">
+                      {t('insights.recommendation', 'Rekommendation')}
+                    </p>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400">
+                      {insight.recommendation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Action CTA */}
+                {insight.suggested_action && (
+                  <button
+                    onClick={() => handleAction(insight.insight_id, insight.suggested_action)}
+                    disabled={actionState !== 'idle'}
+                    className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                      actionState === 'done'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 cursor-default'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-60 disabled:cursor-not-allowed'
+                    }`}
+                  >
+                    {actionState === 'done' ? (
+                      <span className="flex items-center justify-center gap-1.5">
+                        <CheckCircleIcon className="w-4 h-4" />
+                        Klart!
+                      </span>
+                    ) : actionState === 'loading' ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" />
+                    ) : (
+                      insight.suggested_action
+                    )}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 };
