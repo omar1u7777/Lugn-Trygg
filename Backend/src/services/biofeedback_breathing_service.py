@@ -2,6 +2,14 @@
 Biofeedback Breathing Service - HRV Resonance Detection
 Real-time physiological feedback for guided breathing exercises.
 
+SAFETY NOTICE:
+- All exercises are designed for adults in reasonable health
+- Users with asthma, COPD, cardiovascular disease, or anxiety
+  should consult a physician before extended breathing exercises
+- HRV-based feedback is informational only, not medical advice
+- Heavy breathing exercises (4-7-8) should start at 2-3 minutes
+  and be extended gradually if no side effects occur
+
 Psychological basis:
 - HRV (Heart Rate Variability) resonance at ~0.1Hz (6 breaths/min)
 - RSA (Respiratory Sinus Arrhythmia) maximization
@@ -29,11 +37,16 @@ from src.services.audit_service import audit_log
 
 logger = logging.getLogger(__name__)
 
+# Safety thresholds for heart rate monitoring
+HEART_RATE_ALERT_THRESHOLD = 120  # BPM - if exceeded, recommend abort
+HEART_RATE_CRITICAL_THRESHOLD = 140  # BPM - very high, user should stop
+NORMAL_HEART_RATE_RANGE = (40, 100)  # Resting HR range
+
 
 class BreathingPattern(Enum):
     """Evidence-based breathing patterns for different goals."""
     COHERENCE_6BPM = "coherence_6bpm"  # 0.1Hz - optimal HRV resonance
-    RELAX_478 = "relax_478"  # 4-7-8 pattern (Weil)
+    RELAX_478 = "relax_478"  # 4-7-8 pattern (Weil) - strong effect, start low
     ENERGIZE_555 = "energize_555"  # Box breathing (Navy SEALs)
     SLEEP_446 = "sleep_446"  # For sleep onset
     CUSTOM = "custom"  # User-defined
@@ -348,6 +361,7 @@ class BiofeedbackBreathingService:
                                  timestamps: list[datetime]) -> RealTimeFeedback:
         """
         Process incoming heart rate data and generate real-time feedback.
+        Includes safety monitoring for abnormal heart rates.
         
         This is called when new heart rate data arrives from:
         - Apple Watch (HealthKit)
@@ -361,6 +375,29 @@ class BiofeedbackBreathingService:
 
         # Calculate HRV metrics
         metrics = self.hrv_analyzer.calculate_hrv_metrics(rr_intervals, timestamps)
+
+        # SAFETY CHECK: Monitor heart rate
+        if metrics.heart_rate > HEART_RATE_CRITICAL_THRESHOLD:
+            logger.warning(
+                f"CRITICAL: Heart rate {metrics.heart_rate} BPM in session "
+                f"{session_id} - user should stop immediately"
+            )
+            # Return feedback with critical warning
+            return RealTimeFeedback(
+                phase='exhale',
+                phase_progress=0.0,
+                target_breath_rate=6.0,
+                current_heart_rate=metrics.heart_rate,
+                coherence_indicator=0,
+                resonance_indicator=0,
+                guidance=f"🚨 STOPP: Pulsen är {int(metrics.heart_rate)} BPM. Avbryt genast och vila.",
+                visualization_data={
+                    'circle_scale': 0.5,
+                    'color_hue': 0,  # Red
+                    'coherence_ring': 0,
+                    'phase_indicator': 'critical_stop'
+                }
+            )
 
         # Store
         self.session_data[session_id].append(metrics)
