@@ -244,9 +244,10 @@ const LoginForm = () => {
             aria-labelledby="login-title"
           >
             <div>
-              <Input
-                label={t('loginForm.emailLabel', '📧 E-postadress')}
-                id="email"
+             <Input
+               label={t('loginForm.emailLabel', '📧 E-postadress')}
+               id="email"
+               data-testid="login-email-input"
                 type="email"
                 value={email}
                 onChange={handleEmailChange}
@@ -274,18 +275,22 @@ const LoginForm = () => {
                 {t('loginForm.passwordLabel', 'Lösenord')}
               </label>
               <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
-                  required
-                  disabled={loading}
-                  className="pr-12"
-                  aria-describedby={error || validationErrors.password ? "login-error password-error" : undefined}
-                  aria-invalid={!!(error || validationErrors.password)}
-                />
+            <Input
+              label={t('loginForm.passwordLabel', 'Lösenord')}
+              id="password"
+              data-testid="login-password-input"
+              inputRef={passwordRef}
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={handlePasswordChange}
+              placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
+              disabled={loading}
+              aria-describedby={error || validationErrors.password ? "login-error password-error" : undefined}
+              aria-invalid={!!(error || validationErrors.password)}
+              title={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
+            />
                 <button
                   type="button"
                   onClick={togglePassword}
@@ -312,6 +317,7 @@ const LoginForm = () => {
               fullWidth
               loading={loading}
               disabled={loading}
+              data-testid="login-submit-button"
               className="min-h-[46px] sm:min-h-[50px] font-semibold"
             >
               <ArrowRightStartOnRectangleIcon className="w-5 h-5 mr-2" aria-hidden="true" />
@@ -332,6 +338,7 @@ const LoginForm = () => {
           fullWidth
           onClick={handleGoogleSignIn}
           disabled={loading}
+          data-testid="login-google-button"
           className="p-3 sm:p-3.5 flex justify-center items-center gap-2 min-h-[46px] sm:min-h-[50px] border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-100"
         >
           <svg style={{ width: "20px", height: "20px" }} viewBox="0 0 24 24" aria-hidden="true">
@@ -349,6 +356,7 @@ const LoginForm = () => {
             <Link
               to="/register"
               className="text-primary-700 dark:text-primary-300 font-semibold no-underline hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              data-testid="login-register-link"
               aria-label={t('loginForm.goToRegister', 'Gå till registreringssidan')}
             >
               {t('loginForm.registerHere', 'Registrera dig här')}
@@ -359,6 +367,7 @@ const LoginForm = () => {
             type="button"
             onClick={() => setShowForgotPassword(true)}
             disabled={loading}
+            data-testid="login-forgot-password-button"
             className="text-sm sm:text-base font-semibold text-primary-700 dark:text-primary-300 bg-transparent border-none cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
             aria-label={t('loginForm.openForgotPassword', 'Öppna glömt lösenord-dialog')}
             aria-haspopup="dialog"

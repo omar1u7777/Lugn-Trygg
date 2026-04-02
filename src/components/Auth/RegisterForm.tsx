@@ -151,6 +151,7 @@ const RegisterForm: React.FC = () => {
             role="alert"
             aria-live="assertive"
             id="register-error"
+            data-testid="register-error-message"
             className="mb-6"
           >
             <span className="text-lg mr-2" aria-hidden="true">⚠️</span>
@@ -164,6 +165,7 @@ const RegisterForm: React.FC = () => {
             role="status"
             aria-live="polite"
             id="register-success"
+            data-testid="register-success-message"
             className="mb-6"
           >
             <span className="text-lg mr-2" aria-hidden="true">✅</span>
@@ -190,6 +192,7 @@ const RegisterForm: React.FC = () => {
               placeholder={t('registerForm.namePlaceholder')}
               required
               disabled={loading}
+              data-testid="register-name-input"
               aria-describedby={validationErrors.name ? "name-error" : undefined}
               aria-invalid={!!validationErrors.name}
             />
@@ -216,6 +219,7 @@ const RegisterForm: React.FC = () => {
               placeholder={t('registerForm.emailPlaceholder')}
               required
               disabled={loading}
+              data-testid="register-email-input"
               aria-describedby={validationErrors.email ? "email-error" : undefined}
               aria-invalid={!!validationErrors.email}
             />
@@ -241,7 +245,7 @@ const RegisterForm: React.FC = () => {
                   {t('registerForm.referralBenefit')}
                 </p>
                 <p className="text-xs font-medium mt-3">
-                  {t('registerForm.referralCode')} <span className="font-mono font-bold">{referralCode}</span>
+                  {t('registerForm.referralCode')} <span className="font-mono font-bold" data-testid="register-referral-code">{referralCode}</span>
                 </p>
               </div>
             </Alert>
@@ -267,6 +271,7 @@ const RegisterForm: React.FC = () => {
                 required
                 disabled={loading}
                 className="pr-12"
+                data-testid="register-password-input"
                 aria-describedby={validationErrors.password ? "password-error" : "password-help"}
                 aria-invalid={!!validationErrors.password}
               />
@@ -310,6 +315,7 @@ const RegisterForm: React.FC = () => {
                 required
                 disabled={loading}
                 className="pr-12"
+                data-testid="register-confirm-password-input"
                 aria-describedby={validationErrors.confirmPassword ? "confirm-password-error" : undefined}
                 aria-invalid={!!validationErrors.confirmPassword}
               />
@@ -374,6 +380,7 @@ const RegisterForm: React.FC = () => {
             variant="primary"
             size="lg"
             disabled={loading}
+            data-testid="register-submit-button"
             className="w-full min-h-[44px] sm:min-h-[48px]"
             aria-describedby={loading ? "register-loading" : undefined}
           >
@@ -397,6 +404,7 @@ const RegisterForm: React.FC = () => {
             <Link
               to="/login"
               className="text-primary-600 dark:text-primary-400 font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
+              data-testid="register-login-link"
               aria-label={t('registerForm.goToLogin')}
             >
               {t('registerForm.loginLink')}
