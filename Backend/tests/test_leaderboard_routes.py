@@ -59,6 +59,12 @@ class TestXPLeaderboard:
     def test_xp_leaderboard(self, client, auth_headers, mock_leaderboard_db):
         resp = client.get(f"{BASE}/xp", headers=auth_headers)
         assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        entries = body["data"]["leaderboard"]
+        assert len(entries) >= 1
+        assert entries[0]["xp"] == 1500
+        assert "badgeCount" in entries[0]
 
     def test_xp_leaderboard_with_limit(self, client, auth_headers, mock_leaderboard_db):
         resp = client.get(f"{BASE}/xp?limit=5", headers=auth_headers)
@@ -91,6 +97,10 @@ class TestUserRank:
     def test_user_rank(self, client, auth_headers, mock_leaderboard_db):
         resp = client.get(f"{BASE}/user/{USER_ID}/rank", headers=auth_headers)
         assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert "rankings" in body["data"]
+        assert "xp" in body["data"]["rankings"]
 
     def test_user_rank_alt(self, client, auth_headers, mock_leaderboard_db):
         resp = client.get(f"{BASE}/user/{USER_ID}", headers=auth_headers)

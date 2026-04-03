@@ -81,6 +81,13 @@ export interface UserRankingsResponse {
   message: string;
 }
 
+export interface UserRankingsData {
+  xp: UserRanking;
+  streak: UserRanking;
+  moods: UserRanking;
+  totalUsers: number;
+}
+
 export interface WeeklyWinner {
   // Primary camelCase
   displayName?: string;
@@ -120,12 +127,12 @@ export interface WeeklyWinnersResponse {
 export const getXPLeaderboard = async (
   limit: number = 20,
   timeframe: 'all' | 'weekly' | 'monthly' = 'all'
-): Promise<LeaderboardResponse<XPLeaderboardUser>> => {
+): Promise<XPLeaderboardUser[]> => {
   try {
     const response = await api.get<LeaderboardResponse<XPLeaderboardUser>>(
       `${API_ENDPOINTS.LEADERBOARD.XP_LEADERBOARD}?limit=${limit}&timeframe=${timeframe}`
     );
-    return response.data;
+    return response.data?.data?.leaderboard || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -142,12 +149,12 @@ export const getXPLeaderboard = async (
  */
 export const getStreakLeaderboard = async (
   limit: number = 20
-): Promise<LeaderboardResponse<StreakLeaderboardUser>> => {
+): Promise<StreakLeaderboardUser[]> => {
   try {
     const response = await api.get<LeaderboardResponse<StreakLeaderboardUser>>(
       `${API_ENDPOINTS.LEADERBOARD.STREAK_LEADERBOARD}?limit=${limit}`
     );
-    return response.data;
+    return response.data?.data?.leaderboard || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -164,12 +171,12 @@ export const getStreakLeaderboard = async (
  */
 export const getMoodLeaderboard = async (
   limit: number = 20
-): Promise<LeaderboardResponse<MoodLeaderboardUser>> => {
+): Promise<MoodLeaderboardUser[]> => {
   try {
     const response = await api.get<LeaderboardResponse<MoodLeaderboardUser>>(
       `${API_ENDPOINTS.LEADERBOARD.MOOD_LEADERBOARD}?limit=${limit}`
     );
-    return response.data;
+    return response.data?.data?.leaderboard || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -184,12 +191,24 @@ export const getMoodLeaderboard = async (
  * @returns Promise resolving to user ranking data
  * @throws Error if ranking retrieval fails
  */
-export const getUserRanking = async (userId: string): Promise<UserRankingsResponse> => {
+export const getUserRanking = async (userId: string): Promise<UserRankingsData> => {
   try {
     const response = await api.get<UserRankingsResponse>(
       `${API_ENDPOINTS.LEADERBOARD.USER_RANKING}/${userId}`
     );
-    return response.data;
+    const data = response.data?.data || {};
+    const rankings = data.rankings || {
+      xp: { rank: 0, value: 0, percentile: 0 },
+      streak: { rank: 0, value: 0, percentile: 0 },
+      moods: { rank: 0, value: 0, percentile: 0 },
+    };
+
+    return {
+      xp: rankings.xp,
+      streak: rankings.streak,
+      moods: rankings.moods,
+      totalUsers: data.totalUsers || data.total_users || 0,
+    };
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
