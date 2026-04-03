@@ -143,6 +143,31 @@ def test_send_message_rejects_cross_room_session(client, mocker, mock_db):
     assert 'different room' in response.get_json()['message']
 
 
+def test_send_message_rejects_external_links(client, mocker, mock_db):
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
+
+    presence_collection = mock_db.collection('peer_chat_presence')
+    presence_doc_ref = MagicMock()
+    presence_doc_ref.get.return_value = MagicMock(
+        exists=True,
+        to_dict=lambda: {
+            'anonymous_name': 'Anon',
+            'avatar': '🌟',
+            'user_id': 'testuser1234567890ab',
+            'room_id': 'anxiety',
+        },
+    )
+    presence_collection.document.return_value = presence_doc_ref
+
+    response = client.post(
+        '/api/peer-chat/room/anxiety/send',
+        json={'session_id': 'session-1', 'message': 'Kolla https://example.com'},
+    )
+
+    assert response.status_code == 400
+    assert 'external links' in response.get_json()['message']
+
+
 def test_get_messages_requires_session_id(client):
     response = client.get('/api/peer-chat/room/anxiety/messages')
 

@@ -4,6 +4,7 @@ Real implementation with Firebase Firestore for message storage
 """
 
 import logging
+import os
 import re
 import secrets
 import uuid
@@ -92,7 +93,9 @@ CHAT_ROOMS = {
 
 # Banned words list for moderation (basic filter)
 BANNED_WORDS = [
-    # Add actual banned words - keeping minimal for demo
+    word.strip().lower()
+    for word in os.getenv('PEER_CHAT_BLOCKLIST', '').split(',')
+    if word.strip()
 ]
 
 
@@ -129,13 +132,17 @@ def _moderate_message(message: str) -> tuple[bool, str]:
 
     # Check for personal information patterns
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    phone_pattern = r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b|\b\d{10}\b'
+    phone_pattern = r'(?:(?:\+|00)?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d(?:[\s.-]?\d){6,12}'
+    url_pattern = r'(https?://\S+|www\.\S+|\b\S+\.(?:com|net|org|se|io|co)\b)'
 
     if re.search(email_pattern, message):
         return False, "Please do not share email addresses for privacy"
 
     if re.search(phone_pattern, message):
         return False, "Please do not share phone numbers for privacy"
+
+    if re.search(url_pattern, message, flags=re.IGNORECASE):
+        return False, "Please do not share external links for safety"
 
     # Check message length
     if len(message) > 1000:
