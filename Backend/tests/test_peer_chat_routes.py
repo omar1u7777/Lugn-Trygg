@@ -98,6 +98,7 @@ def test_send_message_persists_payload(client, mocker, mock_db):
             'anonymous_name': 'Anon',
             'avatar': '🌟',
             'user_id': 'testuser1234567890ab',
+            'room_id': 'anxiety',
         },
     )
     presence_collection.document.return_value = presence_doc_ref
@@ -115,3 +116,64 @@ def test_send_message_persists_payload(client, mocker, mock_db):
     assert response.status_code == 200
     assert response.get_json()['success'] is True
     message_doc.set.assert_called_once()
+
+
+def test_send_message_rejects_cross_room_session(client, mocker, mock_db):
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
+
+    presence_collection = mock_db.collection('peer_chat_presence')
+    presence_doc_ref = MagicMock()
+    presence_doc_ref.get.return_value = MagicMock(
+        exists=True,
+        to_dict=lambda: {
+            'anonymous_name': 'Anon',
+            'avatar': '🌟',
+            'user_id': 'testuser1234567890ab',
+            'room_id': 'depression',
+        },
+    )
+    presence_collection.document.return_value = presence_doc_ref
+
+    response = client.post(
+        '/api/peer-chat/room/anxiety/send',
+        json={'session_id': 'session-1', 'message': 'Hej där'},
+    )
+
+    assert response.status_code == 403
+    assert 'different room' in response.get_json()['message']
+
+
+def test_get_messages_requires_session_id(client):
+    response = client.get('/api/peer-chat/room/anxiety/messages')
+
+    assert response.status_code == 400
+    assert response.get_json()['message'] == 'session_id is required'
+
+
+def test_presence_requires_session_id(client):
+    response = client.get('/api/peer-chat/room/anxiety/presence')
+
+    assert response.status_code == 400
+    assert response.get_json()['message'] == 'session_id is required'
+
+
+def test_like_rejects_session_not_owned(client, mocker, mock_db):
+    mocker.patch('src.routes.peer_chat_routes.db', mock_db)
+
+    presence_collection = mock_db.collection('peer_chat_presence')
+    presence_doc_ref = MagicMock()
+    presence_doc_ref.get.return_value = MagicMock(
+        exists=True,
+        to_dict=lambda: {
+            'user_id': 'someone-else',
+        },
+    )
+    presence_collection.document.return_value = presence_doc_ref
+
+    response = client.post(
+        '/api/peer-chat/message/msg-1/like',
+        json={'session_id': 'session-1'},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json()['message'] == 'Session does not belong to you'

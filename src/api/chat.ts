@@ -220,11 +220,14 @@ export const updateTypingStatus = async (roomId: string, sessionId: string, isTy
 /**
  * Get room presence (online users)
  * @param roomId - Room ID
+ * @param sessionId - Session ID
  * @returns Promise resolving to presence data
  */
-export const getRoomPresence = async (roomId: string) => {
+export const getRoomPresence = async (roomId: string, sessionId: string) => {
   try {
-    const response = await api.get(`${API_ENDPOINTS.PEER_CHAT.CHAT_PRESENCE}/${roomId}/presence`);
+    const params = new URLSearchParams();
+    params.append('session_id', sessionId);
+    const response = await api.get(`${API_ENDPOINTS.PEER_CHAT.CHAT_PRESENCE}/${roomId}/presence?${params.toString()}`);
     return response.data?.data || response.data;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
