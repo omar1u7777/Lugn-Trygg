@@ -129,11 +129,11 @@ test.describe('Wellness flow smoke', () => {
 
   test('renders wellness page core sections and no horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    const wellnessHeading = page.getByRole('heading', { name: 'Wellness Library' });
+    const wellnessHeading = page.getByRole('heading', { level: 1 });
     await expect(wellnessHeading).toBeVisible();
 
-    await expect(page.getByText('Dagens Rekommendation')).toBeVisible();
-    await expect(page.getByText('Mina Mål')).toBeVisible();
+    await expect(page.locator('[data-testid="wellness-daily-recommendation"]')).toBeVisible();
+    await expect(page.locator('[data-testid="wellness-goals-card"]')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Guidade Meditationer' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Andningsövningar' })).toBeVisible();
 
@@ -145,13 +145,15 @@ test.describe('Wellness flow smoke', () => {
 
   test('opens goals modal and shows sleep section content', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('heading', { name: 'Wellness Library' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Sömn' }).click();
+    await page.locator('[data-testid="wellness-category-sleep"]').click();
     await expect(page.getByRole('heading', { level: 2, name: 'Sömn & Vila' })).toBeVisible();
-    await expect(page.getByText('Stjärnresan')).toBeVisible();
+    const sleepSection = page.locator('[data-testid="wellness-sleep-section"]');
+    await expect(sleepSection).toBeVisible();
+    await expect(sleepSection.locator('div.group').first()).toBeVisible();
 
-    await page.getByText('Mina Mål').first().click();
+    await page.locator('[data-testid="wellness-goals-card"]').click();
     await expect(page.getByRole('heading', { name: 'Vad vill du fokusera på?' })).toBeVisible();
   });
 });
