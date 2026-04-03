@@ -104,7 +104,20 @@ class SecurityHeadersMiddleware:
             'font-src': "'self' https://fonts.gstatic.com",
             'img-src': "'self' data: https: blob:",
             # CRITICAL FIX: Allow API connections for frontend (including backend API)
-            'connect-src': "'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.vercel.app https://lugn-trygg-backend.onrender.com https://api.lugntrygg.se http://localhost:5001 https://unpkg.com",
+            # [S5] Build connect-src dynamically — exclude localhost in production
+            'connect-src': " ".join([p for p in [
+                "'self'",
+                "https://firestore.googleapis.com",
+                "https://identitytoolkit.googleapis.com",
+                "https://securetoken.googleapis.com",
+                "https://www.googleapis.com",
+                "https://*.vercel.app",
+                "https://lugn-trygg-backend.onrender.com",
+                "https://api.lugntrygg.se",
+                "https://unpkg.com",
+                None if is_production else "http://localhost:5001",
+                os.getenv('BACKEND_URL', '').strip() or None,
+            ] if p]),
             'frame-src': "'self' https://www.google.com https://accounts.google.com",  # Allow Google OAuth iframes
             'object-src': "'none'",
             'base-uri': "'self'",

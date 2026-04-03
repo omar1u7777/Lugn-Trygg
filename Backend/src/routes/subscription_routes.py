@@ -22,7 +22,12 @@ from ..config.subscription_config import load_subscription_plans
 from ..firebase_config import db
 
 # Frontend URL for Stripe redirect - use env var, never hardcode localhost in production
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+# [S5] Validate FRONTEND_URL — must not be localhost in production
+_is_production = os.getenv('FLASK_ENV', 'development') == 'production'
+_raw_frontend_url = os.getenv('FRONTEND_URL', '' if _is_production else 'http://localhost:3000')
+if _is_production and (not _raw_frontend_url or 'localhost' in _raw_frontend_url or '127.0.0.1' in _raw_frontend_url):
+    raise RuntimeError('[S5] FRONTEND_URL must be set to a production HTTPS URL (not localhost) in production')
+FRONTEND_URL = _raw_frontend_url
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService

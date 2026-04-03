@@ -223,12 +223,15 @@ CSP_DIRECTIVES = {
     "img-src": ["'self'", "data:", "https:", "http:", "blob:"],
     "connect-src": [
         "'self'",
-        "ws://localhost:3000",
-        "ws://localhost:3001",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:5001",
-        "http://localhost:5001",
+        # [S5] Exclude localhost dev URLs from production CSP
+        *([] if is_production else [
+            "ws://localhost:3000",
+            "ws://localhost:3001",
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:5001",
+            "http://localhost:5001",
+        ]),
         "https://www.lugntrygg.se",
         "https://*.googleapis.com",
         "https://*.firebaseapp.com",
