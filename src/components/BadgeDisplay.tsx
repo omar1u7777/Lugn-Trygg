@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { getMoods, getUserRewards, getAchievements, type Achievement } from '../api/api';
+import { getMoods, getUserRewards, getAchievements, type Achievement, type UserReward } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
@@ -51,6 +51,7 @@ const BadgeDisplay: React.FC = () => {
   const authUser = (user ?? {}) as AuthUserLike;
   const userId = authUser.user_id || authUser.uid || authUser.id || '';
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [rewardProfile, setRewardProfile] = useState<UserReward | null>(null);
   const [loading, setLoading] = useState(true);
 
   const calculateCurrentStreak = useCallback((moods: MoodEntry[]): number => {
@@ -117,6 +118,7 @@ const BadgeDisplay: React.FC = () => {
     const calculateBadges = async () => {
       if (!userId) {
         setBadges([]);
+        setRewardProfile(null);
         setLoading(false);
         return;
       }
@@ -127,6 +129,7 @@ const BadgeDisplay: React.FC = () => {
           getUserRewards(),
           getAchievements(),
         ]);
+        setRewardProfile(rewards);
         const currentStreak = calculateCurrentStreak(moods);
         const longestStreak = calculateLongestStreak(moods);
         const totalEntries = moods.length;
@@ -212,6 +215,11 @@ const BadgeDisplay: React.FC = () => {
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'consistency': return '🔥';
+      case 'streak': return '🔥';
+      case 'mood_count': return '📈';
+      case 'journal_count': return '📝';
+      case 'referral_count': return '🤝';
+      case 'meditation_count': return '🧘';
       case 'mindfulness': return '🧘';
       case 'engagement': return '📚';
       case 'integration': return '⌚';
@@ -232,6 +240,35 @@ const BadgeDisplay: React.FC = () => {
           <span className="text-primary-500 text-lg">🏆</span>
           {t('dashboard.badges', 'Achievements')}
         </h3>
+
+        {rewardProfile && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <div className="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">
+                {t('rewards.level', 'Level')}
+              </p>
+              <p className="mt-1 text-2xl font-bold text-primary-900 dark:text-primary-100">{rewardProfile.level}</p>
+            </div>
+            <div className="rounded-xl border border-secondary-200 dark:border-secondary-800 bg-secondary-50 dark:bg-secondary-900/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-secondary-700 dark:text-secondary-300">XP</p>
+              <p className="mt-1 text-2xl font-bold text-secondary-900 dark:text-secondary-100">{rewardProfile.xp}</p>
+            </div>
+            <div className="rounded-xl border border-accent-200 dark:border-accent-800 bg-accent-50 dark:bg-accent-900/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-accent-700 dark:text-accent-300">
+                {t('rewards.nextLevel', 'Next Level')}
+              </p>
+              <p className="mt-1 text-base font-semibold text-accent-900 dark:text-accent-100">
+                {rewardProfile.progressXp}/{rewardProfile.neededXp} XP
+              </p>
+              <div className="mt-2 h-2 w-full rounded-full bg-accent-100 dark:bg-accent-900/40">
+                <div
+                  className="h-2 rounded-full bg-accent-500 transition-all duration-500"
+                  style={{ width: `${Math.max(0, Math.min(rewardProfile.progressPercent, 100))}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="text-slate-600 dark:text-slate-400 mb-6">
           {t('badges.description', 'Track your progress and unlock achievements as you use the app!')}

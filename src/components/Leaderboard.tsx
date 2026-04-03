@@ -34,8 +34,10 @@ export const Leaderboard: React.FC = () => {
   const isSwedish = i18n.language?.startsWith('sv');
 
   const [activeTab, setActiveTab] = useState(0); // 0=XP, 1=Streak, 2=Moods
+  const [xpTimeframe, setXpTimeframe] = useState<'all' | 'weekly' | 'monthly'>('all');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const [userRanking, setUserRanking] = useState<{
     xp: { rank: number; value: number; percentile: number };
     streak: { rank: number; value: number; percentile: number };
@@ -48,12 +50,13 @@ export const Leaderboard: React.FC = () => {
 
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
+    setLeaderboardError(null);
     try {
       let data: LeaderboardEntry[] = [];
 
       switch (activeTab) {
         case 0: // XP
-          data = await getXPLeaderboard(20);
+          data = await getXPLeaderboard(20, xpTimeframe);
           break;
         case 1: // Streak
           data = await getStreakLeaderboard(20);
@@ -67,10 +70,11 @@ export const Leaderboard: React.FC = () => {
     } catch (error) {
       logger.error('Failed to fetch leaderboard:', error);
       setLeaderboard([]);
+      setLeaderboardError(isSwedish ? 'Kunde inte hämta leaderboard just nu' : 'Failed to load leaderboard right now');
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, xpTimeframe, isSwedish]);
 
   const fetchUserRanking = useCallback(async () => {
     if (!userId) {
@@ -161,6 +165,7 @@ export const Leaderboard: React.FC = () => {
             </div>
             <button
               onClick={fetchLeaderboard}
+              disabled={loading}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200 hover:bg-primary-200 transition-colors"
             >
               <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -191,6 +196,34 @@ export const Leaderboard: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {activeTab === 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { key: 'all' as const, label: isSwedish ? 'Alltid' : 'All time' },
+            { key: 'weekly' as const, label: isSwedish ? 'Vecka' : 'Weekly' },
+            { key: 'monthly' as const, label: isSwedish ? 'Månad' : 'Monthly' },
+          ]).map((timeframeOption) => (
+            <button
+              key={timeframeOption.key}
+              onClick={() => setXpTimeframe(timeframeOption.key)}
+              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${xpTimeframe === timeframeOption.key
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              aria-pressed={xpTimeframe === timeframeOption.key}
+            >
+              {timeframeOption.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {leaderboardError && (
+        <div className="rounded-lg border border-error-200 dark:border-error-800 bg-error-50 dark:bg-error-900/20 px-4 py-3 text-sm text-error-700 dark:text-error-300">
+          {leaderboardError}
+        </div>
+      )}
 
       {/* User's Current Position */}
       {currentRank && (
