@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getMoods, getWeeklyAnalysis } from '../../../api/api';
+import { getMoods, getWeeklyAnalysis, getUserRewards } from '../../../api/api';
 import useAuth from '../../../hooks/useAuth';
 import { 
   Achievement, 
@@ -14,7 +14,6 @@ import {
   GamificationStats,
   LEVEL_TITLES,
 } from '../types';
-import { calculateLevel } from '../utils';
 import { logger } from '../../../utils/logger';
 
 
@@ -64,20 +63,37 @@ export function useGamification(options: UseGamificationOptions = {}): UseGamifi
     setError(null);
 
     try {
-      const [moodsData, weeklyData] = await Promise.all([
+      // Fetch backend rewards (authoritative XP/level) and mood/weekly data in parallel
+      const [moodsData, weeklyData, userRewardsData] = await Promise.all([
         getMoods(userId).catch(() => []),
         getWeeklyAnalysis(userId).catch(() => ({})),
+        getUserRewards().catch(() => null),
       ]);
 
-      // Calculate stats from real data
-      const moodCount = Array.isArray(moodsData) ? moodsData.length : 0;
-      const totalXP = moodCount * 10; // 10 XP per mood log
-      const { level, xpInLevel, xpForNextLevel } = calculateLevel(totalXP);
-      
       // Calculate streak
-      const streakDays = weeklyData.streak || calculateStreakFromMoods(moodsData);
+      const moodCount = Array.isArray(moodsData) ? moodsData.length : 0;
+      const streakDays = (weeklyData as any).streak || calculateStreakFromMoods(moodsData);
 
-      // Generate achievements based on actual data
+      // Use backend XP/level as authoritative source.
+      // Fall back to estimated local XP only when API unavailable.
+      let level: number;
+      let xpInLevel: number;
+      let xpForNextLevel: number;
+
+      if (userRewardsData && userRewardsData.xp !== undefined) {
+        level = userRewardsData.level ?? 1;
+        xpInLevel = userRewardsData.progressXp ?? 0;
+        xpForNextLevel = userRewardsData.neededXp ?? 100;
+      } else {
+        // Offline fallback with correct sqrt formula
+        const totalXP = moodCount * 10;
+        level = Math.floor(Math.sqrt(Math.max(0, totalXP) / 100)) + 1;
+        const xpForCurrentLevel = ((level - 1) ** 2) * 100;
+        xpForNextLevel = (level ** 2) * 100;
+        xpInLevel = totalXP - xpForCurrentLevel;
+      }
+
+      // Generate achievements based on actual activity data
       const generatedAchievements = generateAchievements(moodCount, streakDays);
       const unlockedCount = generatedAchievements.filter(a => a.unlocked).length;
 

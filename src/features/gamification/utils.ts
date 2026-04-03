@@ -4,55 +4,48 @@
 
 import { AchievementRarity, RARITY_COLORS } from './types';
 
-// XP required for each level (exponential growth)
-const XP_BASE = 100;
-const XP_MULTIPLIER = 1.5;
+/**
+ * Level formula (canonical — must match backend rewards_routes.py _calculate_level):
+ *   level = floor(sqrt(totalXP / 100)) + 1
+ *   xp needed for level N starts at level boundary: (N-1)^2 * 100 to N^2 * 100
+ * Examples: 0 XP → L1, 100 XP → L2, 400 XP → L3, 900 XP → L4
+ */
 
 /**
  * Calculate level from total XP
  */
-export function calculateLevel(totalXP: number): { 
-  level: number; 
-  xpInLevel: number; 
+export function calculateLevel(totalXP: number): {
+  level: number;
+  xpInLevel: number;
   xpForNextLevel: number;
   totalXPForLevel: number;
 } {
-  let level = 1;
-  let xpRemaining = totalXP;
-  let xpForCurrentLevel = XP_BASE;
-  
-  while (xpRemaining >= xpForCurrentLevel) {
-    xpRemaining -= xpForCurrentLevel;
-    level++;
-    xpForCurrentLevel = Math.floor(XP_BASE * Math.pow(XP_MULTIPLIER, level - 1));
-  }
-  
+  const safeXP = Math.max(0, totalXP);
+  const level = Math.floor(Math.sqrt(safeXP / 100)) + 1;
+  const xpForCurrentLevel = ((level - 1) ** 2) * 100;
+  const xpForNextLevel = (level ** 2) * 100;
+  const xpInLevel = safeXP - xpForCurrentLevel;
   return {
     level,
-    xpInLevel: xpRemaining,
-    xpForNextLevel: xpForCurrentLevel,
-    totalXPForLevel: Math.floor(XP_BASE * Math.pow(XP_MULTIPLIER, level - 1)),
+    xpInLevel,
+    xpForNextLevel,
+    totalXPForLevel: xpForCurrentLevel,
   };
 }
 
 /**
- * Get total XP required for a specific level
+ * Get total XP required to reach a specific level
  */
 export function getXPForLevel(level: number): number {
   if (level <= 1) return 0;
-  
-  let totalXP = 0;
-  for (let i = 1; i < level; i++) {
-    totalXP += Math.floor(XP_BASE * Math.pow(XP_MULTIPLIER, i - 1));
-  }
-  return totalXP;
+  return ((level - 1) ** 2) * 100;
 }
 
 /**
- * Get XP required for next level
+ * Get total XP required for the NEXT level (upper bound for current level)
  */
 export function getXPToNextLevel(currentLevel: number): number {
-  return Math.floor(XP_BASE * Math.pow(XP_MULTIPLIER, currentLevel - 1));
+  return (currentLevel ** 2) * 100;
 }
 
 /**

@@ -121,12 +121,9 @@ def award_xp(user_id: str, action: str, amount: int | None = None) -> dict:
 
 
 def _calculate_level(total_xp: int) -> int:
-    """Simple level curve: 100 XP per level with increasing thresholds."""
-    level = 1
-    xp_needed = 100
-    remaining = total_xp
-    while remaining >= xp_needed:
-        remaining -= xp_needed
-        level += 1
-        xp_needed = int(xp_needed * 1.15)  # 15% more XP per level
-    return level
+    """Level formula: level = floor(sqrt(xp / 100)) + 1.
+    Matches rewards_routes.py and the frontend formula exactly.
+    Examples: 0 XP → L1, 100 XP → L2, 400 XP → L3, 900 XP → L4.
+    """
+    import math
+    return int(math.sqrt(max(total_xp, 0) / 100)) + 1

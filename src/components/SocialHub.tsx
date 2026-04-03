@@ -5,7 +5,7 @@ import PeerSupportChat from './PeerSupportChat';
 import GroupChallenges from './GroupChallenges';
 import Leaderboard from './Leaderboard';
 import useAuth from '../hooks/useAuth';
-import { getLeaderboard, getReferralStats, getMoods } from '../api/api';
+import { getXPLeaderboard, getReferralStats, getMoods } from '../api/api';
 import {
   ChatBubbleLeftRightIcon,
   ShareIcon,
@@ -64,12 +64,12 @@ const SocialHub: React.FC = () => {
       try {
         logger.debug('Fetching leaderboard, referrals, moods...');
         // Fetch leaderboard to get community size and user rank
-        const leaderboardData = await getLeaderboard('xp');
+        const leaderboardData = await getXPLeaderboard();
         const communityMembers = leaderboardData.length;
 
-        // Find user's rank
+        // Find user's rank (supports both camelCase and snake_case user ID fields)
         const userRankEntry = leaderboardData.find(
-          (entry: any) => entry.userId === user.user_id
+          (entry: any) => (entry.userId ?? entry.user_id) === user.user_id
         );
         const userRank = userRankEntry?.rank || 0;
 
