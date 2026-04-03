@@ -29,7 +29,6 @@ const WorldClassAIChat = lazy(() => import('./WorldClassAIChat'));
 const WorldClassGamification = lazy(() => import('./WorldClassGamification'));
 const WorldClassAnalytics = lazy(() => import('./WorldClassAnalytics'));
 const DailyInsights = lazy(() => import('./DailyInsights'));
-const GamificationSystem = lazy(() => import('./GamificationSystem'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const GroupChallenges = lazy(() => import('./GroupChallenges'));
 const MoodList = lazy(() => import('./MoodList'));
@@ -129,16 +128,6 @@ export const DailyInsightsWrapper: React.FC = () => {
   }
 
   return <DailyInsights userId={getUserId(user)} moodData={moodData} />;
-};
-
-// GamificationSystem Wrapper - Uses real RewardsHub with API
-export const GamificationSystemWrapper: React.FC = () => {
-  const { user } = useAuth();
-  const userId = getUserId(user);
-  
-  // GamificationSystem is now handled by RewardsHub which uses real API
-  // Import and use the real component
-  return <GamificationSystem userId={userId} />;
 };
 
 // Leaderboard Wrapper - Uses real Leaderboard component

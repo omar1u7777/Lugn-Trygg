@@ -150,12 +150,14 @@ const CategoryPill: React.FC<{
   active: boolean;
   label: string;
   icon: React.ReactNode;
+  testId?: string;
   onClick: () => void
-}> = ({ active, label, icon, onClick }) => (
+}> = ({ active, label, icon, testId, onClick }) => (
   <button
     onClick={onClick}
     aria-label={label}
     aria-pressed={active}
+    data-testid={testId}
     className={`
       flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
       ${active
@@ -455,7 +457,7 @@ const WellnessHub: React.FC = () => {
                   if (dailyRec) startMeditation(dailyRec);
                 }}
               >
-                <div className="mt-4">
+                <div className="mt-4" data-testid="wellness-daily-recommendation">
                   <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-medium border border-white/20">
                     10 min • {t('wellnessHub.morningFocus')}
                   </span>
@@ -503,7 +505,7 @@ const WellnessHub: React.FC = () => {
                 accentColor="bg-sky-500"
                 onClick={() => setShowGoalsModal(true)}
               >
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2" data-testid="wellness-goals-card">
                   {userGoals.length > 0 ? (
                     userGoals.slice(0, 3).map((goal, i) => (
                       <div key={i} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
@@ -534,11 +536,11 @@ const WellnessHub: React.FC = () => {
       {/* 2. Navigation Pills */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8 overflow-x-auto scrollbar-hide">
         <div className="flex gap-3 pb-2">
-          <CategoryPill active={activeCategory === 'all'} label={t('wellnessHub.catAll')} icon={<SparklesIcon className="w-4 h-4" />} onClick={() => setActiveCategory('all')} />
-          <CategoryPill active={activeCategory === 'meditation'} label={t('wellnessHub.catMeditation')} icon={<HandRaisedIcon className="w-4 h-4" />} onClick={() => setActiveCategory('meditation')} />
-          <CategoryPill active={activeCategory === 'breathing'} label={t('wellnessHub.catBreathing')} icon={<CloudIcon className="w-4 h-4" />} onClick={() => setActiveCategory('breathing')} />
-          <CategoryPill active={activeCategory === 'sounds'} label={t('wellnessHub.catSounds')} icon={<MusicalNoteIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sounds')} />
-          <CategoryPill active={activeCategory === 'sleep'} label={t('wellnessHub.catSleep')} icon={<MoonIcon className="w-4 h-4" />} onClick={() => setActiveCategory('sleep')} />
+          <CategoryPill active={activeCategory === 'all'} label={t('wellnessHub.catAll')} icon={<SparklesIcon className="w-4 h-4" />} testId="wellness-category-all" onClick={() => setActiveCategory('all')} />
+          <CategoryPill active={activeCategory === 'meditation'} label={t('wellnessHub.catMeditation')} icon={<HandRaisedIcon className="w-4 h-4" />} testId="wellness-category-meditation" onClick={() => setActiveCategory('meditation')} />
+          <CategoryPill active={activeCategory === 'breathing'} label={t('wellnessHub.catBreathing')} icon={<CloudIcon className="w-4 h-4" />} testId="wellness-category-breathing" onClick={() => setActiveCategory('breathing')} />
+          <CategoryPill active={activeCategory === 'sounds'} label={t('wellnessHub.catSounds')} icon={<MusicalNoteIcon className="w-4 h-4" />} testId="wellness-category-sounds" onClick={() => setActiveCategory('sounds')} />
+          <CategoryPill active={activeCategory === 'sleep'} label={t('wellnessHub.catSleep')} icon={<MoonIcon className="w-4 h-4" />} testId="wellness-category-sleep" onClick={() => setActiveCategory('sleep')} />
           <button
             onClick={() => navigate('/recommendations')}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105 bg-primary-50 dark:bg-slate-800 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-slate-700"
@@ -674,7 +676,7 @@ const WellnessHub: React.FC = () => {
         )}
 
         {(activeCategory === 'all' || activeCategory === 'sleep') && (
-          <section className="mb-12">
+          <section className="mb-12" data-testid="wellness-sleep-section">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sömn & Vila</h2>
               <Button variant="ghost" className="text-primary-600">Spela sagor</Button>
