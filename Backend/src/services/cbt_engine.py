@@ -93,7 +93,7 @@ class CBTEngine:
             prerequisites=[],
             learning_objectives=[
                 'Förstå ångestsymptom och deras funktion',
-                'Läga grundläggande avslappningstekniker',
+                'Lära grundläggande avslappningstekniker',
                 'Utveckla medvetenhet om ångesttankar'
             ],
             swedish_content={
@@ -178,7 +178,7 @@ class CBTEngine:
         # Stress Management Module
         modules['stress_management'] = CBTModule(
             module_id='stress_management',
-            title='Stressehantering och Problemlösning',
+            title='Stresshantering och Problemlösning',
             description='Praktiska verktyg för att hantera stress och lösa problem',
             category='stress',
             difficulty_level='beginner',
@@ -504,7 +504,10 @@ class CBTEngine:
         # Adjust based on recent performance
         recent_exercises = user_progress.exercise_history[-5:]  # Last 5 exercises
         if recent_exercises:
-            avg_success = sum(ex.get('success_rate', 0.5) for ex in recent_exercises) / len(recent_exercises)
+            avg_success = sum(
+                ex.get('success_rate', ex.get('successRate', 0.5))
+                for ex in recent_exercises
+            ) / len(recent_exercises)
 
             if avg_success < 0.6:
                 adjustments['pace_adjustment'] = 0.8  # Slower pace

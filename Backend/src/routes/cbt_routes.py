@@ -38,7 +38,7 @@ def _check_cbt_access(user_id: str) -> tuple[bool, str]:
         user_data = user_doc.to_dict() if user_doc.exists else {}
 
         plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
-        plan_type = plan_context.get("plan_type", "free")
+        plan_type = plan_context.get("plan", "free")
 
         # CBT is premium feature - require premium, trial, or enterprise
         allowed_plans = ["premium", "trial", "enterprise"]
@@ -430,9 +430,27 @@ def update_progress():
         new_mastery = min(1.0, max(0.0, current_mastery + mastery_adjustment))
         user_progress.skill_mastery[skill_type] = new_mastery
 
-        # Update streak
-        user_progress.last_session_date = datetime.now(UTC)
-        user_progress.streak_count += 1  # Simplified - should check daily
+        # Update streak — only increment once per calendar day
+        now_utc = datetime.now(UTC)
+        last_date = user_progress.last_session_date
+        if last_date is None:
+            # First ever session
+            user_progress.streak_count = 1
+        else:
+            # Normalize to UTC date for comparison
+            if hasattr(last_date, 'tzinfo') and last_date.tzinfo is None:
+                last_date = last_date.replace(tzinfo=UTC)
+            days_since_last = (now_utc.date() - last_date.date()).days
+            if days_since_last == 0:
+                # Same calendar day — do not change streak
+                pass
+            elif days_since_last == 1:
+                # Consecutive day — extend streak
+                user_progress.streak_count += 1
+            else:
+                # Streak broken — reset to 1
+                user_progress.streak_count = 1
+        user_progress.last_session_date = now_utc
 
         # Check module completion
         module_id = exercise.module_id
@@ -522,6 +540,15 @@ def get_insights():
     logger.info(f"📊 Fetching CBT insights for user {user_id}")
 
     try:
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403,
+            )
+
         user_progress = _get_user_progress(user_id)
         insights = cbt_engine.get_user_insights(user_progress)
 
@@ -581,6 +608,15 @@ def get_exercises():
     logger.info(f"📋 User {user_id} fetching exercises (module={module_filter}, type={type_filter})")
 
     try:
+        has_access, error_message = _check_cbt_access(user_id)
+        if not has_access:
+            logger.warning(f"⛔ User {user_id} denied CBT access: {error_message}")
+            return APIResponse.error(
+                message=error_message,
+                error_code="PREMIUM_REQUIRED",
+                status_code=403,
+            )
+
         exercises_list = []
         for exercise in cbt_engine.exercises.values():
             if module_filter and exercise.module_id != module_filter:
