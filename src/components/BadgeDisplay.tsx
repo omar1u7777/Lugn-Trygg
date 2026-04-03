@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { getMoods } from '../api/api';
+import { getMoods, getUserRewards, getAchievements, type Achievement } from '../api/api';
 import useAuth from '../hooks/useAuth';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
@@ -26,6 +26,12 @@ interface MoodEntry {
   timestamp: TimestampLike;
 }
 
+type AuthUserLike = {
+  user_id?: string;
+  uid?: string;
+  id?: string;
+};
+
 const toDate = (timestamp: TimestampLike): Date => {
   if (
     timestamp &&
@@ -42,6 +48,8 @@ const toDate = (timestamp: TimestampLike): Date => {
 const BadgeDisplay: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const authUser = (user ?? {}) as AuthUserLike;
+  const userId = authUser.user_id || authUser.uid || authUser.id || '';
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -107,49 +115,53 @@ const BadgeDisplay: React.FC = () => {
 
   useEffect(() => {
     const calculateBadges = async () => {
-      if (!user?.user_id) return;
+      if (!userId) {
+        setBadges([]);
+        setLoading(false);
+        return;
+      }
 
       try {
-        const moods = await getMoods(user.user_id);
+        const [moods, rewards, achievements] = await Promise.all([
+          getMoods(userId),
+          getUserRewards(),
+          getAchievements(),
+        ]);
         const currentStreak = calculateCurrentStreak(moods);
         const longestStreak = calculateLongestStreak(moods);
         const totalEntries = moods.length;
+        const earnedAchievementIds = new Set(rewards.achievements || []);
+
+        const progressByType: Record<string, number> = {
+          mood_count: totalEntries,
+          streak: currentStreak,
+          journal_count: 0,
+          referral_count: 0,
+          meditation_count: 0,
+        };
+
+        const achievementBadges: Badge[] = (achievements as Achievement[]).map((achievement) => {
+          const conditionType = achievement.condition?.type || 'mood_count';
+          const conditionValue = achievement.condition?.value || 1;
+          const currentValue = progressByType[conditionType] || 0;
+          const achieved = earnedAchievementIds.has(achievement.id) || currentValue >= conditionValue;
+
+          return {
+            id: achievement.id,
+            title: achievement.title,
+            description: achievement.description,
+            icon: achieved ? '🏆' : '🔒',
+            earned: achieved,
+            streak: currentValue,
+            category: conditionType,
+            rarity: conditionValue >= 30 ? 'epic' : conditionValue >= 7 ? 'rare' : 'common',
+            progress: Math.min(currentValue, conditionValue),
+            maxProgress: conditionValue,
+          };
+        });
 
         const badgeList: Badge[] = [
-          {
-            id: 'first-entry',
-            title: t('badges.firstEntry.title', 'First Step'),
-            description: t('badges.firstEntry.desc', 'Logged your first mood'),
-            icon: '🎯',
-            earned: totalEntries > 0,
-            streak: 0,
-            category: 'getting-started',
-            rarity: 'common',
-          },
-          {
-            id: 'week-streak',
-            title: t('badges.weekStreak.title', 'Week Warrior'),
-            description: t('badges.weekStreak.desc', '7 days in a row'),
-            icon: '🔥',
-            earned: currentStreak >= 7,
-            streak: currentStreak,
-            category: 'consistency',
-            rarity: 'rare',
-            progress: Math.min(currentStreak, 7),
-            maxProgress: 7,
-          },
-          {
-            id: 'month-streak',
-            title: t('badges.monthStreak.title', 'Monthly Master'),
-            description: t('badges.monthStreak.desc', '30 days in a row'),
-            icon: '👑',
-            earned: currentStreak >= 30,
-            streak: currentStreak,
-            category: 'consistency',
-            rarity: 'epic',
-            progress: Math.min(currentStreak, 30),
-            maxProgress: 30,
-          },
+          ...achievementBadges,
           {
             id: 'consistency',
             title: t('badges.consistency.title', 'Consistency King'),
@@ -172,74 +184,19 @@ const BadgeDisplay: React.FC = () => {
             progress: Math.min(totalEntries, 50),
             maxProgress: 50,
           },
-          {
-            id: 'mindful',
-            title: 'Mindful Observer',
-            description: 'Completed 10 mindfulness exercises',
-            icon: '🧘',
-            earned: false, // Requires backend exercise tracking
-            streak: 0,
-            category: 'mindfulness',
-            rarity: 'common',
-            progress: 0,
-            maxProgress: 10,
-          },
-          {
-            id: 'storyteller',
-            title: 'Storyteller',
-            description: 'Listened to 5 AI-generated stories',
-            icon: '📚',
-            earned: false, // Requires backend story tracking
-            streak: 0,
-            category: 'engagement',
-            rarity: 'common',
-            progress: 0,
-            maxProgress: 5,
-          },
-          {
-            id: 'health-sync',
-            title: 'Health Syncer',
-            description: 'Connected wearable device',
-            icon: '⌚',
-            earned: false, // Would be calculated from device connections
-            streak: 0,
-            category: 'integration',
-            rarity: 'rare',
-          },
-          {
-            id: 'crisis-helper',
-            title: 'Crisis Supporter',
-            description: 'Used crisis support features',
-            icon: '🆘',
-            earned: false, // Would be calculated from crisis interventions
-            streak: 0,
-            category: 'support',
-            rarity: 'legendary',
-          },
-          {
-            id: 'prediction-master',
-            title: 'Prediction Master',
-            description: 'Viewed mood predictions 10 times',
-            icon: '🔮',
-            earned: false, // Requires backend prediction view tracking
-            streak: 0,
-            category: 'advanced',
-            rarity: 'epic',
-            progress: 0,
-            maxProgress: 10,
-          },
         ];
 
         setBadges(badgeList);
       } catch (error) {
         logger.error('Failed to calculate badges:', error);
+        setBadges([]);
       } finally {
         setLoading(false);
       }
     };
 
     calculateBadges();
-  }, [calculateCurrentStreak, calculateLongestStreak, user?.user_id, t]);
+  }, [calculateCurrentStreak, calculateLongestStreak, userId, t]);
 
   if (loading) {
     return (

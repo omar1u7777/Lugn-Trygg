@@ -40,7 +40,7 @@ export const Leaderboard: React.FC = () => {
     xp: { rank: number; value: number; percentile: number };
     streak: { rank: number; value: number; percentile: number };
     moods: { rank: number; value: number; percentile: number };
-    total_users: number;
+    totalUsers: number;
   } | null>(null);
 
   const authUser = (user ?? {}) as AuthUserLike;
@@ -123,8 +123,14 @@ export const Leaderboard: React.FC = () => {
   const getScoreValue = (entry: LeaderboardEntry): number => {
     switch (activeTab) {
       case 0: return (entry as XPLeaderboardUser).xp || 0;
-      case 1: return (entry as StreakLeaderboardUser).current_streak || 0;
-      case 2: return (entry as MoodLeaderboardUser).mood_count || 0;
+      case 1: {
+        const streakEntry = entry as StreakLeaderboardUser;
+        return streakEntry.currentStreak || streakEntry.current_streak || 0;
+      }
+      case 2: {
+        const moodEntry = entry as MoodLeaderboardUser;
+        return moodEntry.moodCount || moodEntry.mood_count || 0;
+      }
       default: return 0;
     }
   };
@@ -230,13 +236,19 @@ export const Leaderboard: React.FC = () => {
                       : `Keep going! You're ${currentRank.rank - 10} spots away from the top 10`
                     }
                   </p>
+                  {(() => {
+                    const denominator = Math.max(userRanking.totalUsers, 1);
+                    const progress = Math.min(((userRanking.totalUsers - currentRank.rank) / denominator) * 100, 100);
+                    return (
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((userRanking.total_users - currentRank.rank) / userRanking.total_users) * 100, 100)}%` }}
+                      style={{ width: `${Math.max(progress, 0)}%` }}
                       role="progressbar"
                     />
                   </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -276,7 +288,7 @@ export const Leaderboard: React.FC = () => {
           ) : (
             leaderboard.map((entry, index) => (
               <motion.div
-                key={entry.user_id}
+                key={entry.userId || entry.user_id || `${entry.rank}-${index}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -299,23 +311,25 @@ export const Leaderboard: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className={`text-sm sm:text-base truncate ${entry.rank <= 3 ? 'font-bold' : 'font-medium'} text-gray-900 dark:text-white`}>
-                        {entry.display_name}
+                        {entry.displayName || entry.display_name || (isSwedish ? 'Anonym' : 'Anonymous')}
                       </p>
                       {activeTab === 0 && entry.level && entry.level > 1 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200">
                           Lv.{entry.level}
                         </span>
                       )}
-                      {activeTab === 1 && entry.current_streak && entry.current_streak > 7 && (
+                      {activeTab === 1 && ((entry as StreakLeaderboardUser).currentStreak || (entry as StreakLeaderboardUser).current_streak || 0) > 7 && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-200">
                           <FireIcon className="w-3 h-3" aria-hidden="true" />
-                          {entry.current_streak}d
+                          {(entry as StreakLeaderboardUser).currentStreak || (entry as StreakLeaderboardUser).current_streak}d
                         </span>
                       )}
                     </div>
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {entry.rank <= 3 ? getRankIcon(entry.rank) : `#${entry.rank}`}
-                      {activeTab === 0 && entry.badge_count ? ` • ${entry.badge_count} badges` : ''}
+                      {activeTab === 0 && (((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count || 0) > 0)
+                        ? ` • ${((entry as XPLeaderboardUser).badgeCount || (entry as XPLeaderboardUser).badge_count)} badges`
+                        : ''}
                     </p>
                   </div>
 

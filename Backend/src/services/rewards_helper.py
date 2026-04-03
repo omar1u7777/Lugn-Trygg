@@ -1,11 +1,12 @@
 """
-Rewards Helper Service — auto-award XP for user actions.
+Rewards Helper Service - auto-award XP for user actions.
 
 Centralises the logic so any blueprint can call ``award_xp()`` without
 needing to know about Firestore structure or level calculations.
 """
 
 import logging
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -48,25 +49,52 @@ def award_xp(user_id: str, action: str, amount: int | None = None) -> dict:
     try:
         from ..firebase_config import db
 
-        rewards_ref = db.collection('users').document(user_id).collection('rewards').document('progress')
+        if db is None:
+            raise RuntimeError("Database unavailable")
+
+        rewards_ref = db.collection('user_rewards').document(user_id)
+        legacy_rewards_ref = db.collection('users').document(user_id).collection('rewards').document('progress')
         doc = rewards_ref.get()
 
         if doc.exists:
             data = doc.to_dict() or {}
-            current_xp = data.get('total_xp', 0)
+            current_xp = data.get('xp', data.get('total_xp', 0))
             current_level = data.get('level', 1)
         else:
-            current_xp = 0
-            current_level = 1
+            legacy_doc = legacy_rewards_ref.get()
+            if legacy_doc.exists:
+                legacy_data = legacy_doc.to_dict() or {}
+                current_xp = legacy_data.get('xp', legacy_data.get('total_xp', 0))
+                current_level = legacy_data.get('level', 1)
+            else:
+                current_xp = 0
+                current_level = 1
 
         new_xp = current_xp + xp
         new_level = _calculate_level(new_xp)
         leveled_up = new_level > current_level
 
         rewards_ref.set({
+            'user_id': user_id,
+            'xp': new_xp,
             'total_xp': new_xp,
             'level': new_level,
             'last_action': action,
+            'last_awarded_at': datetime.now(UTC).isoformat(),
+        }, merge=True)
+
+        # Keep legacy nested rewards document in sync for older code paths.
+        legacy_rewards_ref.set({
+            'xp': new_xp,
+            'total_xp': new_xp,
+            'level': new_level,
+            'last_action': action,
+        }, merge=True)
+
+        # Keep users collection mirrors used by stats/dashboard queries in sync.
+        db.collection('users').document(user_id).set({
+            'total_xp': new_xp,
+            'level': new_level,
         }, merge=True)
 
         if leveled_up:
