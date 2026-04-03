@@ -22,6 +22,11 @@ from src.utils.timestamp_utils import parse_iso_timestamp
 # Environment detection
 IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
+# [S5] Validate FRONTEND_URL at module level — must not be localhost in production
+_FRONTEND_URL_RAW = os.getenv('FRONTEND_URL', '' if IS_PRODUCTION else 'http://localhost:3000')
+if IS_PRODUCTION and (not _FRONTEND_URL_RAW or 'localhost' in _FRONTEND_URL_RAW or '127.0.0.1' in _FRONTEND_URL_RAW):
+    raise RuntimeError('[S5] FRONTEND_URL must be set to a production HTTPS URL (not localhost or empty)')
+
 # Validation patterns
 PROVIDER_PATTERN = re.compile(r'^[a-z_]{3,20}$')
 DEVICE_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,50}$')
@@ -39,9 +44,11 @@ def _validate_redirect_url(url: str, default: str) -> str:
         if scheme not in ('http', 'https'):
             return default
         allowed_hosts = [
-            'localhost',
             'lugn-trygg.vercel.app',
         ]
+        # [S5] Only allow localhost redirects in non-production environments
+        if not IS_PRODUCTION:
+            allowed_hosts.append('localhost')
         # Check exact match or Vercel preview deployments (*.vercel.app)
         if hostname in allowed_hosts:
             return url
@@ -241,7 +248,7 @@ def oauth_callback(provider):
         )
 
         # Redirect to frontend success page - validate frontend_url
-        default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        default_frontend = _FRONTEND_URL_RAW  # [S5] module-level validated value
         frontend_url = request.args.get('frontend_url', default_frontend)
         # Only allow known frontend URLs using strict validation
         frontend_url = _validate_redirect_url(frontend_url, default_frontend)
@@ -251,7 +258,7 @@ def oauth_callback(provider):
 
     except Exception:
         logger.exception("Error in OAuth callback")
-        default_frontend = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        default_frontend = _FRONTEND_URL_RAW  # [S5] module-level validated value
         frontend_url = request.args.get('frontend_url', default_frontend)
         frontend_url = _validate_redirect_url(frontend_url, default_frontend)
         provider_clean = re.sub(r'[^a-zA-Z0-9_-]', '', str(provider))[:50]

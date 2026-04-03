@@ -230,6 +230,11 @@ def validate_security_config() -> list[str]:
     if RATE_LIMIT_REQUESTS_PER_MINUTE > 1000:
         issues.append("RATE_LIMIT_REQUESTS_PER_MINUTE är väldigt högt")
 
+    # [S5] Check CORS origins in production — must not be localhost-only
+    if os.getenv('FLASK_ENV') == 'production' and CORS_ALLOWED_ORIGINS:
+        if all('localhost' in o or '127.0.0.1' in o for o in CORS_ALLOWED_ORIGINS):
+            issues.append("CORS_ALLOWED_ORIGINS innehåller bara localhost-adresser i produktion — sätt produktions-URL")
+
     return issues
 
 # Validate configuration on import
