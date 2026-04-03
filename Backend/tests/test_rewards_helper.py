@@ -60,6 +60,7 @@ def test_award_xp_falls_back_to_legacy_when_canonical_missing(mocker, mock_db):
     result = award_xp('testuser1234567890ab', 'journal_entry')
 
     assert result['total_xp'] == 265
-    assert result['level'] >= 3
+    # With sqrt formula: level = floor(sqrt(265/100)) + 1 = floor(1.628) + 1 = 2
+    assert result['level'] == 2
     user_rewards_ref.set.assert_called()
     rewards_progress_ref.set.assert_called()

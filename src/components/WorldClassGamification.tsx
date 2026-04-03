@@ -16,7 +16,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
-import { getMoods, getWeeklyAnalysis, getChatHistory } from '../api/api';
+import { getMoods, getWeeklyAnalysis, getChatHistory, getUserRewards } from '../api/api';
 
 import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/logger';
@@ -147,10 +147,12 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
 
     try {
       setLoading(true);
-      const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
+      // Fetch authoritative XP/level from backend AND activity data for achievement progress in parallel
+      const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw, userRewardsData] = await Promise.all([
         getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
         getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
         getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
+        getUserRewards().catch((error) => { console.error('Failed to fetch user rewards:', error); return null; }),
       ]);
 
       const moodsData: MoodDataItem[] = Array.isArray(moodsDataRaw) ? (moodsDataRaw as MoodDataItem[]) : [];
@@ -177,16 +179,25 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       // Get real chat count from chat history
       const totalChats = chatHistoryData?.conversation?.length || 0;
 
-      // Logic for Stats
-      const moodXp = totalMoods * 10;
-      const streakBonus = streakDays * 5;
-      const chatXp = totalChats * 15;
-      const totalXp = moodXp + streakBonus + chatXp;
-      // Level formula: matches backend _calculate_level(xp) = floor(sqrt(xp/100)) + 1
-      const currentLevel = Math.floor(Math.sqrt(totalXp / 100)) + 1;
-      const xpForCurrentLevel = ((currentLevel - 1) ** 2) * 100;
-      const _xpForNextLevel = (currentLevel ** 2) * 100;
-      const xpInLevel = totalXp - xpForCurrentLevel;
+      // Use BACKEND rewards as authoritative source for XP and level.
+      // Fall back to local calculation only if API unavailable (offline/new user).
+      let currentLevel: number;
+      let xpInLevel: number;
+      let xpForNextLevel: number;
+
+      if (userRewardsData && userRewardsData.xp !== undefined) {
+        // Backend already computes progressXp and neededXp using sqrt formula
+        currentLevel = userRewardsData.level ?? 1;
+        xpInLevel = userRewardsData.progressXp ?? 0;
+        xpForNextLevel = userRewardsData.neededXp ?? 100;
+      } else {
+        // Offline fallback: estimate from known XP actions
+        const totalXp = totalMoods * 10 + streakDays * 5 + totalChats * 5;
+        currentLevel = Math.floor(Math.sqrt(Math.max(0, totalXp) / 100)) + 1;
+        const xpForCurrentLevel = ((currentLevel - 1) ** 2) * 100;
+        xpForNextLevel = (currentLevel ** 2) * 100;
+        xpInLevel = totalXp - xpForCurrentLevel;
+      }
 
       // Achievements Data
       const realAchievements: Achievement[] = [
@@ -219,7 +230,14 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       const unlockedCount = realAchievements.filter(a => a.unlocked).length;
 
       setStats({
-        level: currentLevel, xp: xpInLevel, xpToNext: 100, streakDays, totalMoods, totalChats, achievementsUnlocked: unlockedCount, totalAchievements: realAchievements.length,
+        level: currentLevel,
+        xp: xpInLevel,
+        xpToNext: xpForNextLevel,
+        streakDays,
+        totalMoods,
+        totalChats,
+        achievementsUnlocked: unlockedCount,
+        totalAchievements: realAchievements.length,
       });
       setAchievements(realAchievements);
       announceToScreenReader(t('gamification.achievementsUnlocked', { count: unlockedCount }), 'polite');
@@ -330,7 +348,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
           {[
             { label: t('gamification.moodCheckins'), value: stats.totalMoods, icon: <HeartIcon className="text-pink-500" />, bg: 'bg-pink-50' },
             { label: t('gamification.aiConversations'), value: stats.totalChats, icon: <UserGroupIcon className="text-blue-500" />, bg: 'bg-blue-50' },
-            { label: t('gamification.totalXP'), value: (stats.level - 1) * 100 + stats.xp, icon: <SparklesIcon className="text-purple-500" />, bg: 'bg-purple-50' },
+            { label: t('gamification.totalXP'), value: ((stats.level - 1) ** 2) * 100 + stats.xp, icon: <SparklesIcon className="text-purple-500" />, bg: 'bg-purple-50' },
             { label: t('gamification.ranking'), value: t('gamification.level', { level: stats.level }), icon: <ArrowTrendingUpIcon className="text-green-500" />, bg: 'bg-green-50' }
           ].map((stat, i) => (
             <div key={i} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-sm flex flex-col items-center text-center hover:scale-[1.02] transition-transform">
