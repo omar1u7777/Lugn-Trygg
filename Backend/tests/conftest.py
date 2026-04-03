@@ -1,5 +1,6 @@
 import os
 import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -138,6 +139,32 @@ mock_firebase_config.initialize_firebase = MagicMock(return_value=True)
 sys.modules['src.firebase_config'] = mock_firebase_config
 # Also mock under Backend.src path so tests using that prefix don't trigger real init
 sys.modules['Backend.src.firebase_config'] = mock_firebase_config
+
+# Stub heavy NLP model loader to avoid native crashes during test bootstrap.
+# The real module loads sentence-transformers and can crash CI/dev Python runtimes.
+fake_crisis_nlp = types.ModuleType('src.services.crisis_nlp')
+
+
+class _FakeSemanticCrisisAssessment:
+    def __init__(self, risk_level='none', semantic_score=0.0, confidence=0.5, detected_concepts=None):
+        self.risk_level = risk_level
+        self.semantic_score = semantic_score
+        self.confidence = confidence
+        self.detected_concepts = detected_concepts or []
+
+
+class _FakeSemanticDetector:
+    def detect(self, text, conversation_context=None):
+        return _FakeSemanticCrisisAssessment()
+
+
+def _get_semantic_crisis_detector():
+    return _FakeSemanticDetector()
+
+
+fake_crisis_nlp.SemanticCrisisAssessment = _FakeSemanticCrisisAssessment
+fake_crisis_nlp.get_semantic_crisis_detector = _get_semantic_crisis_detector
+sys.modules['src.services.crisis_nlp'] = fake_crisis_nlp
 
 # Patch the jwt_required decorator BEFORE importing routes
 def mock_jwt_required(f):

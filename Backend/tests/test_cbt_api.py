@@ -7,6 +7,8 @@ import json
 import os
 import sys
 
+import pytest
+
 # Add Backend directory to sys.path
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
@@ -21,6 +23,12 @@ os.environ.setdefault('SKIP_BACKGROUND_SERVICES', '1')
 
 def _json(response):
     return json.loads(response.data)
+
+
+@pytest.fixture(autouse=True)
+def _allow_cbt_access(monkeypatch):
+    """Keep tests focused on CBT logic instead of subscription-plan fixtures."""
+    monkeypatch.setattr("src.routes.cbt_routes._check_cbt_access", lambda user_id: (True, ""))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,61 +147,61 @@ def test_get_insights_structure(client):
 # Progress update
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_progress_thought_record_basic(client):
+def test_progress_thought_record_basic(client, csrf_headers):
     r = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'thought_record_basic',
         'successRate': 0.8,
         'timeSpent': 15,
         'difficultyRating': 2,
-    })
+    }, headers=csrf_headers)
     assert r.status_code == 200
     d = _json(r)['data']
     assert 'skillMastery' in d
     assert 'streakCount' in d
 
 
-def test_progress_behavioral_activation(client):
+def test_progress_behavioral_activation(client, csrf_headers):
     r = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'behavioral_activation',
         'successRate': 0.9,
         'timeSpent': 20,
         'difficultyRating': 2,
-    })
+    }, headers=csrf_headers)
     assert r.status_code == 200
 
 
-def test_progress_worry_time(client):
+def test_progress_worry_time(client, csrf_headers):
     r = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'worry_time',
         'successRate': 0.85,
         'timeSpent': 25,
         'difficultyRating': 3,
-    })
+    }, headers=csrf_headers)
     assert r.status_code == 200
 
 
-def test_progress_missing_exercise_id_returns_400(client):
-    r = client.post('/api/v1/cbt/progress', json={'successRate': 0.5})
+def test_progress_missing_exercise_id_returns_400(client, csrf_headers):
+    r = client.post('/api/v1/cbt/progress', json={'successRate': 0.5}, headers=csrf_headers)
     assert r.status_code == 400
 
 
-def test_progress_unknown_exercise_returns_404(client):
+def test_progress_unknown_exercise_returns_404(client, csrf_headers):
     r = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'not_a_real_exercise',
         'successRate': 0.5,
         'timeSpent': 5,
         'difficultyRating': 3,
-    })
+    }, headers=csrf_headers)
     assert r.status_code == 404
 
 
-def test_streak_not_double_incremented_same_day(client):
+def test_streak_not_double_incremented_same_day(client, csrf_headers):
     """Completing two exercises in one day must not add >1 to streak."""
     # First exercise
     r1 = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'thought_record_basic',
         'successRate': 0.8, 'timeSpent': 15, 'difficultyRating': 2,
-    })
+    }, headers=csrf_headers)
     assert r1.status_code == 200
     streak1 = _json(r1)['data']['streakCount']
 
@@ -201,7 +209,7 @@ def test_streak_not_double_incremented_same_day(client):
     r2 = client.post('/api/v1/cbt/progress', json={
         'exerciseId': 'behavioral_activation',
         'successRate': 0.9, 'timeSpent': 20, 'difficultyRating': 2,
-    })
+    }, headers=csrf_headers)
     assert r2.status_code == 200
     streak2 = _json(r2)['data']['streakCount']
 
