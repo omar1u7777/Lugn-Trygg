@@ -419,18 +419,20 @@ api.interceptors.request.use(
     }
 
     // Add CSRF token for state-changing operations
-    // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks.
-    // when the CSRF fetch itself needs a valid token
+    // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks
+    // when the CSRF fetch itself needs a valid token.
     const method = config.method?.toUpperCase();
     const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
     if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
-      try {
-        const csrf = await getClientCsrfToken();
-        if (csrf && !config.headers[CSRF_HEADER]) {
-          config.headers[CSRF_HEADER] = csrf;
-        }
-      } catch (error) {
-        logger.warn('Failed to get CSRF token, proceeding without it:', { error: String(error) });
+      const csrf = await getClientCsrfToken();
+      if (!csrf) {
+        // [S4] Block the request — sending state-changing requests without CSRF
+        // protection is a security vulnerability. Never silently continue.
+        logger.error('CSRF token unavailable. Request blocked.', { url: config.url, method });
+        return Promise.reject(new Error('CSRF token unavailable. Request blocked for security.'));
+      }
+      if (!config.headers[CSRF_HEADER]) {
+        config.headers[CSRF_HEADER] = csrf;
       }
     }
 
