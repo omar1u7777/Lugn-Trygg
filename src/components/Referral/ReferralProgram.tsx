@@ -41,9 +41,7 @@ const ReferralProgram: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.post(API_ENDPOINTS.REFERRAL.GENERATE_REFERRAL, {
-                user_id: user.user_id
-            });
+            const response = await api.post(API_ENDPOINTS.REFERRAL.GENERATE_REFERRAL, {});
             
             const data = response.data?.data || response.data;
             setReferralData({
@@ -69,7 +67,7 @@ const ReferralProgram: React.FC = () => {
         if (!user?.user_id) return;
 
         try {
-            const response = await api.get(`${API_ENDPOINTS.REFERRAL.STATS}?user_id=${user.user_id}`);
+            const response = await api.get(API_ENDPOINTS.REFERRAL.STATS);
             const data = response.data?.data || response.data;
             
             setStats({
