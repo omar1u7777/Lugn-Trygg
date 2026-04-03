@@ -23,19 +23,24 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
   const [selectedGoals, setSelectedGoals] = useState<string[]>(initialGoals);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [maxReachedHint, setMaxReachedHint] = useState(false);
 
   useEffect(() => {
     if (initialGoals.length > 0) setSelectedGoals(initialGoals);
   }, [initialGoals]);
 
+  const isMaxReached = selectedGoals.length >= MAX_WELLNESS_GOALS;
+
   const toggleGoal = (goalId: string) => {
     setSelectedGoals(prev => {
       if (prev.includes(goalId)) {
+        setMaxReachedHint(false);
         return prev.filter(g => g !== goalId);
       } else {
         if (prev.length < MAX_WELLNESS_GOALS) {
           return [...prev, goalId];
         }
+        setMaxReachedHint(true);
         return prev;
       }
     });
@@ -47,21 +52,24 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
       return;
     }
 
+    if (!userId) {
+      setError('Autentisering saknas. Försök logga in igen.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      if (userId) {
-        await setWellnessGoals(selectedGoals);
-        // Refresh dashboard data
-        await getDashboardSummary(userId, true);
+      await setWellnessGoals(selectedGoals);
+      // Refresh dashboard data
+      await getDashboardSummary(userId, true);
 
-        analytics.track('Wellness Goals Set', {
-          userId,
-          goals: selectedGoals,
-          count: selectedGoals.length,
-        });
-      }
+      analytics.track('Wellness Goals Set', {
+        userId,
+        goals: selectedGoals,
+        count: selectedGoals.length,
+      });
 
       if (onComplete) {
         onComplete(selectedGoals);
@@ -83,6 +91,11 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
         <p className="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
           Välj upp till {MAX_WELLNESS_GOALS} mål så anpassar vi din upplevelse för just dina behov.
         </p>
+        {maxReachedHint && (
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400 font-medium">
+            Du har nått max {MAX_WELLNESS_GOALS} mål. Avmarkera ett för att välja ett annat.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
@@ -94,11 +107,15 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
               onClick={() => toggleGoal(goal.id)}
               aria-pressed={isSelected}
               aria-label={`${goal.label}: ${goal.description}`}
-              className={`
+              disabled={!isSelected && isMaxReached}
+            aria-disabled={!isSelected && isMaxReached}
+            className={`
                 relative p-6 rounded-[1.5rem] text-left transition-all duration-300 border-2
                 ${isSelected
                   ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-xl shadow-primary-500/10 scale-[1.02]'
-                  : 'border-transparent bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]'}
+                  : !isMaxReached
+                    ? 'border-transparent bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]'
+                    : 'border-transparent bg-white dark:bg-slate-800 shadow-sm opacity-40 cursor-not-allowed'}
               `}
             >
               <div className="flex flex-col h-full">

@@ -143,7 +143,7 @@ export const getWellnessGoals = async () => {
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
     logger.debug('Wellness goals retrieved:', responseData.wellnessGoals);
-    return responseData.wellnessGoals;
+    return responseData.wellnessGoals ?? [];
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
     logger.error("Get wellness goals error:", apiError);
