@@ -64,8 +64,10 @@ pip install -r requirements.txt
 | `STRIPE_WEBHOOK_SECRET` | Payments | Stripe webhook signing secret |
 | `OPENAI_API_KEY` | AI | OpenAI API key |
 | `RESEND_API_KEY` | Email | Resend email service key |
+| `API_KEY_ENCRYPTION_KEY` | If API key rotation is enabled | Fernet key used to encrypt `api_keys/*.key` metadata |
 
 > **Never** commit `.env`, service-account JSON files, or any credentials.
+> `api_keys/.master.key` is forbidden. The API key rotation service now reads its storage key only from `API_KEY_ENCRYPTION_KEY`.
 
 ---
 
