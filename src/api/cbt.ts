@@ -103,7 +103,7 @@ const DEFAULT_CBT_PROGRESS: CBTProgress = {
  */
 export async function getCBTModules(): Promise<CBTModule[]> {
   const response = await api.get<{ modules: CBTModule[] }>(API_ENDPOINTS.CBT.MODULES);
-  return response.data.modules;
+  return (response.data as { data?: { modules?: CBTModule[] } }).data?.modules || [];
 }
 
 /**
@@ -113,7 +113,11 @@ export async function getCBTModuleDetail(moduleId: string): Promise<CBTModule> {
   const response = await api.get<{ module: CBTModule }>(
     `${API_ENDPOINTS.CBT.MODULE_DETAIL}/${moduleId}`
   );
-  return response.data.module;
+  const moduleData = (response.data as { data?: { module?: CBTModule } }).data?.module;
+  if (!moduleData) {
+    throw new Error('CBT module payload missing in response');
+  }
+  return moduleData;
 }
 
 /**
@@ -125,7 +129,11 @@ export async function getPersonalizedSession(mood?: string): Promise<Personalize
     API_ENDPOINTS.CBT.SESSION,
     { params }
   );
-  return response.data.session;
+  const session = (response.data as { data?: { session?: PersonalizedSession } }).data?.session;
+  if (!session) {
+    throw new Error('CBT session payload missing in response');
+  }
+  return session;
 }
 
 /**
@@ -139,7 +147,7 @@ export async function updateCBTProgress(data: ExerciseCompletionData): Promise<C
   try {
     const response = await api.post<CBTProgress>(API_ENDPOINTS.CBT.PROGRESS, data);
     cbtProgressEndpointAvailability = 'available';
-    return response.data;
+    return (response.data as { data?: CBTProgress }).data || DEFAULT_CBT_PROGRESS;
   } catch (error: unknown) {
     const statusCode = (error as { response?: { status?: number } })?.response?.status;
 
@@ -158,7 +166,11 @@ export async function updateCBTProgress(data: ExerciseCompletionData): Promise<C
  */
 export async function getCBTInsights(): Promise<CBTInsights> {
   const response = await api.get<{ insights: CBTInsights }>(API_ENDPOINTS.CBT.INSIGHTS);
-  return response.data.insights;
+  const insights = (response.data as { data?: { insights?: CBTInsights } }).data?.insights;
+  if (!insights) {
+    throw new Error('CBT insights payload missing in response');
+  }
+  return insights;
 }
 
 /**
@@ -172,5 +184,5 @@ export async function getCBTExercises(filters?: {
     API_ENDPOINTS.CBT.EXERCISES,
     { params: filters }
   );
-  return response.data.exercises;
+  return (response.data as { data?: { exercises?: CBTExercise[] } }).data?.exercises || [];
 }

@@ -44,9 +44,10 @@ const hmrHost = process.env.VITE_DEV_HMR_HOST || (devHost === "0.0.0.0" ? "local
 const hmrPort = Number(process.env.VITE_DEV_HMR_PORT) || devPort;
 const hmrProtocol = https ? "wss" : "ws";
 
-// Vercel handles compression itself; the plugin produces broken output
-// paths on CI (dist//vercel/path0/…) so we only enable it locally.
+// Compression plugins can trigger Rollup/plugin interop crashes on some
+// environments. Keep compression opt-in and let hosting/CDN handle it by default.
 const isVercel = !!process.env.VERCEL;
+const enableCompression = process.env.VITE_ENABLE_COMPRESSION === "true";
 
 const plugins = [
   react({
@@ -56,7 +57,7 @@ const plugins = [
       plugins: [],
     },
   }),
-  ...(!isVercel
+  ...(!isVercel && enableCompression
     ? [
         viteCompression({
           algorithm: "brotliCompress",
