@@ -293,12 +293,23 @@ class TestCompleteReferral:
 
         assert resp.status_code == 400
 
+    def test_complete_forbidden_when_invitee_mismatch(self, client):
+        """Authenticated user may only complete referral for themself."""
+        resp = client.post(
+            "/api/v1/referral/complete",
+            json={"referrer_id": "ref123", "invitee_id": "another-user-id"},
+        )
+
+        assert resp.status_code == 403
+        body = resp.get_json()
+        assert body["success"] is False
+
     def test_complete_referrer_not_found(self, mock_db, client):
         """Referrer doc doesn't exist -> 404."""
         # Default mock_db returns exists=False for all docs
         resp = client.post(
             "/api/v1/referral/complete",
-            json={"referrer_id": "unknown", "invitee_id": "inv456"},
+            json={"referrer_id": "unknown", "invitee_id": TEST_USER_ID},
         )
 
         assert resp.status_code == 404
@@ -338,7 +349,7 @@ class TestCompleteReferral:
             "/api/v1/referral/complete",
             json={
                 "referrer_id": "referrer123",
-                "invitee_id": "inv456",
+                "invitee_id": TEST_USER_ID,
                 "invitee_name": "New User",
                 "invitee_email": "new@example.com",
             },
@@ -382,7 +393,7 @@ class TestCompleteReferral:
             "/api/v1/referral/complete",
             json={
                 "referrer_id": "referrer123",
-                "invitee_id": "inv456",
+                "invitee_id": TEST_USER_ID,
                 "invitee_name": "New User",
             },
         )
@@ -418,7 +429,7 @@ class TestCompleteReferral:
 
         resp = client.post(
             "/api/v1/referral/complete",
-            json={"referrer_id": "ref", "invitee_id": "inv"},
+            json={"referrer_id": "ref", "invitee_id": TEST_USER_ID},
         )
 
         assert resp.status_code == 200
@@ -451,7 +462,7 @@ class TestCompleteReferral:
 
         resp = client.post(
             "/api/v1/referral/complete",
-            json={"referrer_id": "ref", "invitee_id": "inv"},
+            json={"referrer_id": "ref", "invitee_id": TEST_USER_ID},
         )
 
         assert resp.status_code == 200
@@ -484,7 +495,7 @@ class TestCompleteReferral:
 
         resp = client.post(
             "/api/v1/referral/complete",
-            json={"referrer_id": "ref", "invitee_id": "inv"},
+            json={"referrer_id": "ref", "invitee_id": TEST_USER_ID},
         )
 
         assert resp.status_code == 200
@@ -495,7 +506,7 @@ class TestCompleteReferral:
 
         resp = client.post(
             "/api/v1/referral/complete",
-            json={"referrer_id": "ref", "invitee_id": "inv"},
+            json={"referrer_id": "ref", "invitee_id": TEST_USER_ID},
         )
 
         assert resp.status_code == 500
@@ -666,7 +677,7 @@ class TestReferralHistory:
         assert body["data"]["totalCount"] == 0
 
     def test_get_history_with_user_id_param(self, mock_db, client):
-        """user_id query param overrides g.user_id."""
+        """user_id query param is ignored; endpoint must use authenticated identity."""
         col = mock_db.collection("referral_history")
         col.where.return_value.get.return_value = []
 

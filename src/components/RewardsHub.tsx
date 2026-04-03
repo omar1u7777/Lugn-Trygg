@@ -80,7 +80,7 @@ const RewardsHub: React.FC = () => {
         getUserRewards().catch((error) => { console.error('Failed to fetch user rewards:', error); return null; }),
         getRewardCatalog().catch((error) => { console.error('Failed to fetch reward catalog:', error); return []; }),
         getJournalEntries(user.user_id, 1000).catch((error) => { console.error('Failed to fetch journal entries:', error); return []; }),
-        getReferralStats(user.user_id).catch((error) => { console.error('Failed to fetch referral stats:', error); return { successful_referrals: 0 }; }),
+        getReferralStats().catch((error) => { console.error('Failed to fetch referral stats:', error); return { successfulReferrals: 0 }; }),
       ]);
 
       setRewards(catalogData);
@@ -102,7 +102,7 @@ const RewardsHub: React.FC = () => {
 
       // Check for new achievements based on real activity data
       const journalCount = Array.isArray(journalResult) ? journalResult.length : 0;
-      const referralCount = referralResult?.successful_referrals ?? 0;
+      const referralCount = referralResult?.successfulReferrals ?? (referralResult as any)?.successful_referrals ?? 0;
       const achievementCheck = await checkAchievements({
         mood_count: moods.length,
         streak: streak,

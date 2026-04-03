@@ -24,7 +24,7 @@ const ReferralHistory: React.FC = () => {
 
         try {
             setLoading(true);
-            const response = await api.get(`${API_ENDPOINTS.REFERRAL.HISTORY}?user_id=${user.user_id}`);
+            const response = await api.get(API_ENDPOINTS.REFERRAL.HISTORY);
             const data = response.data?.data || response.data;
             setHistory(data.history || []);
             setError(null);

@@ -11,12 +11,11 @@ export interface ReferralStats {
 
 /**
  * Get referral stats
- * @param userId - User ID
  * @returns Promise resolving to referral stats
  */
-export const getReferralStats = async (userId: string): Promise<ReferralStats> => {
+export const getReferralStats = async (): Promise<ReferralStats> => {
   try {
-    const response = await api.get(`${API_ENDPOINTS.REFERRAL.STATS}?user_id=${userId}`);
+    const response = await api.get(API_ENDPOINTS.REFERRAL.STATS);
     // Handle APIResponse wrapper: { success: true, data: {...} }
     const data = response.data?.data || response.data;
     return data || {

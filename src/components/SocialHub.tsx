@@ -74,7 +74,7 @@ const SocialHub: React.FC = () => {
         const userRank = userRankEntry?.rank || 0;
 
         // Fetch referral stats
-        const referralStats = await getReferralStats(user.user_id);
+        const referralStats = await getReferralStats();
         const referrals = referralStats.successfulReferrals || 0;
 
         // Fetch moods to show real mood log count

@@ -244,8 +244,12 @@ def send_invitation():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def complete_referral():
-    """Mark a referral as completed when invitee signs up (called internally during registration)"""
+    """Complete a referral for the authenticated invitee."""
     try:
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized("Authentication required")
+
         data = request.get_json(force=True, silent=True) or {}
         referrer_id = sanitize_text(data.get("referrer_id", ""), max_length=128)
         invitee_id = sanitize_text(data.get("invitee_id", ""), max_length=128)
@@ -255,125 +259,22 @@ def complete_referral():
         if not referrer_id or not invitee_id:
             return APIResponse.bad_request("referrer_id and invitee_id required")
 
-        # Update referral stats
-        referral_ref = db.collection("referrals").document(referrer_id)  # type: ignore
-        referral_doc = referral_ref.get()
+        # Security: an authenticated user may only complete a referral for themself.
+        if invitee_id != current_user_id:
+            return APIResponse.forbidden("invitee_id must match authenticated user")
 
-        if referral_doc.exists:
-            referral_data = referral_doc.to_dict() or {}
-            successful_referrals = referral_data.get("successful_referrals", 0) + 1
-            pending_referrals = max(0, referral_data.get("pending_referrals", 0) - 1)
+        ok, result = _process_referral_completion(
+            referrer_id=referrer_id,
+            invitee_id=invitee_id,
+            invitee_name=invitee_name,
+            invitee_email=invitee_email,
+        )
+        if not ok:
+            if result.get("error") == "Referrer not found":
+                return APIResponse.not_found("Referrer not found")
+            return APIResponse.error("Failed to complete referral", "COMPLETE_ERROR", 500)
 
-            # Calculate rewards based on tier system
-            # Each referral = 1 week premium
-            # Bonus: Every 10th referral = 2 extra weeks
-            base_rewards = successful_referrals  # 1 week per referral
-            bonus_rewards = (successful_referrals // 10) * 2  # 2 weeks per 10 referrals
-            total_weeks = base_rewards + bonus_rewards
-
-            # Tier bonuses:
-            # Silver (5+): +4 weeks = 1 month
-            # Gold (15+): +12 weeks = 3 months
-            # Platinum (30+): +24 weeks = 6 months
-            tier_bonus = 0
-            if successful_referrals >= 30:
-                tier_bonus = 24  # Platinum: 6 months
-            elif successful_referrals >= 15:
-                tier_bonus = 12  # Gold: 3 months
-            elif successful_referrals >= 5:
-                tier_bonus = 4   # Silver: 1 month
-
-            rewards_earned = total_weeks + tier_bonus
-
-            referral_ref.update({
-                "successful_referrals": successful_referrals,
-                "pending_referrals": pending_referrals,
-                "rewards_earned": rewards_earned,
-                "last_referral_at": datetime.now(UTC).isoformat()
-            })
-
-            # Store referral history
-            history_ref = db.collection("referral_history").document()  # type: ignore
-            history_ref.set({
-                "referrer_id": referrer_id,
-                "invitee_id": invitee_id,
-                "invitee_name": invitee_name,
-                "invitee_email": invitee_email,
-                "completed_at": datetime.now(UTC).isoformat(),
-                "rewards_granted": 1  # 1 week per referral
-            })
-
-            audit_log('REFERRAL_COMPLETED', referrer_id, {
-                'invitee_id': invitee_id,
-                'successful_referrals': successful_referrals,
-                'rewards_earned': rewards_earned
-            })
-
-            # Get referrer info for email & push notifications
-            try:
-                referrer_doc = db.collection("users").document(referrer_id).get()  # type: ignore
-                if referrer_doc.exists:
-                    referrer_info = referrer_doc.to_dict() or {}
-                    referrer_email = referrer_info.get("email")
-                    referrer_name = referrer_info.get("name", "User")
-                    fcm_token = referrer_info.get("fcm_token")
-
-                    # Send success notification email
-                    if referrer_email:
-                        email_service.send_referral_success_notification(
-                            to_email=referrer_email,
-                            referrer_name=referrer_name,
-                            new_user_name=invitee_name,
-                            total_referrals=successful_referrals,
-                            rewards_earned=rewards_earned
-                        )
-
-                    # Send push notification
-                    if fcm_token:
-                        push_notification_service.send_referral_success_notification(
-                            user_token=fcm_token,
-                            referrer_name=referrer_name,
-                            new_user_name=invitee_name,
-                            total_referrals=successful_referrals
-                        )
-
-                    # Check for tier upgrade
-                    old_tier = "Bronze"
-                    if successful_referrals - 1 >= 30:
-                        old_tier = "Platinum"
-                    elif successful_referrals - 1 >= 15:
-                        old_tier = "Gold"
-                    elif successful_referrals - 1 >= 5:
-                        old_tier = "Silver"
-
-                    new_tier = "Bronze"
-                    if successful_referrals >= 30:
-                        new_tier = "Platinum"
-                    elif successful_referrals >= 15:
-                        new_tier = "Gold"
-                    elif successful_referrals >= 5:
-                        new_tier = "Silver"
-
-                    # Send tier upgrade notification
-                    if new_tier != old_tier and fcm_token:
-                        push_notification_service.send_tier_upgrade_notification(
-                            user_token=fcm_token,
-                            new_tier=new_tier,
-                            rewards_earned=rewards_earned
-                        )
-
-            except Exception as notification_err:
-                logger.warning(f"Could not send notifications: {notification_err}")
-
-            logger.info(f"Referral completed: {referrer_id} -> {invitee_id}")
-
-            return APIResponse.success({
-                "successfulReferrals": successful_referrals,
-                "rewardsEarned": rewards_earned,
-                "notificationSent": True
-            }, "Referral completed successfully")
-
-        return APIResponse.not_found("Referrer not found")
+        return APIResponse.success(result, "Referral completed successfully")
 
     except Exception as e:
         logger.exception(f"Error completing referral: {e}")
@@ -452,8 +353,8 @@ def get_referral_history():
         if not current_user_id:
             return APIResponse.unauthorized("Authentication required")
 
-        # Support both query parameter and authenticated user context
-        user_id = request.args.get("user_id", "").strip() or current_user_id
+        # Security: always use the authenticated user's ID - never trust query params for identity
+        user_id = current_user_id
 
         if not user_id:
             return APIResponse.bad_request("user_id required")
@@ -464,9 +365,7 @@ def get_referral_history():
                 filter=FieldFilter("referrer_id", "==", user_id)
             )
         else:
-            history_ref = db.collection("referral_history").where(filter=FieldFilter(  # type: ignore
-                "referrer_id", "==", user_id
-            ))
+            history_ref = db.collection("referral_history").where("referrer_id", "==", user_id)  # type: ignore
 
         history_docs = history_ref.get()
 
@@ -494,6 +393,122 @@ def get_referral_history():
     except Exception as e:
         logger.exception(f"Error fetching referral history: {e}")
         return APIResponse.error("Failed to fetch referral history", "HISTORY_ERROR", 500)
+
+
+def _process_referral_completion(
+    referrer_id: str,
+    invitee_id: str,
+    invitee_name: str = "New User",
+    invitee_email: str = "",
+) -> "tuple[bool, dict]":
+    """
+    Core business logic for completing a referral.
+    Module-level function callable without an HTTP request context.
+    Used by the /complete HTTP endpoint AND directly from auth_routes during
+    registration (after resolving referral_code -> referrer_id in Firestore).
+    Returns (True, result_dict) on success, (False, {"error": msg}) on failure.
+    """
+    referral_ref = db.collection("referrals").document(referrer_id)  # type: ignore
+    referral_doc = referral_ref.get()
+
+    if not referral_doc.exists:
+        return False, {"error": "Referrer not found"}
+
+    referral_data = referral_doc.to_dict() or {}
+    successful_referrals = referral_data.get("successful_referrals", 0) + 1
+    pending_referrals = max(0, referral_data.get("pending_referrals", 0) - 1)
+
+    base_rewards = successful_referrals
+    bonus_rewards = (successful_referrals // 10) * 2
+    tier_bonus = 0
+    if successful_referrals >= 30:
+        tier_bonus = 24
+    elif successful_referrals >= 15:
+        tier_bonus = 12
+    elif successful_referrals >= 5:
+        tier_bonus = 4
+    rewards_earned = successful_referrals + bonus_rewards + tier_bonus
+
+    referral_ref.update({
+        "successful_referrals": successful_referrals,
+        "pending_referrals": pending_referrals,
+        "rewards_earned": rewards_earned,
+        "last_referral_at": datetime.now(UTC).isoformat()
+    })
+
+    history_ref = db.collection("referral_history").document()  # type: ignore
+    history_ref.set({
+        "referrer_id": referrer_id,
+        "invitee_id": invitee_id,
+        "invitee_name": invitee_name,
+        "invitee_email": invitee_email,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "rewards_granted": 1
+    })
+
+    audit_log("REFERRAL_COMPLETED", referrer_id, {
+        "invitee_id": invitee_id,
+        "successful_referrals": successful_referrals,
+        "rewards_earned": rewards_earned,
+    })
+
+    # Notifications are best-effort; failures must NOT abort the completion
+    try:
+        referrer_doc = db.collection("users").document(referrer_id).get()  # type: ignore
+        if referrer_doc.exists:
+            referrer_info = referrer_doc.to_dict() or {}
+            referrer_email = referrer_info.get("email")
+            referrer_name = referrer_info.get("name", "User")
+            fcm_token = referrer_info.get("fcm_token")
+
+            if referrer_email:
+                email_service.send_referral_success_notification(
+                    to_email=referrer_email,
+                    referrer_name=referrer_name,
+                    new_user_name=invitee_name,
+                    total_referrals=successful_referrals,
+                    rewards_earned=rewards_earned,
+                )
+
+            if fcm_token:
+                push_notification_service.send_referral_success_notification(
+                    user_token=fcm_token,
+                    referrer_name=referrer_name,
+                    new_user_name=invitee_name,
+                    total_referrals=successful_referrals,
+                )
+
+            old_referrals = successful_referrals - 1
+            old_tier = (
+                "Platinum" if old_referrals >= 30
+                else "Gold" if old_referrals >= 15
+                else "Silver" if old_referrals >= 5
+                else "Bronze"
+            )
+            new_tier = (
+                "Platinum" if successful_referrals >= 30
+                else "Gold" if successful_referrals >= 15
+                else "Silver" if successful_referrals >= 5
+                else "Bronze"
+            )
+            if new_tier != old_tier and fcm_token:
+                push_notification_service.send_tier_upgrade_notification(
+                    user_token=fcm_token,
+                    new_tier=new_tier,
+                    rewards_earned=rewards_earned,
+                )
+
+    except Exception as notification_err:
+        logger.warning(f"Could not send notifications: {notification_err}")
+
+    logger.info(f"Referral completed: {referrer_id} -> {invitee_id}")
+    return True, {
+        "successfulReferrals": successful_referrals,
+        "rewardsEarned": rewards_earned,
+        "notificationSent": True,
+    }
+
+
 
 
 @referral_bp.route("/rewards/catalog", methods=["GET"])

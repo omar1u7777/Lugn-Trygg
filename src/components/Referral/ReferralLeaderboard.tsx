@@ -46,13 +46,6 @@ const ReferralLeaderboard: React.FC = () => {
         return `#${rank}`;
     };
 
-    const _getRankColor = (rank: number) => {
-        if (rank === 1) return 'linear-gradient(135deg, #fbbf24 0%, colors.mood.sad 100%)'; // Gold
-        if (rank === 2) return 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)'; // Silver
-        if (rank === 3) return 'linear-gradient(135deg, #d97706 0%, #92400e 100%)'; // Bronze
-        return undefined; // Default MUI background
-    };
-
     const isTopThree = (rank: number) => rank <= 3;
 
     if (loading) {

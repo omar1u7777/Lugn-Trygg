@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import requests
 from flask import Blueprint, Response, g, jsonify, make_response, request
 
+from ..firebase_config import db
 from ..middleware.validation import validate_request
 from ..schemas.auth import (
     ChangePasswordRequest,
@@ -157,30 +158,37 @@ def register_user(validated_data: RegisterRequest) -> tuple[Response | str, int]
             try:
                 logger.info(f"Processing referral code {referral_code} for new user {user.uid}")
 
-                # Call /api/referral/complete endpoint to process the referral
-                from flask import current_app
-                with current_app.test_request_context(
-                    '/api/referral/complete',
-                    method='POST',
-                    json={
-                        'user_id': user.uid,
-                        'referral_code': referral_code
-                    }
-                ):
-                    from ..routes.referral_routes import complete_referral
-                    referral_response = complete_referral()
+                # Resolve referral_code -> referrer_id, then execute shared completion logic.
+                from ..routes.referral_routes import _process_referral_completion
 
-                    if isinstance(referral_response, tuple):
-                        referral_data, status_code = referral_response
-                        if status_code == 200:
+                if db is not None:
+                    referrer_id = None
+                    query = db.collection('referrals').where('referral_code', '==', referral_code).limit(1)
+                    docs = query.get()
+                    for doc in docs:
+                        row = doc.to_dict() or {}
+                        referrer_id = row.get('user_id') or doc.id
+                        break
+
+                    if referrer_id and referrer_id != user.uid:
+                        ok, _result = _process_referral_completion(
+                            referrer_id=referrer_id,
+                            invitee_id=user.uid,
+                            invitee_name=name,
+                            invitee_email=email,
+                        )
+                        if ok:
                             referral_success = True
                             referral_message = 'Värvningskoden aktiverades! Du och din vän fick båda 1 vecka premium!'
                             logger.info(f"Referral code {referral_code} successfully activated for user {user.uid}")
                         else:
-                            error_msg = referral_data.get('error', 'Unknown error') if isinstance(referral_data, dict) else 'Unknown error'
-                            logger.warning(f"Referral activation failed: {error_msg}")
+                            logger.warning(f"Referral activation failed for code {referral_code}")
+                    elif referrer_id == user.uid:
+                        logger.warning("Self-referral blocked")
                     else:
-                        logger.warning(f"Unexpected referral response format: {referral_response}")
+                        logger.warning(f"Referral code not found: {referral_code}")
+                else:
+                    logger.warning("Database unavailable; skipping referral completion")
             except Exception as ref_error:
                 logger.error(f"Error processing referral code during registration: {str(ref_error)}")
                 # Don't fail registration if referral fails
