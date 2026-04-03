@@ -69,18 +69,39 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionRef = useRef<ChatSession | null>(null);
+  const selectedRoomRef = useRef<ChatRoom | null>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom;
+  }, [selectedRoom]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const clearRealtimeTimers = () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  };
 
   // Load chat rooms on mount
   useEffect(() => {
     loadRooms();
     return () => {
-      // Cleanup intervals
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      clearRealtimeTimers();
       // Leave room on unmount
-      if (session && selectedRoom) {
-        leaveChatRoom(selectedRoom.id, session.session_id);
+      const activeSession = sessionRef.current;
+      const activeRoom = selectedRoomRef.current;
+      if (activeSession && activeRoom) {
+        void updateTypingStatus(activeRoom.id, activeSession.session_id, false).catch(() => null);
+        void leaveChatRoom(activeRoom.id, activeSession.session_id).catch(() => null);
       }
     };
   }, []);
@@ -90,16 +111,16 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
     if (session && selectedRoom) {
       // Start polling for new messages
       pollIntervalRef.current = setInterval(() => {
-        pollMessages();
+        void pollMessages();
       }, POLL_INTERVAL);
 
       // Start presence updates
       presenceIntervalRef.current = setInterval(() => {
-        updatePresence();
+        void updatePresence();
       }, PRESENCE_INTERVAL);
 
       // Initial presence fetch
-      updatePresence();
+      void updatePresence();
     }
 
     return () => {
@@ -131,11 +152,13 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   };
 
   const pollMessages = async () => {
-    if (!session || !selectedRoom) return;
+    const activeSession = sessionRef.current;
+    const activeRoom = selectedRoomRef.current;
+    if (!activeSession || !activeRoom) return;
 
     try {
-      const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : undefined;
-      const newMessages = await getChatMessages(selectedRoom.id, session.session_id, lastMessageId);
+      const lastMessageId = messagesRef.current.length > 0 ? messagesRef.current[messagesRef.current.length - 1]?.id : undefined;
+      const newMessages = await getChatMessages(activeRoom.id, activeSession.session_id, lastMessageId);
 
       if (newMessages.length > 0) {
         // Merge new messages, avoiding duplicates
@@ -151,9 +174,12 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   };
 
   const updatePresence = async () => {
-    if (!selectedRoom) return;
+    const activeSession = sessionRef.current;
+    const activeRoom = selectedRoomRef.current;
+    if (!activeSession || !activeRoom) return;
+
     try {
-      const presenceData = await getRoomPresence(selectedRoom.id);
+      const presenceData = await getRoomPresence(activeRoom.id, activeSession.session_id);
       setPresence(presenceData);
     } catch {
       // Silently fail presence updates
@@ -165,6 +191,12 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
     setError(null);
 
     try {
+      const previousSession = sessionRef.current;
+      const previousRoom = selectedRoomRef.current;
+      if (previousSession && previousRoom) {
+        await leaveChatRoom(previousRoom.id, previousSession.session_id).catch(() => null);
+      }
+
       const sessionData = await joinChatRoom(room.id, userId);
 
       if (sessionData) {
@@ -189,18 +221,21 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   };
 
   const handleLeaveRoom = async () => {
-    if (session && selectedRoom) {
-      await leaveChatRoom(selectedRoom.id, session.session_id);
+    const activeSession = sessionRef.current;
+    const activeRoom = selectedRoomRef.current;
+    if (activeSession && activeRoom) {
+      await updateTypingStatus(activeRoom.id, activeSession.session_id, false).catch(() => null);
+      await leaveChatRoom(activeRoom.id, activeSession.session_id).catch(() => null);
     }
 
     setSession(null);
     setSelectedRoom(null);
     setMessages([]);
+    setPresence({ activeCount: 0, typingUsers: [] });
     setActiveTab(0);
 
     // Clear intervals
-    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
+    clearRealtimeTimers();
   };
 
   const handleSendMessage = async () => {
@@ -255,32 +290,40 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
   const handleLikeMessage = async (messageId: string) => {
     if (!session) return;
 
-    const result = await toggleMessageLike(messageId, session.session_id);
+    try {
+      const result = await toggleMessageLike(messageId, session.session_id);
 
-    if (result) {
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId ? { ...msg, likes: result.likes } : msg
-      ));
+      if (result) {
+        setMessages(prev => prev.map(msg =>
+          msg.id === messageId ? { ...msg, likes: result.likes } : msg
+        ));
 
-      trackEvent('peer_chat_message_liked', {
-        userId,
-        messageId,
-      });
+        trackEvent('peer_chat_message_liked', {
+          userId,
+          messageId,
+        });
+      }
+    } catch {
+      setError(isSwedish ? 'Kunde inte gilla meddelandet' : 'Failed to like message');
     }
   };
 
   const handleReportMessage = async () => {
     if (!showReportDialog || !session) return;
 
-    const success = await reportChatMessage(showReportDialog, session.session_id, reportReason);
+    try {
+      const success = await reportChatMessage(showReportDialog, session.session_id, reportReason);
 
-    if (success) {
-      setShowReportDialog(null);
-      setReportReason('');
-      // Mark message as reported locally
-      setMessages(prev => prev.map(msg =>
-        msg.id === showReportDialog ? { ...msg, reported: true } : msg
-      ));
+      if (success) {
+        setShowReportDialog(null);
+        setReportReason('');
+        // Mark message as reported locally
+        setMessages(prev => prev.map(msg =>
+          msg.id === showReportDialog ? { ...msg, reported: true } : msg
+        ));
+      }
+    } catch {
+      setError(isSwedish ? 'Kunde inte rapportera meddelandet' : 'Failed to report message');
     }
   };
 

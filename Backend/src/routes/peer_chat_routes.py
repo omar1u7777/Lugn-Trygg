@@ -147,6 +147,36 @@ def _moderate_message(message: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _validate_session(
+    session_id: str,
+    *,
+    expected_room_id: str | None = None,
+) -> tuple[dict[str, Any] | None, Any | None]:
+    """Validate that a session exists, belongs to the current user, and optionally belongs to the room."""
+    if db is None:
+        return None, APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
+
+    presence_doc = db.collection('peer_chat_presence').document(session_id).get()
+    if not presence_doc.exists:
+        return None, APIResponse.forbidden("Invalid session. Please rejoin the room.")
+
+    presence_data = presence_doc.to_dict() or {}
+    if presence_data.get('user_id') != g.user_id:
+        logger.warning(f"⚠️ Session impersonation attempt: user {g.user_id[:8]} tried session {session_id[:8]}")
+        return None, APIResponse.forbidden("Session does not belong to you")
+
+    if expected_room_id and presence_data.get('room_id') != expected_room_id:
+        logger.warning(
+            "⚠️ Cross-room session misuse: session %s belongs to %s but requested %s",
+            session_id[:8],
+            presence_data.get('room_id'),
+            expected_room_id,
+        )
+        return None, APIResponse.forbidden("Session belongs to a different room")
+
+    return presence_data, None
+
+
 @peer_chat_bp.route('/rooms', methods=['GET'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
@@ -255,14 +285,12 @@ def leave_room(room_id: str):
         if not session_id:
             return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
 
-        if db is not None:
-            # Verify session belongs to the authenticated user before deletion
-            presence_doc = db.collection('peer_chat_presence').document(session_id).get()
-            if presence_doc.exists:
-                presence_data = presence_doc.to_dict() or {}
-                if presence_data.get('user_id') != g.user_id:
-                    return APIResponse.forbidden("Session does not belong to you")
-                db.collection('peer_chat_presence').document(session_id).delete()
+        _, error_response = _validate_session(session_id, expected_room_id=room_id)
+        if error_response is not None:
+            return error_response
+
+        assert db is not None
+        db.collection('peer_chat_presence').document(session_id).delete()
 
         logger.info(f"🚪 Session {session_id[:8]} left room {room_id}")
 
@@ -289,17 +317,20 @@ def get_messages(room_id: str):
         limit = min(int(request.args.get('limit', 20)), 50)  # Cap at 50
         session_id = request.args.get('session_id')
 
+        if not session_id:
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+
+        _, error_response = _validate_session(session_id, expected_room_id=room_id)
+        if error_response is not None:
+            return error_response
+
         messages = []
 
         if db is not None:
             # Update presence
-            if session_id:
-                try:
-                    db.collection('peer_chat_presence').document(session_id).update({
-                        'last_seen': datetime.now(UTC).isoformat()
-                    })
-                except Exception:
-                    pass  # Ignore if session doesn't exist
+            db.collection('peer_chat_presence').document(session_id).update({
+                'last_seen': datetime.now(UTC).isoformat()
+            })
 
             # Query messages
             query = db.collection('peer_chat_messages').where(filter=FieldFilter(
@@ -356,21 +387,14 @@ def send_message(room_id: str):
         if not is_safe:
             return APIResponse.bad_request(reason, "MODERATION_FAILED")
 
-        if db is None:
-            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
+        presence_data, error_response = _validate_session(session_id, expected_room_id=room_id)
+        if error_response is not None:
+            return error_response
 
-        # Verify session exists AND belongs to authenticated user
-        presence_doc = db.collection('peer_chat_presence').document(session_id).get()
-        if not presence_doc.exists:
-            return APIResponse.forbidden("Invalid session. Please rejoin the room.")
+        assert db is not None
 
-        presence_data = presence_doc.to_dict() or {}
-        if presence_data.get('user_id') != g.user_id:
-            logger.warning(f"⚠️ Session impersonation attempt: user {g.user_id[:8]} tried session {session_id[:8]}")
-            return APIResponse.forbidden("Session does not belong to you")
-
-        anonymous_name = presence_data.get('anonymous_name', anonymous_name)
-        avatar = presence_data.get('avatar', avatar)
+        anonymous_name = presence_data.get('anonymous_name', anonymous_name) if presence_data else anonymous_name
+        avatar = presence_data.get('avatar', avatar) if presence_data else avatar
 
         # Create message
         message_id = str(uuid.uuid4())
@@ -417,9 +441,11 @@ def like_message(message_id: str):
         if not session_id:
             return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
 
-        if db is None:
-            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
+        _, error_response = _validate_session(session_id)
+        if error_response is not None:
+            return error_response
 
+        assert db is not None
         msg_ref = db.collection('peer_chat_messages').document(message_id)
         msg_doc = msg_ref.get()
 
@@ -472,9 +498,11 @@ def report_message(message_id: str):
         if not session_id:
             return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
 
-        if db is None:
-            return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
+        _, error_response = _validate_session(session_id)
+        if error_response is not None:
+            return error_response
 
+        assert db is not None
         msg_ref = db.collection('peer_chat_messages').document(message_id)
         msg_doc = msg_ref.get()
 
@@ -523,14 +551,15 @@ def update_typing(room_id: str):
         if not session_id:
             return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
 
+        _, error_response = _validate_session(session_id, expected_room_id=room_id)
+        if error_response is not None:
+            return error_response
+
         if db is not None:
-            try:
-                db.collection('peer_chat_presence').document(session_id).update({
-                    'is_typing': is_typing,
-                    'last_seen': datetime.now(UTC).isoformat()
-                })
-            except Exception:
-                pass  # Ignore if session doesn't exist
+            db.collection('peer_chat_presence').document(session_id).update({
+                'is_typing': is_typing,
+                'last_seen': datetime.now(UTC).isoformat()
+            })
 
         return APIResponse.success({
             'typing': is_typing
@@ -549,6 +578,14 @@ def get_room_presence(room_id: str):
     try:
         if room_id not in CHAT_ROOMS:
             return APIResponse.not_found("Room not found")
+
+        session_id = request.args.get('session_id')
+        if not session_id:
+            return APIResponse.bad_request("session_id is required", "SESSION_ID_REQUIRED")
+
+        _, error_response = _validate_session(session_id, expected_room_id=room_id)
+        if error_response is not None:
+            return error_response
 
         active_users = []
         typing_users = []
