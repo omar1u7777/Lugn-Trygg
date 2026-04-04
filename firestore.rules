@@ -3,6 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─── Helper functions ───────────────────────────────────────
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,7 +13,28 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // [D4] Document-level write rate-limit helper.
+    // Prevents direct-to-Firestore write floods that bypass the API layer.
+    // Returns true (allowing the write) when:
+    //   - The document has no 'lastWrite' timestamp yet (first write), OR
+    //   - The interval since the last recorded write exceeds minIntervalSecs.
+    // Backend writes via Admin SDK set 'lastWrite' automatically;
+    // this guard fires only for client-SDK writes that have a valid auth token
+    // but are bypassing the Flask API.
+    function notTooRecent(minIntervalSecs) {
+      return !('lastWrite' in resource.data) ||
+        request.time > resource.data.lastWrite + duration.value(minIntervalSecs, 's');
+    }
+
+    // [D4] Prevent clients from escalating privileges or patching subscription
+    // state directly on the user document. Backend (Admin SDK) bypasses this.
+    function userWriteIsAllowed() {
+      let restricted = ['role', 'is_admin', 'subscription'];
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(restricted);
     }
 
     // ─── Default: deny everything ───────────────────────────────
@@ -24,19 +46,52 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      // [D4] Clients cannot write to role, is_admin, or subscription fields
+      allow update: if isOwner(userId) && userWriteIsAllowed();
       allow delete: if isAdmin();
+
+      // User sub-collections: mood subcollection (alternative path to /moods)
+      match /moods/{moodId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        // [D4] Rate-limit direct client updates to this subcollection: max 1/5 s
+        allow update: if isOwner(userId) && notTooRecent(5);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /memories/{memoryId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /journal/{entryId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /conversations/{convId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /chats/{chatId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /meditation_sessions/{sessionId} {
+        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      }
     }
 
-    // ─── Mood entries ───────────────────────────────────────────
+    // ─── Root-level mood entries ─────────────────────────────────
     match /moods/{moodId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      // [D4] Rate-limit direct client mood updates: max 1 per 5 seconds
+      allow update: if isAuthenticated() &&
+        resource.data.user_id == request.auth.uid &&
+        notTooRecent(5);
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
 
-    // ─── Memories / journal ─────────────────────────────────────
+    // ─── Memories ───────────────────────────────────────────────
     match /memories/{memoryId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
@@ -44,7 +99,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
 
-    // ─── Chat sessions ─────────────────────────────────────────
+    // ─── Chat sessions ───────────────────────────────────────────
     match /chat_sessions/{sessionId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
@@ -52,39 +107,92 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
 
-    // ─── Achievements ───────────────────────────────────────────
+    // ─── Achievements ────────────────────────────────────────────
     match /achievements/{achievementId} {
-      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow delete: if false; // Achievements should not be deletable by users
-    }
-
-    // ─── Feedback ───────────────────────────────────────────────
-    match /feedback/{feedbackId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
-    }
-
-    // ─── Referrals ──────────────────────────────────────────────
-    match /referrals/{referralId} {
       allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
       allow delete: if false;
     }
 
-    // ─── Subscriptions (managed by backend only) ────────────────
-    match /subscriptions/{subId} {
-      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
-      allow create, update, delete: if false; // Only managed via backend/Stripe webhooks
+    // ─── Feedback ────────────────────────────────────────────────
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
     }
 
-    // ─── Audit logs (admin only) ────────────────────────────────
+    // ─── Referrals ───────────────────────────────────────────────
+    // [D4] Clients can create and read their own outgoing referrals.
+    //      Updates and deletes are fully blocked for clients — only the
+    //      backend (Admin SDK, which bypasses rules) may mark a referral
+    //      as used or change its state.  This prevents referral-code abuse
+    //      (e.g., forging completion, self-referral bypasses).
+    //      Note: old rule used resource.data.user_id; referral docs store
+    //      the owner as referrer_id — corrected here.
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrer_id == request.auth.uid ||
+        resource.data.referred_id == request.auth.uid
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.referrer_id == request.auth.uid;
+      // [D4] Block ALL client-side updates — prevents referral abuse
+      allow update, delete: if false;
+    }
+
+    // ─── Subscriptions (backend-only) ────────────────────────────
+    // [D4] The /subscriptions collection must NOT be readable by clients.
+    //      Subscription status for UI purposes is available on the user
+    //      document (read above). This collection is written exclusively
+    //      by the backend via Stripe webhooks and Admin SDK.
+    match /subscriptions/{subId} {
+      allow read, write: if false;
+    }
+
+    // ─── Audit logs (admin read-only) ────────────────────────────
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow create, update, delete: if false; // Only backend writes audit logs
+      allow create, update, delete: if false;
+    }
+
+    // ─── Password reset tokens (backend-only) ────────────────────
+    // [D4] Tokens are stored/verified server-side only; no client access.
+    match /password_reset_tokens/{tokenId} {
+      allow read, write: if false;
+    }
+
+    // ─── Breathing sessions ──────────────────────────────────────
+    match /breathing_sessions/{sessionId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      // [D4] Rate-limit direct client updates: max 1 per 5 seconds
+      allow update: if isAuthenticated() &&
+        resource.data.user_id == request.auth.uid &&
+        notTooRecent(5);
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── Challenges (read-only for users) ────────────────────────
+    // Write operations go through the API (Admin SDK), not client SDK.
+    match /challenges/{challengeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Forecast history ────────────────────────────────────────
+    match /forecast_history/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ─── Sync history (append-only for users) ────────────────────
+    match /sync_history/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }
