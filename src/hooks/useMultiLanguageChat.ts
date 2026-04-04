@@ -20,6 +20,8 @@ interface TranslationCache {
   };
 }
 
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'sv', name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪' },
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
@@ -90,7 +92,7 @@ export const useMultiLanguageChat = (userId: string) => {
     if (cached) {
       // Check if cache is still valid (24 hours)
       const age = Date.now() - cached.timestamp.getTime();
-      if (age < 24 * 60 * 60 * 1000) {
+      if (age < CACHE_TTL_MS) {
         return cached.translated;
       }
     }
@@ -98,9 +100,14 @@ export const useMultiLanguageChat = (userId: string) => {
     setIsTranslating(true);
     
     try {
-      // In production, use real translation API
-      // For now, return mock translation
-      const translated = await mockTranslate(text, from, to);
+      // Mock translation removed (F4 audit): avoid fake [LANG] prefixes and synthetic delays.
+      // Until a dedicated translation endpoint exists, return original text as a safe fallback.
+      const translated = text;
+
+      logger.warn('Translation service unavailable; returning original text', {
+        from,
+        to,
+      });
       
       // Cache the translation
       const newCache = {
@@ -131,40 +138,6 @@ export const useMultiLanguageChat = (userId: string) => {
       setIsTranslating(false);
     }
   }, [translationCache, userId]);
-
-  // Mock translation function (replace with real API)
-  const mockTranslate = async (text: string, from: string, to: string): Promise<string> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mock translations for demo
-    const translations: Record<string, Record<string, string>> = {
-      'sv-en': {
-        'Hej': 'Hello',
-        'Hur mår du?': 'How are you?',
-        'Jag mår bra': 'I\'m doing well',
-        'Jag känner mig stressad': 'I feel stressed',
-        'Kan du hjälpa mig?': 'Can you help me?'
-      },
-      'en-sv': {
-        'Hello': 'Hej',
-        'How are you?': 'Hur mår du?',
-        'I\'m doing well': 'Jag mår bra',
-        'I feel stressed': 'Jag känner mig stressad',
-        'Can you help me?': 'Kan du hjälpa mig?'
-      }
-    };
-    
-    const key = `${from}-${to}`;
-    const translationMap = translations[key];
-    
-    if (translationMap && translationMap[text]) {
-      return translationMap[text];
-    }
-    
-    // Return placeholder for untranslated text
-    return `[${to.toUpperCase()}] ${text}`;
-  };
 
   // Process message with translation
   const processMessage = useCallback(async (
