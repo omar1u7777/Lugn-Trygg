@@ -110,7 +110,12 @@ class ErrorHandler:
         for key, value in context.items():
             key_text = str(key)
             key_lower = key_text.lower()
-            if key_lower in {"password", "token", "secret", "authorization", "cookie", "email"}:
+            # [S10] Extended masking list — covers all common sensitive key names
+            if key_lower in {
+                "password", "token", "secret", "authorization", "cookie", "email",
+                "api_key", "access_token", "refresh_token", "api_secret",
+                "private_key", "encryption_key", "client_secret", "webhook_secret",
+            }:
                 sanitized[key_text] = "***"
                 continue
 
