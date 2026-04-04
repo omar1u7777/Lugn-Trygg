@@ -168,44 +168,45 @@ def get_admin_stats() -> Response | tuple[Response, int]:
 
         # User statistics
         users_ref = db_handle.collection('users')
-        total_users = len(list(users_ref.stream()))
+        # [D1] Use server-side COUNT aggregate — avoids streaming all user documents
+        total_users = users_ref.count().get()[0][0].value
 
         # Active users (logged mood in last 7 days)
         moods_ref = db_handle.collection('moods')
-        try:
-            recent_moods = moods_ref.where(filter=FieldFilter('timestamp', '>=', last_7d)).stream()
-        except TypeError:
-            # Fallback for test environments
-            recent_moods = moods_ref.where(filter=FieldFilter('timestamp', '>=', last_7d)).stream()
+        recent_moods = moods_ref.where(filter=FieldFilter('timestamp', '>=', last_7d)).stream()
         active_user_ids = {doc.to_dict().get('user_id') for doc in recent_moods if doc.to_dict().get('user_id')}
 
-        # New users (last 30 days)
-        try:
-            new_users = users_ref.where(filter=FieldFilter('created_at', '>=', last_30d)).stream()
-        except TypeError:
-            new_users = users_ref.where(filter=FieldFilter('created_at', '>=', last_30d)).stream()
-        new_user_count = len(list(new_users))
+        # New users (last 30 days) — server-side count with date filter
+        # [D1] count() avoids materialising all user documents
+        new_user_count = (
+            users_ref.where(filter=FieldFilter('created_at', '>=', last_30d))
+            .count().get()[0][0].value
+        )
 
         # Mood statistics
-        all_moods = list(moods_ref.stream())
-        total_moods = len(all_moods)
-        moods_today = len([m for m in all_moods if m.to_dict().get('timestamp') and m.to_dict()['timestamp'] >= last_24h])
+        # [D1] Use count() for total; separate limited query for score computation
+        total_moods = moods_ref.count().get()[0][0].value
+        moods_today_docs = moods_ref.where(
+            filter=FieldFilter('timestamp', '>=', last_24h)
+        ).limit(5000).stream()
+        moods_today = sum(1 for _ in moods_today_docs)
 
-        # Average mood score
-        mood_scores = [m.to_dict().get('score', 5) for m in all_moods if m.to_dict().get('score')]
+        # Average mood score — only sample recent moods to keep query bounded
+        sample_moods = moods_ref.order_by('timestamp', direction='DESCENDING').limit(500).stream()
+        mood_scores = [m.to_dict().get('score', 5) for m in sample_moods if m.to_dict().get('score')]
         avg_mood = sum(mood_scores) / len(mood_scores) if mood_scores else 5.0
 
-        # Content statistics
-        memories = len(list(db_handle.collection('memories').stream()))
-        journals = len(list(db_handle.collection('journal_entries').stream()))
-        chat_sessions = len(list(db_handle.collection('chat_sessions').stream()))
+        # Content statistics — [D1] server-side counts, no document materialisation
+        memories = db_handle.collection('memories').count().get()[0][0].value
+        journals = db_handle.collection('journal_entries').count().get()[0][0].value
+        chat_sessions = db_handle.collection('chat_sessions').count().get()[0][0].value
 
-        # Premium users - count from in-memory filter due to nested field
-        try:
-            premium_users = users_ref.where(filter=FieldFilter('subscription.status', '==', 'active')).stream()
-        except TypeError:
-            premium_users = users_ref.where(filter=FieldFilter('subscription.status', '==', 'active')).stream()
-        premium_count = len(list(premium_users))
+        # Premium users — server-side count with subscription filter
+        # [D1] count() avoids streaming all users
+        premium_count = (
+            users_ref.where(filter=FieldFilter('subscription.status', '==', 'active'))
+            .count().get()[0][0].value
+        )
 
         stats = {
             'users': {
@@ -281,8 +282,11 @@ def get_admin_users() -> Response | tuple[Response, int]:
 
         users_ref = db_handle.collection('users')
 
-        # Get all users (for filtering)
-        all_users = list(users_ref.stream())
+        # [D1] Cap stream at 2000 to prevent full-table scan.
+        # Email search uses in-memory substring matching (Firestore has no native substring index).
+        # Status filter is applied in-memory on the capped result set.
+        _USERS_STREAM_CAP = 2000
+        all_users = list(users_ref.limit(_USERS_STREAM_CAP).stream())
 
         # Filter by search term
         if search:
