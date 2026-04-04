@@ -24,12 +24,25 @@ interface State {
 
 class ErrorBoundary extends Component<Props, State> {
   private maxRetries = 3;
+  private static readonly bundleRecoveryMaxRetries = 3;
 
   private static recoverFromStaleBundleError() {
     const recoveryKey = 'bundle_recovery_attempt_ts';
+    const recoveryCountKey = 'bundle_recovery_attempt_count';
     const lastAttemptRaw = sessionStorage.getItem(recoveryKey);
+    const attemptCountRaw = sessionStorage.getItem(recoveryCountKey);
     const now = Date.now();
     const lastAttempt = lastAttemptRaw ? parseInt(lastAttemptRaw, 10) : 0;
+    const attemptCount = attemptCountRaw ? parseInt(attemptCountRaw, 10) : 0;
+
+    // Hard-stop automatic recovery after N attempts per tab session.
+    if (attemptCount >= ErrorBoundary.bundleRecoveryMaxRetries) {
+      logger.warn('Stale bundle auto-recovery retry limit reached', {
+        attemptCount,
+        maxRetries: ErrorBoundary.bundleRecoveryMaxRetries,
+      });
+      return;
+    }
 
     // Avoid infinite reload loops: only recover once every 10 seconds.
     if (lastAttempt && now - lastAttempt <= 10000) {
@@ -37,6 +50,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     sessionStorage.setItem(recoveryKey, now.toString());
+    sessionStorage.setItem(recoveryCountKey, String(attemptCount + 1));
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then((regs) => {
