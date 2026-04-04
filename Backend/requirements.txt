@@ -48,11 +48,15 @@ pandas==3.0.0
 joblib==1.5.3
 
 # Deep Learning - LSTM Mood Forecasting
+# [B8] tensorflow-cpu 2.18.0: verify EOL status before production deploy.
+# Latest stable as of 2025-Q4 is 2.19.x; upgrade when CI passes.
 tensorflow-cpu==2.18.0
 
 # Natural Language Processing (pinned)
 transformers==5.4.0
-# torch is optional - install separately if needed for ML features
+# [B8] torch is CPU-only and requires PyTorch's custom index; installed separately in Docker:
+#   pip install torch==2.0.0+cpu torchvision==0.15.0+cpu --index-url https://download.pytorch.org/whl/cpu
+# Pinned version: torch==2.0.0+cpu  (matches Dockerfile)
 
 # Vector Database & Semantic Search (optional - has fallback)
 pinecone-client==5.0.1
