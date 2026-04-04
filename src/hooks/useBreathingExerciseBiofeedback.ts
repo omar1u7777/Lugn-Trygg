@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
+import { logger } from '../utils/logger';
 
 // Biofeedback types
 export type BreathingPhase = 'prepare' | 'exhale' | 'inhale' | 'hold' | 'exhale2' | 'rest' | 'completed';
@@ -279,7 +280,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('Biofeedback WebSocket connected');
+        logger.info('Biofeedback WebSocket connected');
         setIsConnecting(false);
         
         // Join room for this user
@@ -318,19 +319,19 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error', error as Error);
         setConnectionError('Kunde inte ansluta till biofeedback');
         setIsConnecting(false);
       };
 
       ws.onclose = () => {
-        console.log('WebSocket closed');
+        logger.info('WebSocket closed');
       };
 
       wsRef.current = ws;
 
     } catch (error) {
-      console.error('Failed to connect biofeedback:', error);
+      logger.error('Failed to connect biofeedback', error as Error);
       setConnectionError('Anslutningsfel');
       setIsConnecting(false);
     }
@@ -379,7 +380,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
         return newSession;
       }
     } catch (error) {
-      console.error('Failed to start biofeedback session:', error);
+      logger.error('Failed to start biofeedback session', error as Error);
       setConnectionError('Kunde inte starta biofeedback-session');
     }
     
@@ -402,7 +403,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       const data = await response.json();
       
       if (data.success) {
-        console.log('Session summary:', data.summary);
+        logger.info('Session summary', data.summary);
       }
 
       // Close WebSocket
@@ -412,7 +413,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       }
 
     } catch (error) {
-      console.error('Failed to end session:', error);
+      logger.error('Failed to end session', error as Error);
     }
   }, []);
 

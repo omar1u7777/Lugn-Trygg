@@ -15,6 +15,7 @@ import {
 } from '../api/api';
 import { getJournalEntries } from '../api/journaling';
 import { getReferralStats } from '../api/social';
+import { logger } from '../utils/logger';
 import {
   SparklesIcon,
   StarIcon,
@@ -76,11 +77,11 @@ const RewardsHub: React.FC = () => {
     try {
       // Fetch all data in parallel
       const [moods, userRewardsData, catalogData, journalResult, referralResult] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
-        getUserRewards().catch((error) => { console.error('Failed to fetch user rewards:', error); return null; }),
-        getRewardCatalog().catch((error) => { console.error('Failed to fetch reward catalog:', error); return []; }),
-        getJournalEntries(user.user_id, 1000).catch((error) => { console.error('Failed to fetch journal entries:', error); return []; }),
-        getReferralStats().catch((error) => { console.error('Failed to fetch referral stats:', error); return { successfulReferrals: 0 }; }),
+        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getUserRewards().catch((error) => { logger.error('Failed to fetch user rewards', error); return null; }),
+        getRewardCatalog().catch((error) => { logger.error('Failed to fetch reward catalog', error); return []; }),
+        getJournalEntries(user.user_id, 1000).catch((error) => { logger.error('Failed to fetch journal entries', error); return []; }),
+        getReferralStats().catch((error) => { logger.error('Failed to fetch referral stats', error); return { successfulReferrals: 0 }; }),
       ]);
 
       setRewards(catalogData);
@@ -109,13 +110,13 @@ const RewardsHub: React.FC = () => {
         journal_count: journalCount,
         referral_count: referralCount,
         meditation_count: 0 // No meditation tracking backend yet
-      }).catch((error) => { console.error('Failed to check achievements:', error); return { newAchievements: [] }; });
+      }).catch((error) => { logger.error('Failed to check achievements', error); return { newAchievements: [] }; });
 
       // Show notification if new achievements earned
       if (achievementCheck.newAchievements?.length > 0) {
         setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.newAchievements.map((a: any) => a.title).join(', ')}`);
         // Refresh user rewards after earning achievements
-        const updatedRewards = await getUserRewards().catch((error) => { console.error('Failed to refresh user rewards:', error); return null; });
+        const updatedRewards = await getUserRewards().catch((error) => { logger.error('Failed to refresh user rewards', error); return null; });
         setUserRewards(updatedRewards);
       }
 

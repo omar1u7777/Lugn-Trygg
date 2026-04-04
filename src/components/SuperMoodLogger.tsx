@@ -389,7 +389,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.error('Failed to start recording:', err);
+      logger.error('Failed to start recording', err as Error);
     }
   };
 
