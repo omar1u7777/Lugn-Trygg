@@ -77,10 +77,12 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
     biofeedback,
     isConnecting,
     connectionError,
+    retryCount,
     start,
     pause,
     resume,
-    stop
+    stop,
+    retryConnection
   } = useBreathingExerciseBiofeedback({
     useBiofeedback: true,
     onComplete,
@@ -162,8 +164,20 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
       )}
       
       {connectionError && (
-        <div className="mb-4 text-sm text-orange-600">
-          {connectionError}
+        <div className="mb-4 text-sm text-orange-600 text-center">
+          <p>{connectionError}</p>
+          {isActive && (
+            <Button
+              onClick={() => {
+                void retryConnection();
+              }}
+              variant="outline"
+              className="mt-2 px-3 py-1 text-xs"
+            >
+              {t('breathing.retryConnection', 'Försök ansluta igen')}
+              {retryCount > 0 ? ` (${retryCount})` : ''}
+            </Button>
+          )}
         </div>
       )}
 

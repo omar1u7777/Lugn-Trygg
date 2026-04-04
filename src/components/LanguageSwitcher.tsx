@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/logger';
 
@@ -26,6 +26,7 @@ interface LanguageSwitcherProps {
 const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) => {
   const { i18n, t } = useTranslation();
   const currentLanguage = useMemo(() => normalizeLanguageCode(i18n.language), [i18n.language]);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   // Sync HTML lang attribute when language changes
   useEffect(() => {
@@ -35,6 +36,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
 
   const changeLanguage = useCallback((languageCode: LanguageCode) => {
     try {
+      setSwitchError(null);
       i18n.changeLanguage(languageCode);
       localStorage.setItem('i18nextLng', languageCode);
 
@@ -52,10 +54,16 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
       }
     } catch (error) {
       logger.error('Failed to change language', error as Error);
-      // Fallback: reload page with new language
-      window.location.reload();
+      setSwitchError(t('language.changeError', 'Kunde inte byta språk. Försök igen.'));
     }
-  }, [i18n, currentLanguage]);
+  }, [i18n, currentLanguage, t]);
+
+  useEffect(() => {
+    if (!switchError) return;
+
+    const timeout = window.setTimeout(() => setSwitchError(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [switchError]);
 
   const currentConfig = LANGUAGE_CONFIG[currentLanguage];
 
@@ -91,6 +99,12 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
       <span className="absolute -top-1 -right-1 w-3 h-3 bg-teal-500 rounded-full border-2 border-white dark:border-slate-800 sm:hidden" 
             aria-hidden="true" 
             title={`Current: ${currentConfig.name}`} />
+
+      {switchError && (
+        <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert" aria-live="polite">
+          {switchError}
+        </p>
+      )}
     </div>
   );
 };

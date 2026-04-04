@@ -39,20 +39,52 @@ const SecurityMonitor: React.FC = () => {
   const loadSecurityData = async () => {
     try {
       setError(null);
-      
-      const [keyStatus, tamperData, metrics] = await Promise.all([
-        getKeyRotationStatus().catch(() => null),
-        getTamperEvents(50).catch(() => ({ events: [], summary: null, activeAlerts: [] })),
-        getSecurityMetrics().catch(() => null)
+
+      const [keyStatusResult, tamperResult, metricsResult] = await Promise.allSettled([
+        getKeyRotationStatus(),
+        getTamperEvents(50),
+        getSecurityMetrics(),
       ]);
 
-      setKeyRotationStatus(keyStatus);
-      setTamperEvents(tamperData.events || []);
-      setTamperSummary(tamperData.summary);
-      setActiveAlerts(tamperData.activeAlerts || []);
-      setSecurityMetrics(metrics);
+      let failedParts = 0;
 
-      logger.info('Security data loaded successfully');
+      if (keyStatusResult.status === 'fulfilled') {
+        setKeyRotationStatus(keyStatusResult.value);
+      } else {
+        failedParts += 1;
+        setKeyRotationStatus(null);
+        logger.error('Failed to load key rotation status', keyStatusResult.reason as Error);
+      }
+
+      if (tamperResult.status === 'fulfilled') {
+        setTamperEvents(tamperResult.value.events || []);
+        setTamperSummary(tamperResult.value.summary);
+        setActiveAlerts(tamperResult.value.activeAlerts || []);
+      } else {
+        failedParts += 1;
+        setTamperEvents([]);
+        setTamperSummary(null);
+        setActiveAlerts([]);
+        logger.error('Failed to load tamper data', tamperResult.reason as Error);
+      }
+
+      if (metricsResult.status === 'fulfilled') {
+        setSecurityMetrics(metricsResult.value);
+      } else {
+        failedParts += 1;
+        setSecurityMetrics(null);
+        logger.error('Failed to load security metrics', metricsResult.reason as Error);
+      }
+
+      if (failedParts > 0) {
+        setError(
+          failedParts === 3
+            ? 'Kunde inte ladda säkerhetsdata just nu. Försök igen.'
+            : `Viss säkerhetsdata kunde inte laddas (${failedParts}/3). Visar tillgänglig data.`
+        );
+      }
+
+      logger.info('Security data loaded', { failedParts });
     } catch (err: unknown) {
       logger.error('Failed to load security data:', err);
       setError(err instanceof Error ? err.message : 'Kunde inte ladda säkerhetsdata');
