@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatRelativeTimeFromNow } from '../../utils/intlFormatters';
 
@@ -24,6 +24,8 @@ interface ActivityGroup {
 }
 
 const MAX_VISIBLE_ACTIVITIES = 12; 
+const LOAD_MORE_BATCH_SIZE = 12;
+
 const getActivityGroupKey = (timestamp: Date): ActivityGroup['key'] => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -106,6 +108,19 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
   isLoading = false,
 }) => {
   const regionProps = getDashboardRegionProps('activity');
+  const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_ACTIVITIES);
+
+  useEffect(() => {
+    setVisibleCount(MAX_VISIBLE_ACTIVITIES);
+  }, [activities]);
+
+  const visibleActivities = useMemo(
+    () => activities.slice(0, visibleCount),
+    [activities, visibleCount]
+  );
+
+  const remainingActivities = Math.max(activities.length - visibleCount, 0);
+
   const groupedActivities = useMemo(() => {
     const groups: ActivityGroup[] = [
       { key: 'today', label: 'Idag', items: [] },
@@ -114,7 +129,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
       { key: 'older', label: 'Äldre', items: [] },
     ];
 
-    activities.slice(0, MAX_VISIBLE_ACTIVITIES).forEach((activity) => {
+    visibleActivities.forEach((activity) => {
       const groupKey = getActivityGroupKey(activity.timestamp);
       const targetGroup = groups.find((group) => group.key === groupKey);
       if (targetGroup) {
@@ -123,7 +138,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
     });
 
     return groups.filter((group) => group.items.length > 0);
-  }, [activities]);
+  }, [visibleActivities]);
 
   if (isLoading) {
     return (
@@ -176,13 +191,15 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
         ))}
       </div>
 
-      {activities.length > MAX_VISIBLE_ACTIVITIES && (
+      {remainingActivities > 0 && (
         <div className="text-center mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
           <button 
             className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-            onClick={() => {/* TODO: Implement load more functionality */}}
+            onClick={() => {
+              setVisibleCount((prev) => Math.min(prev + LOAD_MORE_BATCH_SIZE, activities.length));
+            }}
           >
-            Visa äldre aktiviteter ({activities.length - MAX_VISIBLE_ACTIVITIES} till)
+            Visa äldre aktiviteter ({remainingActivities} till)
           </button>
         </div>
       )}

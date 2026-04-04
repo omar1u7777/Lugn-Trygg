@@ -143,10 +143,12 @@ class Logger {
       
       console.error(...this.formatMessage(`❌ ${message}`, errorContext));
       
-      // In production, you might want to send errors to a service like Sentry
-      if (!this.isDev && error instanceof Error) {
-        // TODO: Send to error tracking service
-        // Example: Sentry.captureException(error, { extra: context });
+      // Forward runtime errors to Sentry when available.
+      if (!this.isDev && error instanceof Error && typeof window !== 'undefined' && window.Sentry) {
+        window.Sentry.captureException(error, {
+          loggerMessage: message,
+          extra: this.normalizeContext(context),
+        });
       }
     }
   }
