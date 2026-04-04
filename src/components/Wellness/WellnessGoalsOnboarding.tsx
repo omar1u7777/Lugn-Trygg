@@ -74,7 +74,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
       if (onComplete) {
         onComplete(selectedGoals);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to save goals:', err);
       setError('Kunde inte spara målen. Försök igen.');
     } finally {

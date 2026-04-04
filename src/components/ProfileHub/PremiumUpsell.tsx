@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '../ui/tailwind';
 import { useTranslation } from 'react-i18next';
-import { useSubscription } from '../../contexts/SubscriptionContext';
+import { DailyUsage, useSubscription } from '../../contexts/SubscriptionContext';
 import { 
   StarIcon,
   ClockIcon,
@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface PremiumUpsellProps {
-  usage: any;
+  usage: DailyUsage;
   stats: {
     totalMoods: number;
     totalConversations: number;

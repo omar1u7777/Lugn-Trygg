@@ -280,7 +280,7 @@ class PWAService {
   }
 
   // Storage helpers for offline functionality
-  public async storeOfflineData(key: string, data: any): Promise<void> {
+  public async storeOfflineData(key: string, data: Record<string, unknown>): Promise<void> {
     try {
       const offlineData = await this.getOfflineData(key) || [];
       offlineData.push({
@@ -295,7 +295,7 @@ class PWAService {
     }
   }
 
-  public async getOfflineData(key: string): Promise<any[]> {
+  public async getOfflineData(key: string): Promise<Record<string, unknown>[]> {
     try {
       const data = localStorage.getItem(`lugn-trygg-offline-${key}`);
       return data ? JSON.parse(data) : [];

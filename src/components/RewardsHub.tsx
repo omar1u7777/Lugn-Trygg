@@ -94,8 +94,8 @@ const RewardsHub: React.FC = () => {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
-        const hasLog = moods.some((m: any) =>
-          m.timestamp && m.timestamp.startsWith(dateStr)
+        const hasLog = moods.some((m: Record<string, unknown>) =>
+          typeof m.timestamp === 'string' && m.timestamp.startsWith(dateStr)
         );
         if (hasLog) streak++;
         else if (i > 0) break;
@@ -103,7 +103,7 @@ const RewardsHub: React.FC = () => {
 
       // Check for new achievements based on real activity data
       const journalCount = Array.isArray(journalResult) ? journalResult.length : 0;
-      const referralCount = referralResult?.successfulReferrals ?? (referralResult as any)?.successful_referrals ?? 0;
+      const referralCount = referralResult?.successfulReferrals ?? 0;
       const achievementCheck = await checkAchievements({
         mood_count: moods.length,
         streak: streak,
@@ -114,7 +114,7 @@ const RewardsHub: React.FC = () => {
 
       // Show notification if new achievements earned
       if (achievementCheck.newAchievements?.length > 0) {
-        setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.newAchievements.map((a: any) => a.title).join(', ')}`);
+        setSuccessMessage(`🎉 Nya achievements: ${achievementCheck.newAchievements.map((a) => a.title).join(', ')}`);
         // Refresh user rewards after earning achievements
         const updatedRewards = await getUserRewards().catch((error) => { logger.error('Failed to refresh user rewards', error); return null; });
         setUserRewards(updatedRewards);
@@ -162,8 +162,8 @@ const RewardsHub: React.FC = () => {
         // Refresh data after claiming
         await loadRewardsData();
       }
-    } catch (err: any) {
-      setError(err.message || t('rewards.claimError', 'Kunde inte hämta belöning.'));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('rewards.claimError', 'Kunde inte hämta belöning.'));
     } finally {
       setClaiming(null);
     }

@@ -36,7 +36,8 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
   useEffect(() => {
     // Check notification permission on mount
     if ('Notification' in window) {
-      setPermissionState(Notification.permission as any);
+      const perm = Notification.permission;
+      setPermissionState(perm === 'default' ? 'prompt' : perm);
     }
   }, []);
 
@@ -76,7 +77,7 @@ export const NotificationPermission: React.FC<NotificationPermissionProps> = ({
       } else {
         // Fallback for older browsers
         const permission = await Notification.requestPermission();
-        setPermissionState(permission as any);
+        setPermissionState(permission === 'default' ? 'prompt' : permission);
         
         if (permission === 'granted') {
           trackEvent('notification_permission_granted', {

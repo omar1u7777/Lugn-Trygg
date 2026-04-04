@@ -90,15 +90,18 @@ export function useMoodData(options: UseMoodDataOptions = {}): UseMoodDataReturn
       // Transform data
       const transformedMoods = (moodsData || [])
         .slice(currentOffset, currentOffset + limit)
-        .map((m: any) => ({
-          id: m.id || m.mood_id,
-          userId: m.user_id,
-          score: m.mood_score || m.score,
-          mood: m.mood || getCanonicalMoodLabel(m.mood_score || m.score),
-          text: m.text || m.description,
-          timestamp: new Date(m.timestamp || m.created_at),
-          tags: m.tags || [],
-        }));
+        .map((m: Record<string, unknown>) => {
+          const raw = m as { id?: string; mood_id?: string; user_id?: string; mood_score?: number; score?: number; mood?: string; text?: string; description?: string; timestamp?: string; created_at?: string; tags?: string[] };
+          return {
+            id: raw.id || raw.mood_id || '',
+            userId: raw.user_id || '',
+            score: raw.mood_score ?? raw.score ?? 0,
+            mood: raw.mood || getCanonicalMoodLabel(raw.mood_score ?? raw.score ?? 0),
+            text: raw.text || raw.description,
+            timestamp: new Date(raw.timestamp || raw.created_at || Date.now()),
+            tags: raw.tags || [],
+          };
+        });
 
       if (reset) {
         // Update cache and replace moods

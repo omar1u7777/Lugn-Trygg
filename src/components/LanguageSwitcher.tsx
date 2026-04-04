@@ -43,8 +43,8 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
       document.documentElement.lang = htmlLang;
       
       // Track language change for analytics
-      if (typeof window !== 'undefined' && (window as any).analytics) {
-        (window as any).analytics.track('Language Changed', {
+      if (typeof window !== 'undefined' && window.analytics) {
+        window.analytics.track('Language Changed', {
           from: currentLanguage,
           to: languageCode,
           component: 'LanguageSwitcher'

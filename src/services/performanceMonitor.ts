@@ -280,7 +280,7 @@ const trackMemoryUsage = () => {
     // Track memory usage every 30 seconds
     setInterval(() => {
       if ('memory' in performance) {
-        const memory = (performance as any).memory;
+        const memory = (performance as Performance & { memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
 
         analytics.performance({
           name: 'Memory Usage',

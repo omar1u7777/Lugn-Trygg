@@ -5,8 +5,8 @@ import { createRoot } from "react-dom/client";
 
 // Expose React globally BEFORE any other imports
 if (typeof window !== 'undefined') {
-  (window as any).React = React;
-  (window as any).ReactDOM = ReactDOM;
+  window.React = React;
+  window.ReactDOM = ReactDOM;
 }
 
 // Now import everything else
@@ -122,7 +122,7 @@ const TelemetryPortal = () => {
 
     scheduleIdleTask(() => {
       lazyLoadTelemetry().catch((telemetryError) => {
-        if ((import.meta as any).env?.DEV) {
+        if (import.meta.env.DEV) {
           logger.warn("Failed to load telemetry modules", { error: telemetryError });
         }
       });

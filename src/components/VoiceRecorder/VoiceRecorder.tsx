@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, recordAudio, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';import { logger } from '../../utils/logger';
+import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, recordAudio, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';
+import { logger } from '../../utils/logger';
 
 
 interface VoiceRecorderProps {
@@ -102,9 +103,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       } else if (transcriptionResult.fallback === 'web_speech_api') {
         setError('Transkribering misslyckades. Prova att tala tydligare.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Voice recording error:', err);
-      setError(err.message || 'Ett fel uppstod vid bearbetning av röstinspelningen.');
+      setError(err instanceof Error ? err.message : 'Ett fel uppstod vid bearbetning av röstinspelningen.');
     } finally {
       setIsProcessing(false);
     }

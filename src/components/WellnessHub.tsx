@@ -282,7 +282,8 @@ const WellnessHub: React.FC = () => {
       let breathing = 0;
       let relax = 0;
 
-      sessions.forEach((s: any) => {
+      type SessionItem = { type?: string; duration?: number };
+      (sessions as SessionItem[]).forEach((s) => {
         mins += s.duration || 0;
         if (s.type === 'breathing_exercise') breathing++;
         else relax++;
@@ -300,8 +301,9 @@ const WellnessHub: React.FC = () => {
         streakDays: streak
       });
 
-    } catch (err: any) {
-      if (err?.response?.status !== 401) {
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status !== 401) {
         setError('Kunde inte ladda wellness-data.');
       }
     } finally {

@@ -8,11 +8,11 @@ import { logger } from '../../utils/logger';
 
 interface AnalysisResult {
     status: string;
-    patterns: any[];
-    recommendations: any[];
+    patterns: string[];
+    recommendations: string[];
     mood_average?: number;
     mood_trend?: string;
-    health_summary?: any;
+    health_summary?: Record<string, unknown>;
     message?: string;
 }
 

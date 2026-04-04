@@ -16,7 +16,7 @@ interface MoodData {
   mood_text?: string;
   transcript?: string;
   notes?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface EncryptedMoodData extends MoodData {

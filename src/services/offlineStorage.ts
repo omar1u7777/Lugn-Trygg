@@ -251,9 +251,9 @@ export function listenForOnlineStatus(
     onOnline();
 
     // Trigger background sync when coming online
-    if ('serviceWorker' in navigator && 'sync' in (window as any).ServiceWorkerRegistration.prototype) {
+    if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
       navigator.serviceWorker.ready.then((registration) => {
-        (registration as any).sync.register('background-mood-sync').catch((error: any) => {
+        registration.sync.register('background-mood-sync').catch((error: unknown) => {
           logger.warn('Background sync registration failed:', error);
         });
       });

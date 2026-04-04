@@ -48,8 +48,8 @@ export class FeatureErrorBoundary extends Component<Props, State> {
     this.props.onError?.(error, errorInfo);
     
     // In production, send to error tracking service
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.captureException(error, {
         extra: {
           feature: this.props.featureName,
           componentStack: errorInfo.componentStack,
