@@ -138,9 +138,10 @@ def get_env_variable(
             f"omvandlas till {cast_type.__name__}."
         ) from err
 
-    # Logga inte känsliga värden
-    log_value = "***" if hide_value else value
-    logger.debug(f"🔹 Laddad miljövariabel: {var_name} = {log_value}")
+    # [S9] Mask all env-var values in production; in dev only mask when hide_value=True
+    _is_prod = os.getenv("FLASK_ENV") == "production"
+    log_value = "***" if (_is_prod or hide_value) else value
+    logger.debug("🔹 Laddad miljövariabel: %s = %s", var_name, log_value)
 
     return value
 
