@@ -317,7 +317,7 @@ def add_user_xp():
                     'level': new_level
                 }, merge=True)
             except Exception:
-                pass  # Non-critical — leaderboard also queries user_rewards directly
+                logger.warning("[B3] Failed to sync XP/level to users collection — leaderboard may be briefly stale", exc_info=True)
 
         audit_log("XP_ADDED", user_id, {"amount": xp_amount, "reason": reason, "levelUp": level_up})
 

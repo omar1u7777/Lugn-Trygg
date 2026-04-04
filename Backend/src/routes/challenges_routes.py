@@ -121,6 +121,7 @@ def _get_db():
         from ..firebase_config import db
         return db
     except Exception:
+        logger.exception("[B3] Failed to import/access Firestore db handle")
         return None
 
 

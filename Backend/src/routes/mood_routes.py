@@ -193,7 +193,7 @@ def invalidate_mood_cache(user_id: str) -> None:
                 else:
                     break
         except Exception:
-            pass  # Silently fail - cache will expire naturally
+            logger.warning("[B3] Redis cache invalidation failed — cache will expire naturally", exc_info=True)
 
 
 # Max text length for analysis
@@ -1188,7 +1188,7 @@ def get_weekly_analysis() -> Response | tuple[Response, int]:
                 mem_data['id'] = doc.id
                 recent_memories.append(mem_data)
         except Exception:
-            pass  # Memories are optional
+            logger.warning("[B3] Failed to fetch recent memories — continuing without them", exc_info=True)
 
         logger.info(f"📊 Weekly analysis for user {user_id}: {total_moods} moods, trend={trend}")
 
