@@ -45,9 +45,11 @@ def _mask_identifier(value: str | None) -> str:
 
 def _get_db() -> Any:
     """Safely return Firestore db or None."""
+    # [S8] Log any unexpected error — returning None causes a 503, not a silent auth bypass
     try:
         return db
     except Exception:
+        logger.exception("[S8] Unexpected error accessing Firestore db handle")
         return None
 
 
