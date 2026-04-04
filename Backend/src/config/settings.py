@@ -150,18 +150,18 @@ class Settings(BaseSettings):
             )
 
         if self.flask_env == "production":
+            # [S6] Always raise in production — no silent fallbacks allowed
             if not self.webauthn_rp_id or self.webauthn_rp_id == "localhost":
-                render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
-                if render_hostname:
-                    object.__setattr__(self, "webauthn_rp_id", render_hostname)
-                    if self.webauthn_origin == "http://localhost:3000":
-                        object.__setattr__(self, "webauthn_origin", f"https://{render_hostname}")
-                    logger.warning(
-                        "WEBAUTHN_RP_ID missing in production; using RENDER_EXTERNAL_HOSTNAME=%s as fallback.",
-                        render_hostname,
-                    )
-                else:
-                    raise ValueError("WEBAUTHN_RP_ID is required for production environment")
+                raise ValueError(
+                    "[S6] WEBAUTHN_RP_ID must be set to the production domain (e.g. 'lugntrygg.se'). "
+                    "Set the WEBAUTHN_RP_ID environment variable. "
+                    "Hint: set it to RENDER_EXTERNAL_HOSTNAME if deploying on Render."
+                )
+            if self.webauthn_origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+                raise ValueError(
+                    "[S6] WEBAUTHN_ORIGIN must be set to the production HTTPS origin "
+                    "(e.g. 'https://lugntrygg.se'). Set the WEBAUTHN_ORIGIN environment variable."
+                )
 
             if self.flask_debug:
                 raise ValueError("FLASK_DEBUG must be False in production")
