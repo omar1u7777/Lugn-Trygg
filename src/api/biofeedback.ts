@@ -4,6 +4,7 @@
  */
 
 import { api } from './client';
+import { unwrapApiResponse } from './client';
 import { ApiError } from './errors';
 import { API_ENDPOINTS } from './constants';
 
@@ -54,8 +55,11 @@ export interface SessionHistory {
 export const getBreathingPatterns = async (): Promise<BreathingPattern[]> => {
   try {
     const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.PATTERNS);
-    // Backend returns { success: true, patterns: [...] } directly
-    return response.data.patterns || [];
+    const payload = unwrapApiResponse<{ patterns?: BreathingPattern[] } | BreathingPattern[]>(response.data);
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    return payload?.patterns || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -77,8 +81,12 @@ export const startBreathingSession = async (
       pattern: patternId,
       duration: durationMinutes
     });
-    // Backend returns { success: true, session_id, pattern, ws_namespace }
-    return response.data;
+    const payload = unwrapApiResponse<{
+      session_id: string;
+      pattern: string;
+      ws_namespace: string | null;
+    }>(response.data);
+    return payload;
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -95,7 +103,11 @@ export const endBreathingSession = async (
   try {
     // Backend route: POST /api/v1/biofeedback/end/<session_id>
     const response = await api.post(`${API_ENDPOINTS.BIOFEEDBACK.END}/${sessionId}`, {});
-    return response.data;
+    const payload = unwrapApiResponse<{ success?: boolean; summary?: Record<string, unknown> }>(response.data);
+    return {
+      success: (payload as { success?: boolean }).success ?? true,
+      summary: (payload as { summary?: Record<string, unknown> }).summary || {}
+    };
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -111,8 +123,11 @@ export const getSessionHistory = async (limit: number = 10): Promise<{ sessions:
     const response = await api.get(API_ENDPOINTS.BIOFEEDBACK.HISTORY, {
       params: { limit }
     });
-    // Backend returns { success: true, sessions: [...], total: n }
-    return response.data;
+    const payload = unwrapApiResponse<{ sessions?: SessionHistory['sessions']; total?: number }>(response.data);
+    return {
+      sessions: payload?.sessions || [],
+      total: payload?.total || 0
+    };
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);

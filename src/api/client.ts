@@ -31,6 +31,39 @@ export interface ApiConfig extends AxiosRequestConfig {
   retryCount?: number;
 }
 
+interface ApiResponseWrapper<T> {
+  status?: 'success' | 'error';
+  success?: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+  timestamp?: string;
+}
+
+/**
+ * Normalize API payloads that can arrive as either:
+ * - Wrapped: { status: 'success', data: {...}, timestamp: '...' }
+ * - Wrapped: { success: true, data: {...} }
+ * - Direct:  {...}
+ */
+export const unwrapApiResponse = <T>(payload: ApiResponseWrapper<T> | T): T => {
+  if (!payload || typeof payload !== 'object') {
+    return payload as T;
+  }
+
+  const candidate = payload as ApiResponseWrapper<T>;
+  const hasWrapperMetadata =
+    typeof candidate.status === 'string' ||
+    typeof candidate.success === 'boolean' ||
+    typeof candidate.timestamp === 'string';
+
+  if (hasWrapperMetadata && 'data' in candidate && candidate.data !== undefined) {
+    return candidate.data;
+  }
+
+  return payload as T;
+};
+
 // Base URL for API
 export const API_BASE_URL = getBackendUrl();
 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
+import { endBreathingSession, startBreathingSession } from '../api/biofeedback';
 import { logger } from '../utils/logger';
 
 // Biofeedback types
@@ -351,43 +352,25 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/v1/biofeedback/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pattern: patternId,
-          duration: duration
-        })
-      });
+      const data = await startBreathingSession(patternId, duration);
 
-      if (!response.ok) {
-        throw new Error('Failed to start session');
+      const newSession: BreathingSession = {
+        sessionId: data.session_id,
+        userId,
+        pattern: patternId,
+        targetDuration: duration,
+        startTime: new Date()
+      };
+
+      setSession(newSession);
+      sessionRef.current = newSession;
+
+      // Connect WebSocket
+      if (data.ws_namespace) {
+        connectBiofeedback(data.session_id, token || '');
       }
 
-      const data = await response.json();
-      
-      if (data.success) {
-        const newSession: BreathingSession = {
-          sessionId: data.session_id,
-          userId,
-          pattern: patternId,
-          targetDuration: duration,
-          startTime: new Date()
-        };
-        
-        setSession(newSession);
-        sessionRef.current = newSession;
-        
-        // Connect WebSocket
-        if (data.ws_namespace) {
-          connectBiofeedback(data.session_id, token || '');
-        }
-        
-        return newSession;
-      }
+      return newSession;
     } catch (error) {
       logger.error('Failed to start biofeedback session', error as Error);
       setConnectionError('Kunde inte starta biofeedback-session');
@@ -415,16 +398,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     if (!sessionRef.current) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/v1/biofeedback/end/${sessionRef.current.sessionId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-      
+      const data = await endBreathingSession(sessionRef.current.sessionId);
       if (data.success) {
         logger.info('Session summary', data.summary);
       }
