@@ -1,153 +1,270 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ChartBarIcon,
+import {
   ArrowLeftIcon,
-  InformationCircleIcon,
-  ChartPieIcon,
-  PresentationChartLineIcon
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  LineChart,
+  Line,
+} from 'recharts';
+import {
+  getAdminStats,
+  getPerformanceMetrics,
+  getSystemHealth,
+  type AdminStats,
+  type PerformanceMetrics,
+  type SystemHealth,
+} from '../api/admin';
+import { logger } from '../utils/logger';
 
-/**
- * ADMIN ANALYTICS DASHBOARD - Temporary Placeholder
- * 
- * This advanced admin analytics dashboard is temporarily disabled due to chart library bundling issues.
- * Regular users should use the main Analytics page at /analytics which includes:
- * - Mood trends and predictions
- * - AI-powered insights
- * - Personal statistics
- * - Gamification progress
- * 
- * Admin features will be restored after chart library migration is complete.
- */
+interface StatCardProps {
+  label: string;
+  value: string;
+  accentClass: string;
+}
+
+function StatCard({ label, value, accentClass }: StatCardProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={`text-2xl font-semibold mt-1 ${accentClass}`}>{value}</p>
+    </div>
+  );
+}
 
 const AnalyticsDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const features = [
-    {
-      icon: <ChartBarIcon className="w-8 h-8" />,
-      title: 'Humörtrender',
-      description: 'Se din humörutveckling över tid med AI-drivna prognoser',
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      icon: <ChartPieIcon className="w-8 h-8" />,
-      title: 'Personlig Statistik',
-      description: 'Detaljerad analys av dina humörloggar och mönster',
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      icon: <PresentationChartLineIcon className="w-8 h-8" />,
-      title: 'AI Insikter',
-      description: 'Smarta rekommendationer baserade på dina data',
-      color: 'from-green-500 to-emerald-500'
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
     }
-  ];
+    setError(null);
+
+    const [statsResult, perfResult, healthResult] = await Promise.allSettled([
+      getAdminStats(),
+      getPerformanceMetrics(),
+      getSystemHealth(),
+    ]);
+
+    let hasSuccess = false;
+
+    if (statsResult.status === 'fulfilled') {
+      setStats(statsResult.value);
+      hasSuccess = true;
+    } else {
+      logger.error('Failed to load admin stats', statsResult.reason);
+    }
+
+    if (perfResult.status === 'fulfilled') {
+      setPerformanceMetrics(perfResult.value);
+      hasSuccess = true;
+    } else {
+      logger.error('Failed to load performance metrics', perfResult.reason);
+    }
+
+    if (healthResult.status === 'fulfilled') {
+      setSystemHealth(healthResult.value);
+      hasSuccess = true;
+    } else {
+      logger.error('Failed to load system health', healthResult.reason);
+    }
+
+    if (!hasSuccess) {
+      setError('Kunde inte ladda admin analytics-data just nu. Försök igen.');
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const usersChartData = useMemo(() => {
+    if (!stats) return [];
+    return [
+      { name: 'Totalt', value: stats.users.total },
+      { name: 'Aktiva 7d', value: stats.users.active7d },
+      { name: 'Nya 30d', value: stats.users.new30d },
+      { name: 'Premium', value: stats.users.premium },
+    ];
+  }, [stats]);
+
+  const contentChartData = useMemo(() => {
+    if (!stats) return [];
+    return [
+      { name: 'Moods', value: stats.moods.total },
+      { name: 'Journals', value: stats.content.journals },
+      { name: 'Memories', value: stats.content.memories },
+      { name: 'Chat', value: stats.content.chatSessions },
+    ];
+  }, [stats]);
+
+  const endpointChartData = useMemo(() => {
+    if (!performanceMetrics) return [];
+    return Object.entries(performanceMetrics.endpoints)
+      .map(([endpoint, metric]) => ({
+        name: endpoint.length > 18 ? `${endpoint.slice(0, 18)}...` : endpoint,
+        avg: Math.round(metric.avgDuration),
+        p95: Math.round(metric.p95Duration),
+        count: metric.count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [performanceMetrics]);
+
+  const healthPillClass = useMemo(() => {
+    if (!systemHealth) {
+      return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+    }
+    if (systemHealth.status === 'healthy') {
+      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    }
+    if (systemHealth.status === 'degraded') {
+      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    }
+    return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+  }, [systemHealth]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="h-10 w-64 rounded bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+            <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+            <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+            <div className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="h-80 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+            <div className="h-80 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors mb-2"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span>Tillbaka</span>
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Admin Analytics Dashboard</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Live-data för användning, innehåll, prestanda och systemhälsa.</p>
+          </div>
+
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors mb-4"
+            onClick={() => void loadData(true)}
+            disabled={refreshing}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-medium"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
-            <span className="font-medium">Tillbaka</span>
+            <ArrowPathIcon className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{refreshing ? 'Uppdaterar...' : 'Uppdatera'}</span>
           </button>
-          
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Admin Analytics Dashboard
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
-            Avancerad analysplattform för administratörer
-          </p>
         </div>
 
-        {/* Info Alert */}
-        <div className="mb-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-          <div className="flex items-start gap-3">
-            <InformationCircleIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                Dashboard Under Utveckling
-              </h3>
-              <p className="text-blue-800 dark:text-blue-200 mb-4">
-                Denna avancerade admin-dashboard är temporärt inaktiverad på grund av chart library bundling-problem. 
-                Vi arbetar på att migrera till en ny chart-lösning.
-              </p>
-              <p className="text-blue-800 dark:text-blue-200 mb-4">
-                Under tiden kan du använda huvudanalytik-sidan som innehåller alla personliga analytics-funktioner:
-              </p>
-              <button
-                onClick={() => navigate('/analytics')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors inline-flex items-center gap-2"
-              >
-                <ChartBarIcon className="w-5 h-5" />
-                <span>Gå till Analytics</span>
-              </button>
+        {error && (
+          <div className="rounded-xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <StatCard label="Totala användare" value={stats ? stats.users.total.toLocaleString('sv-SE') : '-'} accentClass="text-slate-900 dark:text-slate-100" />
+          <StatCard label="Aktiva (7 dagar)" value={stats ? stats.users.active7d.toLocaleString('sv-SE') : '-'} accentClass="text-blue-600 dark:text-blue-400" />
+          <StatCard label="Humörinlägg idag" value={stats ? stats.moods.today.toLocaleString('sv-SE') : '-'} accentClass="text-emerald-600 dark:text-emerald-400" />
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Systemstatus</p>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${healthPillClass}`}>
+                {systemHealth ? systemHealth.status : 'okänd'}
+              </span>
+              {systemHealth?.status === 'healthy' && <ShieldCheckIcon className="w-5 h-5 text-green-600 dark:text-green-400" />}
             </div>
           </div>
         </div>
 
-        {/* Feature Cards */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Tillgängliga Funktioner i Huvudanalytik
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
-              >
-                <div className={`bg-gradient-to-r ${feature.color} p-6 flex items-center justify-center`}>
-                  <div className="text-white">
-                    {feature.icon}
-                  </div>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Användaröversikt</h3>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={usersChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Innehållsvolym</h3>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={contentChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#7c3aed" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Additional Info */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            Planerade Admin-Funktioner
-          </h3>
-          <ul className="space-y-3 text-gray-600 dark:text-gray-400">
-            <li className="flex items-start gap-2">
-              <span className="text-primary-500 font-bold">•</span>
-              <span>Aggregerad användarstatistik och engagement metrics</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary-500 font-bold">•</span>
-              <span>Real-time system performance monitoring</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary-500 font-bold">•</span>
-              <span>Exportfunktioner för dataanalys (CSV, JSON)</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary-500 font-bold">•</span>
-              <span>Trendanalys och prediktiva modeller</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary-500 font-bold">•</span>
-              <span>Feature usage tracking och A/B testing results</span>
-            </li>
-          </ul>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Topp-endpoints: svarstid (ms)</h3>
+          {endpointChartData.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">Ingen endpoint-data tillgänglig.</p>
+          ) : (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={endpointChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="avg" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} name="Avg" />
+                  <Line type="monotone" dataKey="p95" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} name="P95" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
     </div>
