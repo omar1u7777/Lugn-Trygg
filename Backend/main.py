@@ -34,10 +34,22 @@ try:
     from src.config.settings import get_settings
     settings = get_settings()
     USE_PYDANTIC_SETTINGS = True
-except Exception:
-    # Fallback to old config if pydantic-settings fails
+except ImportError as e:
+    # Module not installed — acceptable in dev, fatal in production
+    if os.getenv('FLASK_ENV') == 'production':
+        print(f'FATAL [B7]: pydantic-settings not available in production: {e}', file=sys.stderr)
+        sys.exit(1)
     USE_PYDANTIC_SETTINGS = False
     logger = logging.getLogger(__name__)
+    logger.warning('[B7] pydantic-settings not available; falling back to legacy config: %s', e)
+except (ValueError, TypeError) as e:
+    # Pydantic ValidationError surfaces as ValueError — missing/invalid env var
+    if os.getenv('FLASK_ENV') == 'production':
+        print(f'FATAL [B7]: Configuration validation failed in production: {e}', file=sys.stderr)
+        sys.exit(1)
+    USE_PYDANTIC_SETTINGS = False
+    logger = logging.getLogger(__name__)
+    logger.warning('[B7] Settings validation failed; falling back to legacy config: %s', e)
 
 # Configure structured logging (2026 standard)
 USE_STRUCTURED_LOGGING = os.getenv('USE_STRUCTURED_LOGGING', 'true').lower() == 'true'
@@ -54,8 +66,8 @@ if USE_STRUCTURED_LOGGING:
         root_logger.addHandler(handler)
         root_logger.setLevel(logging.INFO)
         logger = get_logger(__name__)
-    except Exception:
-        # Fallback to standard logging
+    except (ImportError, AttributeError) as e:
+        # Structured logging module missing or misconfigured — standard logging is safe fallback
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -65,6 +77,7 @@ if USE_STRUCTURED_LOGGING:
             ]
         )
         logger = logging.getLogger(__name__)
+        logger.warning('[B7] Structured logging unavailable; using standard logging: %s', e)
 else:
     # Standard logging (backward compatibility)
     logging.basicConfig(
