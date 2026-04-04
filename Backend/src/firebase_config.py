@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import time
 from functools import wraps
 from pathlib import Path
@@ -306,8 +307,19 @@ def get_firebase_services() -> dict[str, Any]:
     }
 
 
-initialize_firebase()
-services = get_firebase_services()
+# [S7] Firebase init must be fatal in production — never silently continue without Firebase
+try:
+    initialize_firebase()
+    services = get_firebase_services()
+except Exception as _firebase_init_error:
+    logger.critical(
+        "❌ Firebase-initialisering misslyckades: %s",
+        _firebase_init_error,
+        exc_info=True,
+    )
+    if os.getenv("FLASK_ENV") == "production":
+        sys.exit(1)
+    raise
 db = services.get("db")
 auth = services.get("auth")
 firebase_admin_auth = auth
