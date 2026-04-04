@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import api from '@/api/api';
 import useAuth from '@/hooks/useAuth';
+import { logger } from '@/utils/logger';
 
 interface FrameworkAnalysis {
   framework: string;
@@ -97,7 +98,7 @@ export const AIChatInsights: React.FC = () => {
         setProgress(progressRes.value.data.data);
       }
     } catch (e) {
-      console.error('Failed to fetch insights:', e);
+      logger.error('Failed to fetch insights', e as Error);
     } finally {
       setLoading(false);
     }

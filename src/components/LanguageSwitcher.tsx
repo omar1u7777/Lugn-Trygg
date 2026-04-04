@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { logger } from '../utils/logger';
 
 // Language configuration with display names and flags
 const LANGUAGE_CONFIG = {
@@ -50,7 +51,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ compact = false }) 
         });
       }
     } catch (error) {
-      console.error('Failed to change language:', error);
+      logger.error('Failed to change language', error as Error);
       // Fallback: reload page with new language
       window.location.reload();
     }

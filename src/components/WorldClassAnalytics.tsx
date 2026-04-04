@@ -177,8 +177,8 @@ const WorldClassAnalytics: React.FC<WorldClassAnalyticsProps> = ({ onClose }) =>
 
       let moodsData: MoodData[];
       const [_weeklyAnalysisData, fetchedMoods] = await Promise.all([
-        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
-        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
+        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
       ]);
       moodsData = fetchedMoods as MoodData[];
       

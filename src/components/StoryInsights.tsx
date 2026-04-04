@@ -69,9 +69,9 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
 
       // Load real data from backend APIs
       const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
-        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
-        getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
+        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
+        getChatHistory(user.user_id).catch((error) => { logger.error('Failed to fetch chat history', error); return { conversation: [] }; }),
       ]);
       const moodsData = Array.isArray(moodsDataRaw) ? (moodsDataRaw as MoodPoint[]) : [];
       const chatHistoryData = (chatHistoryDataRaw ?? {}) as ChatHistoryResponse;
@@ -241,7 +241,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
           navigator.share({
             title: 'Min prestation på Lugn & Trygg',
             text: insight.title || 'Kolla min prestation!',
-          }).catch((error) => { console.error('Share failed or was cancelled:', error); });
+          }).catch((error) => { logger.error('Share failed or was cancelled', error); });
         }
         break;
       case 'Prova nu':

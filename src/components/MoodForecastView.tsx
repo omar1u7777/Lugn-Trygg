@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAuth from '../hooks/useAuth';
 import api from '../api/api';
+import { logger } from '../utils/logger';
 import { format } from 'date-fns';
 import { sv } from 'date-fns/locale';
 
@@ -83,7 +84,7 @@ export const MoodForecastView: React.FC = () => {
         setError('Kunde inte hämta prognos');
       }
     } catch (e: any) {
-      console.error('Forecast fetch failed:', e);
+      logger.error('Forecast fetch failed', e);
       setError(e.response?.data?.message || 'Prognos ej tillgänglig');
     } finally {
       setLoading(false);

@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import useAuth from '../hooks/useAuth';
 import api from '../api/api';
+import { logger } from '../utils/logger';
 
 interface Question {
   id: string;
@@ -79,7 +80,7 @@ export const ClinicalAssessment: React.FC = () => {
         setExpanded(false);
       }
     } catch (e) {
-      console.error('Assessment failed:', e);
+      logger.error('Assessment failed', e as Error);
     } finally {
       setLoading(false);
     }

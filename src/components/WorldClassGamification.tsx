@@ -149,10 +149,10 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
       setLoading(true);
       // Fetch authoritative XP/level from backend AND activity data for achievement progress in parallel
       const [moodsDataRaw, _weeklyAnalysisData, chatHistoryDataRaw, userRewardsData] = await Promise.all([
-        getMoods(user.user_id).catch((error) => { console.error('Failed to fetch moods:', error); return []; }),
-        getWeeklyAnalysis(user.user_id).catch((error) => { console.error('Failed to fetch weekly analysis:', error); return {}; }),
-        getChatHistory(user.user_id).catch((error) => { console.error('Failed to fetch chat history:', error); return { conversation: [] }; }),
-        getUserRewards().catch((error) => { console.error('Failed to fetch user rewards:', error); return null; }),
+        getMoods(user.user_id).catch((error) => { logger.error('Failed to fetch moods', error); return []; }),
+        getWeeklyAnalysis(user.user_id).catch((error) => { logger.error('Failed to fetch weekly analysis', error); return {}; }),
+        getChatHistory(user.user_id).catch((error) => { logger.error('Failed to fetch chat history', error); return { conversation: [] }; }),
+        getUserRewards().catch((error) => { logger.error('Failed to fetch user rewards', error); return null; }),
       ]);
 
       const moodsData: MoodDataItem[] = Array.isArray(moodsDataRaw) ? (moodsDataRaw as MoodDataItem[]) : [];

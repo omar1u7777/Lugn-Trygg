@@ -13,6 +13,7 @@ import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
 import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
+import { logger } from '../utils/logger';
 import {
   getCBTExercises,
   getCBTInsights,
@@ -1178,7 +1179,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           setArticleCompleted(parsed.completed || false);
           logger.debug('💾 Loaded article progress:', parsed);
         } catch(e) {
-          console.error(e);
+          logger.error('Failed to load article progress', e as Error);
         }
       }
     }
