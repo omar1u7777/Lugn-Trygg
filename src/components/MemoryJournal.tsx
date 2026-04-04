@@ -306,7 +306,7 @@ const MemoryJournal: React.FC = () => {
 
       logger.info('Memory saved', { memoryId: res.data?.data?.memoryId });
     } catch (err: unknown) {
-      const msg = (err as any)?.response?.data?.error ?? 'Kunde inte spara minnet. Försök igen.';
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Kunde inte spara minnet. Försök igen.';
       setSubmitError(msg);
       logger.error('Memory save failed', { err });
     } finally {

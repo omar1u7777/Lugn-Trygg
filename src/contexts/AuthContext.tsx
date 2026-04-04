@@ -178,7 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await logoutUser();
     } catch (error) {
-      if ((import.meta as any).env?.DEV) {
+      if (import.meta.env.DEV) {
         logger.warn("⚠️ Utloggning misslyckades, rensar ändå lokalt.");
       }
     } finally {

@@ -26,6 +26,11 @@ interface LayoutShiftEntry extends PerformanceEntry {
   value: number;
 }
 
+/** PerformanceObserver entry for first-input-delay (W3C) */
+interface FIDEntry extends PerformanceEntry {
+  processingStart: number;
+}
+
 interface PerformanceMetrics {
   coreWebVitals: {
     cls: number;
@@ -234,7 +239,7 @@ const PerformanceDashboard: React.FC = () => {
 
     try {
       const fidObserver = new PerformanceObserver((list) => {
-        const entry = list.getEntries()[0] as any;
+        const entry = list.getEntries()[0] as FIDEntry;
         if (entry) {
           setMetrics(prev => ({
             ...prev,

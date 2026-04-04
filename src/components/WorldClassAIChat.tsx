@@ -252,13 +252,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         if (!isMountedRef.current) return [];
         
         const history = historyResponse?.conversation || [];
-        const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => ({
+        const formatted: ChatMessage[] = (history || []).map((msg: Record<string, unknown>, i: number) => ({
           id: `history-${i}`,
           role: msg?.role === 'user' ? 'user' : 'assistant',
-          content: msg?.content || msg?.message || '',
-          timestamp: new Date(msg?.timestamp?.toDate?.() || msg?.timestamp || Date.now()),
-          sentiment: msg?.sentiment,
-          emotions: msg?.emotions,
+          content: (msg?.content as string) || (msg?.message as string) || '',
+          timestamp: new Date((msg?.timestamp as { toDate?: () => Date } | string | undefined && typeof msg.timestamp === 'object' && msg.timestamp !== null && 'toDate' in msg.timestamp ? (msg.timestamp as { toDate: () => Date }).toDate() : msg?.timestamp as string | undefined) || Date.now()),
+          sentiment: msg?.sentiment as string | undefined,
+          emotions: msg?.emotions as string[] | undefined,
         }));
 
         // Sync with cache
@@ -320,8 +320,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       await streamMessage(user.user_id, userMsg.content, messages);
       // onComplete callback handles adding message to state + cache
       incrementChatMessage();
-    } catch (error: any) {
-      if (error?.response?.status === 429 || (error as any)?.message === 'Daily limit reached') {
+    } catch (error: unknown) {
+      if ((error instanceof Error && error.message === 'Daily limit reached') || 
+          (error as { response?: { status?: number } })?.response?.status === 429) {
         setLimitError(t('aiChat.dailyLimitReached'));
       } else {
         logger.error('Send message error:', error);

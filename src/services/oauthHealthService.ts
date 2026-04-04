@@ -3,7 +3,8 @@
  * Handles OAuth 2.0 flows with health platforms
  */
 
-import api from '../api/api';import { logger } from '../utils/logger';
+import api from '../api/api';
+import { logger } from '../utils/logger';
 
 
 export interface OAuthProvider {
@@ -30,7 +31,7 @@ export interface HealthData {
     heart_rate?: number;
     sleep_hours?: number;
     calories?: number;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 class OAuthHealthService {
@@ -103,7 +104,7 @@ class OAuthHealthService {
             } else {
                 throw new Error('No authorization URL received');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`Failed to initiate OAuth for ${providerId}:`, error);
             throw error;
         }
@@ -116,7 +117,7 @@ class OAuthHealthService {
         try {
             const response = await api.get(`/api/v1/integration/oauth/${providerId}/status`);
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`Failed to check OAuth status for ${providerId}:`, error);
             throw error;
         }
@@ -150,7 +151,7 @@ class OAuthHealthService {
         try {
             await api.post(`/api/v1/integration/oauth/${providerId}/disconnect`);
             logger.debug(`Successfully disconnected from ${providerId}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`Failed to disconnect from ${providerId}:`, error);
             throw error;
         }
@@ -168,7 +169,7 @@ class OAuthHealthService {
             } else {
                 throw new Error(response.data.error || 'Failed to sync health data');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`Failed to sync health data from ${providerId}:`, error);
             throw error;
         }
@@ -230,7 +231,7 @@ class OAuthHealthService {
             } else {
                 throw new Error('OAuth callback mismatch');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error(`Failed to connect to ${providerId}:`, error);
             throw error;
         }

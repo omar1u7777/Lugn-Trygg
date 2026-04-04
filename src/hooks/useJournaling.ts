@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
-import { saveJournalEntry, getJournalEntries } from '../api/api';import { logger } from '../utils/logger';
+import { saveJournalEntry, getJournalEntries, JournalEntry } from '../api/api';
+import { logger } from '../utils/logger';
+import { User } from '../types';
 
 
 interface UseJournalingOptions {
-    user: any;
+    user: User | null;
     announce: (message: string, priority?: 'polite' | 'assertive') => void;
     onProgress: (type: string, amount: number) => void;
 }
@@ -14,7 +16,7 @@ export const useJournaling = ({ user, announce, onProgress }: UseJournalingOptio
     const [tags, setTags] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [entries, setEntries] = useState<any[]>([]);
+    const [entries, setEntries] = useState<JournalEntry[]>([]);
 
     const loadHistory = useCallback(async () => {
         if (!user?.user_id) return;

@@ -47,12 +47,20 @@ const RESPONSE_OPTIONS = [
   { value: 3, label: 'Nästan varje dag', description: '3 poäng' },
 ];
 
+interface AssessmentResult {
+  score: number;
+  severity: string;
+  interpretation: string;
+  questions_analyzed?: number;
+  recommendations?: string[];
+}
+
 export const ClinicalAssessment: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user: _user } = useAuth();
   const [activeTab, setActiveTab] = useState<'phq9' | 'gad7'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<AssessmentResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
 

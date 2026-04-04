@@ -6,7 +6,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getDashboardSummary } from '../api/dashboard';
-import { analytics } from '../services/analytics';import { logger } from '../utils/logger';
+import { analytics } from '../services/analytics';
+import { logger } from '../utils/logger';
 
 
 interface RawActivity {
@@ -30,7 +31,7 @@ interface DashboardStats {
   streakDays: number;
   weeklyGoal: number;
   weeklyProgress: number;
-  wellnessGoals: any[];
+  wellnessGoals: string[];
   recentActivity: Activity[];
 }
 

@@ -353,7 +353,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const playPhaseTone = useCallback((phase: string) => {
     if (!breathingUseSound || typeof window === 'undefined') return;
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
 
     const frequencyMap: Record<string, number> = {
@@ -482,7 +482,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [relaxationDifficulty, setRelaxationDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
   const [customTiming, setCustomTiming] = useState({ tense: 5, relax: 10 });
   const [breathingSync, setBreathingSync] = useState(false);
-  const [sessionHistory, setSessionHistory] = useState<any[]>([]); // Used for local history display
+
+  interface RelaxationSession {
+    date: string;
+    duration: number;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    muscleGroups: number;
+  }
+  const [sessionHistory, setSessionHistory] = useState<RelaxationSession[]>([]); // Used for local history display
 
   // PMR Hook
   const {
@@ -613,12 +620,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [isMeditationPaused, setIsMeditationPaused] = useState(false);
   const [meditationTimer, setMeditationTimer] = useState<NodeJS.Timeout | null>(null);
   const [, setIsLoadingMeditation] = useState(false);
-  const [, setMeditationSessions] = useState<any[]>([]);
+  const [, setMeditationSessions] = useState<Record<string, unknown>[]>([]);
   const [debugMode, setDebugMode] = useState(false);
   const showDebugTools = import.meta.env.DEV;
 
   // Pomodoro extra state
-  const [pomodoroHistory, setPomodoroHistory] = useState<any[]>([]);
+  interface PomodoroSession {
+    date: string;
+    sessionNumber: number;
+    type: 'work' | 'break';
+    workDuration?: number;
+    breakDuration?: number;
+  }
+  const [pomodoroHistory, setPomodoroHistory] = useState<PomodoroSession[]>([]);
   const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
 
   // KBT Exercise Hook
@@ -1279,7 +1293,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // handleSaveJournalEntry and handleLoadJournalHistory are now provided by useJournaling hook
 
   // Meditation Functions
-  async function handleSaveMeditationSession(sessionData: any) {
+  async function handleSaveMeditationSession(sessionData: Parameters<typeof saveMeditationSession>[0]) {
     if (!user?.user_id) return;
 
     try {
@@ -4564,7 +4578,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Laddar journal...</p>
                           </div>
                         ) : journalEntries.length > 0 ? (
-                          journalEntries.map((entry: any) => (
+                          journalEntries.map((entry) => (
                             <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -4832,7 +4846,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           </label>
                           <select
                             value={relaxationDifficulty}
-                            onChange={(e) => setRelaxationDifficulty(e.target.value as any)}
+                            onChange={(e) => setRelaxationDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')}
                             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           >
                             <option value="beginner">Nybörjare (5s spänn, 10s slappna)</option>
@@ -4896,7 +4910,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <div className="text-xs text-gray-600 dark:text-gray-400">
                             {sessionHistory.length > 0 ? (
                               <div className="space-y-1">
-                                {sessionHistory.slice(-3).map((session: any) => (
+                                {sessionHistory.slice(-3).map((session) => (
                                   <div key={session.date} className="flex justify-between">
                                     <span>{new Date(session.date).toLocaleDateString()}</span>
                                     <span>{session.duration}min</span>

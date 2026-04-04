@@ -14,7 +14,8 @@ import {
   deleteAllUserData,
 } from '../utils/encryptionService';
 import { trackEvent } from '../services/analytics';
-import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';import { logger } from '../utils/logger';
+import { ArrowDownTrayIcon, EyeSlashIcon, LockClosedIcon, TrashIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { logger } from '../utils/logger';
 
 
 interface PrivacySettingsProps {
@@ -47,7 +48,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ userId }) => {
     loadSettings();
   }, [userId]);
 
-  const handleSettingChange = async (key: keyof IPrivacySettings, value: any) => {
+  const handleSettingChange = async (key: keyof IPrivacySettings, value: number | boolean) => {
     if (!settings) return;
     
     const newSettings = { ...settings, [key]: value };

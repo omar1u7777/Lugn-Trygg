@@ -69,7 +69,7 @@ const SocialHub: React.FC = () => {
 
         // Find user's rank (supports both camelCase and snake_case user ID fields)
         const userRankEntry = leaderboardData.find(
-          (entry: any) => (entry.userId ?? entry.user_id) === user.user_id
+          (entry) => (entry.userId ?? entry.user_id) === user.user_id
         );
         const userRank = userRankEntry?.rank || 0;
 

@@ -52,9 +52,9 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
       logger.debug('✅ Journal entries loaded:', response.length);
 
       setEntries(response);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Failed to load journal entries:', error);
-      setError(error?.response?.data?.error || 'Failed to load journal entries');
+      setError((error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to load journal entries');
     } finally {
       setLoading(false);
     }

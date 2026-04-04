@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';import { logger } from '../utils/logger';
+import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
+import { User } from '../types';
 
 
 interface UseGratitudeOptions {
-    user: any;
+    user: User | null;
     onProgress: (type: 'exercise' | 'meditation' | 'article', amount?: number) => void;
     announce: (message: string, priority?: 'polite' | 'assertive') => void;
 }

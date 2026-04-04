@@ -43,11 +43,15 @@ export const MoodHeatmap: React.FC = () => {
       // Process moods into heatmap cells
       const cellMap = new Map<string, { scores: number[]; count: number }>();
 
-      moods.forEach((mood: any) => {
-        const score = mood.score ?? mood.sentiment_score;
+      moods.forEach((mood) => {
+        const rawMood = mood as { score?: number; sentiment_score?: number; timestamp?: string | { toDate: () => Date } };
+        const score = rawMood.score ?? rawMood.sentiment_score;
         if (typeof score !== 'number' || score < 1 || score > 10) return;
 
-        const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+        const rawTs = rawMood.timestamp;
+        const timestamp = rawTs && typeof rawTs === 'object' && 'toDate' in rawTs
+          ? rawTs.toDate()
+          : new Date(rawTs as string);
         const hour = timestamp.getHours();
         const day = timestamp.getDay(); // 0 = Sunday, 1 = Monday, etc.
         

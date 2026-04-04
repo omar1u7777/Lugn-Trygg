@@ -42,6 +42,14 @@ interface TemporalPattern {
   clinical_significance?: string;
 }
 
+interface RawForecastItem {
+  date: string;
+  predicted_valence: number;
+  confidence_interval: { lower: number; upper: number };
+  uncertainty: number;
+  risk_flags?: string[];
+}
+
 export const MoodForecastView: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user: _user } = useAuth();
@@ -66,7 +74,7 @@ export const MoodForecastView: React.FC = () => {
         const data = response.data.data;
         
         // Transform forecast data
-        const transformed = data.forecasts.map((f: any) => ({
+        const transformed = data.forecasts.map((f: RawForecastItem) => ({
           date: format(new Date(f.date), 'EEE d/M', { locale: sv }),
           fullDate: f.date,
           predicted_valence: f.predicted_valence,
@@ -83,9 +91,9 @@ export const MoodForecastView: React.FC = () => {
       } else {
         setError('Kunde inte hämta prognos');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Forecast fetch failed', e);
-      setError(e.response?.data?.message || 'Prognos ej tillgänglig');
+      setError((e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Prognos ej tillgänglig');
     } finally {
       setLoading(false);
     }

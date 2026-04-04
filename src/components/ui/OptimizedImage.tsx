@@ -66,7 +66,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   }, [priority]);
 
   useEffect(() => {
-    const connection = (navigator as any)?.connection as ConnectionWithSaveData | undefined;
+    const connection = (navigator as Navigator & { connection?: ConnectionWithSaveData }).connection;
     if (connection?.saveData) {
       setEffectiveQuality(Math.min(60, quality));
       return;
