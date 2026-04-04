@@ -7,7 +7,7 @@ interface UsePMROptions {
     difficulty: 'beginner' | 'intermediate' | 'advanced';
     customTiming: { tense: number; relax: number };
     onComplete?: (duration: number, muscleGroupsCount: number) => void;
-    onPhaseChange?: (phase: PMRPhase, muscleGroup: any, timeLeft: number) => void;
+    onPhaseChange?: (phase: PMRPhase, muscleGroup: (typeof muscleGroups)[number], timeLeft: number) => void;
 }
 
 export const usePMR = ({ difficulty, customTiming, onComplete, _onPhaseChange }: UsePMROptions) => {

@@ -331,7 +331,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           const aiResult = await chatWithAI(user.user_id, aiInput);
           setMessages(prev => [...prev, {
             id: (Date.now() + 1).toString(),
-            text: (aiResult as any).response || (aiResult as any).message || 'Tack för att du delade det med mig.',
+            text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig.',
             isUser: false,
             timestamp: new Date(),
           }]);
@@ -395,7 +395,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         const aiResult = await chatWithAI(user.user_id, messageText);
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: (aiResult as any).response || (aiResult as any).message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
+          text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
           isUser: false,
           timestamp: new Date(),
         };
@@ -601,16 +601,16 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             </div>
 
             {/* VAD Valence/Arousal */}
-            {(emotionResult as any).valence !== undefined && (
+            {emotionResult.valence !== undefined && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
                   Känslodimensioner
                 </h3>
                 <div className="grid grid-cols-3 gap-3 text-center text-xs">
                   {[
-                    { label: 'Valens', desc: 'Neg ↔ Pos', value: ((emotionResult as any).valence + 1) / 2, color: '#16a34a' },
-                    { label: 'Aktivering', desc: 'Lugn ↔ Aktiv', value: (emotionResult as any).arousal, color: '#d97706' },
-                    { label: 'Dominans', desc: 'Submissiv ↔ Dominant', value: (emotionResult as any).dominance, color: '#7c3aed' },
+                    { label: 'Valens', desc: 'Neg ↔ Pos', value: ((emotionResult.valence ?? 0) + 1) / 2, color: '#16a34a' },
+                    { label: 'Aktivering', desc: 'Lugn ↔ Aktiv', value: emotionResult.arousal, color: '#d97706' },
+                    { label: 'Dominans', desc: 'Submissiv ↔ Dominant', value: emotionResult.dominance, color: '#7c3aed' },
                   ].map(dim => (
                     <div key={dim.label} className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
                       <div className="font-semibold text-gray-700 dark:text-gray-300">{dim.label}</div>

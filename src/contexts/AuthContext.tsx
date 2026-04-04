@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             await secureStorage.removeItem('user');
           }
 
-          if ((import.meta as any).env?.DEV) {
+          if (import.meta.env.DEV) {
             logger.debug('✅ Auth initialization completed', { restoredUser: !!refreshedToken });
           }
         }

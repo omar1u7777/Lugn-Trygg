@@ -5,6 +5,27 @@ import { initializePerformanceMonitoring, performanceMonitor } from '../services
 import { ArrowPathIcon, ArrowTrendingUpIcon, ChartBarIcon, ClockIcon, ExclamationTriangleIcon, CpuChipIcon, ServerIcon, SignalIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
+/** Non-standard Chrome memory API — not in lib.dom.d.ts */
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+interface ExtendedPerformance extends Performance {
+  memory?: PerformanceMemory;
+}
+
+/** PerformanceObserver entry for largest-contentful-paint (W3C) */
+interface LCPEntry extends PerformanceEntry {
+  startTime: number;
+}
+
+/** PerformanceObserver entry for layout-shift (W3C) */
+interface LayoutShiftEntry extends PerformanceEntry {
+  hadRecentInput: boolean;
+  value: number;
+}
+
 interface PerformanceMetrics {
   coreWebVitals: {
     cls: number;
@@ -61,7 +82,7 @@ const getRealWebVitals = () => {
 
 /** Get real memory usage if available */
 const getRealMemory = (): number => {
-  const perf = performance as any;
+  const perf = performance as ExtendedPerformance;
   if (perf.memory) {
     return Math.round(perf.memory.usedJSHeapSize / 1024 / 1024);
   }
@@ -179,7 +200,7 @@ const PerformanceDashboard: React.FC = () => {
     try {
       const lcpObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
-        const last = entries[entries.length - 1] as any;
+        const last = entries[entries.length - 1] as LCPEntry;
         if (last) {
           setMetrics(prev => ({
             ...prev,
@@ -195,8 +216,9 @@ const PerformanceDashboard: React.FC = () => {
       const clsObserver = new PerformanceObserver((list) => {
         let clsValue = 0;
         for (const entry of list.getEntries()) {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value;
+          const shiftEntry = entry as LayoutShiftEntry;
+          if (!shiftEntry.hadRecentInput) {
+            clsValue += shiftEntry.value;
           }
         }
         if (clsValue > 0) {

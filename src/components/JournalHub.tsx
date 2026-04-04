@@ -114,7 +114,7 @@ const JournalHub: React.FC = () => {
     }
   };
 
-  const calculateStreak = (moods: any[]) => {
+  const calculateStreak = (moods: Array<{ timestamp?: string }>) => {
     if (!moods.length) return 0;
     const today = new Date();
     let streak = 0;
@@ -122,7 +122,7 @@ const JournalHub: React.FC = () => {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const hasLog = moods.some((m: any) =>
+      const hasLog = moods.some((m) =>
         m.timestamp && m.timestamp.startsWith(dateStr)
       );
       if (hasLog) streak++;
@@ -167,8 +167,9 @@ const JournalHub: React.FC = () => {
       setSubmitMessage({ type: 'success', text: 'Dagboksanteckning sparad framgångsrikt! 🎉' });
       setTimeout(() => setSubmitMessage(null), 5000);
       if (zenMode) setZenMode(false); // Exit Zen mode on submit
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.error || error?.message || 'Ett fel uppstod';
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      const errorMessage = err?.response?.data?.error || err?.message || 'Ett fel uppstod';
       setSubmitMessage({ type: 'error', text: `Kunde inte spara: ${errorMessage}` });
       setTimeout(() => setSubmitMessage(null), 8000);
     } finally {
