@@ -425,6 +425,200 @@
           "order": "DESCENDING"
         }
       ]
+    },
+
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscription.status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subscription.status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "chat_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "breathing_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_time",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "breathing_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "referral_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "used",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "journal_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "journal_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "meditation_sessions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "meditation_sessions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+
+    {
+      "collectionGroup": "password_reset_tokens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "expires_at",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "used",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "password_reset_tokens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expires_at",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
