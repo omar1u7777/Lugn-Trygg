@@ -1,0 +1,446 @@
+﻿================================================================================
+   LUGN & TRYGG — FULLSTÄNDIG PROJEKTGRANSKNING FÖR PRODUKTIONSDEPLOY
+   Genererad: 2026-04-03
+   Totalt hittade problem: 200+
+================================================================================
+
+Denna rapport är brutalt ärlig. Allt som listas här MÅSTE åtgärdas eller
+dokumenteras som medvetet accepterat innan deploy till riktiga användare.
+
+================================================================================
+ SEKTION 1: KRITISKA SÄKERHETSPROBLEM (BLOCKERAR DEPLOY)
+================================================================================
+
+[S1] .env FILER MED EXPONERADE HEMLIGHETER
+    Filer: .env, .env.local (i projektets rot)
+    Exponerade:
+      - Firebase API Key
+      - OpenAI API Key (sk-proj-PepjW7KLnNm...)
+      - JWT Secret Keys (SECRET_KEY + REFRESH_SECRET_KEY)
+      - Google OAuth Client ID
+      - Stripe test-nycklar
+      - Krypteringsnycklar
+    ÅTGÄRD: Rotera ALLA nycklar OMEDELBART. Ta bort .env från git-historik
+            med git filter-branch eller BFG Repo-Cleaner.
+
+[S2] MASTER-KRYPTERINGSNYCKEL I REPO
+    Fil: api_keys/.master.key
+    Innehåll: JemMMbfzpLEtlAiLwC_Bl61qw9BdOBzPvUzm5-qTWg8=
+    ÅTGÄRD: Ta bort filen, rotera nyckeln, uppdatera all krypterad data.
+
+[S3] KRYPTERINGSNYCKEL MISMATCH FRONTEND/BACKEND
+    Frontend .env: VITE_ENCRYPTION_KEY=lugntrygg2025securekey32chars!
+    Backend .env:  ENCRYPTION_KEY=your_32_char_encryption_key_here (PLACEHOLDER!)
+    ÅTGÄRD: Sätt identisk krypteringsnyckel i båda miljöer.
+
+[S4] CSRF-TOKENFEL TYST GODKÄND
+    Fil: src/api/client.ts (rad ~111)
+    Problem: Om CSRF-token hämtning misslyckas loggas bara en varning,
+             requesten fortsätter utan CSRF-skydd.
+    ÅTGÄRD: Blockera request om CSRF-token saknas.
+
+[S5] HARDKODADE LOCALHOST-VÄRDEN I PRODUKTION
+    Filer med localhost-defaults som MÅSTE vara env-vars i produktion:
+      - Backend/src/config/settings.py (rad 63, 77, 82, 84)
+      - Backend/src/config/security_config.py (rad 78)
+      - Backend/src/config/__init__.py (rad 173, 197, 226-231)
+      - Backend/src/docs/swagger_config.py (rad 70)
+      - Backend/src/utils/openapi_config.py (rad 102)
+      - Backend/src/routes/integration_routes.py (rad 42, 244)
+      - Backend/src/routes/mood_routes.py (rad 74)
+      - Backend/src/routes/subscription_routes.py (rad 25)
+      - Backend/src/middleware/security_headers.py (rad 107) — CSP!
+    ÅTGÄRD: Använd ENBART env-variabler. Inga localhost-fallbacks i prod.
+
+[S6] WEBAUTHN VALIDERING BARA VARNAR I PRODUKTION
+    Fil: Backend/src/config/settings.py (rad 153-160)
+    Problem: Om webauthn_rp_id == "localhost" i prod loggas bara en varning.
+    ÅTGÄRD: raise ValueError() i produktion.
+
+[S7] FIREBASE KONFIGURATION MISSLYCKAS TYST
+    Fil: Backend/src/firebase_config.py (rad 338-352)
+    Problem: Om Firebase init misslyckas fortsätter appen ändå.
+    ÅTGÄRD: sys.exit(1) om Firebase inte kan initieras i produktion.
+
+[S8] ADMIN-FUNKTION RETURNERAR NONE VID FEL
+    Fil: Backend/src/routes/admin_routes.py (rad 45-51)
+    Problem: _get_user_safe() returnerar None vid Exception — kan leda
+             till auktoriserinsbuggar.
+    ÅTGÄRD: Hantera specifika exceptions, logga alltid.
+
+[S9] KÄNSLIG DATA I DEBUG-LOGGNING
+    Fil: Backend/src/firebase_config.py (rad 142)
+    Problem: Miljövariabler loggas med potentiellt känsliga värden.
+    ÅTGÄRD: Maskera alltid värden i produktion.
+
+[S10] ERROR HANDLER KAN LÄCKA DATA
+    Fil: Backend/src/middleware/error_handler.py (rad 110-120)
+    Problem: Maskeringslistan saknar: api_key, access_token, refresh_token,
+             api_secret.
+    ÅTGÄRD: Utöka maskeringslistan.
+
+================================================================================
+ SEKTION 2: DATABAS & FIRESTORE PROBLEM
+================================================================================
+
+[D1] N+1 QUERY-MÖNSTER (PRESTANDAKRITISKT)
+    Backend/src/routes/admin_routes.py:
+      - rad 169: len(list(users_ref.stream())) — hämtar ALLA användare
+      - rad 188: list(moods_ref.stream()) — alla moods utan paginering
+      - rad 197-199: Tre separata full-collection-skanningar
+      - rad 283: list(users_ref.stream()) — alla användare igen
+    Backend/src/routes/dashboard_routes.py:
+      - rad 215: list(moods_ref.stream()) — alla moods
+      - rad 303: list(chats_ref.stream()) — alla chattar
+      - rad 507/515: len(list(...stream())) — ineffektiv räkning
+    Backend/src/routes/auth_routes.py:
+      - rad 1237-1273: Dataexport itererar ALLA dokument i 5 collections
+    ÅTGÄRD: Implementera paginering, aggregate queries, batch-reads.
+
+[D2] SAKNADE FIRESTORE-INDEX (8+ SAKNAS)
+    Fil: firestore.indexes.json
+    Bara moods-collection har index. Saknas för:
+      - users (email, subscription.status)
+      - chat_sessions (timestamp queries)
+      - breathing_sessions (user_id + created_at)
+      - challenges (active status)
+      - referrals (code lookup)
+      - journal_entries (timestamp, search)
+      - meditation_sessions (timestamp queries)
+      - password_reset_tokens (expiry queries)
+    ÅTGÄRD: Lägg till compound indexes i firestore.indexes.json.
+
+[D3] SAKNAD PAGINERING PÅ STORA COLLECTIONS
+    Utan paginering:
+      - admin_routes.py — Admin-statistik laddar ALL data
+      - challenges_routes.py (rad 81) — Alla utmaningar
+      - biofeedback_ws_routes.py (rad 283-288) — Alla breathing sessions
+    ÅTGÄRD: Lägg till limit() + start_after() på alla listnings-queries.
+
+[D4] FIRESTORE RULES PROBLEM
+    Fil: firestore.rules
+    Problem:
+      - Inga document-level rate limiting regler
+      - Referral-regler kan möjliggöra missbruk (kan uppdatera)
+      - Subscription-data läsbar av ägare men bör vara backend-only
+    ÅTGÄRD: Stram åt regler, lägg till rate limiting.
+
+================================================================================
+ SEKTION 3: BACKEND-PROBLEM
+================================================================================
+
+[B1] 24+ TESTFILER I BACKEND-ROT (INTE I tests/)
+    Flytta till Backend/tests/:
+      test_ai_music.py, test_biofeedback_breathing.py,
+      test_biofeedback_quick.py, test_complete_system.py,
+      test_comprehensive_audit.py, test_crisis_nlp.py,
+      test_daily_insights_comprehensive.py, test_firebase_config_bom.py,
+      test_import_validation.py, test_logic_fixes.py,
+      test_memory_journal.py, test_memory_journal_complete.py,
+      test_memory_quick.py, test_mood.py, test_mood_final.py,
+      test_mood_simple.py, test_mood_tracking.py, test_mood_working.py,
+      test_voice_emotion.py, test_voice_live_http.py,
+      test_voice_service_only.py, e2e_chat_live_test.py,
+      e2e_live_chat_test.py, e2e_live_test.py
+
+[B2] DEBUG-LOGGFILER I BACKEND-ROT (TA BORT)
+      backend_err.txt, backend_err2.txt, backend_err3.txt,
+      backend_out.txt, backend_out2.txt, backend_out3.txt,
+      backend_start_capture.log, backend_start_stderr.log,
+      backend_start_stdout.log, test_results.txt, test_results_final.txt
+
+[B3] BROAD EXCEPTION-HANTERING (DÖLJER FEL)
+    Filer med "except Exception: pass" eller "return None":
+      - admin_routes.py (rad 50, 562) — pass / return None
+      - ai_routes.py (rad 23) — return None
+      - challenges_routes.py (rad 122) — return None
+      - chatbot_routes.py (rad 62, 562) — None / pass
+      - mood_routes.py (rad 196, 1191) — pass (dokumenterat men fel mönster)
+      - rewards_routes.py (rad 320) — pass
+    ÅTGÄRD: Specifik exception-hantering, logga alltid till Sentry.
+
+[B4] PRINT() ISTÄLLET FÖR LOGGER
+    Fil: Backend/src/services/daily_insight_service.py (rad 490)
+    ÅTGÄRD: Byt till logger.info().
+
+[B5] OFULLSTÄNDIGA FEATURES (STUB/501)
+    - integration_routes.py rad 783: Apple Health Sync → returnerar 501
+    - integration_routes.py rad 662+: Legacy wearable → MOCK DATA
+    - daily_insight_service_v2.py rad 737: Activity tracking → {}
+    ÅTGÄRD: Ta bort eller dokumentera som "Kommande".
+
+[B6] DOCKER-PROBLEM
+    - Dockerfile: Saknar HEALTHCHECK directive
+    - Dockerfile.production: Använder --user istället för venv
+    - Ingen icke-root user-isolation komplett
+    ÅTGÄRD: Lägg till HEALTHCHECK, använd venv, kör som non-root.
+
+[B7] MAIN.PY CONFIG-FALLBACK FÖR BRED
+    Fil: Backend/main.py (rad 38-50)
+    Problem: except Exception fångar ALLA config-fel.
+    ÅTGÄRD: Fånga specifika exceptions, fail fast i prod.
+
+[B8] REQUIREMENTS.TXT
+    Problem:
+      - marshmallow importeras men saknas i requirements.txt
+      - tensorflow-cpu 2.18.0 kan vara EOL
+      - torch nämns men är inte pinnad
+    ÅTGÄRD: Lägg till saknade dependencies, verifiera versioner.
+
+================================================================================
+ SEKTION 4: FRONTEND-PROBLEM
+================================================================================
+
+[F1] 59 CONSOLE.LOG/ERROR STATEMENTS I PRODUKTION
+    Filer (urval):
+      - src/hooks/useBreathingExerciseBiofeedback.ts (rad 282, 327, 405)
+      - src/components/RewardsHub.tsx (rad 79-83, 5 st)
+      - src/components/StoryInsights.tsx (rad 72-74)
+      - src/components/WorldClassAnalytics.tsx (rad 180-181)
+      - src/components/WorldClassGamification.tsx (rad 152-155)
+      - src/components/SuperMoodLogger.tsx (rad 392)
+    ÅTGÄRD: Ersätt alla med logger.ts utility. Ta bort console.*.
+
+[F2] 94 INSTANSER AV 'ANY' TYP
+    Filer (urval):
+      - src/contexts/AuthContext.tsx (rad 120)
+      - src/components/JournalHub.tsx (rad 117, 125, 170)
+      - src/components/VoiceChat.tsx (rad 334, 398, 604, 611-613)
+      - src/components/PerformanceDashboard.tsx (rad 64, 182, 198-199)
+      - src/hooks/usePMR.ts (rad 10)
+    ÅTGÄRD: Definiera proper TypeScript interfaces.
+
+[F3] PLACEHOLDER/ICKE-FUNKTIONELLA KOMPONENTER
+    - src/components/Charts/LazyChartWrapper.tsx — ALLA chart-komponenter
+      visar "Tillfälligt Otillgänglig" placeholder
+    - src/components/AnalyticsDashboard.tsx (rad 12) — "ADMIN ANALYTICS
+      DASHBOARD - Temporary Placeholder"
+    - src/config/chartConfig.ts (rad 34) — exporterar {}
+    - src/theme/theme.ts (rad 12) — "Placeholder exports"
+    ÅTGÄRD: Implementera eller ta bort. Användare ser broken UI.
+
+[F4] MOCK TRANSLATION SERVICE
+    Fil: src/hooks/useMultiLanguageChat.ts (rad 135-166)
+    Problem: mockTranslate() med hårdkodade översättningar och 500ms delay.
+             Visar "[EN] text" för icke-matchande text.
+    ÅTGÄRD: Implementera riktig translations-API eller ta bort funktionen.
+
+[F5] TODO/FIXME SOM BLOCKERAR
+    - src/components/Dashboard/DashboardActivity.tsx rad 183:
+      "TODO: Implement load more functionality" — click handler tom
+    - src/utils/logger.ts rad 148:
+      "TODO: Send to error tracking service" — Sentry ej kopplad
+
+[F6] ERRORHANDLING-GAPS
+    - SecurityMonitor.tsx (rad 44-46): .catch(() => null) — tyst
+    - LanguageSwitcher.tsx (rad 53): bara console.error, ingen user feedback
+    - ClinicalAssessment.tsx (rad 82): tyst fel
+    - useBreathingExerciseBiofeedback.ts: WebSocket-fel utan retry-UI
+
+[F7] ERRORBOUND OÄNDLIG RELOAD-RISK
+    Fil: src/components/ErrorBoundary.tsx (rad 81)
+    Problem: Vid chunk load error görs window.location.reload().
+             Kan skapa oändlig reload-loop om bundle är korrupt.
+    ÅTGÄRD: Lägg till reload-räknare i sessionStorage, max 3 retries.
+
+[F8] FIREBASE ANALYTICS KOMMENTERAD
+    Fil: src/firebase-config.ts (rad 58-62)
+    Problem: Analytics-initiering bortkommenterad med placeholder
+             measurementId 'G-XXXXXXXXXX'.
+    ÅTGÄRD: Aktivera med riktigt measurementId eller ta bort.
+
+[F9] DEPRECATED i18n FIL
+    Fil: src/i18n/i18n.ts — "Deprecated: Use index.ts"
+    ÅTGÄRD: Ta bort filen.
+
+================================================================================
+ SEKTION 5: INTEGRATION & DEPLOY-PROBLEM
+================================================================================
+
+[I1] VERCEL.JSON SAKNAR API-REWRITES
+    Fil: vercel.json
+    Problem: Inga rewrites för /api/* till backend.
+    ÅTGÄRD: Lägg till rewrites till backend-URL.
+
+[I2] RENDER.YAML OFULLSTÄNDIG
+    Fil: render.yaml
+    Problem:
+      - Inga miljövariabler definierade
+      - Free tier = restart var 15:e minut utan aktivitet
+      - Använder Waitress istället för Gunicorn
+    ÅTGÄRD: Lägg till env vars, uppgradera plan, byt till Gunicorn.
+
+[I3] DOCKER-COMPOSE MILJÖVARIABLER
+    Fil: docker-compose.yml
+    Problem:
+      - Frontend-container saknar Firebase env vars
+      - VITE_BACKEND_URL default = localhost
+    ÅTGÄRD: Lägg till alla VITE_* variabler.
+
+[I4] NGINX-KONFIGURATION
+    Fil: nginx.conf
+    Problem:
+      - Backend-adress hårdkodad (backend:5001)
+      - Rate limiting 5r/m för auth — för strikt
+      - Health check bara returnerar 200, kontrollerar inte backend
+      - Saknar request-logging
+    ÅTGÄRD: Parametrisera, justera rate limits, riktig health check.
+
+[I5] INKONSEKVENT API-KLIENT
+    Problem: Vissa komponenter använder fetch() direkt istället för
+             api-klientmodulen (src/api/).
+    Filer: src/hooks/useBreathingExerciseBiofeedback.ts (rad 345, 395)
+    ÅTGÄRD: Migrera alla fetch()-anrop till api-modulen.
+
+[I6] RESPONSE FORMAT MISMATCH
+    Backend: { status: 'success', data: {...}, timestamp: '...' }
+    Frontend: Förväntar sig flat struktur utan wrapper.
+    ÅTGÄRD: Standardisera response-format, uppdatera frontend-typer.
+
+================================================================================
+ SEKTION 6: DÖDA FILER ATT TA BORT
+================================================================================
+
+PROJEKT-ROT (Lugn-Trygg-main_klar/):
+  Rapporter (flytta till docs/ eller ta bort):
+    AI_CHAT_ASSISTANT_FULL_REPORT.md
+    AI_CHAT_FINAL_PRODUCTION_STATUS.md
+    AI_CHAT_FINAL_VERIFICATION.md
+    AI_CHAT_PRODUCTION_READINESS_CHECKLIST.md
+    COMPREHENSIVE_SECURITY_FIX_PLAN.md
+    CI_CD_STATUS_REPORT.md
+    FULL_SYSTEM_TEST_PLAN.md
+    MIGRATION_TO_SUPERMOODLOGGER.md
+    MOOD_TRACKING_IMPLEMENTATION.md
+    MOOD_TRACKING_INTEGRATION_STATUS.md
+    RELAXING_SOUNDS_PRODUCTION_READY.md
+    REQUIREMENTS_ANALYSIS.md
+    SECURITY_FIXES_REPORT.md
+    SUPERMOODLOGGER_COMPLETE.md
+    TEST_RESULTS_REPORT.md
+    WORKFLOW_AUDIT_REPORT.md
+    DEPLOY_READINESS_REPORT_2026-04-03.txt
+
+  Test-output (ta bort):
+    test_output.txt
+    test_output2.txt
+    test_results.txt
+
+  Temporära (ta bort):
+    temp_vercel.css
+
+  Build-artifacts (bör inte vara committed):
+    dist/
+    coverage/
+    playwright-report/
+
+C:\PROJEKT\ ROT (utanför repo):
+  Ta bort eller arkivera:
+    _fix_referral.py, _r.txt, _referral_test_out.txt,
+    analyze_audio.py, AUDIO_LIBRARY_WORKING.py,
+    FINAL_ASSESSMENT_WITH_FIXES.md, out_onboarding.txt,
+    ref_out.txt, RELAXING_SOUNDS_HONEST_REPORT.md,
+    run_cbt_tests.bat, run_tests.bat, run_wellness_tests.py,
+    test_audio_lib.py, test_backend_audio.py, test_final.txt,
+    test_urls.py, test_wellness_out.txt, verify_production.py
+
+FRONTEND DÖD KOD:
+    src/config/chartConfig.ts — tom export
+    src/theme/theme.ts — placeholder exports
+    src/i18n/i18n.ts — deprecated
+
+================================================================================
+ SEKTION 7: UI/UX PROBLEM
+================================================================================
+
+[U1] CHART-KOMPONENTER VISAR "TILLFÄLLIGT OTILLGÄNGLIG"
+    Alla chart-wrappers i LazyChartWrapper.tsx returnerar placeholder.
+    Användare ser broken data-visualisering.
+
+[U2] ADMIN ANALYTICS DASHBOARD ÄR PLACEHOLDER
+    AnalyticsDashboard.tsx visar bara "Temporary Placeholder".
+
+[U3] FLERSPRÅKSCHAT ÄR FAKE
+    useMultiLanguageChat.ts returnerar "[EN] originaltext" istället för
+    riktig översättning.
+
+[U4] DASHBOARD "LADDA MER" GÖR INGENTING
+    DashboardActivity.tsx "Load more" knapp har tom click handler.
+
+[U5] WEBSOCKET-FEL UTAN ANVÄNDERFEEDBACK
+    Biofeedback WebSocket-anslutning misslyckas tyst —
+    användaren ser ingen felindikation.
+
+[U6] TYST FEL VID SPRÅKBYTE
+    LanguageSwitcher loggar bara error, visar inget för användaren.
+
+[U7] OÄNDLIG RELOAD VID CHUNK-FEL
+    ErrorBoundary laddar om sidan vid chunk error utan max-gräns.
+
+================================================================================
+ SEKTION 8: SAMMANFATTNING & PRIORITERING
+================================================================================
+
+KRITISKT (BLOCKERAR DEPLOY):
+  [S1] Rotera alla exponerade nycklar/hemligheter
+  [S2] Ta bort master-krypteringsnyckel från repo
+  [S3] Fixa krypteringsnyckel-mismatch
+  [S5] Ta bort alla localhost-defaults för produktion
+  [S7] Firebase init måste blocka startup vid fel
+  [D1] Fixa N+1 queries (800+ användare, 41000+ mood logs = timeout)
+  [U1] Fixa eller ta bort broken chart-komponenter
+
+HÖGT (ÅTGÄRDA FÖRE LAUNCH):
+  [S4] CSRF-token failure måste blockera request
+  [D2] Lägg till saknade Firestore-index
+  [D3] Implementera paginering överallt
+  [F1] Ta bort alla 59 console.log/error
+  [F3] Implementera eller ta bort placeholder-komponenter
+  [I1] Konfigurera vercel.json API-rewrites
+  [I2] Lägg till env vars i render.yaml
+  [B6] Docker HEALTHCHECK + non-root user
+
+MEDEL (FÖRBÄTTRA EFTER LAUNCH):
+  [F2] Reducera 'any' typ-användning (94 instanser)
+  [F4] Implementera riktig översättningstjänst
+  [B3] Specifik exception-hantering istället för broad catch
+  [B1] Flytta testfiler till rätt mapp
+  [I4] Förbättra nginx-konfiguration
+  [I5] Migrera fetch() till api-klient
+
+LÅGT (TEKNISK SKULD):
+  [B2] Ta bort debug-loggfiler
+  [F9] Ta bort deprecated i18n.ts
+  [U6] Förbättra felmeddelanden till användare
+  Städa döda filer (Sektion 6)
+
+================================================================================
+ TOTAL RÄKNING
+================================================================================
+
+  Kritiska säkerhetsproblem:    10
+  Databasproblem:                4
+  Backend-problem:               8
+  Frontend-problem:              9
+  Integrationsproblem:           6
+  Döda filer:                   50+
+  UI/UX-problem:                 7
+  ---------------------------------
+  TOTALT:                       94+ specifika problem
+
+================================================================================
+ SLUTSATS
+================================================================================
+
+Projektet har en SOLID arkitektur och bra funktionalitet, men är INTE redo
+för produktion i nuvarande tillstånd. De kritiska problemen (exponerade
+hemligheter, N+1 queries med 41000+ dokument, broken UI-komponenter)
+MÅSTE åtgärdas först.
+
+Uppskattad arbetsinsats:
+  - Kritiskt (blockerar deploy): ~2-3 dagars arbete
+  - Högt (före launch):          ~3-5 dagars arbete
+  - Medel (efter launch):        ~1-2 veckors arbete
+  - Lågt (teknisk skuld):        löpande
+
+================================================================================
