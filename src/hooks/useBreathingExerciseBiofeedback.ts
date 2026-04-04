@@ -36,6 +36,7 @@ export interface BreathingPattern {
 
 export interface BreathingSession {
   sessionId: string;
+  userId: string;
   pattern: string;
   targetDuration: number;
   startTime: Date;
@@ -89,6 +90,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
   const [session, setSession] = useState<BreathingSession | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Refs
   const completionTriggeredRef = useRef(false);
@@ -282,6 +284,8 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       ws.onopen = () => {
         logger.info('Biofeedback WebSocket connected');
         setIsConnecting(false);
+        setConnectionError(null);
+        setRetryCount(0);
         
         // Join room for this user
         ws.send(JSON.stringify({
@@ -320,12 +324,16 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
 
       ws.onerror = (error) => {
         logger.error('WebSocket error', error as Error);
-        setConnectionError('Kunde inte ansluta till biofeedback');
+        setConnectionError('Kunde inte ansluta till biofeedback. Försök igen.');
         setIsConnecting(false);
       };
 
-      ws.onclose = () => {
-        logger.info('WebSocket closed');
+      ws.onclose = (event) => {
+        logger.info('WebSocket closed', { code: event.code });
+        if (event.code !== 1000 && sessionRef.current) {
+          setConnectionError('Anslutningen till biofeedback bröts. Försök igen.');
+        }
+        setIsConnecting(false);
       };
 
       wsRef.current = ws;
@@ -364,6 +372,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       if (data.success) {
         const newSession: BreathingSession = {
           sessionId: data.session_id,
+          userId,
           pattern: patternId,
           targetDuration: duration,
           startTime: new Date()
@@ -386,6 +395,20 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     
     return null;
   }, [useBiofeedback, connectBiofeedback]);
+
+  // Retry WebSocket connection after failure
+  const retryConnection = useCallback(async () => {
+    if (!sessionRef.current) {
+      setConnectionError('Ingen aktiv session att återansluta till.');
+      return;
+    }
+
+    setRetryCount((prev) => prev + 1);
+    setConnectionError(null);
+
+    const token = localStorage.getItem('token');
+    await connectBiofeedback(sessionRef.current.sessionId, token || '');
+  }, [connectBiofeedback]);
 
   // End backend session
   const endBackendSession = useCallback(async () => {
@@ -424,6 +447,8 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     setTotalSeconds(0);
     setPhase('exhale');
     setPhaseSecondsLeft(2);
+    setConnectionError(null);
+    setRetryCount(0);
     
     // Start backend session if biofeedback enabled
     if (useBiofeedback && userId) {
@@ -448,6 +473,8 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     setCycleCount(0);
     setTotalSeconds(0);
     setPhaseSecondsLeft(0);
+    setConnectionError(null);
+    setRetryCount(0);
     
     // End backend session
     if (useBiofeedback) {
@@ -498,12 +525,14 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     session,
     isConnecting,
     connectionError,
+    retryCount,
     
     // Actions
     start,
     pause,
     resume,
-    stop
+    stop,
+    retryConnection
   };
 };
 

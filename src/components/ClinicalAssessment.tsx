@@ -61,6 +61,7 @@ export const ClinicalAssessment: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'phq9' | 'gad7'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
 
@@ -74,11 +75,12 @@ export const ClinicalAssessment: React.FC = () => {
     // Check all questions answered
     const unanswered = questions.filter(q => responses[q.id] === undefined);
     if (unanswered.length > 0) {
-      alert(`Svara på alla frågor. ${unanswered.length} kvar.`);
+      setAssessmentError(`Svara på alla frågor. ${unanswered.length} kvar.`);
       return;
     }
 
     setLoading(true);
+    setAssessmentError(null);
     try {
       const endpoint = activeTab === 'phq9' ? '/advanced-mood/assess/phq9' : '/advanced-mood/assess/gad7';
       const res = await api.post(endpoint, { responses });
@@ -86,9 +88,13 @@ export const ClinicalAssessment: React.FC = () => {
       if (res.data?.success) {
         setResult(res.data.data);
         setExpanded(false);
+      } else {
+        setAssessmentError('Kunde inte beräkna resultatet. Försök igen.');
       }
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error('Assessment failed', e as Error);
+      const errorMessage = e instanceof Error ? e.message : 'Ett fel uppstod vid beräkning.';
+      setAssessmentError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -158,6 +164,12 @@ export const ClinicalAssessment: React.FC = () => {
           />
         </div>
       </div>
+
+      {assessmentError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
+          {assessmentError}
+        </div>
+      )}
 
       {/* Questions */}
       <AnimatePresence mode="wait">
