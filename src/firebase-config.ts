@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import type { FirebaseOptions } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -51,17 +52,16 @@ if (missingKeys.length > 0 && import.meta.env.DEV) {
 // Initialisera appen
 const app = initializeApp(firebaseOptions);
 
-// Initialisera Analytics om measurementId finns - DISABLED to prevent 403 errors
+// Initialisera Analytics om ett riktigt measurementId finns
 import type { Analytics } from 'firebase/analytics';
-const analytics: Analytics | null = null;
-// Analytics disabled to prevent permission errors in production
-// if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX' && firebaseConfig.measurementId !== undefined) {
-//   try {
-//     analytics = getAnalytics(app);
-//   } catch (error) {
-//     logger.warn('Firebase Analytics initialization failed', { error });
-//   }
-// }
+let analytics: Analytics | null = null;
+if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX') {
+  try {
+    analytics = getAnalytics(app);
+  } catch (error) {
+    logger.warn('Firebase Analytics initialization failed', { error });
+  }
+}
 
 // Exportera de nödvändiga Firebase-tjänsterna
 export const auth = getAuth(app);
