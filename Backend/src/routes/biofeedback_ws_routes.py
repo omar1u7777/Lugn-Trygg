@@ -280,12 +280,30 @@ def get_session_history():
 
         from src.firebase_config import db
 
-        sessions = db.collection('breathing_sessions').where(
-            filter=FieldFilter('user_id', '==', user_id)
-        ).order_by('start_time', direction='DESCENDING').limit(30)
+        # [D3] Cursor-based pagination: configurable limit + start_after
+        try:
+            page_size = min(int(request.args.get('limit', 30)), 100)
+        except (TypeError, ValueError):
+            page_size = 30
+        page_token = request.args.get('page_token')
+
+        query = (
+            db.collection('breathing_sessions')
+            .where(filter=FieldFilter('user_id', '==', user_id))
+            .order_by('start_time', direction='DESCENDING')
+            .limit(page_size + 1)  # fetch one extra to detect whether another page exists
+        )
+        if page_token:
+            cursor_doc = db.collection('breathing_sessions').document(page_token).get()
+            if cursor_doc.exists:
+                query = query.start_after(cursor_doc)
+
+        docs = list(query.stream())
+        has_next = len(docs) > page_size
+        docs = docs[:page_size]
 
         history = []
-        for doc in sessions.stream():
+        for doc in docs:
             data = doc.to_dict()
             history.append({
                 'session_id': data.get('session_id'),
@@ -298,7 +316,9 @@ def get_session_history():
         return {
             'success': True,
             'sessions': history,
-            'total': len(history)
+            'total': len(history),
+            'nextPageToken': docs[-1].id if has_next and docs else None,
+            'hasMore': has_next
         }
 
     except Exception as e:
