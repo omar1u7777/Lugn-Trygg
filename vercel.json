@@ -64,6 +64,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api",
+      "destination": "https://lugn-trygg-backend.onrender.com/api"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "https://lugn-trygg-backend.onrender.com/api/$1"
     },
