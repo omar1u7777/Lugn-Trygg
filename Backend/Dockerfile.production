@@ -12,9 +12,11 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy requirements and install Python dependencies into a venv
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Production
 FROM python:3.11-slim
@@ -36,8 +38,8 @@ RUN useradd -m -u 1000 appuser && \
 
 WORKDIR /app
 
-# Copy Python packages from builder
-COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+# Copy virtual environment from builder (owned by root, world-readable — safe for non-root use)
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY --chown=appuser:appuser . .
@@ -45,8 +47,8 @@ COPY --chown=appuser:appuser . .
 # Make sure scripts are executable
 RUN chmod +x deploy-production.sh || true
 
-# Set PATH to include user-installed packages
-ENV PATH=/home/appuser/.local/bin:$PATH
+# Use the venv; no user-site packages needed
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Switch to non-root user
 USER appuser
