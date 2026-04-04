@@ -487,7 +487,7 @@ def generate_daily_insights(user_id: str) -> list[TherapeuticInsight]:
     Example usage:
         insights = generate_daily_insights('user_123')
         for insight in insights:
-            print(f"{insight.title}: {insight.message}")
+            logger.info("%s: %s", insight.title, insight.message)
     """
     generator = get_insight_generator()
     return generator.generate_daily_insights(user_id)
