@@ -21,6 +21,7 @@ def _get_db():
     try:
         return db
     except Exception:
+        logger.exception("[B3] Failed to access Firestore db handle")
         return None
 
 

@@ -560,7 +560,7 @@ def chat_stream():
                             from ..services.rewards_helper import award_xp
                             award_xp(user_id, 'chatbot_conversation')
                         except Exception:
-                            pass
+                            logger.warning("[B3] Failed to award XP for chatbot_conversation", exc_info=True)
                     except Exception as save_err:
                         logger.warning(f"Failed to save streamed response: {save_err}")
 

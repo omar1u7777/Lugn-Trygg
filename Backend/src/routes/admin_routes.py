@@ -566,7 +566,7 @@ def get_system_health() -> Response | tuple[Response, int]:
                 db_handle.collection('health_check').document('test').get()
                 firebase_ok = True
         except Exception:
-            pass
+            logger.warning("[B3] Firebase health check ping failed — Firebase may be unavailable")
 
         # Get basic metrics
         metrics = performance_monitor.get_metrics() if hasattr(performance_monitor, 'get_metrics') else {}
