@@ -796,13 +796,18 @@ def sync_apple_health():
         if not user_id:
             return APIResponse.unauthorized('Authentication required')
 
-        # Apple Health integration would require HealthKit on iOS
-        # This is a stub that would need native iOS implementation
+        # [B5] Apple Health requires HealthKit — native iOS only, not available in this web backend.
+        # Documented as "Coming soon" — tracked in backlog.
         return APIResponse.error(
-            'Apple Health integration requires native iOS implementation',
-            error_code='NOT_IMPLEMENTED',
+            'Apple Health sync is not yet available in the web backend',
+            error_code='FEATURE_NOT_YET_AVAILABLE',
             status_code=501,
-            details={'note': 'Use React Native or native iOS app for Apple Health integration'}
+            details={
+                'feature': 'apple_health_sync',
+                'status': 'coming_soon',
+                'reason': 'Requires HealthKit — available only via a native iOS app',
+                'eta': 'Planned for native iOS release'
+            }
         )
 
     except Exception as e:
