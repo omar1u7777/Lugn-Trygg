@@ -45,6 +45,10 @@ export interface AnalyzeVoiceEmotionResponse {
   energyLevel: 'low' | 'medium' | 'high';
   speakingPace: 'slow' | 'normal' | 'fast';
   volumeVariation: 'low' | 'moderate' | 'high';
+  /** VAD model output — present when the backend includes dimensional affect scores */
+  valence?: number;
+  arousal?: number;
+  dominance?: number;
 }
 
 export interface VoiceServiceStatus {
