@@ -1231,10 +1231,15 @@ def export_user_data():
                     user_data.pop(field, None)
                 export_data['profile'] = user_data
 
+            # [D1] Each subcollection is capped at 10 000 documents to prevent
+            # unbounded reads during GDPR data export. Users with more data receive
+            # a truncation notice in the response envelope.
+            _EXPORT_LIMIT = 10_000
+
             # Get moods
             moods_ref = db.collection('users').document(user_id).collection('moods')
             moods = []
-            for doc in moods_ref.stream():
+            for doc in moods_ref.limit(_EXPORT_LIMIT).stream():
                 mood_data = doc.to_dict()
                 mood_data['id'] = doc.id
                 moods.append(mood_data)
@@ -1243,7 +1248,7 @@ def export_user_data():
             # Get memories
             memories_ref = db.collection('users').document(user_id).collection('memories')
             memories = []
-            for doc in memories_ref.stream():
+            for doc in memories_ref.limit(_EXPORT_LIMIT).stream():
                 memory_data = doc.to_dict()
                 memory_data['id'] = doc.id
                 memories.append(memory_data)
@@ -1252,7 +1257,7 @@ def export_user_data():
             # Get chat history
             chats_ref = db.collection('users').document(user_id).collection('chats')
             chats = []
-            for doc in chats_ref.stream():
+            for doc in chats_ref.limit(_EXPORT_LIMIT).stream():
                 chat_data = doc.to_dict()
                 chat_data['id'] = doc.id
                 chats.append(chat_data)
@@ -1261,7 +1266,7 @@ def export_user_data():
             # Get journal entries
             journal_ref = db.collection('users').document(user_id).collection('journal')
             journal_entries = []
-            for doc in journal_ref.stream():
+            for doc in journal_ref.limit(_EXPORT_LIMIT).stream():
                 entry_data = doc.to_dict()
                 entry_data['id'] = doc.id
                 journal_entries.append(entry_data)
@@ -1270,7 +1275,7 @@ def export_user_data():
             # Get meditation sessions
             meditation_ref = db.collection('users').document(user_id).collection('meditation_sessions')
             meditation_sessions = []
-            for doc in meditation_ref.stream():
+            for doc in meditation_ref.limit(_EXPORT_LIMIT).stream():
                 session_data = doc.to_dict()
                 session_data['id'] = doc.id
                 meditation_sessions.append(session_data)

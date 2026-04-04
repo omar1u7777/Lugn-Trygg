@@ -502,19 +502,19 @@ def get_quick_stats(user_id: str):
 
         # Quick count queries - CRITICAL FIX: Use correct subcollection paths
         try:
-            # Correct path: users/{user_id}/moods (subcollection)
-            moods_ref = db.collection('users').document(user_id).collection('moods').limit(1000)
-            total_moods = len(list(moods_ref.stream()))
+            # [D1] Use count() aggregate — avoids streaming all mood documents
+            moods_ref = db.collection('users').document(user_id).collection('moods')
+            total_moods = moods_ref.count().get()[0][0].value
         except Exception as e:
-            logger.warning(f"⚠️ Quick stats mood query failed: {e}")
+            logger.warning(f"⚠️ Quick stats mood count failed: {e}")
             total_moods = 0
 
         try:
-            # Correct path: users/{user_id}/conversations (subcollection)
-            chats_ref = db.collection('users').document(user_id).collection('conversations').limit(1000)
-            total_chats = len(list(chats_ref.stream()))
+            # [D1] Use count() aggregate — avoids streaming all conversation documents
+            chats_ref = db.collection('users').document(user_id).collection('conversations')
+            total_chats = chats_ref.count().get()[0][0].value
         except Exception as e:
-            logger.warning(f"⚠️ Quick stats chat query failed: {e}")
+            logger.warning(f"⚠️ Quick stats chat count failed: {e}")
             total_chats = 0
 
         stats_data = {
