@@ -733,8 +733,14 @@ class DailyInsightGeneratorV2:
             return []
 
     def _fetch_activity_patterns(self, user_id: str) -> dict:
-        """Fetch user activity patterns."""
-        return {}  # Placeholder for activity tracking integration
+        """Fetch user activity patterns.
+
+        [B5] Stub — activity tracking integration not yet implemented.
+        Returns an empty dict so callers receive a safe no-op result.
+        Tracked in backlog as 'coming soon'.
+        """
+        logger.debug("[B5] _fetch_activity_patterns is a stub; returning {} for user %s", user_id)
+        return {}
 
     def _save_insight(self, insight: TherapeuticInsight):
         """Save to Firestore."""
