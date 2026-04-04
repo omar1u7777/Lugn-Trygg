@@ -44,12 +44,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code
-COPY --chown=app:app . .
-
-# Create non-root user
+# Create non-root user BEFORE copying files so --chown is valid
 RUN useradd --create-home --shell /bin/bash --uid 10000 app \
     && chown -R app:app /app
+
+# Copy application code (user now exists, --chown resolves correctly)
+COPY --chown=app:app . .
 
 # Switch to non-root user
 USER app
