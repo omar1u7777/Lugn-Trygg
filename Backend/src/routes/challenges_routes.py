@@ -78,7 +78,8 @@ def _cleanup_firestore_expired(db):
         now = datetime.now(UTC)
         marked_inactive = 0
         challenges_ref = db.collection('challenges')
-        for doc in challenges_ref.stream():
+        # [D3] Batch cleanup — cap at 500 to avoid full-collection scan on each request
+        for doc in challenges_ref.limit(500).stream():
             data = doc.to_dict() or {}
             end_date = data.get('end_date')
             if not end_date:
@@ -266,15 +267,40 @@ def get_challenges():
         if db:
             _cleanup_firestore_expired(db)
             challenges_ref = db.collection('challenges')
+
+            # [D3] Cursor-based pagination: limit + start_after
+            try:
+                page_size = min(int(request.args.get('limit', 50)), 100)
+            except (TypeError, ValueError):
+                page_size = 50
+            page_token = request.args.get('page_token')
+
+            query = (
+                challenges_ref
+                .where(filter=FieldFilter('active', '==', True))
+                .order_by('created_at', direction='DESCENDING')
+                .limit(page_size + 1)  # fetch one extra to detect whether another page exists
+            )
+            if page_token:
+                cursor_doc = db.collection('challenges').document(page_token).get()
+                if cursor_doc.exists:
+                    query = query.start_after(cursor_doc)
+
+            docs = list(query.stream())
+            has_next = len(docs) > page_size
+            docs = docs[:page_size]
+
             challenges = []
-            for doc in challenges_ref.where(filter=FieldFilter('active', '==', True)).stream():
+            for doc in docs:
                 challenge_data = doc.to_dict()
                 challenge_data['id'] = doc.id
                 challenges.append(_to_camel_case_challenge(challenge_data))
 
             return APIResponse.success({
                 'challenges': challenges,
-                'source': 'firestore'
+                'source': 'firestore',
+                'nextPageToken': docs[-1].id if has_next and docs else None,
+                'hasMore': has_next
             })
 
         if not _can_use_memory():
@@ -647,8 +673,10 @@ def get_user_challenges(user_id: str):
         if db:
             _cleanup_firestore_expired(db)
             # Get all challenges where user is a member
+            # [D3] member-array filtering must be in-memory (nested object),
+            # so cap the stream at 500 active challenges to bound the scan.
             challenges_ref = db.collection('challenges')
-            for doc in challenges_ref.where(filter=FieldFilter('active', '==', True)).stream():
+            for doc in challenges_ref.where(filter=FieldFilter('active', '==', True)).limit(500).stream():
                 challenge_data = doc.to_dict()
                 members = challenge_data.get('members', [])
 
