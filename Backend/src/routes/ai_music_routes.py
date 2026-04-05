@@ -42,14 +42,14 @@ def get_available_soundscapes():
 def generate_soundscape():
     """
     Generate AI-powered soundscape.
-    
+
     Request body:
     {
         "type": "deep_sleep|meditation|focus|anxiety_relief|nature_sim|cosmic",
         "duration": 300,  # seconds (default 5 min, max 20 min)
         "mood": "anxious|stressed|tired"  # optional - for adaptive generation
     }
-    
+
     Returns track metadata and audio URL.
     """
     try:
@@ -287,7 +287,7 @@ def get_brainwave_info():
 def get_adaptive_recommendation():
     """
     Get AI soundscape recommendation based on current mood/state.
-    
+
     Request body:
     {
         "current_mood": "anxious|stressed|tired|energetic|calm",

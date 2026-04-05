@@ -219,11 +219,11 @@ class SemanticCrisisDetector:
     def detect(self, text: str, conversation_context: list[dict] | None = None) -> SemanticCrisisAssessment:
         """
         Perform semantic crisis detection on text.
-        
+
         Args:
             text: The message to analyze
             conversation_context: Optional list of recent conversation messages
-            
+
         Returns:
             SemanticCrisisAssessment with risk level and confidence
         """
@@ -262,7 +262,7 @@ class SemanticCrisisDetector:
                 semantic_indicators=indicators,
                 requires_immediate_attention=risk_level in ['high', 'critical'] or urgency_detected,
                 detected_concepts=detected_concepts,
-                embedding_similarity={name: score for name, score in concept_scores.items()}
+                embedding_similarity=dict(concept_scores.items())
             )
 
         except Exception as e:

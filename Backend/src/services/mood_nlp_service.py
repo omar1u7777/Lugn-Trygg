@@ -97,11 +97,11 @@ class SwedishMoodNLP:
     def analyze_mood_text(self, text: str, context: list[str] | None = None) -> MoodAnalysis:
         """
         Analyze mood from Swedish text using BERT embeddings.
-        
+
         Args:
             text: The mood text to analyze
             context: Previous mood entries for temporal context
-            
+
         Returns:
             MoodAnalysis with valence, arousal, clinical indicators
         """

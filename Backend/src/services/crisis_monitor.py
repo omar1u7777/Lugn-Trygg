@@ -84,7 +84,7 @@ class CrisisMonitorWebSocket:
         @self.socketio.on('disconnect', namespace='/crisis-monitor')
         def handle_disconnect():
             # Clean up session
-            for session_id, context in list(self.active_sessions.items()):
+            for session_id, _context in list(self.active_sessions.items()):
                 leave_room(session_id)
                 self._end_session(session_id)
 

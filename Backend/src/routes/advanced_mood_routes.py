@@ -114,11 +114,11 @@ advanced_mood_bp = Blueprint('advanced_mood', __name__)
 def analyze_mood_text():
     """
     Analyze mood text using Swedish BERT NLP.
-    
+
     Request:
         text: str - Mood description in Swedish
         include_clinical: bool - Include clinical markers
-    
+
     Response:
         valence: float (-1 to 1)
         arousal: float (0 to 1)
@@ -182,11 +182,11 @@ def analyze_mood_text():
 def get_advanced_forecast():
     """
     Get advanced mood forecast using Temporal Attention LSTM.
-    
+
     Query params:
         days: int (1-14, default 7)
         include_patterns: bool (discover temporal patterns)
-    
+
     Response:
         forecasts: list of daily predictions with confidence intervals
         temporal_patterns: discovered patterns (if requested)
@@ -310,10 +310,10 @@ def _fallback_forecast_endpoint():
 def assess_phq9():
     """
     Calculate PHQ-9 depression score.
-    
+
     Request:
         responses: dict with keys matching PHQ9 questions, values 0-3
-    
+
     Response:
         total_score, severity, risk_level, recommendations
     """
@@ -377,10 +377,10 @@ def assess_phq9():
 def assess_gad7():
     """
     Calculate GAD-7 anxiety score.
-    
+
     Request:
         responses: dict with keys matching GAD7 questions, values 0-3
-    
+
     Response:
         total_score, severity, risk_level, recommendations
     """
@@ -464,7 +464,7 @@ def get_assessment_history():
 def comprehensive_clinical_assessment():
     """
     Get comprehensive clinical risk assessment combining PHQ-9, GAD-7, and mood history.
-    
+
     Response:
         Full clinical risk assessment with interventions
     """
@@ -591,7 +591,7 @@ def get_quick_log_options():
 def suggest_tags():
     """
     Get AI-suggested tags based on journal note content.
-    
+
     Request:
         note: str
         current_tags: list (optional)

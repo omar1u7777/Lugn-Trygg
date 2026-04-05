@@ -83,7 +83,7 @@ class FeatureEngineer:
     def engineer_features(self, user_id: str, days_history: int = 30) -> np.ndarray | None:
         """
         Create feature vector for mood prediction.
-        
+
         Features extracted:
         - Mood statistics (mean, std, trend)
         - Sleep patterns (hours, consistency)
@@ -380,7 +380,7 @@ class MoodPredictor:
     def predict_next_week(self, user_id: str) -> MoodPrediction | None:
         """
         Predict mood for the next 7 days with confidence intervals.
-        
+
         Returns:
             MoodPrediction with predicted mood, confidence, and recommendations
         """
@@ -410,7 +410,7 @@ class MoodPredictor:
                 # Get feature importance
                 importance = self.rf_model.feature_importances_
                 feature_names = self._get_feature_names()
-                feature_importance = dict(zip(feature_names, importance))
+                feature_importance = dict(zip(feature_names, importance, strict=False))
                 feature_importance = dict(sorted(
                     feature_importance.items(),
                     key=lambda x: x[1],
@@ -552,7 +552,7 @@ class MoodPredictor:
         risk_factors = []
 
         feature_names = self._get_feature_names()
-        feature_dict = dict(zip(feature_names, features))
+        feature_dict = dict(zip(feature_names, features, strict=False))
 
         # Check various risk indicators
         if feature_dict.get('mood_trend', 0) < -0.05:
@@ -647,7 +647,7 @@ class MoodPredictor:
 
             # Create explanation
             top_features = []
-            for i, (name, value) in enumerate(zip(feature_names, shap_values[0])):
+            for _i, (name, value) in enumerate(zip(feature_names, shap_values[0], strict=False)):
                 if abs(value) > 0.01:  # Threshold for significance
                     top_features.append({
                         'feature': name,
@@ -685,10 +685,10 @@ class MoodPredictor:
 
         for feat in top_features:
             name = feat['feature']
-            contribution = feat['contribution']
+            feat['contribution']
             direction = feat['direction']
 
-            desc = feature_descriptions.get(name, name)
+            feature_descriptions.get(name, name)
 
             if 'mood_trend' in name and direction == 'negative':
                 explanations.append("Ditt humör har sjunkit de senaste dagarna")

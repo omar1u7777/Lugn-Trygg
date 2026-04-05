@@ -101,14 +101,14 @@ def _get_storage_url(blob) -> str:
 def create_multimedia_memory():
     """
     Create a unified memory with text, audio, AND photos.
-    
+
     This is the main endpoint for rich memory creation.
     Supports:
     - Text content (journal-style)
     - Voice/audio recording
     - Multiple photos (up to 10)
     - Combined AI analysis of all modalities
-    
+
     Request: multipart/form-data
     - content: text content (optional)
     - audio: audio file (optional)

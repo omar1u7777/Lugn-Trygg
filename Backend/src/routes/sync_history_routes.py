@@ -82,7 +82,7 @@ def get_sync_history():
                     ts_datetime = datetime.fromisoformat(ts.replace('Z', '+00:00'))
                 else:
                     ts_datetime = ts
-                
+
                 # Skip if before cutoff
                 if ts_datetime < cutoff_date:
                     continue

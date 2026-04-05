@@ -78,7 +78,7 @@ class TherapeuticInsight:
 class DailyInsightGeneratorV2:
     """
     Professional-grade insight generator with statistical rigor.
-    
+
     Improvements over v1:
     1. Statistical significance testing (not just counting)
     2. Effect size calculation (Cohen's d for clinical relevance)
@@ -193,7 +193,7 @@ class DailyInsightGeneratorV2:
     def generate_insights(self, user_id: str) -> list[TherapeuticInsight]:
         """
         Generate statistically-validated therapeutic insights.
-        
+
         Statistical approach:
         1. Time-series analysis with trend detection
         2. Correlation analysis for pattern detection
@@ -206,7 +206,7 @@ class DailyInsightGeneratorV2:
             # Extended data collection
             memories = self._fetch_memories(user_id, days=self.analysis_window)
             mood_data = self._fetch_mood_history(user_id, days=self.analysis_window)
-            activity_data = self._fetch_activity_patterns(user_id)
+            self._fetch_activity_patterns(user_id)
 
             if len(memories) < self.min_memories:
                 logger.info(f"Insufficient data for {user_id}")
@@ -291,7 +291,7 @@ class DailyInsightGeneratorV2:
             mean_s = statistics.mean(scores)
 
             # Calculate slope (beta)
-            numerator = sum((t - mean_t) * (s - mean_s) for t, s in zip(times, scores))
+            numerator = sum((t - mean_t) * (s - mean_s) for t, s in zip(times, scores, strict=False))
             denominator = sum((t - mean_t) ** 2 for t in times)
 
             if denominator == 0:
@@ -420,7 +420,7 @@ class DailyInsightGeneratorV2:
             mean_x = statistics.mean(x)
             mean_y = statistics.mean(y)
 
-            numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+            numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y, strict=False))
             denom_x = sum((xi - mean_x) ** 2 for xi in x)
             denom_y = sum((yi - mean_y) ** 2 for yi in y)
 

@@ -55,7 +55,7 @@ class ConversationMemory:
 class ChatRAGService:
     """
     Professional RAG service for therapeutic AI conversations
-    
+
     Features:
     - Semantic search across user's mental health data
     - Conversation memory with emotional trajectory tracking
@@ -144,13 +144,13 @@ class ChatRAGService:
     ) -> list[RetrievedContext]:
         """
         Retrieve relevant context from user's mental health data
-        
+
         Args:
             query: User's current message/query
             context_types: Types of context to search ['mood', 'journal', 'goals', 'strategies']
             max_results: Maximum number of results to return
             recency_days: Only consider data from last N days
-        
+
         Returns:
             List of RetrievedContext ordered by relevance
         """
@@ -418,7 +418,7 @@ class ChatRAGService:
     def augment_prompt(self, user_message: str, base_prompt: str) -> str:
         """
         Augment system prompt with retrieved context
-        
+
         This is the main entry point for RAG-enhanced conversations
         """
         # Retrieve relevant context
@@ -487,4 +487,3 @@ def get_chat_rag_service(user_id: str) -> ChatRAGService:
 
 
 # Lazy import os at module level for Pinecone check
-import os

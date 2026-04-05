@@ -672,7 +672,7 @@ def _fuse_text_sentiment(audio_result: VoiceEmotionResult, transcript: str) -> V
     Weights: 60 % audio, 40 % text.
     """
     text_lower = transcript.lower()
-    text_scores: dict[str, float] = {e: 0.0 for e in _EMOTION_TEXT_SIGNALS}
+    text_scores: dict[str, float] = dict.fromkeys(_EMOTION_TEXT_SIGNALS, 0.0)
 
     for emotion, keywords in _EMOTION_TEXT_SIGNALS.items():
         for kw in keywords:

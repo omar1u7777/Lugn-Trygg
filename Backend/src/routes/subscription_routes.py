@@ -11,7 +11,9 @@ except ImportError:
 
 import os
 
+# [C5] FRONTEND_URL validated centrally in config/__init__.py — import from there
 from ..config import (
+    FRONTEND_URL,  # noqa: E402
     STRIPE_PRICE_CBT_MODULE,
     STRIPE_PRICE_ENTERPRISE,
     STRIPE_PRICE_PREMIUM,
@@ -21,8 +23,6 @@ from ..config import (
 from ..config.subscription_config import load_subscription_plans
 from ..firebase_config import db
 
-# [C5] FRONTEND_URL validated centrally in config/__init__.py — import from there
-from ..config import FRONTEND_URL  # noqa: E402
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService

@@ -63,7 +63,7 @@ class MemoryPattern:
 class MemoryAnalysisService:
     """
     Professional AI service for memory analysis and therapeutic insights
-    
+
     Implements:
     - Swedish BERT-based text analysis
     - Multi-modal fusion (text + audio + metadata)
@@ -105,11 +105,11 @@ class MemoryAnalysisService:
     def analyze_text_memory(self, text: str, context: dict | None = None) -> MemoryAnalysisResult:
         """
         Analyze a text-based memory entry
-        
+
         Args:
             text: Memory content
             context: Additional context (date, location, associated mood)
-        
+
         Returns:
             MemoryAnalysisResult with AI insights
         """
@@ -154,7 +154,7 @@ class MemoryAnalysisService:
     ) -> MemoryAnalysisResult:
         """
         Analyze memory with multiple modalities (text + audio)
-        
+
         Implements fusion of text sentiment and audio emotion
         """
         results = []
@@ -194,7 +194,7 @@ class MemoryAnalysisService:
     def detect_memory_patterns(self, memories: list[dict]) -> list[MemoryPattern]:
         """
         Detect patterns across multiple memories
-        
+
         Identifies:
         - Recurring themes
         - Emotional arcs
@@ -280,7 +280,7 @@ class MemoryAnalysisService:
     def generate_life_narrative(self, memories: list[dict]) -> dict[str, Any]:
         """
         Generate a coherent life narrative from memory collection
-        
+
         Creates therapeutic story arcs and identifies key chapters
         """
         if len(memories) < 5:
@@ -622,12 +622,12 @@ def analyze_memory_entry(
 ) -> MemoryAnalysisResult:
     """
     Convenience function for memory analysis
-    
+
     Args:
         text: Memory text content
         audio_bytes: Audio recording (optional)
         metadata: Additional context
-    
+
     Returns:
         MemoryAnalysisResult with AI insights
     """
@@ -638,10 +638,10 @@ def analyze_memory_entry(
 def analyze_memory_collection(memories: list[dict]) -> dict[str, Any]:
     """
     Analyze a collection of memories for patterns and narrative
-    
+
     Args:
         memories: List of memory entries
-    
+
     Returns:
         Dictionary with patterns, narrative, and insights
     """

@@ -321,18 +321,18 @@ def log_mood() -> Response | tuple[Response, int]:
         # Get tags and context (from frontend MoodLogger)
         tags = data.get('tags', []) if data else []
         context = data.get('context', '') if data else ''
-        
+
         # INPUT SANITIZATION: Validate and sanitize text fields
         if note and len(note) > 2000:
             note = note[:2000]  # Truncate to prevent abuse
         if context and len(context) > 500:
             context = context[:500]
-        
+
         # Sanitize tags: limit count, length, and strip dangerous characters
         if not isinstance(tags, list):
             tags = [tags] if tags else []
         tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, str) and t.strip()]
-        
+
         # Get user-submitted score (1-10 scale)
         user_score = data.get('score') if data else None
         if user_score is not None:
@@ -547,7 +547,7 @@ def log_mood() -> Response | tuple[Response, int]:
                                    'hopplos', 'hopplös', 'vill inte leva', 'ta mitt liv',
                                    'hatar mig själv', 'värdelös', 'börda', 'far bättre utan mig']
                 has_crisis_keywords = bool(crisis_text) and any(kw in crisis_text.lower() for kw in crisis_keywords)
-                
+
                 if final_score <= 3 or has_crisis_keywords:
                     crisis_context = {
                         'user_id': user_id,
@@ -706,7 +706,7 @@ def get_moods() -> dict[str, Any] | tuple[dict[str, Any], int]:
 
         # Order by timestamp descending and limit results
         query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(limit)
-        
+
         # Apply offset pagination if provided
         if offset > 0:
             query = query.offset(offset)

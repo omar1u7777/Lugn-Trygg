@@ -108,12 +108,12 @@ class NeuralAmbientSynthesizer:
                                carrier_freq: float = 200) -> np.ndarray:
         """
         Generate binaural beat audio for brainwave entrainment.
-        
+
         Args:
             duration: Length in seconds
             binaural_freq: Beat frequency (Hz) - determines brainwave state
             carrier_freq: Base frequency for the sound
-        
+
         Returns:
             Stereo audio array (left/right channels)
         """
@@ -151,7 +151,7 @@ class NeuralAmbientSynthesizer:
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
 
         # Create pulse envelope (square wave with soft edges)
-        pulse_period = 1.0 / pulse_freq
+        1.0 / pulse_freq
         pulse = (np.sin(2 * np.pi * pulse_freq * t) > 0).astype(float)
         # Soften the edges
         pulse = self._soften_edges(pulse, samples=int(self.sample_rate * 0.01))
@@ -255,7 +255,7 @@ class NeuralAmbientSynthesizer:
             # Moving bandpass filter simulation
             audio = np.zeros_like(white)
             for i in range(0, samples, 1000):
-                center = 200 + 100 * np.sin(2 * np.pi * i / samples * 3)
+                200 + 100 * np.sin(2 * np.pi * i / samples * 3)
                 # Simple bandpass using IIR
                 alpha = 0.1
                 filtered = np.zeros(1000)
@@ -359,13 +359,13 @@ class AIMusicGenerationService:
                           target_mood: str | None = None) -> GeneratedTrack:
         """
         Generate a personalized AI soundscape.
-        
+
         Args:
             user_id: User identifier
             soundscape_type: Type of soundscape to generate
             duration: Length in seconds
             target_mood: Optional mood target for adaptation
-        
+
         Returns:
             GeneratedTrack with audio data
         """
