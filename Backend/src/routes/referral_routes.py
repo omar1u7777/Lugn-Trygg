@@ -418,7 +418,6 @@ def _process_referral_completion(
     successful_referrals = referral_data.get("successful_referrals", 0) + 1
     pending_referrals = max(0, referral_data.get("pending_referrals", 0) - 1)
 
-    base_rewards = successful_referrals
     bonus_rewards = (successful_referrals // 10) * 2
     tier_bonus = 0
     if successful_referrals >= 30:

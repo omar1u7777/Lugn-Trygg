@@ -17,15 +17,15 @@ Psychological basis:
 """
 
 import logging
+
+# WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
+import os as _os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
 import numpy as np
-
-# WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
-import os as _os
 
 try:
     from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -119,11 +119,11 @@ class HRVAnalyzer:
                               timestamps: list[datetime]) -> HRVMetrics:
         """
         Calculate HRV metrics from R-R intervals.
-        
+
         Args:
             rr_intervals: List of R-R intervals in milliseconds
             timestamps: Corresponding timestamps
-        
+
         Returns:
             HRVMetrics with resonance scoring
         """
@@ -192,7 +192,7 @@ class HRVAnalyzer:
         """Interpolate R-R intervals to even time grid."""
         try:
             # Convert timestamps to seconds
-            times = [(ts - timestamps[0]).total_seconds()
+            [(ts - timestamps[0]).total_seconds()
                     for ts in timestamps]
 
             # Cumulative time
@@ -250,7 +250,7 @@ class HRVAnalyzer:
         """
         Detect user's personal resonance breathing rate.
         Based on maximum HRV amplitude (Lehrer & Gevirtz, 2014).
-        
+
         Returns:
             Optimal breaths per minute for this user
         """
@@ -323,7 +323,7 @@ class BiofeedbackBreathingService:
     def start_session(self, user_id: str, pattern_type: str = 'coherence',
                      duration: int = 5) -> BreathingSession:
         """Start a new biofeedback breathing session.
-        
+
         Args:
             user_id: User ID
             pattern_type: Pattern name - accepts short ('coherence', 'relax', 'energize', 'sleep')
@@ -337,7 +337,7 @@ class BiofeedbackBreathingService:
             'energize': BreathingPattern.ENERGIZE_555,
             'sleep': BreathingPattern.SLEEP_446,
         }
-        
+
         # Try short name first, then full enum value, then default
         if pattern_type in short_to_enum:
             pattern = short_to_enum[pattern_type]
@@ -371,7 +371,7 @@ class BiofeedbackBreathingService:
         """
         Process incoming heart rate data and generate real-time feedback.
         Includes safety monitoring for abnormal heart rates.
-        
+
         This is called when new heart rate data arrives from:
         - Apple Watch (HealthKit)
         - Google Fit
@@ -436,7 +436,7 @@ class BiofeedbackBreathingService:
         elapsed = (datetime.now() - session.start_time).total_seconds()
         # Sum only numeric duration values (exclude 'description')
         cycle_duration = sum(v for v in pattern_config.values() if isinstance(v, (int, float)))
-        cycle_progress = (elapsed % cycle_duration) / cycle_duration if cycle_duration > 0 else 0
+        (elapsed % cycle_duration) / cycle_duration if cycle_duration > 0 else 0
 
         # Determine phase
         phase, phase_progress = self._get_phase_and_progress(

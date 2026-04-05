@@ -70,7 +70,7 @@ class TemporalPattern:
 class TemporalAttentionLSTM:
     """
     LSTM with attention mechanism for mood forecasting.
-    
+
     Architecture:
     - Bidirectional LSTM for temporal feature extraction
     - Multi-head attention for focusing on relevant time steps
@@ -170,7 +170,7 @@ class TemporalAttentionLSTM:
                         contextual_data: dict | None = None) -> np.ndarray:
         """
         Prepare feature vectors from mood entries with contextual data.
-        
+
         Features engineered:
         - Core: valence, arousal, dominance, intensity
         - Temporal: cyclical time encodings

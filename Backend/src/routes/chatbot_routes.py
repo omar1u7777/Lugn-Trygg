@@ -201,7 +201,7 @@ def chat_with_ai():
                 "role": msg_data.get("role"),
                 "content": msg_data.get("content")
             })
-        
+
         if len(recent_messages) > MAX_CONVERSATION_HISTORY:
             logger.warning(f"Conversation history truncated from {len(recent_messages)} to {MAX_CONVERSATION_HISTORY} for user {user_id}")
 
@@ -358,10 +358,10 @@ def chat_with_ai():
                             "user=%s, risk=%s. Last error: %s. REQUIRES MANUAL REVIEW.",
                             MAX_RETRIES, alert.user_id, alert.risk_level, last_error,
                         )
-                    
+
                     # Start escalation in background thread
                     escalation_thread = threading.Thread(
-                        target=escalate_async, 
+                        target=escalate_async,
                         args=(crisis_alert,),
                         daemon=True
                     )
@@ -488,7 +488,7 @@ def chat_stream():
                 "role": msg_data.get("role"),
                 "content": msg_data.get("content")
             })
-        
+
         if len(recent_docs) > MAX_STREAM_HISTORY:
             logger.warning(f"Stream conversation history truncated from {len(recent_docs)} to {MAX_STREAM_HISTORY} for user {user_id}")
 
@@ -684,7 +684,7 @@ Please provide a personalized response that considers this context while being n
     # 5. Track progress if available
     if PROGRESS_AVAILABLE and user_id:
         try:
-            tracker = get_progress_tracker(user_id)
+            get_progress_tracker(user_id)
             # This will be saved with the conversation for later analysis
             ai_response["progress_tracking_enabled"] = True
         except Exception as e:

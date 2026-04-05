@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class InsightNotificationScheduler:
     """
     Schedules and delivers proactive notifications with therapeutic insights.
-    
+
     Features:
     - Daily insight generation at optimal time per user
     - Smart delivery (avoid sleep hours, respect do-not-disturb)
@@ -199,11 +199,11 @@ class InsightNotificationScheduler:
     def trigger_immediate_insight(self, user_id: str, insight_type: str = 'checkin') -> str | None:
         """
         Trigger an immediate insight for a user (e.g., after crisis detection).
-        
+
         Args:
             user_id: Target user
             insight_type: Type of immediate insight needed
-        
+
         Returns:
             Insight ID if created, None otherwise
         """

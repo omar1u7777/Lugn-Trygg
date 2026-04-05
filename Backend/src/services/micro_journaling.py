@@ -50,7 +50,7 @@ class JournalEntry:
 class MicroJournalingService:
     """
     Intelligent micro-journaling that reduces friction and increases insights.
-    
+
     Features:
     - Smart prompts based on time, context, and history
     - One-tap mood logging with emoji + AI expansion

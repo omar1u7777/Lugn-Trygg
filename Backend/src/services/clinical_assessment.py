@@ -60,7 +60,7 @@ class ClinicalRiskAssessment:
 
 class PHQ9Assessment:
     """
-    Patient Health Questionnaire-9 (PHQ-9) 
+    Patient Health Questionnaire-9 (PHQ-9)
     Validated depression screening tool (Kroenke et al., 2001)
     """
 
@@ -88,11 +88,11 @@ class PHQ9Assessment:
     def calculate(cls, responses: dict[str, int]) -> PHQ9Result:
         """
         Calculate PHQ-9 score from responses.
-        
+
         Args:
             responses: Dict mapping question keys to scores (0-3)
                       0=Not at all, 1=Several days, 2=More than half the days, 3=Nearly every day
-        
+
         Returns:
             PHQ9Result with severity and recommendations
         """

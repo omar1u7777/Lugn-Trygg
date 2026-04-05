@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ClinicalFlaggingService:
     """
     Production-ready clinical flagging system.
-    
+
     Monitors mood patterns and triggers interventions based on:
     - Consecutive low mood days (< 3 for 5+ days)
     - Rapid mood decline
@@ -39,11 +39,11 @@ class ClinicalFlaggingService:
     ) -> dict[str, Any]:
         """
         Check for clinical flags in mood data.
-        
+
         Args:
             mood_entries: List of mood entries sorted by timestamp (newest first)
             user_id: User ID for logging
-            
+
         Returns:
             Dict with flag status, risk level, and recommendations
         """
@@ -107,7 +107,7 @@ class ClinicalFlaggingService:
     ) -> dict[str, Any] | None:
         """
         Check for consecutive days with mood < 3.
-        
+
         Returns flag if 5+ consecutive days detected.
         """
         if len(sorted_entries) < self.CONSECUTIVE_DAYS_THRESHOLD:

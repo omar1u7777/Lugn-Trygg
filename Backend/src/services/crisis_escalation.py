@@ -75,7 +75,7 @@ class EscalationResult:
 class CrisisEscalationService:
     """
     Multi-channel crisis escalation service.
-    Sends real-time notifications via SMS (Twilio), email (SendGrid), 
+    Sends real-time notifications via SMS (Twilio), email (SendGrid),
     and push notifications (Firebase Cloud Messaging).
     """
 
@@ -134,7 +134,7 @@ class CrisisEscalationService:
     async def escalate(self, alert: CrisisAlert) -> EscalationResult:
         """
         Execute full escalation protocol for a crisis alert.
-        
+
         Sequence:
         1. Immediate SMS to user (grounding + resources)
         2. SMS/Email to emergency contacts (if high/critical)
@@ -329,7 +329,7 @@ class CrisisEscalationService:
                             f"Kontakta personen snarast möjligt. "
                         )
 
-                    message = self.twilio_client.messages.create(
+                    self.twilio_client.messages.create(
                         body=sms_body,
                         from_=self.twilio_phone,
                         to=phone
@@ -371,12 +371,12 @@ class CrisisEscalationService:
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #d32f2f;">🚨 {urgency_text}</h2>
-                
+
                 <p>Hej {to_name},</p>
-                
-                <p>{user_name} har visat tecken på <strong>{alert.risk_level}</strong> 
+
+                <p>{user_name} har visat tecken på <strong>{alert.risk_level}</strong>
                 psykisk kris i Lugn & Trygg-appen för mental hälsa.</p>
-                
+
                 <div style="background: #ffebee; padding: 15px; border-left: 4px solid #d32f2f;">
                     <h3 style="margin-top: 0;">Information:</h3>
                     <ul>
@@ -385,12 +385,12 @@ class CrisisEscalationService:
                         <li><strong>Tid:</strong> {alert.timestamp.strftime('%Y-%m-%d %H:%M')}</li>
                     </ul>
                 </div>
-                
+
                 <h3>Upptäckta indikatorer:</h3>
                 <ul>
                     {''.join([f'<li>{ind}</li>' for ind in alert.detected_indicators[:5]])}
                 </ul>
-                
+
                 <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
                     <h3 style="margin-top: 0;">Vad du bör göra:</h3>
                     <p><strong>{action_text}</strong></p>
@@ -401,18 +401,18 @@ class CrisisEscalationService:
                         <li>Om akut fara - ring 112</li>
                     </ol>
                 </div>
-                
+
                 <h3>Nödresurser:</h3>
                 <ul>
                     <li><strong>112:</strong> Vid omedelbar fara</li>
                     <li><strong>90101:</strong> Självmordslinjen/Krisjouren (dygnet runt)</li>
                     <li><strong>1177:</strong> Vårdguiden</li>
                 </ul>
-                
+
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-                
+
                 <p style="font-size: 12px; color: #666;">
-                    Detta är ett automatiskt meddelande från Lugn & Trygg. 
+                    Detta är ett automatiskt meddelande från Lugn & Trygg.
                     Användaren har gett samtycke till att du kontaktas i krissituationer.
                 </p>
             </div>

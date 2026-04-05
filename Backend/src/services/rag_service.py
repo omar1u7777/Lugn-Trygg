@@ -224,7 +224,7 @@ class RAGService:
                           messages: list[dict], outcome: str = "neutral"):
         """
         Index a conversation for future retrieval.
-        
+
         Args:
             user_id: User identifier
             conversation_id: Conversation identifier
@@ -269,7 +269,7 @@ class RAGService:
                                context: str, effectiveness: float):
         """
         Index a coping strategy that worked for the user.
-        
+
         Args:
             user_id: User identifier
             strategy: Description of the coping strategy
@@ -320,7 +320,7 @@ class RAGService:
                          top_k: int = 5) -> RetrievedContext:
         """
         Retrieve relevant context for augmenting the AI prompt.
-        
+
         Returns:
             RetrievedContext with similar conversations, effective strategies, etc.
         """
@@ -385,7 +385,7 @@ class RAGService:
                                    base_system_prompt: str) -> str:
         """
         Generate an augmented system prompt with retrieved context.
-        
+
         This is the main RAG function - it personalizes the AI's response
         by adding user-specific context to the system prompt.
         """

@@ -103,7 +103,7 @@ def register_biofeedback_websocket_handlers(socketio):
 
             # Process in service
             service = get_biofeedback_service(socketio)
-            feedback = service.process_heart_rate_data(
+            service.process_heart_rate_data(
                 session_id, rr_intervals, parsed_timestamps
             )
 
@@ -118,7 +118,7 @@ def register_biofeedback_websocket_handlers(socketio):
     def handle_end_session(data):
         """End breathing session and get summary."""
         try:
-            user_id = getattr(request, 'user_id', None)
+            getattr(request, 'user_id', None)
             session_id = data.get('session_id')
 
             if not session_id:

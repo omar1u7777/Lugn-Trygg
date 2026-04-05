@@ -100,11 +100,11 @@ class PhotoAnalysisService:
     def analyze_photo(self, image_bytes: bytes, photo_id: str) -> PhotoAnalysisResult:
         """
         Analyze a photo and extract therapeutic insights.
-        
+
         Args:
             image_bytes: Raw image data
             photo_id: Unique photo identifier
-        
+
         Returns:
             PhotoAnalysisResult with AI insights
         """
@@ -117,7 +117,6 @@ class PhotoAnalysisService:
 
             # Extract basic metadata
             width, height = image.size
-            format_type = image.format
 
             # Color analysis
             color_mood = self._analyze_color_mood(image)
@@ -375,11 +374,11 @@ def get_photo_analysis_service() -> PhotoAnalysisService:
 def analyze_photo_for_memory(image_bytes: bytes, photo_id: str) -> PhotoAnalysisResult:
     """
     Convenience function for photo analysis.
-    
+
     Args:
         image_bytes: Raw image data
         photo_id: Unique identifier
-    
+
     Returns:
         PhotoAnalysisResult with AI insights
     """

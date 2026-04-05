@@ -29,7 +29,7 @@ mood_analytics_bp = Blueprint('mood_analytics', __name__)
 def get_correlation_analysis() -> Response | tuple[Response, int]:
     """
     Analyze correlation between tags and mood scores.
-    
+
     Query params:
         - days: Number of days to analyze (default: 30)
         - min_occurrences: Minimum tag occurrences (default: 3)
@@ -99,7 +99,7 @@ def get_correlation_analysis() -> Response | tuple[Response, int]:
 def get_clinical_flags() -> Response | tuple[Response, int]:
     """
     Check for clinical flags in user's mood data.
-    
+
     Returns flags for:
     - Consecutive low mood days (< 3 for 5+ days)
     - Rapid mood decline
@@ -159,7 +159,7 @@ def get_clinical_flags() -> Response | tuple[Response, int]:
 def get_impact_analysis() -> Response | tuple[Response, int]:
     """
     Get comprehensive impact analysis combining correlation and clinical data.
-    
+
     Returns:
     - Tag correlations
     - Clinical flags

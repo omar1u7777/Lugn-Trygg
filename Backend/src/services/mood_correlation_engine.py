@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class MoodCorrelationEngine:
     """
     Production-ready correlation engine for analyzing tag impact on mood scores.
-    
+
     Uses Pearson correlation coefficient for statistical accuracy.
     Implements minimum sample size requirements for clinical validity.
     """
@@ -38,11 +38,11 @@ class MoodCorrelationEngine:
     ) -> dict[str, Any]:
         """
         Analyze correlation between tags and mood scores.
-        
+
         Args:
             mood_entries: List of mood entries with 'score', 'tags', 'timestamp'
             min_occurrences: Minimum times a tag must appear to be analyzed
-            
+
         Returns:
             Dict with correlation results, impact analysis, and insights
         """
@@ -135,13 +135,13 @@ class MoodCorrelationEngine:
     ) -> dict[str, Any] | None:
         """
         Calculate statistical correlation for a single tag.
-        
+
         Returns correlation coefficient, p-value, and impact metrics.
         """
         try:
             # Calculate mean mood when tag is present
             tag_mean = np.mean(scores_with_tag)
-            tag_std = np.std(scores_with_tag)
+            np.std(scores_with_tag)
 
             # Calculate impact (difference from baseline)
             impact = tag_mean - baseline_mean
@@ -152,7 +152,7 @@ class MoodCorrelationEngine:
             if len(scores_with_tag) >= 2:
                 t_stat, p_value = stats.ttest_ind(scores_with_tag, all_scores)
             else:
-                t_stat, p_value = 0, 1.0
+                _t_stat, p_value = 0, 1.0
 
             # Determine significance
             is_significant = p_value < self.SIGNIFICANCE_THRESHOLD

@@ -4,9 +4,8 @@ Provides curated audio tracks for relaxation and meditation
 Uses external royalty-free audio sources + on-demand binaural beat generation
 """
 
-import logging
 import io
-from datetime import datetime
+import logging
 
 from flask import Blueprint, Response, make_response, request, send_file
 
@@ -437,7 +436,7 @@ def search_tracks():
 @AuthService.jwt_required
 def generate_audio():
     """Generate ambient binaural audio on-the-fly as fallback
-    
+
     Parameters:
     - type: 'ambient', 'rain', 'noise', 'binaural' (default: ambient)
     - brainwave: 'delta' (sleep), 'theta' (meditation), 'alpha' (relax), 'beta' (focus), 'gamma' (high focus)
@@ -445,11 +444,11 @@ def generate_audio():
     """
     if request.method == 'OPTIONS':
         return _preflight_response()
-    
+
     try:
         import numpy as np
         from scipy.io import wavfile
-        
+
         # Parameters
         audio_type = request.args.get('type', 'ambient')
         brainwave = request.args.get('brainwave', 'alpha')
@@ -457,7 +456,7 @@ def generate_audio():
             duration = min(int(request.args.get('duration', 600)), 3600)  # Max 1 hour
         except (ValueError, TypeError):
             duration = 600
-        
+
         # Brainwave frequencies (Hz) - scientifically validated
         frequencies = {
             'delta': 2.5,    # 0.5-4 Hz - deep sleep
@@ -466,49 +465,49 @@ def generate_audio():
             'beta': 20,      # 12-30 Hz - focus, concentration
             'gamma': 40      # 30-100 Hz - peak cognitive function
         }
-        
+
         freq = frequencies.get(brainwave, 10)  # Default to alpha
         sample_rate = 44100  # CD quality
-        
+
         # Generate time array
         t = np.linspace(0, duration, int(duration * sample_rate))
-        
+
         # Binaural beat: left ear at 100Hz + right ear at 100Hz + beat frequency difference
         carrier_freq = 100
         left_channel = np.sin(2 * np.pi * carrier_freq * t)
         right_channel = np.sin(2 * np.pi * (carrier_freq + freq) * t)
-        
+
         # Mix channels with binaural effect
         binaural = np.column_stack((left_channel, right_channel))
-        
+
         # Reduce amplitude to prevent clipping
         binaural = (binaural * 0.2).astype(np.float32)
-        
+
         # Create WAV file in memory
         buffer = io.BytesIO()
         wavfile.write(buffer, sample_rate, binaural)
         buffer.seek(0)
-        
+
         logger.info(f"Generated {audio_type} audio: {brainwave}Hz for {duration}s")
-        
+
         return send_file(
             buffer,
             mimetype='audio/wav',
             as_attachment=False,
             download_name=f'meditation-{brainwave}.wav'
         )
-        
+
     except ImportError:
         logger.warning("NumPy/SciPy not available, returning placeholder audio info")
         return APIResponse.error(
-            "Audio generation temporarily unavailable", 
-            "AUDIO_GEN_UNAVAILABLE", 
+            "Audio generation temporarily unavailable",
+            "AUDIO_GEN_UNAVAILABLE",
             503
         )
     except Exception as e:
         logger.exception(f"Error generating audio: {str(e)}")
         return APIResponse.error(
-            f"Failed to generate audio: {str(e)}", 
-            "AUDIO_GEN_ERROR", 
+            f"Failed to generate audio: {str(e)}",
+            "AUDIO_GEN_ERROR",
             500
         )
