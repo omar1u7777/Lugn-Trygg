@@ -349,6 +349,8 @@ def get_challenge(challenge_id: str):
                 return APIResponse.success({
                     'challenge': _to_camel_case_challenge(challenge_data)
                 })
+            # Firestore is reachable but the document doesn't exist → 404
+            return APIResponse.not_found('Challenge not found')
 
         if not _can_use_memory():
             return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)

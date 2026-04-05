@@ -15,7 +15,8 @@ class TestEmailServiceInit:
     @patch.dict('os.environ', {'RESEND_API_KEY': 'test_key', 'RESEND_FROM_EMAIL': 'test@example.com'})
     def test_init_with_api_key(self):
         """Test initialization with API key"""
-        with patch('src.services.email_service.resend'):
+        with patch('src.services.email_service.resend'), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True):
             service = EmailService()
 
             assert service.api_key == 'test_key'
@@ -35,7 +36,8 @@ class TestEmailServiceInit:
     @patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'})
     def test_init_default_from_email(self):
         """Test default from_email"""
-        with patch('src.services.email_service.resend'):
+        with patch('src.services.email_service.resend'), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True):
             service = EmailService()
 
             assert service.from_email == 'noreply@lugn-trygg.se'
@@ -48,11 +50,12 @@ class TestSendReferralInvitation:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_referral_invitation_success(self, service):
         """Test successful referral invitation"""
@@ -152,11 +155,12 @@ class TestSendReferralSuccessNotification:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_referral_success_notification_success(self, service):
         """Test successful referral success notification"""
@@ -216,11 +220,12 @@ class TestSendFeedbackConfirmation:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_feedback_confirmation_success(self, service):
         """Test successful feedback confirmation"""
@@ -281,11 +286,12 @@ class TestSendFeedbackAdminNotification:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_feedback_admin_notification_success(self, service):
         """Test admin feedback notification"""
@@ -355,11 +361,12 @@ class TestSendAnalyticsAlert:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_analytics_alert_success(self, service):
         """Test successful analytics alert"""
@@ -507,11 +514,12 @@ class TestSendHealthAlert:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_health_alert_success(self, service):
         """Test successful health alert"""
@@ -560,11 +568,12 @@ class TestSendEmailPrivateMethod:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_email_with_html_and_plain(self, service):
         """Test _send_email with both HTML and plain text"""
@@ -626,11 +635,12 @@ class TestEdgeCases:
     @pytest.fixture
     def service(self):
         """Create EmailService with mocked client"""
-        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}):
-            with patch('src.services.email_service.resend') as mock_resend:
-                service = EmailService()
-                service.client = mock_resend
-                return service
+        with patch.dict('os.environ', {'RESEND_API_KEY': 'test_key'}), \
+             patch('src.services.email_service.RESEND_AVAILABLE', True), \
+             patch('src.services.email_service.resend') as mock_resend:
+            service = EmailService()
+            service.client = mock_resend
+            return service
 
     def test_send_referral_invitation_empty_code(self, service):
         """Test referral invitation with empty code"""
