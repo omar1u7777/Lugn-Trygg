@@ -131,11 +131,29 @@ jobs:
         with:
           args: --redact
 
+  check-e2e-secrets:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    outputs:
+      has_secrets: ${{ steps.check.outputs.has_secrets }}
+    steps:
+      - name: Check required e2e secrets
+        id: check
+        env:
+          FB_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FB_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+        run: |
+          if [ -n "$FB_JSON" ] && [ -n "$FB_KEY" ]; then
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          fi
+
   live-e2e-production-like:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: lint-and-test
-    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' && secrets.FIREBASE_WEB_API_KEY != '' }}
+    needs: [lint-and-test, check-e2e-secrets]
+    if: needs.check-e2e-secrets.outputs.has_secrets == 'true'
     defaults:
       run:
         working-directory: ./Backend
