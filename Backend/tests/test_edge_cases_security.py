@@ -147,7 +147,7 @@ class TestSecurityEdgeCases:
 
     def test_expired_token(self, client):
         """Test with expired token - mock_jwt_required allows in test env"""
-        expired_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjB9.invalid'
+        expired_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjB9.invalid'  # gitleaks:allow
         headers = {'Authorization': f'Bearer {expired_token}'}
         response = client.get('/api/mood', headers=headers)
         # In test environment, mock_jwt_required allows all requests

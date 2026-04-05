@@ -85,7 +85,7 @@ class TestSaveFcmToken:
     def test_success(self, client, auth_csrf_headers):
         resp = client.post(
             f'{PREFIX}/fcm-token',
-            json={'fcmToken': 'dGVzdF90b2tlbl8xMjM0NTY3ODkwYWJjZGVm'},
+            json={'fcmToken': 'dGVzdF90b2tlbl8xMjM0NTY3ODkwYWJjZGVm'},  # gitleaks:allow
             headers=auth_csrf_headers,
         )
         assert resp.status_code == 200

@@ -160,7 +160,7 @@ test.describe('🚫 Error Scenario Tests', () => {
     expect(authErrorTest.unauthorized || authErrorTest.forbidden).toBe(true);
 
     // Test expired token scenario
-    const expiredToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjE2MDAwMDAwMDB9.invalid';
+    const expiredToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjE2MDAwMDAwMDB9.invalid'; // gitleaks:allow
 
     const expiredTokenTest = await page.evaluate(async ({ expiredToken, userId }) => {
       try {
