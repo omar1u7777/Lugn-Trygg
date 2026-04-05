@@ -39,33 +39,6 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
   const liveRegionRef = useRef<HTMLDivElement | null>(null);
   const assertiveLiveRegionRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize accessibility features
-  useEffect(() => {
-    detectAccessibilityFeatures();
-    setupLiveRegions();
-    setupKeyboardNavigation();
-    setupFocusManagement();
-
-    // Listen for preference changes
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const contrastQuery = window.matchMedia('(prefers-contrast: high)');
-    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handlePreferenceChange = () => {
-      detectAccessibilityFeatures();
-    };
-
-    mediaQuery.addEventListener('change', handlePreferenceChange);
-    contrastQuery.addEventListener('change', handlePreferenceChange);
-    colorSchemeQuery.addEventListener('change', handlePreferenceChange);
-
-    return () => {
-      mediaQuery.removeEventListener('change', handlePreferenceChange);
-      contrastQuery.removeEventListener('change', handlePreferenceChange);
-      colorSchemeQuery.removeEventListener('change', handlePreferenceChange);
-    };
-  }, []);
-
   const detectAccessibilityFeatures = useCallback(() => {
     const screenReaderActive = isScreenReaderActive();
     const highContrast = window.matchMedia('(prefers-contrast: high)').matches;
@@ -160,6 +133,33 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
       });
     }
   }, []);
+
+  // Initialize accessibility features
+  useEffect(() => {
+    detectAccessibilityFeatures();
+    setupLiveRegions();
+    const cleanupKeyboardNavigation = setupKeyboardNavigation();
+    setupFocusManagement();
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const contrastQuery = window.matchMedia('(prefers-contrast: high)');
+    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handlePreferenceChange = () => {
+      detectAccessibilityFeatures();
+    };
+
+    mediaQuery.addEventListener('change', handlePreferenceChange);
+    contrastQuery.addEventListener('change', handlePreferenceChange);
+    colorSchemeQuery.addEventListener('change', handlePreferenceChange);
+
+    return () => {
+      cleanupKeyboardNavigation();
+      mediaQuery.removeEventListener('change', handlePreferenceChange);
+      contrastQuery.removeEventListener('change', handlePreferenceChange);
+      colorSchemeQuery.removeEventListener('change', handlePreferenceChange);
+    };
+  }, [detectAccessibilityFeatures, setupFocusManagement, setupKeyboardNavigation, setupLiveRegions]);
 
   // Screen reader detection
   const isScreenReaderActive = (): boolean => {

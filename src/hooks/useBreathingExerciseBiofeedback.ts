@@ -269,7 +269,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       callbacksRef.current.onPhaseChange?.(currentPhase, phaseInstruction, secondsLeft);
     }
 
-  }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, pattern, targetCycles, stopTimer, useBiofeedback, biofeedback.coherenceScore, updateBiofeedbackVisualization]);
+  }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, pattern, targetCycles, stopTimer, useBiofeedback, biofeedback.coherenceScore, endBackendSession, updateBiofeedbackVisualization]);
 
   // WebSocket connection for biofeedback
   const connectBiofeedback = useCallback(async (sessionId: string, token: string) => {

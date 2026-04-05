@@ -26,6 +26,30 @@ import i18n from "./i18n";
 // Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
 
+// [B7] Initialize Sentry frontend error tracking.
+// @sentry/react is installed; VITE_SENTRY_DSN activates it.
+import * as Sentry from '@sentry/react';
+
+const _sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+if (_sentryDsn && _sentryDsn !== 'your_sentry_dsn') {
+  Sentry.init({
+    dsn: _sentryDsn,
+    environment: import.meta.env.MODE,
+    // Sample 10% of traces in production to limit volume
+    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+    // Do not send PII (GDPR / Swedish GDPR compliance)
+    sendDefaultPii: false,
+    integrations: [Sentry.browserTracingIntegration()],
+  });
+} else if (import.meta.env.PROD) {
+  // In production with no DSN: emit a console warning visible in server-side logs
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[B7] VITE_SENTRY_DSN is not set — frontend errors are not tracked in production. '
+    + 'Set VITE_SENTRY_DSN in your deployment environment variables.'
+  );
+}
+
 // Import ALL CSS statically so Vite injects them as <link> tags in the HTML.
 // Previously, most styles lived inside the lazy-loaded ProtectedAppShell
 // and never loaded on auth pages (login / register), leaving them unstyled.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -59,11 +59,7 @@ export const MoodForecastView: React.FC = () => {
   const [days, setDays] = useState(7);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchForecast();
-  }, [days]);
-
-  const fetchForecast = async () => {
+  const fetchForecast = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -97,7 +93,11 @@ export const MoodForecastView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [days]);
+
+  useEffect(() => {
+    fetchForecast();
+  }, [fetchForecast]);
 
   const getValenceColor = (valence: number) => {
     if (valence > 0.3) return '#10b981'; // emerald-500

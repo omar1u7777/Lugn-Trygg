@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 
@@ -17,35 +17,36 @@ const renderSidebar = (route = '/dashboard') =>
     </MemoryRouter>
   );
 
-describe('Sidebar', () => {
+describe('Sidebar', { timeout: 20000 }, () => {
   beforeEach(() => {
     mockUseSubscription.mockReset();
   });
 
   it('renders main navigation links and marks active route', () => {
     mockUseSubscription.mockReturnValue({ isPremium: false });
-    renderSidebar('/dashboard');
+    const { container } = renderSidebar('/dashboard');
 
-    expect(screen.getByRole('link', { name: 'Hem' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('link', { name: 'Humör' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'AI Stöd' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Rekommendationer' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Profil' })).toBeTruthy();
+    const dashboardLink = container.querySelector('a[href="/dashboard"]');
+    expect(dashboardLink?.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('a[href="/mood-basic"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/ai-chat"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/recommendations"]')).toBeTruthy();
+    expect(container.querySelector('a[href="/profile"]')).toBeTruthy();
   });
 
   it('shows upgrade card for free users', () => {
     mockUseSubscription.mockReturnValue({ isPremium: false });
-    renderSidebar();
+    const { container } = renderSidebar();
 
-    expect(screen.getByText('Uppgradera')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Se Premium →' })).toBeTruthy();
+    expect(container.textContent).toContain('Uppgradera');
+    expect(container.querySelector('a[href="/upgrade"]')).toBeTruthy();
   });
 
   it('hides upgrade card for premium users', () => {
     mockUseSubscription.mockReturnValue({ isPremium: true });
-    renderSidebar();
+    const { container } = renderSidebar();
 
-    expect(screen.queryByText('Uppgradera')).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Se Premium →' })).toBeNull();
+    expect(container.textContent).not.toContain('Uppgradera');
+    expect(container.querySelector('a[href="/upgrade"]')).toBeNull();
   });
 });

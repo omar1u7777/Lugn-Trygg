@@ -101,14 +101,35 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, user
       title: t('onboarding.step3Title'),
       description: t('onboarding.step3Desc'),
       icon: '🚀',
+      // [U2] Dynamically show the goals the user selected so they see what will be
+      // personalised on the Dashboard before they click "Starta".
       content: (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {t('onboarding.readyHeading')}
           </h3>
-          <p className="text-base text-gray-700 dark:text-gray-300">
-            {t('onboarding.readyBody')}
-          </p>
+          {selectedGoals.length > 0 ? (
+            <>
+              <p className="text-sm text-[#6d645d] dark:text-gray-400">
+                Ditt Dashboard anpassas nu efter dina {selectedGoals.length} valda mål:
+              </p>
+              <ul className="space-y-1.5" aria-label="Valda mål">
+                {selectedGoals.map((goal) => (
+                  <li key={goal} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" aria-hidden="true" />
+                    {goal}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-[#6d645d] dark:text-gray-400">
+                Du hittar anpassade övningar, insikter och rekommendationer direkt på Dashboarden när du startar.
+              </p>
+            </>
+          ) : (
+            <p className="text-base text-gray-700 dark:text-gray-300">
+              {t('onboarding.readyBody')}
+            </p>
+          )}
         </div>
       ),
     },

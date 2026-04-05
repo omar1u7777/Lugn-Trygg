@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase-config';
 
 interface ThemeContextType {
   isDarkMode: boolean;
@@ -31,6 +34,34 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Default to light mode on first visit for consistent auth entry experience.
     return false;
   });
+
+  // [U3] Track the Firebase UID of the currently signed-in user.
+  // We use a ref (not state) so changes don't trigger additional re-renders.
+  const uidRef = useRef<string | null>(null);
+
+  // [U3] When the user signs in, load their saved theme from Firestore so the
+  // preference follows them across devices. Uses merge:true so we never overwrite
+  // unrelated user fields.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const previousUid = uidRef.current;
+      uidRef.current = firebaseUser?.uid ?? null;
+
+      if (firebaseUser && !previousUid) {
+        // User just signed in — fetch their saved theme preference.
+        try {
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const savedTheme = snap.data()?.preferences?.theme as string | undefined;
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            setIsDarkMode(savedTheme === 'dark');
+          }
+        } catch {
+          // Firestore unavailable — localStorage value is the fallback.
+        }
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -69,7 +100,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+
+    // [U3] Persist the new preference to Firestore when a user is signed in,
+    // so it roams to other devices. localStorage (set by the existing useEffect)
+    // remains the fast local fallback.
+    const uid = uidRef.current;
+    if (uid) {
+      setDoc(
+        doc(db, 'users', uid),
+        { preferences: { theme: next ? 'dark' : 'light' } },
+        { merge: true }
+      ).catch(() => {
+        // Firestore write failed (e.g. offline) — localStorage still persists locally.
+      });
+    }
   };
 
   return (

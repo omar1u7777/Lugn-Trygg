@@ -118,6 +118,7 @@ schedule==1.2.2
 # Production Server
 gunicorn==22.0.0
 gevent==24.11.1
+flask-socketio==5.3.7      # [B2] WebSocket biofeedback — required, not optional
 
 # API Documentation (extended)
 flask-apispec==0.11.4

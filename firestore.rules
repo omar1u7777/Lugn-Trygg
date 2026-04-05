@@ -194,5 +194,94 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
       allow update, delete: if false;
     }
+
+    // ─── Peer chat messages ──────────────────────────────────────
+    // [DB2] Authenticated users can read/create messages in rooms they belong to.
+    // Only admins or the owning user can delete. Updates are blocked client-side
+    // to prevent message tampering (backend Admin SDK handles edits).
+    match /peer_chat_messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        resource.data.sender_id == request.auth.uid ||
+        resource.data.recipient_id == request.auth.uid ||
+        resource.data.room_participants.hasAny([request.auth.uid])
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.sender_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── User challenges ─────────────────────────────────────────
+    // [DB2] Users can read/join their own challenge participation records.
+    // Completion and scoring is written by backend only.
+    match /user_challenges/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.user_id == request.auth.uid;
+      // Backend Admin SDK records completion; block client progress tampering.
+      allow update, delete: if false;
+    }
+
+    // ─── Reward profiles ─────────────────────────────────────────
+    // [DB2] XP and badge profiles: users can read their own.
+    // Writes come exclusively from the backend reward engine.
+    match /reward_profiles/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ─── User devices (OAuth-connected) ──────────────────────────
+    // [DB2] Users can read their own device records; backend manages linking.
+    match /user_devices/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.user_id == request.auth.uid;
+      // Delinking goes through the API; block direct client deletes.
+      allow update, delete: if false;
+    }
+
+    // ─── Journal entries (root-level) ────────────────────────────
+    // [DB2] Encrypted entries; only the owner can read or write.
+    match /journal_entries/{entryId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── Onboarding data ─────────────────────────────────────────
+    // [DB2] Onboarding answers stored per user.
+    match /onboarding_data/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      // Allow updates (user may redo onboarding); deletes blocked except admin.
+      allow update: if isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    // ─── Daily usage quota ────────────────────────────────────────
+    // [DB2] Usage counters track daily API consumption per user.
+    // Users can read their own quota; the backend increments counters.
+    match /usage/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      // Block all client-side writes — updated exclusively by backend.
+      allow create, update, delete: if false;
+    }
+
+    // ─── AI chat history ─────────────────────────────────────────
+    // [DB2] Top-level chat_history docs are written by the backend AI service.
+    // Users can read their own conversation history read-only.
+    match /chat_history/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      // Created and updated only by backend (Admin SDK).
+      allow create, update, delete: if false;
+    }
+
+    // ─── AI-generated stories ────────────────────────────────────
+    // [DB2] AI stories are generated server-side and read-only for users.
+    match /ai_stories/{docId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if false;
+    }
   }
 }

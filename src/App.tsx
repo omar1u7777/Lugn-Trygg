@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/Layout/ProtectedRoute";
 import { usePageTracking } from "./hooks/useAnalytics";
 import { LoadingSpinner } from "./components/LoadingStates";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { FeatureErrorBoundary } from "./features/shared/FeatureErrorBoundary";
 import { PremiumGate } from "./components/PremiumGate";
 import { ROUTES, type RouteDefinition } from "./config/appRoutes";
 import AuthEntryLayout from "./components/Layout/AuthEntryLayout";
@@ -23,6 +24,14 @@ const renderRouteElement = (route: RouteDefinition) => {
             </PremiumGate>
         );
     }
+
+    // Wrap each feature in its own error boundary so failures don't crash the app
+    const featureName = route.path.replace(/^\//, '') || 'root';
+    element = (
+        <FeatureErrorBoundary featureName={featureName}>
+            {element}
+        </FeatureErrorBoundary>
+    );
 
     if (route.protected || route.requireAdmin) {
         element = (

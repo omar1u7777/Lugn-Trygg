@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -55,17 +55,49 @@ interface AssessmentResult {
   recommendations?: string[];
 }
 
+interface HistoryEntry {
+  id: string;
+  type: 'phq9' | 'gad7';
+  total_score: number;
+  severity: string;
+  risk_level: string;
+  timestamp: string;
+}
+
 export const ClinicalAssessment: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user: _user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'phq9' | 'gad7'>('phq9');
+  const [activeTab, setActiveTab] = useState<'phq9' | 'gad7' | 'history'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const questions = activeTab === 'phq9' ? PHQ9_QUESTIONS : GAD7_QUESTIONS;
+  const questions = activeTab === 'phq9' ? PHQ9_QUESTIONS : activeTab === 'gad7' ? GAD7_QUESTIONS : [];
+
+  // Load history whenever the history tab is selected
+  useEffect(() => {
+    if (activeTab !== 'history') return;
+    let mounted = true;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    api.get('/advanced-mood/assess/history')
+      .then(res => {
+        if (mounted && res.data?.success) {
+          setHistory(res.data.data.history ?? []);
+        }
+      })
+      .catch(err => {
+        logger.error('Assessment history load failed', err as Error);
+        if (mounted) setHistoryError('Kunde inte hämta historik');
+      })
+      .finally(() => { if (mounted) setHistoryLoading(false); });
+    return () => { mounted = false; };
+  }, [activeTab]);
 
   const handleResponse = (questionId: string, value: number) => {
     setResponses(prev => ({ ...prev, [questionId]: value }));
@@ -147,9 +179,70 @@ export const ClinicalAssessment: React.FC = () => {
         >
           GAD-7 (Ångest)
         </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+            activeTab === 'history'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Historik
+        </button>
       </div>
 
       {/* Progress Bar */}
+      {/* History tab */}
+      {activeTab === 'history' && (
+        <div className="space-y-3">
+          {historyLoading && (
+            <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400 text-sm">
+              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Hämtar historik…
+            </div>
+          )}
+          {!historyLoading && historyError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400">
+              {historyError}
+            </div>
+          )}
+          {!historyLoading && !historyError && history.length === 0 && (
+            <p className="text-center text-gray-400 dark:text-gray-500 py-12 text-sm">
+              Inga tidigare bedömningar hittades. Gör en PHQ-9 eller GAD-7 för att börja spåra din utveckling.
+            </p>
+          )}
+          {!historyLoading && history.map(entry => (
+            <div
+              key={entry.id}
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{entry.type === 'phq9' ? '🧠' : '😰'}</span>
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    {entry.type === 'phq9' ? 'PHQ-9 Depression' : 'GAD-7 Ångest'}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(entry.timestamp).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getSeverityColor(entry.severity)}`}>
+                  {entry.total_score} p — {entry.severity.replace('_', ' ')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Assessment UI — only for phq9/gad7 tabs */}
+      {activeTab !== 'history' && (<>
+
       <div className="mb-4">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>Framsteg</span>
@@ -299,6 +392,7 @@ export const ClinicalAssessment: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
     </div>
   );
 };

@@ -400,7 +400,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId]);
+  }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId, t]);
 
   const handleRefresh = useCallback((reason: 'manual' | 'interval' | 'visibility' | 'online' = 'manual') => {
     if (loading) {

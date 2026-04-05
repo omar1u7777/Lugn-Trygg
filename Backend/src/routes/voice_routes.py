@@ -12,10 +12,13 @@ from ..services.auth_service import AuthService
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
-from ..utils.speech_utils import transcribe_audio_google
+from ..utils.speech_utils import initialize_google_speech, transcribe_audio_google
 
 voice_bp = Blueprint('voice', __name__)
 logger = logging.getLogger(__name__)
+
+# [F1] Run credential check at module load so the startup log shows Google Speech status.
+_GOOGLE_SPEECH_READY = initialize_google_speech()
 
 # Import professional voice emotion analyzer (after logger is defined)
 try:
@@ -102,8 +105,16 @@ def transcribe_audio():
                 "language": language
             }, "Transcription successful")
         else:
-            # If Google Speech fails, suggest client fallback
-            logger.warning(f"⚠️ Transcription failed for user {user_id}, suggesting client fallback")
+            # Google Speech could not transcribe — tell frontend to fall back to Web Speech API.
+            import os as _os
+            if _os.getenv('FLASK_ENV', 'development').lower() == 'production':
+                logger.warning(
+                    "[F1] Google Speech-to-Text returned no transcript — "
+                    "may indicate credentials issue or unsupported audio format. "
+                    "Frontend will fall back to Web Speech API."
+                )
+            else:
+                logger.warning(f"⚠️ Transcription failed for user {user_id}, suggesting client fallback")
             return APIResponse.success({
                 "transcript": None,
                 "fallback": "web_speech_api",

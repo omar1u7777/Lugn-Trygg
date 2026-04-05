@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback, lazy, Suspense } from "react";
+import React, { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getAudioLibrary,
@@ -67,7 +67,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   }, [fetchAudioLibrary]);
 
   const currentCategory = audioLibrary[selectedCategory];
-  const currentPlaylist = currentCategory?.tracks || [];
+  const currentPlaylist = useMemo(() => currentCategory?.tracks || [], [currentCategory]);
   const categories = Object.values(audioLibrary);
 
   // Get localized text based on current language
@@ -78,55 +78,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     return isSwedish ? svText : enText;
   };
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.volume = volume;
-
-    const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration || 0);
-    const handleEnded = () => handleNextTrack();
-    const handleError = () => {
-      logger.warn(`Audio error for track: ${selectedTrack?.id}`);
-      // Try fallback generation before giving up
-      if (selectedTrack && !usingFallbackAudio) {
-        loadFallbackAudio('alpha', 300);
-      } else {
-        setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet. Försök med ett annat spår.'));
-        setIsPlaying(false);
-      }
-    };
-
-    audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-    };
-  }, [volume, t]);
-
-  useEffect(() => {
-    if (selectedTrack && audioRef.current) {
-      setAudioError(null);
-      audioRef.current.src = selectedTrack.url;
-      audioRef.current.load();
-      if (isPlaying) {
-        audioRef.current.play().catch(() => {
-          setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet.'));
-          setIsPlaying(false);
-        });
-      }
-    }
-  }, [selectedTrack, t]);
-
-    // Fallback audio generation endpoint
-    const loadFallbackAudio = async (brainwave: string = 'alpha', duration: number = 300) => {
+  const loadFallbackAudio = useCallback(async (brainwave: string = 'alpha', duration: number = 300) => {
       if (audioLoadingFallback) return;
     
       setAudioLoadingFallback(true);
@@ -173,7 +125,60 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       } finally {
         setAudioLoadingFallback(false);
       }
+    }, [audioLoadingFallback, isPlaying, t]);
+
+  const handleNextTrack = useCallback(() => {
+    if (currentPlaylist.length === 0) return;
+    const nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
+    const nextTrack = currentPlaylist[nextIndex];
+    if (nextTrack) selectTrack(nextTrack, nextIndex);
+  }, [currentPlaylist, currentTrackIndex]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.volume = volume;
+
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateDuration = () => setDuration(audio.duration || 0);
+    const handleEnded = () => handleNextTrack();
+    const handleError = () => {
+      logger.warn(`Audio error for track: ${selectedTrack?.id}`);
+      if (selectedTrack && !usingFallbackAudio) {
+        void loadFallbackAudio('alpha', 300);
+      } else {
+        setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet. Försök med ett annat spår.'));
+        setIsPlaying(false);
+      }
     };
+
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+    };
+  }, [handleNextTrack, loadFallbackAudio, selectedTrack, usingFallbackAudio, volume, t]);
+
+  useEffect(() => {
+    if (selectedTrack && audioRef.current) {
+      setAudioError(null);
+      audioRef.current.src = selectedTrack.url;
+      audioRef.current.load();
+      if (isPlaying) {
+        audioRef.current.play().catch(() => {
+          setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet.'));
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, [isPlaying, selectedTrack, t]);
 
   const selectTrack = (track: AudioTrack, index: number) => {
     setSelectedTrack(track);
@@ -198,13 +203,6 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet.'));
       setIsPlaying(false);
     }
-  };
-
-  const handleNextTrack = () => {
-    if (currentPlaylist.length === 0) return;
-    const nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
-    const nextTrack = currentPlaylist[nextIndex];
-    if (nextTrack) selectTrack(nextTrack, nextIndex);
   };
 
   const handlePreviousTrack = () => {

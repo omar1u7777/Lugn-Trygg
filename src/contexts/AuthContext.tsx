@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, [getE2ETestAuthPayload]); // Empty behavior but explicit dependency for hook safety
+  }, [getE2ETestAuthPayload, setIsInitialized]); // Empty behavior but explicit dependency for hook safety
 
   // 🔑 Kontrollera om användaren är inloggad (memoized for performance)
   const isLoggedIn = useMemo(() => {

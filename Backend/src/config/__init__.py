@@ -80,8 +80,45 @@ COOKIE_SECURE = not DEBUG
 # Cross-site frontend/backend setup (Vercel -> Render) requires SameSite=None in HTTPS production.
 COOKIE_SAMESITE = "None" if COOKIE_SECURE else "Lax"
 
-JWT_SECRET_KEY = get_env_variable("JWT_SECRET_KEY", required=True, hide_value=True)
-JWT_REFRESH_SECRET_KEY = get_env_variable("JWT_REFRESH_SECRET_KEY", required=True, hide_value=True)
+_JWT_WEAK_PATTERNS = (
+    "your-jwt-secret-key-here",
+    "your-jwt-refresh-secret-key-here",
+    "your-secret-key",
+    "change-me",
+    "changeme",
+    "secret-key-here",
+    "placeholder",
+    "insert-your",
+    "example-key",
+)
+
+
+def _validate_jwt_key(var_name: str, value: str) -> str:
+    """Reject JWT keys that are too short or contain known placeholder patterns."""
+    if len(value) < 32:
+        raise ValueError(
+            f"{var_name} must be at least 32 characters long. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    lower = value.lower()
+    for pattern in _JWT_WEAK_PATTERNS:
+        if pattern in lower:
+            raise ValueError(
+                f"{var_name} contains a known placeholder value ('{pattern}'). "
+                "Generate a strong secret: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            )
+    return value
+
+
+JWT_SECRET_KEY = _validate_jwt_key(
+    "JWT_SECRET_KEY",
+    get_env_variable("JWT_SECRET_KEY", required=True, hide_value=True),
+)
+JWT_REFRESH_SECRET_KEY = _validate_jwt_key(
+    "JWT_REFRESH_SECRET_KEY",
+    get_env_variable("JWT_REFRESH_SECRET_KEY", required=True, hide_value=True),
+)
 ACCESS_TOKEN_EXPIRES = timedelta(
     minutes=cast(int, get_env_variable("JWT_EXPIRATION_MINUTES", 15, cast_type=int))
 )
@@ -153,6 +190,60 @@ STRIPE_PRICE_CBT_MODULE = get_env_variable("STRIPE_PRICE_CBT_MODULE", "price_cbt
 STRIPE_WEBHOOK_SECRET = get_env_variable("STRIPE_WEBHOOK_SECRET", "", hide_value=True)
 
 ENCRYPTION_KEY = get_env_variable("ENCRYPTION_KEY", required=False, hide_value=True)
+
+# [C4] Enforce ENCRYPTION_KEY in production — must be present and not a placeholder
+_is_production = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
+if _is_production:
+    if not ENCRYPTION_KEY:
+        logger.critical(
+            "[C4] ENCRYPTION_KEY is not set in production. "
+            "Encrypted journal and memory data cannot be read or stored safely. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\" "
+            "and set the same value as VITE_ENCRYPTION_KEY in the frontend."
+        )
+        raise ValueError(
+            "[C4] ENCRYPTION_KEY must be set in production. "
+            "Set it in Backend/.env and set VITE_ENCRYPTION_KEY to the same value in the frontend .env."
+        )
+    _ENC_WEAK = (
+        "your-encryption-key",
+        "change-me",
+        "changeme",
+        "placeholder",
+        "example-key",
+        "insert-your",
+    )
+    for _p in _ENC_WEAK:
+        if _p in ENCRYPTION_KEY.lower():
+            raise ValueError(
+                f"[C4] ENCRYPTION_KEY contains a known placeholder ('{_p}'). "
+                "Generate: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
+    if len(ENCRYPTION_KEY) < 32:
+        raise ValueError("[C4] ENCRYPTION_KEY must be at least 32 characters in production.")
+
+_is_prod_for_frontend = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
+_raw_frontend_url = get_env_variable(
+    "FRONTEND_URL",
+    default=None if _is_prod_for_frontend else "http://localhost:3000",
+    required=False,
+)
+
+# [C5] Validate FRONTEND_URL centrally — route files import this instead of re-checking
+if _is_prod_for_frontend:
+    _furl = (_raw_frontend_url or "").strip()
+    if not _furl or "localhost" in _furl or "127.0.0.1" in _furl or not _furl.startswith("https://"):
+        logger.critical(
+            "[C5] FRONTEND_URL is missing or not a valid production HTTPS URL. "
+            "Backend cannot start safely. Set FRONTEND_URL in Backend/.env "
+            "(e.g. FRONTEND_URL=https://lugn-trygg.vercel.app)."
+        )
+        raise ValueError(
+            "[C5] FRONTEND_URL must be set to a production HTTPS URL (not localhost or empty). "
+            "Example: FRONTEND_URL=https://lugn-trygg.vercel.app"
+        )
+
+FRONTEND_URL: str = (_raw_frontend_url or "http://localhost:3000").rstrip("/")
 
 REDIS_HOST = get_env_variable("REDIS_HOST", "localhost")
 REDIS_PORT = cast(int, get_env_variable("REDIS_PORT", 6379, cast_type=int))

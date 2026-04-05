@@ -24,13 +24,22 @@ from typing import Any
 
 import numpy as np
 
-# WebSocket support
+# WebSocket support — flask-socketio is a REQUIRED dependency (see requirements.txt)
+import os as _os
+
 try:
     from flask_socketio import SocketIO, emit, join_room, leave_room
     SOCKETIO_AVAILABLE = True
 except ImportError:
     SOCKETIO_AVAILABLE = False
-    logging.warning("flask-socketio not available - WebSocket biofeedback disabled")
+    _B2_MSG = (
+        "[B2] flask-socketio is not installed — WebSocket biofeedback is DISABLED. "
+        "Run: pip install flask-socketio==5.3.7  (or rebuild the Docker image)."
+    )
+    if _os.getenv('FLASK_ENV', 'development') == 'production':
+        logging.critical(_B2_MSG)
+    else:
+        logging.warning(_B2_MSG)
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log

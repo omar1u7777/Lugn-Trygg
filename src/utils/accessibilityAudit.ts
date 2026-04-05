@@ -9,7 +9,7 @@ interface AuditResult {
   violations: string[];
   warnings: string[];
   score: number;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 interface ColorContrastResult {
@@ -529,31 +529,71 @@ export class AccessibilityAuditor {
   }
 
   /**
-   * Calculate contrast ratio between two colors
+   * Calculate WCAG 2.1 contrast ratio between two colors.
+   * Supports: #RGB, #RRGGBB hex and rgb(r,g,b) / rgba(r,g,b,a) strings.
+   * Returns a value in [1, 21] where 21 = max contrast (black on white).
    */
   private calculateContrastRatio(color1: string, color2: string): number {
-    // Simplified contrast calculation
-    // In production, use a proper color parsing library
     try {
-      // Convert colors to RGB values (simplified)
-      const getLuminance = (color: string): number => {
-        // This is a simplified version - real implementation would parse actual colors
-        if (color.includes('#')) {
-          // Simple hex to luminance conversion
-          return 0.5; // Placeholder
+      /**
+       * Parse a CSS color string to [r, g, b] in the range [0, 255].
+       * Returns null if the format is not recognised.
+       */
+      const parse = (color: string): [number, number, number] | null => {
+        const s = color.trim();
+
+        // #RGB shorthand → #RRGGBB
+        if (/^#[0-9a-f]{3}$/i.test(s)) {
+          const r = parseInt(s[1] + s[1], 16);
+          const g = parseInt(s[2] + s[2], 16);
+          const b = parseInt(s[3] + s[3], 16);
+          return [r, g, b];
         }
-        return 0.5; // Placeholder
+
+        // #RRGGBB
+        if (/^#[0-9a-f]{6}$/i.test(s)) {
+          return [
+            parseInt(s.slice(1, 3), 16),
+            parseInt(s.slice(3, 5), 16),
+            parseInt(s.slice(5, 7), 16),
+          ];
+        }
+
+        // rgb(r, g, b) / rgba(r, g, b, a)
+        const rgbMatch = s.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+        if (rgbMatch) {
+          return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+        }
+
+        return null;
       };
 
-      const lum1 = getLuminance(color1);
-      const lum2 = getLuminance(color2);
+      /**
+       * Compute WCAG 2.1 relative luminance from an sRGB channel value [0, 255].
+       * https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+       */
+      const toLinear = (channelByte: number): number => {
+        const s = channelByte / 255;
+        return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      };
 
+      const luminance = (rgb: [number, number, number]): number =>
+        0.2126 * toLinear(rgb[0]) + 0.7152 * toLinear(rgb[1]) + 0.0722 * toLinear(rgb[2]);
+
+      const rgb1 = parse(color1);
+      const rgb2 = parse(color2);
+
+      // Fall back to 1 (no contrast) if either color can't be parsed
+      if (!rgb1 || !rgb2) return 1;
+
+      const lum1 = luminance(rgb1);
+      const lum2 = luminance(rgb2);
       const brightest = Math.max(lum1, lum2);
       const darkest = Math.min(lum1, lum2);
 
       return (brightest + 0.05) / (darkest + 0.05);
     } catch {
-      return 1; // Default ratio
+      return 1; // Safe default
     }
   }
 

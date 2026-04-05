@@ -29,7 +29,6 @@ export class FeatureErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      user: null,
     };
   }
 
@@ -67,10 +66,6 @@ export class FeatureErrorBoundary extends Component<Props, State> {
   };
 
   render() {
-    // Use user variable to satisfy phantom ESLint error
-    const { user } = this.state;
-    void user;
-    
     if (this.state.hasError) {
       // Custom fallback provided
       if (this.props.fallback) {

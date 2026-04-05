@@ -10,6 +10,7 @@ from flask import Blueprint, g, request
 
 from src.services.auth_service import AuthService
 from src.services.biofeedback_breathing_service import SOCKETIO_AVAILABLE, BreathingPattern, get_biofeedback_service
+from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
 
@@ -177,15 +178,17 @@ def get_breathing_patterns():
                 'recommended_for': _get_recommendation(pattern)
             })
 
-        return {
-            'success': True,
-            'patterns': patterns,
-            'note': 'Coherence 6bpm optimized for HRV resonance (0.1Hz)'
-        }
+        return APIResponse.success(
+            data={
+                'patterns': patterns,
+                'note': 'Coherence 6bpm optimized for HRV resonance (0.1Hz)'
+            },
+            message='Breathing patterns retrieved'
+        )
 
-    except Exception as e:
-        logger.error(f"Failed to get patterns: {str(e)[:100]}")
-        return {'success': False, 'error': 'Failed to retrieve patterns'}, 500
+    except Exception:
+        logger.exception("Failed to get breathing patterns")
+        return APIResponse.error('Failed to retrieve patterns', 'INTERNAL_ERROR', 500)
 
 
 @biofeedback_ws_bp.route('/start', methods=['POST'])
@@ -202,16 +205,21 @@ def start_session_rest():
         service = get_biofeedback_service()
         session = service.start_session(user_id, pattern, duration)
 
-        return {
-            'success': True,
-            'session_id': session.session_id,
-            'pattern': session.pattern.value,
-            'ws_namespace': '/biofeedback' if SOCKETIO_AVAILABLE else None
-        }
+        return APIResponse.success(
+            data={
+                'session_id': session.session_id,
+                'pattern': session.pattern.value,
+                'ws_namespace': '/biofeedback' if SOCKETIO_AVAILABLE else None
+            },
+            message='Biofeedback session started'
+        )
 
-    except Exception as e:
-        logger.error(f"Failed to start session: {e}")
-        return {'success': False, 'error': str(e)}, 500
+    except ValueError as e:
+        logger.warning("Invalid session parameters: %s", e)
+        return APIResponse.bad_request(str(e))
+    except Exception:
+        logger.exception("Failed to start biofeedback session")
+        return APIResponse.error('Failed to start session', 'INTERNAL_ERROR', 500)
 
 
 @biofeedback_ws_bp.route('/data/<session_id>', methods=['POST'])
@@ -223,7 +231,7 @@ def submit_heart_rate_data(session_id: str):
         rr_intervals = data.get('rr_intervals', [])
 
         if not rr_intervals:
-            return {'success': False, 'error': 'No RR intervals provided'}, 400
+            return APIResponse.bad_request('No RR intervals provided')
 
         # Create timestamps
         timestamps = [datetime.now() - timedelta(seconds=i)
@@ -234,21 +242,26 @@ def submit_heart_rate_data(session_id: str):
             session_id, rr_intervals, timestamps
         )
 
-        return {
-            'success': True,
-            'feedback': {
-                'phase': feedback.phase,
-                'phase_progress': feedback.phase_progress,
-                'coherence': feedback.coherence_indicator,
-                'resonance': feedback.resonance_indicator,
-                'guidance': feedback.guidance,
-                'visualization': feedback.visualization_data
-            }
-        }
+        return APIResponse.success(
+            data={
+                'feedback': {
+                    'phase': feedback.phase,
+                    'phase_progress': feedback.phase_progress,
+                    'coherence': feedback.coherence_indicator,
+                    'resonance': feedback.resonance_indicator,
+                    'guidance': feedback.guidance,
+                    'visualization': feedback.visualization_data
+                }
+            },
+            message='Heart rate data processed'
+        )
 
-    except Exception as e:
-        logger.error(f"Failed to process data: {e}")
-        return {'success': False, 'error': str(e)}, 500
+    except ValueError as e:
+        logger.warning("Invalid HRV data for session %s: %s", session_id, e)
+        return APIResponse.bad_request(str(e))
+    except Exception:
+        logger.exception("Failed to process heart rate data for session %s", session_id)
+        return APIResponse.error('Failed to process heart rate data', 'INTERNAL_ERROR', 500)
 
 
 @biofeedback_ws_bp.route('/end/<session_id>', methods=['POST'])
@@ -259,14 +272,17 @@ def end_session_rest(session_id: str):
         service = get_biofeedback_service()
         summary = service.end_session(session_id)
 
-        return {
-            'success': True,
-            'summary': summary
-        }
+        return APIResponse.success(
+            data={'summary': summary},
+            message='Biofeedback session ended'
+        )
 
-    except Exception as e:
-        logger.error(f"Failed to end session: {e}")
-        return {'success': False, 'error': str(e)}, 500
+    except ValueError as e:
+        logger.warning("Invalid session end request for %s: %s", session_id, e)
+        return APIResponse.bad_request(str(e))
+    except Exception:
+        logger.exception("Failed to end biofeedback session %s", session_id)
+        return APIResponse.error('Failed to end session', 'INTERNAL_ERROR', 500)
 
 
 @biofeedback_ws_bp.route('/history', methods=['GET'])
@@ -313,17 +329,19 @@ def get_session_history():
                 'resonance_achieved': data.get('summary', {}).get('resonance_achieved')
             })
 
-        return {
-            'success': True,
-            'sessions': history,
-            'total': len(history),
-            'nextPageToken': docs[-1].id if has_next and docs else None,
-            'hasMore': has_next
-        }
+        return APIResponse.success(
+            data={
+                'sessions': history,
+                'total': len(history),
+                'nextPageToken': docs[-1].id if has_next and docs else None,
+                'hasMore': has_next
+            },
+            message='Session history retrieved'
+        )
 
-    except Exception as e:
-        logger.error(f"Failed to get history: {e}")
-        return {'success': False, 'error': str(e)}, 500
+    except Exception:
+        logger.exception("Failed to get biofeedback session history")
+        return APIResponse.error('Failed to get session history', 'INTERNAL_ERROR', 500)
 
 
 def _get_recommendation(pattern: BreathingPattern) -> list[str]:

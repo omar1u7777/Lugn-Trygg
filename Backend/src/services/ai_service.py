@@ -18,6 +18,7 @@ from src.utils.timestamp_utils import parse_iso_timestamp
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 
 configure_hf_cache()
@@ -58,6 +59,19 @@ class AIServices:
         # Cache for trained ML models to avoid retraining on every request
         self._ml_model_cache = {}
         self._model_cache_ttl = 3600  # 1 hour cache for ML models
+
+        # [B4] Eager production check — warn immediately at startup if OpenAI is unconfigured.
+        # OpenAI is optional in dev but strongly recommended in production for full AI quality.
+        if _IS_PRODUCTION and not os.getenv('OPENAI_API_KEY'):
+            logger.warning(
+                "[B4] OPENAI_API_KEY is not set in this PRODUCTION environment. "
+                "The following features will degrade gracefully but have significantly reduced quality: "
+                "(1) /ai/story — returns static template text instead of GPT-generated stories; "
+                "(2) /ai/forecast — falls back to basic trend analysis instead of GPT forecast; "
+                "(3) AI chat — uses keyword-matching instead of GPT responses. "
+                "Set OPENAI_API_KEY to restore full AI functionality."
+            )
+
         logger.info(f"🤖 AI Services initialized - Google NLP: {self.google_nlp_available}, OpenAI: lazy loaded")
 
     def get_openai_client(self):
@@ -112,7 +126,12 @@ class AIServices:
                 logger.error(f"Failed to initialize OpenAI client: {str(e)}")
                 return False
         else:
-            logger.warning("OPENAI_API_KEY not set")
+            if _IS_PRODUCTION:
+                logger.warning(
+                    "[B4] OPENAI_API_KEY not set — AI Stories, Forecast and Chat are running in degraded mode."
+                )
+            else:
+                logger.warning("OPENAI_API_KEY not set — AI features will use fallback logic")
             return False
 
     def analyze_sentiment(self, text: str) -> dict[str, Any]:

@@ -121,6 +121,25 @@ def get_mood_predictions():
 
         mood_data = extract_mood_entries(mood_docs)
 
+        # [F10] Guard: new users don't have enough data to make meaningful predictions.
+        # Return a user-friendly "not ready yet" response instead of a 400 error.
+        MIN_ENTRIES = 10
+        if len(mood_data) < MIN_ENTRIES:
+            return APIResponse.success(
+                {
+                    'ready': False,
+                    'entries_current': len(mood_data),
+                    'entries_needed': MIN_ENTRIES,
+                    'message': (
+                        f'Logga {MIN_ENTRIES - len(mood_data)} till humörregistrering'
+                        f'{"ar" if MIN_ENTRIES - len(mood_data) != 1 else ""} '
+                        'för att låsa upp humörprediktioner.'
+                    ),
+                    'predictions': [],
+                },
+                "Not enough data for predictions yet"
+            )
+
         # Generate predictions
         result = predictive_service.predict_mood_trend(mood_data, days_ahead)
 

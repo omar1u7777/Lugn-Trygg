@@ -7,6 +7,8 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
+
 # Try to import resend, fallback to mock if not available
 try:
     import resend
@@ -53,7 +55,14 @@ class EmailService:
         self.from_name = os.getenv('RESEND_FROM_NAME', 'Lugn & Trygg')
 
         if not self.api_key:
-            logger.warning("⚠️ RESEND_API_KEY not set - email sending disabled")
+            if _IS_PRODUCTION:
+                logger.warning(
+                    "[F5] RESEND_API_KEY is not set in production — email sending is DISABLED. "
+                    "Referral invitation emails, password reset emails, and notification emails "
+                    "will NOT be sent. Set RESEND_API_KEY (from https://resend.com) to enable email."
+                )
+            else:
+                logger.warning("⚠️ RESEND_API_KEY not set - email sending disabled")
             self.client = None
             self.enabled = False
         else:

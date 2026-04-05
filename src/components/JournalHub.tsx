@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import OptimizedImage from './ui/OptimizedImage';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
@@ -58,27 +58,7 @@ const JournalHub: React.FC = () => {
   /* Zen Mode State */
   const [zenMode, setZenMode] = useState(false);
 
-  useEffect(() => {
-    logger.debug('JournalHub mounted', { userId: user?.user_id, activeTab });
-    loadJournalStats();
-  }, [user?.user_id]);
-
-  useEffect(() => {
-    logger.debug('Tab changed', { activeTab });
-  }, [activeTab]);
-
-  /* Keyboard shortcut for Zen Mode (Esc to exit) */
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && zenMode) {
-        setZenMode(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [zenMode]);
-
-  const loadJournalStats = async () => {
+  const loadJournalStats = useCallback(async () => {
     // ... (keep existing implementation)
     logger.debug('Loading journal stats', { userId: user?.user_id });
     if (!user?.user_id) {
@@ -112,7 +92,27 @@ const JournalHub: React.FC = () => {
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, [user?.user_id]);
+
+  useEffect(() => {
+    logger.debug('JournalHub mounted', { userId: user?.user_id });
+    loadJournalStats();
+  }, [user?.user_id, loadJournalStats]);
+
+  useEffect(() => {
+    logger.debug('Tab changed', { activeTab });
+  }, [activeTab]);
+
+  /* Keyboard shortcut for Zen Mode (Esc to exit) */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && zenMode) {
+        setZenMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zenMode]);
 
   const calculateStreak = (moods: Array<{ timestamp?: string }>) => {
     if (!moods.length) return 0;

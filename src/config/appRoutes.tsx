@@ -2,12 +2,14 @@ import { lazy } from 'react';
 import type { FeatureName } from '@/components/PremiumGate';
 import LoginForm from '@/components/Auth/LoginForm'; // Critical for LCP: load immediately
 import RegisterForm from '@/components/Auth/RegisterForm';
+import { withFeatureErrorBoundary } from '@/features/shared/FeatureErrorBoundary';
 import {
   DailyInsightsWrapper,
   OnboardingFlowWrapper,
   PrivacySettingsWrapper,
   WorldClassAIChatWrapper,
-  WorldClassMoodLoggerWrapper,
+  // [D6] WorldClassMoodLoggerWrapper removed — identical to MoodLoggerBasicWrapper.
+  // Use /mood-basic (referenced in Sidebar, BottomNav, Dashboard).
   WorldClassGamificationWrapper,
   RelaxingSoundsWrapper,
   MoodLoggerBasicWrapper,
@@ -83,9 +85,13 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/ai-chat', component: WorldClassAIChatWrapper, protected: true },
   // Advanced AI Chat Routes (2026)
   { path: '/ai-chat/insights', component: AIChatInsights, protected: true, feature: 'insights', featureTitle: 'AI-samtalsinsikter är en Premium-funktion' },
-  { path: '/voice-chat', component: VoiceChat, protected: true, feature: 'voiceChat', featureTitle: 'Röstchatt är en Premium-funktion' },
+  // [D6] /voice = standalone voice recorder/transcription (VoiceRecorder, public route)
+  //       /voice-chat = premium AI voice conversation (VoiceChat + chatWithAI, premium)
+  //       These serve distinct purposes and are intentionally separate.
   { path: '/voice', component: VoicePage, protected: true },
-  { path: '/mood-logger', component: WorldClassMoodLoggerWrapper, protected: true },
+  { path: '/voice-chat', component: VoiceChat, protected: true, feature: 'voiceChat', featureTitle: 'Röstchatt är en Premium-funktion' },
+  // [D6] /mood-logger removed — was identical to /mood-basic (both render SuperMoodLogger).
+  //       Sidebar, BottomNav, and Dashboard all link to /mood-basic.
   { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
   { path: '/mood-list', component: MoodListWrapper, protected: true },
   // Advanced Mood Tracking Routes (2026)

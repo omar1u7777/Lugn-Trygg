@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import {
@@ -13,6 +13,8 @@ import {
   TrophyIcon,
   UserGroupIcon,
   MicrophoneIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -36,10 +38,15 @@ interface NavItem {
   premium?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
+/** Always-visible items (available on the free plan). */
+const FREE_NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
+];
+
+/** [U1] Premium items grouped separately — free users see a collapsed section instead of 10+ cluttered items. */
+const PREMIUM_NAV_ITEMS: NavItem[] = [
   { path: '/voice-chat', label: 'Röstanalys', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid, premium: true },
   { path: '/recommendations', label: 'Rekommendationer', icon: SparklesIcon, iconActive: SparklesIconSolid, premium: true },
   { path: '/wellness', label: 'Välmående', icon: HeartIcon, iconActive: HeartIconSolid, premium: true },
@@ -48,6 +55,9 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/rewards', label: 'Belöningar', icon: TrophyIcon, iconActive: TrophyIconSolid, premium: true },
   { path: '/social', label: 'Gemenskap', icon: UserGroupIcon, iconActive: UserGroupIconSolid, premium: true },
 ];
+
+/** Quick lookup: auto-expand the premium section when navigating to a premium route. */
+const PREMIUM_PATHS = new Set(PREMIUM_NAV_ITEMS.map(i => i.path));
 
 const BOTTOM_ITEMS: NavItem[] = [
   { path: '/profile', label: 'Profil', icon: UserCircleIcon, iconActive: UserCircleIconSolid },
@@ -69,12 +79,22 @@ const Sidebar: React.FC = memo(() => {
 
   const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
-  // Memoize nav items rendering to prevent unnecessary recalculations
-  const navItemsRendered = useMemo(() => (
-    NAV_ITEMS.map((item) => {
+  // [U1] Auto-expand premium section when the user navigates to a premium route.
+  const [isPremiumExpanded, setIsPremiumExpanded] = useState(
+    () => PREMIUM_PATHS.has(location.pathname)
+  );
+  useEffect(() => {
+    if (PREMIUM_PATHS.has(location.pathname)) {
+      setIsPremiumExpanded(true);
+    }
+  }, [location.pathname]);
+
+  // [U1] Render free items always; premium users get all items in a flat list.
+  const navItemsRendered = useMemo(() => {
+    const items = isPremium ? [...FREE_NAV_ITEMS, ...PREMIUM_NAV_ITEMS] : FREE_NAV_ITEMS;
+    return items.map((item) => {
       const active = location.pathname === item.path;
       const Icon = active ? item.iconActive : item.icon;
-      const showPremiumBadge = item.premium && !isPremium;
 
       return (
         <Link
@@ -93,16 +113,10 @@ const Sidebar: React.FC = memo(() => {
         >
           <Icon className="w-5 h-5 flex-shrink-0" />
           <span className="flex-1 min-w-0 line-clamp-2 leading-5">{item.label}</span>
-
-          {showPremiumBadge && (
-            <span className="flex shrink-0 items-center gap-0.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              <SparklesIcon className="w-3 h-3" />
-            </span>
-          )}
         </Link>
       );
-    })
-  ), [location.pathname, isPremium]);
+    });
+  }, [location.pathname, isPremium]);
 
   return (
     <aside
@@ -126,6 +140,60 @@ const Sidebar: React.FC = memo(() => {
       <nav className="flex-1 min-h-0 p-4 overflow-y-auto overflow-x-hidden">
         <div className="space-y-1">
           {navItemsRendered}
+
+          {/* [U1] Collapsible premium section — reduces sidebar clutter for free users */}
+          {!isPremium && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsPremiumExpanded(prev => !prev)}
+                className="flex items-center justify-between w-full px-4 py-2.5 mt-1 rounded-xl text-[#6d645d] dark:text-gray-400 hover:bg-[#f2e4d4] dark:hover:bg-slate-800 font-medium transition-all duration-200"
+                aria-expanded={isPremiumExpanded}
+                aria-controls="premium-nav-section"
+              >
+                <div className="flex items-center gap-3">
+                  <SparklesIcon className="w-5 h-5 text-amber-500" />
+                  <span className="text-sm">Premium-funktioner</span>
+                  <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {PREMIUM_NAV_ITEMS.length}
+                  </span>
+                </div>
+                {isPremiumExpanded
+                  ? <ChevronUpIcon className="w-4 h-4 flex-shrink-0" />
+                  : <ChevronDownIcon className="w-4 h-4 flex-shrink-0" />}
+              </button>
+
+              {isPremiumExpanded && (
+                <div id="premium-nav-section" className="mt-0.5 ml-3 pl-3 border-l-2 border-[#f2e4d4] dark:border-slate-700 space-y-0.5">
+                  {PREMIUM_NAV_ITEMS.map((item) => {
+                    const active = location.pathname === item.path;
+                    const Icon = active ? item.iconActive : item.icon;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        title={item.label}
+                        className={`
+                          flex w-full min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200
+                          ${active
+                            ? 'bg-[#2c8374] text-white shadow-md shadow-[#2c8374]/20'
+                            : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white'
+                          }
+                        `}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <span className="flex-1 min-w-0 line-clamp-1 text-sm leading-5">{item.label}</span>
+                        <span className="flex shrink-0 items-center bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          <SparklesIcon className="w-3 h-3" />
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Premium Upgrade Card */}

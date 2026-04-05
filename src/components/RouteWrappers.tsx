@@ -45,14 +45,9 @@ export const WorldClassAIChatWrapper: React.FC = () => {
   return <WorldClassAIChat onClose={() => navigate(-1)} />;
 };
 
-// SuperMoodLogger Wrapper (replaces WorldClassMoodLogger)
-export const WorldClassMoodLoggerWrapper: React.FC = () => {
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <SuperMoodLogger showRecentMoods={true} enableVoiceRecording={false} />
-    </div>
-  );
-};
+// [D6] WorldClassMoodLoggerWrapper removed — was identical to MoodLoggerBasicWrapper.
+// Both rendered <SuperMoodLogger showRecentMoods={true} enableVoiceRecording={false} />.
+// Use /mood-basic and MoodLoggerBasicWrapper instead.
 
 // WorldClassGamification Wrapper
 export const WorldClassGamificationWrapper: React.FC = () => {

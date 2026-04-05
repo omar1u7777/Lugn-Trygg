@@ -52,3 +52,79 @@ spec:
         resources:
           requests:
             storage: 2Gi
+
+---
+# Redis backup CronJob: runs BGSAVE every 6 hours and snapshots the data PVC
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: lugn-trygg-redis-backup
+  labels:
+    app: lugn-trygg-redis-backup
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+          containers:
+            - name: redis-backup
+              image: redis:7-alpine
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Triggering BGSAVE on Redis..."
+                  redis-cli -h lugn-trygg-redis BGSAVE
+                  echo "Waiting for save to complete..."
+                  until [ "$(redis-cli -h lugn-trygg-redis LASTSAVE)" != "$(redis-cli -h lugn-trygg-redis LASTSAVE)" ]; do
+                    sleep 2
+                  done
+                  sleep 5
+                  echo "Copying dump.rdb to backup volume..."
+                  cp /data/dump.rdb /backup/dump-$(date +%Y%m%d-%H%M%S).rdb
+                  echo "Pruning backups older than 7 days..."
+                  find /backup -name 'dump-*.rdb' -mtime +7 -delete
+                  echo "Backup complete."
+              volumeMounts:
+                - name: redis-data
+                  mountPath: /data
+                  readOnly: true
+                - name: redis-backup
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "100m"
+                  memory: "128Mi"
+          volumes:
+            - name: redis-data
+              persistentVolumeClaim:
+                claimName: redis-data-lugn-trygg-redis-0
+            - name: redis-backup
+              persistentVolumeClaim:
+                claimName: redis-backup-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-backup-pvc
+  labels:
+    app: lugn-trygg-redis-backup
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 5Gi

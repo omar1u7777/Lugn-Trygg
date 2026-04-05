@@ -51,9 +51,9 @@ const OAuthHealthIntegrations: React.FC = () => {
         try {
             await oauthHealthService.connectProvider(providerId);
             await loadAllStatuses();
-            setSuccess(`Successfully connected to ${providerId}!`);
+            setSuccess(`✅ Ansluten till ${providerId}!`);
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : `Failed to connect to ${providerId}`;
+            const errorMessage = err instanceof Error ? err.message : `Kunde inte ansluta till ${providerId}`;
             setError(errorMessage);
         } finally {
             setLoading(prev => new Map(prev).set(providerId, false));
@@ -68,9 +68,9 @@ const OAuthHealthIntegrations: React.FC = () => {
         try {
             await oauthHealthService.disconnect(providerId);
             await loadAllStatuses();
-            setSuccess(`Successfully disconnected from ${providerId}`);
+            setSuccess(`Frånkopplad från ${providerId}.`);
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : `Failed to disconnect from ${providerId}`;
+            const errorMessage = err instanceof Error ? err.message : `Kunde inte koppla från ${providerId}`;
             setError(errorMessage);
         } finally {
             setLoading(prev => new Map(prev).set(providerId, false));
@@ -88,7 +88,7 @@ const OAuthHealthIntegrations: React.FC = () => {
             
             // Check if any data was returned
             if (!healthData || Object.keys(healthData).length === 0) {
-                setError(`No health data found for ${providerId}. This could mean:\n• No data recorded in the last 7 days\n• Device not connected to your account\n• API permission issue`);
+                setError(`Ingen hälsodata hittades för ${providerId}. Möjliga orsaker:\n• Ingen data registrerad de senaste 7 dagarna\n• Enheten är inte kopplad till ditt konto\n• Problem med API-behörighet`);
             } else {
                 // Format the data for display
                 const dataDisplay = Object.entries(healthData)
@@ -100,10 +100,10 @@ const OAuthHealthIntegrations: React.FC = () => {
                     })
                     .join(', ');
                     
-                setSuccess(`✅ Successfully synced data from ${providerId}!\n${dataDisplay}`);
+                setSuccess(`✅ Data synkad från ${providerId}!\n${dataDisplay}`);
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : `Failed to sync data from ${providerId}`;
+            const errorMessage = err instanceof Error ? err.message : `Kunde inte synkronisera data från ${providerId}`;
             setError(errorMessage);
         } finally {
             setSyncing(prev => new Map(prev).set(providerId, false));
@@ -125,10 +125,10 @@ const OAuthHealthIntegrations: React.FC = () => {
             if (result.status === 'insufficient_data') {
                 setError(`Not enough data for analysis: ${result.message}`);
             } else if (result.status === 'success') {
-                setSuccess('✅ Analysis completed successfully!');
+                setSuccess('✅ Analys genomförd!');
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to analyze health data';
+            const errorMessage = err instanceof Error ? err.message : 'Kunde inte analysera hälsodata';
             setError(errorMessage);
         } finally {
             setAnalyzing(false);
@@ -140,10 +140,10 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-                    🔗 Health Integrations (OAuth)
+                    🔗 Hälsointegreringar (OAuth)
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400 text-lg">
-                    Connect your health devices and apps to sync real data automatically
+                    Anslut dina hälsoenheter och appar för att synkronisera data automatiskt.
                 </p>
             </div>
 
@@ -187,7 +187,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         </h3>
                                         {isConnected && (
                                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-                                                ✓ Connected
+                                                ✓ Ansluten
                                             </span>
                                         )}
                                     </div>
@@ -199,7 +199,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         disabled={isSyncing}
                                         className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
                                     >
-                                        {isSyncing ? '⏳ Syncing...' : '🔄 Sync Now'}
+                                        {isSyncing ? '⏳ Synkroniserar...' : '🔄 Synkronisera nu'}
                                     </button>
                                 )}
                             </div>
@@ -213,7 +213,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                             {status.connected && status.scope && (
                                 <div className="mb-4">
                                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                                        Authorized Scopes:
+                                        Beviljade behörigheter:
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {status.scope.split(' ').map((scope, idx) => (
@@ -231,9 +231,9 @@ const OAuthHealthIntegrations: React.FC = () => {
                             {/* Connection Info */}
                             {isConnected && status.obtained_at && (
                                 <div className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-                                    <p>Connected: {new Date(status.obtained_at).toLocaleString()}</p>
+                                    <p>Ansluten: {new Date(status.obtained_at).toLocaleString('sv-SE')}</p>
                                     {status.expires_at && (
-                                        <p>Expires: {new Date(status.expires_at).toLocaleString()}</p>
+                                        <p>Löper ut: {new Date(status.expires_at).toLocaleString('sv-SE')}</p>
                                     )}
                                 </div>
                             )}
@@ -246,7 +246,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {isLoading ? '⏳ Disconnecting...' : '🔌 Disconnect'}
+                                        {isLoading ? '⏳ Kopplar från...' : '🔌 Koppla från'}
                                     </button>
                                 ) : (
                                     <button
@@ -254,7 +254,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                                         disabled={isLoading}
                                         className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {isLoading ? '⏳ Connecting...' : '🔗 Connect'}
+                                        {isLoading ? '⏳ Ansluter...' : '🔗 Anslut'}
                                     </button>
                                 )}
                             </div>
@@ -266,39 +266,39 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Info Box */}
             <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                    ℹ️ How OAuth Integration Works
+                    ℹ️ Hur OAuth-integration fungerar
                 </h3>
                 <ul className="space-y-2 text-blue-800 dark:text-blue-200">
-                    <li>✅ Click "Connect" to authorize access to your health data</li>
-                    <li>✅ You'll be redirected to the provider's authorization page</li>
-                    <li>✅ Grant permissions and you'll be redirected back</li>
-                    <li>✅ Your data will sync automatically every 24 hours</li>
-                    <li>✅ You can manually sync anytime by clicking "Sync Now"</li>
-                    <li>✅ Disconnect anytime to revoke access</li>
+                    <li>✅ Klicka på ”Anslut” för att godkänna åtkomst till din hälsodata</li>
+                    <li>✅ Du omdirigeras till leverantörens godkännandesida</li>
+                    <li>✅ Godkänn behörigheter och du omdirigeras tillbaka</li>
+                    <li>✅ Din data synkroniseras automatiskt var 24:e timme</li>
+                    <li>✅ Du kan manuellt synkronisera när som helst via ”Synkronisera nu”</li>
+                    <li>✅ Koppla från när som helst för att återkalla åtkomst</li>
                 </ul>
             </div>
 
             {/* Why Connect Section */}
             <div className="mt-8 bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">
-                    🎯 Why Connect Your Health Data?
+                    🎯 Varför ansluta din hälsodata?
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4 text-green-800 dark:text-green-200 text-sm">
                     <div>
-                        <p className="font-medium mb-2">📊 Better Health Insights</p>
-                        <p className="text-green-700 dark:text-green-300">Track your daily activity, heart rate, sleep patterns, and calories burned directly from your wearables.</p>
+                        <p className="font-medium mb-2">📊 Bättre hälsoinsikter</p>
+                        <p className="text-green-700 dark:text-green-300">Spåra din dagliga aktivitet, hjärtfrekvens, sömnmönster och kalorier direkt från dina bärbara enheter.</p>
                     </div>
                     <div>
-                        <p className="font-medium mb-2">🧠 Mental Health Connection</p>
-                        <p className="text-green-700 dark:text-green-300">Combine physical health data with your mood tracking to discover patterns between exercise, sleep, and emotional wellness.</p>
+                        <p className="font-medium mb-2">🧠 Koppling till mental hälsa</p>
+                        <p className="text-green-700 dark:text-green-300">Kombinera fysisk hälsodata med din humörspårning för att hitta mönster mellan träning, sömn och mående.</p>
                     </div>
                     <div>
-                        <p className="font-medium mb-2">📈 AI-Powered Analysis</p>
-                        <p className="text-green-700 dark:text-green-300">Our AI analyzes your health data to provide personalized recommendations for stress reduction and better sleep.</p>
+                        <p className="font-medium mb-2">📈 AI-driven analys</p>
+                        <p className="text-green-700 dark:text-green-300">Vår AI analyserar din hälsodata och ger personliga rekommendationer för stresshantering och bättre sömn.</p>
                     </div>
                     <div>
-                        <p className="font-medium mb-2">🔄 Automatic Sync</p>
-                        <p className="text-green-700 dark:text-green-300">Data syncs automatically from your devices every 24 hours, so you always have your latest information.</p>
+                        <p className="font-medium mb-2">🔄 Automatisk synkronisering</p>
+                        <p className="text-green-700 dark:text-green-300">Data synkroniseras automatiskt från dina enheter var 24:e timme, så du alltid har den senaste informationen.</p>
                     </div>
                 </div>
             </div>
@@ -308,10 +308,10 @@ const OAuthHealthIntegrations: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-1">
-                            🧠 Health & Mood Analysis
+                            🧠 Hälso- och humöranalys
                         </h3>
                         <p className="text-purple-800 dark:text-purple-200 text-sm">
-                            Click analyze to discover patterns between your health metrics and mood
+                            Klicka för att analysera samband mellan din hälsodata och ditt humör
                         </p>
                     </div>
                     <button
@@ -319,7 +319,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         disabled={analyzing}
                         className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
                     >
-                        {analyzing ? '⏳ Analyzing...' : '🔬 Analyze Now'}
+                        {analyzing ? '⏳ Analyserar...' : '🔬 Analysera nu'}
                     </button>
                 </div>
 
@@ -330,7 +330,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {analysisResult.status === 'insufficient_data' && (
                             <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
                                 <p className="text-yellow-800 dark:text-yellow-200">
-                                    ℹ️ {analysisResult.message || 'Need more data to analyze'}
+                                    ℹ️ {analysisResult.message || 'Behöver mer data för att analysera'}
                                 </p>
                             </div>
                         )}
@@ -338,11 +338,11 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Mood Summary */}
                         {analysisResult.mood_average !== undefined && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                                <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">😊 Mood Summary</p>
+                                <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">😊 Humörsammanfattning</p>
                                 <div className="flex items-center space-x-4">
                                     <div>
-                                        <p className="text-sm text-blue-800 dark:text-blue-200">Average Mood: <span className="font-bold text-lg">{analysisResult.mood_average.toFixed(1)}/10</span></p>
-                                        <p className="text-sm text-blue-800 dark:text-blue-200">Trend: <span className="font-semibold">{analysisResult.mood_trend === 'improving' ? '📈 Improving' : analysisResult.mood_trend === 'declining' ? '📉 Declining' : '➡️ Stable'}</span></p>
+                                        <p className="text-sm text-blue-800 dark:text-blue-200">Snitthumör: <span className="font-bold text-lg">{analysisResult.mood_average.toFixed(1)}/10</span></p>
+                                        <p className="text-sm text-blue-800 dark:text-blue-200">Trend: <span className="font-semibold">{analysisResult.mood_trend === 'improving' ? '📈 Förbättrar sig' : analysisResult.mood_trend === 'declining' ? '📉 Försämrar sig' : '➡️ Stabil'}</span></p>
                                     </div>
                                 </div>
                             </div>
@@ -351,24 +351,24 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Health Summary */}
                         {analysisResult.health_summary && Object.keys(analysisResult.health_summary).length > 0 && (
                             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                                <p className="font-medium text-green-900 dark:text-green-100 mb-2">💚 Health Summary</p>
+                                <p className="font-medium text-green-900 dark:text-green-100 mb-2">💚 Hälsosammanfattning</p>
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                     {analysisResult.health_summary.avg_steps && (
                                         <div>
-                                            <p className="text-green-800 dark:text-green-200">Avg Steps: <span className="font-semibold">{analysisResult.health_summary.avg_steps}</span></p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.steps_status === 'good' ? '✅ Good' : '⚠️ Low'}</p>
+                                            <p className="text-green-800 dark:text-green-200">Genomsn. steg: <span className="font-semibold">{analysisResult.health_summary.avg_steps}</span></p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.steps_status === 'good' ? '✅ Bra' : '⚠️ Lågt'}</p>
                                         </div>
                                     )}
                                     {analysisResult.health_summary.avg_sleep && (
                                         <div>
-                                            <p className="text-green-800 dark:text-green-200">Avg Sleep: <span className="font-semibold">{analysisResult.health_summary.avg_sleep}h</span></p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.sleep_status === 'good' ? '✅ Good' : '⚠️ Check'}</p>
+                                            <p className="text-green-800 dark:text-green-200">Genomsn. sömn: <span className="font-semibold">{analysisResult.health_summary.avg_sleep}h</span></p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.sleep_status === 'good' ? '✅ Bra' : '⚠️ Kontrollera'}</p>
                                         </div>
                                     )}
                                     {analysisResult.health_summary.avg_hr && (
                                         <div>
-                                            <p className="text-green-800 dark:text-green-200">Avg HR: <span className="font-semibold">{analysisResult.health_summary.avg_hr}</span> bpm</p>
-                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.hr_status === 'good' ? '✅ Healthy' : '⚠️ Elevated'}</p>
+                                            <p className="text-green-800 dark:text-green-200">Genomsn. puls: <span className="font-semibold">{analysisResult.health_summary.avg_hr}</span> bpm</p>
+                                            <p className="text-xs text-green-700 dark:text-green-300">Status: {analysisResult.health_summary.hr_status === 'good' ? '✅ Normalt' : '⚠️ Förhöjd'}</p>
                                         </div>
                                     )}
                                 </div>
@@ -378,13 +378,13 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Patterns Found */}
                         {analysisResult.patterns && analysisResult.patterns.length > 0 && (
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
-                                <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 Patterns Discovered</p>
+                                <p className="font-medium text-indigo-900 dark:text-indigo-100 mb-3">🔍 Hittade mönster</p>
                                 <div className="space-y-2">
                                     {analysisResult.patterns.map((pattern, idx) => (
                                         <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3 border-l-4 border-indigo-500">
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">{pattern.title}</p>
                                             <p className="text-sm text-slate-600 dark:text-slate-400">{pattern.description}</p>
-                                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">Impact: {pattern.impact === 'high' ? '🔴 High' : '🟡 Medium'}</p>
+                                            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">Påverkan: {pattern.impact === 'high' ? '🔴 Hög' : '🟡 Medel'}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -394,7 +394,7 @@ const OAuthHealthIntegrations: React.FC = () => {
                         {/* Recommendations */}
                         {analysisResult.recommendations && analysisResult.recommendations.length > 0 && (
                             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
-                                <p className="font-medium text-orange-900 dark:text-orange-100 mb-3">💡 Personalized Recommendations</p>
+                                <p className="font-medium text-orange-900 dark:text-orange-100 mb-3">💡 Personliga rekommendationer</p>
                                 <div className="space-y-2">
                                     {analysisResult.recommendations.map((rec, idx) => (
                                         <div key={idx} className="bg-white dark:bg-slate-800 rounded p-3">
@@ -416,17 +416,17 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Troubleshooting Section */}
             <div className="mt-8 bg-orange-50 dark:bg-orange-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-3">
-                    ⚠️ No Data After Sync?
+                    ⚠️ Ingen data efter synkronisering?
                 </h3>
                 <p className="text-orange-800 dark:text-orange-200 mb-3">
-                    If you don't see health data after syncing, here are some common reasons:
+                    Om du inte ser hälsodata efter synkronisering finns det några vanliga orsaker:
                 </p>
                 <ul className="space-y-2 text-orange-800 dark:text-orange-200 text-sm">
-                    <li>📱 <strong>Device not connected:</strong> Make sure your fitness tracker or smartwatch is connected to the app and synced with your account.</li>
-                    <li>📅 <strong>No recent data:</strong> Health platforms only share data you've recorded. If nothing was recorded in the last 7 days, no data will appear.</li>
-                    <li>🔐 <strong>Permissions not granted:</strong> Some apps require specific permissions. Check that you granted all requested access.</li>
-                    <li>⏱️ <strong>Initial sync delay:</strong> First sync can take 1-2 minutes. Try again after a short wait.</li>
-                    <li>🔄 <strong>Try reconnecting:</strong> Click Disconnect and Connect again to refresh the authorization.</li>
+                    <li>📱 <strong>Enheten inte ansluten:</strong> Kontrollera att din tränare eller smartklocka är ansluten till appen och synkad med ditt konto.</li>
+                    <li>📅 <strong>Ingen ny data:</strong> Hälsoplattformar delar bara data du registrerat. Om inget spårats de senaste 7 dagarna visas ingen data.</li>
+                    <li>🔐 <strong>Behörigheter saknas:</strong> Vissa appar kräver specifika behörigheter. Kontrollera att du godkänt all åtkomst.</li>
+                    <li>⏱️ <strong>Första synken tar tid:</strong> Den första synkroniseringen kan ta 1–2 minuter. Försök igen efter en stund.</li>
+                    <li>🔄 <strong>Försök att återansluta:</strong> Klicka på ”Koppla från” och sedan ”Anslut” igen för att uppdatera auktoriseringen.</li>
                 </ul>
             </div>
 
@@ -453,10 +453,10 @@ const OAuthHealthIntegrations: React.FC = () => {
             {/* Setup Guide */}
             <div className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">
-                    ⚙️ OAuth Configuration Required
+                    ⚙️ OAuth-konfiguration krävs
                 </h3>
                 <p className="text-yellow-800 dark:text-yellow-200 mb-4">
-                    For OAuth to work in production, you need to configure credentials in Backend/.env:
+                    För att OAuth ska fungera i produktion måste du konfigurera credentials i Backend/.env:
                 </p>
                 <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
                     <pre className="text-sm text-green-400">

@@ -11,7 +11,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   fullWidth?: boolean;
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
-  sx?: any; // MUI compatibility - ignored
+  sx?: React.CSSProperties; // MUI compatibility - ignored
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(

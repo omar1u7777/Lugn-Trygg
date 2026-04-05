@@ -256,6 +256,55 @@ limiter = Limiter(
     storage_uri=os.getenv("REDIS_URL", "memory://")
 )
 
+# [B5] Production guard — warn if rate limiting falls back to in-memory.
+# In-memory limits are per-process and reset on every container restart/redeploy.
+# With multiple Gunicorn workers each worker tracks its own counters independently,
+# making per-IP limits trivially bypassable by sending requests across workers.
+if os.getenv('FLASK_ENV', 'development').lower() == 'production' and not os.getenv('REDIS_URL'):
+    logger.warning(
+        "[B5] REDIS_URL is not set — rate limiting is using in-memory storage. "
+        "Consequences: (1) all rate-limit counters reset on every container restart; "
+        "(2) with multiple Gunicorn workers, each worker tracks limits independently "
+        "(limits are N× easier to bypass); "
+        "(3) OAuth state tokens are backed by per-process memory and lost on restart. "
+        "Set REDIS_URL (e.g. a free Upstash instance) to enable persistent distributed limits."
+    )
+
+# [B2] Initialize SocketIO for WebSocket biofeedback (gevent async mode matches Dockerfile CMD)
+# flask-socketio is listed in requirements.txt; this will only fail if the container image
+# was built without it (missing line in requirements.txt or failed pip install).
+try:
+    from flask_socketio import SocketIO as _SocketIO
+    _socketio_cors = os.getenv(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:3000,http://localhost:5173'
+    ).split(',')
+    socketio = _SocketIO(
+        app,
+        async_mode='gevent',
+        cors_allowed_origins=_socketio_cors,
+        logger=False,
+        engineio_logger=False,
+        ping_timeout=60,
+        ping_interval=25,
+    )
+    _SOCKETIO_INITIALIZED = True
+    logger.info("✅ [B2] SocketIO initialized (gevent, biofeedback WebSocket ready)")
+except ImportError:
+    socketio = None
+    _SOCKETIO_INITIALIZED = False
+    _b2_env = os.getenv('FLASK_ENV', 'development')
+    if _b2_env == 'production':
+        logger.critical(
+            "[B2] flask-socketio NOT installed — WebSocket biofeedback is DISABLED in production. "
+            "Rebuild the Docker image to include flask-socketio==5.3.7."
+        )
+    else:
+        logger.warning(
+            "[B2] flask-socketio not installed — biofeedback WebSocket disabled (dev mode). "
+            "Run: pip install flask-socketio==5.3.7"
+        )
+
 # Import and initialize services
 try:
     # Core services
@@ -604,7 +653,15 @@ try:
 
     try:
         app.register_blueprint(voice_bp, url_prefix='/api/v1/voice')
-        logger.info("✅ Registered voice_bp")
+        # [F1] Read the credential check result from voice_routes (already ran at import time).
+        from src.routes.voice_routes import _GOOGLE_SPEECH_READY as _speech_ready
+        if _speech_ready:
+            logger.info("✅ Registered voice_bp (Google Speech-to-Text: READY)")
+        else:
+            logger.warning(
+                "⚠️  Registered voice_bp (Google Speech-to-Text: DEGRADED — "
+                "server-side transcription disabled, frontend falls back to Web Speech API)"
+            )
     except Exception as e:
         logger.error(f"❌ Failed to register voice_bp: {e}")
 
@@ -634,7 +691,15 @@ try:
 
     try:
         app.register_blueprint(multimedia_memory_bp, url_prefix='/api/v1/memory-unified')
-        logger.info("✅ Registered multimedia_memory_bp")
+        # [F2] Surface PIL status in startup log so operators know if thumbnails work.
+        from src.routes.multimedia_memory_routes import PIL_AVAILABLE as _pil_ok
+        if _pil_ok:
+            logger.info("✅ Registered multimedia_memory_bp (Pillow/PIL: READY — image resize + thumbnails enabled)")
+        else:
+            logger.warning(
+                "⚠️  Registered multimedia_memory_bp (Pillow/PIL: DEGRADED — "
+                "photos stored at original size, thumbnails disabled)"
+            )
     except Exception as e:
         logger.error(f"❌ Failed to register multimedia_memory_bp: {e}")
 
@@ -647,6 +712,15 @@ try:
     try:
         app.register_blueprint(biofeedback_ws_bp, url_prefix='/api/v1/biofeedback')
         logger.info("✅ Registered biofeedback_ws_bp")
+        # [B2] Wire up Socket.IO event handlers now that both the blueprint and
+        # SocketIO are initialised. This is the single registration point —
+        # biofeedback_ws_routes.py only defines the handlers, never calls them.
+        if _SOCKETIO_INITIALIZED and socketio is not None:
+            from src.routes.biofeedback_ws_routes import register_biofeedback_websocket_handlers
+            register_biofeedback_websocket_handlers(socketio)
+            logger.info("✅ [B2] WebSocket biofeedback handlers registered on /biofeedback namespace")
+        else:
+            logger.warning("⚠️ [B2] SocketIO not available — biofeedback WebSocket handlers NOT registered")
     except Exception as e:
         logger.error(f"❌ Failed to register biofeedback_ws_bp: {e}")
 
@@ -897,15 +971,24 @@ except Exception as e:
     logger.error(f"❌ Failed to initialize application: {e}")
     raise
 
-# Export the Flask app for Gunicorn
+# Export both the Flask app and the SocketIO instance for Gunicorn / tests
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5001))
     host = os.getenv('HOST', '127.0.0.1')
 
     logger.info(f"Starting development server on {host}:{port}")
-    app.run(
-        host=host,
-        port=port,
-        debug=app.config['DEBUG'],
-        threaded=True
-    )
+    if _SOCKETIO_INITIALIZED and socketio is not None:
+        # Use socketio.run() so WebSocket connections are accepted in dev mode
+        socketio.run(
+            app,
+            host=host,
+            port=port,
+            debug=app.config['DEBUG'],
+        )
+    else:
+        app.run(
+            host=host,
+            port=port,
+            debug=app.config['DEBUG'],
+            threaded=True,
+        )

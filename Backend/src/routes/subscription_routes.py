@@ -21,13 +21,8 @@ from ..config import (
 from ..config.subscription_config import load_subscription_plans
 from ..firebase_config import db
 
-# Frontend URL for Stripe redirect - use env var, never hardcode localhost in production
-# [S5] Validate FRONTEND_URL — must not be localhost in production
-_is_production = os.getenv('FLASK_ENV', 'development') == 'production'
-_raw_frontend_url = os.getenv('FRONTEND_URL', '' if _is_production else 'http://localhost:3000')
-if _is_production and (not _raw_frontend_url or 'localhost' in _raw_frontend_url or '127.0.0.1' in _raw_frontend_url):
-    raise RuntimeError('[S5] FRONTEND_URL must be set to a production HTTPS URL (not localhost) in production')
-FRONTEND_URL = _raw_frontend_url
+# [C5] FRONTEND_URL validated centrally in config/__init__.py — import from there
+from ..config import FRONTEND_URL  # noqa: E402
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
@@ -50,6 +45,43 @@ except ImportError:
 
 subscription_bp = Blueprint("subscription", __name__)
 logger = logging.getLogger(__name__)
+
+# [B6] Production guard — warn at module import time if Stripe is not fully configured.
+# All payment flows return 503 until STRIPE_SECRET_KEY is set.
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
+if _IS_PRODUCTION:
+    _stripe_issues: list[str] = []
+    if not STRIPE_SECRET_KEY:
+        _stripe_issues.append(
+            "STRIPE_SECRET_KEY is not set — all /subscription/* endpoints return 503 "
+            "(no user can purchase or manage Premium)"
+        )
+    if not STRIPE_WEBHOOK_SECRET:
+        _stripe_issues.append(
+            "STRIPE_WEBHOOK_SECRET is not set — Stripe webhook events cannot be verified "
+            "(subscription activations and cancellations from Stripe will be silently ignored)"
+        )
+    # Detect placeholder Price IDs (defaults from config/__init__.py)
+    _placeholder_prices = {
+        'STRIPE_PRICE_PREMIUM': STRIPE_PRICE_PREMIUM,
+        'STRIPE_PRICE_PREMIUM_YEARLY': STRIPE_PRICE_PREMIUM_YEARLY,
+        'STRIPE_PRICE_ENTERPRISE': STRIPE_PRICE_ENTERPRISE,
+        'STRIPE_PRICE_CBT_MODULE': STRIPE_PRICE_CBT_MODULE,
+    }
+    _fake_price_vars = [
+        k for k, v in _placeholder_prices.items()
+        if not v or not v.startswith('price_') or '_' not in v[6:]
+        # Real Stripe IDs: price_1RBwABLkBz... (much longer than the 5-char placeholders)
+        or len(v) < 20
+    ]
+    if _fake_price_vars:
+        _stripe_issues.append(
+            f"Stripe Price IDs appear to be placeholder values for: {', '.join(_fake_price_vars)}. "
+            "Create real products/prices in the Stripe Dashboard and set the env vars."
+        )
+    if _stripe_issues:
+        _issue_list = ' | '.join(f'({i+1}) {msg}' for i, msg in enumerate(_stripe_issues))
+        logger.warning(f"[B6] Stripe is not fully configured in production. {_issue_list}")
 
 
 @subscription_bp.route("/create-session", methods=["POST"])

@@ -12,11 +12,25 @@ from firebase_admin import storage
 from flask import Blueprint, g, request
 from werkzeug.utils import secure_filename
 
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
+
 try:
     from PIL import Image as PilImage
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
+    if _IS_PRODUCTION:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "[F2] Pillow (PIL) is not installed — image compression and thumbnail "
+            "generation are DISABLED. Photos will be stored at original size without "
+            "thumbnails. Add 'Pillow' to requirements.txt and rebuild the Docker image."
+        )
+    else:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "⚠️  Pillow not installed — image resize/thumbnails disabled (pip install Pillow)"
+        )
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -66,7 +80,18 @@ def _get_storage_url(blob) -> str:
             blob.make_public()
             return blob.public_url
         except Exception as pub_err:
-            logger.warning(f"make_public failed ({pub_err}), returning gs:// path")
+            if _IS_PRODUCTION:
+                logger.warning(
+                    f"[F2] Firebase Storage URL generation failed — neither signed URL "
+                    f"nor public URL could be created for {blob.name}. "
+                    f"The stored gs:// path is NOT usable by frontend clients. "
+                    f"Fix: grant the backend service account ONE of: "
+                    f"(a) roles/iam.serviceAccountTokenCreator for signed URLs, OR "
+                    f"(b) roles/storage.objectCreator + allUsers Storage Object Viewer "
+                    f"for public URLs. Signed URL error: {sign_err}. Public error: {pub_err}"
+                )
+            else:
+                logger.warning(f"make_public failed ({pub_err}), returning gs:// path")
             return f"gs://{blob.bucket.name}/{blob.name}"
 
 

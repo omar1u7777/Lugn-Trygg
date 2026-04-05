@@ -41,7 +41,7 @@ export type ApiResponse<T> = {
 export type ApiError = {
   statusCode: number;          // 🔹 HTTP-statuskod (ex: 400, 401, 500)
   message: string;             // 🔹 Felmeddelande från servern
-  details?: Record<string, any>; // 🔹 (Valfritt) Ytterligare detaljer om felet
+  details?: Record<string, unknown>; // 🔹 (Valfritt) Ytterligare detaljer om felet
 };
 
 // 📌 Validera och konvertera datumsträngar till `Date`

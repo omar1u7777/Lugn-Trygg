@@ -10,7 +10,7 @@ interface TypographyProps extends React.HTMLAttributes<HTMLElement> {
   gutterBottom?: boolean;
   fontWeight?: 'light' | 'normal' | 'medium' | 'semibold' | 'bold';
   // MUI compatibility prop (ignored)
-  sx?: any;
+  sx?: React.CSSProperties;
 }
 
 export const Typography = React.forwardRef<HTMLElement, TypographyProps>(

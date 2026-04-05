@@ -3,7 +3,7 @@
  * Real anonymous peer-to-peer support chat with Firebase backend
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, Button, Dialog } from './ui/tailwind';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -85,11 +85,58 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
     messagesRef.current = messages;
   }, [messages]);
 
-  const clearRealtimeTimers = () => {
+  const clearRealtimeTimers = useCallback(() => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-  };
+  }, []);
+
+  const loadRooms = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const roomsData = await getChatRooms();
+      setRooms(roomsData);
+    } catch {
+      setError(isSwedish ? 'Kunde inte ladda chattrum' : 'Failed to load chat rooms');
+    } finally {
+      setLoading(false);
+    }
+  }, [isSwedish]);
+
+  const pollMessages = useCallback(async () => {
+    const activeSession = sessionRef.current;
+    const activeRoom = selectedRoomRef.current;
+    if (!activeSession || !activeRoom) return;
+
+    try {
+      const lastMessageId = messagesRef.current.length > 0 ? messagesRef.current[messagesRef.current.length - 1]?.id : undefined;
+      const newMessages = await getChatMessages(activeRoom.id, activeSession.session_id, lastMessageId);
+
+      if (newMessages.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniqueNewMessages = newMessages.filter((m: ChatMessage) => !existingIds.has(m.id));
+          return [...prev, ...uniqueNewMessages];
+        });
+      }
+    } catch (err) {
+      logger.error('Poll messages error:', err);
+    }
+  }, []);
+
+  const updatePresence = useCallback(async () => {
+    const activeSession = sessionRef.current;
+    const activeRoom = selectedRoomRef.current;
+    if (!activeSession || !activeRoom) return;
+
+    try {
+      const presenceData = await getRoomPresence(activeRoom.id, activeSession.session_id);
+      setPresence(presenceData);
+    } catch {
+      // Silently fail presence updates
+    }
+  }, []);
 
   // Load chat rooms on mount
   useEffect(() => {
@@ -104,7 +151,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
         void leaveChatRoom(activeRoom.id, activeSession.session_id).catch(() => null);
       }
     };
-  }, []);
+  }, [clearRealtimeTimers, loadRooms]);
 
   // Start polling when in chat room
   useEffect(() => {
@@ -127,7 +174,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (presenceIntervalRef.current) clearInterval(presenceIntervalRef.current);
     };
-  }, [session, selectedRoom]);
+  }, [session, selectedRoom, pollMessages, updatePresence]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -136,54 +183,6 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const loadRooms = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const roomsData = await getChatRooms();
-      setRooms(roomsData);
-    } catch {
-      setError(isSwedish ? 'Kunde inte ladda chattrum' : 'Failed to load chat rooms');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const pollMessages = async () => {
-    const activeSession = sessionRef.current;
-    const activeRoom = selectedRoomRef.current;
-    if (!activeSession || !activeRoom) return;
-
-    try {
-      const lastMessageId = messagesRef.current.length > 0 ? messagesRef.current[messagesRef.current.length - 1]?.id : undefined;
-      const newMessages = await getChatMessages(activeRoom.id, activeSession.session_id, lastMessageId);
-
-      if (newMessages.length > 0) {
-        // Merge new messages, avoiding duplicates
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const uniqueNewMessages = newMessages.filter((m: ChatMessage) => !existingIds.has(m.id));
-          return [...prev, ...uniqueNewMessages];
-        });
-      }
-    } catch (err) {
-      logger.error('Poll messages error:', err);
-    }
-  };
-
-  const updatePresence = async () => {
-    const activeSession = sessionRef.current;
-    const activeRoom = selectedRoomRef.current;
-    if (!activeSession || !activeRoom) return;
-
-    try {
-      const presenceData = await getRoomPresence(activeRoom.id, activeSession.session_id);
-      setPresence(presenceData);
-    } catch {
-      // Silently fail presence updates
-    }
   };
 
   const handleJoinRoom = async (room: ChatRoom) => {

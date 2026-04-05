@@ -59,7 +59,7 @@ interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
   pr?: number;
   px?: number;
   py?: number;
-  sx?: any;
+  sx?: React.CSSProperties;
 }
 
 export const Box = React.forwardRef<HTMLDivElement, BoxProps>(

@@ -11,8 +11,8 @@ global:
 frontend:
   image:
     repository: frontend
-    tag: latest
-    pullPolicy: Always
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
   service:
     type: LoadBalancer
     port: 80
@@ -30,8 +30,8 @@ frontend:
 backend:
   image:
     repository: backend
-    tag: latest
-    pullPolicy: Always
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
   service:
     type: ClusterIP
     port: 5001

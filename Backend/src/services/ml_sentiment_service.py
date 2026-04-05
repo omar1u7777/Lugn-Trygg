@@ -194,13 +194,52 @@ _EMOTION_LEXICON: dict[str, list[str]] = {
 
 
 class MLSentimentService:
-    """Scikit-learn-based sentiment analysis for Swedish + English text."""
+    """Scikit-learn-based sentiment analysis for Swedish + English text.
+
+    Security note — pickle deserialization (OWASP A08:2021):
+    ──────────────────────────────────────────────────────────
+    Python pickle files can execute arbitrary code when deserialized.
+    To mitigate this risk the model file is protected by an HMAC-SHA256
+    signature (last 32 bytes of the .pkl file) that is verified before
+    ``pickle.loads`` is ever called.  If the signature does not match the
+    file is rejected and the model is retrained from the embedded training
+    corpus.  The HMAC key is derived from the ENCRYPTION_KEY env variable;
+    if that variable is absent a random 32-byte key is generated at startup
+    (meaning cached models on disk will fail verification on the next boot —
+    that is intentional; always set ENCRYPTION_KEY in production).
+
+    Additional mitigations already in place:
+    • *.pkl is in .gitignore (prevented from being committed)
+    • The model is retrained from source data if the file is missing or invalid,
+      so replacing the .pkl is harmless — the compromised file is refused
+    """
 
     MODEL_VERSION = "1.0.0"
 
-    _HMAC_KEY = (os.getenv("ENCRYPTION_KEY", "").encode() or os.urandom(32))
+    _HMAC_KEY: bytes
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def _build_hmac_key(cls) -> bytes:
+        """Derive the HMAC key from ENCRYPTION_KEY env var.
+
+        Logs a WARNING if the key is absent so operators are alerted.
+        """
+        raw = os.getenv("ENCRYPTION_KEY", "")
+        if not raw:
+            logger.warning(
+                "[S2] ENCRYPTION_KEY is not set — ML model HMAC will use an ephemeral "
+                "random key.  Cached models will fail integrity verification on every "
+                "restart.  Set ENCRYPTION_KEY in production to enable persistent caching."
+            )
+            return os.urandom(32)
+        return raw.encode()
 
     def __init__(self):
+        # Build key per-instance so unit tests that patch os.environ pick it up
+        self.__class__._HMAC_KEY = self._build_hmac_key()
         self._pipeline = None
         self._is_trained = False
         self._model_path = Path(__file__).parent.parent / "models" / "sentiment_model.pkl"

@@ -56,7 +56,7 @@ jobs:
           FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
           HIPAA_ENCRYPTION_KEY: yTOVpH-x9W3qRUbzBJ4pLBYCKMu5kkC-asbcsfuHvmo=
           FIREBASE_CREDENTIALS: '{"type":"service_account","project_id":"ci-test","private_key_id":"key","private_key":"stub-key-for-ci-testing-only","client_email":"ci@ci-test.iam.gserviceaccount.com","client_id":"123","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
-        run: pytest --cov=src --cov-report=xml --cov-report=term-missing --tb=short -q
+        run: pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=60 --tb=short -q
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -123,6 +123,13 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: 'trivy-backend.sarif'
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --redact
 
   live-e2e-production-like:
     runs-on: ubuntu-latest

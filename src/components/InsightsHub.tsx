@@ -70,7 +70,8 @@ const InsightsHub: React.FC = () => {
   });
   const [aiPrediction, setAiPrediction] = useState<AIPrediction | null>(null);
   const [loading, setLoading] = useState(true);
-  const [moodData, setMoodData] = useState<MoodEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [_moodData, setMoodData] = useState<MoodEntry[]>([]);
 
   useEffect(() => {
     const fetchInsightsData = async () => {
@@ -184,6 +185,7 @@ const InsightsHub: React.FC = () => {
         logger.debug('✅ INSIGHTS HUB - Stats calculated', { totalDataPoints, averageMoodScore, trendsAnalyzed, dataConfidence });
       } catch (error) {
         logger.error('❌ INSIGHTS HUB - Failed to fetch insights data:', error);
+        setError('Kunde inte hämta insiktsdata. Försök igen senare.');
       } finally {
         setLoading(false);
       }
@@ -194,6 +196,14 @@ const InsightsHub: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700 p-4 flex items-center gap-3">
+          <LightBulbIcon className="w-5 h-5 text-red-400 shrink-0" />
+          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
       {/* Narrative Hero Section */}
       <section className="mb-8">
         <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900 to-purple-900 text-white shadow-2xl p-8 sm:p-12">

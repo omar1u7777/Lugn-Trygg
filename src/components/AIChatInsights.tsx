@@ -70,6 +70,7 @@ export const AIChatInsights: React.FC = () => {
   const [metrics, setMetrics] = useState<QualityMetrics | null>(null);
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'framework' | 'quality' | 'progress'>('framework');
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export const AIChatInsights: React.FC = () => {
 
   const fetchInsights = async () => {
     setLoading(true);
+    setError(null);
     try {
       // Fetch all three types of analysis in parallel
       const [frameworkRes, qualityRes, progressRes] = await Promise.allSettled([
@@ -97,8 +99,18 @@ export const AIChatInsights: React.FC = () => {
       if (progressRes.status === 'fulfilled' && progressRes.value.data?.success) {
         setProgress(progressRes.value.data.data);
       }
+
+      // If all three failed, show error
+      if (
+        frameworkRes.status === 'rejected' &&
+        qualityRes.status === 'rejected' &&
+        progressRes.status === 'rejected'
+      ) {
+        setError('Kunde inte hämta insikter. Försök igen senare.');
+      }
     } catch (e) {
       logger.error('Failed to fetch insights', e as Error);
+      setError('Kunde inte hämta insikter. Försök igen senare.');
     } finally {
       setLoading(false);
     }
@@ -143,6 +155,23 @@ export const AIChatInsights: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error && !framework && !metrics && !progress) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700 p-6 text-center">
+          <ExclamationTriangleIcon className="w-10 h-10 text-red-400 mx-auto mb-3" />
+          <p className="text-red-700 dark:text-red-400 font-medium">{error}</p>
+          <button
+            onClick={fetchInsights}
+            className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg text-sm hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors"
+          >
+            Försök igen
+          </button>
+        </div>
       </div>
     );
   }

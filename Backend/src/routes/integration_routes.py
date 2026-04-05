@@ -22,10 +22,8 @@ from src.utils.timestamp_utils import parse_iso_timestamp
 # Environment detection
 IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
-# [S5] Validate FRONTEND_URL at module level — must not be localhost in production
-_FRONTEND_URL_RAW = os.getenv('FRONTEND_URL', '' if IS_PRODUCTION else 'http://localhost:3000')
-if IS_PRODUCTION and (not _FRONTEND_URL_RAW or 'localhost' in _FRONTEND_URL_RAW or '127.0.0.1' in _FRONTEND_URL_RAW):
-    raise RuntimeError('[S5] FRONTEND_URL must be set to a production HTTPS URL (not localhost or empty)')
+# [C5] FRONTEND_URL validated centrally in config/__init__.py — import from there
+from src.config import FRONTEND_URL as _FRONTEND_URL_RAW  # noqa: E402
 
 # Validation patterns
 PROVIDER_PATTERN = re.compile(r'^[a-z_]{3,20}$')
@@ -109,6 +107,7 @@ SUPPORTED_PROVIDERS = ['google_fit', 'fitbit', 'samsung', 'withings']
 
 @integration_bp.route("/oauth/<provider>/authorize", methods=["GET", "OPTIONS"])
 @rate_limit_by_endpoint
+@AuthService.jwt_required
 def oauth_authorize(provider):
     """
     Initiate OAuth flow for a health provider
@@ -183,7 +182,9 @@ def oauth_authorize(provider):
 @rate_limit_by_endpoint
 def oauth_callback(provider):
     """
-    OAuth callback endpoint - receives authorization code
+    OAuth callback endpoint - receives authorization code.
+    Cannot require JWT — this is a redirect from the OAuth provider.
+    Security relies on the cryptographic state parameter validated below.
     """
     if request.method == "OPTIONS":
         return APIResponse.success(data={'status': 'ok'}, message='CORS preflight')
@@ -211,7 +212,43 @@ def oauth_callback(provider):
             logger.error(f"❌ Missing code or state in OAuth callback for {provider_clean}")
             return APIResponse.bad_request('Missing code or state parameter')
 
-        # Exchange code for token
+        # ── Explicit server-side state validation (before token exchange) ──
+        # The state was stored with a 10-min TTL by oauth_service._set_state()
+        # during the authorize step. Validate it exists, hasn't expired, and
+        # belongs to the claimed provider before spending a network call on
+        # the token exchange.
+        stored_state = oauth_service._get_state(state)
+        if not stored_state:
+            logger.warning("❌ OAuth state not found or expired for provider %s", provider_clean)
+            audit_log(
+                event_type="OAUTH_STATE_INVALID",
+                user_id='unknown',
+                details={'provider': provider_clean, 'reason': 'state_not_found_or_expired'}
+            )
+            default_frontend = _FRONTEND_URL_RAW
+            frontend_url = _validate_redirect_url(
+                request.args.get('frontend_url', default_frontend), default_frontend
+            )
+            return redirect(f"{frontend_url}/integrations?error=state_expired&provider={provider_clean}")
+
+        if stored_state.get('provider') != provider_clean:
+            logger.warning(
+                "❌ OAuth state provider mismatch: expected %s, got %s",
+                stored_state.get('provider'), provider_clean,
+            )
+            audit_log(
+                event_type="OAUTH_STATE_INVALID",
+                user_id=stored_state.get('user_id', 'unknown'),
+                details={'provider': provider_clean, 'reason': 'provider_mismatch'}
+            )
+            default_frontend = _FRONTEND_URL_RAW
+            frontend_url = _validate_redirect_url(
+                request.args.get('frontend_url', default_frontend), default_frontend
+            )
+            return redirect(f"{frontend_url}/integrations?error=state_mismatch&provider={provider_clean}")
+
+        # State is valid — proceed with token exchange (which also deletes the
+        # state to prevent replay).
         logger.info(f"🔵 Exchanging authorization code for access token ({provider_clean})")
         token_data = oauth_service.exchange_code_for_token(provider_clean, code, state)
         user_id = token_data['user_id']
