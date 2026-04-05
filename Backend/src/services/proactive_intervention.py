@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 
+import numpy as np
+
 from ..config.firebase_config import db
 
 try:
@@ -504,7 +506,7 @@ class ProactiveInterventionService:
             if user_doc.exists:
                 return user_doc.to_dict().get('fcm_token')
             return None
-        except:
+        except Exception:
             return None
 
 

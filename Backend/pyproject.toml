@@ -127,6 +127,20 @@ exclude = [
 "tests/**" = ["B011", "F811"]  # assert in tests, redefined imports
 "src/services/ai_service.py" = ["F401"]  # conditional imports in try/except blocks
 "src/routes/metrics_routes.py" = ["F401"]  # conditional prometheus imports
+# ML-optional-dependency files — imports guard AVAILABLE flags in try/except blocks
+"src/ml/temporal_lstm.py" = ["F401"]
+"src/routes/advanced_mood_routes.py" = ["F401"]
+"src/routes/voice_routes.py" = ["F401"]
+"src/services/ai_music_service.py" = ["F401"]
+"src/services/biofeedback_breathing_service.py" = ["F401"]
+"src/services/crisis_intervention.py" = ["F401"]
+"src/services/crisis_nlp.py" = ["F401"]
+"src/services/explainability_service.py" = ["F401"]
+"src/services/memory_analysis_service.py" = ["F401"]
+"src/services/mood_predictor.py" = ["F401"]
+"src/services/photo_analysis_service.py" = ["F401"]
+"src/services/predictive_service.py" = ["F401"]
+"src/services/proactive_intervention.py" = ["F401"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

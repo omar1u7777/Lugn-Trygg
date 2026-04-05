@@ -1409,7 +1409,7 @@ Långsiktiga välbefinnande-strategier:
         try:
             # 1. CRITICAL: Perform sentiment analysis FIRST to influence response
             sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
-            
+
             # 2. Check for crisis indicators (using semantic detection and sentiment)
             crisis_analysis = self.detect_crisis_indicators(user_message)
             if crisis_analysis["requires_immediate_attention"]:
@@ -2228,7 +2228,7 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
             oldest_key = min(self._ml_model_cache.keys(), key=lambda k: self._ml_model_cache[k][0])
             del self._ml_model_cache[oldest_key]
 
-    def predictive_mood_forecasting_simple(self, mood_history: list[dict], days_ahead: int = 7) -> dict[str, Any]:
+    def predictive_mood_forecasting_simple(self, mood_history: list[dict], days_ahead: int = 7, user_id: str | None = None) -> dict[str, Any]:
         """
         Fast, simple mood forecasting using basic statistical methods
         No ML training required - much faster than sklearn version
@@ -2250,9 +2250,15 @@ Hva har du lært av opplevelsene dine den siste tiden?"""
 
         try:
             import numpy as np
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.linear_model import LinearRegression
+            from sklearn.metrics import mean_squared_error
+            from sklearn.model_selection import train_test_split
 
             # Extract scores from recent history (last 30 days)
-            scores = []
+            scores: list[float] = []
+            dates: list = []
+            features: list = []
             for entry in mood_history[-30:]:
                 try:
                     # Prefer user's actual mood score (1-10 scale) over AI sentiment (-1 to +1)

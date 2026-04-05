@@ -5,7 +5,11 @@ Provides human-readable explanations for why the AI made specific predictions.
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .crisis_intervention import CrisisAssessment
+    from .mood_predictor import MoodPrediction
 
 # SHAP with graceful fallback
 try:
@@ -313,20 +317,12 @@ class ExplainabilityService:
         """
         try:
             sentiment = sentiment_result.get('sentiment', 'NEUTRAL')
-            score = sentiment_result.get('score', 0)
+            sentiment_result.get('score', 0)
             emotions = sentiment_result.get('emotions', [])
 
             # Build feature explanations from detected emotions
             explanations = []
             for i, emotion in enumerate(emotions[:5]):
-                emotion_descriptions = {
-                    'joy': 'Glädje och positivitet',
-                    'sadness': 'Sorg eller nedstämdhet',
-                    'anger': 'Ilska eller frustration',
-                    'fear': 'Oro eller rädsla',
-                    'anxiety': 'Ångest',
-                    'hopelessness': 'Hopplöshet'
-                }
 
                 descriptions = {
                     'sadness': 'Texter innehåller ord kopplade till sorg',
