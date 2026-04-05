@@ -15,4 +15,6 @@ useDefault = true
     '''\.env\.example$''',
     # Backend venv contains third-party package source with test vectors
     '''Backend/venv/''',
+    # GitHub Actions workflow files use clearly-labelled CI test credentials
+    '''\.github/workflows/''',
   ]

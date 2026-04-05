@@ -48,14 +48,14 @@ jobs:
         env:
           FLASK_ENV: testing
           FLASK_TESTING: 'true'
-          JWT_SECRET_KEY: ci-test-secret-key-that-is-at-least-32-chars-long
-          JWT_REFRESH_SECRET_KEY: ci-test-refresh-key-that-is-at-least-32-chars-long
+          JWT_SECRET_KEY: ci-test-secret-key-that-is-at-least-32-chars-long # gitleaks:allow
+          JWT_REFRESH_SECRET_KEY: ci-test-refresh-key-that-is-at-least-32-chars-long # gitleaks:allow
           FIREBASE_WEB_API_KEY: ci-test-firebase-web-api-key
           FIREBASE_API_KEY: ci-test-firebase-api-key
           FIREBASE_PROJECT_ID: ci-test-project
           FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
           HIPAA_ENCRYPTION_KEY: yTOVpH-x9W3qRUbzBJ4pLBYCKMu5kkC-asbcsfuHvmo= # gitleaks:allow
-          FIREBASE_CREDENTIALS: '{"type":"service_account","project_id":"ci-test","private_key_id":"key","private_key":"stub-key-for-ci-testing-only","client_email":"ci@ci-test.iam.gserviceaccount.com","client_id":"123","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
+          FIREBASE_CREDENTIALS: '{"type":"service_account","project_id":"ci-test","private_key_id":"key","private_key":"stub-key-for-ci-testing-only","client_email":"ci@ci-test.iam.gserviceaccount.com","client_id":"123","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}' # gitleaks:allow
         run: pytest --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=60 --tb=short -q
 
       - name: Upload test results
@@ -128,8 +128,6 @@ jobs:
         uses: gitleaks/gitleaks-action@v2.3.7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: --redact
 
   check-e2e-secrets:
     runs-on: ubuntu-latest
@@ -188,8 +186,8 @@ jobs:
           WAITRESS_THREADS: 4
           WEBAUTHN_RP_ID: lugn-trygg-ci.local
           WEBAUTHN_ORIGIN: https://lugn-trygg-ci.local
-          JWT_SECRET_KEY: ci-production-jwt-secret-key-that-is-intentionally-longer-than-sixty-four-characters
-          JWT_REFRESH_SECRET_KEY: ci-production-refresh-secret-key-that-is-also-longer-than-sixty-four-characters
+          JWT_SECRET_KEY: ci-production-jwt-secret-key-that-is-intentionally-longer-than-sixty-four-characters # gitleaks:allow
+          JWT_REFRESH_SECRET_KEY: ci-production-refresh-secret-key-that-is-also-longer-than-sixty-four-characters # gitleaks:allow
           PYTHONPATH: ${{ github.workspace }}/Backend
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/Backend/serviceAccountKey.json
           FIREBASE_CREDENTIALS: ${{ github.workspace }}/Backend/serviceAccountKey.json
