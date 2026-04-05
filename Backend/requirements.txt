@@ -55,11 +55,12 @@ tensorflow-cpu==2.18.0
 # Natural Language Processing (pinned)
 transformers==5.4.0
 # [B8] torch is CPU-only and requires PyTorch's custom index; installed separately in Docker:
-#   pip install torch==2.0.0+cpu torchvision==0.15.0+cpu --index-url https://download.pytorch.org/whl/cpu
-# Pinned version: torch==2.0.0+cpu  (matches Dockerfile)
+#   pip install torch==2.5.1+cpu torchvision==0.20.1+cpu --index-url https://download.pytorch.org/whl/cpu
+# Pinned version: torch==2.5.1+cpu  (matches Dockerfile)
 
 # Vector Database & Semantic Search (optional - has fallback)
-pinecone-client==5.0.1
+# Note: package was renamed from pinecone-client to pinecone in 2024
+pinecone==5.0.1
 sentence-transformers==5.3.0
 
 # Audio Analysis (optional - has fallback)
