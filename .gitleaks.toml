@@ -1,0 +1,18 @@
+title = "Lugn-Trygg gitleaks configuration"
+
+[extend]
+# Extend the default ruleset
+useDefault = true
+
+[allowlist]
+  description = "CI/CD test credentials, test fixtures, and example files — not real secrets"
+  paths = [
+    # Manual test HTML pages contain intentionally fake test keys
+    '''tests/manual/''',
+    # Vitest config uses fake hex keys for test environment defines
+    '''vitest\.config\.ts''',
+    # .env.example files contain placeholder values by design
+    '''\.env\.example$''',
+    # Backend venv contains third-party package source with test vectors
+    '''Backend/venv/''',
+  ]
