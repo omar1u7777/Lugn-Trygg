@@ -20,7 +20,7 @@ def test_initialize_firebase_accepts_utf8_bom_credentials_file(monkeypatch, tmp_
         "type": "service_account",
         "project_id": "bom-test-project",
         "private_key_id": "key-id",
-        "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",
+        "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n",  # gitleaks:allow
         "client_email": "bom-test@bom-test-project.iam.gserviceaccount.com",
         "client_id": "1234567890",
         "token_uri": "https://oauth2.googleapis.com/token",

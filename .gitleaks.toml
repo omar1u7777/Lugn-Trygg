@@ -17,4 +17,12 @@ useDefault = true
     '''Backend/venv/''',
     # GitHub Actions workflow files use clearly-labelled CI test credentials
     '''\.github/workflows/''',
+    # Backend test suite — uses fake/stub Firebase keys and tokens
+    '''Backend/tests/''',
+    # Backend scripts — OpenAPI docs use example JWT illustrative values
+    '''Backend/scripts/''',
+    # k8s example files — placeholder values, not real secrets
+    '''k8s/secrets\.example\.yaml''',
+    # Frontend e2e tests — intentionally invalid/expired JWT test tokens
+    '''tests/e2e/''',
   ]
