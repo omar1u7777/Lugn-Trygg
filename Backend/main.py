@@ -320,6 +320,7 @@ try:
     # Routes
     from src.routes.admin_routes import admin_bp
     from src.routes.advanced_mood_routes import advanced_mood_bp
+    from src.routes.ai_helpers_routes import ai_helpers_bp
     from src.routes.ai_music_routes import ai_music_bp
     from src.routes.ai_routes import ai_bp
     from src.routes.audio_routes import audio_bp
@@ -723,6 +724,12 @@ try:
             logger.warning("⚠️ [B2] SocketIO not available — biofeedback WebSocket handlers NOT registered")
     except Exception as e:
         logger.error(f"❌ Failed to register biofeedback_ws_bp: {e}")
+
+    try:
+        app.register_blueprint(ai_helpers_bp, url_prefix='/api/v1/ai-helpers')
+        logger.info("✅ Registered ai_helpers_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register ai_helpers_bp: {e}")
 
     try:
         app.register_blueprint(ai_music_bp, url_prefix='/api/v1/ai-music')
