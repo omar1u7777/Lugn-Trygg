@@ -30,6 +30,15 @@ def mock_dashboard_db(mock_db):
         },
     )
 
+    # Helper to create a mock count() aggregate chain
+    # count().get() returns [[AggregationResult(value=N)]]
+    def _make_count_mock(value):
+        agg_result = MagicMock()
+        agg_result.value = value
+        count_mock = MagicMock()
+        count_mock.get.return_value = [[agg_result]]
+        return count_mock
+
     # Mock moods subcollection
     moods_col = MagicMock()
     mood_entry = MagicMock()
@@ -42,7 +51,20 @@ def mock_dashboard_db(mock_db):
     moods_col.order_by.return_value.limit.return_value.stream.return_value = [mood_entry]
     moods_col.limit.return_value.stream.return_value = [mood_entry]
     moods_col.stream.return_value = [mood_entry]
-    user_doc.collection.return_value = moods_col
+    moods_col.count.return_value = _make_count_mock(1)
+
+    # Mock conversations subcollection with count() support
+    conversations_col = MagicMock()
+    conversations_col.count.return_value = _make_count_mock(0)
+
+    def _subcollection(name):
+        if name == "moods":
+            return moods_col
+        if name == "conversations":
+            return conversations_col
+        return MagicMock()
+
+    user_doc.collection.side_effect = _subcollection
 
     return mock_db
 
