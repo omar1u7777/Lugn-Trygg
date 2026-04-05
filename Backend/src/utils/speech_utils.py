@@ -2,6 +2,7 @@ import logging
 import os
 
 logger = logging.getLogger(__name__)
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> str | None:
     """
@@ -15,6 +16,19 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
         Transcribed text or None if failed
     """
     try:
+        # [F1] Fail fast with clear message if credentials are not configured.
+        credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if not credentials_path:
+            if _IS_PRODUCTION:
+                logger.warning(
+                    "[F1] GOOGLE_APPLICATION_CREDENTIALS is not set — "
+                    "falling back to client-side Web Speech API (lower quality). "
+                    "Set GOOGLE_APPLICATION_CREDENTIALS to enable server-side Google Speech-to-Text."
+                )
+            else:
+                logger.warning("[F1] GOOGLE_APPLICATION_CREDENTIALS not set — Google Speech unavailable")
+            return None
+
         import google.auth
         from google.cloud import speech
 
@@ -125,7 +139,18 @@ def initialize_google_speech() -> bool:
         # Check if GOOGLE_APPLICATION_CREDENTIALS is set
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         if not credentials_path:
-            logger.warning("⚠️ GOOGLE_APPLICATION_CREDENTIALS inte satt - Google Speech kommer inte fungera")
+            if _IS_PRODUCTION:
+                logger.warning(
+                    "[F1] GOOGLE_APPLICATION_CREDENTIALS is not set in production — "
+                    "server-side voice transcription is DISABLED. "
+                    "Voice recording falls back to the browser Web Speech API (lower quality, "
+                    "not available in all browsers). Set GOOGLE_APPLICATION_CREDENTIALS to "
+                    "enable Google Cloud Speech-to-Text."
+                )
+            else:
+                logger.warning(
+                    "⚠️  GOOGLE_APPLICATION_CREDENTIALS inte satt — Google Speech kommer inte fungera"
+                )
             return False
 
         if not os.path.exists(credentials_path):

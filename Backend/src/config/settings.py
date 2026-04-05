@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     stripe_price_cbt_module: str = Field(default="price_cbt_module", alias="STRIPE_PRICE_CBT_MODULE")
     stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
 
+    # Frontend URL (used for Stripe redirects, OAuth callbacks)
+    frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
+
     # Security Configuration
     encryption_key: str | None = Field(default=None, alias="ENCRYPTION_KEY")
     google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
@@ -102,6 +105,33 @@ class Settings(BaseSettings):
         validate_assignment=True,
         str_strip_whitespace=True,
     )
+
+    @field_validator("jwt_secret_key", "jwt_refresh_secret_key", mode="before")
+    @classmethod
+    def reject_placeholder_jwt_keys(cls, v: Any) -> Any:
+        """Reject well-known placeholder values that pass min_length but are publicly known."""
+        if not isinstance(v, str):
+            return v
+        _WEAK_PATTERNS = (
+            "your-jwt-secret-key-here",
+            "your-jwt-refresh-secret-key-here",
+            "your-secret-key",
+            "change-me",
+            "changeme",
+            "secret-key-here",
+            "placeholder",
+            "insert-your",
+            "example-key",
+        )
+        lower = v.strip().lower()
+        for pattern in _WEAK_PATTERNS:
+            if pattern in lower:
+                raise ValueError(
+                    f"JWT secret key contains a known placeholder value ('{pattern}'). "
+                    "Generate a strong secret: "
+                    "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                )
+        return v
 
     @field_validator("firebase_credentials", mode="before")
     @classmethod
@@ -168,6 +198,47 @@ class Settings(BaseSettings):
 
             if len(self.jwt_secret_key) < 64:
                 raise ValueError("JWT_SECRET_KEY must be at least 64 characters in production")
+
+            # [C5] FRONTEND_URL must be a real HTTPS URL in production
+            _furl = self.frontend_url.strip()
+            if (
+                not _furl
+                or 'localhost' in _furl
+                or '127.0.0.1' in _furl
+                or not _furl.startswith('https://')
+            ):
+                raise ValueError(
+                    "[C5] FRONTEND_URL must be set to a production HTTPS URL in production "
+                    "(e.g. 'https://lugn-trygg.vercel.app'). "
+                    "Set FRONTEND_URL in Backend/.env."
+                )
+
+            # [C4] ENCRYPTION_KEY required in production — no silent fallback allowed
+            if not self.encryption_key:
+                raise ValueError(
+                    "[C4] ENCRYPTION_KEY must be set in production. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\" "
+                    "and set the same value as VITE_ENCRYPTION_KEY in the frontend .env."
+                )
+            _ENC_WEAK_PATTERNS = (
+                "your-encryption-key",
+                "change-me",
+                "changeme",
+                "placeholder",
+                "example-key",
+                "insert-your",
+            )
+            _enc_lower = self.encryption_key.lower()
+            for _pat in _ENC_WEAK_PATTERNS:
+                if _pat in _enc_lower:
+                    raise ValueError(
+                        f"[C4] ENCRYPTION_KEY contains a known placeholder value ('{_pat}'). "
+                        "Generate a real key: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                    )
+            if len(self.encryption_key) < 32:
+                raise ValueError(
+                    "[C4] ENCRYPTION_KEY must be at least 32 characters in production."
+                )
 
         # Process Firebase credentials path override
         if self.firebase_credentials_path:

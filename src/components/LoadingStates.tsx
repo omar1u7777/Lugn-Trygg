@@ -1,12 +1,11 @@
 /**
  * Enhanced Loading States & Indicators - Lugn & Trygg Design System
  * WCAG 2.1 AA compliant loading components with accessibility features
- * 100% Tailwind CSS - NO MUI dependencies
+ * 100% Tailwind CSS - NO MUI dependencies, no external CSS file
  */
 
 import React from 'react';
 import { Card } from './ui/tailwind';
-import './LoadingStates.css';
 
 interface LoadingProps {
   isLoading: boolean;
@@ -34,7 +33,7 @@ export const LoadingSpinner: React.FC<LoadingProps> = ({
 
   return (
     <div
-      className="loading-spinner-container flex flex-col items-center justify-center gap-4"
+      className="flex flex-col items-center justify-center py-10 min-h-[200px] gap-4 motion-safe:animate-[fade-in_0.3s_ease-out]"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -49,7 +48,7 @@ export const LoadingSpinner: React.FC<LoadingProps> = ({
       >
         <div className={`${sizeClasses[size]} border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin`} />
       </div>
-      {message && <p className="loading-message text-gray-700 dark:text-gray-300">{message}</p>}
+      {message && <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>}
     </div>
   );
 };
@@ -66,7 +65,7 @@ export const SkeletonLoader: React.FC<{
   if (type === 'card') {
     return (
       <div
-        className="skeleton-card-container grid gap-4"
+        className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))] motion-safe:animate-[fade-in_0.3s_ease-out]"
         role="status"
         aria-live="polite"
         aria-label="Laddar kort"
@@ -74,7 +73,7 @@ export const SkeletonLoader: React.FC<{
         {items.map((_, idx) => (
           <div
             key={idx}
-            className="skeleton-card"
+            className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800 motion-safe:animate-[fade-in_0.3s_ease-out]"
             role="progressbar"
             aria-label={`Laddar kort ${idx + 1} av ${count}`}
           >
@@ -98,7 +97,7 @@ export const SkeletonLoader: React.FC<{
         {items.map((_, idx) => (
           <div
             key={idx}
-            className="skeleton-list-item flex items-center gap-2.5"
+            className="flex items-center gap-2.5 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg motion-safe:animate-[fade-in_0.3s_ease-out]"
             role="progressbar"
             aria-label={`Laddar listobjekt ${idx + 1} av ${count}`}
           >
@@ -143,14 +142,14 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
 
   return (
     <div
-      className="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
       role="status"
       aria-live="polite"
       aria-atomic="true"
       aria-busy="true"
       aria-label={message}
     >
-      <Card className="loading-overlay-content shadow-lg">
+      <Card className="shadow-xl mx-5 w-full max-w-xs">
         <div className="flex flex-col items-center gap-4 p-6">
           <div
             className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"
@@ -158,7 +157,7 @@ export const LoadingOverlay: React.FC<LoadingProps> = ({
             aria-label={message}
             aria-valuetext={message}
           />
-          <h6 className="overlay-message text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h6 className="text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
             {message}
           </h6>
         </div>
@@ -177,18 +176,13 @@ export const PulseLoader: React.FC<{ size?: number }> = ({ size = 30 }) => {
 
   return (
     <div
-      className={`pulse-loader ${prefersReducedMotion ? 'no-animation' : ''}`}
-      style={{
-        width: size,
-        height: size,
-      }}
+      className={`rounded-full bg-green-500 ${prefersReducedMotion ? 'opacity-60' : 'animate-ping'}`}
+      style={{ width: size, height: size }}
       role="status"
-      aria-label="Loading"
+      aria-label="Laddar"
       aria-live="polite"
       aria-busy="true"
-    >
-      <div className="pulse-item" aria-hidden="true" />
-    </div>
+    />
   );
 };
 

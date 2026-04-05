@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { CloudIcon, CloudArrowUpIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import offlineStorage from '../services/offlineStorage';
 import { logger } from '../utils/logger';
@@ -22,40 +22,16 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [showAlert, setShowAlert] = useState(false);
 
-  useEffect(() => {
-    // Check initial offline status
-    setIsOffline(!navigator.onLine);
-
-    // Setup offline listeners
-    const unsubscribe = offlineStorage.listenForOnlineStatus(
-      () => {
-        setIsOffline(false);
-        setShowAlert(false);
-        // Trigger sync when coming online
-        syncOfflineData();
-      },
-      () => {
-        setIsOffline(true);
-        setShowAlert(true);
-        updateUnsyncedCount();
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  const updateUnsyncedCount = () => {
+  const updateUnsyncedCount = useCallback(() => {
     const data = offlineStorage.getUnsyncedData();
     const count = 
       (data.moods?.length || 0) +
       (data.memories?.length || 0) +
       (data.requests?.length || 0);
     setUnsyncedCount(count);
-  };
+  }, []);
 
-  const syncOfflineData = async () => {
+  const syncOfflineData = useCallback(async () => {
     try {
       setIsSyncing(true);
       const data = offlineStorage.getUnsyncedData();
@@ -89,7 +65,28 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [updateUnsyncedCount]);
+
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+
+    const unsubscribe = offlineStorage.listenForOnlineStatus(
+      () => {
+        setIsOffline(false);
+        setShowAlert(false);
+        void syncOfflineData();
+      },
+      () => {
+        setIsOffline(true);
+        setShowAlert(true);
+        updateUnsyncedCount();
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [syncOfflineData, updateUnsyncedCount]);
 
   if (variant === 'snackbar') {
     if (!showAlert || (!isOffline && !isSyncing)) return null;

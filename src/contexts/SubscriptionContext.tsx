@@ -156,7 +156,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
     setUsage(newUsage);
     localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(newUsage));
-  }, []);
+  }, [user?.user_id]);
 
   // Fetch subscription status from backend
   const fetchSubscription = useCallback(async () => {
@@ -318,7 +318,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
     setLoading(true);
     localStorage.removeItem(getSubscriptionCacheKey(user?.user_id));
     await fetchSubscription();
-  }, [fetchSubscription]);
+  }, [fetchSubscription, user?.user_id]);
 
   const value: SubscriptionContextType = {
     plan,

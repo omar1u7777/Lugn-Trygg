@@ -63,7 +63,7 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'determinate'; // MUI compatibility
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
-  sx?: any; // MUI compatibility - ignored
+  sx?: React.CSSProperties; // MUI compatibility - ignored
 }
 
 export const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(

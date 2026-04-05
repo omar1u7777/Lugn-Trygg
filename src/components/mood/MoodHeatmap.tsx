@@ -4,7 +4,7 @@
  * Shows when user typically feels best/worst
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getMoods } from '../../api/api';
 import useAuth from '../../hooks/useAuth';
@@ -27,13 +27,7 @@ export const MoodHeatmap: React.FC = () => {
   const [heatmapData, setHeatmapData] = useState<HeatmapCell[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user?.user_id) {
-      loadMoodData();
-    }
-  }, [user?.user_id]);
-
-  const loadMoodData = async () => {
+  const loadMoodData = useCallback(async () => {
     if (!user?.user_id) return;
 
     try {
@@ -85,7 +79,13 @@ export const MoodHeatmap: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.user_id]);
+
+  useEffect(() => {
+    if (user?.user_id) {
+      void loadMoodData();
+    }
+  }, [user?.user_id, loadMoodData]);
 
   const getCellColor = (score: number | undefined): string => {
     if (!score) return 'bg-gray-100 dark:bg-gray-800';

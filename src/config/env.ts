@@ -12,7 +12,8 @@ type SupportedEnvKeys =
   | 'VITE_DASHBOARD_HERO_PUBLIC_ID'
   | 'VITE_WELLNESS_HERO_PUBLIC_ID'
   | 'VITE_JOURNAL_HERO_PUBLIC_ID'
-  | 'VITE_ONBOARDING_HERO_PUBLIC_ID';
+  | 'VITE_ONBOARDING_HERO_PUBLIC_ID'
+  | 'VITE_STRIPE_PUBLISHABLE_KEY';
 
 // ⚠️ SECURITY: NO DEFAULT VALUES FOR SENSITIVE KEYS!
 // All sensitive configuration MUST be set via environment variables.
@@ -32,6 +33,7 @@ const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
   VITE_WELLNESS_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for wellness hero artwork
   VITE_JOURNAL_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for journal hero artwork
   VITE_ONBOARDING_HERO_PUBLIC_ID: undefined,  // Optional Cloudinary public ID for onboarding hero artwork
+  VITE_STRIPE_PUBLISHABLE_KEY: undefined,  // Optional: Stripe publishable key (pk_live_... or pk_test_...) for Stripe Elements
 };
 
 declare global {
@@ -67,6 +69,7 @@ const readViteKey = (key: SupportedEnvKeys): string | undefined => {
       case 'VITE_WELLNESS_HERO_PUBLIC_ID':       return import.meta.env.VITE_WELLNESS_HERO_PUBLIC_ID;
       case 'VITE_JOURNAL_HERO_PUBLIC_ID':        return import.meta.env.VITE_JOURNAL_HERO_PUBLIC_ID;
       case 'VITE_ONBOARDING_HERO_PUBLIC_ID':     return import.meta.env.VITE_ONBOARDING_HERO_PUBLIC_ID;
+      case 'VITE_STRIPE_PUBLISHABLE_KEY':         return import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
       default:                                   return undefined;
     }
   } catch {
@@ -101,8 +104,7 @@ const validateRequiredEnvVars = () => {
     'VITE_FIREBASE_AUTH_DOMAIN',
     'VITE_FIREBASE_PROJECT_ID',
     'VITE_FIREBASE_STORAGE_BUCKET',
-    // VITE_ENCRYPTION_KEY is intentionally omitted here –
-    // getEncryptionKey() generates a per-session fallback when unset.
+    'VITE_ENCRYPTION_KEY',
   ];
 
   const missing = required.filter(key => {
@@ -165,6 +167,13 @@ export const getFirebaseConfig = () => {
 
 export const getFirebaseVapidKey = (): string | undefined => getEnvValue('VITE_FIREBASE_VAPID_KEY');
 
+/**
+ * Returns the Stripe publishable key (pk_test_... or pk_live_...) from the environment.
+ * Used by SubscriptionForm to show whether Stripe is configured.
+ * Not strictly required for the Stripe Checkout (redirect) flow — only needed for Elements.
+ */
+export const getStripePublishableKey = (): string | undefined => getEnvValue('VITE_STRIPE_PUBLISHABLE_KEY');
+
 // Lazily-generated fallback so the app can boot even
 // when VITE_ENCRYPTION_KEY is missing from the environment.
 let _generatedFallbackKey: string | null = null;
@@ -176,17 +185,30 @@ export const getEncryptionKey = (): string => {
     return key;
   }
 
-  // Generate a per-session random key so the app doesn't crash.
-  // Data encrypted with this key will NOT survive a page refresh,
-  // but the app remains functional.
+  // In production, refuse to start with a missing key — encrypted data would be
+  // permanently lost on every page refresh.
+  const isProduction =
+    typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
+  if (isProduction) {
+    throw new Error(
+      '[C4] VITE_ENCRYPTION_KEY is not set in production. '
+      + 'Encrypted data (journals, memories) will be unreadable. '
+      + 'Generate a key with: python -c "import secrets; print(secrets.token_urlsafe(32))" '
+      + 'and set VITE_ENCRYPTION_KEY in your frontend .env (same value as ENCRYPTION_KEY in backend).',
+    );
+  }
+
+  // Development only: generate a per-session random key so the app can boot
+  // without a .env file. Data encrypted with this key will NOT survive a page
+  // refresh — this is intentional and acceptable in local development.
   if (!_generatedFallbackKey) {
     _generatedFallbackKey = Array.from(
       crypto.getRandomValues(new Uint8Array(32)),
       (b) => b.toString(16).padStart(2, '0'),
     ).join('');
     console.warn(
-      '[env] VITE_ENCRYPTION_KEY is not set – using a per-session random key. '
-      + 'Set VITE_ENCRYPTION_KEY in your environment for persistent encrypted storage.',
+      '[env] VITE_ENCRYPTION_KEY is not set – using a per-session random key (dev only). '
+      + 'Set VITE_ENCRYPTION_KEY in your .env for persistent encrypted storage.',
     );
   }
   return _generatedFallbackKey;

@@ -93,6 +93,14 @@ describe('API client', () => {
     });
 
     it('adds CSRF header for POST requests', async () => {
+      const getSpy = vi.spyOn(api, 'get').mockResolvedValue({
+        data: {
+          data: {
+            csrfToken: 'csrf-token-123',
+          },
+        },
+      } as any);
+
       const config: InternalAxiosRequestConfig = {
         url: '/test',
         method: 'post',
@@ -105,7 +113,10 @@ describe('API client', () => {
       if (fulfilled) {
         const result = await fulfilled(config);
         expect(result.headers['X-CSRF-Token']).toEqual(expect.any(String));
+        expect(getSpy).toHaveBeenCalled();
       }
+
+      getSpy.mockRestore();
     });
 
     it('does NOT add CSRF header for GET requests', async () => {

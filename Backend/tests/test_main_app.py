@@ -1,8 +1,11 @@
 """
 Tests for main.py app configuration, error handlers, and health endpoint.
 Covers: MAX_CONTENT_LENGTH, CORS, error handlers (401/403/405/413/500), health check.
+[S1] is_origin_allowed() unit tests are in TestIsOriginAllowed below.
 """
 import json
+import os
+import unittest.mock as mock
 
 
 class TestAppConfiguration:
@@ -123,3 +126,106 @@ class TestCORSConfiguration:
         cors_header = response.headers.get('Access-Control-Allow-Origin', '')
         # Should either be '*' or 'http://localhost:3000' or empty (handled by Flask-CORS)
         assert response.status_code < 500
+
+
+class TestIsOriginAllowed:
+    """[S1] Unit tests for the is_origin_allowed() function in main.py.
+
+    These tests exercise the filter logic directly (not via HTTP) so edge
+    cases are fast and do not require a running server.
+    """
+
+    @staticmethod
+    def _get_fn():
+        """Import is_origin_allowed from main.  Deferred to avoid circular imports."""
+        from main import is_origin_allowed
+        return is_origin_allowed
+
+    # ── Explicit allow-list ────────────────────────────────────────
+
+    def test_explicit_allowed_origin(self):
+        """An origin in CORS_ALLOWED_ORIGINS must be accepted."""
+        fn = self._get_fn()
+        with mock.patch.dict(os.environ, {'CORS_ALLOWED_ORIGINS': 'https://app.lugntrygg.se'}, clear=False):
+            import importlib, main as m
+            importlib.reload(m)  # pick up patched env
+            from main import is_origin_allowed as fn2
+            assert fn2('https://app.lugntrygg.se') is True
+
+    def test_explicit_unknown_origin_blocked_in_production(self):
+        """An origin NOT in the allow-list must be blocked in production."""
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'https://app.lugntrygg.se',
+            'FLASK_ENV': 'production',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            assert fn2('https://evil.example.com') is False
+
+    # ── Vercel preview deployments ────────────────────────────────
+
+    def test_vercel_lugntrygg_preview_allowed(self):
+        """A Vercel preview URL with 'lugn-trygg' in the subdomain is allowed."""
+        fn = self._get_fn()
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'http://localhost:3000,https://*.vercel.app',
+            'FLASK_ENV': 'production',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            assert fn2('https://lugn-trygg-abc123.vercel.app') is True
+
+    def test_vercel_unrelated_project_blocked(self):
+        """A Vercel preview URL without the project name must be blocked."""
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'http://localhost:3000,https://*.vercel.app',
+            'FLASK_ENV': 'production',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            assert fn2('https://totally-different-app.vercel.app') is False
+
+    def test_vercel_domain_must_contain_project_name(self):
+        """Edge case: 'lucklugntrygg' contains 'lugntrygg' — should still pass."""
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'https://*.vercel.app',
+            'FLASK_ENV': 'production',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            # Contains 'lugntrygg' → allowed by design (Vercel URLs require account ownership)
+            result = fn2('https://lugntrygg-staging.vercel.app')
+            assert result is True
+
+    # ── Localhost in dev vs prod ──────────────────────────────────
+
+    def test_localhost_allowed_in_dev(self):
+        """Arbitrary localhost ports are allowed in non-production mode."""
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'http://localhost:3000',
+            'FLASK_ENV': 'development',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            assert fn2('http://localhost:5173') is True
+
+    def test_localhost_blocked_in_production(self):
+        """Localhost origins must be blocked in production mode."""
+        with mock.patch.dict(os.environ, {
+            'CORS_ALLOWED_ORIGINS': 'https://app.lugntrygg.se',
+            'FLASK_ENV': 'production',
+        }, clear=False):
+            import importlib, main as m
+            importlib.reload(m)
+            from main import is_origin_allowed as fn2
+            assert fn2('http://localhost:3000') is False
+
+    def test_empty_origin_blocked(self):
+        """An empty origin string must always be blocked."""
+        fn = self._get_fn()
+        assert fn('') is False

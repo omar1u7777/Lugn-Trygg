@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime
 
 from flask import Blueprint, g, request
+from pydantic import BaseModel, field_validator
 
 from src.firebase_config import db
 from src.services.audit_service import audit_log
@@ -46,6 +47,59 @@ except ImportError:
     JOURNALING_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# --- Pydantic request models for clinical assessments ---
+
+PHQ9_VALID_KEYS = {
+    'little_interest', 'feeling_down', 'sleep_problems', 'feeling_tired',
+    'appetite', 'feeling_bad', 'concentration', 'moving_slowly', 'self_harm'
+}
+
+GAD7_VALID_KEYS = {
+    'feeling_nervous', 'cant_control_worry', 'worrying_too_much',
+    'trouble_relaxing', 'restless', 'easily_annoyed', 'afraid'
+}
+
+
+class PHQ9Request(BaseModel):
+    responses: dict[str, int]
+
+    @field_validator('responses')
+    @classmethod
+    def validate_phq9_responses(cls, v: dict[str, int]) -> dict[str, int]:
+        if not v:
+            raise ValueError('responses must not be empty')
+        unknown = set(v.keys()) - PHQ9_VALID_KEYS
+        if unknown:
+            raise ValueError(f'Unknown question keys: {", ".join(sorted(unknown))}')
+        missing = PHQ9_VALID_KEYS - set(v.keys())
+        if missing:
+            raise ValueError(f'Missing question keys: {", ".join(sorted(missing))}')
+        for key, score in v.items():
+            if not isinstance(score, int) or score < 0 or score > 3:
+                raise ValueError(f'Score for {key} must be an integer 0-3, got {score!r}')
+        return v
+
+
+class GAD7Request(BaseModel):
+    responses: dict[str, int]
+
+    @field_validator('responses')
+    @classmethod
+    def validate_gad7_responses(cls, v: dict[str, int]) -> dict[str, int]:
+        if not v:
+            raise ValueError('responses must not be empty')
+        unknown = set(v.keys()) - GAD7_VALID_KEYS
+        if unknown:
+            raise ValueError(f'Unknown question keys: {", ".join(sorted(unknown))}')
+        missing = GAD7_VALID_KEYS - set(v.keys())
+        if missing:
+            raise ValueError(f'Missing question keys: {", ".join(sorted(missing))}')
+        for key, score in v.items():
+            if not isinstance(score, int) or score < 0 or score > 3:
+                raise ValueError(f'Score for {key} must be an integer 0-3, got {score!r}')
+        return v
+
 
 advanced_mood_bp = Blueprint('advanced_mood', __name__)
 
@@ -268,15 +322,19 @@ def assess_phq9():
 
     try:
         data = request.get_json(silent=True) or {}
-        responses = data.get('responses', {})
 
-        if not responses:
-            return APIResponse.bad_request("PHQ-9 responses required")
+        try:
+            validated = PHQ9Request.model_validate(data)
+        except Exception as ve:
+            return APIResponse.bad_request(f"Invalid PHQ-9 input: {ve}")
 
+        responses = validated.responses
         result = calculate_phq9(responses)
 
         # Store assessment (important for tracking over time)
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         assessment_data = {
             'timestamp': datetime.now(UTC).isoformat(),
             'type': 'phq9',
@@ -331,15 +389,19 @@ def assess_gad7():
 
     try:
         data = request.get_json(silent=True) or {}
-        responses = data.get('responses', {})
 
-        if not responses:
-            return APIResponse.bad_request("GAD-7 responses required")
+        try:
+            validated = GAD7Request.model_validate(data)
+        except Exception as ve:
+            return APIResponse.bad_request(f"Invalid GAD-7 input: {ve}")
 
+        responses = validated.responses
         result = calculate_gad7(responses)
 
         # Store assessment
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         assessment_data = {
             'timestamp': datetime.now(UTC).isoformat(),
             'type': 'gad7',
@@ -365,6 +427,35 @@ def assess_gad7():
     except Exception as e:
         logger.error(f"GAD-7 assessment failed: {e}")
         return APIResponse.error("Assessment failed", "ASSESSMENT_ERROR", 500)
+
+
+@advanced_mood_bp.route('/assess/history', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_assessment_history():
+    """[F9] Return the 20 most recent clinical assessments (PHQ-9 and GAD-7) for the
+    authenticated user, ordered most-recent first."""
+    try:
+        user_id = g.user_id
+        assessment_type = request.args.get('type')  # optional filter: 'phq9' | 'gad7'
+        limit = min(int(request.args.get('limit', 20)), 50)
+
+        query = (
+            db.collection('users').document(user_id)
+            .collection('clinical_assessments')
+            .order_by('timestamp', direction='DESCENDING')
+            .limit(limit)
+        )
+        if assessment_type in ('phq9', 'gad7'):
+            query = query.where('type', '==', assessment_type)
+
+        docs = query.stream()
+        history = [{'id': doc.id, **doc.to_dict()} for doc in docs]
+        return APIResponse.success({'history': history, 'total': len(history)})
+
+    except Exception as e:
+        logger.error(f"Assessment history failed: {e}")
+        return APIResponse.error("Could not retrieve assessment history", "HISTORY_ERROR", 500)
 
 
 @advanced_mood_bp.route('/assess/comprehensive', methods=['GET'])

@@ -4,11 +4,14 @@ Provides Redis client setup and connection pooling for high-performance caching.
 """
 
 import logging
+import os
 
 import redis
 from redis.connection import ConnectionPool
 
 from .config import config
+
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,12 @@ def initialize_redis() -> bool:
 
     except redis.ConnectionError as e:
         logger.error(f"❌ Redis connection failed: {e}")
+        if _IS_PRODUCTION:
+            logger.warning(
+                "[B5] Redis connection failed in production — rate limiting and OAuth state "
+                "will use in-memory fallback. Verify REDIS_URL / REDIS_HOST is correct and "
+                "the Redis instance is reachable from the container."
+            )
         redis_client = None
         redis_pool = None
         return False

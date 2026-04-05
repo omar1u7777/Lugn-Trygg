@@ -4,7 +4,7 @@
  * Shows which activities/contexts improve or worsen mood
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { getCorrelationAnalysis, type CorrelationAnalysisResponse, type TagCorrelation } from '../../api/moodAnalytics';
@@ -25,11 +25,7 @@ export const MoodImpactAnalysis: React.FC<MoodImpactAnalysisProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAnalysis();
-  }, [days, minOccurrences]);
-
-  const loadAnalysis = async () => {
+  const loadAnalysis = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -41,7 +37,11 @@ export const MoodImpactAnalysis: React.FC<MoodImpactAnalysisProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [days, minOccurrences]);
+
+  useEffect(() => {
+    void loadAnalysis();
+  }, [loadAnalysis]);
 
   if (loading) {
     return (

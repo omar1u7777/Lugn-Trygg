@@ -57,7 +57,16 @@ def init_sentry(app=None):
     sentry_dsn = os.getenv('SENTRY_DSN')
 
     if not sentry_dsn:
-        logger.warning("SENTRY_DSN not configured - monitoring disabled")
+        _env = os.getenv('FLASK_ENV', 'development').lower()
+        if _env == 'production':
+            logger.warning(
+                "[B7] SENTRY_DSN is not set in this PRODUCTION environment. "
+                "Uncaught exceptions, 500 errors, and performance regressions will NOT be "
+                "reported anywhere — you will be flying blind in production. "
+                "Create a project at https://sentry.io, copy the DSN, and set SENTRY_DSN."
+            )
+        else:
+            logger.warning("SENTRY_DSN not configured - monitoring disabled")
         return False
 
     environment = os.getenv('SENTRY_ENVIRONMENT', 'production')

@@ -25,7 +25,6 @@ import {
   ArrowPathIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { logger } from '../utils/logger';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -139,9 +138,9 @@ const RewardsHub: React.FC = () => {
   }, [user?.user_id, t]);
 
   useEffect(() => {
-    logger.debug('RewardsHub mounted', { userId: user?.user_id, activeTab });
+    logger.debug('RewardsHub mounted', { userId: user?.user_id });
     loadRewardsData();
-  }, [loadRewardsData]);
+  }, [loadRewardsData, user?.user_id]);
 
   useEffect(() => {
     logger.debug('RewardsHub tab changed', { activeTab });

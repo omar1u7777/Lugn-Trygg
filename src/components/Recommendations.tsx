@@ -1066,12 +1066,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!compact) {
       screenReader(`${filteredRecommendations.length} personaliserade rekommendationer laddade`, 'polite');
     }
-  }, [announceToScreenReader, compact]);
+  }, [compact, t]);
 
   // Fetch wellness goals on mount
   useEffect(() => {
     logger.debug('🔍 RECOMMENDATIONS COMPONENT - useEffect triggered', {
-      user: user ? 'exists' : 'null',
+      user: user?.user_id ? 'exists' : 'null',
       userId: user?.user_id,
       isAuthenticated: !!user?.user_id
     });
@@ -1122,16 +1122,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
 
     fetchWellnessGoalsData();
-  }, [compact, user?.user_id, wellnessGoalsSignature]);
+  }, [compact, resolvedWellnessGoals, user?.user_id, wellnessGoalsSignature]);
+
+  const hasTrackedPageViewRef = useRef(false);
 
   // Track page view only once on mount
   useEffect(() => {
+    if (hasTrackedPageViewRef.current) {
+      return;
+    }
+
+    hasTrackedPageViewRef.current = true;
     analytics.page('Recommendations', {
       component: 'Recommendations',
       userId: userId || user?.user_id,
       wellnessGoals: resolvedWellnessGoals.length > 0 ? resolvedWellnessGoals : fetchedWellnessGoals,
     });
-  }, []); // Only run once on mount
+  }, [fetchedWellnessGoals, resolvedWellnessGoals, user?.user_id, userId]);
 
   // Load recommendations when goals change
   useEffect(() => {
@@ -1139,7 +1146,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     logger.debug('📋 Loading recommendations with goals:', goalsToUse);
 
     loadRecommendations(goalsToUse, announceToScreenReader);
-  }, [wellnessGoalsSignature, fetchedWellnessGoals, loadRecommendations, announceToScreenReader]);
+  }, [wellnessGoalsSignature, fetchedWellnessGoals, loadRecommendations, announceToScreenReader, resolvedWellnessGoals]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -1293,21 +1300,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // handleSaveJournalEntry and handleLoadJournalHistory are now provided by useJournaling hook
 
   // Meditation Functions
-  async function handleSaveMeditationSession(sessionData: Parameters<typeof saveMeditationSession>[0]) {
-    if (!user?.user_id) return;
-
-    try {
-      await saveMeditationSession(sessionData);
-      logger.debug('✅ Meditation session saved to backend');
-
-      // Refresh meditation history
-      handleLoadMeditationHistory();
-    } catch (error) {
-      logger.error('Failed to save meditation session:', error);
-    }
-  }
-
-  async function handleLoadMeditationHistory() {
+  const handleLoadMeditationHistory = useCallback(async () => {
     if (!user?.user_id) return;
 
     setIsLoadingMeditation(true);
@@ -1319,7 +1312,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     } finally {
       setIsLoadingMeditation(false);
     }
-  }
+  }, [user?.user_id]);
+
+  const handleSaveMeditationSession = useCallback(async (sessionData: Parameters<typeof saveMeditationSession>[0]) => {
+    if (!user?.user_id) return;
+
+    try {
+      await saveMeditationSession(sessionData);
+      logger.debug('✅ Meditation session saved to backend');
+
+      // Refresh meditation history
+      await handleLoadMeditationHistory();
+    } catch (error) {
+      logger.error('Failed to save meditation session:', error);
+    }
+  }, [handleLoadMeditationHistory, user?.user_id]);
 
   // Load data on mount
   useEffect(() => {
@@ -1327,7 +1334,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       handleLoadJournalHistory();
       handleLoadMeditationHistory();
     }
-  }, [user?.user_id]);
+  }, [handleLoadJournalHistory, handleLoadMeditationHistory, user?.user_id]);
 
   // Filter and sort recommendations
   const getFilteredRecommendations = () => {
@@ -1817,7 +1824,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   };
 
-  const stopMeditationSession = () => {
+  const stopMeditationSession = useCallback(() => {
     if (meditationTimer) {
       clearInterval(meditationTimer);
       setMeditationTimer(null);
@@ -1825,7 +1832,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     setIsMeditationActive(false);
     setMeditationTimeLeft(0);
     setIsMeditationPaused(false);
-  };
+  }, [meditationTimer]);
 
   const handleMeditationComplete = async () => {
     setIsMeditationActive(false);
@@ -3164,7 +3171,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           userId={userId || user?.user_id || ''}
                           pattern={biofeedbackPattern}
                           duration={5}
-                          onComplete={(cycles, coherence) => {
+                          onComplete={(_cycles, _coherence) => {
                             setBreathingStressAfter(null);
                           }}
                           onCancel={() => setUseBiofeedbackMode(false)}

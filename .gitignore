@@ -5,13 +5,19 @@
 # Internal development files
 AGENTS.md
 
-# Test output files (may contain sensitive debug info)
+# Test output files and one-off audit reports (may contain sensitive debug info) [D4]
 test_*.txt
+DEPLOY_READINESS_REPORT_*.txt
+FULL_PROJECT_AUDIT_*.txt
+temp_vercel.css
 
 # Visual Studio IDE cache
 .vs/
 
-# Machine learning models (binary)
+# Machine learning models (binary — SECURITY: pickle files can execute arbitrary Python on load)
+# [D9] Backend/src/models/sentiment_model.pkl must NOT be committed.
+# The ML service (ml_sentiment_service.py) trains a fresh model from built-in data
+# if the file is absent, so the repo can run without it.
 *.pkl
 
 # Logs

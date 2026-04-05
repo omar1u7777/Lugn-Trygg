@@ -59,8 +59,7 @@ const EMOTION_META: Record<string, { emoji: string; label: string; bg: string; t
 
 function getEmotionMeta(emotion: string): { emoji: string; label: string; bg: string; text: string } {
   const key = (emotion || 'neutral').toLowerCase();
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return (EMOTION_META[key] ?? EMOTION_META['neutral'])!;
+  return EMOTION_META[key] ?? EMOTION_META['neutral'];
 }
 
 const PRESET_TAGS = ['Familj', 'Vänner', 'Natur', 'Arbete', 'Hälsa', 'Resa', 'Hobby', 'Vila'];

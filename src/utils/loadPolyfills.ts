@@ -15,7 +15,7 @@ const needsAsyncRuntime = () => {
   try {
      
     new Function('async function test() {}');
-    return typeof (Symbol as any).asyncIterator === 'undefined';
+    return typeof (Symbol as SymbolConstructor & { asyncIterator?: symbol }).asyncIterator === 'undefined';
   } catch {
     return true;
   }

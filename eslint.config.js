@@ -39,4 +39,21 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'warn',
     },
   },
+  {
+    files: [
+      'src/components/Accessibility/ScreenReader.tsx',
+      'src/components/Accessibility/SkipLink.tsx',
+      'src/components/PremiumGate.tsx',
+      'src/components/WellnessHub.tsx',
+      'src/components/ui/tailwind.tsx',
+      'src/contexts/AuthContext.tsx',
+      'src/contexts/SubscriptionContext.tsx',
+      'src/contexts/ThemeContext.tsx',
+      'src/features/shared/FeatureErrorBoundary.tsx',
+      'src/main.tsx',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )

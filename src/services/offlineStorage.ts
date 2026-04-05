@@ -33,7 +33,7 @@ interface QueuedRequest {
   id: string;
   method: 'POST' | 'PUT' | 'DELETE';
   endpoint: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   timestamp: number;
   retries: number;
 }
@@ -125,7 +125,7 @@ export function addOfflineMemory(title: string, content: string): OfflineMemory 
 export function queueRequest(
   method: 'POST' | 'PUT' | 'DELETE',
   endpoint: string,
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): QueuedRequest {
   const offlineData = getOfflineData();
   const request: QueuedRequest = {

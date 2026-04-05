@@ -75,6 +75,19 @@ export const useChatCache = (userId: string) => {
   };
 
   // Save cache to localStorage
+  const trimCache = useCallback((sourceCache: ChatCache): ChatCache => {
+    const trimmed: ChatCache = {};
+    
+    for (const [uid, data] of Object.entries(sourceCache)) {
+      trimmed[uid] = {
+        ...data,
+        messages: data.messages.slice(-MAX_CACHE_SIZE / 2) // Keep half
+      };
+    }
+    
+    return trimmed;
+  }, []);
+
   const saveCache = useCallback((updatedCache: ChatCache) => {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(updatedCache));
@@ -84,26 +97,12 @@ export const useChatCache = (userId: string) => {
       
       // Try to clear some space
       if (error instanceof Error && error.name === 'QuotaExceededError') {
-        const trimmedCache = trimCache(cache);
+        const trimmedCache = trimCache(updatedCache);
         localStorage.setItem(CACHE_KEY, JSON.stringify(trimmedCache));
         setCache(trimmedCache);
       }
     }
-  }, []);
-
-  // Trim cache to free space
-  const trimCache = (cache: ChatCache): ChatCache => {
-    const trimmed: ChatCache = {};
-    
-    for (const [uid, data] of Object.entries(cache)) {
-      trimmed[uid] = {
-        ...data,
-        messages: data.messages.slice(-MAX_CACHE_SIZE / 2) // Keep half
-      };
-    }
-    
-    return trimmed;
-  };
+  }, [trimCache]);
 
   // Get cached messages for user
   const getCachedMessages = useCallback((): ChatMessage[] => {

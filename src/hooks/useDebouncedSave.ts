@@ -8,7 +8,7 @@ interface UseDebouncedSaveOptions<T> {
   onError?: (error: Error) => void;
 }
 
-export const useDebouncedSave = <T extends Record<string, any>>(
+export const useDebouncedSave = <T extends Record<string, unknown>>(
   initialData: T,
   options: UseDebouncedSaveOptions<T>
 ) => {

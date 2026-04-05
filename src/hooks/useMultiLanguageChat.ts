@@ -45,10 +45,10 @@ export const useMultiLanguageChat = (userId: string) => {
     try {
       const cached = localStorage.getItem(`translation-cache-${userId}`);
       if (cached) {
-        const parsed = JSON.parse(cached);
+        const parsed = JSON.parse(cached) as Record<string, Omit<TranslationCache[string], 'timestamp'> & { timestamp: string }>;
         // Convert timestamps back to Date objects
         const converted: TranslationCache = {};
-        Object.entries(parsed).forEach(([key, value]: [string, any]) => {
+        Object.entries(parsed).forEach(([key, value]) => {
           converted[key] = {
             ...value,
             timestamp: new Date(value.timestamp)

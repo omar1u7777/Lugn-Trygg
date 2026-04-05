@@ -188,7 +188,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [user?.createdAt, user?.user_id]);
+  }, [updateSettings, user?.createdAt, user?.user_id]);
 
   const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });

@@ -55,8 +55,34 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ci-test-project
           VITE_FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
 
+      - name: Check coverage threshold (60%)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json','utf8'));
+            const lines = summary.total.lines.pct;
+            const branches = summary.total.branches.pct;
+            const functions = summary.total.functions.pct;
+            const statements = summary.total.statements.pct;
+            console.log('Coverage: lines='+lines+'% branches='+branches+'% functions='+functions+'% statements='+statements+'%');
+            const threshold = 60;
+            if (lines < threshold || branches < threshold || functions < threshold || statements < threshold) {
+              console.error('FAILED: One or more metrics are below the '+threshold+'% threshold.');
+              process.exit(1);
+            }
+            console.log('Coverage thresholds passed.');
+          "
+
       - name: Production build
         run: npm run build
+
+      - name: Validate build artifact
+        run: |
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html not found — build produced an empty or broken dist/"
+            exit 1
+          fi
+          echo "Build artifact verified: dist/index.html exists"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -86,7 +112,6 @@ jobs:
 
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.35.0
@@ -103,3 +128,10 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: 'trivy-frontend.sarif'
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --redact

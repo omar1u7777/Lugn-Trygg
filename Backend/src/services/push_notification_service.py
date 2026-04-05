@@ -9,6 +9,7 @@ from typing import Any
 from firebase_admin import messaging
 
 logger = logging.getLogger(__name__)
+_IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
 
 class PushNotificationService:
     """Service for sending push notifications via FCM"""
@@ -17,6 +18,17 @@ class PushNotificationService:
         self.enabled = os.getenv('FCM_ENABLED', 'true').lower() == 'true'
         if self.enabled:
             logger.info("✅ Push Notification Service initialized")
+            # [F3] The backend uses firebase-admin (service account) for FCM messaging.
+            # Frontend PWA push requires VITE_FIREBASE_VAPID_KEY (Web Push VAPID public key)
+            # to be set in the frontend .env — without it, browser push subscriptions fail
+            # silently and users never receive notifications in PWA mode.
+            if _IS_PRODUCTION:
+                logger.info(
+                    "[F3] FCM backend ready. Reminder: VITE_FIREBASE_VAPID_KEY must be set "
+                    "in the frontend environment for PWA browser push notifications. "
+                    "Get it from: Firebase Console → Project Settings → Cloud Messaging → "
+                    "Web Push certificates → Key pair."
+                )
         else:
             logger.warning("⚠️ Push Notifications disabled")
 

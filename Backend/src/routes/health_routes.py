@@ -118,7 +118,7 @@ def metrics():
         return _preflight_response()
 
     # Check if user is admin (metrics should only be accessible to admins)
-    user_id = g.user_id
+    user_id = g.get('user_id')
     try:
         user_doc = db.collection("users").document(user_id).get()
         if user_doc.exists:

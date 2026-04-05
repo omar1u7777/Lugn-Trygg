@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "resolveJsonModule": true,
@@ -33,14 +33,13 @@
     "forceConsistentCasingInFileNames": true,
 
     /*  Absolut importstöd */
-    "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@components/*": ["src/components/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@utils/*": ["src/utils/*"],
-      "@vercel/analytics/react": ["src/shims/vercel-analytics"],
-      "@vercel/speed-insights/react": ["src/shims/vercel-speed-insights"]
+      "@/*": ["./src/*"],
+      "@components/*": ["./src/components/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@vercel/analytics/react": ["./src/shims/vercel-analytics"],
+      "@vercel/speed-insights/react": ["./src/shims/vercel-speed-insights"]
     }
   },
 

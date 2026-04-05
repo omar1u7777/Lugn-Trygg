@@ -627,7 +627,7 @@ const WellnessHub: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {meditations.map(m => (
-                <div key={m.id} onClick={() => startMeditation(m)} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-primary-200 dark:hover:border-primary-700/50 hover:shadow-lg transition-all cursor-pointer">
+                <div key={m.id} role="button" tabIndex={0} onClick={() => startMeditation(m)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(m); } }} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-primary-200 dark:hover:border-primary-700/50 hover:shadow-lg transition-all cursor-pointer">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                       {m.icon}
@@ -651,7 +651,7 @@ const WellnessHub: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {breathingExercises.map(b => (
-                <div key={b.id} onClick={() => startMeditation(b)} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-200 dark:hover:border-accent-700/50 hover:shadow-lg transition-all cursor-pointer">
+                <div key={b.id} role="button" tabIndex={0} onClick={() => startMeditation(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(b); } }} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-200 dark:hover:border-accent-700/50 hover:shadow-lg transition-all cursor-pointer">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 rounded-xl bg-accent-50 dark:bg-accent-900/20 text-accent-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                       {b.icon}
@@ -687,7 +687,10 @@ const WellnessHub: React.FC = () => {
               {sleepStories.map((story) => (
                 <div
                   key={story.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => startMeditation(story)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(story); } }}
                   className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-lg transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-4">

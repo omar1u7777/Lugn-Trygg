@@ -34,7 +34,21 @@ class BackupService:
         # Firebase services - lazy initialization
         self._db = None
         self._bucket = None
-        self._bucket_name = os.getenv('FIREBASE_STORAGE_BUCKET', 'lugn-trygg-53d75.appspot.com')
+        # [F6] No default bucket name — FIREBASE_STORAGE_BUCKET must be set explicitly.
+        # Removing the hardcoded fallback prevents silently writing backups to the wrong
+        # bucket and avoids leaking the project ID in source code.
+        _raw_bucket = os.getenv('FIREBASE_STORAGE_BUCKET')
+        _is_prod = os.getenv('FLASK_ENV', 'development').lower() == 'production'
+        if not _raw_bucket:
+            if _is_prod:
+                logger.warning(
+                    "[F6] FIREBASE_STORAGE_BUCKET is not set in production — "
+                    "the backup service will not be able to create a Storage bucket reference. "
+                    "Set FIREBASE_STORAGE_BUCKET (e.g. your-project.appspot.com) in the backend .env."
+                )
+            else:
+                logger.warning("⚠️ FIREBASE_STORAGE_BUCKET not set — backup uploads will fail")
+        self._bucket_name = _raw_bucket  # None if not set; bucket property will raise at access time
 
         # Backup configuration
         self.backup_schedules = {
@@ -70,6 +84,11 @@ class BackupService:
     def bucket(self):
         """Lazy initialize Storage bucket"""
         if self._bucket is None:
+            if not self._bucket_name:
+                raise RuntimeError(
+                    "[F6] Cannot initialize Storage bucket: FIREBASE_STORAGE_BUCKET is not set. "
+                    "Set it in the backend .env before running backups."
+                )
             self._bucket = storage.bucket(self._bucket_name)
         return self._bucket
 
@@ -178,22 +197,41 @@ class BackupService:
                     logger.error(f"❌ Failed to backup storage: {e}")
                     backup_data['storage'] = {'error': str(e)}
 
-            # Save backup to file
+            # [S3] Cloud-primary backup strategy:
+            # 1. Serialise to a temporary local file (needed because the Storage
+            #    client expects a file path for upload_from_filename).
+            # 2. Upload immediately to Firebase Storage (primary, durable).
+            # 3. Delete the local temp file so the container's ephemeral disk
+            #    does not fill up and backups survive container restarts.
             filename = self._save_backup(backup_data, backup_id)
+            cloud_blob_name: str | None = None
 
-            # Upload to cloud storage (for redundancy)
             if filename:
-                self._upload_backup_to_cloud(filename)
+                try:
+                    cloud_blob_name = self._upload_backup_to_cloud(filename)
+                    logger.info(f"☁️ [S3] Backup primary copy stored in Firebase Storage: {cloud_blob_name}")
+                except Exception as e:
+                    logger.error(f"❌ [S3] Cloud upload failed — local file kept as fallback: {e}")
+                else:
+                    # Upload succeeded → delete the ephemeral local copy
+                    try:
+                        Path(filename).unlink(missing_ok=True)
+                        logger.info(f"🗑️ [S3] Ephemeral local backup deleted after successful cloud upload: {filename}")
+                    except Exception as e:
+                        logger.warning(f"[S3] Could not delete local backup file {filename}: {e}")
 
-            # Clean up old backups
+            # Clean up old local backups (in case previous runs left files)
             self._cleanup_old_backups(schedule_type)
+            # Also clean up old cloud backups to control Storage costs
+            self._cleanup_old_cloud_backups(schedule_type)
 
             # Update status
             self.backup_status[backup_id] = {
                 'status': 'completed',
                 'timestamp': datetime.now(UTC),
-                'filename': filename,
-                'size': os.path.getsize(filename) if filename and os.path.exists(filename) else 0
+                'filename': cloud_blob_name or filename,
+                'storage': 'cloud' if cloud_blob_name else 'local',
+                'size': os.path.getsize(filename) if filename and os.path.exists(filename) else 0,
             }
 
             # Trigger callbacks
@@ -204,7 +242,7 @@ class BackupService:
                     logger.error(f"Backup callback error: {e}")
 
             logger.info(f"✅ Backup completed: {backup_id}")
-            return filename
+            return cloud_blob_name or filename
 
         except Exception as e:
             logger.error(f"❌ Backup failed: {e}")
@@ -333,14 +371,46 @@ class BackupService:
             logger.error(f"Decryption failed: {e}")
             return data
 
-    def _upload_backup_to_cloud(self, filename: str):
-        """Upload backup to cloud storage for redundancy"""
+    def _upload_backup_to_cloud(self, filename: str) -> str:
+        """Upload backup to Firebase Storage.  Returns the blob name on success."""
+        blob_name = f"backups/{Path(filename).name}"
+        blob = self.bucket.blob(blob_name)
+        blob.upload_from_filename(filename)
+        logger.info(f"☁️ Backup uploaded to cloud: {blob_name}")
+        return blob_name
+
+    def _cleanup_old_cloud_backups(self, schedule_type: str) -> None:
+        """[S3] Delete old backup blobs from Firebase Storage based on retention policy.
+
+        Keeps only the most recent ``retention`` daily/weekly/monthly blobs
+        so that Storage costs do not grow without bound.
+        """
         try:
-            blob = self.bucket.blob(f"backups/{Path(filename).name}")
-            blob.upload_from_filename(filename)
-            logger.info(f"☁️ Backup uploaded to cloud: {blob.name}")
+            schedule_cfg = self.backup_schedules.get(schedule_type)
+            if not schedule_cfg:
+                return
+            retention = schedule_cfg['retention']
+
+            prefix = f"backups/{schedule_type}_"
+            blobs = list(self.bucket.list_blobs(prefix=prefix))
+            # Sort newest first by name (names contain ISO timestamps)
+            blobs.sort(key=lambda b: b.name, reverse=True)
+
+            to_delete = blobs[retention:]
+            for blob in to_delete:
+                try:
+                    blob.delete()
+                    logger.info(f"🗑️ [S3] Deleted old cloud backup: {blob.name}")
+                except Exception as e:
+                    logger.warning(f"[S3] Could not delete cloud blob {blob.name}: {e}")
+
+            if to_delete:
+                logger.info(
+                    f"[S3] Cloud retention cleanup: removed {len(to_delete)} "
+                    f"old {schedule_type} backup(s) from Firebase Storage"
+                )
         except Exception as e:
-            logger.warning(f"Cloud upload failed: {e}")
+            logger.warning(f"[S3] Cloud cleanup failed: {e}")
 
     def _cleanup_old_backups(self, schedule_type: str):
         """Clean up old backups based on retention policy"""

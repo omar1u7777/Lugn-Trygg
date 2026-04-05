@@ -91,13 +91,15 @@ export const useMessagePagination = (
       }
     );
 
-    if (loadingRef.current) {
-      observer.observe(loadingRef.current);
+    const loadingElement = loadingRef.current;
+
+    if (loadingElement) {
+      observer.observe(loadingElement);
     }
 
     return () => {
-      if (loadingRef.current) {
-        observer.unobserve(loadingRef.current);
+      if (loadingElement) {
+        observer.unobserve(loadingElement);
       }
     };
   }, [loadMore, hasMore, isLoading]);

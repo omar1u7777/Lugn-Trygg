@@ -45,6 +45,24 @@ from .mood import (
     MoodLogRequest,
     MoodLogResponse,
 )
+from .firestore_schemas import (
+    AIStoryDoc,
+    AuditLogDoc,
+    ChatHistoryDoc,
+    ChatMessageDoc,
+    ChallengeDoc,
+    JournalEntryDoc,
+    MemoryDoc,
+    MoodEntryDoc,
+    OnboardingDataDoc,
+    PeerChatMessageDoc,
+    RewardProfileDoc,
+    SubscriptionDoc,
+    UsageDoc,
+    UserChallengeDoc,
+    UserDeviceDoc,
+    UserDoc,
+)
 
 __all__ = [
     # Base
@@ -86,4 +104,21 @@ __all__ = [
     "MoodEntry",
     "MoodCategory",
     "MoodIntensity",
+    # Firestore document schemas [DB1]
+    "UserDoc",
+    "MoodEntryDoc",
+    "MemoryDoc",
+    "AIStoryDoc",
+    "SubscriptionDoc",
+    "AuditLogDoc",
+    "PeerChatMessageDoc",
+    "ChallengeDoc",
+    "UserChallengeDoc",
+    "RewardProfileDoc",
+    "UserDeviceDoc",
+    "JournalEntryDoc",
+    "OnboardingDataDoc",
+    "UsageDoc",
+    "ChatHistoryDoc",
+    "ChatMessageDoc",
 ]

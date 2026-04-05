@@ -69,7 +69,18 @@ class OAuthService:
             self._redis_client = get_redis_client()
             logger.info("OAuth state storage: Redis")
         except Exception:
-            logger.warning("OAuth state storage: in-memory fallback (states lost on restart)")
+            import os as _os
+            _oauth_env = _os.getenv('FLASK_ENV', 'development').lower()
+            _msg = (
+                "[B5] OAuth state storage: in-memory fallback — OAuth state tokens will be lost "
+                "on every container restart/redeploy. Health integration OAuth flows (Google Fit, "
+                "Fitbit, etc.) will break for in-flight logins when the pod restarts. "
+                "Set REDIS_URL to enable persistent state storage."
+            )
+            if _oauth_env == 'production':
+                logger.warning(_msg)
+            else:
+                logger.warning("OAuth state storage: in-memory fallback (states lost on restart)")
         self._memory_states: dict[str, Any] = {}
 
     def _set_state(self, state: str, data: dict[str, Any], ttl: int = 600) -> None:
@@ -301,6 +312,41 @@ class OAuthService:
                     auth=(config['client_id'], config['client_secret']),
                     timeout=OAUTH_REQUEST_TIMEOUT
                 )
+            elif provider == 'withings':
+                # [F4] Withings revocation: POST to their oauth2 endpoint with action=revoke.
+                config = self._get_provider_config(provider)
+                if not config:
+                    logger.error(f"Invalid provider config for {provider}")
+                    return False
+                response = requests.post(
+                    'https://wbsapi.withings.net/v2/oauth2',
+                    data={
+                        'action': 'revoke',
+                        'client_id': config['client_id'],
+                        'client_secret': config['client_secret'],
+                        'token': token,
+                    },
+                    timeout=OAUTH_REQUEST_TIMEOUT
+                )
+                if response.ok:
+                    data = response.json()
+                    if data.get('status') == 0:
+                        logger.info("Revoked Withings token successfully")
+                        return True
+                    logger.warning(f"Withings revocation returned non-zero status: {data.get('status')}")
+                    return False
+                logger.warning(f"Withings revocation HTTP error: {response.status_code}")
+                return False
+            elif provider == 'samsung':
+                # [F4] Samsung Health does not expose a public token revocation endpoint.
+                # The recommended approach is to direct the user to disconnect within
+                # the Samsung Health app. We delete any stored tokens on our side below.
+                logger.info(
+                    "[F4] Samsung Health has no public revocation API — "
+                    "tokens removed from local storage only. "
+                    "Users should also disconnect via the Samsung Health app."
+                )
+                return True
             else:
                 logger.warning(f"Token revocation not implemented for {provider}")
                 return True

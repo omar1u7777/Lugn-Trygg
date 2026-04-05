@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from flask import Blueprint, Response, g, make_response, request
+from google.cloud import exceptions as gcloud_exceptions
 from google.cloud.firestore import FieldFilter
 
 from src.firebase_config import db
@@ -84,27 +85,16 @@ def require_admin(f: Callable) -> Callable:
                     message='Försök att nå admin-gränssnitt utan behörighet',
                     metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
                 )
-
-                # Trigga tamper_detection för försök att nå admin utan behörighet
-                client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
-                tamper_detection_service.record_event(
-                    event_type='unauthorized_admin_access',
-                    severity='CRITICAL',
-                    message='Försök att nå admin-gränssnitt utan behörighet',
-                    metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
-                )
                 return APIResponse.forbidden('Admin access required')
 
+        except gcloud_exceptions.NotFound:
+            logger.warning("Admin check: user document not found for %s", _mask_identifier(user_id))
+            return APIResponse.not_found('User not found')
+        except gcloud_exceptions.GoogleCloudError as e:
+            logger.exception("Admin check failed due to Firestore error: %s", type(e).__name__)
+            return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
         except Exception:
-            logger.exception("Admin check failed")
-
-            client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
-            tamper_detection_service.record_event(
-                event_type='unauthorized_admin_access',
-                severity='CRITICAL',
-                message='Access denied to admin endpoint',
-                metadata={'ip': client_ip, 'user_id': getattr(g, 'user_id', 'unknown'), 'path': request.path}
-            )
+            logger.exception("Unexpected error during admin check for user %s", _mask_identifier(user_id))
 
             client_ip = getattr(g, 'safe_client_ip', request.remote_addr if request else '0.0.0.0')
             tamper_detection_service.record_event(
@@ -235,8 +225,14 @@ def get_admin_stats() -> Response | tuple[Response, int]:
         logger.info("Admin stats generated successfully")
         return APIResponse.success(stats, "Admin statistics retrieved")
 
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Firestore error while fetching admin stats")
+        return APIResponse.error('Database temporarily unavailable', 'SERVICE_UNAVAILABLE', 503)
+    except (ValueError, TypeError, ZeroDivisionError):
+        logger.exception("Data error computing admin stats")
+        return APIResponse.error('Failed to compute statistics', 'INTERNAL_ERROR', 500)
     except Exception:
-        logger.exception("Failed to get admin stats")
+        logger.exception("Unexpected error getting admin stats")
         return APIResponse.error('Failed to get statistics', 'INTERNAL_ERROR', 500)
 
 
@@ -328,8 +324,11 @@ def get_admin_users() -> Response | tuple[Response, int]:
             'pages': (total + limit - 1) // limit
         }, f"Retrieved {len(users)} users")
 
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Firestore error while listing users")
+        return APIResponse.error('Database temporarily unavailable', 'SERVICE_UNAVAILABLE', 503)
     except Exception:
-        logger.exception("Failed to get admin users")
+        logger.exception("Unexpected error getting admin users")
         return APIResponse.error('Failed to get users', 'INTERNAL_ERROR', 500)
 
 
@@ -390,8 +389,14 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
             'newStatus': new_status
         }, f"User status updated to {new_status}")
 
+    except gcloud_exceptions.NotFound:
+        logger.warning("User document vanished during status update: %s", _mask_identifier(user_id))
+        return APIResponse.not_found('User not found')
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Firestore error updating user status")
+        return APIResponse.error('Database temporarily unavailable', 'SERVICE_UNAVAILABLE', 503)
     except Exception:
-        logger.exception("Failed to update user status")
+        logger.exception("Unexpected error updating user status")
         return APIResponse.error('Failed to update user', 'INTERNAL_ERROR', 500)
 
 
@@ -442,8 +447,11 @@ def get_content_reports() -> Response | tuple[Response, int]:
             'total': len(reports)
         }, f"Retrieved {len(reports)} reports")
 
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Firestore error while fetching reports")
+        return APIResponse.error('Database temporarily unavailable', 'SERVICE_UNAVAILABLE', 503)
     except Exception:
-        logger.exception("Failed to get reports")
+        logger.exception("Unexpected error getting reports")
         return APIResponse.error('Failed to get reports', 'INTERNAL_ERROR', 500)
 
 
@@ -541,8 +549,14 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
             'action': action
         }, f"Report resolved with action: {action}")
 
+    except gcloud_exceptions.NotFound:
+        logger.warning("Report or related document not found during resolution")
+        return APIResponse.not_found('Report or referenced content not found')
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Firestore error resolving report")
+        return APIResponse.error('Database temporarily unavailable', 'SERVICE_UNAVAILABLE', 503)
     except Exception:
-        logger.exception("Failed to resolve report")
+        logger.exception("Unexpected error resolving report")
         return APIResponse.error('Failed to resolve report', 'INTERNAL_ERROR', 500)
 
 
@@ -581,6 +595,9 @@ def get_system_health() -> Response | tuple[Response, int]:
 
         return APIResponse.success(health_data, "System health check completed")
 
+    except gcloud_exceptions.GoogleCloudError:
+        logger.exception("Health check: Firestore unavailable")
+        return APIResponse.error('Firestore unavailable', 'HEALTH_CHECK_FAILED', 503)
     except Exception:
-        logger.exception("Health check failed")
+        logger.exception("Unexpected error during health check")
         return APIResponse.error('System health check failed', 'HEALTH_CHECK_FAILED', 500)

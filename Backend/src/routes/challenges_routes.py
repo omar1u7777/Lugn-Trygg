@@ -24,8 +24,19 @@ challenges_bp = Blueprint("challenges", __name__)
 
 logger = logging.getLogger(__name__)
 IS_PRODUCTION = os.getenv('FLASK_ENV', 'development').lower() == 'production'
-ALLOW_IN_MEMORY = os.getenv('ALLOW_IN_MEMORY_CHALLENGES', 'true').lower() == 'true'
+# [B3] Default is now 'false' — in-memory storage must be explicitly opted into.
+# In production this must ALWAYS be false; Firestore is the authoritative store.
+# Setting it to true in production causes challenge data loss on every container restart.
+ALLOW_IN_MEMORY = os.getenv('ALLOW_IN_MEMORY_CHALLENGES', 'false').lower() == 'true'
 PUBLIC_CHALLENGES_GET = os.getenv('PUBLIC_CHALLENGES_GET', 'false').lower() == 'true'
+
+# [B3] Production guard — catch dangerous misconfiguration at import time.
+if IS_PRODUCTION and ALLOW_IN_MEMORY:
+    logger.critical(
+        "[B3] ALLOW_IN_MEMORY_CHALLENGES=true is set in a PRODUCTION environment. "
+        "Challenge data stored in memory is LOST on every container restart/redeploy. "
+        "Set ALLOW_IN_MEMORY_CHALLENGES=false and ensure Firestore is reachable."
+    )
 
 _get_auth_decorator = (lambda f: f) if PUBLIC_CHALLENGES_GET else AuthService.jwt_required
 
