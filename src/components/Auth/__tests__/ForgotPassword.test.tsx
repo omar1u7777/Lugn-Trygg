@@ -48,7 +48,7 @@ vi.mock('../../ui/tailwind/Input', () => ({
 }));
 
 vi.mock('../../ui/tailwind/Button', () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => (
+  Button: ({ children, fullWidth: _fullWidth, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode; fullWidth?: boolean }) => (
     <button {...props}>{children}</button>
   ),
 }));

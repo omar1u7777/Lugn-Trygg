@@ -6,10 +6,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
-const { grantBulkConsentsMock, mapFrontendConsentsMock } = vi.hoisted(() => ({
+const { grantBulkConsentsMock, mapFrontendConsentsMock, navigateMock } = vi.hoisted(() => ({
   grantBulkConsentsMock: vi.fn().mockResolvedValue({}),
   mapFrontendConsentsMock: vi.fn((c: Record<string, boolean>) => c),
+  navigateMock: vi.fn(),
 }));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 vi.mock('../../../api/consent', () => ({
@@ -158,5 +167,53 @@ describe('ConsentModal', () => {
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
     // Error state should be cleared
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('uses backend error message from axios-style response errors', async () => {
+    grantBulkConsentsMock.mockRejectedValueOnce({
+      response: { data: { error: 'Backend denied consent' } },
+    });
+
+    renderModal();
+    screen.getAllByRole('checkbox').forEach((cb) => {
+      if (!cb.checked) fireEvent.click(cb);
+    });
+
+    const submitBtn = screen.getAllByRole('button').find((b) =>
+      b.textContent?.includes('consent.accept')
+    );
+
+    expect(submitBtn).toBeDefined();
+    fireEvent.click(submitBtn!);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Backend denied consent');
+    });
+  });
+
+  it('falls back to translated save error for unknown non-error values', async () => {
+    grantBulkConsentsMock.mockRejectedValueOnce({ foo: 'bar' });
+
+    renderModal();
+    screen.getAllByRole('checkbox').forEach((cb) => {
+      if (!cb.checked) fireEvent.click(cb);
+    });
+
+    const submitBtn = screen.getAllByRole('button').find((b) =>
+      b.textContent?.includes('consent.accept')
+    );
+
+    expect(submitBtn).toBeDefined();
+    fireEvent.click(submitBtn!);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('consent.saveError');
+    });
+  });
+
+  it('navigates home when cancel is clicked', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('consent.cancel'));
+    expect(navigateMock).toHaveBeenCalledWith('/');
   });
 });

@@ -15,6 +15,17 @@ import {
   MicrophoneIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  MusicalNoteIcon,
+  LightBulbIcon,
+  PresentationChartLineIcon,
+  BeakerIcon,
+  ArrowTrendingUpIcon,
+  CalendarDaysIcon,
+  ClipboardDocumentCheckIcon,
+  StarIcon,
+  ArrowPathRoundedSquareIcon,
+  GiftIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -28,6 +39,14 @@ import {
   TrophyIcon as TrophyIconSolid,
   UserGroupIcon as UserGroupIconSolid,
   MicrophoneIcon as MicrophoneIconSolid,
+  MusicalNoteIcon as MusicalNoteIconSolid,
+  LightBulbIcon as LightBulbIconSolid,
+  PresentationChartLineIcon as PresentationChartLineIconSolid,
+  BeakerIcon as BeakerIconSolid,
+  ArrowTrendingUpIcon as ArrowTrendingUpIconSolid,
+  CalendarDaysIcon as CalendarDaysIconSolid,
+  ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconSolid,
+  StarIcon as StarIconSolid,
 } from '@heroicons/react/24/solid';
 
 interface NavItem {
@@ -38,19 +57,34 @@ interface NavItem {
   premium?: boolean;
 }
 
+interface SecondaryLink {
+  path: string;
+  label: string;
+  icon: React.ElementType;
+}
+
 /** Always-visible items (available on the free plan). */
 const FREE_NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Hem', icon: HomeIcon, iconActive: HomeIconSolid },
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
+  { path: '/mood/assessment', label: 'Klinisk bedömning', icon: ClipboardDocumentCheckIcon, iconActive: ClipboardDocumentCheckIconSolid },
+  { path: '/voice', label: 'Röstinspelning', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid },
+  { path: '/daily-insights', label: 'Dagliga insikter', icon: LightBulbIcon, iconActive: LightBulbIconSolid },
 ];
 
 /** [U1] Premium items grouped separately — free users see a collapsed section instead of 10+ cluttered items. */
 const PREMIUM_NAV_ITEMS: NavItem[] = [
-  { path: '/voice-chat', label: 'Röstanalys', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid, premium: true },
+  { path: '/voice-chat', label: 'Röstchatt', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid, premium: true },
   { path: '/recommendations', label: 'Rekommendationer', icon: SparklesIcon, iconActive: SparklesIconSolid, premium: true },
   { path: '/wellness', label: 'Välmående', icon: HeartIcon, iconActive: HeartIconSolid, premium: true },
   { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, iconActive: BookOpenIconSolid, premium: true },
+  { path: '/sounds', label: 'Lugnande ljud', icon: MusicalNoteIcon, iconActive: MusicalNoteIconSolid, premium: true },
+  { path: '/ai-stories', label: 'AI-berättelser', icon: StarIcon, iconActive: StarIconSolid, premium: true },
+  { path: '/analytics', label: 'Humöranalys', icon: PresentationChartLineIcon, iconActive: PresentationChartLineIconSolid, premium: true },
+  { path: '/mood/advanced', label: 'Avancerat humör', icon: BeakerIcon, iconActive: BeakerIconSolid, premium: true },
+  { path: '/mood/forecast', label: 'AI-prognos', icon: ArrowTrendingUpIcon, iconActive: ArrowTrendingUpIconSolid, premium: true },
+  { path: '/weekly-analysis', label: 'Veckoanalys', icon: CalendarDaysIcon, iconActive: CalendarDaysIconSolid, premium: true },
   { path: '/insights', label: 'Insikter', icon: ChartBarIcon, iconActive: ChartBarIconSolid, premium: true },
   { path: '/rewards', label: 'Belöningar', icon: TrophyIcon, iconActive: TrophyIconSolid, premium: true },
   { path: '/social', label: 'Gemenskap', icon: UserGroupIcon, iconActive: UserGroupIconSolid, premium: true },
@@ -58,6 +92,13 @@ const PREMIUM_NAV_ITEMS: NavItem[] = [
 
 /** Quick lookup: auto-expand the premium section when navigating to a premium route. */
 const PREMIUM_PATHS = new Set(PREMIUM_NAV_ITEMS.map(i => i.path));
+
+/** Secondary utility links shown at the bottom of the sidebar. */
+const SECONDARY_LINKS: SecondaryLink[] = [
+  { path: '/integrations', label: 'Hälsointegrationer', icon: ArrowPathRoundedSquareIcon },
+  { path: '/referral', label: 'Bjud in vänner', icon: GiftIcon },
+  { path: '/feedback', label: 'Ge feedback', icon: ChatBubbleOvalLeftEllipsisIcon },
+];
 
 const BOTTOM_ITEMS: NavItem[] = [
   { path: '/profile', label: 'Profil', icon: UserCircleIcon, iconActive: UserCircleIconSolid },
@@ -200,6 +241,33 @@ const Sidebar: React.FC = memo(() => {
         {!isPremium && (
           <PremiumUpgradeCard />
         )}
+
+        {/* Secondary utility links */}
+        <div className="mt-4 pt-4 border-t border-[#f2e4d4] dark:border-slate-700 space-y-0.5">
+          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#a89f97] dark:text-slate-500">
+            Konto &amp; Mer
+          </p>
+          {SECONDARY_LINKS.map((link) => {
+            const active = location.pathname === link.path;
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                title={link.label}
+                className={`flex w-full min-w-0 items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-200
+                  ${active
+                    ? 'bg-[#2c8374] text-white'
+                    : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-500 dark:hover:bg-slate-800 dark:hover:text-white'
+                  }`}
+                aria-current={active ? 'page' : undefined}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="min-w-0 truncate">{link.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Bottom Navigation */}
@@ -242,10 +310,10 @@ const PremiumUpgradeCard: React.FC = memo(() => (
   <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-[#fff7f0] to-[#f2e4d4] dark:from-slate-800 dark:to-slate-700 border border-[#e8dcd0] dark:border-slate-600">
     <div className="flex items-center gap-2 mb-2">
       <SparklesIcon className="w-5 h-5 text-amber-500" />
-      <span className="font-semibold text-[#2f2a24] dark:text-white text-sm">Uppgradera</span>
+      <span className="font-semibold text-[#2f2a24] dark:text-white text-sm">Uppgradera till Premium</span>
     </div>
     <p className="text-xs text-[#6d645d] dark:text-gray-400 mb-3">
-      Få tillgång till alla funktioner
+      Lås upp {PREMIUM_NAV_ITEMS.length} exklusiva funktioner
     </p>
     <Link
       to="/upgrade"

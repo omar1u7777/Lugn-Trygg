@@ -17,7 +17,7 @@ export const NAV_LINKS: NavLinkConfig[] = [
 ];
 
 export interface QuickActionConfig {
-  id: 'mood' | 'mood-list' | 'chat' | 'meditation' | 'journal';
+  id: 'mood' | 'mood-list' | 'chat' | 'meditation' | 'journal' | 'sounds' | 'social' | 'insights' | 'recommendations';
   title: string;
   icon: string;
   colorClass: string;
@@ -43,5 +43,40 @@ export const QUICK_ACTIONS: QuickActionConfig[] = [
     ariaLabel: 'Starta samtal med AI-stöd',
     defaultDescription: 'Prata av dig, när som helst',
   },
-  // Hidden for v1.0: mood-list, meditation, journal - will be revealed progressively
+  {
+    id: 'sounds',
+    title: 'Lugnande ljud',
+    icon: '🎵',
+    colorClass: 'text-primary-500',
+    ariaLabel: 'Lyssna på lugnande ljud och musik',
+    feature: 'sounds',
+    defaultDescription: 'Slappna av med musik',
+  },
+  {
+    id: 'journal',
+    title: 'Dagbok',
+    icon: '📖',
+    colorClass: 'text-accent-500',
+    ariaLabel: 'Skriv i din dagbok',
+    feature: 'journal',
+    defaultDescription: 'Skriv dina tankar',
+  },
+  {
+    id: 'recommendations',
+    title: 'Tips & råd',
+    icon: '✨',
+    colorClass: 'text-primary-500',
+    ariaLabel: 'Se personliga rekommendationer',
+    feature: 'recommendations',
+    defaultDescription: 'Anpassat just för dig',
+  },
+  {
+    id: 'social',
+    title: 'Gemenskap',
+    icon: '👥',
+    colorClass: 'text-neutral-500',
+    ariaLabel: 'Gå med i gemenskapen',
+    feature: 'social',
+    defaultDescription: 'Stöd varandra',
+  },
 ];

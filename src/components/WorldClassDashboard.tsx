@@ -467,7 +467,21 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     }
 
     if (actionId === 'journal' && !hasFeature('journal')) {
-      // Navigate to upgrade page for premium features
+      navigate('/upgrade');
+      return;
+    }
+
+    if (actionId === 'sounds' && !hasFeature('sounds')) {
+      navigate('/upgrade');
+      return;
+    }
+
+    if (actionId === 'social' && !hasFeature('social')) {
+      navigate('/upgrade');
+      return;
+    }
+
+    if (actionId === 'recommendations' && !hasFeature('recommendations')) {
       navigate('/upgrade');
       return;
     }
@@ -487,6 +501,18 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         break;
       case 'journal':
         navigate('/journal');
+        break;
+      case 'sounds':
+        navigate('/sounds');
+        break;
+      case 'social':
+        navigate('/social');
+        break;
+      case 'recommendations':
+        navigate('/recommendations');
+        break;
+      case 'insights':
+        navigate('/insights');
         break;
       default:
         break;
