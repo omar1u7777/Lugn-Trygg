@@ -3,9 +3,14 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
+
+const { navigateMock } = vi.hoisted(() => ({
+  navigateMock: vi.fn(),
+}));
 
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -51,14 +56,15 @@ vi.mock('../RelaxingSounds', () => ({
 }));
 
 vi.mock('../Wellness/WellnessGoalsOnboarding', () => ({
-  default: ({ onComplete }: { onComplete: () => void }) => (
+  default: ({ onComplete }: { onComplete: (goals: string[]) => void }) => (
     <div data-testid="wellness-onboarding">
-      <button onClick={onComplete}>Complete Onboarding</button>
+      <button onClick={() => onComplete(['Sleep quality'])}>Complete Onboarding</button>
     </div>
   ),
 }));
 
-import { calculateWellnessStreak, applySessionCompletionStats } from '../WellnessHub';
+import WellnessHub, { calculateWellnessStreak, applySessionCompletionStats } from '../WellnessHub';
+import { getMoods, getMeditationSessions, getWellnessGoals, saveMeditationSession } from '../../api/api';
 
 describe('calculateWellnessStreak', () => {
   it('returns 0 for empty records', () => {
@@ -177,5 +183,88 @@ describe('applySessionCompletionStats', () => {
   it('preserves streakDays', () => {
     const result = applySessionCompletionStats(baseStats, 'guided_meditation', 10);
     expect(result.streakDays).toBe(5);
+  });
+});
+
+describe('WellnessHub component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getMoods).mockResolvedValue([]);
+    vi.mocked(getMeditationSessions).mockResolvedValue({ sessions: [] });
+    vi.mocked(getWellnessGoals).mockResolvedValue([]);
+    vi.mocked(saveMeditationSession).mockResolvedValue({});
+  });
+
+  it('renders core wellness sections', async () => {
+    render(<WellnessHub />);
+
+    expect(await screen.findByText('wellnessHub.title')).toBeInTheDocument();
+    expect(screen.getByText('Guidade Meditationer')).toBeInTheDocument();
+    expect(screen.getByText('Andningsövningar')).toBeInTheDocument();
+    expect(screen.getByTestId('relaxing-sounds')).toBeInTheDocument();
+    expect(screen.getByTestId('wellness-sleep-section')).toBeInTheDocument();
+  });
+
+  it('loads stats and user goals from API data', async () => {
+    vi.mocked(getMeditationSessions).mockResolvedValueOnce({
+      sessions: [
+        { type: 'breathing_exercise', duration: 4, created_at: new Date().toISOString() },
+        { type: 'guided_meditation', duration: 6, created_at: new Date().toISOString() },
+      ],
+    });
+    vi.mocked(getWellnessGoals).mockResolvedValueOnce(['Sova bättre']);
+
+    render(<WellnessHub />);
+
+    expect(await screen.findByText('10m')).toBeInTheDocument();
+    expect(screen.getByText('Sova bättre')).toBeInTheDocument();
+    expect(screen.getByText('1 dags streak')).toBeInTheDocument();
+  });
+
+  it('navigates to recommendations when recommendations pill is clicked', async () => {
+    render(<WellnessHub />);
+
+    fireEvent.click(await screen.findByText('wellnessHub.recommendations'));
+    expect(navigateMock).toHaveBeenCalledWith('/recommendations');
+  });
+
+  it('filters content by category pills', async () => {
+    render(<WellnessHub />);
+
+    await screen.findByText('Guidade Meditationer');
+    fireEvent.click(screen.getByTestId('wellness-category-sounds'));
+
+    expect(screen.getByTestId('relaxing-sounds')).toBeInTheDocument();
+    expect(screen.queryByText('Guidade Meditationer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Andningsövningar')).not.toBeInTheDocument();
+  });
+
+  it('opens goals modal and updates goals on onboarding completion', async () => {
+    render(<WellnessHub />);
+
+    fireEvent.click(await screen.findByText('wellnessHub.addGoal'));
+    expect(screen.getByTestId('wellness-onboarding')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Complete Onboarding'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('wellness-onboarding')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Sleep quality')).toBeInTheDocument();
+  });
+
+  it('starts meditation session and supports pause/resume and stop controls', async () => {
+    render(<WellnessHub />);
+
+    fireEvent.click(await screen.findByText('Morgonfokus'));
+    expect(screen.getByText('Spelar nu')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pausa meditation' }));
+    expect(screen.getByRole('button', { name: 'Fortsätt meditation' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Avsluta meditation' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Spelar nu')).not.toBeInTheDocument();
+    });
   });
 });

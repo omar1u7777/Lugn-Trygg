@@ -231,4 +231,118 @@ describe('exportMoodData', () => {
     expect(result).toContain('Glad');
     expect(result.split('\n').length).toBeGreaterThan(1);
   });
+
+  it('handles mood entries without optional fields', async () => {
+    const moods = [{ score: 5 }]; // no timestamp, note, tags, valence, arousal
+    mockApi.get.mockResolvedValueOnce({ data: { data: { moods } } });
+    const result = await exportMoodData('user1', 'csv');
+    expect(result.split('\n').length).toBeGreaterThan(1);
+  });
+
+  it('returns empty csv header when getMoods fails (graceful degradation)', async () => {
+    mockApi.get.mockRejectedValueOnce(new Error('Network fail'));
+    // getMoods catches errors and returns [], so exportMoodData returns just the header row
+    const result = await exportMoodData('user1', 'csv');
+    expect(result).toBe('Datum,Humör,Poäng,Anteckning,Taggar,Valens,Arousal');
+  });
+});
+
+describe('getWeeklyAnalysis snake_case fallback branches', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('uses snake_case when camelCase is missing', async () => {
+    const data = {
+      total_moods: 3,
+      average_sentiment: 0.4,
+      trend: 'declining',
+      insights: 'Keep going',
+      recent_memories: [{ id: 1 }],
+      positive_count: 1,
+      negative_count: 1,
+      neutral_count: 1,
+      positive_percentage: 33,
+      negative_percentage: 33,
+      neutral_percentage: 34,
+      fallback: false,
+      confidence: 0.8,
+    };
+    mockApi.get.mockResolvedValueOnce({ data: { data: data } });
+    const result = await getWeeklyAnalysis('user1');
+    expect(result.totalMoods).toBe(3);
+    expect(result.positiveCount).toBe(1);
+    expect(result.recentMemories).toHaveLength(1);
+  });
+
+  it('uses default values when all fields missing', async () => {
+    mockApi.get.mockResolvedValueOnce({ data: { data: {} } });
+    const result = await getWeeklyAnalysis('user1');
+    expect(result.totalMoods).toBe(0);
+    expect(result.trend).toBe('stable');
+    expect(result.fallback).toBe(false);
+  });
+});
+
+describe('getMoodStatistics additional branches', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('uses both camelCase and snake_case fallbacks for all percent fields', async () => {
+    const data = {
+      total_moods: 10,
+      average_sentiment: 0.6,
+      current_streak: 5,
+      longest_streak: 8,
+      positive_percentage: 60,
+      negative_percentage: 20,
+      neutral_percentage: 20,
+      best_day: '2024-01-01',
+      worst_day: '2024-01-10',
+      recent_trend: 'improving',
+    };
+    mockApi.get.mockResolvedValueOnce({ data: { data } });
+    const result = await getMoodStatistics('user1');
+    expect(result.totalMoods).toBe(10);
+    expect(result.positivePercentage).toBe(60);
+    expect(result.bestDay).toBe('2024-01-01');
+    expect(result.recentTrend).toBe('improving');
+  });
+
+  it('defaults missing fields to 0/null/stable', async () => {
+    mockApi.get.mockResolvedValueOnce({ data: { data: {} } });
+    const result = await getMoodStatistics('user1');
+    expect(result.totalMoods).toBe(0);
+    expect(result.bestDay).toBeNull();
+    expect(result.recentTrend).toBe('stable');
+  });
+});
+
+describe('logMood additional branches', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('includes all optional formData fields when provided', async () => {
+    mockApi.post.mockResolvedValueOnce({ data: { data: { id: 'x' } } });
+    const blob = new Blob(['audio'], { type: 'audio/webm' });
+    const moodData = {
+      score: 7,
+      mood_text: 'Calm',
+      note: 'Relaxed',
+      valence: 0.6,
+      arousal: 0.4,
+      tags: ['meditation'],
+      context: 'evening',
+    };
+    const result = await logMood('u1', moodData, blob);
+    expect(mockApi.post).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(FormData),
+      expect.any(Object)
+    );
+    expect(result).toEqual({ id: 'x' });
+  });
+
+  it('throws ApiError directly when one is caught', async () => {
+    const { ApiError } = await import('../errors');
+    const apiErr = new (ApiError as unknown as new (msg: string, opts?: {status?: number}) => Error)('Already an ApiError');
+    mockApi.post.mockRejectedValueOnce(apiErr);
+    await expect(logMood('u1', { score: 5 })).rejects.toThrow('Already an ApiError');
+  });
 });
