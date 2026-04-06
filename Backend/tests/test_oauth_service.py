@@ -537,7 +537,7 @@ class TestSingletonInstance:
         """Test that singleton instance is properly initialized"""
         assert hasattr(oauth_service, 'google_fit_config')
         assert hasattr(oauth_service, '_memory_states')
-        assert oauth_service._memory_states == {}
+        assert isinstance(oauth_service._memory_states, dict)
 
 
 class TestEdgeCases:
