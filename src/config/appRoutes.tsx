@@ -2,7 +2,6 @@ import { lazy } from 'react';
 import type { FeatureName } from '@/components/PremiumGate';
 import LoginForm from '@/components/Auth/LoginForm'; // Critical for LCP: load immediately
 import RegisterForm from '@/components/Auth/RegisterForm';
-import { withFeatureErrorBoundary } from '@/features/shared/FeatureErrorBoundary';
 import {
   DailyInsightsWrapper,
   OnboardingFlowWrapper,
