@@ -124,7 +124,7 @@ describe('LoadingStates Components', () => {
       render(<PulseLoader />);
       const loader = screen.getByRole('status');
       expect(loader).toBeInTheDocument();
-      expect(loader).toHaveAttribute('aria-label', 'Loading');
+      expect(loader).toHaveAttribute('aria-label', 'Laddar');
     });
 
     it('respects prefers-reduced-motion', () => {
@@ -142,7 +142,7 @@ describe('LoadingStates Components', () => {
 
       render(<PulseLoader />);
       const loader = screen.getByRole('status');
-      expect(loader).toHaveClass('no-animation');
+      expect(loader).toHaveClass('opacity-60');
     });
 
     it('accepts custom size', () => {

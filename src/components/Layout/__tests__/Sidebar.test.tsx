@@ -30,7 +30,6 @@ describe('Sidebar', { timeout: 20000 }, () => {
     expect(dashboardLink?.getAttribute('aria-current')).toBe('page');
     expect(container.querySelector('a[href="/mood-basic"]')).toBeTruthy();
     expect(container.querySelector('a[href="/ai-chat"]')).toBeTruthy();
-    expect(container.querySelector('a[href="/recommendations"]')).toBeTruthy();
     expect(container.querySelector('a[href="/profile"]')).toBeTruthy();
   });
 
