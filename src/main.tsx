@@ -43,7 +43,6 @@ if (_sentryDsn && _sentryDsn !== 'your_sentry_dsn') {
   });
 } else if (import.meta.env.PROD) {
   // In production with no DSN: emit a console warning visible in server-side logs
-  // eslint-disable-next-line no-console
   console.warn(
     '[B7] VITE_SENTRY_DSN is not set — frontend errors are not tracked in production. '
     + 'Set VITE_SENTRY_DSN in your deployment environment variables.'
