@@ -48,9 +48,8 @@ pandas==3.0.0
 joblib==1.5.3
 
 # Deep Learning - LSTM Mood Forecasting
-# [B8] tensorflow-cpu 2.18.0: verify EOL status before production deploy.
-# Latest stable as of 2025-Q4 is 2.19.x; upgrade when CI passes.
-tensorflow-cpu==2.18.0
+# Updated to 2.21.0 (minimum version with Python 3.13 support).
+tensorflow-cpu==2.21.0
 
 # Natural Language Processing (pinned)
 transformers==5.4.0

@@ -1,6 +1,28 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
+
+// Mock Firebase before any imports that might trigger it
+vi.mock('../../firebase-config', () => ({
+  auth: {},
+  db: {},
+}));
+
+vi.mock('firebase/auth', () => ({
+  onAuthStateChanged: vi.fn((_auth: unknown, _callback: unknown) => () => {}),
+  getAuth: vi.fn(() => ({})),
+}));
+
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(),
+  getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
+  setDoc: vi.fn().mockResolvedValue(undefined),
+  collection: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+}));
+
 import TestProviders from '../../utils/TestProviders';
 
 // ---- Hoisted mocks (safe to reference inside vi.mock factories) ----

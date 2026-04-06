@@ -24,7 +24,8 @@ const lazyFirebaseBundleMock = vi.hoisted(() => ({
         GoogleAuthProvider: vi.fn(() => ({
           setCustomParameters: vi.fn(),
         })),
-        signInWithPopup: vi.fn(),
+        signInWithRedirect: vi.fn().mockResolvedValue(undefined),
+        getRedirectResult: vi.fn().mockResolvedValue(null),
         sendPasswordResetEmail: vi.fn(),
       },
     })

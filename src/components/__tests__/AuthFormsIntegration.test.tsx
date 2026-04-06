@@ -27,7 +27,8 @@ const firebaseAuthModuleMocks = vi.hoisted(() => ({
   GoogleAuthProvider: vi.fn(function () {
     return { setCustomParameters: vi.fn() };
   }),
-  signInWithPopup: vi.fn(),
+  signInWithRedirect: vi.fn().mockResolvedValue(undefined),
+  getRedirectResult: vi.fn().mockResolvedValue(null),
   sendPasswordResetEmail: vi.fn(),
 }));
 
@@ -106,7 +107,8 @@ describe('🔐 Login Form Integration', () => {
       userId: 'user-123',
       email: 'test@example.com',
     });
-    firebaseAuthModuleMocks.signInWithPopup.mockReset();
+    firebaseAuthModuleMocks.signInWithRedirect.mockReset();
+    firebaseAuthModuleMocks.getRedirectResult.mockResolvedValue(null);
     lazyFirebaseBundleMock.loadFirebaseAuthBundle.mockClear();
   });
 
@@ -242,19 +244,7 @@ describe('🔐 Login Form Integration', () => {
 
   describe('Google Sign-In', () => {
     test('should handle Google sign-in button click', async () => {
-      firebaseAuthModuleMocks.signInWithPopup.mockResolvedValue({
-        user: {
-          email: 'google@example.com',
-          getIdToken: vi.fn().mockResolvedValue('google-id-token'),
-        }
-      });
-
-      mockAPI.api.post.mockResolvedValue({
-        data: {
-          access_token: 'google-access-token',
-          user_id: 'google-user-123',
-        }
-      });
+      firebaseAuthModuleMocks.signInWithRedirect.mockResolvedValue(undefined);
 
       renderWithRouter(<LoginForm />);
 
@@ -262,12 +252,12 @@ describe('🔐 Login Form Integration', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(firebaseAuthModuleMocks.signInWithPopup).toHaveBeenCalled();
+        expect(firebaseAuthModuleMocks.signInWithRedirect).toHaveBeenCalled();
       }, { timeout: 2000 });
     });
 
     test('should handle Google sign-in error', async () => {
-      firebaseAuthModuleMocks.signInWithPopup.mockRejectedValue(new Error('Popup closed'));
+      firebaseAuthModuleMocks.signInWithRedirect.mockRejectedValue(new Error('Redirect failed'));
 
       renderWithRouter(<LoginForm />);
 
@@ -275,7 +265,7 @@ describe('🔐 Login Form Integration', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(firebaseAuthModuleMocks.signInWithPopup).toHaveBeenCalled();
+        expect(firebaseAuthModuleMocks.signInWithRedirect).toHaveBeenCalled();
       }, { timeout: 2000 });
     });
   });

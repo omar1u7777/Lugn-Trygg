@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { useTranslation } from 'react-i18next';
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
@@ -56,6 +56,9 @@ const extractErrorMessage = (err: unknown): string => {
     if (code === "auth/cancelled-popup-request") {
       return "Inloggningsfönstret avbröts. Försök igen.";
     }
+    if (code === "auth/redirect-cancelled-by-user") {
+      return "Omdirigering avbröts. Försök igen.";
+    }
   }
   
   if (err && typeof err === "object" && "response" in err) {
@@ -86,6 +89,35 @@ const LoginForm = () => {
   
   const { login } = useAuth();
   const { announceToScreenReader } = useAccessibility();
+
+  // Handle Google redirect result on mount (signInWithRedirect flow)
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const { firebaseAuth, authModule } = await loadFirebaseAuthBundle();
+        const { getRedirectResult } = authModule;
+        const result = await getRedirectResult(firebaseAuth);
+        if (!result) return; // No pending redirect — normal page load
+
+        setLoading(true);
+        const user = result.user;
+        const idToken = await user.getIdToken();
+        const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
+        const data = response.data?.data || response.data;
+        login(data.accessToken, user.email ?? '', data.userId);
+        announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
+        setLoading(false);
+      } catch (err: unknown) {
+        logger.error('Google redirect sign-in error:', err);
+        const errorMessage = extractErrorMessage(err);
+        setError(errorMessage);
+        announceToScreenReader(`${MESSAGES.GOOGLE_LOGIN_FAILED}: ${errorMessage}`, "assertive");
+        setLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focus management for forgot password modal
   const handleCloseForgotPassword = () => {
@@ -167,28 +199,21 @@ const LoginForm = () => {
 
     try {
       const { firebaseAuth, authModule } = await loadFirebaseAuthBundle();
-      const { GoogleAuthProvider, signInWithPopup } = authModule;
+      const { GoogleAuthProvider, signInWithRedirect } = authModule;
 
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      const result = await signInWithPopup(firebaseAuth, provider);
-      const user = result.user;
-
-      const idToken = await user.getIdToken();
-      const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
-
-      // Backend returns APIResponse wrapper: { success, data: { accessToken, userId, user } }
-      const data = response.data?.data || response.data;
-
-      login(data.accessToken, user.email ?? '', data.userId);
-      announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
+      // signInWithRedirect avoids COOP issues caused by Google's OAuth popup
+      // setting Cross-Origin-Opener-Policy: same-origin on the popup window.
+      // The result is handled by the useEffect above via getRedirectResult().
+      await signInWithRedirect(firebaseAuth, provider);
+      // Browser navigates away — code below is not reached on a successful redirect
     } catch (err: unknown) {
       logger.error('Google sign-in error:', err);
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${MESSAGES.GOOGLE_LOGIN_FAILED}: ${errorMessage}`, "assertive");
-    } finally {
       setLoading(false);
     }
   };
