@@ -12,8 +12,11 @@ from src.services.backup_service import BackupService
 def test_create_backup_records_status(tmp_path, mocker):
     service = BackupService(backup_dir=str(tmp_path))
     mocker.patch.object(service, '_backup_collection', return_value=[{'_id': 'doc'}])
-    mocker.patch.object(service, '_upload_backup_to_cloud')
     mocker.patch.object(service, '_cleanup_old_backups')
+
+    backup_file = tmp_path / 'daily_test.backup.gz'
+    backup_file.write_bytes(b'data')
+    mocker.patch.object(service, '_upload_backup_to_cloud', return_value=str(backup_file))
 
     backup_file = tmp_path / 'daily_test.backup.gz'
     backup_file.write_bytes(b'data')

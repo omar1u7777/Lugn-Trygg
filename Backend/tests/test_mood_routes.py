@@ -260,6 +260,11 @@ def test_log_mood_empty_text_with_audio(client, mock_firestore, mocker, auth_csr
         "confidence": 0.75,
         "sentiment": "NEGATIVE"
     }
+    mock_ai.analyze_sentiment.return_value = {
+        "score": -0.5,
+        "sentiment": "NEGATIVE",
+        "emotions": ["sadness"]
+    }
     mocker.patch('src.services.ai_service.ai_services', mock_ai)
     mocker.patch('src.utils.speech_utils.transcribe_audio_google', return_value="Jag är ledsen")
 

@@ -52,6 +52,7 @@ class TestPredictiveAnalyticsService:
         assert 'trend_7d' in df.columns
         assert len(df) == len(sample_mood_data)
 
+    @pytest.mark.skip(reason="_extract_mood_score method was removed from PredictiveAnalyticsService")
     def test_extract_mood_score(self, service):
         """Test mood score extraction from text"""
         # Test positive mood
