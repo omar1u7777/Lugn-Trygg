@@ -43,7 +43,7 @@ google-cloud-storage==3.9.0
 
 # ML & Data Science (pinned)
 scikit-learn==1.8.0
-numpy==1.26.4
+numpy==2.2.4
 pandas==3.0.0
 joblib==1.5.3
 
