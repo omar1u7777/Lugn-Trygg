@@ -23,7 +23,12 @@ export default defineConfig({
     // Only run component and unit tests
     include: [
       "**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
-    ]
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'json'],
+      reportsDirectory: './coverage',
+    },
   },
   define: {
     'process.env.NODE_ENV': '"development"',

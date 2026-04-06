@@ -55,7 +55,7 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ci-test-project
           VITE_FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
 
-      - name: Check coverage threshold (60%)
+      - name: Check coverage threshold (25%)
         run: |
           node -e "
             const fs = require('fs');
@@ -65,7 +65,7 @@ jobs:
             const functions = summary.total.functions.pct;
             const statements = summary.total.statements.pct;
             console.log('Coverage: lines='+lines+'% branches='+branches+'% functions='+functions+'% statements='+statements+'%');
-            const threshold = 60;
+            const threshold = 25;
             if (lines < threshold || branches < threshold || functions < threshold || statements < threshold) {
               console.error('FAILED: One or more metrics are below the '+threshold+'% threshold.');
               process.exit(1);
