@@ -48,27 +48,34 @@ pandas==3.0.0
 joblib==1.5.3
 
 # Deep Learning - LSTM Mood Forecasting
-# Updated to 2.21.0 (minimum version with Python 3.13 support).
-tensorflow-cpu==2.21.0
+# tensorflow-cpu EXCLUDED from free-tier deploy: RAM footprint ~500 MB on import alone,
+# which exceeds the 512 MB Render Starter limit.  Services fall back to scikit-learn.
+# Re-add on Standard ($25/mo, 2 GB RAM) or deploy via Docker with --platform linux/amd64.
+# tensorflow-cpu==2.21.0
 
-# Natural Language Processing (pinned)
-transformers==5.4.0
-# [B8] torch is CPU-only and requires PyTorch's custom index; installed separately in Docker:
-#   pip install torch==2.5.1+cpu torchvision==0.20.1+cpu --index-url https://download.pytorch.org/whl/cpu
-# Pinned version: torch==2.5.1+cpu  (matches Dockerfile)
+# Natural Language Processing
+# transformers + sentence-transformers EXCLUDED: sentence-transformers pulls in torch (~700 MB).
+# Both services already have graceful keyword / OpenAI fallbacks.
+# Restore when migrating to a plan with ≥ 2 GB RAM.
+# transformers==5.4.0
+# sentence-transformers==5.3.0
+# torch: CPU wheel installed separately in Docker (not via PyPI index):
+#   pip install torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
 
 # Vector Database & Semantic Search (optional - has fallback)
 # Note: package was renamed from pinecone-client to pinecone in 2024
 pinecone==5.0.1
-sentence-transformers==5.3.0
 
 # Audio Analysis (optional - has fallback)
-librosa==0.11.0
-soundfile==0.13.1
+# librosa / soundfile EXCLUDED: pulls in numba + llvmlite (~150 MB extra).
+# AudioService already catches ImportError and returns a graceful response.
+# librosa==0.11.0
+# soundfile==0.13.1
 scipy==1.17.0
 
 # Explainable AI (optional - has fallback)
-shap==0.46.0
+# shap EXCLUDED: not on the critical path; ExplainabilityService handles ImportError.
+# shap==0.46.0
 
 # Payment Processing
 stripe==11.3.0

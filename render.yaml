@@ -45,6 +45,6 @@ services:
       - key: PORT
         sync: false
       - key: GUNICORN_WORKERS
-        value: "3"
+        value: "1"
       - key: GUNICORN_THREADS
         value: "2"
