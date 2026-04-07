@@ -4,9 +4,14 @@ import os
 # Gunicorn PRODUCTION configuration optimized for 10k concurrent users
 bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"
 
-# Worker configuration - optimized for 10k users with performance improvements
-# Formula: (2 x $num_cores) + 1, capped at 9 to avoid OS resource exhaustion
-workers = min(max(2, multiprocessing.cpu_count() * 2 + 1), 9)
+# Worker configuration.
+# GUNICORN_WORKERS env var takes precedence so each deployment tier can tune this:
+#   Render Starter (512 MB)  → GUNICORN_WORKERS=1
+#   Render Standard (2 GB)   → GUNICORN_WORKERS=3
+#   Large / self-hosted      → GUNICORN_WORKERS=<(2×cores)+1>
+# Fallback formula: (2×cores)+1 capped at 9 (used when the env var is not set).
+_default_workers = min(max(2, multiprocessing.cpu_count() * 2 + 1), 9)
+workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
 worker_class = "gevent"  # Async worker for high concurrency
 threads = 2  # Reduced threads per worker for better memory management
 worker_connections = 5000  # Reduced from 10k for stability, still supports high concurrency
