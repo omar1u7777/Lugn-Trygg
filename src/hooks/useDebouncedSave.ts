@@ -18,8 +18,13 @@ export const useDebouncedSave = <T extends Record<string, unknown>>(
   const [lastSaved, setLastSaved] = useState<T>(initialData);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const pendingSaveRef = useRef<T | null>(null);
-  const dataRef = useRef<T>(data);
-  dataRef.current = data;
+  // CRITICAL FIX: Initialize with defensive value to prevent TDZ errors
+  const dataRef = useRef<T>(initialData);
+  
+  // Sync data to ref using useEffect
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   // Debounced save function
   const debouncedSave = useCallback(

@@ -53,8 +53,13 @@ export const useVoiceInput = (options: UseVoiceInputOptions = {}) => {
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef('');
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  // CRITICAL FIX: Initialize with defensive empty object to prevent TDZ errors
+  const optionsRef = useRef<UseVoiceInputOptions>({});
+  
+  // Sync options to ref using useEffect
+  useEffect(() => {
+    optionsRef.current = options || {};
+  }, [options]);
 
   // Initialize speech recognition on mount
   useEffect(() => {
