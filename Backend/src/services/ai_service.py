@@ -110,15 +110,15 @@ class AIServices:
         """
         if hasattr(self, '_azure_deployment') and self._azure_deployment:
             return self._azure_deployment
-        return "gpt-4o-mini"
+        return "gpt-4o"
 
     def _check_openai(self) -> bool:
         """Check if OpenAI or Azure OpenAI API is available"""
         # Check for Azure OpenAI first
         azure_key = os.getenv("AZURE_OPENAI_API_KEY")
         azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
-        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+        azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 
         if azure_key and azure_endpoint:
             try:
