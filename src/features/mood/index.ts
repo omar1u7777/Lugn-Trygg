@@ -6,8 +6,8 @@
  */
 
 // Components
-export { default as MoodLogger } from '../../components/MoodLogger';
-export { default as WorldClassMoodLogger } from '../../components/WorldClassMoodLogger';
+// [D6] MoodLogger and WorldClassMoodLogger removed — all mood logging uses SuperMoodLogger
+export { SuperMoodLogger } from '../../components/SuperMoodLogger';
 export { default as MoodList } from '../../components/MoodList';
 export { default as MoodAnalytics } from '../../components/MoodAnalytics';
 

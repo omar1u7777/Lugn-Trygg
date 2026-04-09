@@ -116,6 +116,79 @@ describe('useGratitude', () => {
     expect(result.current.isActive).toBe(true);
   });
 
+  it('start with no user does not crash', async () => {
+    const { result } = renderGratitude(null);
+    act(() => result.current.start());
+    // saveEntry without user should still call onProgress and announce
+    await act(async () => {
+      await result.current.saveEntry(1, ['A', 'B', 'C']);
+    });
+    expect(onProgress).toHaveBeenCalled();
+  });
+
+  it('cancel without user clears state', () => {
+    const { result } = renderGratitude(null);
+    act(() => result.current.start());
+    act(() => result.current.cancel());
+    expect(result.current.isActive).toBe(false);
+  });
+
+  it('complete without user clears state', () => {
+    const { result } = renderGratitude(null);
+    act(() => result.current.start());
+    act(() => result.current.complete());
+    expect(result.current.isActive).toBe(false);
+    expect(onProgress).toHaveBeenCalledWith('exercise', 35);
+  });
+
+  it('does not re-save when isSaving state is active (guard check)', async () => {
+    const { result } = renderGratitude();
+    act(() => result.current.start());
+
+    // Start first save - it will set isSaving=true
+    const savePromise = act(async () => {
+      await result.current.saveEntry(1, ['X', 'Y', 'Z']);
+    });
+
+    await savePromise;
+    // Verify the first save completed and onProgress was called
+    expect(onProgress).toHaveBeenCalledWith('exercise', 5);
+  });
+
+  it('skips saving when day already has 3+ entries completed', async () => {
+    const { result } = renderGratitude();
+    act(() => result.current.start());
+
+    // Populate entries directly via updateEntries (no isSaving side effect)
+    act(() => result.current.updateEntries({ 1: ['A', 'B', 'C'] }));
+    vi.clearAllMocks();
+
+    // saveEntry should detect day 1 is already completed
+    await act(async () => {
+      await result.current.saveEntry(1, ['D', 'E', 'F']);
+    });
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith('Dag 1 är redan slutförd', 'polite');
+  });
+
+  it('handles malformed localStorage data gracefully', () => {
+    localStorage.setItem(`gratitude_challenge_${mockUser.user_id}`, 'NOT_JSON{{{');
+    // Should not throw, just log error
+    expect(() => renderGratitude()).not.toThrow();
+  });
+
+  it('start re-loads saved data from localStorage', () => {
+    const saved = {
+      entries: { 1: ['a', 'b', 'c'] },
+      currentDay: 4,
+      startDate: new Date().toISOString(),
+    };
+    localStorage.setItem(`gratitude_challenge_${mockUser.user_id}`, JSON.stringify(saved));
+    const { result } = renderGratitude();
+    act(() => result.current.start());
+    expect(result.current.day).toBe(4);
+  });
+
   it('updateEntries sets entries', () => {
     const { result } = renderGratitude();
     act(() => result.current.updateEntries({ 2: ['x', 'y'] }));

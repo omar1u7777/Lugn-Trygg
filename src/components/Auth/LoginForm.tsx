@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useTranslation } from 'react-i18next';
 import { Link } from "react-router-dom";
 import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';

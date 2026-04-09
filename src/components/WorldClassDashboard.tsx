@@ -23,7 +23,6 @@ import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 
 // Feature Components - Direct imports to prevent code splitting
 import { SuperMoodLogger } from './SuperMoodLogger';
-import MoodLogger from './MoodLogger';
 import MoodList from './MoodList';
 import WorldClassAIChat from './WorldClassAIChat';
 import WorldClassGamification from './WorldClassGamification';
@@ -636,7 +635,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {t('worldDashboard.takeAMoment')}
               </p>
             </div>
-            <MoodLogger onMoodLogged={() => handleRefresh('auto')} />
+            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} />
           </div>
         </Card>
 

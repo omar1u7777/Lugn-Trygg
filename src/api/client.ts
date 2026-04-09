@@ -3,6 +3,7 @@ import { getBackendUrl } from "../config/env";
 import { tokenStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
 import { API_ENDPOINTS } from "./constants";
+import { getCsrfToken as getSharedCsrfToken, clearCsrfToken, registerCsrfFetcher } from "./csrf";
 
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
@@ -14,7 +15,6 @@ const RETRY_AFTER_HEADER = "retry-after";
 const DEFAULT_RETRY_AFTER = 60;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
-const CSRF_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 // State-changing HTTP methods
 const STATE_CHANGING_METHODS = ["POST", "PUT", "DELETE", "PATCH"];
@@ -95,8 +95,6 @@ export { ApiError } from './errors';
 let isRefreshing = false;
 // Queue of requests waiting for a token refresh to complete
 let refreshSubscribers: Array<(token: string | null) => void> = [];
-let cachedCsrfToken: string | null = null;
-let csrfTokenExpiresAt = 0;
 
 const onRefreshed = (token: string | null) => {
   refreshSubscribers.forEach(cb => cb(token));
@@ -126,27 +124,18 @@ const getOfflineStorage = async () => {
   return offlineStorageModule;
 };
 
-const getClientCsrfToken = async (): Promise<string | null> => {
-  if (cachedCsrfToken && Date.now() < csrfTokenExpiresAt) {
-    return cachedCsrfToken;
-  }
-
+// Register the CSRF fetcher so the shared csrf.ts module can fetch tokens via the api instance
+registerCsrfFetcher(async (): Promise<string | null> => {
   try {
     const response = await api.get(API_ENDPOINTS.AUTH.CSRF_TOKEN);
     const responseData = response.data?.data || response.data;
     const csrfToken = responseData?.csrfToken || responseData?.csrf_token;
-
-    if (typeof csrfToken === 'string' && csrfToken.length > 0) {
-      cachedCsrfToken = csrfToken;
-      csrfTokenExpiresAt = Date.now() + CSRF_TOKEN_TTL_MS;
-      return csrfToken;
-    }
+    return (typeof csrfToken === 'string' && csrfToken.length > 0) ? csrfToken : null;
   } catch (csrfError) {
     logger.warn('Failed to fetch CSRF token in API client', { csrfError });
+    return null;
   }
-
-  return null;
-};
+});
 
 // Helper function to track API calls
 const trackApiCall = async (
@@ -273,8 +262,7 @@ const handleSetupError = async (error: AxiosError, originalRequest: ApiConfig): 
 
 const clearLocalAuthState = () => {
   tokenStorage.clearTokens();
-  cachedCsrfToken = null;
-  csrfTokenExpiresAt = 0;
+  clearCsrfToken();
   try {
     localStorage.removeItem('secure_user');
     localStorage.removeItem('user');
@@ -455,9 +443,9 @@ api.interceptors.request.use(
     // Skip CSRF for initial auth endpoints to prevent bootstrap deadlocks
     // when the CSRF fetch itself needs a valid token.
     const method = config.method?.toUpperCase();
-    const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login');
+    const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register') || config.url?.includes('/auth/google-login') || config.url?.includes('/auth/logout') || config.url?.includes('/auth/refresh');
     if (method && STATE_CHANGING_METHODS.includes(method) && !isAuthEndpoint) {
-      const csrf = await getClientCsrfToken();
+      const csrf = await getSharedCsrfToken();
       if (!csrf) {
         // [S4] Block the request — sending state-changing requests without CSRF
         // protection is a security vulnerability. Never silently continue.

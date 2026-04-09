@@ -34,9 +34,9 @@ class SecurityHeadersMiddleware:
             'x_content_type_options': 'nosniff',
             'referrer_policy': 'strict-origin-when-cross-origin',
             'permissions_policy': self._get_permissions_policy(),
-            'cross_origin_embedder_policy': 'require-corp',
-            'cross_origin_opener_policy': 'same-origin',
-            'cross_origin_resource_policy': 'same-origin',
+            'cross_origin_embedder_policy': 'unsafe-none',
+            'cross_origin_opener_policy': 'same-origin-allow-popups',
+            'cross_origin_resource_policy': 'cross-origin',
             'origin_trial_tokens': [],
         }
 
@@ -137,7 +137,7 @@ class SecurityHeadersMiddleware:
     def _get_permissions_policy(self) -> str:
         """Get Permissions Policy directives"""
         return (
-            "camera=(), microphone=(), geolocation=(), gyroscope=(), "
+            "camera=(), microphone=(self), geolocation=(), gyroscope=(), "
             "accelerometer=(), magnetometer=(), payment=(), usb=(), "
             "autoplay=(), encrypted-media=(), fullscreen=(self), "
             "picture-in-picture=()"
@@ -334,7 +334,7 @@ class SecurityHeaders:
             'X-Frame-Options': 'DENY',
             'X-Content-Type-Options': 'nosniff',
             'Referrer-Policy': 'strict-origin-when-cross-origin',
-            'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+            'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()',
             'X-XSS-Protection': '1; mode=block',
         }
 
