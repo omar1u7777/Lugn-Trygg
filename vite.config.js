@@ -113,6 +113,7 @@ export default defineConfig({
       ignored: [
         '**/.venv/**',
         '**/venv/**',
+        '**/.conda/**',
         '**/node_modules/**',
         '**/.git/**',
         '**/dist/**',
@@ -144,19 +145,8 @@ export default defineConfig({
     sourcemap: !isProduction,
     target: ["es2015", "chrome70", "firefox65", "safari12", "edge79"],
     cssCodeSplit: true,
-    minify: "terser",
+    minify: "esbuild",
     modulePreload: { polyfill: true },
-    terserOptions: {
-      compress: {
-        drop_console: isProduction,
-        drop_debugger: isProduction,
-        pure_funcs: isProduction ? ["console.log", "console.info", "console.debug"] : [],
-        passes: 2,
-      },
-      mangle: {
-        safari10: true,
-      },
-    },
     assetsDir: "assets",
     rollupOptions: {
       input: {

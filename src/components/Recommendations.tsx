@@ -45,7 +45,6 @@ import { usePMR } from '../hooks/usePMR';
 import { usePomodoro } from '../hooks/usePomodoro';
 import { useGratitude } from '../hooks/useGratitude';
 import { useJournaling } from '../hooks/useJournaling';
-import { logger } from '../utils/logger';
 
 const EMPTY_WELLNESS_GOALS: string[] = [];
 type RecommendationFeedback = 'helpful' | 'not_relevant';
