@@ -1975,7 +1975,7 @@ Vill du prata mer om vad som känns svårt just nu?"""
 
         response_text = fallback_response["response"]
         if quota_exceeded:
-            response_text = f"⚠️ AI-assistenten är tillfälligt otillgänglig på grund av hög efterfrågan. Här är allmänna råd baserade på ditt meddelande:\n\n{response_text}"
+            response_text = f"{response_text}"
 
         return {
             "response": response_text,
