@@ -84,8 +84,9 @@ export const getEnvValue = (key: SupportedEnvKeys): string | undefined => {
   }
 
   // 2. import.meta.env (Vite dev & build – explicit per-key access)
+  // Note: empty string is a valid value (e.g. VITE_BACKEND_URL="" means same-origin)
   const viteVal = readViteKey(key);
-  if (viteVal) return viteVal;
+  if (viteVal !== undefined) return viteVal;
 
   // 3. process.env (Node / tests)
   if (typeof process !== 'undefined' && process.env?.[key]) {
@@ -109,6 +110,8 @@ const validateRequiredEnvVars = () => {
 
   const missing = required.filter(key => {
     const value = getEnvValue(key);
+    // Empty string is valid for VITE_BACKEND_URL (same-origin proxy)
+    if (key === 'VITE_BACKEND_URL' && value === '') return false;
     return !value || value === 'your-encryption-key-here' || value === 'undefined';
   });
 
@@ -140,7 +143,8 @@ if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
 
 export const getBackendUrl = (): string => {
   const url = getEnvValue('VITE_BACKEND_URL');
-  if (!url) {
+  // Empty string is valid — it means "use relative URLs" (same-origin via Vercel proxy)
+  if (url === undefined || url === null) {
     throw new Error('VITE_BACKEND_URL is required but not set!');
   }
   return url;
