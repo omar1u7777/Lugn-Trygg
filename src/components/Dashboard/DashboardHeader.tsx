@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { useDashboardData } from '../../hooks/useDashboardData';
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -11,6 +10,7 @@ interface DashboardHeaderProps {
   userId?: string;
   hasLoggedToday?: boolean;
   lastMood?: string;
+  averageMood?: number;
 }
 
 const getGreeting = (t: TFunction, moodContext?: string): string => {
@@ -117,15 +117,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   isLoading = false,
   lastUpdatedAt,
   onFocusAction,
-  userId,
+  userId: _userId,
   hasLoggedToday,
   lastMood,
+  averageMood,
 }) => {
   const { t } = useTranslation();
-  // Hämta dashboard data för mood-baserad personalisering - ALLTID kalla hooken
-  const dashboardResult = useDashboardData(userId ?? '');
-  const stats = userId ? dashboardResult?.stats : null;
-  const recentMood = stats?.averageMood;
+  const recentMood = averageMood;
   
   const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood?.toString()));
   const [focusContent, setFocusContent] = useState(() => getDailyFocusContent(t));
@@ -284,15 +282,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   // Keyboard shortcut för att starta breathing session med Space
+  // CRITICAL: Only handle Space when the breathing card itself has focus,
+  // otherwise this prevents typing spaces in text inputs across the page.
   useEffect(() => {
+    const card = breathingCardRef.current;
+    if (!card) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isBreathingSessionActive && !sessionCompleted) {
         e.preventDefault();
         startBreathingSession();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    card.addEventListener('keydown', handleKeyDown);
+    return () => card.removeEventListener('keydown', handleKeyDown);
   }, [isBreathingSessionActive, sessionCompleted]);
 
   const handleContinueToCheckIn = () => {
