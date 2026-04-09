@@ -120,8 +120,13 @@ const RecommendationsSkeleton = () => (
 const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string => {
   const steps = t('dashboard.goalSteps') as Record<string, string[]> | undefined;
   const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || ['Logga ditt humör idag'];
-  const randomStep = goalSteps[Math.floor(Math.random() * goalSteps.length)];
-  return randomStep || ((steps?.['fallback'] as string) || 'Fortsätt arbeta med ditt mål');
+  // Deterministic selection: hash goal name + current day to avoid flicker on re-render
+  // while still rotating the suggestion daily
+  const dayOfYear = Math.floor(Date.now() / 86400000);
+  let hash = 0;
+  for (let i = 0; i < goal.length; i++) hash = (hash * 31 + goal.charCodeAt(i)) | 0;
+  const index = Math.abs(hash + dayOfYear) % goalSteps.length;
+  return goalSteps[index] || ((steps?.['fallback'] as string) || 'Fortsätt arbeta med ditt mål');
 };
 
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
@@ -278,16 +283,21 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     });
   }, [safeDashboardStats.recentActivity]);
 
+  // Track page view once on mount (not on every loading state change)
   useEffect(() => {
     analytics.page('World Class Dashboard', {
       component: 'WorldClassDashboard',
       userId: user?.user_id,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Announce to screen reader when data finishes loading
+  useEffect(() => {
     if (!loading) {
       announceToScreenReader(t('worldDashboard.dashboardLoaded'), 'polite');
     }
-  }, [user?.user_id, loading, announceToScreenReader, t]);
+  }, [loading, announceToScreenReader, t]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -620,6 +630,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         isLoading={loading}
         lastUpdatedAt={lastUpdatedAt}
         onFocusAction={scrollToMoodCheckIn}
+        averageMood={safeDashboardStats.averageMood}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
