@@ -15,7 +15,9 @@ import {
   MoodListWrapper,
   CrisisPageWrapper,
 } from '@/components/RouteWrappers';
+import { SuperMoodLogger } from '@/components/SuperMoodLogger';
 
+// Lazy-loaded route components (all const declarations MUST be after all imports to avoid TDZ errors)
 const WorldClassDashboard = lazy(() => import('@/components/WorldClassDashboard'));
 const SubscriptionForm = lazy(() => import('@/components/SubscriptionForm'));
 const AIStories = lazy(() => import('@/components/AIStories'));
@@ -41,12 +43,9 @@ const WellnessHub = lazy(() => import('@/components/WellnessHub'));
 const UpgradePage = lazy(() => import('@/pages/UpgradePage'));
 const HealthMonitoring = lazy(() => import('@/components/HealthMonitoring'));
 const SecurityMonitor = lazy(() => import('@/components/Admin/SecurityMonitor'));
-
 // Advanced Mood Tracking Components (2026)
-import { SuperMoodLogger } from '@/components/SuperMoodLogger';
 const ClinicalAssessment = lazy(() => import('@/components/ClinicalAssessment'));
 const MoodForecastView = lazy(() => import('@/components/MoodForecastView'));
-
 // Advanced AI Chat Components (2026)
 const AIChatInsights = lazy(() => import('@/components/AIChatInsights'));
 
