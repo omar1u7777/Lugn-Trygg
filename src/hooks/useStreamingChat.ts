@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { getBackendUrl } from '../config/env';
 import { tokenStorage } from '../utils/secureStorage';
 import { logger } from '../utils/logger';
@@ -25,8 +25,14 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const csrfTokenRef = useRef<string | null>(null);
   // CRITICAL FIX: Use ref to avoid dependency issues with useCallback
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  // Initialize with defensive empty object to prevent TDZ errors in production builds
+  const optionsRef = useRef<UseStreamingChatOptions>({});
+  
+  // Sync options to ref using useEffect to avoid breaking hooks rules
+  // This ensures the ref is always up-to-date when callbacks execute
+  useEffect(() => {
+    optionsRef.current = options || {};
+  }, [options]);
 
   const streamMessage = useCallback(async (
     userId: string,
