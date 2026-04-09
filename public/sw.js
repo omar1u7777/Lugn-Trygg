@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lugn-trygg-v3-production';
+const CACHE_NAME = 'lugn-trygg-v4-production';
 const urlsToCache = [
   '/',
   '/site.webmanifest'
