@@ -513,10 +513,6 @@ export function initializeAnalytics() {
   logger.debug('🚀 Initializing analytics services...');
 
   try {
-    // Initialize in order
-    initializeSentry();
-    initializeFirebaseAnalytics();
-
     // Track Web Vitals (only if enabled)
     if (ENABLE_WEB_VITALS) {
       trackWebVitals();
