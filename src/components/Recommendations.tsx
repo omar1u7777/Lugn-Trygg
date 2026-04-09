@@ -1,11 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-// Helper to format Pomodoro time as MM:SS
-const formatPomodoroTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 import { useNavigate } from 'react-router-dom';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
@@ -45,6 +39,13 @@ import { usePMR } from '../hooks/usePMR';
 import { usePomodoro } from '../hooks/usePomodoro';
 import { useGratitude } from '../hooks/useGratitude';
 import { useJournaling } from '../hooks/useJournaling';
+
+// Helper to format Pomodoro time as MM:SS
+const formatPomodoroTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const EMPTY_WELLNESS_GOALS: string[] = [];
 type RecommendationFeedback = 'helpful' | 'not_relevant';
