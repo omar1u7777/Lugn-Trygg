@@ -40,6 +40,9 @@ export const useAccessibility = (): AccessibilityState & AccessibilityActions =>
   const assertiveLiveRegionRef = useRef<HTMLDivElement | null>(null);
 
   const detectAccessibilityFeatures = useCallback(() => {
+    // CRITICAL: Check window exists to prevent TDZ errors in production
+    if (typeof window === 'undefined') return;
+    
     const screenReaderActive = isScreenReaderActive();
     const highContrast = window.matchMedia('(prefers-contrast: high)').matches;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
