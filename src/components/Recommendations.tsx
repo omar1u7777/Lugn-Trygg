@@ -303,7 +303,40 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [biofeedbackPattern, setBiofeedbackPattern] = useState<'coherence' | 'relax' | 'energize' | 'sleep'>('coherence');
   const breathingAudioContextRef = useRef<AudioContext | null>(null);
   const breathingOutcomeSyncedRef = useRef(false);
-  
+
+  // Meditation loading/session state (must be before hooks that reference handleSaveMeditationSession)
+  const [, setIsLoadingMeditation] = useState(false);
+  const [, setMeditationSessions] = useState<Record<string, unknown>[]>([]);
+
+  // Meditation Functions (must be declared before useBreathingExercise/usePMR/useEffect that reference them)
+  const handleLoadMeditationHistory = useCallback(async () => {
+    if (!user?.user_id) return;
+
+    setIsLoadingMeditation(true);
+    try {
+      const data = await getMeditationSessions(20);
+      setMeditationSessions(data.sessions || []);
+    } catch (error) {
+      logger.error('Failed to load meditation sessions:', error);
+    } finally {
+      setIsLoadingMeditation(false);
+    }
+  }, [user?.user_id]);
+
+  const handleSaveMeditationSession = useCallback(async (sessionData: Parameters<typeof saveMeditationSession>[0]) => {
+    if (!user?.user_id) return;
+
+    try {
+      await saveMeditationSession(sessionData);
+      logger.debug('✅ Meditation session saved to backend');
+
+      // Refresh meditation history
+      await handleLoadMeditationHistory();
+    } catch (error) {
+      logger.error('Failed to save meditation session:', error);
+    }
+  }, [handleLoadMeditationHistory, user?.user_id]);
+
   // Breathing Exercise Hook
   const {
     isActive: isBreathingActive,
@@ -619,8 +652,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [meditationTimeLeft, setMeditationTimeLeft] = useState(0);
   const [isMeditationPaused, setIsMeditationPaused] = useState(false);
   const [meditationTimer, setMeditationTimer] = useState<NodeJS.Timeout | null>(null);
-  const [, setIsLoadingMeditation] = useState(false);
-  const [, setMeditationSessions] = useState<Record<string, unknown>[]>([]);
   const [debugMode, setDebugMode] = useState(false);
   const showDebugTools = import.meta.env.DEV;
 
@@ -1299,34 +1330,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // Journaling Functions
   // handleSaveJournalEntry and handleLoadJournalHistory are now provided by useJournaling hook
 
-  // Meditation Functions
-  const handleLoadMeditationHistory = useCallback(async () => {
-    if (!user?.user_id) return;
-
-    setIsLoadingMeditation(true);
-    try {
-      const data = await getMeditationSessions(20);
-      setMeditationSessions(data.sessions || []);
-    } catch (error) {
-      logger.error('Failed to load meditation sessions:', error);
-    } finally {
-      setIsLoadingMeditation(false);
-    }
-  }, [user?.user_id]);
-
-  const handleSaveMeditationSession = useCallback(async (sessionData: Parameters<typeof saveMeditationSession>[0]) => {
-    if (!user?.user_id) return;
-
-    try {
-      await saveMeditationSession(sessionData);
-      logger.debug('✅ Meditation session saved to backend');
-
-      // Refresh meditation history
-      await handleLoadMeditationHistory();
-    } catch (error) {
-      logger.error('Failed to save meditation session:', error);
-    }
-  }, [handleLoadMeditationHistory, user?.user_id]);
 
   // Load data on mount
   useEffect(() => {
