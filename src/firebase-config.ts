@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import type { FirebaseOptions } from "firebase/app";
+import type { Analytics } from 'firebase/analytics';
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -53,7 +54,6 @@ if (missingKeys.length > 0 && import.meta.env.DEV) {
 const app = initializeApp(firebaseOptions);
 
 // Initialisera Analytics om ett riktigt measurementId finns
-import type { Analytics } from 'firebase/analytics';
 let analytics: Analytics | null = null;
 if (firebaseConfig.measurementId && firebaseConfig.measurementId !== 'G-XXXXXXXXXX') {
   try {

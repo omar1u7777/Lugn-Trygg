@@ -1,15 +1,7 @@
-// React imports - MUST be first for global availability
+// ── ALL IMPORTS FIRST (no code between imports — avoids TDZ errors in production bundles) ──
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createRoot } from "react-dom/client";
-
-// Expose React globally BEFORE any other imports
-if (typeof window !== 'undefined') {
-  window.React = React;
-  window.ReactDOM = ReactDOM;
-}
-
-// Now import everything else
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -23,13 +15,29 @@ import { scheduleIdleTask } from "./utils/scheduleIdleTask";
 import App from "./App";
 import "./i18n"; // Initialize i18n
 import i18n from "./i18n";
-// Hero image IDs and Cloudinary URL builder moved to individual route components
 import { logger } from "./utils/logger";
+import * as Sentry from '@sentry/react';
+// Import ALL CSS statically so Vite injects them as <link> tags in the HTML.
+// Previously, most styles lived inside the lazy-loaded ProtectedAppShell
+// and never loaded on auth pages (login / register), leaving them unstyled.
+import "./index.css";
+import "./styles/styles.css";
+import "./styles/responsive.css";
+import "./styles/design-system.css";
+import "./styles/animations.css";
+import "./styles/world-class-design.css";
+import "./styles/accessibility.css";
+
+// ── RUNTIME CODE (after all imports) ──
+
+// Expose React globally so third-party scripts can find it
+if (typeof window !== 'undefined') {
+  window.React = React;
+  window.ReactDOM = ReactDOM;
+}
 
 // [B7] Initialize Sentry frontend error tracking.
 // @sentry/react is installed; VITE_SENTRY_DSN activates it.
-import * as Sentry from '@sentry/react';
-
 const _sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (_sentryDsn && _sentryDsn !== 'your_sentry_dsn') {
   Sentry.init({
@@ -48,17 +56,6 @@ if (_sentryDsn && _sentryDsn !== 'your_sentry_dsn') {
     + 'Set VITE_SENTRY_DSN in your deployment environment variables.'
   );
 }
-
-// Import ALL CSS statically so Vite injects them as <link> tags in the HTML.
-// Previously, most styles lived inside the lazy-loaded ProtectedAppShell
-// and never loaded on auth pages (login / register), leaving them unstyled.
-import "./index.css";
-import "./styles/styles.css";
-import "./styles/responsive.css";
-import "./styles/design-system.css";
-import "./styles/animations.css";
-import "./styles/world-class-design.css";
-import "./styles/accessibility.css";
 
 // Kept for the releaseInitialOverlays flow – resolves immediately now.
 const tailwindStylesPromise: Promise<unknown> = Promise.resolve();
