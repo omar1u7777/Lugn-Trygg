@@ -509,6 +509,7 @@ def chat_stream():
             full_response = []
             chunk_count = 0
             error_count = 0
+            crisis_detected = False  # Track crisis state from streaming chunks
             try:
                 for sse_chunk in ai_services.generate_therapeutic_conversation_stream(
                     user_message, conversation_history, user_id=user_id
@@ -522,6 +523,9 @@ def chat_stream():
                             content = payload.get("content", "")
                             if content:
                                 full_response.append(content)
+                            # Check for crisis flag in chunk (critical for mental health)
+                            if payload.get("crisis"):
+                                crisis_detected = True
                         except _json.JSONDecodeError as json_err:
                             error_count += 1
                             if error_count <= 3:  # Log first 3 errors only
@@ -553,7 +557,8 @@ def chat_stream():
                             "ai_generated": True,
                             "model_used": "gpt-4o-mini-stream",
                             "chunks_received": chunk_count,
-                            "parse_errors": error_count
+                            "parse_errors": error_count,
+                            "crisis_detected": crisis_detected  # Persist crisis flag for history
                         })
                         # Award XP
                         try:

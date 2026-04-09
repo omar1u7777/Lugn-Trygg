@@ -257,7 +257,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           role: msg?.role === 'user' ? 'user' : 'assistant',
           content: (msg?.content as string) || (msg?.message as string) || '',
           timestamp: new Date((msg?.timestamp as { toDate?: () => Date } | string | undefined && typeof msg.timestamp === 'object' && msg.timestamp !== null && 'toDate' in msg.timestamp ? (msg.timestamp as { toDate: () => Date }).toDate() : msg?.timestamp as string | undefined) || Date.now()),
-          sentiment: msg?.sentiment as string | undefined,
+          // Backend saves crisis_detected (boolean), frontend uses sentiment: 'crisis' for display
+          sentiment: (msg?.crisis_detected ? 'crisis' : msg?.sentiment) as string | undefined,
           emotions: msg?.emotions as string[] | undefined,
         }));
 

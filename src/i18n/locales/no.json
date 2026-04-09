@@ -187,6 +187,31 @@
     "thinking": "AI tenker...",
     "error": "Noe gikk galt"
   },
+  "aiChat": {
+    "sanctuary": "Din Fristad",
+    "thinking": "Tenker...",
+    "alwaysHere": "Alltid her for deg",
+    "messagesLeft": "{{count}} meldinger igjen",
+    "limitReached": "Grensen nådd",
+    "dailyLimitReached": "Daglig grense nådd",
+    "welcomeMessage": "Velkommen til din fristad. Jeg lytter.",
+    "newResponse": "Nytt svar fra AI",
+    "errorFallback": "Beklager, jeg mistet tråden. Prøv igjen.",
+    "offlineMode": "Du er offline. Meldingen lagres og sendes når du er online.",
+    "offlinePlaceholder": "Offline-modus - melding lagres...",
+    "messageQueued": "Melding lagret for senere sending",
+    "suggestions": {
+      "stressed": "Jeg føler meg stresset",
+      "motivation": "Trenger motivasjon",
+      "sleep": "Har problemer med å sove"
+    },
+    "opening": "Åpner din fristad...",
+    "welcomeHome": "Velkommen hjem.",
+    "welcomeText": "Ingen dømmer deg her. Jeg er her for å lytte, støtte og hjelpe deg å sortere tankene dine. Hva er på ditt sinn?",
+    "inputPlaceholder": "Fortell hva du føler...",
+    "footer": "Lugn AI • Privat & Sikker",
+    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologhjelp. Ved akutt krise, ring 113 (Selvmordslinjen) eller 112."
+  },
   "subscription": {
     "title": "Oppgrader til Premium",
     "price": "99 SEK/måned",
