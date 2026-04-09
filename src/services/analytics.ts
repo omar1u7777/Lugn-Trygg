@@ -30,7 +30,15 @@ interface AnalyticsWindow extends Window {
   amplitude?: AmplitudeGlobal;
 }
 
-const appWindow = window as AnalyticsWindow;
+// CRITICAL FIX: Use function to safely get window reference to prevent TDZ errors
+const getAppWindow = (): AnalyticsWindow | undefined => {
+  if (typeof window !== 'undefined') {
+    return window as AnalyticsWindow;
+  }
+  return undefined;
+};
+
+const appWindow = getAppWindow();
 
 // Sentry for production error tracking
 // Only initialized when VITE_SENTRY_DSN is set — no-ops gracefully otherwise
