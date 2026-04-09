@@ -40,6 +40,15 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      # Azure OpenAI (alternative - uncomment if using Azure instead of OpenAI)
+      # - key: AZURE_OPENAI_API_KEY
+      #   sync: false
+      # - key: AZURE_OPENAI_ENDPOINT
+      #   sync: false
+      # - key: AZURE_OPENAI_API_VERSION
+      #   value: "2024-02-15-preview"
+      # - key: AZURE_OPENAI_DEPLOYMENT
+      #   value: "gpt-4o-mini"
       - key: SENTRY_DSN
         sync: false
       - key: PORT

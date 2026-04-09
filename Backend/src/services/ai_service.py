@@ -102,8 +102,48 @@ class AIServices:
             self._openai_checked = True
         return self._openai_available
 
+    def _get_model_name(self) -> str:
+        """Get the model/deployment name for API calls.
+        
+        For Azure OpenAI: returns the deployment name (e.g., 'gpt-4o-mini')
+        For standard OpenAI: returns the model name (e.g., 'gpt-4o-mini')
+        """
+        if hasattr(self, '_azure_deployment') and self._azure_deployment:
+            return self._azure_deployment
+        return "gpt-4o-mini"
+
     def _check_openai(self) -> bool:
-        """Check if OpenAI API is available"""
+        """Check if OpenAI or Azure OpenAI API is available"""
+        # Check for Azure OpenAI first
+        azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        azure_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+
+        if azure_key and azure_endpoint:
+            try:
+                import httpx
+                from openai import AzureOpenAI
+                timeout = httpx.Timeout(10.0, connect=5.0, read=30.0, write=10.0, pool=5.0)
+                self.client = AzureOpenAI(
+                    api_key=azure_key,
+                    azure_endpoint=azure_endpoint,
+                    api_version=azure_api_version,
+                    timeout=timeout,
+                    max_retries=2
+                )
+                # Store deployment name for later use
+                self._azure_deployment = azure_deployment
+                logger.info("✅ Azure OpenAI client initialized successfully")
+                return True
+            except ImportError:
+                logger.warning("OpenAI library not available")
+                return False
+            except Exception as e:
+                logger.error(f"Failed to initialize Azure OpenAI client: {str(e)}")
+                return False
+
+        # Fallback to standard OpenAI
         api_key = os.getenv("OPENAI_API_KEY")
         if api_key:
             try:
@@ -117,6 +157,7 @@ class AIServices:
                     timeout=timeout,  # 30s max for API calls to prevent 4.1s hangs
                     max_retries=2  # Retry up to 2 times on failure
                 )
+                self._azure_deployment = None
                 logger.info("✅ OpenAI client initialized successfully with 30s timeout")
                 return True
             except ImportError:
@@ -128,10 +169,10 @@ class AIServices:
         else:
             if _IS_PRODUCTION:
                 logger.warning(
-                    "[B4] OPENAI_API_KEY not set — AI Stories, Forecast and Chat are running in degraded mode."
+                    "[B4] OPENAI_API_KEY or AZURE_OPENAI_API_KEY not set — AI Stories, Forecast and Chat are running in degraded mode."
                 )
             else:
-                logger.warning("OPENAI_API_KEY not set — AI features will use fallback logic")
+                logger.warning("OPENAI_API_KEY or AZURE_OPENAI_API_KEY not set — AI features will use fallback logic")
             return False
 
     def analyze_sentiment(self, text: str) -> dict[str, Any]:
@@ -229,7 +270,7 @@ Var noga med att returnera endast giltig JSON."""
 
             # CRITICAL FIX: Add explicit timeout and error handling to prevent 4.1s hangs
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=[
                     {"role": "system", "content": "Du är en expert på sentimentanalys. Returnera endast giltig JSON."},
                     {"role": "user", "content": prompt}
@@ -1859,7 +1900,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         try:
             stream = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=messages,  # type: ignore[arg-type]
                 max_tokens=400,
                 temperature=0.7,
