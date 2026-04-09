@@ -73,6 +73,8 @@
       "aiStories": true,
       "recommendations": true,
       "wellness": true,
+      "advancedMood": true,
+      "moodForecast": true,
       "prioritySupport": true,
       "teamManagement": true,
       "advancedReporting": true

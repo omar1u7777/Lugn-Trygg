@@ -40,6 +40,80 @@ SERVER_TIMESTAMP = firestore.SERVER_TIMESTAMP  # type: ignore
 
 
 # ============================================================================
+# User Stats (Aggregated)
+# ============================================================================
+
+@users_bp.route('/stats', methods=['GET', 'OPTIONS'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_user_stats():
+    """Get aggregated user statistics for profile display."""
+    if request.method == 'OPTIONS':
+        from flask import Response
+        return Response('', status=204)
+
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    try:
+        if db is None:
+            return APIResponse.error('Database unavailable', 'SERVICE_UNAVAILABLE', 503)
+
+        # Count moods
+        try:
+            moods_ref = db.collection('users').document(user_id).collection('moods')
+            total_moods = moods_ref.count().get()[0][0].value
+        except Exception:
+            total_moods = 0
+
+        # Count conversations
+        try:
+            convos_ref = db.collection('users').document(user_id).collection('conversations')
+            total_conversations = convos_ref.count().get()[0][0].value
+        except Exception:
+            total_conversations = 0
+
+        # Count memories
+        try:
+            memories_ref = db.collection('users').document(user_id).collection('memories')
+            total_memories = memories_ref.count().get()[0][0].value
+        except Exception:
+            total_memories = 0
+
+        # Get user document for account age and last active
+        account_age = 0
+        last_active_at = None
+        try:
+            user_doc = db.collection('users').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict() or {}
+                created_at = user_data.get('createdAt') or user_data.get('created_at')
+                if created_at and hasattr(created_at, 'timestamp'):
+                    account_age = max(1, int((datetime.now(UTC).timestamp() - created_at.timestamp()) / 86400))
+                last_active = user_data.get('lastActiveAt') or user_data.get('last_active_at')
+                if last_active and hasattr(last_active, 'isoformat'):
+                    last_active_at = last_active.isoformat()
+        except Exception:
+            pass
+
+        stats_data = {
+            'totalMoods': total_moods,
+            'totalConversations': total_conversations,
+            'totalMemories': total_memories,
+            'accountAge': account_age,
+            'lastActiveAt': last_active_at,
+            'streakDays': 0,
+        }
+
+        return APIResponse.success(data=stats_data, message='User stats retrieved')
+
+    except Exception as e:
+        logger.exception(f"Failed to get user stats: {e}")
+        return APIResponse.error("Failed to get user statistics", "INTERNAL_ERROR", 500)
+
+
+# ============================================================================
 # User Profile & Preferences
 # ============================================================================
 

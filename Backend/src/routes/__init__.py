@@ -6,9 +6,12 @@ All API route blueprints are registered here for easy importing
 # Import all blueprints for easy access
 from .admin_routes import admin_bp
 from .advanced_mood_routes import advanced_mood_bp
+from .ai_helpers_routes import ai_helpers_bp
+from .ai_music_routes import ai_music_bp
 from .ai_routes import ai_bp
 from .audio_routes import audio_bp
 from .auth_routes import auth_bp
+from .biofeedback_ws_routes import biofeedback_ws_bp
 from .cbt_routes import cbt_bp
 from .challenges_routes import challenges_bp, init_challenges_defaults
 from .chatbot_routes import chatbot_bp
@@ -18,11 +21,13 @@ from .dashboard_routes import dashboard_bp
 from .docs_routes import docs_bp
 from .feedback_routes import feedback_bp
 from .health_routes import health_bp
+from .insights_routes import insights_bp
 from .integration_routes import integration_bp
 from .journal_routes import journal_bp
 from .leaderboard_routes import leaderboard_bp
 from .memory_routes import memory_bp
 from .metrics_routes import metrics_bp
+from .mood_analytics_routes import mood_analytics_bp
 from .mood_routes import mood_bp
 from .mood_stats_routes import mood_stats_bp
 from .multimedia_memory_routes import multimedia_memory_bp
@@ -60,11 +65,15 @@ __all__ = [
 
     # AI & Chat
     'ai_bp',
+    'ai_helpers_bp',
+    'ai_music_bp',
     'chatbot_bp',
 
     # Analytics & Insights
     'dashboard_bp',
+    'insights_bp',
     'metrics_bp',
+    'mood_analytics_bp',
     'predictive_bp',
 
     # Gamification
@@ -86,6 +95,7 @@ __all__ = [
     'feedback_bp',
 
     # Crisis & Health
+    'biofeedback_ws_bp',
     'crisis_bp',
     'health_bp',
     'cbt_bp',

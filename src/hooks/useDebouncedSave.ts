@@ -18,6 +18,8 @@ export const useDebouncedSave = <T extends Record<string, unknown>>(
   const [lastSaved, setLastSaved] = useState<T>(initialData);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const pendingSaveRef = useRef<T | null>(null);
+  const dataRef = useRef<T>(data);
+  dataRef.current = data;
 
   // Debounced save function
   const debouncedSave = useCallback(
@@ -43,11 +45,13 @@ export const useDebouncedSave = <T extends Record<string, unknown>>(
   // Update data and schedule save
   const updateData = useCallback(
     (updates: Partial<T> | ((prev: T) => T)) => {
+      const current = dataRef.current;
       const newData = typeof updates === 'function' 
-        ? updates(data) 
-        : { ...data, ...updates };
+        ? updates(current) 
+        : { ...current, ...updates };
       
       setData(newData);
+      dataRef.current = newData;
       
       // Clear existing timeout
       if (timeoutRef.current) {
@@ -64,7 +68,7 @@ export const useDebouncedSave = <T extends Record<string, unknown>>(
         }
       }, delay);
     },
-    [data, debouncedSave, delay]
+    [debouncedSave, delay]
   );
 
   // Force immediate save

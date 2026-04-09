@@ -5,6 +5,15 @@
 # Internal development files
 AGENTS.md
 
+# Documentation files (not needed in repo)
+docs/
+Backend/docs/
+infra/*.md
+k8s/*.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+
 # Test output files and one-off audit reports (may contain sensitive debug info) [D4]
 test_*.txt
 DEPLOY_READINESS_REPORT_*.txt

@@ -58,6 +58,7 @@ import {
   changePassword,
   setup2FA,
   verify2FASetup,
+  exportUserData,
   deleteAccount,
   getCsrfToken,
   csrfManager,
@@ -358,5 +359,174 @@ describe('getCsrfToken', () => {
     mockApi.get.mockResolvedValueOnce({ data: { data: {} } });
 
     await expect(getCsrfToken()).rejects.toThrow();
+  });
+
+  it('accepts csrf_token property as fallback', async () => {
+    csrfManager.clear();
+    mockApi.get.mockResolvedValueOnce({ data: { data: { csrf_token: 'csrf-alt' } } });
+
+    const token = await getCsrfToken();
+    expect(token).toBe('csrf-alt');
+  });
+
+  it('uses non-nested data response when no data.data', async () => {
+    csrfManager.clear();
+    mockApi.get.mockResolvedValueOnce({ data: { csrfToken: 'csrf-flat' } });
+
+    const token = await getCsrfToken();
+    expect(token).toBe('csrf-flat');
+  });
+});
+
+describe('loginUser additional branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    csrfManager.clear();
+    mockApi.get.mockResolvedValue({ data: { data: { csrfToken: 'csrf-tok' } } });
+  });
+
+  it('throws AuthError when response data is null', async () => {
+    mockApi.post.mockResolvedValueOnce({ data: { data: null } });
+
+    await expect(loginUser('user@example.com', 'password')).rejects.toThrow();
+  });
+
+  it('throws AuthError when accessToken is a number (not string)', async () => {
+    mockApi.post.mockResolvedValueOnce({
+      data: { data: { accessToken: 12345, user: { id: 'u1' }, userId: 'u1' } },
+    });
+
+    await expect(loginUser('user@example.com', 'password')).rejects.toThrow();
+  });
+
+  it('throws AuthError when userId is missing', async () => {
+    mockApi.post.mockResolvedValueOnce({
+      data: { data: { accessToken: 'tok', user: { id: 'u1' } } },
+    });
+
+    await expect(loginUser('user@example.com', 'password')).rejects.toThrow();
+  });
+
+  it('continues when CSRF fetch fails after login', async () => {
+    mockApi.post.mockResolvedValueOnce({
+      data: {
+        data: {
+          accessToken: 'tok-123',
+          user: { id: 'u1', email: 'user@example.com' },
+          userId: 'u1',
+        },
+      },
+    });
+    // CSRF token fails
+    mockApi.get.mockRejectedValueOnce(new Error('CSRF fetch failed'));
+
+    const result = await loginUser('user@example.com', 'password');
+    expect(result.accessToken).toBe('tok-123');
+  });
+});
+
+describe('createAuthError branches', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    csrfManager.clear();
+  });
+
+  it('uses data.error field when data.message is missing', async () => {
+    const axiosError = {
+      isAxiosError: true,
+      response: { status: 400, data: { error: 'Bad data' } },
+      message: 'Request failed',
+    };
+    mockApi.post.mockRejectedValueOnce(axiosError);
+
+    try {
+      await registerUser('x@x.com', 'Password1!');
+    } catch (e) {
+      expect((e as Error).message).toContain('Bad data');
+    }
+  });
+
+  it('uses error.message when error is a plain Error (not AxiosError)', async () => {
+    mockApi.post.mockRejectedValueOnce(new Error('Plain error message'));
+
+    try {
+      await registerUser('x@x.com', 'Password1!');
+    } catch (e) {
+      expect((e as Error).message).toContain('Plain error message');
+    }
+  });
+});
+
+describe('exportUserData', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('downloads blob and returns success with filename from header', async () => {
+    const blob = new Blob(['{}'], { type: 'application/json' });
+    mockApi.get.mockResolvedValueOnce({
+      data: blob,
+      headers: { 'content-disposition': 'attachment; filename="my_data.json"' },
+    });
+
+    // Mock URL and DOM utilities
+    const createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/abc');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(window, 'URL', {
+      value: { createObjectURL, revokeObjectURL },
+      writable: true,
+    });
+
+    const result = await exportUserData();
+    expect(result.success).toBe(true);
+    expect(result.filename).toBe('my_data.json');
+  });
+
+  it('uses default filename when content-disposition has no filename', async () => {
+    const blob = new Blob(['{}'], { type: 'application/json' });
+    mockApi.get.mockResolvedValueOnce({
+      data: blob,
+      headers: {},
+    });
+
+    const createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/abc');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(window, 'URL', {
+      value: { createObjectURL, revokeObjectURL },
+      writable: true,
+    });
+
+    const result = await exportUserData();
+    expect(result.filename).toBe('user_data.json');
+  });
+
+  it('throws when response data is not a Blob', async () => {
+    mockApi.get.mockResolvedValueOnce({
+      data: { notABlob: true },
+      headers: {},
+    });
+
+    await expect(exportUserData()).rejects.toThrow();
+  });
+
+  it('throws on API error', async () => {
+    mockApi.get.mockRejectedValueOnce(new Error('Network error'));
+    await expect(exportUserData()).rejects.toThrow('Network error');
+  });
+});
+
+describe('logoutUser onboarding preservation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    csrfManager.clear();
+  });
+
+  it('preserves onboarding_ keys across logout', async () => {
+    localStorage.setItem('onboarding_step', '3');
+    localStorage.setItem('user_pref', 'dark');
+    mockApi.post.mockResolvedValueOnce({ data: {} });
+
+    await logoutUser();
+
+    expect(localStorage.getItem('onboarding_step')).toBe('3');
+    expect(localStorage.getItem('user_pref')).toBeNull();
   });
 });

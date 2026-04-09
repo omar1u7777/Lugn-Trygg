@@ -3,6 +3,7 @@ import { tokenStorage } from "@/utils/secureStorage";
 import { api } from "@/api/client";
 import { API_ENDPOINTS } from "@/api/constants";
 import { logger } from "@/utils/logger";
+import { getCsrfToken as getSharedCsrfToken, clearCsrfToken } from "./csrf";
 
 // TypeScript interfaces for API responses
 interface User {
@@ -46,43 +47,19 @@ class AuthError extends Error {
   }
 }
 
-// API endpoints are now imported from constants.ts
-
-// CSRF Token Manager class for better encapsulation and caching
-class CsrfTokenManager {
-  private token: string | null = null;
-  private expiry: number | null = null;
-  private readonly TOKEN_TTL = 3600000; // 1 hour in milliseconds
-
+// Thin facade over the centralized csrf.ts module for backward compatibility
+export const csrfManager = {
   async getToken(): Promise<string> {
-    if (this.token && this.expiry && Date.now() < this.expiry) {
-      return this.token;
+    const token = await getSharedCsrfToken();
+    if (!token) {
+      throw new AuthError("Failed to get CSRF token");
     }
-
-    try {
-      const response = await api.get(API_ENDPOINTS.AUTH.CSRF_TOKEN);
-      // Backend wraps response: { success: true, data: { csrfToken: "..." } }
-      const responseData = response.data?.data || response.data;
-      const token = (responseData?.csrfToken || responseData?.csrf_token) as string;
-      if (!token) {
-        throw new AuthError("Invalid CSRF token response");
-      }
-      this.token = token;
-      this.expiry = Date.now() + this.TOKEN_TTL;
-      return token;
-    } catch (error) {
-      logger.error("Failed to fetch CSRF token", { error });
-      throw new AuthError("Failed to get CSRF token", undefined, error);
-    }
-  }
-
+    return token;
+  },
   clear(): void {
-    this.token = null;
-    this.expiry = null;
-  }
-}
-
-export const csrfManager = new CsrfTokenManager();
+    clearCsrfToken();
+  },
+};
 
 // Helper function for extracting error messages and creating AuthError
 const createAuthError = (error: unknown, defaultMessage: string): AuthError => {
@@ -455,10 +432,7 @@ export const deleteAccount = async (userId: string): Promise<Record<string, unkn
 };
 
 /**
- * Legacy function for backward compatibility - use csrfManager.getToken() instead
- * @deprecated Use csrfManager.getToken() for better caching and management
- * @returns Promise resolving to CSRF token string
- * @throws AuthError if CSRF token fetch fails
+ * @deprecated Use csrfManager.getToken() or the centralized csrf.ts module
  */
 export const getCsrfToken = async (): Promise<string> => {
   return csrfManager.getToken();

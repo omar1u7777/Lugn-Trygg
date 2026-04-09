@@ -9,7 +9,7 @@ vi.mock('../../../utils/cn', () => ({
   cn: (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' '),
 }));
 
-import { Container, Box, Stack } from '../Layout';
+import { Container, Box, Stack, Grid } from '../Layout';
 
 describe('Container', () => {
   it('renders children', () => {
@@ -178,5 +178,75 @@ describe('Stack', () => {
   it('applies justify-around for justify=around', () => {
     const { container } = render(<Stack justify="around">X</Stack>);
     expect(container.firstChild).toHaveClass('justify-around');
+  });
+
+  it('uses gap-4 fallback for unmapped spacing number', () => {
+    const { container } = render(<Stack spacing={99 as never}>X</Stack>);
+    expect(container.firstChild).toHaveClass('gap-4');
+  });
+});
+
+describe('Grid', () => {
+  it('renders children', () => {
+    render(<Grid>Content</Grid>);
+    expect(screen.getByText('Content')).toBeInTheDocument();
+  });
+
+  it('applies grid-cols-1 by default', () => {
+    const { container } = render(<Grid>X</Grid>);
+    expect(container.firstChild).toHaveClass('grid-cols-1');
+  });
+
+  it('applies grid-cols-2 for cols=2', () => {
+    const { container } = render(<Grid cols={2}>X</Grid>);
+    expect(container.firstChild).toHaveClass('grid-cols-2');
+  });
+
+  it('applies grid-cols-3 for cols=3', () => {
+    const { container } = render(<Grid cols={3}>X</Grid>);
+    expect(container.firstChild).toHaveClass('grid-cols-3');
+  });
+
+  it('uses grid-cols-1 fallback for unmapped number', () => {
+    const { container } = render(<Grid cols={99 as never}>X</Grid>);
+    expect(container.firstChild).toHaveClass('grid-cols-1');
+  });
+
+  it('applies responsive cols when cols is an object', () => {
+    const { container } = render(
+      <Grid cols={{ sm: 1, md: 2, lg: 3, xl: 4 }}>X</Grid>
+    );
+    const el = container.firstChild as HTMLElement;
+    expect(el.className).toContain('sm:grid-cols-1');
+    expect(el.className).toContain('md:grid-cols-2');
+    expect(el.className).toContain('lg:grid-cols-3');
+    expect(el.className).toContain('xl:grid-cols-4');
+  });
+
+  it('handles partial responsive cols object', () => {
+    const { container } = render(
+      <Grid cols={{ md: 2 }}>X</Grid>
+    );
+    expect(container.firstChild).toHaveClass('md:grid-cols-2');
+  });
+
+  it('applies gap-4 for gap=4 (default)', () => {
+    const { container } = render(<Grid>X</Grid>);
+    expect(container.firstChild).toHaveClass('gap-4');
+  });
+
+  it('applies gap-6 for gap=6', () => {
+    const { container } = render(<Grid gap={6}>X</Grid>);
+    expect(container.firstChild).toHaveClass('gap-6');
+  });
+
+  it('uses gap-4 fallback for unmapped gap', () => {
+    const { container } = render(<Grid gap={99 as never}>X</Grid>);
+    expect(container.firstChild).toHaveClass('gap-4');
+  });
+
+  it('accepts MUI compat props without error', () => {
+    render(<Grid container item spacing={2} xs={12} sm={6} md={4} lg={3} xl={2}>X</Grid>);
+    expect(screen.getByText('X')).toBeInTheDocument();
   });
 });

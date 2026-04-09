@@ -1,10 +1,13 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import MoodLogger from '../MoodLogger';
 
-// ── Mocks (use plain functions inside factories to avoid vi.fn() hoisting issues) ──
+/**
+ * MoodLogger is now a thin shim around SuperMoodLogger.
+ * These tests verify the shim renders SuperMoodLogger correctly.
+ */
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -117,13 +120,6 @@ vi.mock('axios', () => {
   };
 });
 
-// Mock UsageLimitBanner so we don't pull in its own complex deps (Link, heroicons, etc.)
-vi.mock('../UsageLimitBanner', () => ({
-  UsageLimitBanner: () => <div data-testid="usage-limit-banner">UsageLimitBanner</div>,
-}));
-
-// ── Helper ──
-
 const routerFutureFlags = {
   v7_startTransition: true,
   v7_relativeSplatPath: true,
@@ -141,96 +137,21 @@ function renderMoodLogger(props: Partial<React.ComponentProps<typeof MoodLogger>
   return result!;
 }
 
-// ── Tests ──
-
-describe('MoodLogger', () => {
+describe('MoodLogger (deprecated shim)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('renders the heading', () => {
+  test('renders SuperMoodLogger (delegates mood logging)', () => {
     renderMoodLogger();
-    expect(screen.getByText('Hur känns det idag?')).toBeInTheDocument();
+    // SuperMoodLogger renders the circumplex mood selector
+    // Verify it renders without crashing
+    expect(screen.getByText(/humör/i)).toBeInTheDocument();
   });
 
-  test('renders all six mood emojis', () => {
-    renderMoodLogger();
-
-    const emojis = ['😢', '😟', '😐', '🙂', '😊', '🤩'];
-    for (const emoji of emojis) {
-      expect(screen.getByText(emoji)).toBeInTheDocument();
-    }
-  });
-
-  test('renders mood labels', () => {
-    renderMoodLogger();
-
-    const labels = ['Ledsen', 'Orolig', 'Neutral', 'Bra', 'Glad', 'Super'];
-    for (const label of labels) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
-  });
-
-  test('selects a mood when clicking an emoji button', () => {
-    renderMoodLogger();
-
-    const gladButton = screen.getByLabelText(/Glad/);
-    fireEvent.click(gladButton);
-
-    expect(screen.getByText(/Valt humör: Glad/)).toBeInTheDocument();
-  });
-
-  test('shows note textarea after selecting a mood', () => {
-    renderMoodLogger();
-
-    // No textarea initially
-    expect(screen.queryByPlaceholderText(/Vad får dig att känna/)).not.toBeInTheDocument();
-
-    // Select a mood
-    const neutralButton = screen.getByLabelText(/Neutral/);
-    fireEvent.click(neutralButton);
-
-    // Textarea should appear
-    expect(screen.getByPlaceholderText(/Vad får dig att känna/)).toBeInTheDocument();
-  });
-
-  test('shows log button after selecting a mood', () => {
-    renderMoodLogger();
-
-    // No log button initially
-    expect(screen.queryByText('Logga humör')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText(/Bra/));
-
-    expect(screen.getByText('Logga humör')).toBeInTheDocument();
-  });
-
-  test('does not show a back button when no mood is selected', () => {
+  test('renders with onMoodLogged callback', () => {
     const onMoodLogged = vi.fn();
     renderMoodLogger({ onMoodLogged });
-
-    // No standalone back button — onMoodLogged is invoked after successful log, not via extra button
-    expect(screen.queryByText('Tillbaka till Dashboard')).not.toBeInTheDocument();
-  });
-
-  test('renders usage limit banner', () => {
-    renderMoodLogger();
-    expect(screen.getByTestId('usage-limit-banner')).toBeInTheDocument();
-  });
-
-  test('does not show stale empty-moods message on initial render', () => {
-    renderMoodLogger();
-    // Component no longer renders a misleading persistent "no moods" message
-    expect(screen.queryByText('Inga humör loggade ännu')).not.toBeInTheDocument();
-  });
-
-  test('typing in note textarea updates character count', () => {
-    renderMoodLogger();
-    fireEvent.click(screen.getByLabelText(/Super/));
-
-    const textarea = screen.getByPlaceholderText(/Vad får dig att känna/);
-    fireEvent.change(textarea, { target: { value: 'Bra dag!' } });
-
-    expect(screen.getByText('8/200 tecken')).toBeInTheDocument();
+    expect(screen.getByText(/humör/i)).toBeInTheDocument();
   });
 });
