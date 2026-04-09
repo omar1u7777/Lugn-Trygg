@@ -24,7 +24,13 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // CRITICAL FIX: Use lazy initializer to avoid accessing navigator before initialization
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof navigator !== 'undefined') {
+      return navigator.onLine;
+    }
+    return true;
+  });
   const [failedRequests, setFailedRequests] = useState<FailedRequest[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
   // Use useMemo for retryConfig to prevent changing on every render
