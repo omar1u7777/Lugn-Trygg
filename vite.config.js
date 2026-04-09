@@ -245,8 +245,11 @@ export default defineConfig({
   },
   define: {
     ...(isProduction ? {
+      // On Vercel, use empty string so API calls stay same-origin and
+      // leverage the /api/* rewrites defined in vercel.json.  This
+      // avoids cross-origin CORS / 403 issues entirely.
       "import.meta.env.VITE_BACKEND_URL": JSON.stringify(
-        process.env.VITE_BACKEND_URL || "https://lugn-trygg-backend.onrender.com"
+        process.env.VITE_BACKEND_URL || (isVercel ? "" : "https://lugn-trygg-backend.onrender.com")
       ),
     } : {}),
     global: 'globalThis',
