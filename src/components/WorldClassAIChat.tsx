@@ -225,6 +225,24 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (isMountedRef.current) {
+        setLoading(current => {
+          if (current) {
+            logger.warn('Loading safety timeout triggered - forcing loading state to false');
+            return false;
+          }
+          return current;
+        });
+      }
+    }, 5000); // 5 second max loading time
+
+    return () => clearTimeout(safetyTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -233,14 +251,24 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const loadChatHistory = async () => {
     if (!user?.user_id) { setLoading(false); return; }
     
-    // Wait for cache to load
-    if (!cacheLoaded) return;
+    // Wait for cache to load (with timeout protection)
+    if (!cacheLoaded) {
+      // Wait max 2 seconds for cache, then proceed anyway
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!cacheLoaded) {
+        // Still not loaded, proceed without cache
+        logger.warn('Cache not loaded in time, proceeding without cache');
+      }
+    }
 
     try {
       // First, load from cache for instant display
       const cachedMessages = getCachedMessages();
       if (cachedMessages.length > 0 && isMountedRef.current) {
         setMessages(cachedMessages);
+        setLoading(false);
+      } else if (isMountedRef.current) {
+        // No cached messages but we're mounted - clear loading anyway
         setLoading(false);
       }
 
