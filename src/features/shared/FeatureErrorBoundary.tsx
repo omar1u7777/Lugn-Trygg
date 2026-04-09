@@ -39,9 +39,10 @@ export class FeatureErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
     
-    // Log to console in development
+    // Always log to console so production errors are visible in DevTools
+    console.error(`[FeatureErrorBoundary][${this.props.featureName}]`, error);
+    console.error(`[FeatureErrorBoundary][${this.props.featureName}] Component stack:`, errorInfo?.componentStack);
     logger.error(`[${this.props.featureName}] Error:`, error);
-    logger.error('Error Info:', errorInfo);
     
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);
@@ -95,7 +96,7 @@ export class FeatureErrorBoundary extends Component<Props, State> {
             Försök igen
           </button>
 
-          {process.env.NODE_ENV === 'development' && this.state.error && (
+          {this.state.error && (
             <details className="mt-4 w-full max-w-lg">
               <summary className="cursor-pointer text-sm text-red-500 hover:underline">
                 Visa tekniska detaljer
