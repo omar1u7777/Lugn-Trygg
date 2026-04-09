@@ -58,13 +58,6 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
     };
   }, []);
 
-  // Retry failed requests when coming back online
-  useEffect(() => {
-    if (isOnline && failedRequests.length > 0) {
-      retryFailedRequests();
-    }
-  }, [isOnline, failedRequests, retryFailedRequests]);
-
   // Add failed request to queue
   const addFailedRequest = useCallback((
     id: string,
@@ -144,6 +137,13 @@ export const useErrorRecovery = (config: Partial<RetryConfig> = {}) => {
     await Promise.all(retryPromises);
     setIsRecovering(false);
   }, [failedRequests, retryRequest]);
+
+  // Retry failed requests when coming back online
+  useEffect(() => {
+    if (isOnline && failedRequests.length > 0) {
+      retryFailedRequests();
+    }
+  }, [isOnline, failedRequests, retryFailedRequests]);
 
   // Execute with error recovery
   const executeWithRecovery = useCallback(async <T>(
