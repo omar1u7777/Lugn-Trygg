@@ -46,7 +46,13 @@ const renderRouteElement = (route: RouteDefinition) => {
 
 function App() {
     const { t, i18n } = useTranslation();
-    const [offlineMode, setOfflineMode] = useState<boolean>(!navigator.onLine);
+    // CRITICAL FIX: Use lazy initializer to prevent TDZ errors
+    const [offlineMode, setOfflineMode] = useState<boolean>(() => {
+        if (typeof navigator !== 'undefined') {
+            return !navigator.onLine;
+        }
+        return false;
+    });
 
     usePageTracking();
 
