@@ -429,20 +429,21 @@ def log_mood() -> Response | tuple[Response, int]:
         final_mood_text = mood_text or transcript
         if not final_mood_text and user_score is not None:
             # Map user score (1-10) to Swedish mood label
+            # Must match frontend CANONICAL_MOOD_SCALE in features/mood/utils.ts
             if user_score >= 9:
                 final_mood_text = 'Super'
-            elif user_score >= 7:
+            elif user_score >= 8:
                 final_mood_text = 'Glad'
-            elif user_score >= 5:
+            elif user_score >= 7:
                 final_mood_text = 'Bra'
-            elif user_score >= 4:
+            elif user_score >= 5:
                 final_mood_text = 'Neutral'
-            elif user_score >= 2:
+            elif user_score >= 3:
                 final_mood_text = 'Orolig'
             else:
                 final_mood_text = 'Ledsen'
         if not final_mood_text:
-            final_mood_text = 'neutral'
+            final_mood_text = 'Neutral'
 
         # If we have voice analysis but no transcript, try to get mood from voice analysis
         if not mood_text and not transcript and voice_analysis:

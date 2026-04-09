@@ -411,7 +411,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     };
   }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId, t]);
 
-  const handleRefresh = useCallback((reason: 'manual' | 'interval' | 'visibility' | 'online' = 'manual') => {
+  const handleRefresh = useCallback((reason: 'manual' | 'auto' | 'interval' | 'visibility' | 'online' = 'manual') => {
     if (loading) {
       return;
     }

@@ -7,6 +7,7 @@ import { analytics } from "../services/analytics";
 import { useAccessibility } from "../hooks/useAccessibility";
 import { logger } from '../utils/logger';
 import { getApiErrorMessage } from "../api/errorUtils";
+import { getMoodLabel } from '../features/mood/utils';
 
 type TimestampLike = string | number | Date | { toDate: () => Date } | null | undefined;
 
@@ -596,14 +597,8 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
                 // Check if mood text is encrypted (starts with U2FsdGVk)
                 // Also fix legacy moods that were stored with generic 'neutral' regardless of score
                 if (displayMood.startsWith('U2FsdGVk') || displayMood.toLowerCase() === 'neutral') {
-                  // Derive label from score
-                  const s = mood.score ?? 5;
-                  if (s >= 9) displayMood = 'Super';
-                  else if (s >= 7) displayMood = 'Glad';
-                  else if (s >= 5) displayMood = 'Bra';
-                  else if (s >= 4) displayMood = 'Neutral';
-                  else if (s >= 2) displayMood = 'Orolig';
-                  else displayMood = 'Ledsen';
+                  // Derive label from score using canonical mood scale
+                  displayMood = getMoodLabel(mood.score ?? 5);
                 }
                 
                 const sentiment = (mood.sentiment || 'NEUTRAL').toUpperCase();

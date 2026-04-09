@@ -205,7 +205,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         .map((mood: RawMoodEntry) => {
           const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
           const score = mood.score || mood.sentiment_score || 5;
-          const moodText = mood.mood_text || getMoodLabel(score);
+          // Always derive display label from score for consistency.
+          // Old entries may have incorrect mood_text (e.g., "neutral" for all scores).
+          const moodText = getMoodLabel(score);
           
           return {
             id: mood.id || mood.docId,
