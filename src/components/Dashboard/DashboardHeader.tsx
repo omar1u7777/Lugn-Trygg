@@ -5,11 +5,11 @@ import type { TFunction } from 'i18next';
 interface DashboardHeaderProps {
   userName?: string;
   isLoading?: boolean;
-  lastUpdatedAt?: Date;
+  lastUpdatedAt: Date | undefined;
   onFocusAction?: () => void;
   userId?: string;
   hasLoggedToday?: boolean;
-  lastMood?: string;
+  lastMood: string | undefined;
   averageMood?: number;
 }
 
@@ -120,12 +120,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userId: _userId,
   hasLoggedToday,
   lastMood,
-  averageMood,
+  averageMood: _averageMood,
 }) => {
   const { t } = useTranslation();
-  const recentMood = averageMood;
-  
-  const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood?.toString()));
+  const recentMood = lastMood;
+
+  const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood));
   const [focusContent, setFocusContent] = useState(() => getDailyFocusContent(t));
 
   const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
@@ -199,7 +199,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       return msUntilBoundary;
     };
     
-    let timeoutId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
     const scheduleNextUpdate = () => {
       const msToNext = calculateMsToNextBoundary();

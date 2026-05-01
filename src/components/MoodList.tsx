@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getMoods } from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../contexts/SubscriptionContext";
@@ -58,6 +58,9 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
   const [exporting, setExporting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // For manual refresh
 
+  const retryTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingRef = useRef(false);
+
   useEffect(() => {
     analytics.page('Mood List', {
       component: 'MoodList',
@@ -73,9 +76,12 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
     let retryCount = 0;
     const maxRetries = 3;
-    let retryTimeoutId: NodeJS.Timeout | null = null;
 
     const fetchMoods = async () => {
+      if (isFetchingRef.current) {
+        return;
+      }
+      isFetchingRef.current = true;
       try {
         setLoading(retryCount === 0); // Only show loading on first attempt
         setError(null);
@@ -112,18 +118,18 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
       } catch (err: unknown) {
         logger.error("❌ Fel vid hämtning av humör:", err);
         const errorMessage = err instanceof Error ? err.message : "Ett fel uppstod vid hämtning av humörloggar.";
-        
+
         // Retry with exponential backoff
         if (retryCount < maxRetries) {
           retryCount++;
           const delay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
           logger.info(`🔄 Retrying fetchMoods (attempt ${retryCount}/${maxRetries}) in ${delay}ms`);
-          retryTimeoutId = setTimeout(() => {
+          retryTimeoutIdRef.current = setTimeout(() => {
             fetchMoods();
           }, delay);
           return;
         }
-        
+
         setError(errorMessage);
         analytics.track('Mood Load Error', {
           error: errorMessage,
@@ -132,6 +138,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
         });
       } finally {
         setLoading(false);
+        isFetchingRef.current = false;
       }
     };
 
@@ -139,14 +146,19 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
 
     // Refresh moods every 5 minutes (was 30 seconds - too aggressive)
     const interval = setInterval(() => {
+      if (retryTimeoutIdRef.current) {
+        clearTimeout(retryTimeoutIdRef.current);
+        retryTimeoutIdRef.current = null;
+      }
       retryCount = 0; // Reset retry count on scheduled refresh
       fetchMoods();
     }, 300000);
 
     return () => {
       clearInterval(interval);
-      if (retryTimeoutId) {
-        clearTimeout(retryTimeoutId);
+      if (retryTimeoutIdRef.current) {
+        clearTimeout(retryTimeoutIdRef.current);
+        retryTimeoutIdRef.current = null;
       }
     };
   }, [historyDays, user?.user_id, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps

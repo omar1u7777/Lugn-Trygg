@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatRelativeTimeFromNow } from '../../utils/intlFormatters';
 
@@ -27,6 +27,11 @@ const MAX_VISIBLE_ACTIVITIES = 12;
 const LOAD_MORE_BATCH_SIZE = 12;
 
 const getActivityGroupKey = (timestamp: Date): ActivityGroup['key'] => {
+  // Validate timestamp - if invalid, default to 'older'
+  if (isNaN(timestamp.getTime())) {
+    return 'older';
+  }
+
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterdayStart = new Date(todayStart);
@@ -109,17 +114,35 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
 }) => {
   const regionProps = getDashboardRegionProps('activity');
   const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_ACTIVITIES);
+  const prevActivityCountRef = useRef(0);
 
   useEffect(() => {
-    setVisibleCount(MAX_VISIBLE_ACTIVITIES);
+    const newNonMoodCount = activities.filter((a) => a.type !== 'mood').length;
+    const prevNonMoodCount = prevActivityCountRef.current;
+
+    // Only reset visibleCount if activities actually changed significantly
+    // This preserves user's scroll position/load-more state on parent re-renders
+    if (Math.abs(newNonMoodCount - prevNonMoodCount) > 5) {
+      setVisibleCount(MAX_VISIBLE_ACTIVITIES);
+    }
+
+    prevActivityCountRef.current = newNonMoodCount;
   }, [activities]);
 
   const visibleActivities = useMemo(
-    () => activities.slice(0, visibleCount),
+    () => activities
+      .filter((a) => a.type !== 'mood')
+      .filter((a) => !isNaN(a.timestamp.getTime())) // Skip invalid timestamps
+      .slice(0, visibleCount),
     [activities, visibleCount]
   );
 
-  const remainingActivities = Math.max(activities.length - visibleCount, 0);
+  const nonMoodActivities = useMemo(
+    () => activities.filter((a) => a.type !== 'mood').filter((a) => !isNaN(a.timestamp.getTime())),
+    [activities]
+  );
+
+  const remainingActivities = Math.max(nonMoodActivities.length - visibleCount, 0);
 
   const groupedActivities = useMemo(() => {
     const groups: ActivityGroup[] = [
@@ -154,12 +177,14 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
     );
   }
 
-  if (activities.length === 0) {
+  if (nonMoodActivities.length === 0) {
     return (
       <section {...regionProps}>
         <div className="p-12 text-center rounded-[2.5rem] bg-gray-50/50 dark:bg-slate-800/30 border border-dashed border-gray-200 dark:border-gray-700">
           <div className="text-6xl mb-4 opacity-50 grayscale" aria-hidden="true">📊</div>
-          <p className="text-gray-500 dark:text-gray-400 font-medium">{emptyStateMessage}</p>
+          <p className="text-gray-500 dark:text-gray-400 font-medium">
+            {emptyStateMessage || 'Ingen aktivitet än. Börja chatta med AI-terapeuten eller prova en meditation!'}
+          </p>
         </div>
       </section>
     );
@@ -196,7 +221,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
           <button 
             className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
             onClick={() => {
-              setVisibleCount((prev) => Math.min(prev + LOAD_MORE_BATCH_SIZE, activities.length));
+              setVisibleCount((prev) => Math.min(prev + LOAD_MORE_BATCH_SIZE, nonMoodActivities.length));
             }}
           >
             Visa äldre aktiviteter ({remainingActivities} till)
