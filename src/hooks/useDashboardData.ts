@@ -93,6 +93,7 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
   const loadDashboardData = useCallback(async (forceRefresh = false) => {
     if (!userId) {
       setLoading(false);
+      setError(new Error('User ID is required'));
       return;
     }
 
@@ -125,15 +126,24 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
         totalChats: data.totalChats || 0,
         averageMood: data.averageMood || 0,
         streakDays: data.streakDays || 0,
-        weeklyGoal: data.weeklyGoal || 7,
-        weeklyProgress: data.weeklyProgress || 0,
-        wellnessGoals: data.wellnessGoals || [],
-        recentActivity: (data.recentActivity || []).map((activity: RawActivity) => ({
-          id: activity.id,
-          type: activity.type as 'mood' | 'chat' | 'meditation',
-          timestamp: new Date(activity.timestamp),
-          description: activity.description,
-        })),
+        weeklyGoal: Math.max(data.weeklyGoal || 1, 1),
+        weeklyProgress: Math.max(data.weeklyProgress || 0, 0),
+        wellnessGoals: Array.isArray(data.wellnessGoals) ? data.wellnessGoals : [],
+        recentActivity: (data.recentActivity || [])
+          .map((activity: RawActivity): Activity | null => {
+            const timestamp = new Date(activity.timestamp);
+            // Skip activities with invalid timestamps
+            if (isNaN(timestamp.getTime())) {
+              return null;
+            }
+            return {
+              id: activity.id,
+              type: activity.type as Activity['type'],
+              timestamp,
+              description: activity.description,
+            };
+          })
+          .filter((a): a is Activity => a !== null),
       };
 
       // Update cache for this user
@@ -153,11 +163,12 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
 
     } catch (error) {
       logger.error('Failed to load dashboard data:', error);
-      setError(error as Error);
+      const errorObj = error instanceof Error ? error : new Error('Unknown error occurred');
+      setError(errorObj);
 
       analytics.track('Dashboard Load Error', {
         userId,
-        error: (error as Error).message,
+        error: errorObj.message,
       });
 
       // Keep previous data if available

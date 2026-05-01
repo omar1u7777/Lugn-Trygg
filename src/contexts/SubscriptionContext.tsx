@@ -145,6 +145,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
       } catch (e) {
         logger.warn('Failed to parse usage data:', e);
+        // Clear corrupted data
+        localStorage.removeItem(getUsageStorageKey(user?.user_id));
       }
     }
     
@@ -213,17 +215,29 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       })();
 
       const newPlan: SubscriptionPlan = {
-        ...basePlan,
         tier: resolvedTier,
         limits: data.limits || basePlan.limits,
         features: { ...basePlan.features, ...(data.features || {}) } as SubscriptionFeatures,
-        name: data.name || basePlan.name,
-        price: typeof data.price === 'number' ? data.price : basePlan.price,
-        currency: data.currency || basePlan.currency,
-        interval: data.interval || basePlan.interval,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : basePlan.expiresAt,
-        trialEndsAt: data.trialEndsAt ? new Date(data.trialEndsAt) : basePlan.trialEndsAt,
       };
+
+      // Only add optional properties if they have values
+      if (data.name) newPlan.name = data.name;
+      else if (basePlan.name) newPlan.name = basePlan.name;
+      
+      if (typeof data.price === 'number') newPlan.price = data.price;
+      else if (typeof basePlan.price === 'number') newPlan.price = basePlan.price;
+      
+      if (data.currency) newPlan.currency = data.currency;
+      else if (basePlan.currency) newPlan.currency = basePlan.currency;
+      
+      if (data.interval) newPlan.interval = data.interval;
+      else if (basePlan.interval) newPlan.interval = basePlan.interval;
+      
+      if (data.expiresAt) newPlan.expiresAt = new Date(data.expiresAt);
+      else if (basePlan.expiresAt) newPlan.expiresAt = basePlan.expiresAt;
+      
+      if (data.trialEndsAt) newPlan.trialEndsAt = new Date(data.trialEndsAt);
+      else if (basePlan.trialEndsAt) newPlan.trialEndsAt = basePlan.trialEndsAt;
 
       setPlan(newPlan);
 
@@ -265,7 +279,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   // Save usage to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(usage));
+    try {
+      localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(usage));
+    } catch (e) {
+      logger.warn('Failed to save usage to localStorage:', e);
+    }
   }, [usage, user?.user_id]);
 
   // Derived states

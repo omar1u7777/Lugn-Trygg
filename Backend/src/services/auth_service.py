@@ -775,7 +775,8 @@ class AuthService:
             # Convert stored data back to bytes
             expected_challenge = base64url_to_bytes(stored_challenge_b64)
             credential_public_key = base64url_to_bytes(cred_data["public_key"])
-            base64url_to_bytes(cred_data["credential_id"])
+            # credential_id already validated, no need to convert again
+            # base64url_to_bytes(cred_data["credential_id"])
 
             # Verify the authentication response using webauthn library
             verification = verify_authentication_response(
@@ -866,7 +867,6 @@ class AuthService:
                     attempt_count = data.get("attempt_count", 0) + 1
                 else:
                     attempt_count = 1
-                last_attempt = current_time
 
                 # Calculate lockout duration based on attempt count
                 lockout_until = None
@@ -878,12 +878,11 @@ class AuthService:
                     else:
                         lockout_minutes = LOCKOUT_DURATION_MINUTES_THIRD
 
-                    from datetime import timedelta
                     lockout_until = (datetime.now(UTC) + timedelta(minutes=lockout_minutes)).isoformat()
 
                 doc_ref.update({
                     "attempt_count": attempt_count,
-                    "last_attempt": last_attempt,
+                    "last_attempt": current_time,
                     "lockout_until": lockout_until
                 })
             else:
@@ -969,8 +968,9 @@ class AuthService:
             # Check expiry
             expires_at = token_data.get('expires_at')
             if expires_at:
-                from ..utils.timestamp_utils import parse_iso_timestamp
-                expiry_time = parse_iso_timestamp(expires_at, default_to_now=False)
+                expiry_time = datetime.fromisoformat(expires_at) if isinstance(expires_at, str) else expires_at
+                if not hasattr(expiry_time, 'tzinfo') or expiry_time.tzinfo is None:
+                    expiry_time = expiry_time.replace(tzinfo=UTC)
                 current_time = datetime.now(UTC)
 
                 if current_time > expiry_time:

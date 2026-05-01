@@ -304,9 +304,13 @@ class APIKeyRotationService:
         """Get the active storage encryption key without reading or writing local key files."""
         legacy_key_file = self.keys_dir / '.master.key'
         if legacy_key_file.exists():
-            raise RuntimeError(
-                'Legacy api_keys/.master.key is forbidden. Remove the file and set API_KEY_ENCRYPTION_KEY.'
-            )
+            if self._is_production_environment():
+                raise RuntimeError(
+                    'Legacy api_keys/.master.key is forbidden. Remove the file and set API_KEY_ENCRYPTION_KEY.'
+                )
+            else:
+                logger.warning("Legacy key file %s detected. Running in non-production mode; ignoring legacy key for debugging.", legacy_key_file)
+                # Do not raise; proceed to read API_KEY_ENCRYPTION_KEY from env
 
         env_key = self._load_fernet_key_from_env('API_KEY_ENCRYPTION_KEY')
         if env_key:

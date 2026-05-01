@@ -341,3 +341,5 @@ scripts/revert-grid-imports.mjs
 *.lock
 .git/index.lock
 .git/worktrees/*/index.lock
+
+/.kilo/

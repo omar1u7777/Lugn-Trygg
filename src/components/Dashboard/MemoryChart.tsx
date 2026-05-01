@@ -21,8 +21,20 @@ interface MemoryChartProps {
 
 const MemoryChart: React.FC<MemoryChartProps> = ({ data, className }) => {
   const chartData = useMemo(() => {
+    // Validate data is an array
+    if (!Array.isArray(data)) {
+      console.error('MemoryChart: data is not an array:', data);
+      data = [];
+    }
     if (data && data.length > 0) {
-      return data;
+      // Validate each data point
+      const validData = data.filter((point) => {
+        if (!point || typeof point !== 'object') return false;
+        if (typeof point.label !== 'string') return false;
+        if (typeof point.entries !== 'number' || point.entries < 0) return false;
+        return true;
+      });
+      return validData;
     }
 
     const now = new Date();
