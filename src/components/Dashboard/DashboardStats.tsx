@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatNumber } from '../../utils/intlFormatters';
@@ -62,11 +62,6 @@ const deriveMoodTrend = (
       value: averageMood <= 4 ? 'Måendet behöver uppmärksamhet' : 'Stabilt överlag' 
     };
   }
-
-  // Only calculate if we have samples
-  if (validSamples.length === 0) {
-    return { direction: 'stable', value: 'Ingen data' };
-  }
   
   const mean = validSamples.reduce((sum, value) => sum + value, 0) / validSamples.length;
   const variance =
@@ -124,6 +119,9 @@ const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
   });
 
   const pathD = `M ${points.join(' L ')}`;
+  // Use stable unique gradient ID to avoid conflicts with multiple sparklines
+  const uniqueId = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const gradientId = `sparklineGradient-${uniqueId}`;
 
   return (
     <svg 
@@ -133,7 +131,7 @@ const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
     >
       {/* Gradient area under line */}
       <defs>
-        <linearGradient id="sparklineGradient" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.3" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
         </linearGradient>
@@ -142,7 +140,7 @@ const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
       {/* Area fill */}
       <path
         d={`${pathD} L ${width},${height} L 0,${height} Z`}
-        fill="url(#sparklineGradient)"
+        fill={`url(#${gradientId})`}
       />
       
       {/* Line */}
@@ -388,11 +386,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   // 🎯 Dynamisk mood display - mindre klinisk för låga värden
   const moodDisplay = useMemo(() => {
     const score = stats.averageMood;
+    const isSwedish = t('dashboardStats.days') === 'dagar';
     
     if (score <= 4 && score > 0) {
       // För lågt mående: hela tal, varm text, mindre font, kvalitativ etikett
       return {
-        value: `${Math.round(score)} ${t('dashboardStats.days') === 'dagar' ? 'av' : 'of'} 10`, // "3 av 10" inte "3,0/10"
+        value: `${Math.round(score)} ${isSwedish ? 'av' : 'of'} 10`, // "3 av 10" inte "3,0/10"
         className: 'font-serif font-bold text-xl sm:text-2xl text-rose-600 dark:text-rose-400',
         label: t('dashboardStats.hardDay'),
         ariaLabel: t('dashboardStats.moodAriaLabel', { score: Math.round(score) }),
@@ -400,7 +399,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     }
     
     return {
-      value: `${formatNumber(score, { minimumFractionDigits: 1 })} ${t('dashboardStats.days') === 'dagar' ? 'av' : 'of'} 10`,
+      value: `${formatNumber(score, { minimumFractionDigits: 1 })} ${isSwedish ? 'av' : 'of'} 10`,
       className: `font-serif font-bold text-2xl sm:text-3xl ${score >= 7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-secondary-600 dark:text-secondary-400'}`,
       label: undefined,
       ariaLabel: t('dashboardStats.yourMood', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
@@ -494,7 +493,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
         >
           <ConsistencyProgress 
             current={stats.streakDays} 
-            total={stats.longestStreak || Math.max(stats.streakDays, 7)} 
+            total={stats.longestStreak || Math.max(stats.streakDays * 2, 7)} 
           />
         </BentoItem>
 

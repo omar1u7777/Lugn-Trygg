@@ -20,6 +20,7 @@ import { DashboardHeader } from './Dashboard/DashboardHeader';
 import { DashboardStats } from './Dashboard/DashboardStats';
 import { DashboardActivity } from './Dashboard/DashboardActivity';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
+import { DashboardRecentMoods } from './Dashboard/DashboardRecentMoods';
 
 // Feature Components - Direct imports to prevent code splitting
 import { SuperMoodLogger } from './SuperMoodLogger';
@@ -60,7 +61,7 @@ const extractMoodScoreFromDescription = (description: string): number | null => 
     return null;
   }
 
-  const explicitScoreMatch = description.match(/(\d{1,2})\s*\/\s*10/);
+  const explicitScoreMatch = description.match(/(\d{1,2}(?:\.\d+)?)\s*\/\s*10/);
   if (explicitScoreMatch) {
     const parsed = Number(explicitScoreMatch[1]);
     if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 10) {
@@ -70,7 +71,7 @@ const extractMoodScoreFromDescription = (description: string): number | null => 
 
   const normalized = description.toLowerCase();
   const matchedLabel = Object.keys(MOOD_LABEL_SCORES).find((label) => normalized.includes(label));
-  return matchedLabel ? MOOD_LABEL_SCORES[matchedLabel] : null;
+  return matchedLabel ? (MOOD_LABEL_SCORES[matchedLabel] ?? null) : null;
 };
 
 const WorldClassAnalyticsView = lazy(() => import('./WorldClassAnalytics'));
@@ -126,8 +127,10 @@ const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string =
   let hash = 0;
   for (let i = 0; i < goal.length; i++) hash = (hash * 31 + goal.charCodeAt(i)) | 0;
   const index = Math.abs(hash + dayOfYear) % goalSteps.length;
-  return goalSteps[index] || ((steps?.['fallback'] as string) || 'Fortsätt arbeta med ditt mål');
+  return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || 'Fortsätt arbeta med ditt mål');
 };
+
+const DASHBOARD_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
   const { t } = useTranslation();
@@ -147,6 +150,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   // Centralized data hook with caching
   const { stats: dashboardStats, loading, error, refresh } = useDashboardData(resolvedUserId);
+
+  // Debug flag to surface internal dashboard state in the UI (dev only)
+  const isDashboardDebug = import.meta.env.VITE_DEBUG_DASHBOARD === 'true';
 
   const [activeView, setActiveView] = useState<'overview' | 'mood-basic' | 'mood-list' | 'chat' | 'analytics' | 'gamification'>('overview');
   const [showWellnessOnboarding, setShowWellnessOnboarding] = useState(false);
@@ -217,6 +223,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     [safeDashboardStats.recentActivity]
   );
 
+  // Latest mood description for personalized greeting (not the numeric average)
+  const latestMoodDescription = useMemo(() => {
+    const moodActivities = safeDashboardStats.recentActivity.filter((a) => a.type === 'mood');
+    if (!moodActivities.length) return undefined;
+    return moodActivities.reduce((latest, current) => {
+      const latestTime = latest.timestamp instanceof Date ? latest.timestamp.getTime() : new Date(latest.timestamp).getTime();
+      const currentTime = current.timestamp instanceof Date ? current.timestamp.getTime() : new Date(current.timestamp).getTime();
+      return currentTime > latestTime ? current : latest;
+    }).description;
+  }, [safeDashboardStats.recentActivity]);
+
   // Memoize stats object to prevent DashboardStats re-renders
   const stats = useMemo(() => ({
     averageMood: safeDashboardStats.averageMood,
@@ -228,9 +245,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   const formattedWeeklyProgress = formatNumber(safeDashboardStats.weeklyProgress);
   const formattedWeeklyGoal = formatNumber(safeDashboardStats.weeklyGoal);
-  const formattedRemainingEntries = formatNumber(
-    Math.max(safeDashboardStats.weeklyGoal - safeDashboardStats.weeklyProgress, 0)
-  );
 
   // Transform activities with icons and colors - memoized for performance
   const activities = useMemo(() => {
@@ -269,17 +283,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         icon: <Icon className="w-5 h-5 sm:w-6 sm:h-6" />,
         colorClass
       };
-    }).filter((activity, index, arr) => {
-      // Deduplicera aktiviteter av samma typ/beskrivning som skett inom 5 minuter
-      return (
-        index ===
-        arr.findIndex((candidate) => {
-          if (candidate.id === activity.id) return true;
-          const timeDiffMs = Math.abs(candidate.timestamp.getTime() - activity.timestamp.getTime());
-          const isSameEvent = candidate.type === activity.type && candidate.description === activity.description;
-          return isSameEvent && timeDiffMs < 5 * 60 * 1000;
-        })
-      );
     });
   }, [safeDashboardStats.recentActivity]);
 
@@ -451,7 +454,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       if (document.visibilityState === 'visible' && navigator.onLine) {
         handleRefresh('interval');
       }
-    }, 300000); // 5 minuter istället för 45 sekunder
+    }, DASHBOARD_REFRESH_INTERVAL);
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('online', handleOnline);
@@ -628,9 +631,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       <DashboardHeader
         userName={extractDisplayName(user?.email || '') || t('dashboard.friend')}
         isLoading={loading}
-        lastUpdatedAt={lastUpdatedAt}
+        lastUpdatedAt={lastUpdatedAt || undefined}
         onFocusAction={scrollToMoodCheckIn}
         averageMood={safeDashboardStats.averageMood}
+        lastMood={latestMoodDescription}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -768,7 +772,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 )}
               </div>
 
-              {hasWellnessGoals && (
+              {hasWellnessGoals && resolvedUserId && (
                 <Suspense fallback={<RecommendationsSkeleton />}>
                   <RecommendationsPanel
                     userId={resolvedUserId}
@@ -832,17 +836,23 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </Alert>
             ) : (
               <p className="text-sm text-white/70">
-                🎯 {t('dashboard.weeklyGoalProgress', { count: formattedRemainingEntries })}
+                🎯 {t('dashboard.weeklyGoalProgress', { count: safeDashboardStats.weeklyGoal - safeDashboardStats.weeklyProgress })}
               </p>
             )}
           </div>
         </Card>
 
-        {/* Recent Activity */}
+        {/* Recent Moods Scroll */}
+        <DashboardRecentMoods
+          activities={activities}
+          isLoading={loading}
+        />
+
+        {/* Recent Activity (excludes moods — shown in DashboardRecentMoods above) */}
         <DashboardActivity
           activities={activities}
           isLoading={loading}
-          emptyStateMessage={t('worldDashboard.noActivityYet')}
+          emptyStateMessage={t('worldDashboard.noOtherActivityYet', 'Ingen övrig aktivitet än. Börja chatta med AI-terapeuten eller prova en meditation!')}
         />
       </div>
 
@@ -852,6 +862,14 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         message={snackbar.message}
         variant={snackbar.variant}
       />
+      {isDashboardDebug && (
+        <div style={{ padding: '8px', fontFamily: 'monospace' }} aria-label="dashboard-debug">
+          <strong>Dashboard debug:</strong>
+          <pre style={{ whiteSpace: 'pre-wrap', maxHeight: '200px', overflow: 'auto' }}>
+{JSON.stringify({ stats, dashboardStats, safeDashboardStats }, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
