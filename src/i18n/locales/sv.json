@@ -672,7 +672,10 @@
     "weeklyGoalReached": "Grattis! Du har nått ditt veckomål!",
     "entriesLeft": "{{count}} inlägg kvar till nästa achievement",
     "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!",
-    "seeRecommendations": "Se rekommendationer →"
+    "seeRecommendations": "Se rekommendationer →",
+    "latestMoods": "Dina Senaste Humör",
+    "noMoodsYet": "Inga humör loggade än. Börja logga ditt humör idag!",
+    "noOtherActivityYet": "Ingen övrig aktivitet än. Börja chatta med AI-terapeuten eller prova en meditation!"
   },
   "social": {
     "title": "",

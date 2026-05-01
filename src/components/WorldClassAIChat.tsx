@@ -87,13 +87,13 @@ const MessageBubble: React.FC<{
           {/* Use GradualReveal for AI messages */}
           {!isUser && (isStreaming || isLast) ? (
             <GradualReveal 
-              text={message.content} 
+              text={message.content || ''} 
               speed={20}
               className="text-gray-800 dark:text-gray-100"
               showCursor={isStreaming}
             />
           ) : (
-            message.content
+            message.content || ''
           )}
 
           {/* Metadata / Sentiment Indicator (AI only) */}

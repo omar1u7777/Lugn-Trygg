@@ -95,6 +95,11 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
   const remainingMoodLogs = isUnlimitedMoodLogs ? 0 : Math.max(0, rawMoodLogsRemaining);
   const remainingMessages = isUnlimitedMessages ? 0 : Math.max(0, rawMessagesRemaining);
 
+  // Validate subscription data
+  if (typeof rawMoodLogsRemaining !== 'number' || typeof rawMessagesRemaining !== 'number') {
+    console.error('Invalid subscription data:', { rawMoodLogsRemaining, rawMessagesRemaining });
+  }
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12 animate-pulse">
@@ -130,6 +135,12 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
             description = 'Kvot nådd idag';
           }
 
+          // Validate action data before rendering
+          if (!action.id || !action.title) {
+            console.error('Invalid action data:', action);
+            return null;
+          }
+
           return (
             <QuickActionButton
               key={action.id}
@@ -141,7 +152,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
               isDisabled={isQuotaReached}
             />
           );
-        })}
+        }).filter(Boolean)}
       </div>
     </section>
   );

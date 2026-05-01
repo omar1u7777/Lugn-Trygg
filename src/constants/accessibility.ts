@@ -1,4 +1,4 @@
-export type DashboardRegionKey = 'stats' | 'quickActions' | 'activity';
+export type DashboardRegionKey = 'stats' | 'quickActions' | 'activity' | 'recentMoods';
 
 interface RegionDescription {
   headingId: string;
@@ -25,6 +25,11 @@ export const DASHBOARD_REGION_MAP: Record<DashboardRegionKey, RegionDescription>
     headingId: 'dashboard-activity-heading',
     regionLabel: 'Senaste aktivitet',
     description: 'Tidslinje med dina senaste humörloggar, chattar och achievements.'
+  },
+  recentMoods: {
+    headingId: 'dashboard-recent-moods-heading',
+    regionLabel: 'Senaste humör',
+    description: 'Visar dina senaste humörloggar grupperade efter datum.'
   }
 };
 

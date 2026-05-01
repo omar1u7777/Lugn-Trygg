@@ -20,9 +20,24 @@ interface MoodChartProps {
 }
 
 const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
+  // Generate a stable unique gradient ID for this component instance
+  const gradientId = useMemo(() => `moodGradient-${Math.random().toString(36).substring(7)}`, []);
+
   const chartData = useMemo(() => {
+    // Validate data is an array
+    if (!Array.isArray(data)) {
+      console.error('MoodChart: data is not an array:', data);
+      data = [];
+    }
     if (data && data.length > 0) {
-      return data;
+      // Validate each data point
+      const validData = data.filter((point) => {
+        if (!point || typeof point !== 'object') return false;
+        if (typeof point.label !== 'string') return false;
+        if (typeof point.score !== 'number' || point.score < 0 || point.score > 10) return false;
+        return true;
+      });
+      return validData;
     }
 
     const now = new Date();
@@ -43,7 +58,7 @@ const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
             <defs>
-              <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.5} />
                 <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.05} />
               </linearGradient>
@@ -60,7 +75,7 @@ const MoodChart: React.FC<MoodChartProps> = ({ data, className }) => {
                 color: '#e2e8f0',
               }}
             />
-            <Area type="monotone" dataKey="score" stroke="#0284c7" strokeWidth={2.5} fill="url(#moodGradient)" />
+            <Area type="monotone" dataKey="score" stroke="#0284c7" strokeWidth={2.5} fill={`url(#${gradientId})`} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

@@ -66,9 +66,14 @@ export const getCSRFToken = async (): Promise<string> => {
     // Handle APIResponse wrapper: { success: true, data: { csrfToken: "..." }, message: "..." }
     const responseData = response.data?.data || response.data;
     // Support both camelCase (new) and snake_case (legacy)
-    return (responseData as CSRFTokenResponse).csrfToken || (responseData as CSRFTokenResponse).csrf_token || '';
+    const token = (responseData as CSRFTokenResponse).csrfToken || (responseData as CSRFTokenResponse).csrf_token || '';
+    if (!token) {
+      logger.warn('CSRF token response missing token field', { responseData });
+    }
+    return token;
   } catch (error: unknown) {
-    logger.error("CSRF token error:", error);
+    const errorObj = error instanceof Error ? error : new Error('Unknown error fetching CSRF token');
+    logger.error('CSRF token error:', errorObj);
     return '';
   }
 };
@@ -83,6 +88,10 @@ export const getCSRFToken = async (): Promise<string> => {
  * @throws Error if dashboard summary retrieval fails
  */
 export const getDashboardSummary = async (userId: string, forceRefresh = false): Promise<DashboardSummary> => {
+  if (!userId) {
+    throw new Error('User ID is required for dashboard summary');
+  }
+
   const startTime = performance.now();
   try {
     const url = `${API_ENDPOINTS.DASHBOARD.DASHBOARD_SUMMARY}/${userId}/summary`;
@@ -94,6 +103,11 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
 
     // Handle APIResponse wrapper: { success: true, data: {...}, message: "..." }
     const responseData = response.data?.data || response.data;
+
+    // Validate required fields
+    if (!responseData || typeof responseData !== 'object') {
+      throw new Error('Invalid dashboard summary response: missing data');
+    }
 
     // Log performance metrics
     logger.debug(`Dashboard summary fetched in ${duration.toFixed(2)}ms`, {
@@ -108,7 +122,9 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
     const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-    throw new Error((responseData?.error as string) || "Failed to load dashboard summary");
+    const errorMessage = (responseData?.error as string) || "Failed to load dashboard summary";
+    logger.error('Dashboard summary fetch error:', { error: apiError, responseData });
+    throw new Error(errorMessage);
   }
 };
 
@@ -119,6 +135,11 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
  * @returns Promise resolving to quick stats or fallback data
  */
 export const getDashboardQuickStats = async (userId: string): Promise<QuickStats> => {
+  if (!userId) {
+    logger.warn('getDashboardQuickStats called without userId');
+    return { totalMoods: 0, totalChats: 0, cached: false };
+  }
+
   try {
     const response = await api.get<APIResponseWrapper<QuickStats>>(`${API_ENDPOINTS.DASHBOARD.DASHBOARD_QUICK_STATS}/${userId}/quick-stats`);
     // Handle APIResponse wrapper: { success: true, data: {...}, message: "..." }
@@ -126,8 +147,9 @@ export const getDashboardQuickStats = async (userId: string): Promise<QuickStats
     return responseData as QuickStats;
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
-    logger.error("Quick stats error:", apiError);
-    return { totalMoods: 0, totalChats: 0, cached: false };
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Quick stats error:', apiError);
+    return { totalMoods: 0, totalChats: 0, cached: false, error: errorMessage };
   }
 };
 
@@ -142,11 +164,16 @@ export const getWellnessGoals = async () => {
     const response = await api.get(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`);
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
-    logger.debug('Wellness goals retrieved:', responseData.wellnessGoals);
-    return responseData.wellnessGoals ?? [];
+    const goals = responseData.wellnessGoals ?? [];
+    if (!Array.isArray(goals)) {
+      logger.warn('Wellness goals response is not an array', { responseData });
+      return [];
+    }
+    logger.debug('Wellness goals retrieved:', goals);
+    return goals;
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
-    logger.error("Get wellness goals error:", apiError);
+    logger.error('Get wellness goals error:', apiError);
     return [];
   }
 };
@@ -162,6 +189,11 @@ export const setWellnessGoals = async (goals: string[]) => {
     throw new Error('wellnessGoals must be a non-empty list');
   }
 
+  // Validate all goals are strings
+  if (!goals.every(g => typeof g === 'string')) {
+    throw new Error('All wellness goals must be strings');
+  }
+
   logger.debug('setWellnessGoals called', { goals });
   try {
     const response = await api.post(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`, {
@@ -169,11 +201,16 @@ export const setWellnessGoals = async (goals: string[]) => {
     });
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
-    logger.debug('Wellness goals saved:', responseData.wellnessGoals);
-    return responseData.wellnessGoals;
+    const savedGoals = responseData.wellnessGoals;
+    if (!Array.isArray(savedGoals)) {
+      logger.warn('Set wellness goals response is not an array', { responseData });
+      return goals; // Return original goals as fallback
+    }
+    logger.debug('Wellness goals saved:', savedGoals);
+    return savedGoals;
   } catch (error: unknown) {
     const apiError = error as Record<string, unknown>;
-    logger.error("Set wellness goals error:", apiError);
+    logger.error('Set wellness goals error:', apiError);
     const responseData = (apiError.response as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
     throw new Error((responseData?.error as string) || "Failed to save wellness goals");
   }

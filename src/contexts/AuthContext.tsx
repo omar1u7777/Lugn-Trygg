@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, [getE2ETestAuthPayload, setIsInitialized]); // Empty behavior but explicit dependency for hook safety
+  }, [getE2ETestAuthPayload]); // Removed setIsInitialized - it's stable and doesn't need to be in deps
 
   // 🔑 Kontrollera om användaren är inloggad (memoized for performance)
   const isLoggedIn = useMemo(() => {
@@ -164,8 +164,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       logger.debug('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
 
-      // ✅ FIX: Navigate to dashboard after successful login
-      navigate("/dashboard");
+      // ✅ FIX: Only navigate if not already on dashboard to prevent redirect loops
+      if (window.location.pathname !== '/dashboard') {
+        navigate("/dashboard");
+      }
 
     } catch (error) {
       logger.error('❌ AUTH CONTEXT - Login failed:', error);
@@ -219,7 +221,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <ConsentModal
           isOpen={uiState.isConsentModalOpen}
           onClose={handleConsentClose}
-          userId={user.user_id}
         />
       )}
     </AuthContext.Provider>

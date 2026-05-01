@@ -3,7 +3,7 @@
  * Handles user consent for GDPR compliance
  */
 
-import { apiClient } from './client';
+import { api } from './client';
 import { API_ENDPOINTS } from './constants';
 
 // Backend consent types
@@ -86,7 +86,7 @@ export interface ConsentRecord {
 export async function grantBulkConsents(
   consents: BulkConsentRequest
 ): Promise<BulkConsentResponse> {
-  const response = await apiClient.post<BulkConsentResponse>(
+  const response = await api.post<BulkConsentResponse>(
     API_ENDPOINTS.CONSENT.BASE,
     consents
   );
@@ -97,7 +97,7 @@ export async function grantBulkConsents(
  * Get all consent records for current user
  */
 export async function getUserConsents(): Promise<UserConsents> {
-  const response = await apiClient.get<UserConsents>(
+  const response = await api.get<UserConsents>(
     API_ENDPOINTS.CONSENT.BASE
   );
   return response.data;
@@ -110,7 +110,7 @@ export async function grantConsent(
   consentType: BackendConsentType | FrontendConsentType,
   version: string = '1.0'
 ): Promise<ConsentRecord> {
-  const response = await apiClient.post<ConsentRecord>(
+  const response = await api.post<ConsentRecord>(
     `${API_ENDPOINTS.CONSENT.BASE}/${consentType}`,
     { version }
   );
@@ -123,7 +123,7 @@ export async function grantConsent(
 export async function withdrawConsent(
   consentType: BackendConsentType | FrontendConsentType
 ): Promise<ConsentRecord> {
-  const response = await apiClient.delete<ConsentRecord>(
+  const response = await api.delete<ConsentRecord>(
     `${API_ENDPOINTS.CONSENT.BASE}/${consentType}`
   );
   return response.data;
@@ -135,7 +135,7 @@ export async function withdrawConsent(
 export async function validateFeatureAccess(
   feature: string
 ): Promise<FeatureValidation> {
-  const response = await apiClient.get<FeatureValidation>(
+  const response = await api.get<FeatureValidation>(
     `${API_ENDPOINTS.CONSENT.BASE}/validate/${feature}`
   );
   return response.data;
@@ -147,7 +147,7 @@ export async function validateFeatureAccess(
 export async function checkConsent(
   consentType: BackendConsentType | FrontendConsentType
 ): Promise<ConsentRecord> {
-  const response = await apiClient.get<ConsentRecord>(
+  const response = await api.get<ConsentRecord>(
     `${API_ENDPOINTS.CONSENT.BASE}/check/${consentType}`
   );
   return response.data;

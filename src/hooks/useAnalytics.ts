@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackPageView, trackFeatureUsage } from '../services/analytics';import { logger } from '../utils/logger';
-
+import { trackPageView, trackFeatureUsage } from '../services/analytics';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for automatic page view tracking

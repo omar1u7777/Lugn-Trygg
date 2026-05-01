@@ -3,7 +3,7 @@
  * TypeScript client for mental health crisis detection and intervention
  */
 
-import api from './client';
+import { api } from './client';
 import { API_ENDPOINTS } from './constants';
 
 // ============================================

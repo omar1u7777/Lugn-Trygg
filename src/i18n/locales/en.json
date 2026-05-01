@@ -611,7 +611,10 @@
     "weeklyGoalReached": "Congratulations! You've reached your weekly goal!",
     "entriesLeft": "{{count}} entries left until next achievement",
     "noActivityYet": "No activity yet. Start logging your mood or chat with the AI therapist!",
-    "seeRecommendations": "See recommendations →"
+    "seeRecommendations": "See recommendations →",
+    "latestMoods": "Your Latest Moods",
+    "noMoodsYet": "No moods logged yet. Start logging your mood today!",
+    "noOtherActivityYet": "No other activity yet. Start chatting with the AI therapist or try a meditation!"
   },
   "social": {
     "title": "🤝 Community",

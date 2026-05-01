@@ -95,6 +95,8 @@ class SecurityMiddleware:
             self._anonymize_ip(ip_address),
             user_agent
         )
+        # Return None to continue request processing
+        return None
 
     def _after_request(self, response):
         """Process response after handling"""
@@ -370,12 +372,22 @@ class SecurityMiddleware:
 
         return jsonify({"error": "For manga forfragningar", "retry_after": 3600}), 429
 
+# Global security service instance for decorator reuse
+_global_security_service: SecurityService | None = None
+
+def get_global_security_service() -> SecurityService:
+    """Get or create global security service instance"""
+    global _global_security_service
+    if _global_security_service is None:
+        _global_security_service = SecurityService(AuditService())
+    return _global_security_service
+
 # Decorator for requiring authentication
 def require_auth(f: Callable) -> Callable:
     """Decorator to require authentication"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        security_service = SecurityService(AuditService())
+        security_service = get_global_security_service()
         return security_service.require_auth(f)(*args, **kwargs)
     return decorated_function
 
@@ -385,7 +397,7 @@ def require_permission(permission: str) -> Callable:
     def decorator(f: Callable) -> Callable:
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            security_service = SecurityService(AuditService())
+            security_service = get_global_security_service()
             return security_service.require_permission(permission)(f)(*args, **kwargs)
         return decorated_function
     return decorator

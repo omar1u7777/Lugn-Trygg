@@ -204,11 +204,13 @@ def get_dashboard_summary(user_id: str):
         if user_doc.exists:
             user_data = user_doc.to_dict()
             wellness_goals = user_data.get('wellnessGoals', [])
+            # Validate wellness_goals is a list
+            if not isinstance(wellness_goals, list):
+                logger.warning(f"⚠️ wellness_goals is not a list: {type(wellness_goals)}")
+                wellness_goals = []
 
         # Fetch mood data (last 30 days)
         # CRITICAL FIX: Moods are stored in user subcollection, not root collection
-        datetime.now(UTC) - timedelta(days=30)
-
         try:
             # Correct path: users/{user_id}/moods (subcollection)
             moods_ref = db.collection('users').document(user_id).collection('moods').order_by('timestamp', direction='DESCENDING').limit(100)
@@ -298,6 +300,7 @@ def get_dashboard_summary(user_id: str):
 
         # Fetch chat history count
         # CRITICAL FIX: Chats are stored in user subcollection as 'conversations'
+        chat_docs = []
         try:
             chats_ref = db.collection('users').document(user_id).collection('conversations').limit(100)
             chat_docs = list(chats_ref.stream())
@@ -307,6 +310,7 @@ def get_dashboard_summary(user_id: str):
         except Exception as e:
             logger.warning(f"⚠️ Chat query failed: {e}")
             total_chats = 0
+            chat_docs = []
 
         # Calculate streak days - count consecutive days with mood logs
         streak_days = 0
@@ -433,6 +437,44 @@ def get_dashboard_summary(user_id: str):
                 'description': f"Humör loggat: {score_display}"
             })
 
+        # Add recent chat sessions to activity so the general timeline isn't empty
+        for doc in chat_docs[:3]:
+            chat_data = doc.to_dict()
+            timestamp = chat_data.get('timestamp')
+            if timestamp:
+                try:
+                    if hasattr(timestamp, 'isoformat'):
+                        timestamp_str = timestamp.isoformat()
+                    elif hasattr(timestamp, 'timestamp'):
+                        timestamp_str = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC).isoformat()
+                    elif isinstance(timestamp, str):
+                        timestamp_str = timestamp
+                    else:
+                        timestamp_str = str(timestamp)
+                except Exception as e:
+                    logger.debug(f"⚠️ Failed to parse chat timestamp: {e}")
+                    continue
+            else:
+                # Skip chat entries without timestamp
+                continue
+            
+            title = chat_data.get('title', 'Chat session')
+            if not isinstance(title, str):
+                title = 'Chat session'
+            
+            recent_activity.append({
+                'id': doc.id,
+                'type': 'chat',
+                'timestamp': timestamp_str,
+                'description': title
+            })
+
+        # Sort by timestamp descending so most recent appears first
+        # Filter out entries with invalid timestamps before sorting
+        valid_activity = [a for a in recent_activity if a.get('timestamp') and a['timestamp'] not in ('', 'None', 'null')]
+        valid_activity.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        recent_activity = valid_activity
+
         response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         summary = {
@@ -440,7 +482,7 @@ def get_dashboard_summary(user_id: str):
             'totalChats': total_chats,
             'averageMood': average_mood,
             'streakDays': streak_days,
-            'weeklyGoal': 7,
+            'weeklyGoal': user_data.get('weeklyGoal', 7) if user_doc.exists else 7,
             'weeklyProgress': weekly_progress,
             'wellnessGoals': wellness_goals,
             'recentActivity': recent_activity,
@@ -501,21 +543,36 @@ def get_quick_stats(user_id: str):
             return APIResponse.error('Database unavailable', error_code='SERVICE_UNAVAILABLE', status_code=503)
 
         # Quick count queries - CRITICAL FIX: Use correct subcollection paths
+        # Fallback to streaming if count() aggregate is not available
+        total_moods = 0
         try:
-            # [D1] Use count() aggregate — avoids streaming all mood documents
+            # Try count() aggregate first (more efficient)
             moods_ref = db.collection('users').document(user_id).collection('moods')
             total_moods = moods_ref.count().get()[0][0].value
         except Exception as e:
-            logger.warning(f"⚠️ Quick stats mood count failed: {e}")
-            total_moods = 0
+            logger.warning(f"⚠️ Quick stats mood count failed (aggregate), trying fallback: {e}")
+            try:
+                # Fallback: stream and count
+                moods_ref = db.collection('users').document(user_id).collection('moods').limit(1000)
+                total_moods = len(list(moods_ref.stream()))
+            except Exception as e2:
+                logger.warning(f"⚠️ Quick stats mood count fallback failed: {e2}")
+                total_moods = 0
 
+        total_chats = 0
         try:
-            # [D1] Use count() aggregate — avoids streaming all conversation documents
+            # Try count() aggregate first (more efficient)
             chats_ref = db.collection('users').document(user_id).collection('conversations')
             total_chats = chats_ref.count().get()[0][0].value
         except Exception as e:
-            logger.warning(f"⚠️ Quick stats chat count failed: {e}")
-            total_chats = 0
+            logger.warning(f"⚠️ Quick stats chat count failed (aggregate), trying fallback: {e}")
+            try:
+                # Fallback: stream and count
+                chats_ref = db.collection('users').document(user_id).collection('conversations').limit(1000)
+                total_chats = len(list(chats_ref.stream()))
+            except Exception as e2:
+                logger.warning(f"⚠️ Quick stats chat count fallback failed: {e2}")
+                total_chats = 0
 
         stats_data = {
             'totalMoods': total_moods,
