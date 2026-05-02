@@ -614,66 +614,64 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
       {/* Recent Moods */}
       {showRecentMoods && recentMoods.length > 0 && (
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <ChartBarIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {t('moodLogger.recentMoods', 'Senaste humörloggningar')}
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            {groupedMoods.map(group => (
-              <div key={group.key}>
-                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                  {group.label}
-                </h4>
-                <div className="space-y-2">
-                  {group.entries.map((mood, idx) => {
-                    const visual = getMoodVisual(mood.score);
-                    const Icon = visual.Icon;
-                    
-                    return (
-                      <div
-                        key={mood.id || idx}
-                        className={`p-3 rounded-lg border ${visual.iconBgClass} border-gray-200 dark:border-gray-700`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${visual.iconBgClass}`}>
-                            <Icon className={`w-5 h-5 ${visual.iconClass}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                {mood.mood}
-                              </span>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${visual.scoreBadgeClass}`}>
-                                {mood.score}/10
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {mood.timestamp.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+        <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+            <ClockIcon className="w-4 h-4" />
+            Dina senaste humörloggningar
+          </h3>
+          <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+            <div className="space-y-4">
+              {groupedMoods.map(group => (
+                <div key={group.key}>
+                  <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                    {group.label}
+                  </h4>
+                  <div className="space-y-2">
+                    {group.entries.map((mood, idx) => {
+                      const visual = getMoodVisual(mood.score);
+                      const Icon = visual.Icon;
+                      
+                      return (
+                        <div
+                          key={mood.id || idx}
+                          className={`p-3 rounded-lg border ${visual.iconBgClass} border-gray-200 dark:border-gray-700`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2 rounded-lg ${visual.iconBgClass}`}>
+                              <Icon className={`w-5 h-5 ${visual.iconClass}`} />
                             </div>
-                            {mood.note && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                {mood.note}
-                              </p>
-                            )}
-                            {mood.tags && mood.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {mood.tags.map((tag, tidx) => (
-                                  <span
-                                    key={tidx}
-                                    className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs"
-                                  >
-                                    #{tag}
-                                  </span>
-                                ))}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                  {mood.mood}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${visual.scoreBadgeClass}`}>
+                                  {mood.score}/10
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {mood.timestamp.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               </div>
-                            )}
+                              {mood.note && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                  {mood.note}
+                                </p>
+                              )}
+                              {mood.tags && mood.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {mood.tags.map((tag) => (
+                                    <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full font-medium">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
                     );
                   })}
                 </div>
