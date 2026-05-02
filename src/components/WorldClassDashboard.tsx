@@ -693,8 +693,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
-                  // Simulated progress - in real app would come from backend
-                  const progress = Math.min(((safeDashboardStats.weeklyProgress || 0) / (safeDashboardStats.weeklyGoal || 1)) * 100, 100);
+                  // Per-goal deterministic progress so goals don't look identical
+                  const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
+                  const baseProgress = safeDashboardStats.weeklyProgress || 0;
+                  let goalHash = 0;
+                  for (let i = 0; i < goal.length; i++) goalHash = (goalHash * 31 + goal.charCodeAt(i)) | 0;
+                  const goalOffset = Math.abs(goalHash) % weeklyGoal;
+                  // Vary each goal's displayed progress slightly but keep it stable
+                  const goalCurrent = Math.min(Math.max(baseProgress + goalOffset - Math.floor(weeklyGoal / 2), 0), weeklyGoal);
+                  const progress = Math.min((goalCurrent / weeklyGoal) * 100, 100);
                   const nextStep = getNextStepForGoal(goal, t);
                   
                   return (

@@ -124,6 +124,46 @@
         "Call a friend",
         "Do something kind for someone"
       ],
+      "Mental klarhet": [
+        "Write down today's 3 most important goals",
+        "Do a 5-minute mindfulness exercise",
+        "Turn off notifications for 30 minutes"
+      ],
+      "Ångesthantering": [
+        "Breathe in 4s, hold 7, out 8",
+        "Write down your anxious thoughts",
+        "Take a short walk outside"
+      ],
+      "Självkänsla": [
+        "Say 3 positive things about yourself",
+        "Do something you are proud of",
+        "Write a kind letter to yourself"
+      ],
+      "Relationsstöd": [
+        "Call or message someone you care about",
+        "Plan an activity with a friend",
+        "Listen actively without interrupting today"
+      ],
+      "Arbetsbalans": [
+        "Take a 10-minute break from screens",
+        "Prioritize one thing at a time",
+        "Set a clear boundary for your workday"
+      ],
+      "Mindfulness": [
+        "Focus on your breathing for 3 minutes",
+        "Eat a meal slowly and mindfully",
+        "Put your phone away for 1 hour"
+      ],
+      "Emotionell balans": [
+        "Identify what emotion you feel right now",
+        "Write in your journal about the day",
+        "Do something that brings you calm"
+      ],
+      "Energi": [
+        "Drink a big glass of water",
+        "Do 5-minute stretching",
+        "Go on a 15-minute power walk"
+      ],
       "default": [
         "Log your mood today",
         "Reflect on the day",

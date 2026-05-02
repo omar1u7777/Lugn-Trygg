@@ -124,6 +124,46 @@
         "Ring en vän",
         "Gör något snällt för någon"
       ],
+      "Mental klarhet": [
+        "Skriv ner dagens 3 viktigaste mål",
+        "Gör en 5-minuters mindfulness-övning",
+        "Stäng av notifikationer i 30 minuter"
+      ],
+      "Ångesthantering": [
+        "Andas in 4 sek, håll 7, andas ut 8",
+        "Skriv ner dina oros-tankar",
+        "Gå en kort promenad utomhus"
+      ],
+      "Självkänsla": [
+        "Säg 3 positiva saker om dig själv",
+        "Gör något du är stolt över",
+        "Skriv ett vänligt brev till dig själv"
+      ],
+      "Relationsstöd": [
+        "Ring eller messa någon du tycker om",
+        "Planera en aktivitet med en vän",
+        "Lyssna aktivt utan att avbryta idag"
+      ],
+      "Arbetsbalans": [
+        "Ta en 10-minuters paus från skärmen",
+        "Prioritera en sak i taget",
+        "Sätt en tydlig gräns för arbetsdagen"
+      ],
+      "Mindfulness": [
+        "Fokusera på andningen i 3 minuter",
+        "Ät en måltid långsamt och medvetet",
+        "Lägg mobilen åt sidan i 1 timme"
+      ],
+      "Emotionell balans": [
+        "Identifiera vilken känsla du har just nu",
+        "Skriv i din dagbok om dagen",
+        "Gör något som ger dig lugn"
+      ],
+      "Energi": [
+        "Drick ett stort glas vatten",
+        "Gör 5-minuters stretching",
+        "Gå en power walk på 15 minuter"
+      ],
       "default": [
         "Logga ditt humör idag",
         "Reflektera över dagen",

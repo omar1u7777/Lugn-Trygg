@@ -42,9 +42,10 @@ describe('DashboardActivity', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('renders activity with mood type', () => {
+  it('filters out mood activities', () => {
     render(<DashboardActivity activities={[makeActivity('1', 'mood')]} />);
-    expect(screen.getByText('Description 1')).toBeInTheDocument();
+    expect(screen.queryByText('Description 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Ingen aktivitet än. Börja logga ditt humör!')).toBeInTheDocument();
   });
 
   it('renders activity with chat type', () => {
@@ -68,12 +69,12 @@ describe('DashboardActivity', () => {
   });
 
   it('groups today activities under Idag', () => {
-    render(<DashboardActivity activities={[makeActivity('t1', 'mood', 0)]} />);
+    render(<DashboardActivity activities={[makeActivity('t1', 'chat', 0)]} />);
     expect(screen.getByText('Idag')).toBeInTheDocument();
   });
 
   it('groups yesterday activities under Igår', () => {
-    render(<DashboardActivity activities={[makeActivity('y1', 'mood', 1)]} />);
+    render(<DashboardActivity activities={[makeActivity('y1', 'chat', 1)]} />);
     expect(screen.getByText('Igår')).toBeInTheDocument();
   });
 
@@ -85,7 +86,7 @@ describe('DashboardActivity', () => {
     const year = date.getFullYear();
     const activity: ActivityItem = {
       id: 'ey1',
-      type: 'mood',
+      type: 'chat',
       timestamp: date,
       description: 'Earlier this year',
       icon: '📅',
@@ -114,9 +115,9 @@ describe('DashboardActivity', () => {
 
   it('renders multiple activities with connector lines', () => {
     const activities = [
-      makeActivity('a1', 'mood'),
-      makeActivity('a2', 'chat'),
-      makeActivity('a3', 'meditation'),
+      makeActivity('a1', 'chat'),
+      makeActivity('a2', 'meditation'),
+      makeActivity('a3', 'journal'),
     ];
     render(<DashboardActivity activities={activities} />);
     expect(screen.getByText('Description a1')).toBeInTheDocument();
@@ -127,7 +128,7 @@ describe('DashboardActivity', () => {
   it('shows "load more" button when activities exceed visible limit', () => {
     // Create 13 activities to exceed MAX_VISIBLE_ACTIVITIES=12
     const activities = Array.from({ length: 13 }, (_, i) =>
-      makeActivity(`bulk-${i}`, 'mood')
+      makeActivity(`bulk-${i}`, 'chat')
     );
     render(<DashboardActivity activities={activities} />);
     expect(screen.getByRole('button', { name: /visa äldre aktiviteter/i })).toBeInTheDocument();
@@ -135,7 +136,7 @@ describe('DashboardActivity', () => {
 
   it('loads more activities on button click', () => {
     const activities = Array.from({ length: 13 }, (_, i) =>
-      makeActivity(`batch-${i}`, 'mood')
+      makeActivity(`batch-${i}`, 'chat')
     );
     render(<DashboardActivity activities={activities} />);
     const btn = screen.getByRole('button', { name: /visa äldre aktiviteter/i });
