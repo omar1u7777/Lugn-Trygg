@@ -33,7 +33,9 @@
     "liveRegionLabel": "Sanntidsoppdateringer",
     "alertsLiveRegion": "Systemvarsler oppdateres fortløpende",
     "alertsActiveCount": "{count} aktive varsler",
-    "updating": "Oppdaterer..."
+    "updating": "Oppdaterer...",
+    "showPassword": "Vis passord",
+    "hidePassword": "Skjul passord"
   },
   "nav": {
     "dashboard": "Oversikt",
@@ -481,28 +483,6 @@
     "networkError": "Nätverksfel. Kunde inte ansluta till servern.",
     "tryAgain": "Försök igen",
     "retrying": "Försöker igen..."
-  },
-  "aiChat": {
-    "sanctuary": "Din Fristad",
-    "thinking": "Tänker...",
-    "alwaysHere": "Alltid här för dig",
-    "messagesLeft": "{{count}} meddelanden kvar",
-    "limitReached": "Gräns uppnådd",
-    "dailyLimitReached": "Daglig gräns uppnådd",
-    "welcomeMessage": "Välkommen till din fristad. Jag lyssnar.",
-    "newResponse": "Nytt svar från AI",
-    "errorFallback": "Förlåt, jag tappade tråden. Försök igen.",
-    "suggestions": {
-      "stressed": "Jag känner mig stressad",
-      "motivation": "Behöver motivation",
-      "sleep": "Svårt att sova"
-    },
-    "opening": "Öppnar din fristad...",
-    "welcomeHome": "Välkommen hem.",
-    "welcomeText": "Här inne dömer ingen. Jag finns här för att lyssna, stötta och hjälpa dig sortera tankarna. Vad tänker du på just nu?",
-    "inputPlaceholder": "Skriv ditt meddelande...",
-    "footer": "Lugn & Trygg AI • Privat & Säker",
-    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologisk hjelp. I krise, ring 116 123 (Kirkens SOS) eller 113."
   },
   "gamification": {
     "myJourney": "Min Resa 🏆",

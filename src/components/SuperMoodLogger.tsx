@@ -8,10 +8,11 @@
  * - Premium UX
  */
 
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChartBarIcon,
+  ClockIcon,
   ExclamationTriangleIcon,
   FaceFrownIcon,
   FaceSmileIcon,
@@ -165,6 +166,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   // Voice recording
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const lastMoodSubmissionRef = useRef<{ moodScore: number; timestampMs: number } | null>(null);
   const submitLockRef = useRef(false);
@@ -203,14 +205,14 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       
       const normalized: RecentMood[] = (moodsResponse || [])
         .map((mood: RawMoodEntry) => {
-          const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : new Date(mood.timestamp);
+          const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : (mood.timestamp instanceof Date ? mood.timestamp : new Date(mood.timestamp));
           const score = mood.score || mood.sentiment_score || 5;
           // Always derive display label from score for consistency.
           // Old entries may have incorrect mood_text (e.g., "neutral" for all scores).
           const moodText = getMoodLabel(score);
           
           return {
-            id: mood.id || mood.docId,
+            id: mood.id || mood.docId || Math.random().toString(36).substring(2, 11),
             mood: moodText,
             score,
             timestamp,
@@ -253,7 +255,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       setArousal(mood.value === 10 ? 9 : 7);
     }
     
-    announceToScreenReader(t('moodLogger.moodSelected', 'Valde humör: {{mood}}', { mood: mood.label }), 'polite');
+    announceToScreenReader(t('moodLogger.moodSelected', { mood: mood.label }) || 'Valde humör: ' + mood.label, 'polite');
   };
 
   const isDuplicateMoodWithinCooldown = (moodScore: number): boolean => {
@@ -361,7 +363,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       } else {
         const friendlyMessage = t('moodLogger.moodLogFailed', 'Kunde inte logga humör. Försök igen.');
         announceToScreenReader(friendlyMessage, 'assertive');
-        setLimitError(friendlyMessage); // Reuse limitError state for general errors
+        setLimitError(friendlyMessage);
       }
     } finally {
       setIsLogging(false);
@@ -372,6 +374,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -385,7 +388,6 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorder.start();
@@ -400,25 +402,41 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
   };
 
-  const groupedMoods = recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
-    const dayKey = mood.timestamp.toLocaleDateString('sv-SE');
-    const today = new Date().toLocaleDateString('sv-SE');
-    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE');
-    
-    let label = dayKey;
-    if (dayKey === today) label = t('moodLogger.today', 'Idag');
-    else if (dayKey === yesterday) label = t('moodLogger.yesterday', 'Igår');
-    
-    let group = groups.find(g => g.key === dayKey);
-    if (!group) {
-      group = { key: dayKey, label, entries: [] };
-      groups.push(group);
-    }
-    group.entries.push(mood);
-    return groups;
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
   }, []);
+
+  const groupedMoods = useMemo(() => {
+    return recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
+      const dayKey = mood.timestamp.toLocaleDateString('sv-SE');
+      const today = new Date().toLocaleDateString('sv-SE');
+      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE');
+
+      let label = dayKey;
+      if (dayKey === today) label = t('moodLogger.today', 'Idag');
+      else if (dayKey === yesterday) label = t('moodLogger.yesterday', 'Igår');
+
+      let group = groups.find(g => g.key === dayKey);
+      if (!group) {
+        group = { key: dayKey, label, entries: [] };
+        groups.push(group);
+      }
+      group.entries.push(mood);
+      return groups;
+    }, []);
+  }, [recentMoods, t]);
 
   const canSubmit = selectedMood !== null;
   const reflectionPrompt = selectedMood !== null ? getReflectionPrompt(selectedMood) : '';
@@ -633,7 +651,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                       
                       return (
                         <div
-                          key={mood.id || idx}
+                          key={mood.id}
                           className={`p-3 rounded-lg border ${visual.iconBgClass} border-gray-200 dark:border-gray-700`}
                         >
                           <div className="flex items-start gap-3">
@@ -672,13 +690,11 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                       );
                     })}
                   </div>
-                    );
-                  })}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

@@ -15,7 +15,8 @@ interface User {
 
 interface Referral {
   code: string;
-  // Add additional referral properties as needed
+  success?: boolean;
+  message?: string;
 }
 
 interface LoginResponse {

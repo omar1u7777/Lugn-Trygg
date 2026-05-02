@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { getSubscriptionStatus } from '../api/subscription';
+import { getUsageStatus, incrementMoodLog as apiIncrementMoodLog, incrementChatMessage as apiIncrementChatMessage } from '../api/usage';
 import planConfigJson from '../../shared/subscription_plans.json';
 import { logger } from '../utils/logger';
 
@@ -189,7 +190,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
       }
 
-      // Fetch from backend
+      // Fetch subscription from backend
       const data = await getSubscriptionStatus(user.user_id);
 
       const normalizeTier = (tier?: string): SubscriptionTier => {
@@ -241,13 +242,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       setPlan(newPlan);
 
+      // Fetch usage from backend
+      const usageData = await getUsageStatus();
       const latestUsage: DailyUsage = {
-        moodLogs: data.usage?.moodLogs ?? DEFAULT_USAGE.moodLogs,
-        chatMessages: data.usage?.chatMessages ?? DEFAULT_USAGE.chatMessages,
-        lastResetDate: data.usage?.date || new Date().toISOString().split('T')[0] || DEFAULT_USAGE.lastResetDate,
+        moodLogs: usageData.mood_logs,
+        chatMessages: usageData.chat_messages,
+        lastResetDate: usageData.date,
       };
       setUsage(latestUsage);
-      localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(latestUsage));
       
       // Cache the result
       localStorage.setItem(getSubscriptionCacheKey(user?.user_id), JSON.stringify({
@@ -312,18 +314,42 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [plan.limits.chatMessagesPerDay, usage.chatMessages]);
 
   // Usage increment functions
-  const incrementMoodLog = useCallback(() => {
-    setUsage(prev => ({
-      ...prev,
-      moodLogs: prev.moodLogs + 1,
-    }));
+  const incrementMoodLog = useCallback(async () => {
+    try {
+      const result = await apiIncrementMoodLog();
+      if (result.success) {
+        setUsage(prev => ({
+          ...prev,
+          moodLogs: result.mood_logs ?? prev.moodLogs + 1,
+        }));
+      }
+    } catch (error) {
+      logger.error('Failed to increment mood log on backend:', error);
+      // Fallback to local increment if backend fails
+      setUsage(prev => ({
+        ...prev,
+        moodLogs: prev.moodLogs + 1,
+      }));
+    }
   }, []);
 
-  const incrementChatMessage = useCallback(() => {
-    setUsage(prev => ({
-      ...prev,
-      chatMessages: prev.chatMessages + 1,
-    }));
+  const incrementChatMessage = useCallback(async () => {
+    try {
+      const result = await apiIncrementChatMessage();
+      if (result.success) {
+        setUsage(prev => ({
+          ...prev,
+          chatMessages: result.chat_messages ?? prev.chatMessages + 1,
+        }));
+      }
+    } catch (error) {
+      logger.error('Failed to increment chat message on backend:', error);
+      // Fallback to local increment if backend fails
+      setUsage(prev => ({
+        ...prev,
+        chatMessages: prev.chatMessages + 1,
+      }));
+    }
   }, []);
 
   // Feature check

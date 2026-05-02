@@ -1,12 +1,12 @@
 // ── ALL IMPORTS FIRST (no code between imports — avoids TDZ errors in production bundles) ──
 import React from "react";
-import ReactDOM from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { I18nextProvider } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { QueryProvider } from "./contexts/QueryContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { initializeAnalytics } from "./services/analytics";
 import { initPerformanceMonitoring, type ResourceHint, type PreloadAsset } from "./utils/performance";
@@ -33,7 +33,6 @@ import "./styles/accessibility.css";
 // Expose React globally so third-party scripts can find it
 if (typeof window !== 'undefined') {
   window.React = React;
-  window.ReactDOM = ReactDOM;
 }
 
 // [B7] Initialize Sentry frontend error tracking.
@@ -234,14 +233,16 @@ const startApp = async () => {
       <ErrorBoundary>
         <I18nextProvider i18n={i18n}>
           <BrowserRouter future={ROUTER_FUTURE_FLAGS}>
-            <ThemeProvider>
-              <AuthProvider>
-                <SubscriptionProvider>
-                  <App />
-                  <TelemetryPortal />
-                </SubscriptionProvider>
-              </AuthProvider>
-            </ThemeProvider>
+            <QueryProvider>
+              <ThemeProvider>
+                <AuthProvider>
+                  <SubscriptionProvider>
+                    <App />
+                    <TelemetryPortal />
+                  </SubscriptionProvider>
+                </AuthProvider>
+              </ThemeProvider>
+            </QueryProvider>
           </BrowserRouter>
         </I18nextProvider>
       </ErrorBoundary>

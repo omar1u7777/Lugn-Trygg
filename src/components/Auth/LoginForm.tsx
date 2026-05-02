@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react"
 import { useTranslation } from 'react-i18next';
 import { Link } from "react-router-dom";
-import { ArrowRightStartOnRectangleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { logger } from '../../utils/logger';
 import { loginUser, api } from "../../api/index";
 import { API_ENDPOINTS } from "../../api/constants";
@@ -9,13 +9,13 @@ import { useAuth } from "../../contexts/AuthContext";
 import { loadFirebaseAuthBundle } from "../../services/lazyFirebase";
 import ForgotPassword from "./ForgotPassword";
 import { Input } from "../ui/tailwind/Input";
+import { PasswordInput } from "../ui/tailwind/PasswordInput";
 import { Button } from "../ui/tailwind/Button";
 import { Alert } from "../ui/tailwind/Feedback";
 import { Typography } from "../ui/tailwind/Typography";
 import { Divider } from "../ui/tailwind/Display";
 import { LoadingSpinner } from "../LoadingStates";
 import { useAccessibility } from "../../hooks/useAccessibility";
-import { usePasswordToggle } from "../../hooks/usePasswordToggle";
 // ScreenReaderAnnouncer removed — announcements handled by useAccessibility hook
 
 // Constants for messages and strings
@@ -82,10 +82,6 @@ const LoginForm = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
   const forgotPasswordButtonRef = useRef<HTMLButtonElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
-  
-  // ✅ Använd custom hook istället för local state
-  const { showPassword, togglePassword } = usePasswordToggle();
   
   const { login } = useAuth();
   const { announceToScreenReader } = useAccessibility();
@@ -102,10 +98,6 @@ const LoginForm = () => {
   // ✅ Memoize handlers för bättre performance
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
-  }, []);
-
-  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
   }, []);
 
   // Validation function
@@ -275,40 +267,18 @@ const LoginForm = () => {
                 </span>
                 {t('loginForm.passwordLabel', 'Lösenord')}
               </label>
-              <div className="relative">
-            <Input
-              label={t('loginForm.passwordLabel', 'Lösenord')}
-              id="password"
-              data-testid="login-password-input"
-              inputRef={passwordRef}
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
-              disabled={loading}
-              aria-describedby={error || validationErrors.password ? "login-error password-error" : undefined}
-              aria-invalid={!!(error || validationErrors.password)}
-              title={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
-            />
-                <button
-                  type="button"
-                  onClick={togglePassword}
-                  disabled={loading}
-                  title={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
-                  aria-label={showPassword ? t('loginForm.hidePassword', 'Dölj lösenord') : t('loginForm.showPassword', 'Visa lösenord')}
-                  aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                >
-                  {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                </button>
-              </div>
-              {validationErrors.password && (
-                <Typography id="password-error" variant="body2" color="error" className="mt-1 text-sm">
-                  {validationErrors.password}
-                </Typography>
-              )}
+              <PasswordInput
+                id="password"
+                value={password}
+                onChange={setPassword}
+                placeholder={t('loginForm.passwordPlaceholder', 'Ange ditt lösenord')}
+                required
+                disabled={loading}
+                error={validationErrors.password || (error ? t('loginForm.passwordRequired') : undefined)}
+                dataTestId="login-password-input"
+                ariaDescribedBy={error || validationErrors.password ? "login-error password-error" : undefined}
+                ariaInvalid={!!(error || validationErrors.password)}
+              />
             </div>
 
             <Button

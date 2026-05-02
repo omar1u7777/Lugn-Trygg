@@ -10,7 +10,7 @@ interface UsePMROptions {
     onPhaseChange?: (phase: PMRPhase, muscleGroup: (typeof muscleGroups)[number], timeLeft: number) => void;
 }
 
-export const usePMR = ({ difficulty, customTiming, onComplete, _onPhaseChange }: UsePMROptions) => {
+export const usePMR = ({ difficulty, customTiming, onComplete, onPhaseChange }: UsePMROptions) => {
     const [isActive, setIsActive] = useState(false);
     const [phase, setPhase] = useState<PMRPhase>('prepare');
     const [currentMuscleGroupIndex, setCurrentMuscleGroupIndex] = useState(0);
