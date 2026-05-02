@@ -136,7 +136,7 @@ const getReflectionPrompt = (score: number): string => {
 
 export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   onMoodLogged,
-  showRecentMoods = true,
+  showRecentMoods = false,
   enableVoiceRecording = false,
 }) => {
   const { t } = useTranslation();

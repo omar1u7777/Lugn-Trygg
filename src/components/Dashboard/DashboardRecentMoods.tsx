@@ -41,7 +41,7 @@ const extractMoodScore = (description: string): number | null => {
     normalized.includes(label)
   );
   if (matchedLabel && matchedLabel in MOOD_LABEL_SCORES) {
-    return MOOD_LABEL_SCORES[matchedLabel];
+    return MOOD_LABEL_SCORES[matchedLabel] ?? null;
   }
 
   return null;
@@ -75,8 +75,24 @@ interface GroupedMoods {
     label: string;
     emoji: string;
     note: string;
+    tags: string[];
   }[];
 }
+
+const DUPLICATE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+const extractTags = (note: string): { text: string; tags: string[] } => {
+  const tagPattern = /#(\w+)/g;
+  const tags: string[] = [];
+  let match;
+  while ((match = tagPattern.exec(note)) !== null) {
+    if (match[1]) {
+      tags.push(match[1]);
+    }
+  }
+  const text = note.replace(tagPattern, '').trim();
+  return { text, tags };
+};
 
 const groupMoodsByDate = (moodActivities: MoodActivity[]): GroupedMoods[] => {
   const dateFormatter = new Intl.DateTimeFormat('sv-SE', {
@@ -91,6 +107,7 @@ const groupMoodsByDate = (moodActivities: MoodActivity[]): GroupedMoods[] => {
   });
 
   const groups = new Map<string, GroupedMoods>();
+  const seen = new Map<string, number>(); // key -> timestampMs
 
   for (const activity of moodActivities) {
     // Validate activity has required fields
@@ -104,6 +121,15 @@ const groupMoodsByDate = (moodActivities: MoodActivity[]): GroupedMoods[] => {
       console.error('Invalid timestamp:', activity.timestamp);
       continue;
     }
+
+    // Deduplication: skip if same description within 5 min window
+    const descKey = activity.description.toLowerCase().trim();
+    const lastSeen = seen.get(descKey);
+    if (lastSeen !== undefined && Math.abs(date.getTime() - lastSeen) < DUPLICATE_WINDOW_MS) {
+      continue;
+    }
+    seen.set(descKey, date.getTime());
+
     // Use local date for grouping to match locale display
     const dateKey = date.toLocaleDateString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const score = extractMoodScore(activity.description);
@@ -119,13 +145,16 @@ const groupMoodsByDate = (moodActivities: MoodActivity[]): GroupedMoods[] => {
       groups.set(dateKey, group);
     }
 
+    const { text, tags } = extractTags(activity.description);
+
     group.items.push({
       id: activity.id,
       time: timeFormatter.format(date),
       score,
       label: getMoodLabel(resolvedScore),
       emoji: getMoodEmoji(resolvedScore),
-      note: activity.description,
+      note: text || activity.description,
+      tags,
     });
   }
 
@@ -202,7 +231,7 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
             </span>
           </div>
 
-          <div className={`${maxHeight} overflow-y-auto pr-1 space-y-6`}>
+          <div className={`${maxHeight} overflow-y-auto pr-1 space-y-6 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent`}>
             {groupedMoods.map((group) => (
               <div key={group.dateKey}>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm py-1 z-10">
@@ -239,6 +268,18 @@ export const DashboardRecentMoods: React.FC<DashboardRecentMoodsProps> = ({
                               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
                                 {item.note}
                               </p>
+                            )}
+                            {item.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {item.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded text-[10px] font-medium"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </div>
