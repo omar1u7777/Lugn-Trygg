@@ -20,7 +20,6 @@ import { DashboardHeader } from './Dashboard/DashboardHeader';
 import { DashboardStats } from './Dashboard/DashboardStats';
 import { DashboardActivity } from './Dashboard/DashboardActivity';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
-import { DashboardRecentMoods } from './Dashboard/DashboardRecentMoods';
 
 // Feature Components - Direct imports to prevent code splitting
 import { SuperMoodLogger } from './SuperMoodLogger';
@@ -650,7 +649,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {t('worldDashboard.takeAMoment')}
               </p>
             </div>
-            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} />
+            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} showRecentMoods={true} />
           </div>
         </Card>
 
@@ -849,13 +848,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           </div>
         </Card>
 
-        {/* Recent Moods Scroll */}
-        <DashboardRecentMoods
-          activities={activities}
-          isLoading={loading}
-        />
-
-        {/* Recent Activity (excludes moods — shown in DashboardRecentMoods above) */}
+        {/* Recent Activity (excludes moods — shown in SuperMoodLogger above) */}
         <DashboardActivity
           activities={activities}
           isLoading={loading}
