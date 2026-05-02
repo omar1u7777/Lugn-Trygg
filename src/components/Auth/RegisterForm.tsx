@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react"
 import { Link, useSearchParams } from "react-router-dom";
 import { Alert, Input, Button, Typography } from "../ui/tailwind";
-import { EyeIcon, EyeSlashIcon, ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
+import { PasswordInput } from "../ui/tailwind/PasswordInput";
+import { ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { registerUser } from "../../api/api";
-import { useMultiplePasswordToggle } from "../../hooks/usePasswordToggle";
 import { useAccessibility } from "../../hooks/useAccessibility";
 import { logger } from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
@@ -23,13 +23,6 @@ const RegisterForm: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<{ name?: string; email?: string; password?: string; confirmPassword?: string; terms?: string }>({});
   
   const { t } = useTranslation();
-  // ✅ Använd custom hooks
-  const { 
-    showPassword, 
-    showConfirmPassword, 
-    togglePassword, 
-    toggleConfirmPassword 
-  } = useMultiplePasswordToggle();
 
   const { announceToScreenReader } = useAccessibility();
 
@@ -261,38 +254,17 @@ const RegisterForm: React.FC = () => {
               </span>
               {t('registerForm.passwordLabel')}
             </label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('registerForm.passwordPlaceholder')}
-                required
-                disabled={loading}
-                className="pr-12"
-                data-testid="register-password-input"
-                aria-describedby={validationErrors.password ? "password-error" : "password-help"}
-                aria-invalid={!!validationErrors.password}
-              />
-              <button
-                type="button"
-                onClick={togglePassword}
-                disabled={loading}
-                title={showPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
-                aria-label={showPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
-                aria-pressed={showPassword}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-              >
-                {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-              </button>
-            </div>
-            <p id="password-help" className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-              {t('registerForm.passwordHelp')}
-            </p>
-            {validationErrors.password && (
-              <p id="password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.password}</p>
-            )}
+            <PasswordInput
+              id="password"
+              value={password}
+              onChange={setPassword}
+              placeholder={t('registerForm.passwordPlaceholder')}
+              required
+              disabled={loading}
+              error={validationErrors.password}
+              helpText={t('registerForm.passwordHelp')}
+              dataTestId="register-password-input"
+            />
           </div>
 
           <div>
@@ -305,35 +277,16 @@ const RegisterForm: React.FC = () => {
               </span>
               {t('registerForm.confirmPasswordLabel')}
             </label>
-            <div className="relative">
-              <Input
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t('registerForm.confirmPasswordPlaceholder')}
-                required
-                disabled={loading}
-                className="pr-12"
-                data-testid="register-confirm-password-input"
-                aria-describedby={validationErrors.confirmPassword ? "confirm-password-error" : undefined}
-                aria-invalid={!!validationErrors.confirmPassword}
-              />
-              <button
-                type="button"
-                onClick={toggleConfirmPassword}
-                disabled={loading}
-                title={showConfirmPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
-                aria-label={showConfirmPassword ? t('registerForm.hidePassword') : t('registerForm.showPassword')}
-                aria-pressed={showConfirmPassword}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-              >
-                {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-              </button>
-            </div>
-            {validationErrors.confirmPassword && (
-              <p id="confirm-password-error" className="mt-1 text-sm text-error-600 dark:text-error-400">{validationErrors.confirmPassword}</p>
-            )}
+            <PasswordInput
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              placeholder={t('registerForm.confirmPasswordPlaceholder')}
+              required
+              disabled={loading}
+              error={validationErrors.confirmPassword}
+              dataTestId="register-confirm-password-input"
+            />
           </div>
 
           {/* Terms & Privacy checkboxes */}

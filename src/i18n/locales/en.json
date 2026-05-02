@@ -33,7 +33,9 @@
     "liveRegionLabel": "Live updates",
     "alertsLiveRegion": "System alerts update in real time",
     "alertsActiveCount": "{count} active alerts",
-    "updating": "Updating..."
+    "updating": "Updating...",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "nav": {
     "dashboard": "Dashboard",

@@ -356,6 +356,7 @@ try:
     from src.routes.security_routes import security_bp
     from src.routes.subscription_routes import subscription_bp
     from src.routes.sync_history_routes import sync_history_bp
+    from src.routes.usage_routes import usage_bp
     from src.routes.users_routes import users_bp
     from src.routes.voice_routes import voice_bp
 
@@ -671,6 +672,12 @@ try:
         logger.info("✅ Registered sync_history_bp")
     except Exception as e:
         logger.error(f"❌ Failed to register sync_history_bp: {e}")
+
+    try:
+        app.register_blueprint(usage_bp, url_prefix='/api/v1/usage')
+        logger.info("✅ Registered usage_bp")
+    except Exception as e:
+        logger.error(f"❌ Failed to register usage_bp: {e}")
 
     try:
         app.register_blueprint(cbt_bp, url_prefix='/api/v1/cbt')

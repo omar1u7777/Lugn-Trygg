@@ -33,7 +33,9 @@
     "liveRegionLabel": "Liveuppdateringar",
     "alertsLiveRegion": "Systemlarm uppdateras i realtid",
     "alertsActiveCount": "{count} aktiva larm",
-    "updating": "Uppdaterar..."
+    "updating": "Uppdaterar...",
+    "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord"
   },
   "nav": {
     "dashboard": "Översikt",
@@ -521,31 +523,6 @@
       "food": "Mat",
       "weather": "Väder"
     }
-  },
-  "aiChat": {
-    "sanctuary": "Din Fristad",
-    "alwaysHere": "Alltid här för dig",
-    "thinking": "Tänker...",
-    "welcomeHome": "Välkommen hem",
-    "welcomeText": "Detta är din trygga plats. Dela vad som helst som är på ditt hjärta - jag är här för att lyssna utan att döma.",
-    "inputPlaceholder": "Berätta vad du känner...",
-    "offlinePlaceholder": "Du är offline. Meddelandet skickas när du är tillbaka online.",
-    "send": "Skicka meddelande",
-    "newResponse": "Nytt svar från AI",
-    "opening": "Öppnar din fristad...",
-    "offlineMode": "Du är i offline-läge. Visar cachade meddelanden.",
-    "messageQueued": "Meddelandet köas för att skickas när du är online igen.",
-    "suggestions": {
-      "stressed": "Jag känner mig stressad",
-      "motivation": "Behöver motivation",
-      "sleep": "Kan inte sova"
-    },
-    "footer": "Dina samtal är privata och säkra",
-    "disclaimer": "Lugn & Trygg ersätter inte professionell psykologhjälp. Vid akut kris, ring 90101 (Självmordslinjen) eller 112.",
-    "limitReached": "Daglig gräns nådd",
-    "dailyLimitReached": "Du har nått din dagliga gräns för meddelanden",
-    "messagesLeft": "{{count}} kvar",
-    "errorFallback": "Tyvärr, jag har tekniska svårigheter just nu. Försök igen om en stund."
   },
   "gamification": {
     "myJourney": "Min Resa 🏆",

@@ -50,7 +50,7 @@ export const useJournaling = ({ user, announce, onProgress }: UseJournalingOptio
             onProgress('exercise', 10); // 10 minutes for journaling
 
             // Refresh journal history
-            loadHistory();
+            await loadHistory();
         } catch (error) {
             logger.error('Failed to save journal entry:', error);
             announce('Kunde inte spara journalanteckning', 'assertive');
