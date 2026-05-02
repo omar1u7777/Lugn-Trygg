@@ -43,8 +43,8 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  sentiment?: string;
-  emotions?: string[];
+  sentiment?: string | undefined;
+  emotions?: string[] | undefined;
 }
 
 // ----------------------------------------------------------------------
@@ -280,15 +280,29 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         if (!isMountedRef.current) return [];
         
         const history = historyResponse?.conversation || [];
-        const formatted: ChatMessage[] = (history || []).map((msg: Record<string, unknown>, i: number) => ({
-          id: `history-${i}`,
-          role: msg?.role === 'user' ? 'user' : 'assistant',
-          content: (msg?.content as string) || (msg?.message as string) || '',
-          timestamp: new Date((msg?.timestamp as { toDate?: () => Date } | string | undefined && typeof msg.timestamp === 'object' && msg.timestamp !== null && 'toDate' in msg.timestamp ? (msg.timestamp as { toDate: () => Date }).toDate() : msg?.timestamp as string | undefined) || Date.now()),
-          // Backend saves crisis_detected (boolean), frontend uses sentiment: 'crisis' for display
-          sentiment: (msg?.crisis_detected ? 'crisis' : msg?.sentiment) as string | undefined,
-          emotions: msg?.emotions as string[] | undefined,
-        }));
+        const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => {
+          // Helper to safely parse timestamp
+          const ts = msg?.timestamp;
+          let timestamp: Date;
+          if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
+            timestamp = (ts as { toDate: () => Date }).toDate();
+          } else if (typeof ts === 'string' || typeof ts === 'number') {
+            timestamp = new Date(ts);
+          } else {
+            timestamp = new Date();
+          }
+          
+          const sentimentValue = msg?.crisis_detected ? 'crisis' : (msg?.sentiment as string | undefined);
+          return {
+            id: `history-${i}`,
+            role: msg?.role === 'user' ? 'user' : 'assistant',
+            content: (msg?.content as string) || (msg?.message as string) || '',
+            timestamp,
+            // Backend saves crisis_detected (boolean), frontend uses sentiment: 'crisis' for display
+            ...(sentimentValue ? { sentiment: sentimentValue } : {}),
+            ...(msg?.emotions ? { emotions: msg?.emotions as string[] } : {}),
+          };
+        });
 
         // Sync with cache
         await syncWithServer(formatted);
