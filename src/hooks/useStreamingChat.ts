@@ -93,6 +93,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
         body: JSON.stringify({
           message,
           user_id: userId,
+          conversation_history: _conversationHistory,
         }),
         signal: abortControllerRef.current.signal,
       });
