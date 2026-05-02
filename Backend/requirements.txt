@@ -5,7 +5,7 @@ Flask-Babel==4.0.0
 Werkzeug==3.1.5
 
 # JWT Authentication
-PyJWT==2.11.0
+PyJWT==2.12.1
 flask-jwt-extended==4.7.1
 
 # Firebase
@@ -24,7 +24,7 @@ requests==2.31.0
 # Security & Encryption
 bcrypt==5.0.0
 pycryptodome==3.23.0
-cryptography==46.0.4
+cryptography==47.0.0
 bleach==6.3.0
 
 # Caching & Rate Limiting
@@ -106,7 +106,7 @@ oauthlib==3.3.1
 requests-oauthlib==2.0.0
 
 # Utilities
-Pillow==12.1.0
+Pillow==12.2.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 
@@ -114,7 +114,7 @@ pytz==2025.2
 pyotp==2.9.0
 qrcode[pil]==8.0
 webauthn==2.7.0
-pyOpenSSL==25.3.0
+pyOpenSSL==26.1.0
 
 # System Monitoring
 psutil==7.2.2
