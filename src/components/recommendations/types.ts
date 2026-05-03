@@ -53,12 +53,8 @@ export interface ArticleReadingSession {
   completed: boolean;
 }
 
-// Recommendation Props Type
-export interface RecommendationsProps {
-  userId: string;
-  wellnessGoals?: string[];
-  compact?: boolean;
-}
+// Recommendation Props Type — canonical definition lives in src/types/recommendation.ts
+export type { RecommendationsProps } from '../../types/recommendation';
 
 // Callback Types
 export type OnCompleteCallback = () => void;

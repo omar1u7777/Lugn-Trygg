@@ -171,13 +171,17 @@ export const getJournalEntryById = async (
 ): Promise<JournalEntry | null> => {
   logger.debug('API - getJournalEntryById called', { userId, entryId });
   try {
-    // Get all entries and find the specific one (backend doesn't have single entry endpoint)
-    const entries = await getJournalEntries(userId, 100);
-    const entry = entries.find(e => e.id === entryId);
-    logger.debug('Journal entry lookup', { found: !!entry });
+    const response = await api.get<JournalApiResponse<JournalEntry>>(
+      `${API_ENDPOINTS.JOURNAL.ENTRY}/${userId}/journal/${entryId}`
+    );
+    const entry = response.data?.data || response.data as unknown as JournalEntry;
+    logger.debug('Journal entry retrieved', { found: !!entry });
     return entry || null;
   } catch (error: unknown) {
-    const apiError = error as { response?: { data?: { error?: string } } };
+    const apiError = error as { response?: { status?: number; data?: { error?: string } } };
+    if (apiError.response?.status === 404) {
+      return null;
+    }
     logger.error("Get journal entry by ID error", apiError);
     throw new Error(apiError.response?.data?.error || "Failed to get journal entry");
   }

@@ -612,8 +612,13 @@ class CBTEngine:
 
         # Calculate success metrics
         success_rate = completion_data.get('success_rate', 0.5)
-        completion_data.get('time_spent', 0)
-        completion_data.get('difficulty_rating', 3)
+        time_spent = completion_data.get('time_spent', 0)
+        difficulty_rating = completion_data.get('difficulty_rating', 3)
+
+        # Incorporate time and difficulty into mastery adjustment
+        # Bonus for spending more time (up to 30 min) and completing harder exercises
+        time_bonus = min(time_spent / 1800, 0.05)  # max +0.05 for 30 min
+        difficulty_bonus = (difficulty_rating - 3) * 0.01  # -0.02 to +0.02
 
         # Update skill mastery
         exercise = self.exercises.get(exercise_id)
@@ -622,7 +627,7 @@ class CBTEngine:
             current_mastery = completion_data.get('current_skill_mastery', {}).get(skill_type, 0.5)
 
             # Adjust mastery based on performance
-            mastery_adjustment = (success_rate - 0.5) * 0.1
+            mastery_adjustment = (success_rate - 0.5) * 0.1 + time_bonus + difficulty_bonus
             new_mastery = min(1.0, max(0.0, current_mastery + mastery_adjustment))
 
             logger.info(f"Updated {skill_type} mastery from {current_mastery:.2f} to {new_mastery:.2f}")
@@ -637,7 +642,7 @@ class CBTEngine:
             'recommended_next_steps': self._generate_next_steps(user_progress),
             'streak_info': {
                 'current_streak': user_progress.streak_count,
-                'longest_streak': user_progress.streak_count,  # Simplified
+                'longest_streak': user_progress.adaptive_parameters.get('longest_streak', user_progress.streak_count),
                 'consistency_rating': self._calculate_consistency(user_progress)
             }
         }

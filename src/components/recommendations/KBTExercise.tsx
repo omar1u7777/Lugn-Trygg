@@ -46,7 +46,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
     start,
     nextPhase,
     stop,
-  } = useKBTExercise({ ...(onComplete ? { onComplete } : {}) });
+  } = useKBTExercise({});
 
   const [showInsights, setShowInsights] = useState(false);
   const [kbtBeliefBefore, setKbtBeliefBefore] = useState<number | null>(initialBeliefBefore);
@@ -122,11 +122,11 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             {distortionInsights.length > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg mb-4 text-left border border-yellow-100 dark:border-yellow-800">
-                <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300 mb-2">Mojliga tankefeller att utforska:</p>
+                <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300 mb-2">Möjliga tankefeller att utforska:</p>
                 {distortionInsights.map((insight) => (
                   <div key={insight.key} className="mb-2 last:mb-0">
                     <p className="text-sm text-yellow-700 dark:text-yellow-300"><strong>{insight.label}:</strong> {insight.hint}</p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">Fraga: {insight.reframeQuestion}</p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">Fråga: {insight.reframeQuestion}</p>
                   </div>
                 ))}
               </div>
@@ -150,7 +150,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             <div className="bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg mb-4 text-left">
               <label htmlFor="kbt-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
-                Hur stark ar stressen i kroppen just nu? ({kbtStressBefore ?? 0}/100)
+                Hur stark är stressen i kroppen just nu? ({kbtStressBefore ?? 0}/100)
               </label>
               <input
                 id="kbt-stress-before"
@@ -204,20 +204,20 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             <div className="mt-4 bg-sky-50 dark:bg-sky-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-socratic-reflection" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mb-1">
-                Sokratisk fraga: Om en van hade samma tanke, vad skulle du saga till hen utifran bevisen?
+                Sokratisk fråga: Om en vän hade samma tanke, vad skulle du säga till hen utifrån bevisen?
               </label>
               <textarea
                 id="kbt-socratic-reflection"
                 value={kbtSocraticReflection}
                 onChange={(e) => setKbtSocraticReflection(e.target.value)}
-                placeholder="Skriv ett kort, medkannande och faktabaserat svar som du sjalv kan anvanda."
+                placeholder="Skriv ett kort, medkännande och faktabaserat svar som du själv kan använda."
                 className="w-full p-3 border border-sky-200 dark:border-sky-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 rows={3}
                 minLength={KBT_MIN_SOCRATIC_REFLECTION_LENGTH}
               />
               {kbtSocraticReflection.trim().length > 0 && kbtSocraticReflection.trim().length < KBT_MIN_SOCRATIC_REFLECTION_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_SOCRATIC_REFLECTION_LENGTH} tecken for att forankra en hjalpsam inre dialog.
+                  Skriv minst {KBT_MIN_SOCRATIC_REFLECTION_LENGTH} tecken för att förankra en hjälpsam inre dialog.
                 </p>
               )}
             </div>
@@ -259,8 +259,8 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             {distortionInsights.length > 0 && (
               <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg mb-4 text-left border border-teal-100 dark:border-teal-800">
-                <p className="text-sm font-semibold text-teal-700 dark:text-teal-300 mb-1">Riktad omformuleringshjalp</p>
-                <p className="text-sm text-teal-700 dark:text-teal-300">Utga fran: <strong>{distortionInsights[0]?.label}</strong></p>
+                <p className="text-sm font-semibold text-teal-700 dark:text-teal-300 mb-1">Riktad omformuleringsöversikt</p>
+                <p className="text-sm text-teal-700 dark:text-teal-300">Utgå från: <strong>{distortionInsights[0]?.label}</strong></p>
                 <p className="text-xs text-teal-700 dark:text-teal-300 mt-1">Prova att besvara: {distortionInsights[0]?.reframeQuestion}</p>
               </div>
             )}
@@ -330,7 +330,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             <div className="mt-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-stress-after" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
-                Hur stark ar stressen nu efter ovningen? ({kbtStressAfter ?? 0}/100)
+                Hur stark är stressen nu efter övningen? ({kbtStressAfter ?? 0}/100)
               </label>
               <input
                 id="kbt-stress-after"
@@ -346,7 +346,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             <div className="mt-4 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-execution-confidence-after" className="text-sm font-medium text-emerald-700 dark:text-emerald-300 block mb-1">
-                Hur trygg ar du att faktiskt genomfora planen i vardagen? ({kbtExecutionConfidenceAfter ?? 0}%)
+                Hur trygg är du att faktiskt genomföra planen i vardagen? ({kbtExecutionConfidenceAfter ?? 0}%)
               </label>
               <input
                 id="kbt-execution-confidence-after"
@@ -362,125 +362,125 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
 
             <div className="mt-4 bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-action-plan" className="text-sm font-medium text-indigo-700 dark:text-indigo-300 block mb-1">
-                Vad ar ett konkret mikro-steg du kan gora inom 24 timmar?
+                Vad är ett konkret mikro-steg du kan göra inom 24 timmar?
               </label>
               <textarea
                 id="kbt-action-plan"
                 value={kbtActionPlan}
                 onChange={(e) => setKbtActionPlan(e.target.value)}
-                placeholder="Exempel: Nar stressen kommer pa jobbet, tar jag 2 minuter och skriver en For/Emot-lista innan jag agerar."
+                placeholder="Exempel: När stressen kommer på jobbet, tar jag 2 minuter och skriver en För/Emot-lista innan jag agerar."
                 className="w-full p-3 border border-indigo-200 dark:border-indigo-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={3}
                 minLength={KBT_MIN_ACTION_PLAN_LENGTH}
               />
               {kbtActionPlan.trim().length > 0 && kbtActionPlan.trim().length < KBT_MIN_ACTION_PLAN_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_ACTION_PLAN_LENGTH} tecken for ett tydligt handlingssteg.
+                  Skriv minst {KBT_MIN_ACTION_PLAN_LENGTH} tecken för ett tydligt handlingssteg.
                 </p>
               )}
             </div>
 
             <div className="mt-4 bg-violet-50 dark:bg-violet-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-experiment-hypothesis" className="text-sm font-medium text-violet-700 dark:text-violet-300 block mb-1">
-                Beteendeexperiment: Vad tror du hander om du foljer den nya tanken?
+                Beteendeexperiment: Vad tror du händer om du följer den nya tanken?
               </label>
               <textarea
                 id="kbt-experiment-hypothesis"
                 value={kbtExperimentHypothesis}
                 onChange={(e) => setKbtExperimentHypothesis(e.target.value)}
-                placeholder="Exempel: Om jag genomfor uppgiften stegvis kommer stressen minska inom 10 minuter."
+                placeholder="Exempel: Om jag genomför uppgiften stegvis kommer stressen minska inom 10 minuter."
                 className="w-full p-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 rows={3}
                 minLength={KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH}
               />
               {kbtExperimentHypothesis.trim().length > 0 && kbtExperimentHypothesis.trim().length < KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH} tecken for en testbar hypotes.
+                  Skriv minst {KBT_MIN_EXPERIMENT_HYPOTHESIS_LENGTH} tecken för en testbar hypotes.
                 </p>
               )}
 
               <label htmlFor="kbt-experiment-measure" className="text-sm font-medium text-violet-700 dark:text-violet-300 block mt-3 mb-1">
-                Vad observerar du for att se om hypotesen stammer?
+                Vad observerar du för att se om hypotesen stämmer?
               </label>
               <textarea
                 id="kbt-experiment-measure"
                 value={kbtExperimentMeasure}
                 onChange={(e) => setKbtExperimentMeasure(e.target.value)}
-                placeholder="Exempel: Jag skattar stress var 5:e minut och noterar om jag faktiskt fortsatter uppgiften."
+                placeholder="Exempel: Jag skattar stress var 5:e minut och noterar om jag faktiskt fortsätter uppgiften."
                 className="w-full p-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 rows={2}
                 minLength={KBT_MIN_EXPERIMENT_MEASURE_LENGTH}
               />
               {kbtExperimentMeasure.trim().length > 0 && kbtExperimentMeasure.trim().length < KBT_MIN_EXPERIMENT_MEASURE_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_EXPERIMENT_MEASURE_LENGTH} tecken for ett tydligt observationsmatt.
+                  Skriv minst {KBT_MIN_EXPERIMENT_MEASURE_LENGTH} tecken för ett tydligt observationsmått.
                 </p>
               )}
             </div>
 
             <div className="mt-4 bg-cyan-50 dark:bg-cyan-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-if-then-plan" className="text-sm font-medium text-cyan-700 dark:text-cyan-300 block mb-1">
-                Om-sa plan: Om stressen slar till, vad gor du da direkt?
+                Om-så plan: Om stressen slår till, vad gör du då direkt?
               </label>
               <textarea
                 id="kbt-if-then-plan"
                 value={kbtIfThenPlan}
                 onChange={(e) => setKbtIfThenPlan(e.target.value)}
-                placeholder="Exempel: Om jag fastnar i oro, sa tar jag tre lugna andetag och gor forsta 2-minuterssteget i uppgiften."
+                placeholder="Exempel: Om jag fastnar i oro, så tar jag tre lugna andetag och gör första 2-minuterssteget i uppgiften."
                 className="w-full p-3 border border-cyan-200 dark:border-cyan-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 rows={3}
                 minLength={KBT_MIN_IF_THEN_PLAN_LENGTH}
               />
               {kbtIfThenPlan.trim().length > 0 && kbtIfThenPlan.trim().length < KBT_MIN_IF_THEN_PLAN_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_IF_THEN_PLAN_LENGTH} tecken for en tydlig om-sa plan.
+                  Skriv minst {KBT_MIN_IF_THEN_PLAN_LENGTH} tecken för en tydlig om-så plan.
                 </p>
               )}
             </div>
 
             <div className="mt-4 bg-lime-50 dark:bg-lime-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-coping-card" className="text-sm font-medium text-lime-700 dark:text-lime-300 block mb-1">
-                Coping-kort: Skriv en kort mening du kan lasa nar stressen stiger.
+                Coping-kort: Skriv en kort mening du kan läsa när stressen stiger.
               </label>
               <textarea
                 id="kbt-coping-card"
                 value={kbtCopingCard}
                 onChange={(e) => setKbtCopingCard(e.target.value)}
-                placeholder="Exempel: Jag tar ett steg i taget, och jag behover inte vara perfekt for att gora framsteg."
+                placeholder="Exempel: Jag tar ett steg i taget, och jag behöver inte vara perfekt för att göra framsteg."
                 className="w-full p-3 border border-lime-200 dark:border-lime-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 focus:border-transparent"
                 rows={2}
                 minLength={KBT_MIN_COPING_CARD_LENGTH}
               />
               {kbtCopingCard.trim().length > 0 && kbtCopingCard.trim().length < KBT_MIN_COPING_CARD_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_COPING_CARD_LENGTH} tecken for ett anvandbart coping-kort.
+                  Skriv minst {KBT_MIN_COPING_CARD_LENGTH} tecken för ett användbart coping-kort.
                 </p>
               )}
             </div>
 
             <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-obstacle-plan" className="text-sm font-medium text-amber-700 dark:text-amber-300 block mb-1">
-                Vilket hinder ar mest sannolikt, och hur svarar du om det uppstar?
+                Vilket hinder är mest sannolikt, och hur svarar du om det uppstår?
               </label>
               <textarea
                 id="kbt-obstacle-plan"
                 value={kbtObstaclePlan}
                 onChange={(e) => setKbtObstaclePlan(e.target.value)}
-                placeholder="Exempel: Om jag undviker uppgiften efter lunch, da tar jag 5 minuter och borjar med minsta mojliga delsteg."
+                placeholder="Exempel: Om jag undviker uppgiften efter lunch, då tar jag 5 minuter och börjar med minsta möjliga delsteg."
                 className="w-full p-3 border border-amber-200 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 rows={3}
                 minLength={KBT_MIN_OBSTACLE_PLAN_LENGTH}
               />
               {kbtObstaclePlan.trim().length > 0 && kbtObstaclePlan.trim().length < KBT_MIN_OBSTACLE_PLAN_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_OBSTACLE_PLAN_LENGTH} tecken for en tydlig hinderplan.
+                  Skriv minst {KBT_MIN_OBSTACLE_PLAN_LENGTH} tecken för en tydlig hinderplan.
                 </p>
               )}
             </div>
 
             <div className="mt-4 bg-sky-50 dark:bg-sky-900/20 p-3 rounded-lg text-left">
               <label htmlFor="kbt-follow-up-window" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mb-1">
-                Nar repeterar du den balanserade tanken nasta gang?
+                När repeterar du den balanserade tanken nästa gång?
               </label>
               <select
                 id="kbt-follow-up-window"
@@ -494,20 +494,20 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
               </select>
 
               <label htmlFor="kbt-rehearsal-context" className="text-sm font-medium text-sky-700 dark:text-sky-300 block mt-3 mb-1">
-                Var eller i vilken situation gor du repetitionen?
+                Var eller i vilken situation gör du repetitionen?
               </label>
               <textarea
                 id="kbt-rehearsal-context"
                 value={kbtRehearsalContext}
                 onChange={(e) => setKbtRehearsalContext(e.target.value)}
-                placeholder="Exempel: Pa bussen till jobbet, eller innan forsta motet pa morgonen."
+                placeholder="På bussen till jobbet, eller innan första mötet på morgonen."
                 className="w-full p-3 border border-sky-200 dark:border-sky-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 rows={2}
                 minLength={KBT_MIN_REHEARSAL_CONTEXT_LENGTH}
               />
               {kbtRehearsalContext.trim().length > 0 && kbtRehearsalContext.trim().length < KBT_MIN_REHEARSAL_CONTEXT_LENGTH && (
                 <p className="text-red-500 text-sm mt-1">
-                  Skriv minst {KBT_MIN_REHEARSAL_CONTEXT_LENGTH} tecken for tydligt sammanhang.
+                  Skriv minst {KBT_MIN_REHEARSAL_CONTEXT_LENGTH} tecken för tydligt sammanhang.
                 </p>
               )}
             </div>
@@ -570,7 +570,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
               )}
               {typeof kbtExecutionConfidenceAfter === 'number' && (
                 <p className="text-sm text-green-700 dark:text-green-300 mt-2">
-                  <strong>Genomforandetillit:</strong> {kbtExecutionConfidenceAfter}%
+                  <strong>Genomförandetillit:</strong> {kbtExecutionConfidenceAfter}%
                 </p>
               )}
               <p className="text-sm text-green-700 dark:text-green-300 mt-3">
@@ -583,13 +583,13 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
                 <strong>Experimenthypotes:</strong> {kbtExperimentHypothesis || 'Ingen hypotes angiven'}
               </p>
               <p className="text-sm text-green-700 dark:text-green-300 mt-2">
-                <strong>Vad du observerar:</strong> {kbtExperimentMeasure || 'Inget observationsmatt angivet'}
+                <strong>Vad du observerar:</strong> {kbtExperimentMeasure || 'Inget observationsmått angivet'}
               </p>
               <p className="text-sm text-green-700 dark:text-green-300 mt-2">
                 <strong>Sokratisk reflektion:</strong> {kbtSocraticReflection || 'Ingen reflektion angiven'}
               </p>
               <p className="text-sm text-green-700 dark:text-green-300 mt-2">
-                <strong>Om-sa plan:</strong> {kbtIfThenPlan || 'Ingen om-sa plan angiven'}
+                <strong>Om-så plan:</strong> {kbtIfThenPlan || 'Ingen om-så plan angiven'}
               </p>
               <p className="text-sm text-green-700 dark:text-green-300 mt-2">
                 <strong>Coping-kort:</strong> {kbtCopingCard || 'Inget coping-kort angivet'}
@@ -677,7 +677,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
           </>
         ) : (
           <button
-            onClick={stop}
+            onClick={() => { stop(); onComplete?.(); }}
             className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
           >
             ✅ Stäng

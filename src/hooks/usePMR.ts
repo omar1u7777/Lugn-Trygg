@@ -10,7 +10,7 @@ interface UsePMROptions {
     onPhaseChange?: (phase: PMRPhase, muscleGroup: (typeof muscleGroups)[number], timeLeft: number) => void;
 }
 
-export const usePMR = ({ difficulty, customTiming, onComplete, onPhaseChange }: UsePMROptions) => {
+export const usePMR = ({ customTiming, onComplete }: UsePMROptions) => {
     const [isActive, setIsActive] = useState(false);
     const [phase, setPhase] = useState<PMRPhase>('prepare');
     const [currentMuscleGroupIndex, setCurrentMuscleGroupIndex] = useState(0);
@@ -20,13 +20,11 @@ export const usePMR = ({ difficulty, customTiming, onComplete, onPhaseChange }: 
     const sessionStartTimeRef = useRef<number>(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Calculate timing based on difficulty
+    // Return customTiming directly — the PMRExercise component syncs customTiming
+    // to the difficulty preset when the user selects a difficulty level.
     const getTiming = useCallback(() => {
-        if (difficulty === 'beginner') return { tense: 5, relax: 10 };
-        if (difficulty === 'intermediate') return { tense: 7, relax: 15 };
-        if (difficulty === 'advanced') return { tense: 10, relax: 20 };
         return customTiming;
-    }, [difficulty, customTiming]);
+    }, [customTiming]);
 
     const stop = useCallback(() => {
         setIsActive(false);

@@ -59,7 +59,7 @@ export const PMRExercise: React.FC<PMRExerciseProps> = ({
         const sessionData = {
           type: 'progressive_relaxation',
           duration: duration,
-          technique: `beginner - ${relaxationDifficulty}`,
+          technique: `Progressive Muscle Relaxation - ${relaxationDifficulty}`,
           completedCycles: count,
           notes: `Progressive muscle relaxation - ${relaxationDifficulty} level`
         };
@@ -112,7 +112,12 @@ export const PMRExercise: React.FC<PMRExerciseProps> = ({
               </label>
               <select
                 value={relaxationDifficulty}
-                onChange={(e) => setRelaxationDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')}
+                onChange={(e) => {
+                  const d = e.target.value as 'beginner' | 'intermediate' | 'advanced';
+                  setRelaxationDifficulty(d);
+                  const presets = { beginner: { tense: 5, relax: 10 }, intermediate: { tense: 7, relax: 15 }, advanced: { tense: 10, relax: 20 } };
+                  setCustomTiming(presets[d]);
+                }}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="beginner">Nybörjare (5s spänn, 10s slappna)</option>

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { saveJournalEntry, getJournalEntries, JournalEntry } from '../api/api';
 import { logger } from '../utils/logger';
-import { User } from '../types';
+import { User } from '../types/index';
 
 
 interface UseJournalingOptions {

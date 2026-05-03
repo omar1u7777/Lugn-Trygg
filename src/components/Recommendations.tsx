@@ -5,7 +5,8 @@ import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
-import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
+import { getNotificationSettings, updateNotificationSettings } from '../api/notifications';
+import { initializeMessaging } from '../services/notifications';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
 import { logger } from '../utils/logger';
 import {
@@ -117,6 +118,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [breathingStressBefore, setBreathingStressBefore] = useState<number | null>(null);
   const [breathingStressAfter, setBreathingStressAfter] = useState<number | null>(null);
   const breathingOutcomeSyncedRef = useRef(false);
+  const pendingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Meditation loading/session state (must be before hooks that reference handleSaveMeditationSession)
   const [, setIsLoadingMeditation] = useState(false);
@@ -616,7 +618,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       return total + textContent.split(/\s+/).filter(word => word.length > 0).length;
     }, 0);
 
-    const wordsPerMinute = Math.round((totalWords / readingTime) * 60);
+    const wordsPerMinute = readingTime > 0 ? Math.round((totalWords / readingTime) * 60) : 0;
     const readingSpeed = wordsPerMinute > 250 ? 'snabb' : wordsPerMinute > 150 ? 'normal' : 'långsam';
 
     logger.debug(`📊 Reading stats: ${totalWords} words in ${readingTime} s = ${wordsPerMinute} WPM (${readingSpeed})`);
@@ -679,11 +681,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   }, [handleLoadJournalHistory, handleLoadMeditationHistory, user?.user_id]);
 
-  // Filter and sort recommendations
-  const getFilteredRecommendations = () => {
-    let filtered = [...recommendations]; // Create a copy to avoid mutating original
-
-    // Search filter
+  const categories = useMemo(() => ['all', ...Array.from(new Set(recommendations.map(r => r.category))).sort()], [recommendations]);
+  const hasActiveFilters = useMemo(() => searchTerm.trim().length > 0 || selectedCategory !== 'all' || sortBy !== 'rating', [searchTerm, selectedCategory, sortBy]);
+  const filteredRecommendations = useMemo(() => {
+    let filtered = [...recommendations];
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(rec =>
@@ -693,32 +694,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         rec.category.toLowerCase().includes(searchLower)
       );
     }
-
-    // Category filter
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(rec => rec.category === selectedCategory);
     }
-
-    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
-        case 'duration':
-          return (a.duration || 0) - (b.duration || 0);
-        case 'difficulty':
-          const difficultyOrder = { 'beginner': 1, 'intermediate': 2, 'advanced': 3 };
-          return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
-        default:
-          return 0;
+        case 'rating': return (b.rating || 0) - (a.rating || 0);
+        case 'duration': return (a.duration || 0) - (b.duration || 0);
+        case 'difficulty': {
+          const difficultyOrder: Record<string, number> = { beginner: 1, intermediate: 2, advanced: 3 };
+          return (difficultyOrder[a.difficulty] ?? 1) - (difficultyOrder[b.difficulty] ?? 1);
+        }
+        default: return 0;
       }
     });
-
     return filtered;
-  };
-
-  const categories = useMemo(() => ['all', ...Array.from(new Set(recommendations.map(r => r.category))).sort()], [recommendations]);
-  const hasActiveFilters = useMemo(() => searchTerm.trim().length > 0 || selectedCategory !== 'all' || sortBy !== 'rating', [searchTerm, selectedCategory, sortBy]);
+  }, [recommendations, searchTerm, selectedCategory, sortBy]);
 
   const sortLabel = sortBy === 'rating'
     ? 'Betyg'
@@ -878,20 +869,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     return permission === 'granted';
   };
 
-  const registerFCMToken = async () => {
-    try {
-      // For web push notifications, we'd need Firebase SDK
-      // For now, we'll simulate FCM token registration
-      const mockToken = `web-fcm-token-${user?.user_id}-${Date.now()}`;
-      await saveFCMToken(mockToken);
-      setNotificationSettings(prev => ({ ...prev, fcmToken: true }));
-      return true;
-    } catch (error) {
-      logger.error('Failed to register FCM token:', error);
-      return false;
-    }
-  };
-
   const enableDailyReminders = async () => {
     if (!user?.user_id) return;
 
@@ -904,15 +881,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         return;
       }
 
-      // Register FCM token
-      const tokenRegistered = await registerFCMToken();
-      if (!tokenRegistered) {
-        alert('Kunde inte registrera notis-token. Försök igen.');
-        setIsEnablingNotifications(false);
-        return;
-      }
+      // Attempt real FCM token registration via Firebase Messaging SDK (non-blocking)
+      initializeMessaging().then(() => {
+        setNotificationSettings(prev => ({ ...prev, fcmToken: true }));
+      }).catch(err => {
+        logger.warn('FCM token registration failed (non-fatal):', err);
+      });
 
-      // Enable daily reminders
+      // Enable daily reminders in backend regardless of FCM status
       await updateNotificationSettings({
         dailyRemindersEnabled: true,
         reminderTime: notificationSettings.reminderTime
@@ -920,9 +896,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       setNotificationSettings(prev => ({ ...prev, dailyRemindersEnabled: true }));
 
-      // Show success message
-      alert(`✅ Dagliga påminnelser aktiverade!\n\nDu kommer få en vänlig påminnelse varje dag kl.${notificationSettings.reminderTime} att ta hand om din mentala hälsa.`);
-
+      alert(`✅ Dagliga påminnelser aktiverade!\n\nDu kommer få en vänlig påminnelse varje dag kl. ${notificationSettings.reminderTime} att ta hand om din mentala hälsa.`);
       announceToScreenReader('Dagliga påminnelser har aktiverats', 'polite');
 
     } catch (error) {
@@ -992,20 +966,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
         // Start appropriate exercise
         if (recommendation.id === 'generic-1') {
-          const timer1 = setTimeout(() => startGratitudeChallenge(), 500);
-          // Store timeout ref if needed for cleanup
+          pendingTimersRef.current.push(setTimeout(() => startGratitudeChallenge(), 500));
         } else if (recommendation.id === 'focus-1') {
-          const timer2 = setTimeout(() => startPomodoroTimer(), 500);
+          pendingTimersRef.current.push(setTimeout(() => startPomodoroTimer(), 500));
         } else if (recommendation.id === 'focus-3') {
-          const timer3 = setTimeout(() => startArticleReading(), 500);
+          pendingTimersRef.current.push(setTimeout(() => startArticleReading(), 500));
         }
 
-        // For articles, mark as read immediately when started
-        if (recommendation.type === 'article') {
-          updateProgress('article', 1);
-        }
+        // Article progress is tracked in completeArticle() after the user has actually read it
         break;
-      case 'save':
+      case 'save': {
         const newSavedState = !recommendation.saved;
         setRecommendations(prev =>
           prev.map(r =>
@@ -1028,7 +998,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           'polite'
         );
         break;
-      case 'share':
+      }
+      case 'share': {
         // Try Web Share API first, fallback to clipboard
         const shareData = {
           title: recommendation.title,
@@ -1058,6 +1029,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             });
         }
         break;
+      }
       case 'feedback':
         // Simple feedback - could be expanded to a proper feedback system
         announceToScreenReader('Tack för din feedback!', 'polite');
@@ -1106,6 +1078,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
 
   const handleCloseContentModal = useCallback(() => {
+    pendingTimersRef.current.forEach(clearTimeout);
+    pendingTimersRef.current = [];
     if (isPomodoroActive) {
       stopPomodoroTimer();
     }
@@ -1290,7 +1264,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     );
   }
 
-  const filteredRecommendations = useMemo(() => getFilteredRecommendations(), [recommendations, searchTerm, selectedCategory, sortBy]);
   const selectedRecommendationId = selectedRecommendation?.id ?? '';
   const isStressBreathingRecommendation = selectedRecommendationId === 'stress-1';
   const isSelectedRecommendationCompleted = selectedRecommendationId
@@ -2337,7 +2310,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       moodAfter: breathingStressAfter,
                     };
                     void handleSaveMeditationSession(sessionData);
-                    onComplete?.(cycles);
                   }}
                   onPhaseChange={(_, instruction) => {
                     announceToScreenReader(instruction, 'polite');
@@ -2840,7 +2812,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Interactive Journaling */}
               {selectedRecommendation.id === 'clarity-2' && (
-                <JournalingPrompt onClose={handleCloseContentModal} />
+                <JournalingPrompt
+                  onClose={handleCloseContentModal}
+                  user={user}
+                  announce={announceToScreenReader}
+                  onProgress={updateProgress}
+                />
               )}
 
               {/* Interactive Gratitude Challenge */}
@@ -2979,7 +2956,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             }
                           }}
                           className="px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
-                          disabled={(gratitudeEntries[gratitudeDay] || []).filter(e => e.trim()).length < 3 || isSavingGratitude || (gratitudeEntries[gratitudeDay] && gratitudeEntries[gratitudeDay].filter(e => e.trim()).length >= 3)}
+                          disabled={(gratitudeEntries[gratitudeDay] || []).filter(e => e.trim()).length < 3 || isSavingGratitude}
                         >
                           {isSavingGratitude ? '💾 Sparar...' :
                             (gratitudeEntries[gratitudeDay] && gratitudeEntries[gratitudeDay].filter(e => e.trim()).length >= 3) ?
