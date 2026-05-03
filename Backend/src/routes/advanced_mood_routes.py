@@ -31,10 +31,14 @@ except ImportError:
 try:
     from src.services.clinical_assessment import (
         GAD7Assessment,
+        GAD7Result,
         PHQ9Assessment,
+        PHQ9Result,
+        RiskLevel,
         assess_clinical_risk,
         calculate_gad7,
         calculate_phq9,
+        ClinicalRiskStratification,
     )
     CLINICAL_AVAILABLE = True
 except ImportError:
@@ -433,21 +437,29 @@ def assess_gad7():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_assessment_history():
-    """[F9] Return the 20 most recent clinical assessments (PHQ-9 and GAD-7) for the
+    """[F9] Return the N most recent clinical assessments (PHQ-9 and GAD-7) for the
     authenticated user, ordered most-recent first."""
     try:
-        user_id = g.user_id
-        assessment_type = request.args.get('type')  # optional filter: 'phq9' | 'gad7'
-        limit = min(int(request.args.get('limit', 20)), 50)
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
-        query = (
+        assessment_type = request.args.get('type')  # optional filter: 'phq9' | 'gad7'
+        try:
+            limit = min(int(request.args.get('limit', 20)), 50)
+        except (ValueError, TypeError):
+            limit = 20
+
+        # Build query: apply .where() BEFORE .limit() — Firestore does not allow
+        # chaining .where() after .limit() has already been applied.
+        base = (
             db.collection('users').document(user_id)
             .collection('clinical_assessments')
             .order_by('timestamp', direction='DESCENDING')
-            .limit(limit)
         )
         if assessment_type in ('phq9', 'gad7'):
-            query = query.where('type', '==', assessment_type)
+            base = base.where('type', '==', assessment_type)
+        query = base.limit(limit)
 
         docs = query.stream()
         history = [{'id': doc.id, **doc.to_dict()} for doc in docs]
@@ -500,10 +512,43 @@ def comprehensive_clinical_assessment():
 
         recent_moods = [doc.to_dict() for doc in mood_docs]
 
-        # Perform comprehensive assessment
-        assessment = assess_clinical_risk(
+        # Reconstruct typed result objects from stored dicts so that
+        # ClinicalRiskStratification receives real PHQ9Result / GAD7Result
+        # instances (not raw question-response dicts which assess_clinical_risk expects).
+        phq9_obj: PHQ9Result | None = None
+        if phq9_data:
+            try:
+                phq9_obj = PHQ9Result(
+                    total_score=int(phq9_data.get('total_score', 0)),
+                    severity=phq9_data.get('severity', 'minimal'),
+                    risk_level=RiskLevel(phq9_data.get('risk_level', 'none')),
+                    item_scores=phq9_data.get('item_scores', {}),
+                    suicidal_ideation_flag=bool(phq9_data.get('suicidal_ideation', False)),
+                    interpretation=phq9_data.get('interpretation', ''),
+                    recommendations=phq9_data.get('recommendations', []),
+                )
+            except Exception as re:
+                logger.warning(f"Could not reconstruct PHQ9Result: {re}")
+
+        gad7_obj: GAD7Result | None = None
+        if gad7_data:
+            try:
+                gad7_obj = GAD7Result(
+                    total_score=int(gad7_data.get('total_score', 0)),
+                    severity=gad7_data.get('severity', 'minimal'),
+                    risk_level=RiskLevel(gad7_data.get('risk_level', 'none')),
+                    item_scores=gad7_data.get('item_scores', {}),
+                    interpretation=gad7_data.get('interpretation', ''),
+                    recommendations=gad7_data.get('recommendations', []),
+                )
+            except Exception as re:
+                logger.warning(f"Could not reconstruct GAD7Result: {re}")
+
+        assessment = ClinicalRiskStratification.assess_comprehensive_risk(
             user_id=user_id,
-            recent_moods=recent_moods
+            phq9_result=phq9_obj,
+            gad7_result=gad7_obj,
+            recent_moods=recent_moods,
         )
 
         return APIResponse.success({

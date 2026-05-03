@@ -1,17 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
-import { 
-  ExclamationTriangleIcon, 
-  CheckCircleIcon, 
-  ChevronDownIcon, 
+import {
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
   ChevronUpIcon,
   InformationCircleIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import useAuth from '../hooks/useAuth';
-import api from '../api/api';
+import {
+  submitPHQ9,
+  submitGAD7,
+  getAssessmentHistory,
+  type PHQ9Result,
+  type GAD7Result,
+  type AssessmentHistoryEntry,
+  type AssessmentType,
+} from '../api/clinical';
 import { logger } from '../utils/logger';
+
+// ---------------------------------------------------------------------------
+// Static data
+// ---------------------------------------------------------------------------
 
 interface Question {
   id: string;
@@ -19,132 +30,171 @@ interface Question {
 }
 
 const PHQ9_QUESTIONS: Question[] = [
-  { id: 'little_interest', text: 'Litet intresse eller glädje av att göra saker' },
-  { id: 'feeling_down', text: 'Känt dig nedstämd, deprimerad eller hopplös' },
-  { id: 'sleep_problems', text: 'Svårt att somna eller sova för mycket' },
-  { id: 'feeling_tired', text: 'Känt dig trött eller haft för liten energi' },
-  { id: 'appetite', text: 'Dålig aptit eller ätit för mycket' },
-  { id: 'feeling_bad', text: 'Känt dig dålig om dig själv eller att du svikit' },
-  { id: 'concentration', text: 'Svårt att koncentrera dig' },
-  { id: 'moving_slowly', text: 'Rört dig eller talat långsamt, eller varit rastlös' },
-  { id: 'self_harm', text: 'Tankar att du hellre ville vara död eller skada dig själv' },
+  { id: 'little_interest',  text: 'Litet intresse eller glädje av att göra saker' },
+  { id: 'feeling_down',     text: 'Känt dig nedstämd, deprimerad eller hopplös' },
+  { id: 'sleep_problems',   text: 'Svårt att somna eller sova för mycket' },
+  { id: 'feeling_tired',    text: 'Känt dig trött eller haft för liten energi' },
+  { id: 'appetite',         text: 'Dålig aptit eller ätit för mycket' },
+  { id: 'feeling_bad',      text: 'Känt dig dålig om dig själv eller att du svikit' },
+  { id: 'concentration',    text: 'Svårt att koncentrera dig' },
+  { id: 'moving_slowly',    text: 'Rört dig eller talat långsamt, eller varit rastlös' },
+  { id: 'self_harm',        text: 'Tankar att du hellre ville vara död eller skada dig själv' },
 ];
 
 const GAD7_QUESTIONS: Question[] = [
-  { id: 'feeling_nervous', text: 'Känt dig nervös, ängslig eller på helspänn' },
-  { id: 'cant_control_worry', text: 'Inte kunnat sluta oroa dig eller kontrollera oron' },
-  { id: 'worrying_too_much', text: 'Oroat dig för mycket för olika saker' },
-  { id: 'trouble_relaxing', text: 'Haft svårt att koppla av' },
-  { id: 'restless', text: 'Varit så rastlös att du haft svårt att sitta stilla' },
-  { id: 'easily_annoyed', text: 'Blivit lätt irriterad eller retlig' },
-  { id: 'afraid', text: 'Känt dig rädd som om något hemskt skulle hända' },
+  { id: 'feeling_nervous',     text: 'Känt dig nervös, ängslig eller på helspänn' },
+  { id: 'cant_control_worry',  text: 'Inte kunnat sluta oroa dig eller kontrollera oron' },
+  { id: 'worrying_too_much',   text: 'Oroat dig för mycket för olika saker' },
+  { id: 'trouble_relaxing',    text: 'Haft svårt att koppla av' },
+  { id: 'restless',            text: 'Varit så rastlös att du haft svårt att sitta stilla' },
+  { id: 'easily_annoyed',      text: 'Blivit lätt irriterad eller retlig' },
+  { id: 'afraid',              text: 'Känt dig rädd som om något hemskt skulle hända' },
 ];
 
 const RESPONSE_OPTIONS = [
-  { value: 0, label: 'Inte alls', description: '0 poäng' },
-  { value: 1, label: 'Flera dagar', description: '1 poäng' },
-  { value: 2, label: 'Mer än hälften av dagarna', description: '2 poäng' },
-  { value: 3, label: 'Nästan varje dag', description: '3 poäng' },
+  { value: 0, label: 'Inte alls',                   description: '0 poäng' },
+  { value: 1, label: 'Flera dagar',                 description: '1 poäng' },
+  { value: 2, label: 'Mer än hälften av dagarna',   description: '2 poäng' },
+  { value: 3, label: 'Nästan varje dag',             description: '3 poäng' },
 ];
 
-interface AssessmentResult {
-  score: number;
-  severity: string;
-  interpretation: string;
-  questions_analyzed?: number;
-  recommendations?: string[];
+const SEVERITY_LABELS: Record<string, string> = {
+  minimal:          'Minimal',
+  mild:             'Lindrig',
+  moderate:         'Medelsvår',
+  moderately_severe:'Medelsvår–svår',
+  severe:           'Svår',
+};
+
+// PHQ-9 max = 27; GAD-7 max = 21
+const MAX_SCORE: Record<AssessmentType, number> = { phq9: 27, gad7: 21 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getSeverityColor(severity: string): string {
+  const map: Record<string, string> = {
+    minimal:          'text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-900/20',
+    mild:             'text-yellow-700 bg-yellow-50 dark:text-yellow-300 dark:bg-yellow-900/20',
+    moderate:         'text-orange-700 bg-orange-50 dark:text-orange-300 dark:bg-orange-900/20',
+    moderately_severe:'text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-900/20',
+    severe:           'text-red-800 bg-red-100 dark:text-red-200 dark:bg-red-900/40',
+  };
+  return map[severity] ?? 'text-gray-600 bg-gray-50 dark:text-gray-300 dark:bg-gray-800';
 }
 
-interface HistoryEntry {
-  id: string;
-  type: 'phq9' | 'gad7';
-  total_score: number;
-  severity: string;
-  risk_level: string;
-  timestamp: string;
+function severityLabel(severity: string): string {
+  return SEVERITY_LABELS[severity] ?? severity.replace('_', ' ');
 }
+
+/** Render a tiny SVG sparkline from an array of numeric values (0..max). */
+function Sparkline({ values, max, className }: { values: number[]; max: number; className?: string }) {
+  if (values.length < 2) return null;
+  const w = 80, h = 24, pad = 2;
+  const xs = values.map((_, i) => pad + (i / (values.length - 1)) * (w - pad * 2));
+  const ys = values.map(v => h - pad - ((v / max) * (h - pad * 2)));
+  return (
+    <svg width={w} height={h} className={className} aria-hidden="true">
+      <polyline points={xs.map((x, i) => `${x},${ys[i]}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="2.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export const ClinicalAssessment: React.FC = () => {
-  const { t: _t } = useTranslation();
-  const { user: _user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'phq9' | 'gad7' | 'history'>('phq9');
+  const [activeTab, setActiveTab] = useState<AssessmentType | 'history'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
-  const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [result, setResult] = useState<PHQ9Result | GAD7Result | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const questions = activeTab === 'phq9' ? PHQ9_QUESTIONS : activeTab === 'gad7' ? GAD7_QUESTIONS : [];
+  const questions = activeTab === 'phq9'
+    ? PHQ9_QUESTIONS
+    : activeTab === 'gad7'
+      ? GAD7_QUESTIONS
+      : [];
 
-  // Load history whenever the history tab is selected
-  useEffect(() => {
-    if (activeTab !== 'history') return;
-    let mounted = true;
+  // Guard division by zero — only relevant when questions.length > 0
+  const answeredCount = Object.keys(responses).length;
+  const progress = questions.length > 0 ? answeredCount / questions.length : 0;
+
+  // ---------------------------------------------------------------------------
+  // Load history
+  // ---------------------------------------------------------------------------
+  const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryError(null);
-    api.get('/advanced-mood/assess/history')
-      .then(res => {
-        if (mounted && res.data?.success) {
-          setHistory(res.data.data.history ?? []);
-        }
-      })
-      .catch(err => {
-        logger.error('Assessment history load failed', err as Error);
-        if (mounted) setHistoryError('Kunde inte hämta historik');
-      })
-      .finally(() => { if (mounted) setHistoryLoading(false); });
-    return () => { mounted = false; };
-  }, [activeTab]);
+    try {
+      const data = await getAssessmentHistory({ limit: 30 });
+      setHistory(data.history ?? []);
+    } catch (err) {
+      logger.error('Assessment history load failed', err as Error);
+      setHistoryError('Kunde inte hämta historik. Försök igen.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
-  const handleResponse = (questionId: string, value: number) => {
-    setResponses(prev => ({ ...prev, [questionId]: value }));
-  };
+  useEffect(() => {
+    if (activeTab === 'history') loadHistory();
+  }, [activeTab, loadHistory]);
 
+  // ---------------------------------------------------------------------------
+  // Submit assessment
+  // ---------------------------------------------------------------------------
   const calculateScore = async () => {
-    // Check all questions answered
     const unanswered = questions.filter(q => responses[q.id] === undefined);
     if (unanswered.length > 0) {
-      setAssessmentError(`Svara på alla frågor. ${unanswered.length} kvar.`);
+      setAssessmentError(`Svara på alla frågor. ${unanswered.length} frågor kvar.`);
       return;
     }
 
     setLoading(true);
     setAssessmentError(null);
     try {
-      const endpoint = activeTab === 'phq9' ? '/advanced-mood/assess/phq9' : '/advanced-mood/assess/gad7';
-      const res = await api.post(endpoint, { responses });
-      
-      if (res.data?.success) {
-        setResult(res.data.data);
-        setExpanded(false);
-      } else {
-        setAssessmentError('Kunde inte beräkna resultatet. Försök igen.');
-      }
+      const res = activeTab === 'phq9'
+        ? await submitPHQ9(responses)
+        : await submitGAD7(responses);
+      setResult(res);
+      setExpanded(false);
     } catch (e: unknown) {
-      logger.error('Assessment failed', e as Error);
-      const errorMessage = e instanceof Error ? e.message : 'Ett fel uppstod vid beräkning.';
-      setAssessmentError(errorMessage);
+      logger.error('Assessment submission failed', e as Error);
+      setAssessmentError(e instanceof Error ? e.message : 'Ett fel uppstod vid beräkning.');
     } finally {
       setLoading(false);
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    const colors: Record<string, string> = {
-      minimal: 'text-green-600 bg-green-50',
-      mild: 'text-yellow-600 bg-yellow-50',
-      moderate: 'text-orange-600 bg-orange-50',
-      moderately_severe: 'text-red-600 bg-red-50',
-      severe: 'text-red-700 bg-red-100',
-    };
-    return colors[severity] || 'text-gray-600 bg-gray-50';
+  // ---------------------------------------------------------------------------
+  // Reset to a new assessment (same or different scale)
+  // ---------------------------------------------------------------------------
+  const resetAssessment = (tab: AssessmentType) => {
+    setActiveTab(tab);
+    setResponses({});
+    setResult(null);
+    setAssessmentError(null);
+    setExpanded(true);
   };
 
-  const progress = Object.keys(responses).length / questions.length;
+  // ---------------------------------------------------------------------------
+  // Derived history stats for sparklines
+  // ---------------------------------------------------------------------------
+  const phq9History = history.filter(e => e.type === 'phq9').slice(0, 10).reverse();
+  const gad7History = history.filter(e => e.type === 'gad7').slice(0, 10).reverse();
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="max-w-2xl mx-auto p-4">
       {/* Header */}
@@ -152,247 +202,355 @@ export const ClinicalAssessment: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           Klinisk självbedömning
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Validerade skalor för depression (PHQ-9) och ångest (GAD-7)
         </p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => { setActiveTab('phq9'); setResponses({}); setResult(null); }}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-            activeTab === 'phq9'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          PHQ-9 (Depression)
-        </button>
-        <button
-          onClick={() => { setActiveTab('gad7'); setResponses({}); setResult(null); }}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-            activeTab === 'gad7'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          GAD-7 (Ångest)
-        </button>
+        {(['phq9', 'gad7'] as AssessmentType[]).map(tab => (
+          <button
+            key={tab}
+            onClick={() => resetAssessment(tab)}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors text-sm ${
+              activeTab === tab
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            {tab === 'phq9' ? 'PHQ-9 (Depression)' : 'GAD-7 (Ångest)'}
+          </button>
+        ))}
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors text-sm ${
             activeTab === 'history'
               ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Historik
         </button>
       </div>
 
-      {/* Progress Bar */}
-      {/* History tab */}
+      {/* ------------------------------------------------------------------ */}
+      {/* History tab                                                         */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'history' && (
-        <div className="space-y-3">
-          {historyLoading && (
-            <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400 text-sm">
-              <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              Hämtar historik…
-            </div>
-          )}
-          {!historyLoading && historyError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400">
-              {historyError}
-            </div>
-          )}
-          {!historyLoading && !historyError && history.length === 0 && (
-            <p className="text-center text-gray-400 dark:text-gray-500 py-12 text-sm">
-              Inga tidigare bedömningar hittades. Gör en PHQ-9 eller GAD-7 för att börja spåra din utveckling.
-            </p>
-          )}
-          {!historyLoading && history.map(entry => (
-            <div
-              key={entry.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{entry.type === 'phq9' ? '🧠' : '😰'}</span>
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                    {entry.type === 'phq9' ? 'PHQ-9 Depression' : 'GAD-7 Ångest'}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {new Date(entry.timestamp).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })}
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getSeverityColor(entry.severity)}`}>
-                  {entry.total_score} p — {entry.severity.replace('_', ' ')}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Assessment UI — only for phq9/gad7 tabs */}
-      {activeTab !== 'history' && (<>
-
-      <div className="mb-4">
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Framsteg</span>
-          <span>{Math.round(progress * 100)}%</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-indigo-600"
-            initial={{ width: 0 }}
-            animate={{ width: `${progress * 100}%` }}
-            transition={{ duration: 0.3 }}
-          />
-        </div>
-      </div>
-
-      {assessmentError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
-          {assessmentError}
-        </div>
-      )}
-
-      {/* Questions */}
-      <AnimatePresence mode="wait">
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-4"
-          >
-            {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700"
-              >
-                <p className="font-medium text-gray-900 dark:text-white mb-3">
-                  {idx + 1}. {q.text}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {RESPONSE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleResponse(q.id, option.value)}
-                      className={`p-2 rounded-lg text-left text-sm transition-colors ${
-                        responses[q.id] === option.value
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <span className="font-medium">{option.label}</span>
-                      <span className="text-xs opacity-75 block">{option.description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {/* Submit Button */}
-            <button
-              onClick={calculateScore}
-              disabled={loading || Object.keys(responses).length < questions.length}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 
-                       text-white font-medium rounded-lg transition-colors flex items-center 
-                       justify-center gap-2"
-            >
-              {loading ? 'Beräknar...' : 'Beräkna resultat'}
-              <ArrowRightIcon className="w-5 h-5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Results */}
-      <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 
-                     dark:border-gray-700 overflow-hidden"
-          >
-            {/* Result Header */}
-            <div className={`p-6 ${getSeverityColor(result.severity)}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm opacity-75">Total poäng</p>
-                  <p className="text-3xl font-bold">{result.total_score}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm opacity-75">Svårighetsgrad</p>
-                  <p className="text-xl font-semibold capitalize">
-                    {result.severity.replace('_', ' ')}
+        <div>
+          {/* Sparkline summary cards */}
+          {!historyLoading && !historyError && (phq9History.length > 1 || gad7History.length > 1) && (
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {phq9History.length > 1 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHQ-9 trend (senaste {phq9History.length})</p>
+                  <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-indigo-500" />
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Senast: <strong className="text-gray-700 dark:text-gray-300">{phq9History[phq9History.length - 1].total_score} p</strong>
+                    {' — '}{severityLabel(phq9History[phq9History.length - 1].severity)}
                   </p>
                 </div>
-              </div>
-              
-              {result.suicidal_ideation && (
-                <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-red-800">⚠️ Omedelbar risk upptäckt</p>
-                      <p className="text-sm text-red-700">
-                        Kontakta psykiatrisk akutmottagning eller ring 112
-                      </p>
-                    </div>
-                  </div>
+              )}
+              {gad7History.length > 1 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">GAD-7 trend (senaste {gad7History.length})</p>
+                  <Sparkline values={gad7History.map(e => e.total_score)} max={MAX_SCORE.gad7} className="text-teal-500" />
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Senast: <strong className="text-gray-700 dark:text-gray-300">{gad7History[gad7History.length - 1].total_score} p</strong>
+                    {' — '}{severityLabel(gad7History[gad7History.length - 1].severity)}
+                  </p>
                 </div>
               )}
             </div>
+          )}
 
-            {/* Interpretation */}
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-gray-700 dark:text-gray-300">{result.interpretation}</p>
-            </div>
-
-            {/* Recommendations */}
-            <div className="px-6 pb-6">
-              <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <InformationCircleIcon className="w-5 h-5 text-indigo-600" />
-                Rekommendationer
-              </h4>
-              <ul className="space-y-2">
-                {result.recommendations.map((rec: string, idx: number) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400"
-                  >
-                    <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Expand/Collapse */}
+          {/* Refresh button */}
+          <div className="flex justify-end mb-3">
             <button
-              onClick={() => setExpanded(!expanded)}
-              className="w-full py-3 border-t border-gray-200 dark:border-gray-700 
-                       text-gray-600 dark:text-gray-400 hover:bg-gray-50 
-                       dark:hover:bg-gray-700 transition-colors flex items-center 
-                       justify-center gap-2"
+              onClick={loadHistory}
+              disabled={historyLoading}
+              className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
             >
-              {expanded ? 'Dölj frågor' : 'Visa frågor igen'}
-              {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+              <ArrowPathIcon className={`w-3 h-3 ${historyLoading ? 'animate-spin' : ''}`} />
+              Uppdatera
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      </>)}
+          </div>
+
+          <div className="space-y-3">
+            {historyLoading && (
+              <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400 text-sm">
+                <ArrowPathIcon className="animate-spin w-4 h-4 mr-2" />
+                Hämtar historik…
+              </div>
+            )}
+
+            {!historyLoading && historyError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400 flex items-center justify-between">
+                <span>{historyError}</span>
+                <button onClick={loadHistory} className="ml-3 underline text-xs">Försök igen</button>
+              </div>
+            )}
+
+            {!historyLoading && !historyError && history.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">
+                  Inga tidigare bedömningar hittades.
+                </p>
+                <button
+                  onClick={() => resetAssessment('phq9')}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Gör din första PHQ-9
+                </button>
+              </div>
+            )}
+
+            {!historyLoading && history.map(entry => (
+              <div
+                key={entry.id}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl" aria-hidden="true">{entry.type === 'phq9' ? '🧠' : '😰'}</span>
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white text-sm">
+                      {entry.type === 'phq9' ? 'PHQ-9 Depression' : 'GAD-7 Ångest'}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(entry.timestamp).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex flex-col items-end gap-1">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getSeverityColor(entry.severity)}`}>
+                    {entry.total_score} p — {severityLabel(entry.severity)}
+                  </span>
+                  {entry.type === 'phq9' && (entry as AssessmentHistoryEntry).suicidal_ideation && (
+                    <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
+                      <ExclamationTriangleIcon className="w-3 h-3" /> Risk
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA to start new assessment */}
+          {!historyLoading && history.length > 0 && (
+            <div className="mt-6 flex gap-3 justify-center">
+              <button onClick={() => resetAssessment('phq9')} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+                Ny PHQ-9
+              </button>
+              <button onClick={() => resetAssessment('gad7')} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors">
+                Ny GAD-7
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Assessment UI — phq9 / gad7                                        */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab !== 'history' && (
+        <>
+          {/* Progress bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <span>Framsteg</span>
+              <span>{answeredCount} / {questions.length}</span>
+            </div>
+            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-indigo-600"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+
+          {assessmentError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400"
+              role="alert"
+              aria-live="polite"
+            >
+              {assessmentError}
+            </div>
+          )}
+
+          {/* Questions */}
+          <AnimatePresence mode="wait">
+            {expanded && (
+              <motion.div
+                key="questions"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4"
+              >
+                <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                  Under de senaste 2 veckorna, hur ofta har du besvärats av följande?
+                </p>
+
+                {questions.map((q, idx) => (
+                  <div
+                    key={q.id}
+                    className={`rounded-lg p-4 shadow-sm border transition-colors ${
+                      responses[q.id] !== undefined
+                        ? 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-700'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <p className="font-medium text-gray-900 dark:text-white mb-3 text-sm">
+                      {idx + 1}. {q.text}
+                      {q.id === 'self_harm' && (
+                        <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-normal">(Fråga om tankar på självskada)</span>
+                      )}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {RESPONSE_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setResponses(prev => ({ ...prev, [q.id]: option.value }))}
+                          className={`p-2 rounded-lg text-left text-sm transition-colors ${
+                            responses[q.id] === option.value
+                              ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                              : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          <span className="font-medium">{option.label}</span>
+                          <span className="text-xs opacity-75 block">{option.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={calculateScore}
+                  disabled={loading || answeredCount < questions.length}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-600
+                           text-white font-medium rounded-lg transition-colors flex items-center
+                           justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      Beräknar…
+                    </>
+                  ) : (
+                    <>
+                      Beräkna resultat
+                      <ArrowRightIcon className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Results */}
+          <AnimatePresence>
+            {result && (
+              <motion.div
+                key="result"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+              >
+                {/* Result header */}
+                <div className={`p-6 ${getSeverityColor(result.severity)}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm opacity-75">Total poäng</p>
+                      <p className="text-4xl font-bold">{result.total_score}</p>
+                      <p className="text-xs opacity-60 mt-0.5">
+                        max {activeTab === 'phq9' ? 27 : 21} poäng
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm opacity-75">Svårighetsgrad</p>
+                      <p className="text-xl font-semibold">
+                        {severityLabel(result.severity)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* PHQ-9 suicidal ideation alert */}
+                  {'suicidal_ideation' in result && result.suicidal_ideation && (
+                    <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold text-red-800 dark:text-red-200">⚠️ Omedelbar risk upptäckt</p>
+                          <p className="text-sm text-red-700 dark:text-red-300">
+                            Du angav tankar om att skada dig själv. Kontakta psykiatrisk akutmottagning eller ring{' '}
+                            <a href="tel:112" className="font-bold underline">112</a> eller krisstöd{' '}
+                            <a href="tel:90101" className="font-bold underline">90101</a> (dygnet runt).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Interpretation */}
+                <div className="p-5 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm">{result.interpretation}</p>
+                </div>
+
+                {/* Recommendations */}
+                <div className="px-5 pb-5">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-sm">
+                    <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    Rekommendationer
+                  </h4>
+                  <ul className="space-y-2">
+                    {result.recommendations.map((rec, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <CheckCircleIcon className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Action row */}
+                <div className="border-t border-gray-200 dark:border-gray-700 flex">
+                  <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="flex-1 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700
+                             transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    {expanded ? 'Dölj frågor' : 'Visa frågor igen'}
+                    {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                  </button>
+                  <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <button
+                    onClick={() => { resetAssessment(activeTab as AssessmentType); }}
+                    className="flex-1 py-3 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20
+                             transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" />
+                    Gör ny bedömning
+                  </button>
+                  <div className="w-px bg-gray-200 dark:bg-gray-700" />
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    className="flex-1 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700
+                             transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    Se historik
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
     </div>
   );
 };
