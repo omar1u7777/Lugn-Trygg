@@ -9,6 +9,8 @@ import {
   BookOpenIcon
 } from '@heroicons/react/24/solid';
 
+import ErrorBoundary from './ErrorBoundary';
+
 // Tailwind Components
 import { Button } from './ui/tailwind/Button';
 import { Card } from './ui/tailwind/Card';
@@ -779,13 +781,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </div>
 
               {hasWellnessGoals && resolvedUserId && (
-                <Suspense fallback={<RecommendationsSkeleton />}>
-                  <RecommendationsPanel
-                    userId={resolvedUserId}
-                    wellnessGoals={safeDashboardStats.wellnessGoals}
-                    compact={true}
-                  />
-                </Suspense>
+                <ErrorBoundary>
+                  <Suspense fallback={<RecommendationsSkeleton />}>
+                    <RecommendationsPanel
+                      userId={resolvedUserId}
+                      wellnessGoals={safeDashboardStats.wellnessGoals}
+                      compact={true}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
               )}
 
               {!hasWellnessGoals && (

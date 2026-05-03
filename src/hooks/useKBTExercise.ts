@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
 import { KBT_PHASES } from '../constants/recommendations';
 import { KBTPhaseName } from '../types/recommendation';
@@ -62,6 +62,11 @@ export const useKBTExercise = (options: {
     });
     const [timeLeft, setTimeLeft] = useState(0);
 
+    const callbacksRef = useRef({ onComplete: options.onComplete, announce: options.announce });
+    useEffect(() => {
+        callbacksRef.current = { onComplete: options.onComplete, announce: options.announce };
+    }, [options.onComplete, options.announce]);
+
     const { isActive, start: startTimer, stop: stopTimer, setTime } = useExerciseTimer(0, {
         countdown: true,
         onTick: (t) => setTimeLeft(t),
@@ -75,43 +80,35 @@ export const useKBTExercise = (options: {
 
         // Validation
         if (phase === 'identify' && negativeThought.length < MIN_NEGATIVE_LENGTH) {
-            if (options.announce) {
-                options.announce(`Skriv minst ${MIN_NEGATIVE_LENGTH} tecken i din negativa tanke innan du fortsätter`, 'assertive');
-            }
+            callbacksRef.current.announce?.(`Skriv minst ${MIN_NEGATIVE_LENGTH} tecken i din negativa tanke innan du fortsätter`, 'assertive');
             return;
         }
         if (phase === 'identify' && getWordCount(negativeThought) < 4) {
-            if (options.announce) options.announce('Försök beskriva tanken med minst fyra ord för att göra den tydlig', 'assertive');
+            callbacksRef.current.announce?.('Försök beskriva tanken med minst fyra ord för att göra den tydlig', 'assertive');
             return;
         }
         if (phase === 'identify' && isLowQualityInput(negativeThought)) {
-            if (options.announce) options.announce('Skriv en konkret tanke, inte bara ett kort standardsvar', 'assertive');
+            callbacksRef.current.announce?.('Skriv en konkret tanke, inte bara ett kort standardsvar', 'assertive');
             return;
         }
         if (phase === 'challenge' && evidence.length < MIN_EVIDENCE_LENGTH) {
-            if (options.announce) {
-                options.announce(`Beskriv bevisen med minst ${MIN_EVIDENCE_LENGTH} tecken innan du fortsätter`, 'assertive');
-            }
+            callbacksRef.current.announce?.(`Beskriv bevisen med minst ${MIN_EVIDENCE_LENGTH} tecken innan du fortsätter`, 'assertive');
             return;
         }
         if (phase === 'challenge' && !hasEvidenceStructure(evidence)) {
-            if (options.announce) {
-                options.announce('Använd gärna strukturen "För:" och "Emot:" för en mer balanserad analys', 'assertive');
-            }
+            callbacksRef.current.announce?.('Använd gärna strukturen "För:" och "Emot:" för en mer balanserad analys', 'assertive');
             return;
         }
         if (phase === 'replace' && alternative.length < MIN_ALTERNATIVE_LENGTH) {
-            if (options.announce) {
-                options.announce(`Skapa en balanserad alternativ tanke med minst ${MIN_ALTERNATIVE_LENGTH} tecken`, 'assertive');
-            }
+            callbacksRef.current.announce?.(`Skapa en balanserad alternativ tanke med minst ${MIN_ALTERNATIVE_LENGTH} tecken`, 'assertive');
             return;
         }
         if (phase === 'replace' && getWordCount(alternative) < 4) {
-            if (options.announce) options.announce('Försök skriva minst fyra ord i din balanserade tanke', 'assertive');
+            callbacksRef.current.announce?.('Försök skriva minst fyra ord i din balanserade tanke', 'assertive');
             return;
         }
         if (phase === 'replace' && alternative.toLowerCase() === negativeThought.toLowerCase()) {
-            if (options.announce) options.announce('Din alternativa tanke behöver skilja sig från den negativa tanken', 'assertive');
+            callbacksRef.current.announce?.('Din alternativa tanke behöver skilja sig från den negativa tanken', 'assertive');
             return;
         }
 
@@ -130,15 +127,15 @@ export const useKBTExercise = (options: {
                     if (!isActive) startTimer();
                 } else {
                     stopTimer();
-                    if (options.onComplete) options.onComplete();
+                    callbacksRef.current.onComplete?.();
                 }
             }
         } else {
             stopTimer();
             setPhase('complete');
-            if (options.onComplete) options.onComplete();
+            callbacksRef.current.onComplete?.();
         }
-    }, [phase, thoughts, options, isActive, startTimer, stopTimer, setTime]);
+    }, [phase, thoughts, isActive, startTimer, stopTimer, setTime]);
 
     const start = useCallback(() => {
         setPhase('identify');

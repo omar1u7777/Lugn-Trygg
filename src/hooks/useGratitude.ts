@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '../api/client';
+import { API_ENDPOINTS } from '../api/constants';
 import { logger } from '../utils/logger';
-import { User } from '../types';
+import { User } from '../types/index';
 
 
 interface UseGratitudeOptions {
@@ -16,29 +18,50 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Load progress on mount or user change
+    // Load progress on mount or user change — backend is source of truth, localStorage is fallback
     useEffect(() => {
-        if (user?.user_id) {
+        if (!user?.user_id) return;
+
+        const loadProgress = async () => {
+            try {
+                const response = await api.get<{ success: boolean; data: { data: Record<string, unknown> | null } }>(
+                    API_ENDPOINTS.USERS.GRATITUDE
+                );
+                const remoteData = response.data?.data?.data;
+                if (remoteData) {
+                    const parsed = remoteData as { entries?: Record<number, string[]>; currentDay?: number; startDate?: string; completed?: boolean };
+                    if (parsed.completed) {
+                        logger.debug('Gratitude challenge already completed, skipping restore');
+                        return;
+                    }
+                    setEntries(parsed.entries || {});
+                    setDay(parsed.currentDay || 1);
+                    if (parsed.startDate) setStartDate(new Date(parsed.startDate));
+                    setIsActive(true);
+                    localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(remoteData));
+                    logger.debug('☁️ Loaded gratitude challenge from backend:', remoteData);
+                    return;
+                }
+            } catch (err) {
+                logger.warn('Could not load gratitude from backend, falling back to localStorage:', err);
+            }
+
             const saved = localStorage.getItem(`gratitude_challenge_${user.user_id}`);
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     setEntries(parsed.entries || {});
                     setDay(parsed.currentDay || 1);
-                    if (parsed.startDate) {
-                        setStartDate(new Date(parsed.startDate));
-                    }
-                    setIsActive(true); // Assume active if data exists? Or maybe we need explicit active flag in storage?
-                    // Original code didn't save 'isActive' explicitly in the JSON structure shown in saveGratitudeEntry,
-                    // but logic suggests if data exists we might want to resume.
-                    // However, original 'startGratitudeChallenge' loads data.
-                    // Let's stick to manual start or inferred activity.
-                    logger.debug('💾 Loaded gratitude challenge progress:', parsed);
+                    if (parsed.startDate) setStartDate(new Date(parsed.startDate));
+                    setIsActive(true);
+                    logger.debug('💾 Loaded gratitude challenge from localStorage:', parsed);
                 } catch (error) {
                     logger.error('Failed to load gratitude challenge:', error);
                 }
             }
-        }
+        };
+
+        void loadProgress();
     }, [user]);
 
     const start = useCallback(() => {
@@ -58,7 +81,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                     if (parsed.startDate) {
                         setStartDate(new Date(parsed.startDate));
                     }
-                } catch (e) { logger.error(e); }
+                } catch (e) { logger.error('Failed to parse saved gratitude data', e instanceof Error ? e.message : String(e)); }
             }
         }
     }, [user]);
@@ -66,7 +89,6 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
     const saveEntry = useCallback(async (currentDay: number, currentEntries: string[]) => {
         if (isSaving) return;
 
-        // Check if day completed
         if (entries[currentDay] && entries[currentDay].filter(e => e.trim()).length >= 3) {
             announce(`Dag ${currentDay} är redan slutförd`, 'polite');
             return;
@@ -78,35 +100,40 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
             const newEntries = { ...entries, [currentDay]: currentEntries };
             setEntries(newEntries);
 
+            const challengeData = {
+                entries: newEntries,
+                currentDay,
+                startDate: startDate?.toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+
             if (user?.user_id) {
-                const challengeData = {
-                    entries: newEntries,
-                    currentDay: day,
-                    startDate: startDate?.toISOString(),
-                    lastUpdated: new Date().toISOString()
-                };
                 localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(challengeData));
+                api.post(API_ENDPOINTS.USERS.GRATITUDE, challengeData).catch(err => {
+                    logger.warn('Could not sync gratitude entry to backend:', err);
+                });
                 logger.debug('💾 Saved gratitude entry:', challengeData);
             }
 
             onProgress('exercise', 5);
             announce(`Dag ${currentDay} tacksamhet sparad`, 'polite');
 
-            setTimeout(() => {
-                setIsSaving(false);
-            }, 500);
+            setTimeout(() => setIsSaving(false), 500);
 
         } catch (error) {
             logger.error('Failed to save gratitude entry:', error);
             setIsSaving(false);
             announce('Kunde inte spara tacksamhet', 'assertive');
         }
-    }, [entries, isSaving, user, day, startDate, onProgress, announce]);
+    }, [entries, isSaving, user, startDate, onProgress, announce]);
 
     const complete = useCallback(() => {
         logger.debug('🎉 Gratitude challenge completed!');
         if (user?.user_id) {
             localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
+            api.post(API_ENDPOINTS.USERS.GRATITUDE, { completed: true, currentDay: 8 }).catch(err => {
+                logger.warn('Could not sync gratitude completion to backend:', err);
+            });
         }
         onProgress('exercise', 35);
         setIsActive(false);
@@ -120,6 +147,9 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
         logger.debug('❌ Gratitude challenge cancelled');
         if (user?.user_id) {
             localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
+            api.delete(API_ENDPOINTS.USERS.GRATITUDE).catch(err => {
+                logger.warn('Could not clear gratitude data from backend:', err);
+            });
         }
         setIsActive(false);
         setDay(1);

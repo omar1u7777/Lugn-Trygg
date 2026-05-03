@@ -5,7 +5,7 @@ import { logger } from '../../utils/logger';
 interface MeditationSessionProps {
   duration: number;
   title: string;
-  onSaveSession?: (sessionData: { type: string; duration: number; technique: string; completedCycles: number; notes: string }) => void;
+  onSaveSession?: (sessionData: { type: string; duration: number; technique: string; completedCycles: number; notes: string }) => void | Promise<void>;
   onUpdateProgress?: (type: string, duration: number) => void;
 }
 
@@ -20,9 +20,15 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
   const [isMeditationPaused, setIsMeditationPaused] = useState(false);
   const meditationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleMeditationCompleteRef = useRef<() => Promise<void>>(async () => {});
+
   const handleMeditationComplete = useCallback(async () => {
+    if (meditationTimerRef.current) {
+      clearInterval(meditationTimerRef.current);
+      meditationTimerRef.current = null;
+    }
     setIsMeditationActive(false);
-    meditationTimerRef.current = null;
+    setMeditationTimeLeft(0);
 
     // Update progress
     if (onUpdateProgress) {
@@ -46,6 +52,10 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
     }
   }, [duration, title, onUpdateProgress, onSaveSession]);
 
+  useEffect(() => {
+    handleMeditationCompleteRef.current = handleMeditationComplete;
+  }, [handleMeditationComplete]);
+
   const startMeditationSession = useCallback((durationMinutes: number) => {
     if (meditationTimerRef.current) {
       clearInterval(meditationTimerRef.current);
@@ -58,14 +68,14 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
       setMeditationTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleMeditationComplete();
+          void handleMeditationCompleteRef.current();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     meditationTimerRef.current = timer;
-  }, [handleMeditationComplete]);
+  }, []);
 
   const toggleMeditationPause = useCallback(() => {
     if (isMeditationPaused) {
@@ -75,7 +85,7 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
         setMeditationTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            handleMeditationComplete();
+            void handleMeditationCompleteRef.current();
             return 0;
           }
           return prev - 1;
@@ -90,7 +100,7 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
       }
       setIsMeditationPaused(true);
     }
-  }, [isMeditationPaused, handleMeditationComplete]);
+  }, [isMeditationPaused]);
 
   const stopMeditationSession = useCallback(() => {
     if (meditationTimerRef.current) {
@@ -98,9 +108,9 @@ export const MeditationSession: React.FC<MeditationSessionProps> = ({
       meditationTimerRef.current = null;
     }
     setIsMeditationActive(false);
-    setMeditationTimeLeft(0);
+    setMeditationTimeLeft(duration * 60);
     setIsMeditationPaused(false);
-  }, []);
+  }, [duration]);
 
   // Sync meditationTimeLeft when duration changes
   useEffect(() => {

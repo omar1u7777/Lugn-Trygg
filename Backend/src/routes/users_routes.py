@@ -151,7 +151,7 @@ def get_user_profile():
         return APIResponse.success({"profile": profile}, "User profile retrieved")
     except Exception as exc:
         logger.exception(f"Failed to load profile: {exc}")
-        return APIResponse.error("Failed to load profile", "INTERNAL_ERROR", 500, str(exc))
+        return APIResponse.error("Failed to load profile", "INTERNAL_ERROR", 500)
 
 
 @users_bp.route('/preferences', methods=['PUT'])
@@ -183,7 +183,7 @@ def update_user_preferences():
         return APIResponse.success({"preferences": payload}, "Preferences updated")
     except Exception as exc:
         logger.exception(f"Failed to update preferences: {exc}")
-        return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500, str(exc))
+        return APIResponse.error("Failed to update preferences", "INTERNAL_ERROR", 500)
 
 
 # ============================================================================
@@ -236,10 +236,17 @@ def update_notification_preferences():
     logger.info(f"🔔 USERS - UPDATE notification preferences for user: {user_id}")
 
     try:
-        data = request.get_json(silent=True) or {}
+        raw = request.get_json(silent=True) or {}
+        # Allowlist: only accept known preference keys with expected types
+        allowed_keys = {
+            'morningReminder', 'eveningReminder', 'moodCheckInTime',
+            'enableMoodReminders', 'enableMeditationReminders',
+            'pushEnabled', 'emailEnabled', 'reminderTime'
+        }
+        data = {k: v for k, v in raw.items() if k in allowed_keys}
         user_ref = db.collection('users').document(user_id)  # type: ignore
-        user_ref.set({'notification_preferences': data, 'updated_at': datetime.now(UTC).isoformat()}, merge=True)
-        logger.info(f"✅ USERS - Notification preferences saved to Firestore: {data}")
+        user_ref.set({'notification_preferences': data, 'updatedAt': SERVER_TIMESTAMP}, merge=True)
+        logger.info(f"✅ USERS - Notification preferences saved to Firestore")
         return APIResponse.success(data, "Preferences updated")
     except Exception as e:
         logger.exception(f"Failed to update notification preferences: {e}")
@@ -258,10 +265,17 @@ def set_notification_schedule():
     logger.info(f"🔔 USERS - SET notification schedule for user: {user_id}")
 
     try:
-        data = request.get_json(silent=True) or {}
+        raw = request.get_json(silent=True) or {}
+        # Allowlist: only accept known schedule keys with expected types
+        allowed_keys = {
+            'morningReminder', 'eveningReminder', 'moodCheckInTime',
+            'enableMoodReminders', 'enableMeditationReminders',
+            'pushEnabled', 'emailEnabled', 'reminderTime'
+        }
+        data = {k: v for k, v in raw.items() if k in allowed_keys}
         user_ref = db.collection('users').document(user_id)  # type: ignore
-        user_ref.set({'notification_settings': data, 'updated_at': datetime.now(UTC).isoformat()}, merge=True)
-        logger.info(f"✅ USERS - Notification schedule saved to Firestore: {data}")
+        user_ref.set({'notification_settings': data, 'updatedAt': SERVER_TIMESTAMP}, merge=True)
+        logger.info(f"✅ USERS - Notification schedule saved to Firestore")
         return APIResponse.success(data, "Schedule saved")
     except Exception as e:
         logger.exception(f"Failed to save notification schedule: {e}")
@@ -358,8 +372,6 @@ def set_wellness_goals():
         return APIResponse.success({"wellnessGoals": goals}, "Wellness goals saved")
     except Exception as e:
         logger.exception(f"❌ Failed to save wellness goals: {e}")
-        import traceback
-        traceback.print_exc()
         return APIResponse.error("Failed to save wellness goals", "INTERNAL_ERROR", 500)
 
 
@@ -390,18 +402,19 @@ def save_journal_entry():
         if not sanitized_content:
             return APIResponse.bad_request("Journal content cannot be empty")
 
-        # Create journal entry
+        # Create journal entry — field names must match journal_routes.py (snake_case)
+        now = datetime.now(UTC)
         journal_entry = {
             'user_id': user_id,
             'content': sanitized_content,
             'mood': data.get('mood'),
             'tags': data.get('tags', []),
-            'createdAt': SERVER_TIMESTAMP,
-            'updatedAt': SERVER_TIMESTAMP
+            'created_at': now,
+            'updated_at': now
         }
 
-        # Save to Firestore
-        journal_ref = db.collection('users').document(user_id).collection('journal').document()  # type: ignore
+        # Save to Firestore — use top-level journal_entries collection (consistent with journal_routes.py reads)
+        journal_ref = db.collection('journal_entries').document()  # type: ignore
         journal_ref.set(journal_entry)
 
         audit_log(
@@ -441,29 +454,70 @@ def get_journal_entries():
 
     try:
         # Get query parameters
-        limit = int(request.args.get('limit', 50))
-        start_after = request.args.get('startAfter')
+        try:
+            limit = min(int(request.args.get('limit', 50)), 100)
+            if limit < 1:
+                limit = 50
+        except (ValueError, TypeError):
+            limit = 50
 
-        # Build query
-        journal_ref = db.collection('users').document(user_id).collection('journal')  # type: ignore
-        query = journal_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)  # type: ignore
+        def _fmt(ts) -> str | None:
+            if ts is None:
+                return None
+            if hasattr(ts, 'isoformat'):
+                return ts.isoformat()
+            if isinstance(ts, str):
+                return ts
+            return str(ts)
 
-        if start_after:
-            # For pagination, we'd need to get the document first
-            pass
-
-        docs = query.stream()
-
+        # Read from journal_entries (consistent with journal_routes.py and the POST endpoint)
         entries = []
-        for doc in docs:
-            entry_data = doc.to_dict()
-            entry_data['id'] = doc.id
-            # Convert timestamp to ISO string
-            if 'createdAt' in entry_data and hasattr(entry_data['createdAt'], 'isoformat'):
-                entry_data['createdAt'] = entry_data['createdAt'].isoformat()
-            if 'updatedAt' in entry_data and hasattr(entry_data['updatedAt'], 'isoformat'):
-                entry_data['updatedAt'] = entry_data['updatedAt'].isoformat()
-            entries.append(entry_data)
+        try:
+            try:
+                from google.cloud.firestore import FieldFilter
+                query = db.collection('journal_entries').where(  # type: ignore
+                    filter=FieldFilter('user_id', '==', user_id)
+                ).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit)
+            except ImportError:
+                query = db.collection('journal_entries').where(  # type: ignore
+                    'user_id', '==', user_id
+                ).order_by('created_at', direction=firestore.Query.DESCENDING).limit(limit)
+
+            for doc in query.stream():
+                d = doc.to_dict() or {}
+                entries.append({
+                    'id': doc.id,
+                    'content': d.get('content', ''),
+                    'mood': d.get('mood'),
+                    'tags': d.get('tags', []),
+                    'createdAt': _fmt(d.get('created_at')),
+                    'updatedAt': _fmt(d.get('updated_at')),
+                })
+        except Exception as qe:
+            logger.warning(f"Ordered journal query failed, falling back: {qe}")
+            try:
+                try:
+                    from google.cloud.firestore import FieldFilter
+                    fb = db.collection('journal_entries').where(  # type: ignore
+                        filter=FieldFilter('user_id', '==', user_id)
+                    ).limit(limit)
+                except ImportError:
+                    fb = db.collection('journal_entries').where(  # type: ignore
+                        'user_id', '==', user_id
+                    ).limit(limit)
+                for doc in fb.stream():
+                    d = doc.to_dict() or {}
+                    entries.append({
+                        'id': doc.id,
+                        'content': d.get('content', ''),
+                        'mood': d.get('mood'),
+                        'tags': d.get('tags', []),
+                        'createdAt': _fmt(d.get('created_at')),
+                        'updatedAt': _fmt(d.get('updated_at')),
+                    })
+                entries.sort(key=lambda e: e.get('createdAt') or '', reverse=True)
+            except Exception:
+                entries = []
 
         audit_log(
             event_type="JOURNAL_ENTRIES_RETRIEVED",
@@ -555,12 +609,29 @@ def get_meditation_sessions():
     try:
         # Get query parameters
         limit = int(request.args.get('limit', 50))
-        request.args.get('startDate')
-        request.args.get('endDate')
+        start_date_str = request.args.get('startDate')
+        end_date_str = request.args.get('endDate')
 
         # Build query
         sessions_ref = db.collection('users').document(user_id).collection('meditation_sessions')  # type: ignore
-        query = sessions_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit)  # type: ignore
+        query = sessions_ref.order_by('createdAt', direction=firestore.Query.DESCENDING)  # type: ignore
+
+        # Apply optional date filters
+        if start_date_str:
+            try:
+                start_dt = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+                query = query.where('createdAt', '>=', start_dt)  # type: ignore
+            except ValueError:
+                logger.warning(f"Invalid startDate format: {start_date_str}")
+
+        if end_date_str:
+            try:
+                end_dt = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+                query = query.where('createdAt', '<=', end_dt)  # type: ignore
+            except ValueError:
+                logger.warning(f"Invalid endDate format: {end_date_str}")
+
+        query = query.limit(limit)  # type: ignore
 
         docs = query.stream()
 
@@ -598,3 +669,86 @@ def get_meditation_sessions():
         logger.exception(f"Failed to get meditation sessions: {e}")
         return APIResponse.error("Failed to get meditation sessions", "INTERNAL_ERROR", 500)
 
+
+# ============================================================================
+# Gratitude Challenge
+# ============================================================================
+
+@users_bp.route('/gratitude', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_gratitude_data():
+    """Get user's gratitude challenge state from Firestore."""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    try:
+        doc = db.collection('gratitude_challenges').document(user_id).get()
+        if not doc.exists:
+            return APIResponse.success({'data': None}, 'No gratitude challenge data found')
+
+        data = doc.to_dict() or {}
+        return APIResponse.success({'data': data}, 'Gratitude data retrieved')
+
+    except Exception as e:
+        logger.error(f"Failed to get gratitude data for {user_id}: {e}")
+        return APIResponse.error("Failed to retrieve gratitude data")
+
+
+@users_bp.route('/gratitude', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def save_gratitude_data():
+    """Save user's gratitude challenge state to Firestore."""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    raw = request.get_json(force=True, silent=True) or {}
+
+    allowed_keys = {'entries', 'currentDay', 'startDate', 'lastUpdated', 'completed'}
+    data = {k: v for k, v in raw.items() if k in allowed_keys}
+
+    if not data:
+        return APIResponse.bad_request("No valid gratitude data provided")
+
+    current_day = data.get('currentDay')
+    if current_day is not None and (not isinstance(current_day, int) or not 1 <= current_day <= 8):
+        return APIResponse.bad_request("currentDay must be between 1 and 8")
+
+    try:
+        db.collection('gratitude_challenges').document(user_id).set(data, merge=True)
+        audit_log(
+            event_type="GRATITUDE_DATA_SAVED",
+            user_id=user_id,
+            details={"currentDay": current_day, "completed": data.get('completed', False)}
+        )
+        return APIResponse.success({'saved': True}, 'Gratitude data saved')
+
+    except Exception as e:
+        logger.error(f"Failed to save gratitude data for {user_id}: {e}")
+        return APIResponse.error("Failed to save gratitude data")
+
+
+@users_bp.route('/gratitude', methods=['DELETE'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def delete_gratitude_data():
+    """Delete user's gratitude challenge state (on cancel)."""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    try:
+        db.collection('gratitude_challenges').document(user_id).delete()
+        audit_log(
+            event_type="GRATITUDE_DATA_DELETED",
+            user_id=user_id,
+            details={"reason": "user_cancelled"}
+        )
+        return APIResponse.success({'deleted': True}, 'Gratitude data cleared')
+
+    except Exception as e:
+        logger.error(f"Failed to delete gratitude data for {user_id}: {e}")
+        return APIResponse.error("Failed to clear gratitude data")

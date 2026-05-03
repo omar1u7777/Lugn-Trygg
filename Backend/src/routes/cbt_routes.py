@@ -6,6 +6,7 @@ personalized sessions, and user progress tracking.
 """
 
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,8 +32,17 @@ logger = logging.getLogger(__name__)
 cbt_bp = Blueprint("cbt", __name__)
 
 
+_cbt_access_cache: dict[str, tuple[bool, str, float]] = {}
+_CBT_ACCESS_CACHE_TTL: float = 300.0  # 5 minutes
+
+
 def _check_cbt_access(user_id: str) -> tuple[bool, str]:
-    """Check if user has premium access to CBT modules."""
+    """Check if user has premium access to CBT modules (TTL-cached, 5 min)."""
+    now = time.monotonic()
+    cached = _cbt_access_cache.get(user_id)
+    if cached is not None and now - cached[2] < _CBT_ACCESS_CACHE_TTL:
+        return cached[0], cached[1]
+
     try:
         user_doc = db.collection("users").document(user_id).get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
@@ -40,12 +50,14 @@ def _check_cbt_access(user_id: str) -> tuple[bool, str]:
         plan_context = SubscriptionService.get_plan_context(user_data, user_id=user_id)
         plan_type = plan_context.get("plan", "free")
 
-        # CBT is premium feature - require premium, trial, or enterprise
         allowed_plans = ["premium", "trial", "enterprise"]
         if plan_type.lower() not in allowed_plans:
-            return False, f"CBT modules require premium subscription. Current plan: {plan_type}"
+            result: tuple[bool, str] = (False, f"CBT modules require premium subscription. Current plan: {plan_type}")
+        else:
+            result = (True, "")
 
-        return True, ""
+        _cbt_access_cache[user_id] = (result[0], result[1], now)
+        return result
 
     except Exception as e:
         logger.error(f"Failed to check CBT access for {user_id}: {e}")
@@ -162,7 +174,7 @@ def get_modules():
     Returns:
         List of CBT modules with metadata.
     """
-    user_id = g.user_id
+    user_id = g.get('user_id')
     logger.info(f"📚 User {user_id} fetching CBT modules")
 
     try:
@@ -220,7 +232,7 @@ def get_module_detail(module_id: str):
     Returns:
         Module details including Swedish content.
     """
-    user_id = g.user_id
+    user_id = g.get('user_id')
     logger.info(f"📖 User {user_id} fetching module: {module_id}")
 
     try:
@@ -302,8 +314,12 @@ def get_personalized_session():
     Returns:
         Personalized session with exercises and guidance.
     """
-    user_id = g.user_id
-    current_mood = request.args.get("mood", "neutral")
+    user_id = g.get('user_id')
+    # Validate mood against known values to prevent log injection
+    _valid_moods = {"neutral", "good", "great", "bad", "very_bad", "low_mood",
+                    "high_anxiety", "stress", "depression"}
+    _raw_mood = request.args.get("mood", "neutral")
+    current_mood = _raw_mood if _raw_mood in _valid_moods else "neutral"
     logger.info(f"🎯 Generating CBT session for user {user_id}, mood: {current_mood}")
 
     try:
@@ -374,7 +390,7 @@ def update_progress():
     Returns:
         Updated progress and any unlocked achievements.
     """
-    user_id = g.user_id
+    user_id = g.get('user_id')
     logger.info(f"📝 Updating CBT progress for user {user_id}")
 
     try:
@@ -411,7 +427,7 @@ def update_progress():
         # Get current progress
         user_progress = _get_user_progress(user_id)
 
-        # Update exercise history
+        # Update exercise history — cap at 100 to stay within Firestore 1 MB document limit
         exercise_entry = {
             "exerciseId": exercise_id,
             "completedAt": datetime.now(UTC).isoformat(),
@@ -421,12 +437,16 @@ def update_progress():
             "notes": data.get("notes", ""),
         }
         user_progress.exercise_history.append(exercise_entry)
+        if len(user_progress.exercise_history) > 100:
+            user_progress.exercise_history = user_progress.exercise_history[-100:]
 
-        # Update skill mastery
+        # Update skill mastery — incorporate success rate, time spent, and difficulty
         exercise = cbt_engine.exercises[exercise_id]
         skill_type = exercise.type
         current_mastery = user_progress.skill_mastery.get(skill_type, 0.5)
-        mastery_adjustment = (exercise_entry["successRate"] - 0.5) * 0.1
+        time_bonus = min(exercise_entry["timeSpent"] / 1800, 0.05)  # max +0.05 for 30 min
+        difficulty_bonus = (exercise_entry["difficultyRating"] - 3) * 0.01  # -0.02..+0.02
+        mastery_adjustment = (exercise_entry["successRate"] - 0.5) * 0.1 + time_bonus + difficulty_bonus
         new_mastery = min(1.0, max(0.0, current_mastery + mastery_adjustment))
         user_progress.skill_mastery[skill_type] = new_mastery
 
@@ -437,8 +457,11 @@ def update_progress():
             # First ever session
             user_progress.streak_count = 1
         else:
-            # Normalize to UTC date for comparison
-            if hasattr(last_date, 'tzinfo') and last_date.tzinfo is None:
+            # Normalize to UTC datetime — handles Firestore Timestamps, naive datetimes, and aware datetimes
+            if not isinstance(last_date, datetime):
+                # Firestore Timestamp: convert via .timestamp() (seconds since epoch)
+                last_date = datetime.fromtimestamp(last_date.timestamp(), tz=UTC)
+            elif last_date.tzinfo is None:
                 last_date = last_date.replace(tzinfo=UTC)
             days_since_last = (now_utc.date() - last_date.date()).days
             if days_since_last == 0:
@@ -448,7 +471,10 @@ def update_progress():
                 # Consecutive day — extend streak
                 user_progress.streak_count += 1
             else:
-                # Streak broken — reset to 1
+                # Streak broken — persist longest before resetting
+                previous_best = user_progress.adaptive_parameters.get('longest_streak', 0)
+                if user_progress.streak_count > previous_best:
+                    user_progress.adaptive_parameters['longest_streak'] = user_progress.streak_count
                 user_progress.streak_count = 1
         user_progress.last_session_date = now_utc
 
@@ -536,7 +562,7 @@ def get_insights():
     Returns:
         Progress statistics, strengths, improvement areas, and recommendations.
     """
-    user_id = g.user_id
+    user_id = g.get('user_id')
     logger.info(f"📊 Fetching CBT insights for user {user_id}")
 
     try:
@@ -601,7 +627,7 @@ def get_exercises():
     Returns:
         List of CBT exercises.
     """
-    user_id = g.user_id
+    user_id = g.get('user_id')
     module_filter = request.args.get("module")
     type_filter = request.args.get("type")
 

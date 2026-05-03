@@ -125,10 +125,11 @@ def get_journal_entries(user_id):
                 journal_ref = db.collection('journal_entries').where(
                     filter=FieldFilter('user_id', '==', user_id)
                 ).order_by('created_at', direction='DESCENDING').limit(limit)
-            except (TypeError, ImportError):
-                journal_ref = db.collection('journal_entries').where(filter=FieldFilter(
+            except ImportError:
+                # Older google-cloud-firestore without FieldFilter — use positional API
+                journal_ref = db.collection('journal_entries').where(
                     'user_id', '==', user_id
-                )).order_by('created_at', direction='DESCENDING').limit(limit)
+                ).order_by('created_at', direction='DESCENDING').limit(limit)
 
             for doc in journal_ref.stream():
                 data = doc.to_dict()
@@ -150,10 +151,10 @@ def get_journal_entries(user_id):
                     fallback_ref = db.collection('journal_entries').where(
                         filter=FieldFilter('user_id', '==', user_id)
                     ).limit(limit)
-                except (TypeError, ImportError):
-                    fallback_ref = db.collection('journal_entries').where(filter=FieldFilter(
+                except ImportError:
+                    fallback_ref = db.collection('journal_entries').where(
                         'user_id', '==', user_id
-                    )).limit(limit)
+                    ).limit(limit)
 
                 for doc in fallback_ref.stream():
                     data = doc.to_dict()
@@ -279,6 +280,66 @@ def save_journal_entry(user_id):
     except Exception as e:
         logger.error(f"Failed to save journal entry: {str(e)}")
         return APIResponse.error('Failed to save journal entry')
+
+@journal_bp.route('/<user_id>/journal/<entry_id>', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_journal_entry(user_id, entry_id):
+    """Get a single journal entry by ID"""
+    try:
+        current_user_id: str | None = g.get('user_id')
+
+        if not _validate_user_id(user_id):
+            return APIResponse.bad_request('Invalid user ID format')
+        if not _validate_entry_id(entry_id):
+            return APIResponse.bad_request('Invalid entry ID format')
+        if user_id != current_user_id:
+            audit_log(
+                event_type="UNAUTHORIZED_JOURNAL_ACCESS",
+                user_id=current_user_id or "unknown",
+                details={"attempted_user_id": user_id, "entry_id": entry_id, "action": "read_single"}
+            )
+            return APIResponse.forbidden('Unauthorized access')
+
+        entry_ref = db.collection('journal_entries').document(entry_id)
+        entry_doc = entry_ref.get()
+
+        if not entry_doc.exists:
+            return APIResponse.not_found('Journal entry not found')
+
+        data = entry_doc.to_dict() or {}
+        if data.get('user_id') != user_id:
+            audit_log(
+                event_type="UNAUTHORIZED_JOURNAL_ACCESS",
+                user_id=current_user_id or "unknown",
+                details={"entry_id": entry_id, "action": "read_single", "reason": "entry_belongs_to_other_user"}
+            )
+            return APIResponse.forbidden('Unauthorized access to journal entry')
+
+        def _fmt(ts: Any) -> str | None:
+            if ts is None:
+                return None
+            if hasattr(ts, 'isoformat'):
+                return ts.isoformat()
+            if isinstance(ts, str):
+                return ts
+            return str(ts)
+
+        return APIResponse.success(
+            data={
+                'id': entry_doc.id,
+                'content': data.get('content', ''),
+                'mood': data.get('mood'),
+                'tags': data.get('tags', []),
+                'createdAt': _fmt(data.get('created_at')),
+                'updatedAt': _fmt(data.get('updated_at')),
+            },
+            message='Journal entry retrieved successfully'
+        )
+    except Exception as e:
+        logger.error(f"Failed to get journal entry {entry_id}: {type(e).__name__}: {str(e)}")
+        return APIResponse.error('Failed to retrieve journal entry')
+
 
 @journal_bp.route('/<user_id>/journal/<entry_id>', methods=['PUT'])
 @AuthService.jwt_required

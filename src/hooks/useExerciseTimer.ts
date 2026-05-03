@@ -12,6 +12,13 @@ export const useExerciseTimer = (initialSeconds: number = 0, options: UseExercis
     const [isActive, setIsActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const optionsRef = useRef(options);
+
+    // Keep optionsRef current on every render so the interval always calls the latest callbacks.
+    // We intentionally omit deps here — this sync must run unconditionally every render.
+    useEffect(() => {
+        optionsRef.current = options;
+    });
 
     const start = useCallback(() => {
         setIsActive(true);
@@ -46,14 +53,14 @@ export const useExerciseTimer = (initialSeconds: number = 0, options: UseExercis
                 setTime(prev => {
                     const next = countdown ? prev - 1 : prev + 1;
 
-                    if (options.onTick) {
-                        options.onTick(next);
+                    if (optionsRef.current.onTick) {
+                        optionsRef.current.onTick(next);
                     }
 
                     if (countdown && next <= 0) {
                         stop();
-                        if (options.onComplete) {
-                            options.onComplete();
+                        if (optionsRef.current.onComplete) {
+                            optionsRef.current.onComplete();
                         }
                         return 0;
                     }
@@ -73,7 +80,7 @@ export const useExerciseTimer = (initialSeconds: number = 0, options: UseExercis
                 clearInterval(timerRef.current);
             }
         };
-    }, [isActive, isPaused, countdown, options, stop]);
+    }, [isActive, isPaused, countdown, stop]);
 
     return {
         time,

@@ -108,6 +108,8 @@ export const API_ENDPOINTS = {
     /** @deprecated Use JOURNAL section instead */
     JOURNAL: '/api/v1/journal',
     MEDITATION_SESSIONS: '/api/v1/users',
+    /** GET/POST gratitude challenge state */
+    GRATITUDE: '/api/v1/users/gratitude',
   } as const,
 
   /** Journal endpoints - Mental health journaling */
