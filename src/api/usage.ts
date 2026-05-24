@@ -18,11 +18,13 @@ export interface IncrementResponse {
   limit?: number;
 }
 
+const USAGE_BASE = '/api/v1/usage';
+
 /**
  * Get current usage status from backend
  */
 export const getUsageStatus = async (): Promise<UsageStatus> => {
-  const response = await api.get('/usage/status');
+  const response = await api.get(`${USAGE_BASE}/status`);
   return response.data.data;
 };
 
@@ -30,7 +32,7 @@ export const getUsageStatus = async (): Promise<UsageStatus> => {
  * Increment mood log count
  */
 export const incrementMoodLog = async (): Promise<IncrementResponse> => {
-  const response = await api.post('/usage/increment/mood');
+  const response = await api.post(`${USAGE_BASE}/increment/mood`);
   return response.data.data;
 };
 
@@ -38,6 +40,6 @@ export const incrementMoodLog = async (): Promise<IncrementResponse> => {
  * Increment chat message count
  */
 export const incrementChatMessage = async (): Promise<IncrementResponse> => {
-  const response = await api.post('/usage/increment/chat');
+  const response = await api.post(`${USAGE_BASE}/increment/chat`);
   return response.data.data;
 };

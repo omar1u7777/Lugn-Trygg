@@ -72,13 +72,24 @@ export const useTextToSpeech = (
     (text: string, id?: string) => {
       if (!isSupported || !text || !text.trim()) return;
 
-      // Strip markdown syntax so the AI doesn't read "asterisk asterisk bold".
+      // Strip markdown syntax so the AI doesn't read "asterisk asterisk bold",
+      // and remove emoji + pictographs so the TTS doesn't narrate "hjärta",
+      // "leende ansikte" etc. between sentences.
       const cleanText = text
+        // Markdown formatting
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/\*(.+?)\*/g, '$1')
         .replace(/`([^`]+)`/g, '$1')
         .replace(/^[-*•]\s+/gm, '')
         .replace(/^\d+[.)]\s+/gm, '')
+        // Strip emoji ranges (covers most pictographs, symbols, dingbats)
+        // — Extended_Pictographic + emoji presentation selectors.
+        .replace(
+          /[\u{1F300}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}️‍]/gu,
+          ''
+        )
+        // Collapse whitespace that emoji removal may have left behind
+        .replace(/\s{2,}/g, ' ')
         .trim();
 
       try {
