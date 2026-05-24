@@ -21,7 +21,7 @@ try:
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
 
-from ..config.firebase_config import db
+from ..firebase_config import db
 
 logger = logging.getLogger(__name__)
 

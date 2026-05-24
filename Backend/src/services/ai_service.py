@@ -1574,7 +1574,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                     final_prompt = rag_service.generate_augmented_prompt(
                         user_id=user_id,
                         current_message=user_message,
-                        base_system_prompt=base_prompt
+                        base_system_prompt=enhanced_prompt
                     )
                     logger.info(f"✅ RAG augmentation applied for user {user_id[:8]}...")
                 except Exception as rag_err:
@@ -1596,7 +1596,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
             # 7. Call OpenAI with timeout
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=messages,  # type: ignore[arg-type]
                 max_tokens=400,
                 temperature=0.7,
@@ -1609,9 +1609,6 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             if content is None:
                 return self._generate_fallback_therapeutic_response(user_message)
             ai_response = content.strip()
-
-            # 8. Enhanced sentiment analysis for emotion detection
-            sentiment_analysis = self.enhanced_sentiment_analysis(user_message)
 
             # 9. Generate suggested actions based on sentiment and technique
             suggested_actions = self._generate_suggested_actions(
@@ -1834,6 +1831,27 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             except Exception as mood_err:
                 logger.warning("⚠️ Failed to fetch mood history for system prompt: %s", mood_err)
 
+        # Cross-session memory: include recent session summaries so the assistant
+        # can naturally reference what happened last time.
+        memory_context = ""
+        if user_id:
+            try:
+                from .session_summary_service import SessionSummaryService
+                recent = SessionSummaryService.get_recent_summaries(user_id)
+                memory_context = SessionSummaryService.format_for_prompt(recent)
+            except Exception as mem_err:
+                logger.warning("⚠️ Failed to load session summaries: %s", mem_err)
+
+        # Cross-source context: pull in journal entries + active goals so the
+        # assistant can reference what the user has been writing about and
+        # working towards. Recency-based — fast, no embeddings required.
+        cross_context = ""
+        if user_id:
+            try:
+                cross_context = self._fetch_cross_source_context(user_id)
+            except Exception as cs_err:
+                logger.warning("⚠️ Failed to load cross-source context: %s", cs_err)
+
         return (
             "Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.\n\n"
             "Din roll:\n"
@@ -1845,10 +1863,93 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             "- Aldrig diagnostisera eller ge medicinsk rådgivning\n"
             "- Skapa en säker, trygg atmosfär för reflektion\n\n"
             f"{sentiment_guidance}"
-            f"{mood_context}\n\n"
+            f"{mood_context}"
+            f"{cross_context}"
+            f"{memory_context}\n\n"
             "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). "
             "Var empatisk och personlig."
         )
+
+    def _fetch_cross_source_context(self, user_id: str) -> str:
+        """Build a compact context block from the user's recent journal entries
+        and active wellness goals. Returns empty string if no useful data.
+        """
+        from src.firebase_config import db
+
+        if db is None:
+            return ""
+
+        parts: list[str] = []
+
+        # 1. Recent journal entries (last 3) — gives the assistant insight into
+        # what the user has been processing in writing.
+        try:
+            try:
+                from google.cloud.firestore import FieldFilter
+                journal_q = (
+                    db.collection("journal_entries")
+                    .where(filter=FieldFilter("user_id", "==", user_id))
+                    .order_by("created_at", direction="DESCENDING")
+                    .limit(3)
+                )
+            except ImportError:
+                journal_q = (
+                    db.collection("journal_entries")
+                    .where("user_id", "==", user_id)
+                    .order_by("created_at", direction="DESCENDING")
+                    .limit(3)
+                )
+
+            journal_lines: list[str] = []
+            for doc in journal_q.stream():
+                data = doc.to_dict() or {}
+                content = (data.get("content") or "").strip()
+                if not content:
+                    continue
+                # Truncate to 160 chars to keep token budget tight
+                snippet = content[:160].replace("\n", " ")
+                mood = data.get("mood")
+                mood_part = f" (humör: {mood})" if mood else ""
+                journal_lines.append(f"- \"{snippet}\"{mood_part}")
+
+            if journal_lines:
+                parts.append(
+                    "\n\nSENASTE JOURNALANTECKNINGAR (vad användaren skrivit om):\n"
+                    + "\n".join(journal_lines)
+                )
+        except Exception as exc:
+            logger.warning("Journal context fetch failed: %s", exc)
+
+        # 2. Active wellness goals — what the user is working towards.
+        try:
+            goals_ref = (
+                db.collection("users").document(user_id).collection("goals")
+            )
+            goal_lines: list[str] = []
+            for doc in goals_ref.limit(20).stream():
+                data = doc.to_dict() or {}
+                status = (data.get("status") or "").lower()
+                if status and status not in ("active", "in_progress", "ongoing"):
+                    continue
+                title = (data.get("title") or "").strip()
+                if not title:
+                    continue
+                progress = data.get("progress")
+                prog_part = f" ({int(progress)}%)" if isinstance(progress, (int, float)) else ""
+                goal_lines.append(f"- {title[:100]}{prog_part}")
+                if len(goal_lines) >= 3:
+                    break
+
+            if goal_lines:
+                parts.append(
+                    "\n\nAKTUELLA MÅL (vad användaren arbetar med):\n"
+                    + "\n".join(goal_lines)
+                    + "\nKoppla råd till dessa mål när det är naturligt."
+                )
+        except Exception as exc:
+            logger.warning("Goals context fetch failed: %s", exc)
+
+        return "".join(parts)
 
     def generate_therapeutic_conversation_stream(
         self,
@@ -1889,6 +1990,20 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         # Build the same rich system prompt used by the non-streaming endpoint
         system_prompt = self._build_enhanced_system_prompt(user_message, user_id)
+
+        # Apply RAG personalization: previous effective strategies, goals, continuity
+        if user_id:
+            try:
+                from .rag_service import get_rag_service
+                rag_service = get_rag_service()
+                system_prompt = rag_service.generate_augmented_prompt(
+                    user_id=user_id,
+                    current_message=user_message,
+                    base_system_prompt=system_prompt,
+                )
+                logger.info("✅ RAG augmentation applied for stream user %s", user_id[:8])
+            except Exception as rag_err:
+                logger.warning("⚠️ RAG augmentation failed for stream: %s", rag_err)
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         for msg in conversation_history[-6:]:
