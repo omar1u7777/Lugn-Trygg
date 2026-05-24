@@ -96,7 +96,7 @@ The application is a **monorepo** with a React single-page application at the ro
 ### Platform
 - **Premium Subscription** — Stripe-powered with free, trial, premium, and enterprise tiers
 - **Dark Mode** — system-aware theme with manual toggle
-- **Internationalisation** — Swedish (default) and English via i18next
+- **Internationalisation** — Swedish (default), English, and Norwegian via i18next
 - **PWA** — installable progressive web app with offline support
 - **Privacy Controls** — data export, deletion, consent management
 
@@ -353,7 +353,7 @@ The backend exposes **170+ endpoints** across 34 Flask blueprints:
 | Auth | `/api/v1/auth` | Login, register, refresh, Google OAuth |
 | Mood | `/api/v1/mood` | Log, history, stats, analytics |
 | Memory | `/api/v1/memory` | CRUD, audio upload, URL generation |
-| AI / Chat | `/api/v1/ai`, `/api/v1/chat` | AI conversations, sentiment analysis |
+| Chatbot | `/api/v1/chatbot` | AI conversations, streaming (SSE), sentiment analysis |
 | Journal | `/api/v1/journal` | Entries CRUD, search, export |
 | Subscription | `/api/v1/subscription` | Stripe checkout, status, webhooks |
 | Rewards | `/api/v1/rewards` | XP, badges, premium time claims |

@@ -222,6 +222,22 @@ export const getChatHistory = async (
 };
 
 /**
+ * Notify the backend that a chat session has ended.
+ *
+ * Triggers background generation of a structured session summary that the AI
+ * uses as long-term memory in future sessions. Best-effort: never throws to
+ * the caller — failing to summarise must not block UX.
+ */
+export const closeChatSession = async (): Promise<void> => {
+  try {
+    await api.post(API_ENDPOINTS.CHATBOT.SESSION_CLOSE);
+  } catch (error) {
+    // Intentionally swallowed — summary is non-critical for the user.
+    // Errors are still captured in the api client's logger.
+  }
+};
+
+/**
  * Analyze mood patterns for user
  * @returns Promise resolving to pattern analysis
  * @throws Error if analysis fails

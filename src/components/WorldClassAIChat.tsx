@@ -12,12 +12,15 @@ import {
   WifiIcon,
   ExclamationTriangleIcon,
   MicrophoneIcon,
-  StopCircleIcon
+  StopCircleIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import { useAccessibility } from '../hooks/useAccessibility';
 import { analytics } from '../services/analytics';
 import { getChatHistory } from '../api/api';
+import { closeChatSession } from '../api/ai';
 import { clearDashboardCache } from '../hooks/useDashboardData';
 import useAuth from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -25,6 +28,7 @@ import useStreamingChat from '../hooks/useStreamingChat';
 import useChatCache from '../hooks/useChatCache';
 import useErrorRecovery from '../hooks/useErrorRecovery';
 import useVoiceInput from '../hooks/useVoiceInput';
+import useTextToSpeech from '../hooks/useTextToSpeech';
 import useMessagePagination from '../hooks/useMessagePagination';
 import GradualReveal from './ui/GradualReveal';
 
@@ -48,15 +52,122 @@ interface ChatMessage {
 }
 
 // ----------------------------------------------------------------------
+// Markdown helpers — block + inline renderer, pure JSX (no innerHTML)
+// ----------------------------------------------------------------------
+
+function renderInline(text: string): React.ReactNode {
+  // Priority: **bold** before *italic* before `code`
+  const re = /\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let ki = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      parts.push(<strong key={ki++}>{m[1]}</strong>);
+    } else if (m[2] !== undefined) {
+      parts.push(<em key={ki++}>{m[2]}</em>);
+    } else {
+      parts.push(
+        <code key={ki++} className="bg-black/10 dark:bg-white/10 px-1 rounded text-[0.8em] font-mono">
+          {m[3]}
+        </code>
+      );
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+const ChatMarkdown: React.FC<{ text: string }> = ({ text }) => {
+  const lines = text.split('\n');
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  let bk = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Unordered list: consecutive "- item" / "* item" lines
+    if (/^[-*•]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*•]\s/.test(lines[i])) {
+        items.push(lines[i].slice(2).trim());
+        i++;
+      }
+      blocks.push(
+        <ul key={bk++} className="list-disc list-outside ml-4 space-y-0.5 my-1">
+          {items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    // Ordered list: consecutive "1. item" lines
+    if (/^\d+[.)]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+[.)]\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+[.)]\s+/, ''));
+        i++;
+      }
+      blocks.push(
+        <ol key={bk++} className="list-decimal list-outside ml-4 space-y-0.5 my-1">
+          {items.map((it, j) => <li key={j}>{renderInline(it)}</li>)}
+        </ol>
+      );
+      continue;
+    }
+
+    // Empty line → thin spacer (skip consecutive)
+    if (line.trim() === '') {
+      if (blocks.length > 0) blocks.push(<div key={bk++} className="h-1.5" />);
+      i++;
+      continue;
+    }
+
+    // Text block: collect until next list / empty line
+    const textLines: string[] = [];
+    while (
+      i < lines.length &&
+      lines[i].trim() !== '' &&
+      !/^[-*•]\s/.test(lines[i]) &&
+      !/^\d+[.)]\s/.test(lines[i])
+    ) {
+      textLines.push(lines[i]);
+      i++;
+    }
+    blocks.push(
+      <span key={bk++}>
+        {textLines.map((tl, j) => (
+          <React.Fragment key={j}>
+            {j > 0 && <br />}
+            {renderInline(tl)}
+          </React.Fragment>
+        ))}
+      </span>
+    );
+  }
+
+  return <>{blocks}</>;
+};
+
+// ----------------------------------------------------------------------
 // Component: Message Bubble
 // ----------------------------------------------------------------------
 
-const MessageBubble: React.FC<{ 
-  message: ChatMessage; 
-  isLast: boolean; 
+const MessageBubble: React.FC<{
+  message: ChatMessage;
+  isLast: boolean;
   isStreaming?: boolean;
-}> = ({ message, isLast, isStreaming = false }) => {
+  ttsSupported?: boolean;
+  isSpeaking?: boolean;
+  onSpeak?: () => void;
+  onStopSpeak?: () => void;
+}> = ({ message, isLast, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
   const isUser = message.role === 'user';
+  const showSpeakButton = !isUser && !isStreaming && ttsSupported && (message.content?.trim().length ?? 0) > 0;
 
   return (
     <div
@@ -84,16 +195,37 @@ const MessageBubble: React.FC<{
             ? 'bg-primary-600 text-white rounded-tr-sm'
             : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-gray-800 dark:text-gray-100 rounded-tl-sm border border-white/40 dark:border-white/10'}
         `}>
-          {/* Use GradualReveal for AI messages */}
-          {!isUser && (isStreaming || isLast) ? (
-            <GradualReveal 
-              text={message.content || ''} 
+          {/* Use GradualReveal only during live streaming — never on history messages */}
+          {!isUser && isStreaming ? (
+            <GradualReveal
+              text={message.content || ''}
               speed={20}
               className="text-gray-800 dark:text-gray-100"
-              showCursor={isStreaming}
+              showCursor={true}
             />
+          ) : !isUser ? (
+            <ChatMarkdown text={message.content || ''} />
           ) : (
             message.content || ''
+          )}
+
+          {/* Speak button (AI only, after streaming completes) */}
+          {showSpeakButton && (
+            <button
+              onClick={isSpeaking ? onStopSpeak : onSpeak}
+              aria-label={isSpeaking ? 'Stoppa uppläsning' : 'Lyssna på meddelandet'}
+              className={`absolute -bottom-2 -right-2 p-1.5 rounded-full shadow-md transition-all hover:scale-110 ${
+                isSpeaking
+                  ? 'bg-teal-500 text-white animate-pulse'
+                  : 'bg-white dark:bg-slate-700 text-gray-500 dark:text-gray-300 hover:text-teal-600 dark:hover:text-teal-400 border border-gray-200 dark:border-gray-600'
+              }`}
+            >
+              {isSpeaking ? (
+                <SpeakerXMarkIcon className="w-3.5 h-3.5" />
+              ) : (
+                <SpeakerWaveIcon className="w-3.5 h-3.5" />
+              )}
+            </button>
           )}
 
           {/* Metadata / Sentiment Indicator (AI only) */}
@@ -126,7 +258,7 @@ const MessageBubble: React.FC<{
 // ----------------------------------------------------------------------
 
 const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan } = useSubscription();
@@ -161,13 +293,24 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }
   });
 
+  // Map i18next language code to BCP-47 speech recognition locale
+  const speechLang = i18n.language === 'en' ? 'en-US' : i18n.language === 'no' ? 'nb-NO' : 'sv-SE';
+
   // Voice input hook
   const { isListening, isSupported: voiceSupported, startListening, stopListening, transcript, clearTranscript } = useVoiceInput({
     onTranscript: (text) => {
       setInputMessage(text);
     },
-    language: 'sv-SE'
+    language: speechLang,
   });
+
+  // Text-to-speech: read AI replies aloud on demand
+  const {
+    isSupported: ttsSupported,
+    speakingId,
+    speak: speakMessage,
+    stop: stopSpeaking,
+  } = useTextToSpeech({ language: speechLang });
 
   const { 
     isLoaded: cacheLoaded, 
@@ -250,16 +393,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
   const loadChatHistory = async () => {
     if (!user?.user_id) { setLoading(false); return; }
-    
-    // Wait for cache to load (with timeout protection)
-    if (!cacheLoaded) {
-      // Wait max 2 seconds for cache, then proceed anyway
-      await new Promise(resolve => setTimeout(resolve, 500));
-      if (!cacheLoaded) {
-        // Still not loaded, proceed without cache
-        logger.warn('Cache not loaded in time, proceeding without cache');
-      }
-    }
+    // getCachedMessages() guards isLoaded internally — returns [] until cache is ready,
+    // so we always fall through to the server fetch without any artificial delay.
 
     try {
       // First, load from cache for instant display
@@ -293,8 +428,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           }
           
           const sentimentValue = msg?.crisis_detected ? 'crisis' : (msg?.sentiment as string | undefined);
+          // Use stable ID derived from timestamp+role so cache lookups survive page reloads.
+          // Fall back to index only if timestamp is missing.
+          const stableId = (typeof msg?.timestamp === 'string' && msg.timestamp)
+            ? `srv-${msg.role}-${msg.timestamp}`
+            : `history-${i}`;
           return {
-            id: `history-${i}`,
+            id: stableId,
             role: msg?.role === 'user' ? 'user' : 'assistant',
             content: (msg?.content as string) || (msg?.message as string) || '',
             timestamp,
@@ -316,10 +456,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       });
     } catch (e) {
       logger.error('Failed to load chat history:', e instanceof Error ? e.message : String(e));
-      if (!isOnline) {
-        setNetworkError(t('aiChat.offlineMode'));
-      }
-    } finally { 
+      setNetworkError(isOnline ? t('aiChat.errorFallback') : t('aiChat.offlineMode'));
+    } finally {
       setLoading(false); 
     }
   };
@@ -425,7 +563,17 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 {remainingMessages > 0 ? t('aiChat.messagesLeft', { count: remainingMessages }) : t('aiChat.limitReached')}
               </div>
             )}
-            <button onClick={onClose} aria-label={t('common.close')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+            <button
+              onClick={() => {
+                // Cancel any in-progress speech and trigger a background session summary.
+                // Both are fire-and-forget so the close animation isn't blocked.
+                try { stopSpeaking(); } catch { /* ignore */ }
+                void closeChatSession();
+                onClose();
+              }}
+              aria-label={t('common.close')}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            >
               <XMarkIcon className="w-6 h-6 text-gray-500" />
             </button>
           </div>
@@ -483,11 +631,15 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               )}
 
               {displayedMessages.map((msg, i) => (
-                <MessageBubble 
-                  key={msg.id} 
-                  message={msg} 
-                  isLast={i === displayedMessages.length - 1} 
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  isLast={i === displayedMessages.length - 1}
                   isStreaming={false}
+                  ttsSupported={ttsSupported}
+                  isSpeaking={speakingId === msg.id}
+                  onSpeak={() => speakMessage(msg.content, msg.id)}
+                  onStopSpeak={stopSpeaking}
                 />
               ))}
 

@@ -89,6 +89,8 @@ export const API_ENDPOINTS = {
     EXERCISE: '/api/v1/chatbot/exercise',
     /** POST mark exercise complete - append /{userId}/{exerciseId}/complete */
     EXERCISE_COMPLETE: '/api/v1/chatbot/exercise',
+    /** POST close session — triggers background summary generation */
+    SESSION_CLOSE: '/api/v1/chatbot/session/close',
   } as const,
 
   /** Referral system endpoints */

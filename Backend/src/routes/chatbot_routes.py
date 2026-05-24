@@ -568,6 +568,11 @@ def chat_stream():
                             logger.warning("[B3] Failed to award XP for chatbot_conversation", exc_info=True)
                     except Exception as save_err:
                         logger.warning(f"Failed to save streamed response: {save_err}")
+                    # Note: session summaries are generated when the frontend calls
+                    # /session/close. We previously had a modular trigger here but it
+                    # used the *truncated* conversation_history length and fired
+                    # unreliably, so it was removed in favour of the deterministic
+                    # close-signal path.
 
         return Response(
             stream_with_context(generate()),
@@ -915,6 +920,57 @@ Vad ligger dig varmast på hjärtat just nu? Att utforska dina känslor och tank
         }
     }
 
+# 🔹 Close session — generate a structured summary used as long-term memory
+@chatbot_bp.route("/session/close", methods=["POST", "OPTIONS"])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def close_chat_session():
+    """Generate and persist a summary of the just-ended session.
+
+    Called by the frontend when the chat dialog closes. Idempotent and safe to
+    call multiple times; the service skips when there are too few messages.
+    """
+    if request.method == 'OPTIONS':
+        return _preflight_response()
+
+    try:
+        user_id = g.get("user_id")
+        if not user_id:
+            return APIResponse.error("User ID required", "UNAUTHORIZED", 401)
+
+        if db is None:
+            return APIResponse.error("Service temporarily unavailable", "SERVICE_UNAVAILABLE", 503)
+
+        # Load the most recent conversation slice as the "session"
+        conversation_ref = db.collection("users").document(user_id).collection("conversations")
+        recent = list(
+            conversation_ref.order_by("timestamp", direction="DESCENDING")
+            .limit(30)
+            .stream()
+        )
+        if not recent:
+            return APIResponse.success({"summarised": False, "reason": "no_messages"})
+
+        messages = []
+        for doc in reversed(recent):
+            data = doc.to_dict() or {}
+            messages.append({
+                "role": data.get("role", "user"),
+                "content": data.get("content", ""),
+            })
+
+        from ..services.session_summary_service import SessionSummaryService
+        summary = SessionSummaryService.summarise_and_save(user_id, messages)
+
+        return APIResponse.success({
+            "summarised": summary is not None,
+            "summary": summary,
+        })
+    except Exception as exc:
+        logger.exception("close_chat_session failed: %s", exc)
+        return APIResponse.error("Failed to close session", "INTERNAL_ERROR", 500)
+
+
 # 🔹 Get conversation history
 @chatbot_bp.route("/history", methods=["GET", "OPTIONS"])
 @AuthService.jwt_required
@@ -932,20 +988,22 @@ def get_chat_history():
 
         # Get conversation history
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
-        # Paginate: default 50 messages, max 200
+        # Paginate: default 50 messages, max 200. Fetch limit+1 to detect if more exist.
         limit = min(int(request.args.get("limit", 50)), 200)
-        messages = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(limit).stream())
-        messages.reverse()  # Return in chronological order
+        raw = list(conversation_ref.order_by("timestamp", direction="DESCENDING").limit(limit + 1).stream())
+        has_more = len(raw) > limit
+        raw = raw[:limit]
+        raw.reverse()  # Return in chronological order
 
         conversation = []
-        for msg_doc in messages:
+        for msg_doc in raw:
             msg_data = msg_doc.to_dict()
             conversation.append(_to_camel_case_message(msg_data))
 
         return APIResponse.success({
             "conversation": conversation,
             "totalMessages": len(conversation),
-            "hasMore": len(conversation) >= limit
+            "hasMore": has_more
         })
 
     except Exception as e:
