@@ -3,6 +3,11 @@ import { getBackendUrl } from '../config/env';
 import { tokenStorage } from '../utils/secureStorage';
 import { logger } from '../utils/logger';
 import { API_ENDPOINTS } from '../api/constants';
+import { getCsrfToken, clearCsrfToken } from '../api/csrf';
+// Importing the api client ensures the CSRF fetcher is registered before we
+// call getCsrfToken() — without this side-effect import the shared module
+// would return null on first invocation in this hook.
+import '../api/client';
 
 export interface StreamingMessage {
   id: string;
@@ -23,7 +28,6 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const [currentMessage, setCurrentMessage] = useState<StreamingMessage | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const csrfTokenRef = useRef<string | null>(null);
   // CRITICAL FIX: Use ref to avoid dependency issues with useCallback
   // Initialize with defensive empty object to prevent TDZ errors in production builds
   const optionsRef = useRef<UseStreamingChatOptions>({});
@@ -69,34 +73,37 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
 
       const baseUrl = getBackendUrl();
 
-      // Fetch CSRF token once (cookie + header double-submit pattern in backend)
-      if (!csrfTokenRef.current) {
-        const csrfResponse = await fetch(`${baseUrl}${API_ENDPOINTS.AUTH.CSRF_TOKEN}`, {
-          method: 'GET',
+      // Always pull through the centralized CSRF manager — it owns the 30-min
+      // TTL and re-fetches a fresh token if the cached one is expired. Sharing
+      // state with the axios interceptor avoids cookie/header divergence.
+      const buildRequest = async () => {
+        const csrfToken = await getCsrfToken();
+        return fetch(`${baseUrl}${API_ENDPOINTS.CHATBOT.CHAT_STREAM}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+          },
           credentials: 'include',
+          body: JSON.stringify({
+            message,
+            user_id: userId,
+            conversation_history: _conversationHistory,
+          }),
+          signal: abortControllerRef.current?.signal,
         });
-        if (csrfResponse.ok) {
-          const csrfJson = await csrfResponse.json().catch(() => ({}));
-          const payload = csrfJson?.data || csrfJson;
-          csrfTokenRef.current = payload?.csrfToken || payload?.csrf_token || null;
-        }
-      }
+      };
 
-      const response = await fetch(`${baseUrl}${API_ENDPOINTS.CHATBOT.CHAT_STREAM}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          ...(csrfTokenRef.current ? { 'X-CSRF-Token': csrfTokenRef.current } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          message,
-          user_id: userId,
-          conversation_history: _conversationHistory,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
+      let response = await buildRequest();
+
+      // 403 typically means the cached CSRF token expired (backend TTL: 2h).
+      // Clear and retry once with a freshly-issued token.
+      if (response.status === 403) {
+        clearCsrfToken();
+        logger.warn('Chat stream got 403, retrying once with fresh CSRF token');
+        response = await buildRequest();
+      }
 
       // Handle non-streaming error responses (e.g. 429 quota)
       if (!response.ok) {
