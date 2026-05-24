@@ -394,6 +394,10 @@ try:
         '/api/v1/auth/reset-password',
         '/api/v1/auth/confirm-password-reset',
         '/api/v1/dashboard/csrf-token',
+        # Idempotent fire-and-forget endpoint called when the chat dialog closes.
+        # JWT-protected and only summarises the caller's own data — CSRF exemption
+        # here cannot be used to escalate privileges or modify others' state.
+        '/api/v1/chatbot/session/close',
     }
     csrf_middleware = init_csrf_middleware(app, secret=csrf_secret, exempt_paths=csrf_exempt_paths)
     app.extensions['csrf_middleware'] = csrf_middleware
