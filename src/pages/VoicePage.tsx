@@ -19,7 +19,7 @@ export const VoicePage: React.FC = () => {
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mb-4 inline-flex items-center"
+            className="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 mb-4 inline-flex items-center"
           >
             <span className="mr-2">←</span>
             Tillbaka
@@ -74,7 +74,7 @@ export const VoicePage: React.FC = () => {
         </div>
 
         {/* Use Cases */}
-        <div className="mt-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
+        <div className="mt-12 bg-teal-50 dark:bg-teal-900/20 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             💡 Användningsområden
           </h3>
