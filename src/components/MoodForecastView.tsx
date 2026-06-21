@@ -156,7 +156,7 @@ export const MoodForecastView: React.FC = () => {
               onClick={() => setDays(d)}
               className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
                 days === d
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-teal-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -207,7 +207,7 @@ export const MoodForecastView: React.FC = () => {
           <div className="mt-1">
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-600 transition-all"
+                className="h-full bg-teal-600 transition-all"
                 style={{ width: `${Math.max(0, 100 - (forecast[0]?.uncertainty || 0) * 100)}%` }}
               />
             </div>
@@ -316,11 +316,11 @@ export const MoodForecastView: React.FC = () => {
         {/* Legend */}
         <div className="flex items-center justify-center gap-6 mt-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-indigo-600"></div>
+            <div className="w-4 h-0.5 bg-teal-600"></div>
             <span>Förutspådd valens</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-indigo-100 rounded"></div>
+            <div className="w-4 h-4 bg-teal-100 rounded"></div>
             <span>Konfidensintervall (95%)</span>
           </div>
         </div>
@@ -346,7 +346,7 @@ export const MoodForecastView: React.FC = () => {
                     </span>
                     <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-600"
+                        className="h-full bg-teal-600"
                         style={{ width: `${pattern.strength * 100}%` }}
                       />
                     </div>

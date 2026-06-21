@@ -145,7 +145,7 @@ const Sidebar: React.FC = memo(() => {
             flex w-full min-w-0 items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
             group relative
             ${active
-              ? 'bg-[#2c8374] text-white shadow-md shadow-[#2c8374]/20'
+              ? 'bg-gradient-to-r from-teal-500 to-violet-600 text-white shadow-md shadow-teal-500/20'
               : 'text-[#6d645d] hover:bg-[#f2e4d4] hover:text-[#2f2a24] dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white'
             }
           `}
@@ -166,7 +166,7 @@ const Sidebar: React.FC = memo(() => {
       {/* Logo Section */}
       <div className="p-6 border-b border-[#f2e4d4] dark:border-slate-700">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2c8374] to-[#3a9d8c] flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-violet-600 flex items-center justify-center shadow-md">
             <span className="text-xl">🧘</span>
           </div>
           <div>
