@@ -324,7 +324,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-1">
-              {greeting}, <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
+              {greeting} <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
                 {userName}
               </span>
             </h1>
