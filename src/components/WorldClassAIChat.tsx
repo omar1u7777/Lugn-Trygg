@@ -65,19 +65,35 @@ function renderInline(text: string): React.ReactNode {
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
+      // Sanitize bold text to prevent XSS
       parts.push(<strong key={ki++}>{m[1]}</strong>);
     } else if (m[2] !== undefined) {
+      // Sanitize italic text to prevent XSS
       parts.push(<em key={ki++}>{m[2]}</em>);
     } else {
+      // Sanitize code content to prevent XSS - escape HTML entities
+      const codeContent = m[3]
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
       parts.push(
         <code key={ki++} className="bg-black/10 dark:bg-white/10 px-1 rounded text-[0.8em] font-mono">
-          {m[3]}
+          {codeContent}
         </code>
       );
     }
     last = m.index + m[0].length;
   }
-  if (last < text.length) parts.push(text.slice(last));
+  if (last < text.length) {
+    // Sanitize plain text to prevent XSS
+    const plainText = text.slice(last)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    parts.push(plainText);
+  }
   return <>{parts}</>;
 }
 
