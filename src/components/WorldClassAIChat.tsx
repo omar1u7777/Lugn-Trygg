@@ -321,7 +321,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       logger.error('Voice input error:', error);
       setVoiceError(error.message);
       // Auto-clear error after 5 seconds
-      setTimeout(() => setVoiceError(null), 5000);
+      if (voiceErrorTimerRef.current) {
+        clearTimeout(voiceErrorTimerRef.current);
+      }
+      voiceErrorTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setVoiceError(null);
+        }
+      }, 5000);
     },
     language: speechLang,
   });
@@ -357,6 +364,18 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const [limitError, setLimitError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const voiceErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (voiceErrorTimerRef.current) {
+        clearTimeout(voiceErrorTimerRef.current);
+      }
+    };
+  }, []);
 
   // Pagination - feeds from full messages array, shows latest 50, loads older on scroll up
   const {
