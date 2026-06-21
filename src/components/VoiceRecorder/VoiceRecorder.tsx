@@ -93,8 +93,13 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
 
-          // Check total file size
-          const totalSize = chunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0);
+          // Check total file size (only count Blobs, not strings)
+          const totalSize = chunksRef.current.reduce((acc, chunk) => {
+            if (chunk instanceof Blob) {
+              return acc + chunk.size;
+            }
+            return acc;
+          }, 0);
           if (totalSize > maxFileSize) {
             logger.warn(`Recording exceeded max file size (${maxFileSize} bytes), stopping`);
             mediaRecorder.stop();
@@ -333,7 +338,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {!isRecording && !transcript && !isProcessing && (
         <div className="mt-6 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
           <p className="text-sm text-teal-800 dark:text-teal-200">
-            💡 Tips: Tala tydligt i 5-60 sekunder för bästa resultat
+            💡 Tips: Tala tydligt i 10-120 sekunder för bästa resultat
           </p>
         </div>
       )}
