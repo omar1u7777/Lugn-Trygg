@@ -516,7 +516,7 @@ const MemoryJournal: React.FC = () => {
                   key={tag}
                   type="button"
                   onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
                     selectedTags.includes(tag)
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -541,7 +541,7 @@ const MemoryJournal: React.FC = () => {
                 type="button"
                 onClick={addCustomTag}
                 disabled={!customTag.trim()}
-                className="px-3 py-2 text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-all"
+                className="px-3 py-2 text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <PlusIcon className="w-4 h-4" />
               </button>

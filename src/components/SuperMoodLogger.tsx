@@ -11,7 +11,6 @@
 import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ChartBarIcon,
   ClockIcon,
   ExclamationTriangleIcon,
   FaceFrownIcon,
@@ -205,14 +204,24 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       
       const normalized: RecentMood[] = (moodsResponse || [])
         .map((mood: RawMoodEntry) => {
-          const timestamp = mood.timestamp?.toDate ? mood.timestamp.toDate() : (mood.timestamp instanceof Date ? mood.timestamp : new Date(mood.timestamp));
+          let timestamp: Date;
+          if (mood.timestamp?.toDate) {
+            timestamp = mood.timestamp.toDate();
+          } else if (mood.timestamp instanceof Date) {
+            timestamp = mood.timestamp;
+          } else if (typeof mood.timestamp === 'string' || typeof mood.timestamp === 'number') {
+            const parsed = new Date(mood.timestamp);
+            timestamp = isNaN(parsed.getTime()) ? new Date() : parsed;
+          } else {
+            timestamp = new Date();
+          }
           const score = mood.score || mood.sentiment_score || 5;
           // Always derive display label from score for consistency.
           // Old entries may have incorrect mood_text (e.g., "neutral" for all scores).
           const moodText = getMoodLabel(score);
-          
+
           return {
-            id: mood.id || mood.docId || Math.random().toString(36).substring(2, 11),
+            id: mood.id || mood.docId || `${timestamp.getTime()}-${score}`,
             mood: moodText,
             score,
             timestamp,
@@ -645,7 +654,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                     {group.label}
                   </h4>
                   <div className="space-y-2">
-                    {group.entries.map((mood, idx) => {
+                    {group.entries.map((mood, _idx) => {
                       const visual = getMoodVisual(mood.score);
                       const Icon = visual.Icon;
                       

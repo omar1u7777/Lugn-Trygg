@@ -151,7 +151,7 @@ const BottomNav: React.FC = memo(() => {
         <div
           role="dialog"
           aria-label="Utforska alla funktioner"
-          className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-50 bg-[#fff7f0] dark:bg-slate-900 border-t border-[#f2e4d4] dark:border-slate-700 rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[75vh] overflow-y-auto"
+          className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-[60] bg-[#fff7f0] dark:bg-slate-900 border-t border-[#f2e4d4] dark:border-slate-700 rounded-t-3xl shadow-2xl animate-slide-up duration-300 max-h-[75vh] overflow-y-auto"
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#f2e4d4] dark:border-slate-700">
             <h2 className="text-base font-bold text-[#2f2a24] dark:text-white">Utforska alla funktioner</h2>

@@ -112,7 +112,7 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
       {canScrollLeft && (
         <button
           onClick={scrollLeft}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-8 h-8 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center min-h-[44px] min-w-[44px] bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-full shadow-lg hover:shadow-xl transition-shadow"
           aria-label="Scroll left"
         >
           <ChevronLeftIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -123,7 +123,7 @@ const ScrollableTabs: React.FC<ScrollableTabsProps> = ({
       {canScrollRight && (
         <button
           onClick={scrollRight}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-8 h-8 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center min-h-[44px] min-w-[44px] bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-full shadow-lg hover:shadow-xl transition-shadow"
           aria-label="Scroll right"
         >
           <ChevronRightIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />

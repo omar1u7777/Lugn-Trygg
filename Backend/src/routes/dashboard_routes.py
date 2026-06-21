@@ -7,6 +7,7 @@ import logging
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, current_app, g, make_response, request
 
@@ -21,6 +22,38 @@ from ..utils.response_utils import APIResponse
 
 # Validate user_id format: Firebase UID is alphanumeric 28 chars
 USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+
+# Local timezone for day/week boundary calculations (streaks, weekly progress).
+# Mood timestamps are stored in UTC; converting to local time ensures a mood
+# logged just after local midnight counts toward the correct day.
+LOCAL_TZ = ZoneInfo("Europe/Stockholm")
+
+
+def _parse_to_utc_datetime(timestamp: Any) -> datetime | None:
+    """Normalize a Firestore/ISO/epoch timestamp to a timezone-aware UTC datetime."""
+    if timestamp is None:
+        return None
+    try:
+        # Firestore Timestamp / datetime exposing timestamp()
+        if hasattr(timestamp, 'timestamp') and not isinstance(timestamp, str):
+            return datetime.fromtimestamp(timestamp.timestamp(), tz=UTC)
+        if isinstance(timestamp, datetime):
+            return timestamp.astimezone(UTC) if timestamp.tzinfo else timestamp.replace(tzinfo=UTC)
+        if isinstance(timestamp, str):
+            parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        if isinstance(timestamp, (int, float)):
+            return datetime.fromtimestamp(timestamp, tz=UTC)
+    except (ValueError, TypeError, OSError) as exc:
+        logger.debug(f"⚠️ Failed to parse timestamp {timestamp!r}: {exc}")
+    return None
+
+
+def _to_local_date(timestamp: Any):
+    """Convert a timestamp to a local-timezone date (for day-boundary logic)."""
+    parsed = _parse_to_utc_datetime(timestamp)
+    return parsed.astimezone(LOCAL_TZ).date() if parsed else None
+
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -186,8 +219,10 @@ def get_dashboard_summary(user_id: str):
             cached_data = _get_cached_data(user_id)
             if cached_data:
                 logger.info(f"📊 Dashboard - Cache hit for user: {user_id[:8]}...")
-                cached_data['cached'] = True
-                return APIResponse.success(data=cached_data, message='Dashboard summary retrieved (cached)')
+                # Strip internal cache metadata before returning to the client
+                response_payload = {k: v for k, v in cached_data.items() if k != '_cached_at'}
+                response_payload['cached'] = True
+                return APIResponse.success(data=response_payload, message='Dashboard summary retrieved (cached)')
 
         start_time = datetime.now(UTC)
 
@@ -225,9 +260,15 @@ def get_dashboard_summary(user_id: str):
         # Calculate average mood and weekly progress
         average_mood = 0
         weekly_progress = 0
-        week_start = datetime.now(UTC) - timedelta(days=7)
+        # Calendar week (Monday 00:00 local time) so "denna vecka" matches the UI label.
+        now_local = datetime.now(LOCAL_TZ)
+        local_week_start = (now_local - timedelta(days=now_local.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        week_start = local_week_start.astimezone(UTC)
 
         mood_scores = []
+        scored_samples: list[tuple[datetime, float]] = []
         for doc in mood_docs:
             mood_data = doc.to_dict()
             # CRITICAL FIX: Get score from user input (1-10 scale), not sentiment score
@@ -274,29 +315,27 @@ def get_dashboard_summary(user_id: str):
                 except (ValueError, TypeError):
                     pass
 
+            # Parse timestamp once (UTC-aware) for weekly window + sparkline samples
+            mood_time = _parse_to_utc_datetime(mood_data.get('timestamp'))
+
             # Add to scores if valid
             if final_score is not None:
                 final_score = max(1, min(10, final_score))  # Clamp to 1-10
                 mood_scores.append(final_score)
+                if mood_time is not None:
+                    scored_samples.append((mood_time, final_score))
 
-            # Check if mood is from this week
-            timestamp = mood_data.get('timestamp')
-            if timestamp:
-                try:
-                    if hasattr(timestamp, 'timestamp'):
-                        mood_time = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC)
-                    elif isinstance(timestamp, str):
-                        mood_time = datetime.fromisoformat(str(timestamp).replace('Z', '+00:00'))
-                    else:
-                        mood_time = timestamp if hasattr(timestamp, 'date') else None
-
-                    if mood_time and mood_time >= week_start:
-                        weekly_progress += 1
-                except Exception as e:
-                    logger.debug(f"⚠️ Failed to parse timestamp: {e}")
+            # Check if mood is from the current calendar week (local time)
+            if mood_time and mood_time >= week_start:
+                weekly_progress += 1
 
         if mood_scores:
             average_mood = round(sum(mood_scores) / len(mood_scores), 1)
+
+        # Build chronological mood samples for the dashboard sparkline so the
+        # trend line and the average are derived from the same dataset.
+        scored_samples.sort(key=lambda item: item[0])
+        mood_trend_samples = [round(score, 1) for _, score in scored_samples[-14:]] if scored_samples else []
 
         # Fetch chat history count
         # CRITICAL FIX: Chats are stored in user subcollection as 'conversations'
@@ -318,24 +357,14 @@ def get_dashboard_summary(user_id: str):
             logged_dates = set()
             for doc in mood_docs:
                 mood_data = doc.to_dict()
-                timestamp = mood_data.get('timestamp')
-                if timestamp:
-                    try:
-                        if hasattr(timestamp, 'date'):
-                            mood_date = timestamp.date()
-                        elif hasattr(timestamp, 'timestamp'):
-                            mood_date = datetime.fromtimestamp(timestamp.timestamp(), tz=UTC).date()
-                        elif isinstance(timestamp, str):
-                            mood_date = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).date()
-                        else:
-                            continue
-                        logged_dates.add(mood_date)
-                    except Exception:
-                        continue
+                # Use local-timezone date so day boundaries match the user's clock
+                mood_date = _to_local_date(mood_data.get('timestamp'))
+                if mood_date is not None:
+                    logged_dates.add(mood_date)
 
             # Count consecutive days - start from today or yesterday
             # (if user logged yesterday but not today yet, still count the streak)
-            today = datetime.now(UTC).date()
+            today = datetime.now(LOCAL_TZ).date()
             yesterday = today - timedelta(days=1)
 
             # Start from today if logged today, otherwise start from yesterday
@@ -469,10 +498,18 @@ def get_dashboard_summary(user_id: str):
                 'description': title
             })
 
-        # Sort by timestamp descending so most recent appears first
-        # Filter out entries with invalid timestamps before sorting
-        valid_activity = [a for a in recent_activity if a.get('timestamp') and a['timestamp'] not in ('', 'None', 'null')]
-        valid_activity.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        # Sort by timestamp descending so most recent appears first.
+        # Parse each timestamp to a comparable UTC datetime so mixed formats
+        # (mood isoformat with offset vs. chat raw strings) order correctly.
+        epoch = datetime.min.replace(tzinfo=UTC)
+        valid_activity = [
+            a for a in recent_activity
+            if a.get('timestamp') and a['timestamp'] not in ('', 'None', 'null')
+        ]
+        valid_activity.sort(
+            key=lambda x: _parse_to_utc_datetime(x.get('timestamp')) or epoch,
+            reverse=True,
+        )
         recent_activity = valid_activity
 
         response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
@@ -486,6 +523,7 @@ def get_dashboard_summary(user_id: str):
             'weeklyProgress': weekly_progress,
             'wellnessGoals': wellness_goals,
             'recentActivity': recent_activity,
+            'moodTrendSamples': mood_trend_samples,
             'cached': False,
             'responseTime': round(response_time, 2)
         }

@@ -751,7 +751,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 <button
                   key={action}
                   onClick={() => handleQuickAction(action)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 rounded-full transition-colors"
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   {action}
                 </button>

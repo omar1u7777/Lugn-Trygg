@@ -95,7 +95,7 @@ export const JournalingPrompt: React.FC<JournalingPromptProps> = ({ onClose, use
                       : [...prev, tag]
                   );
                 }}
-                className={`px-3 py-1 rounded-full text-sm transition-all ${journalTags.includes(tag)
+                className={`px-3 py-1 rounded-full text-sm transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${journalTags.includes(tag)
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
                   } `}

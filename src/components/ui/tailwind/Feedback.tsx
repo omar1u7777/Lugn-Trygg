@@ -55,7 +55,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         {onClose && (
           <button
             onClick={onClose}
-            className="flex-shrink-0 ml-auto -mt-0.5 -mr-1 p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            className="flex-shrink-0 ml-auto -mt-0.5 -mr-1 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <XMarkIcon className="w-4 h-4" />
           </button>

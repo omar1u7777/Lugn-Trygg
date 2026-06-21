@@ -496,7 +496,7 @@ const MoodAnalytics: React.FC = () => {
             </h2>
             <div className="flex gap-2">
               <button
-                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 onClick={() => {
                   if (calendarMonth === 0) {
                     setCalendarMonth(11);
@@ -513,7 +513,7 @@ const MoodAnalytics: React.FC = () => {
                 {new Date(calendarYear, calendarMonth).toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
               </span>
               <button
-                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 onClick={() => {
                   if (calendarMonth === 11) {
                     setCalendarMonth(0);
@@ -569,7 +569,7 @@ const MoodAnalytics: React.FC = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   activeTab === tab
                     ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-300 shadow'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -1017,7 +1017,7 @@ const MoodAnalytics: React.FC = () => {
                     </h3>
                     <div className="flex gap-2">
                       <button
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm"
+                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                         onClick={() => { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); } else { setCalendarMonth(m => m - 1); } }}
                         aria-label="Föregående månad"
                       >&lt;</button>
@@ -1025,7 +1025,7 @@ const MoodAnalytics: React.FC = () => {
                         {new Date(calendarYear, calendarMonth).toLocaleString('sv-SE', { month: 'long', year: 'numeric' })}
                       </span>
                       <button
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm"
+                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                         onClick={() => { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else { setCalendarMonth(m => m + 1); } }}
                         aria-label="Nästa månad"
                       >&gt;</button>

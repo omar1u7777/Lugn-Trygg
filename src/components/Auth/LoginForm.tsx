@@ -181,6 +181,7 @@ const LoginForm = () => {
       const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${MESSAGES.GOOGLE_LOGIN_FAILED}: ${errorMessage}`, "assertive");
+    } finally {
       setLoading(false);
     }
   };

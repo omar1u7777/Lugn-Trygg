@@ -288,7 +288,7 @@ export const ClinicalAssessment: React.FC = () => {
             {!historyLoading && historyError && (
               <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400 flex items-center justify-between">
                 <span>{historyError}</span>
-                <button onClick={loadHistory} className="ml-3 underline text-xs">Försök igen</button>
+                <button onClick={loadHistory} className="ml-3 underline text-xs min-h-[44px] min-w-[44px] px-2 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors">Försök igen</button>
               </div>
             )}
 
@@ -415,7 +415,7 @@ export const ClinicalAssessment: React.FC = () => {
                         <button
                           key={option.value}
                           onClick={() => setResponses(prev => ({ ...prev, [q.id]: option.value }))}
-                          className={`p-2 rounded-lg text-left text-sm transition-colors ${
+                          className={`p-2 rounded-lg text-left text-sm transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
                             responses[q.id] === option.value
                               ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
                               : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'

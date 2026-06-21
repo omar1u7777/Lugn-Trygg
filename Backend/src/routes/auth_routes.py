@@ -100,6 +100,47 @@ def _verify_current_password(email: str, password: str) -> bool:
         logger.error(f"Current password verification failed: {str(e)}")
         return False
 
+
+# TOTP secret encryption at rest (HIPAA). Encrypted values are prefixed with
+# "enc:" so legacy plaintext secrets remain readable during migration.
+_TOTP_ENC_PREFIX = "enc:"
+
+
+def _get_totp_cipher():
+    """Return a Fernet cipher for TOTP secrets, or None if no key is configured."""
+    import os
+    key = os.getenv("HIPAA_ENCRYPTION_KEY")
+    if not key:
+        return None
+    try:
+        from cryptography.fernet import Fernet
+        return Fernet(key.encode())
+    except Exception as e:
+        logger.error(f"Failed to initialize TOTP cipher: {str(e)}")
+        return None
+
+
+def _encrypt_totp_secret(secret: str) -> str:
+    """Encrypt a TOTP secret for storage. Falls back to plaintext only if no key is set."""
+    cipher = _get_totp_cipher()
+    if not cipher:
+        logger.warning("HIPAA_ENCRYPTION_KEY missing; storing TOTP secret without encryption.")
+        return secret
+    return _TOTP_ENC_PREFIX + cipher.encrypt(secret.encode()).decode()
+
+
+def _decrypt_totp_secret(stored: str) -> str:
+    """Decrypt a stored TOTP secret. Legacy plaintext values are returned as-is."""
+    if not stored:
+        return stored
+    if not stored.startswith(_TOTP_ENC_PREFIX):
+        # Legacy plaintext secret stored before encryption-at-rest was added.
+        return stored
+    cipher = _get_totp_cipher()
+    if not cipher:
+        raise ValueError("Cannot decrypt TOTP secret: HIPAA_ENCRYPTION_KEY is not configured")
+    return cipher.decrypt(stored[len(_TOTP_ENC_PREFIX):].encode()).decode()
+
 @auth_bp.route('/register', methods=['POST', 'OPTIONS'])
 @rate_limit_by_endpoint
 @validate_request(RegisterRequest)
@@ -253,10 +294,8 @@ def login_user(validated_data):
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict() if user_doc.exists else {}
 
-            # Update last_login timestamp (set with merge=True to handle missing docs)
-            db.collection('users').document(user.uid).set({
-                'last_login': datetime.now(UTC).isoformat()
-            }, merge=True)
+            # NOTE: last_login is already updated inside AuthService.login_user()
+            # via AuthRepository.update_last_login(); no second write needed here.
 
         except Exception as db_error:
             logger.error(f"Failed to fetch/update user data during login: {str(db_error)}")
@@ -276,7 +315,7 @@ def login_user(validated_data):
 
         audit_log('login_successful', user.uid, {
             'email': _mask_email(user.email),
-            'two_factor_required': False
+            'two_factor_enabled': user_data.get('two_factor_enabled', False)
         })
 
         response = APIResponse.success(response_data, "Inloggning lyckades")
@@ -327,9 +366,10 @@ def verify_2fa():
             if not user_doc.exists:
                 return APIResponse.not_found('User not found')
             user_data = user_doc.to_dict() or {}
-            totp_secret = user_data.get('two_factor_secret') or user_data.get('totp_secret')
-            if not totp_secret:
+            totp_secret_stored = user_data.get('two_factor_secret') or user_data.get('totp_secret')
+            if not totp_secret_stored:
                 return APIResponse.bad_request('TOTP not configured for this account')
+            totp_secret = _decrypt_totp_secret(totp_secret_stored)
             import pyotp
             totp = pyotp.TOTP(totp_secret)
             verified = totp.verify(code, valid_window=1)
@@ -1085,9 +1125,9 @@ def setup_2fa():
             img.save(buffered, "PNG")
             qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-            # Store secret temporarily (will be confirmed later)
+            # Store secret temporarily (will be confirmed later) - encrypted at rest
             db.collection('users').document(user_id).update({
-                'temp_2fa_secret': secret,
+                'temp_2fa_secret': _encrypt_totp_secret(secret),
                 'temp_2fa_method': 'totp',
                 'temp_2fa_created_at': datetime.now(UTC).isoformat()
             })
@@ -1145,12 +1185,15 @@ def verify_2fa_setup():
             if not user_data:
                 return APIResponse.not_found('User not found', 'USER_NOT_FOUND')
 
-            temp_secret = user_data.get('temp_2fa_secret')
+            temp_secret_stored = user_data.get('temp_2fa_secret')
             temp_method = user_data.get('temp_2fa_method')
             temp_created_at = user_data.get('temp_2fa_created_at')
 
-            if not temp_secret or temp_method != 'totp':
+            if not temp_secret_stored or temp_method != 'totp':
                 return APIResponse.bad_request('2FA setup not initiated')
+
+            # Decrypt the stored TOTP secret (handles legacy plaintext too)
+            temp_secret = _decrypt_totp_secret(temp_secret_stored)
 
             # Check if temp setup is not expired (5 minutes)
             if temp_created_at:
@@ -1170,11 +1213,11 @@ def verify_2fa_setup():
                 audit_log('2fa_verification_failed', user_id, {'reason': 'invalid_code'})
                 return APIResponse.unauthorized('Invalid verification code')
 
-            # Complete 2FA setup
+            # Complete 2FA setup - store secret encrypted at rest
             db.collection('users').document(user_id).update({
                 'two_factor_enabled': True,
                 'two_factor_method': 'totp',
-                'two_factor_secret': temp_secret,
+                'two_factor_secret': _encrypt_totp_secret(temp_secret),
                 'two_factor_enabled_at': datetime.now(UTC).isoformat(),
                 # Clean up temp data
                 'temp_2fa_secret': None,
@@ -1317,6 +1360,22 @@ def delete_account(user_id):
         # Users can only delete their own account
         if current_user_id != user_id:
             return APIResponse.forbidden('Obehörig')
+
+        # Re-authenticate with current password to prevent token-only account
+        # destruction (a stolen access token must not be enough to delete data).
+        data = request.get_json(silent=True) or {}
+        password = (data.get('password') or '').strip()
+        if not password:
+            return APIResponse.bad_request('Lösenord krävs för att radera kontot')
+
+        user, verify_error = AuthService.verify_user_identity(user_id)
+        if verify_error or not user:
+            audit_log('account_deletion_failed', user_id, {'reason': 'user_verification_failed'})
+            return APIResponse.unauthorized('User verification failed')
+
+        if not _verify_current_password(user.email, password):
+            audit_log('account_deletion_failed', user_id, {'reason': 'invalid_password'})
+            return APIResponse.unauthorized('Current password is incorrect')
 
         try:
             from ..firebase_config import db

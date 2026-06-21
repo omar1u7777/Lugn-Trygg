@@ -1,10 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PlayIcon } from '@heroicons/react/24/outline';
 import { useBreathingExercise } from '../../hooks/useBreathingExercise';
 import { BiofeedbackBreathingCircle } from '../BiofeedbackBreathingCircle';
 import { getBreathingPhases } from '../../constants/recommendations';
-import { formatTime } from '../../constants/recommendationsConstants';
 import { logger } from '../../utils/logger';
 
 interface BreathingExerciseProps {
@@ -24,7 +22,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   initialCycles = 4,
   initialStressBefore = null 
 }) => {
-  const { t } = useTranslation();
+  const { _t } = useTranslation();
   
   // Advanced state
   const [selectedBreathingCycles, setSelectedBreathingCycles] = useState<4 | 8 | 12>(initialCycles);
@@ -41,7 +39,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
 
   const {
     phase: breathingPhase,
-    totalSeconds,
+    totalSeconds: _totalSeconds,
     phaseSecondsLeft,
     isActive: isBreathingActive,
     isPaused: isBreathingPaused,
@@ -68,7 +66,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   const playPhaseTone = useCallback((phase: string) => {
     if (!breathingUseSound || typeof window === 'undefined') return;
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
 
     try {
@@ -150,14 +148,14 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
           <button
             type="button"
             onClick={() => setUseBiofeedbackMode(false)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${!useBiofeedbackMode ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-blue-100'}`}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${!useBiofeedbackMode ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-blue-100'}`}
           >
             🫁 Grundläge
           </button>
           <button
             type="button"
             onClick={() => setUseBiofeedbackMode(true)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${useBiofeedbackMode ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${useBiofeedbackMode ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
           >
             💜 HRV Biofeedback
           </button>
@@ -180,7 +178,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                   key={key}
                   type="button"
                   onClick={() => setBiofeedbackPattern(key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${biofeedbackPattern === key ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${biofeedbackPattern === key ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
                 >
                   {label}
                   <span className="ml-1 opacity-70 text-[10px]">({subtitle}s)</span>
@@ -210,21 +208,21 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
             <button
               type="button"
               onClick={() => setBreathingUseSound(prev => !prev)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${breathingUseSound ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${breathingUseSound ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             >
               {breathingUseSound ? '🔊 Ljud på' : '🔈 Ljud av'}
             </button>
             <button
               type="button"
               onClick={() => setBreathingUseHaptics(prev => !prev)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${breathingUseHaptics ? 'bg-emerald-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${breathingUseHaptics ? 'bg-emerald-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             >
               {breathingUseHaptics ? '📳 Haptik på' : '📴 Haptik av'}
             </button>
             <button
               type="button"
               onClick={() => setIsBreathingFullscreen(prev => !prev)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               {isBreathingFullscreen ? '🗗 Avsluta helskärm' : '🗖 Helskärm'}
             </button>

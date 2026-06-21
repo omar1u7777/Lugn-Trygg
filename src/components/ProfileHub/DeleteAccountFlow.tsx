@@ -13,7 +13,7 @@ import { logger } from '../../utils/logger';
 type DeleteStep = 'warning' | 'confirm' | 'cooldown' | 'done' | 'support';
 
 interface DeleteAccountFlowProps {
-  onDelete: () => Promise<void>;
+  onDelete: (password: string) => Promise<void>;
   onCancel: () => void;
   isOpen: boolean;
 }
@@ -39,6 +39,8 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const [cooldownHours, setCooldownHours] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [hasScheduled, setHasScheduled] = useState(false);
 
   // Calculate remaining time
@@ -81,16 +83,23 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
     if (confirmText !== 'RADERA') {
       return;
     }
+    if (!password) {
+      setDeleteError(t('profileHub.passwordRequired', 'Lösenord krävs för att radera kontot'));
+      return;
+    }
 
+    setDeleteError('');
     setIsDeleting(true);
     try {
-      // Schedule deletion with cooling period
-      await onDelete();
+      // Schedule deletion with cooling period (password re-authenticates the user)
+      await onDelete(password);
+      setPassword('');
       setHasScheduled(true);
       setStep('cooldown');
       logger.info('🗑️ DELETE ACCOUNT - Deletion scheduled with cooling period');
     } catch (error) {
       logger.error('❌ DELETE ACCOUNT - Failed to schedule deletion:', error);
+      setDeleteError(t('profileHub.deleteFailed', 'Radering misslyckades. Kontrollera ditt lösenord och försök igen.'));
       setIsDeleting(false);
     }
   };
@@ -194,6 +203,23 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
           />
         </div>
 
+        <div className="text-left mb-6">
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+            {t('profileHub.confirmWithPassword', 'Bekräfta med ditt lösenord:')}
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            placeholder={t('profileHub.passwordPlaceholder', 'Ditt lösenord')}
+          />
+          {deleteError && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+          )}
+        </div>
+
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -205,7 +231,7 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
           <Button
             variant="primary"
             onClick={handleConfirmDelete}
-            disabled={confirmText !== 'RADERA' || isDeleting}
+            disabled={confirmText !== 'RADERA' || !password || isDeleting}
             className="flex-1 bg-red-600 hover:bg-red-700 text-white"
           >
             {isDeleting ? t('common.loading', 'Laddar...') : t('profileHub.scheduleDeletion', 'Schemalägg radering')}

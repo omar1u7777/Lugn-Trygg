@@ -166,7 +166,7 @@ export const Leaderboard: React.FC = () => {
             <button
               onClick={fetchLeaderboard}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200 hover:bg-primary-200 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-primary-100 dark:bg-primary-900/20 text-primary-800 dark:text-primary-200 hover:bg-primary-200 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
               {isSwedish ? 'Uppdatera' : 'Refresh'}

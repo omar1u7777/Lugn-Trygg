@@ -104,7 +104,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
 
             {/* Settings Link */}
             <Link
-              to="/settings"
+              to="/profile"
               className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               onClick={() => setIsOpen(false)}
               role="menuitem"
@@ -145,7 +145,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isPremium, planLabel 
               role="menuitem"
             >
               <ArrowRightOnRectangleIcon className="w-5 h-5" />
-              <span>{t('navigation.pause')}</span>
+              <span>{t('navigation.logout')}</span>
             </button>
           </div>
         </div>

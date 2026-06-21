@@ -316,21 +316,28 @@ describe('verify2FASetup', () => {
 describe('deleteAccount', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('calls delete endpoint with userId', async () => {
+  it('calls delete endpoint with userId and password body', async () => {
     mockApi.delete.mockResolvedValueOnce({ data: { success: true } });
 
-    await deleteAccount('user123');
-    expect(mockApi.delete).toHaveBeenCalledWith(expect.stringContaining('user123'));
+    await deleteAccount('user123', 'secret-pass');
+    expect(mockApi.delete).toHaveBeenCalledWith(
+      expect.stringContaining('user123'),
+      { data: { password: 'secret-pass' } }
+    );
   });
 
   it('throws when userId is empty', async () => {
-    await expect(deleteAccount('')).rejects.toThrow();
+    await expect(deleteAccount('', 'secret-pass')).rejects.toThrow();
+  });
+
+  it('throws when password is empty', async () => {
+    await expect(deleteAccount('user123', '')).rejects.toThrow();
   });
 
   it('throws on API error', async () => {
     mockApi.delete.mockRejectedValueOnce(new Error('Not found'));
 
-    await expect(deleteAccount('user123')).rejects.toThrow();
+    await expect(deleteAccount('user123', 'secret-pass')).rejects.toThrow();
   });
 });
 

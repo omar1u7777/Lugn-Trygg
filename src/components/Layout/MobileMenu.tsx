@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
+import { useFocusTrap } from '../Accessibility/SkipLink';
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -10,6 +11,10 @@ interface MobileMenuProps {
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, children }) => {
   const { t } = useTranslation();
+  const menuPanelRef = useRef<HTMLDivElement>(null);
+
+  // Aktivera fokus-trap när menyn öppnas
+  useFocusTrap(menuPanelRef);
 
   // Förhindra scrollning när menyn är öppen
   useEffect(() => {
@@ -47,6 +52,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, children }) =>
 
       {/* Menu Panel */}
       <div
+        ref={menuPanelRef}
         className="fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-[140] animate-slide-in-right"
         role="dialog"
         aria-modal="true"

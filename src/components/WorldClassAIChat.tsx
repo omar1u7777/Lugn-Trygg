@@ -165,7 +165,7 @@ const MessageBubble: React.FC<{
   isSpeaking?: boolean;
   onSpeak?: () => void;
   onStopSpeak?: () => void;
-}> = ({ message, isLast, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
+}> = ({ message, _isLast, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
   const isUser = message.role === 'user';
   const showSpeakButton = !isUser && !isStreaming && ttsSupported && (message.content?.trim().length ?? 0) > 0;
 
@@ -313,7 +313,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   } = useTextToSpeech({ language: speechLang });
 
   const { 
-    isLoaded: cacheLoaded, 
+    isLoaded: _cacheLoaded, 
     getCachedMessages, 
     addToCache, 
     syncWithServer 
@@ -383,7 +383,6 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     }, 5000); // 5 second max loading time
 
     return () => clearTimeout(safetyTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
@@ -415,7 +414,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         if (!isMountedRef.current) return [];
         
         const history = historyResponse?.conversation || [];
-        const formatted: ChatMessage[] = (history || []).map((msg: any, i: number) => {
+        const formatted: ChatMessage[] = (history || []).map((msg: { timestamp?: unknown; role?: string; content?: string }, i: number) => {
           // Helper to safely parse timestamp
           const ts = msg?.timestamp;
           let timestamp: Date;
@@ -708,7 +707,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   }
                 }}
                 aria-label={isListening ? 'Stoppa röstinspelning' : 'Starta röstinspelning'}
-                className={`flex-shrink-0 p-3 rounded-full transition-all ${
+                className={`flex-shrink-0 p-3 rounded-full transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   isListening
                     ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'

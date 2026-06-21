@@ -78,13 +78,18 @@ const createAuthError = (error: unknown, defaultMessage: string): AuthError => {
   return new AuthError(message, statusCode, error);
 };
 
-// Utility functions for onboarding data management
+// localStorage keys that must survive logout (non-auth user preferences).
+const PRESERVED_KEYS = ["consent_given"];
+const PRESERVED_PREFIXES = ["onboarding_"];
+
+// Utility functions for preserving non-auth data across logout.
 const saveOnboardingData = (): Record<string, string> => {
-  const onboardingKeys = Object.keys(localStorage).filter(key =>
-    key.startsWith("onboarding_")
+  const keysToPreserve = Object.keys(localStorage).filter(key =>
+    PRESERVED_PREFIXES.some(prefix => key.startsWith(prefix)) ||
+    PRESERVED_KEYS.includes(key)
   );
   const saved: Record<string, string> = {};
-  onboardingKeys.forEach(key => {
+  keysToPreserve.forEach(key => {
     const value = localStorage.getItem(key);
     if (value !== null) saved[key] = value;
   });
@@ -419,13 +424,19 @@ export const exportUserData = async (): Promise<ExportDataResponse> => {
  * @returns Promise resolving to account deletion response
  * @throws AuthError if account deletion fails
  */
-export const deleteAccount = async (userId: string): Promise<Record<string, unknown>> => {
+export const deleteAccount = async (userId: string, password: string): Promise<Record<string, unknown>> => {
   if (!userId || typeof userId !== 'string') {
     throw new AuthError("Invalid user ID provided for account deletion");
   }
+  if (!password || typeof password !== 'string') {
+    throw new AuthError("Password is required to delete account");
+  }
 
   try {
-    const response = await api.delete(`${API_ENDPOINTS.AUTH.DELETE_ACCOUNT}/${userId}`);
+    // Password sent in request body for re-authentication (prevents token-only deletion)
+    const response = await api.delete(`${API_ENDPOINTS.AUTH.DELETE_ACCOUNT}/${userId}`, {
+      data: { password },
+    });
     return response.data;
   } catch (error: unknown) {
     throw createAuthError(error, "Account deletion failed");

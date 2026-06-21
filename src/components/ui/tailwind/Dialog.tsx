@@ -269,7 +269,7 @@ export const Snackbar: React.FC<SnackbarProps> = ({
           <span>{message}</span>
           <button
             onClick={onClose}
-            className="ml-2 p-1 rounded hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            className="ml-2 p-2 rounded hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Stäng notis"
             type="button"
           >

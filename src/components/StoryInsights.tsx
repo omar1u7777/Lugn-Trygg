@@ -248,7 +248,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
         navigate('/wellness');
         break;
       case 'Logga nu':
-        navigate('/mood');
+        navigate('/mood-basic');
         break;
     }
 
@@ -338,7 +338,7 @@ const StoryInsights = ({ userId }: StoryInsightsProps) => {
                       )}
                     </div>
 
-                    <Chip label={insight.type} size="small" variant="outline" className="capitalize" />
+                    <Chip label={insight.type} size="sm" variant="outline" className="capitalize" />
                   </div>
 
                   <Typography variant="body1" className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">

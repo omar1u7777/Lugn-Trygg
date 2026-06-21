@@ -43,7 +43,6 @@ import { useGratitude } from '../hooks/useGratitude';
 import {
   EMPTY_WELLNESS_GOALS,
   type RecommendationFeedback,
-  formatTime,
   formatReadingTime,
   formatPomodoroTime,
 } from '../constants/recommendationsConstants';
@@ -114,7 +113,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     });
   }, [user?.user_id, saveUserProgress]);
 
-  const [selectedBreathingCycles, setSelectedBreathingCycles] = useState<4 | 8 | 12>(4);
+  const [selectedBreathingCycles, _setSelectedBreathingCycles] = useState<4 | 8 | 12>(4);
   const [breathingStressBefore, setBreathingStressBefore] = useState<number | null>(null);
   const [breathingStressAfter, setBreathingStressAfter] = useState<number | null>(null);
   const breathingOutcomeSyncedRef = useRef(false);
@@ -319,8 +318,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
 
   // KBT Exercise State
-  const [kbtBeliefBefore, setKbtBeliefBefore] = useState<number | null>(null);
-  const [kbtStressBefore, setKbtStressBefore] = useState<number | null>(null);
+  const [kbtBeliefBefore, _setKbtBeliefBefore] = useState<number | null>(null);
+  const [kbtStressBefore, _setKbtStressBefore] = useState<number | null>(null);
 
   // Journal History Handler
   const handleLoadJournalHistory = useCallback(async () => {
@@ -743,7 +742,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   };
 
   // Crisis detection - comprehensive Swedish/English keywords
-  const detectCrisis = (text: string) => {
+  const _detectCrisis = (text: string) => {
     const crisisKeywords = [
       // Swedish suicide/self-harm
       'självmord', 'suicide', 'självskada', 'self harm', 'dö', 'die',
@@ -1483,7 +1482,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="mt-6 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">🌱 Beteendeaktivering</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400">Avbryt</button>
+              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Avbryt</button>
             </div>
             <div className="mb-3 flex gap-1">
               {[1,2,3,4].map(s => (
@@ -1571,7 +1570,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex gap-1 flex-wrap">
                     {[1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setBaPleasureRating(n)}
-                        className={`w-9 h-9 rounded-full text-sm font-medium transition-colors ${baPleasureRating === n ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100'}`}>
+                        className={`min-h-[44px] min-w-[44px] rounded-full text-sm font-medium transition-colors ${baPleasureRating === n ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100'}`}>
                         {n}
                       </button>
                     ))}
@@ -1604,7 +1603,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="mt-6 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-purple-900 dark:text-purple-200">⏰ Bekymmelsetid</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400">Avbryt</button>
+              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Avbryt</button>
             </div>
             <div className="mb-3 flex gap-1">
               {[1,2,3,4].map(s => (
@@ -1993,7 +1992,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleRecommendationAction(recommendation, 'save')}
-                      className={`p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${recommendation.saved
+                      className={`p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center ${recommendation.saved
                         ? 'text-yellow-600 dark:text-yellow-500'
                         : 'text-gray-400 dark:text-gray-500'
                         }`}
@@ -2007,7 +2006,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     </button>
                     <button
                       onClick={() => handleRecommendationAction(recommendation, 'share')}
-                      className="p-2 rounded-lg text-gray-400 dark:text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                      className="p-2 rounded-lg text-gray-400 dark:text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       aria-label="Share recommendation"
                     >
                       <ShareIcon className="w-5 h-5" aria-hidden="true" />

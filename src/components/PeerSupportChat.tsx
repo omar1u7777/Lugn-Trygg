@@ -585,7 +585,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                               <div className="flex items-center gap-2 mt-3">
                                 <button
                                   onClick={() => handleLikeMessage(msg.id)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                   aria-label={`Like message from ${msg.anonymous_name}`}
                                 >
                                   {msg.likes > 0 ? (
@@ -602,7 +602,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
                                 {msg.session_id !== session.session_id && (
                                   <button
                                     onClick={() => setShowReportDialog(msg.id)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                     aria-label="Report message"
                                   >
                                     <FlagIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
@@ -701,7 +701,7 @@ export const PeerSupportChat: React.FC<PeerSupportChatProps> = ({ userId }) => {
             </h2>
             <button
               onClick={() => setShowGuidelines(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Close dialog"
             >
               <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />
