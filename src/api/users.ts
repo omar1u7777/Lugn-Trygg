@@ -189,3 +189,50 @@ export const setNotificationSchedule = async (schedule: NotificationSchedule): P
     throw new Error(getApiErrorMessage(error, "Failed to set notification schedule"));
   }
 };
+
+// ============================================================================
+// Wellness Goals
+// ============================================================================
+
+export interface GoalStepCompletion {
+  completedAt: string;
+}
+
+export interface GoalStepCompletions {
+  [goalId: string]: {
+    [stepText: string]: GoalStepCompletion;
+  };
+}
+
+export interface WellnessGoalsResponse {
+  wellnessGoals: string[];
+  goalStepCompletions: GoalStepCompletions;
+}
+
+/**
+ * Complete or uncomplete a goal step
+ * @param goalId - The goal ID
+ * @param stepText - The step text to mark as completed/uncompleted
+ * @param completed - Whether to mark as completed (default: true)
+ * @returns Promise resolving to updated completions
+ * @throws Error if step completion update fails
+ */
+export const completeGoalStep = async (
+  goalId: string,
+  stepText: string,
+  completed: boolean = true
+): Promise<GoalStepCompletions> => {
+  logger.debug('completeGoalStep called', { goalId, stepText, completed });
+  try {
+    const response = await api.post<UserApiResponse<{ goalStepCompletions: GoalStepCompletions }>>(
+      API_ENDPOINTS.USERS.WELLNESS_GOALS_STEPS,
+      { goalId, stepText, completed }
+    );
+    logger.debug('Goal step completion updated successfully');
+    const data = response.data?.data || response.data;
+    return data.goalStepCompletions;
+  } catch (error: unknown) {
+    logger.error("Complete goal step error:", error);
+    throw new Error(getApiErrorMessage(error, "Failed to update goal step completion"));
+  }
+};

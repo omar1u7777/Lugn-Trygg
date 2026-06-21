@@ -290,7 +290,7 @@ def set_notification_schedule():
 @AuthService.jwt_required
 @rate_limit_by_endpoint
 def get_wellness_goals():
-    """🎯 Get user's wellness goals"""
+    """🎯 Get user's wellness goals with step completions"""
     user_id = g.get('user_id')
     if not user_id:
         return APIResponse.unauthorized("Authentication required")
@@ -303,10 +303,11 @@ def get_wellness_goals():
 
         if not user_doc.exists:
             logger.warning(f"User not found: {user_id}")
-            return APIResponse.success({"wellnessGoals": []}, "Wellness goals retrieved")
+            return APIResponse.success({"wellnessGoals": [], "goalStepCompletions": {}}, "Wellness goals retrieved")
 
         user_data = user_doc.to_dict()
         wellness_goals = user_data.get('wellnessGoals', [])
+        goal_step_completions = user_data.get('goalStepCompletions', {})
 
         audit_log(
             event_type="WELLNESS_GOALS_RETRIEVED",
@@ -315,7 +316,10 @@ def get_wellness_goals():
         )
 
         logger.info(f"✅ USERS - Wellness goals retrieved: {wellness_goals}")
-        return APIResponse.success({"wellnessGoals": wellness_goals}, "Wellness goals retrieved")
+        return APIResponse.success(
+            {"wellnessGoals": wellness_goals, "goalStepCompletions": goal_step_completions},
+            "Wellness goals retrieved"
+        )
     except Exception as e:
         logger.exception(f"Failed to get wellness goals: {e}")
         return APIResponse.error("Failed to get wellness goals", "INTERNAL_ERROR", 500)
@@ -352,6 +356,7 @@ def set_wellness_goals():
             user_ref.set({
                 'user_id': user_id,
                 'wellnessGoals': goals,
+                'goalStepCompletions': {},  # Track completed steps per goal
                 'createdAt': SERVER_TIMESTAMP,
                 'updatedAt': SERVER_TIMESTAMP
             })
@@ -373,6 +378,65 @@ def set_wellness_goals():
     except Exception as e:
         logger.exception(f"❌ Failed to save wellness goals: {e}")
         return APIResponse.error("Failed to save wellness goals", "INTERNAL_ERROR", 500)
+
+
+@users_bp.route('/wellness-goals/steps', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def complete_goal_step():
+    """🎯 Mark a goal step as completed"""
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    logger.info(f"🎯 USERS - Complete goal step for user: {user_id}")
+
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return APIResponse.bad_request("Invalid JSON")
+
+        goal_id = data.get('goalId')
+        step_text = data.get('stepText')
+        completed = data.get('completed', True)
+
+        if not goal_id or not step_text:
+            return APIResponse.bad_request("goalId and stepText are required")
+
+        user_ref = db.collection('users').document(user_id)  # type: ignore
+        user_doc = user_ref.get()
+
+        if not user_doc.exists:
+            return APIResponse.not_found("User not found")
+
+        user_data = user_doc.to_dict()
+        goal_step_completions = user_data.get('goalStepCompletions', {})
+
+        # Initialize goal completion tracking if not exists
+        if goal_id not in goal_step_completions:
+            goal_step_completions[goal_id] = {}
+
+        # Mark step as completed or uncompleted
+        if completed:
+            goal_step_completions[goal_id][step_text] = {
+                'completedAt': datetime.now(UTC).isoformat()
+            }
+        else:
+            goal_step_completions[goal_id].pop(step_text, None)
+
+        user_ref.update({
+            'goalStepCompletions': goal_step_completions,
+            'updatedAt': SERVER_TIMESTAMP
+        })
+
+        logger.info(f"✅ Goal step completion updated: {goal_id} - {step_text}")
+        return APIResponse.success(
+            {"goalStepCompletions": goal_step_completions},
+            "Goal step completion updated"
+        )
+    except Exception as e:
+        logger.exception(f"❌ Failed to update goal step completion: {e}")
+        return APIResponse.error("Failed to update goal step completion", "INTERNAL_ERROR", 500)
 
 
 # ============================================================================

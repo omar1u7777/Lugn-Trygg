@@ -236,13 +236,19 @@ def get_dashboard_summary(user_id: str):
         user_doc = user_ref.get()
 
         wellness_goals = []
+        goal_step_completions = {}
         if user_doc.exists:
             user_data = user_doc.to_dict()
             wellness_goals = user_data.get('wellnessGoals', [])
+            goal_step_completions = user_data.get('goalStepCompletions', {})
             # Validate wellness_goals is a list
             if not isinstance(wellness_goals, list):
                 logger.warning(f"⚠️ wellness_goals is not a list: {type(wellness_goals)}")
                 wellness_goals = []
+            # Validate goal_step_completions is a dict
+            if not isinstance(goal_step_completions, dict):
+                logger.warning(f"⚠️ goal_step_completions is not a dict: {type(goal_step_completions)}")
+                goal_step_completions = {}
 
         # Fetch mood data (last 30 days)
         # CRITICAL FIX: Moods are stored in user subcollection, not root collection
@@ -527,6 +533,7 @@ def get_dashboard_summary(user_id: str):
             'weeklyGoal': user_data.get('weeklyGoal', 7) if user_doc.exists else 7,
             'weeklyProgress': weekly_progress,
             'wellnessGoals': wellness_goals,
+            'goalStepCompletions': goal_step_completions,
             'recentActivity': recent_activity,
             'moodTrendSamples': mood_trend_samples,
             'cached': False,
