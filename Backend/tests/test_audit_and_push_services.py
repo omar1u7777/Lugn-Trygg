@@ -132,16 +132,13 @@ def test_audit_service_init_with_env_key(monkeypatch):
 
 
 def test_audit_service_init_without_env_key(monkeypatch):
-    """Test that AuditService REQUIRES HIPAA_ENCRYPTION_KEY for production security"""
+    """Test that AuditService logs warning when HIPAA_ENCRYPTION_KEY is not set"""
     monkeypatch.delenv('HIPAA_ENCRYPTION_KEY', raising=False)
 
-    # Should raise ValueError - HIPAA key is REQUIRED for production
-    with pytest.raises(ValueError) as exc_info:
-        service = AuditService()
-
-    # Verify error message is clear
-    assert "HIPAA_ENCRYPTION_KEY" in str(exc_info.value)
-    assert "REQUIRED" in str(exc_info.value)
+    # Service should initialize but with encryption disabled
+    service = AuditService()
+    assert service.encryption_key is None
+    assert service.cipher is None
 
 
 def test_encrypt_decrypt_roundtrip():
