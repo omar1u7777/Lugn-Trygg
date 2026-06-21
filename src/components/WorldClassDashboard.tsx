@@ -708,7 +708,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   {t('dashboard.updateGoals')}
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
                   const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
                   const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
