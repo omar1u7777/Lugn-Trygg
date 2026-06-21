@@ -765,9 +765,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                               navigate('/recommendations', { state: { goalFilter: goal } });
                             }
                           }}
-                          className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline flex-shrink-0 leading-tight"
+                          className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
+                          title={t('worldDashboard.seeRecommendations')}
                         >
-                          {featureLink && !isStepCompleted ? '→' : t('worldDashboard.seeRecommendations')}
+                          →
                         </button>
                       </div>
                     </div>
