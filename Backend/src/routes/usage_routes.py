@@ -115,9 +115,12 @@ def increment_chat_message():
     try:
         user_id = g.get("user_id")
         if not user_id:
+            logger.error("User ID not found in request context")
             return APIResponse.error("User ID not found", "UNAUTHORIZED", 401)
 
-        subscription_tier, _ = _get_user_subscription_tier(user_id)
+        logger.debug(f"Syncing chat message count for user: {user_id}")
+
+        subscription_tier, user_data = _get_user_subscription_tier(user_id)
         limits = get_subscription_limits(subscription_tier)
 
         # Read current count from System A — do NOT increment again
@@ -130,7 +133,12 @@ def increment_chat_message():
             "chat_messages": usage["chat_messages"],
             "limit": limits["chat_messages_per_day"],
         })
+    except RuntimeError as e:
+        # Firestore not initialized error
+        logger.error(f"Firestore not initialized: {e}")
+        audit_log("chat_increment_firestore_error", {"error": str(e), "user_id": user_id if 'user_id' in locals() else 'unknown'})
+        return APIResponse.error("Database connection error", "SERVICE_UNAVAILABLE", 503)
     except Exception as e:
-        logger.error(f"Error syncing chat message count: {e}")
-        audit_log("chat_increment_error", {"error": str(e)})
+        logger.error(f"Error syncing chat message count: {e}", exc_info=True)
+        audit_log("chat_increment_error", {"error": str(e), "user_id": user_id if 'user_id' in locals() else 'unknown'})
         return APIResponse.error("Failed to sync chat message count", "INTERNAL_ERROR", 500)
