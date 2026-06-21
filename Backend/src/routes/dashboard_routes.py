@@ -459,11 +459,16 @@ def get_dashboard_summary(user_id: str):
                 mood_text = mood_data.get('mood_text', '').lower()
                 score_display = _get_score_from_mood_text(mood_text)
 
+            # Use mood_text for user-friendly description
+            mood_text = mood_data.get('mood_text', 'Kände mig')
+            if not isinstance(mood_text, str):
+                mood_text = 'Kände mig'
+
             recent_activity.append({
                 'id': doc.id,
                 'type': 'mood',
                 'timestamp': timestamp_str,
-                'description': f"Humör loggat: {score_display}"
+                'description': mood_text
             })
 
         # Add recent chat sessions to activity so the general timeline isn't empty
