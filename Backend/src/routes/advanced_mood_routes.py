@@ -24,6 +24,7 @@ except ImportError:
 
 try:
     from src.services.clinical_assessment import (
+        ClinicalRiskStratification,
         GAD7Assessment,
         GAD7Result,
         PHQ9Assessment,
@@ -38,16 +39,16 @@ except ImportError:
     CLINICAL_AVAILABLE = False
 
 try:
-    from src.services.mood_nlp_service import get_mood_nlp
-    NLP_AVAILABLE = True
-except ImportError:
-    NLP_AVAILABLE = False
-
-try:
     from src.services.micro_journaling import get_micro_journaling_service, get_streak_gamification
     JOURNALING_AVAILABLE = True
 except ImportError:
     JOURNALING_AVAILABLE = False
+
+try:
+    from src.services.mood_nlp_service import get_mood_nlp
+    NLP_AVAILABLE = True
+except ImportError:
+    NLP_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
