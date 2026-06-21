@@ -167,6 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // ✅ FIX: Only navigate if not already on dashboard to prevent redirect loops
       if (window.location.pathname !== '/dashboard') {
         navigate("/dashboard");
+        // Scroll to top after navigation
+        window.scrollTo(0, 0);
       }
 
     } catch (error) {
