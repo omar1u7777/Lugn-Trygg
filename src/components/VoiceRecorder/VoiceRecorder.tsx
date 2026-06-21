@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';
+import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, getVoiceServiceStatus, saveVoiceRecording, VoiceServiceStatus } from '@/api/voice';
 import { logger } from '../../utils/logger';
 
 
@@ -7,12 +7,14 @@ interface VoiceRecorderProps {
   onTranscriptComplete?: (transcript: string, emotion?: string) => void;
   maxDuration?: number; // milliseconds
   autoAnalyzeEmotion?: boolean;
+  autoSaveRecording?: boolean;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   onTranscriptComplete,
   maxDuration = 10000, // 10 seconds default
   autoAnalyzeEmotion = true,
+  autoSaveRecording = true,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -103,8 +105,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           if (transcriptionResult.transcript) {
             setTranscript(transcriptionResult.transcript);
 
+            let emotionResult = null;
             if (autoAnalyzeEmotion) {
-              const emotionResult = await analyzeVoiceEmotionDetailed(
+              emotionResult = await analyzeVoiceEmotionDetailed(
                 base64Audio,
                 transcriptionResult.transcript
               );
@@ -116,6 +119,36 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             } else {
               if (onTranscriptComplete) {
                 onTranscriptComplete(transcriptionResult.transcript);
+              }
+            }
+
+            // Auto-save recording to Firestore
+            if (autoSaveRecording && transcriptionResult.transcript) {
+              try {
+                const saveData: any = {
+                  transcript: transcriptionResult.transcript,
+                  primary_emotion: emotionResult?.primaryEmotion || 'neutral',
+                  emotion_confidences: emotionResult?.emotions || {},
+                  energy_level: emotionResult?.energyLevel || 'medium',
+                  speaking_pace: emotionResult?.speakingPace || 'normal',
+                  volume_variation: emotionResult?.volumeVariation || 'moderate',
+                  audio_duration_ms: recordingTime,
+                  language: 'sv-SE',
+                };
+
+                // Only include valence/arousal if they exist
+                if (emotionResult?.valence !== undefined) {
+                  saveData.valence = emotionResult.valence;
+                }
+                if (emotionResult?.arousal !== undefined) {
+                  saveData.arousal = emotionResult.arousal;
+                }
+
+                await saveVoiceRecording(saveData);
+                logger.info('Voice recording saved to Firestore');
+              } catch (saveError) {
+                logger.error('Failed to save voice recording:', saveError);
+                // Don't show error to user, just log it
               }
             }
           } else if (transcriptionResult.fallback === 'web_speech_api') {

@@ -86,7 +86,7 @@ export const AIStoryDocSchema = z.object({
   user_id: z.string().min(1).max(128),
   title: safeStr(256),
   content: z.string().max(50_000).default(''),
-  mood_context: z.record(z.unknown()).default({}),
+  mood_context: z.record(z.string(), z.unknown()).default({}),
   model: safeStr(64),
   generated_at: timestampLike,
 }).passthrough();
@@ -176,7 +176,7 @@ export const JournalEntryDocSchema = z.object({
   user_id: z.string().min(1).max(128),
   content_encrypted: safeStr(100_000),
   title: safeStr(256),
-  mood_snapshot: z.record(z.unknown()).default({}),
+  mood_snapshot: z.record(z.string(), z.unknown()).default({}),
   tags: safeList(),
   word_count: z.number().int().min(0).max(100_000).default(0),
   created_at: timestampLike,
@@ -184,6 +184,26 @@ export const JournalEntryDocSchema = z.object({
 }).passthrough();
 
 export type JournalEntryDoc = z.infer<typeof JournalEntryDocSchema>;
+
+// ─── voice_recordings ───────────────────────────────────────────────────────────
+
+export const VoiceRecordingDocSchema = z.object({
+  id: safeStr(128),
+  user_id: z.string().min(1).max(128),
+  transcript: z.string().max(10_000).default(''),
+  primary_emotion: safeStrOpt(64),
+  emotion_confidences: z.record(z.string(), z.number()).default({}),
+  energy_level: z.enum(['low', 'medium', 'high']).default('medium'),
+  speaking_pace: z.enum(['slow', 'normal', 'fast']).default('normal'),
+  volume_variation: z.enum(['low', 'moderate', 'high']).default('moderate'),
+  valence: z.number().min(-1).max(1).optional().nullable(),
+  arousal: z.number().min(-1).max(1).optional().nullable(),
+  audio_duration_ms: z.number().int().min(0).max(60000).default(0),
+  language: safeStrOpt(16),
+  created_at: timestampLike,
+}).passthrough();
+
+export type VoiceRecordingDoc = z.infer<typeof VoiceRecordingDocSchema>;
 
 // ─── onboarding_data ─────────────────────────────────────────────────────────
 

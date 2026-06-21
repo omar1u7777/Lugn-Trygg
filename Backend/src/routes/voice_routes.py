@@ -6,6 +6,7 @@ import base64
 import logging
 
 from flask import Blueprint, g, request
+from google.cloud import firestore
 
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
@@ -497,3 +498,132 @@ def voice_service_status():
             "emotionAnalysis": True,
             "error": str(e)
         }, "Voice service status retrieved with errors")
+
+
+# ============================================================================
+# Save Voice Recording
+# ============================================================================
+
+@voice_bp.route('/save-recording', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def save_voice_recording():
+    """
+    Save voice recording analysis to Firestore
+
+    Request body:
+        transcript: Transcribed text
+        primary_emotion: Primary emotion detected
+        emotion_confidences: Dict of emotion confidence scores
+        energy_level: Energy level (low/medium/high)
+        speaking_pace: Speaking pace (slow/normal/fast)
+        volume_variation: Volume variation (low/moderate/high)
+        valence: Valence score (-1 to 1)
+        arousal: Arousal score (-1 to 1)
+        audio_duration_ms: Audio duration in milliseconds
+        language: Language code
+    """
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    data = request.get_json(silent=True)
+    if not data:
+        return APIResponse.bad_request("No data provided")
+
+    try:
+        from ..firebase_config import db
+
+        recording_data = {
+            'transcript': sanitize_text(data.get('transcript', ''), max_length=10000),
+            'primary_emotion': sanitize_text(data.get('primary_emotion', ''), max_length=64),
+            'emotion_confidences': data.get('emotion_confidences', {}),
+            'energy_level': data.get('energy_level', 'medium'),
+            'speaking_pace': data.get('speaking_pace', 'normal'),
+            'volume_variation': data.get('volume_variation', 'moderate'),
+            'valence': data.get('valence'),
+            'arousal': data.get('arousal'),
+            'audio_duration_ms': data.get('audio_duration_ms', 0),
+            'language': sanitize_text(data.get('language', 'sv-SE'), max_length=16),
+            'created_at': firestore.SERVER_TIMESTAMP
+        }
+
+        # Save to Firestore
+        db.collection('users').document(user_id)\
+            .collection('voice_recordings')\
+            .add(recording_data)
+
+        audit_log(
+            event_type="VOICE_RECORDING_SAVED",
+            user_id=user_id,
+            details={
+                "primary_emotion": recording_data['primary_emotion'],
+                "transcript_length": len(recording_data['transcript']),
+                "audio_duration_ms": recording_data['audio_duration_ms']
+            }
+        )
+
+        logger.info(f"✅ Voice recording saved for user {user_id}")
+
+        return APIResponse.success({
+            "message": "Voice recording saved successfully"
+        }, "Voice recording saved")
+
+    except Exception as e:
+        logger.exception(f"❌ Failed to save voice recording: {e}")
+        audit_log(
+            event_type="VOICE_RECORDING_SAVE_FAILED",
+            user_id=user_id,
+            details={"error": str(e)}
+        )
+        return APIResponse.error("Failed to save voice recording", "SAVE_ERROR", 500)
+
+
+# ============================================================================
+# Get Voice Recordings History
+# ============================================================================
+
+@voice_bp.route('/recordings', methods=['GET'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def get_voice_recordings():
+    """
+    Get voice recordings history for user
+
+    Query params:
+        limit: Maximum number of recordings (default: 50, max: 100)
+    """
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized("Authentication required")
+
+    try:
+        from ..firebase_config import db
+
+        limit = min(int(request.args.get('limit', 50)), 100)
+
+        recordings_ref = db.collection('users').document(user_id)\
+            .collection('voice_recordings')\
+            .order_by('created_at', direction=firestore.DESC)\
+            .limit(limit)
+
+        recordings = recordings_ref.stream()
+
+        recordings_list = []
+        for doc in recordings:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            if 'created_at' in data and hasattr(data['created_at'], 'seconds'):
+                data['created_at'] = data['created_at'].seconds
+            recordings_list.append(data)
+
+        logger.info(f"Retrieved {len(recordings_list)} voice recordings for user {user_id}")
+
+        return APIResponse.success({
+            "recordings": recordings_list,
+            "count": len(recordings_list)
+        }, "Voice recordings retrieved")
+
+    except Exception as e:
+        logger.exception(f"❌ Failed to get voice recordings: {e}")
+        return APIResponse.error("Failed to get voice recordings", "GET_ERROR", 500)

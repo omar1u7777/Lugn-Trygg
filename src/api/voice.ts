@@ -143,6 +143,59 @@ export const getVoiceServiceStatus = async (): Promise<VoiceServiceStatus> => {
   return response.data?.data || response.data;
 };
 
+export interface SaveVoiceRecordingRequest {
+  transcript: string;
+  primary_emotion: string;
+  emotion_confidences: Record<string, number>;
+  energy_level: 'low' | 'medium' | 'high';
+  speaking_pace: 'slow' | 'normal' | 'fast';
+  volume_variation: 'low' | 'moderate' | 'high';
+  valence?: number;
+  arousal?: number;
+  audio_duration_ms: number;
+  language?: string;
+}
+
+export interface VoiceRecording {
+  id: string;
+  transcript: string;
+  primary_emotion: string;
+  emotion_confidences: Record<string, number>;
+  energy_level: 'low' | 'medium' | 'high';
+  speaking_pace: 'slow' | 'normal' | 'fast';
+  volume_variation: 'low' | 'moderate' | 'high';
+  valence?: number;
+  arousal?: number;
+  audio_duration_ms: number;
+  language: string;
+  created_at: number;
+}
+
+/**
+ * Save voice recording to Firestore
+ */
+export const saveVoiceRecording = async (
+  data: SaveVoiceRecordingRequest
+): Promise<{ message: string }> => {
+  const response = await api.post(
+    API_ENDPOINTS.VOICE.SAVE_RECORDING,
+    data
+  );
+  return response.data?.data || response.data;
+};
+
+/**
+ * Get voice recordings history
+ */
+export const getVoiceRecordings = async (
+  limit: number = 50
+): Promise<{ recordings: VoiceRecording[]; count: number }> => {
+  const response = await api.get(
+    `${API_ENDPOINTS.VOICE.RECORDINGS}?limit=${limit}`
+  );
+  return response.data?.data || response.data;
+};
+
 /**
  * Helper: Convert audio Blob to Base64 string
  * 
