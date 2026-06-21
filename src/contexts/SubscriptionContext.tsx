@@ -343,7 +343,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
         }));
       }
     } catch (error) {
-      logger.error('Failed to increment chat message on backend:', error);
+      // Backend increment failed - using local fallback
+      logger.warn('Backend usage increment failed, using local fallback:', error);
       // Fallback to local increment if backend fails
       setUsage(prev => ({
         ...prev,
