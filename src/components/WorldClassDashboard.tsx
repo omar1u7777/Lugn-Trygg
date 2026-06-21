@@ -749,22 +749,18 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         </label>
                       </div>
 
-                      {/* Direct feature link if available */}
-                      {featureLink && !isStepCompleted && (
-                        <button
-                          onClick={() => navigate(featureLink.route, { state: { goalFilter: goal } })}
-                          className="text-xs bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 px-2 py-1 rounded border border-primary-200 dark:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
-                        >
-                          {featureLink.label}
-                        </button>
-                      )}
-
-                      {/* CTA for recommendations with goal context */}
+                      {/* Combined CTA - direct feature link or recommendations */}
                       <button
-                        onClick={() => navigate('/recommendations', { state: { goalFilter: goal } })}
+                        onClick={() => {
+                          if (featureLink && !isStepCompleted) {
+                            navigate(featureLink.route, { state: { goalFilter: goal } });
+                          } else {
+                            navigate('/recommendations', { state: { goalFilter: goal } });
+                          }
+                        }}
                         className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline mt-1 text-left"
                       >
-                        {t('worldDashboard.seeRecommendations')}
+                        {featureLink && !isStepCompleted ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       </button>
                     </div>
                   );
