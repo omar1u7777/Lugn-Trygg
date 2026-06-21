@@ -384,6 +384,16 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Scroll to bottom on initial load after messages are loaded
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [loading, messages.length]);
+
   // Safety timeout: always clear loading after 5 seconds max to prevent infinite spinner
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
@@ -403,7 +413,11 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
   // Auto-scroll - also triggers on currentMessage so streaming text scrolls live
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use setTimeout to ensure DOM has updated before scrolling
+    const scrollTimer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(scrollTimer);
   }, [messages, isTyping, currentMessage?.content]);
 
   const loadChatHistory = async () => {
@@ -548,7 +562,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="relative z-10 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
               <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
@@ -596,7 +610,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar scroll-smooth relative z-10">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar scroll-smooth relative z-10 scroll-container" id="chat-scroll-container">
           {loading ? (
             <div className="flex items-center justify-center h-full flex-col gap-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-teal-100 border-t-teal-500 rounded-full animate-spin" />
