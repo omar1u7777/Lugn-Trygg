@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getDashboardSummary } from '../api/dashboard';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
+import type { GoalStepCompletions } from '../api/users';
 
 
 interface RawActivity {
@@ -32,6 +33,7 @@ interface DashboardStats {
   weeklyGoal: number;
   weeklyProgress: number;
   wellnessGoals: string[];
+  goalStepCompletions: GoalStepCompletions;
   recentActivity: Activity[];
   moodTrendSamples: number[];
 }
@@ -61,6 +63,7 @@ const createInitialStats = (): DashboardStats => ({
   weeklyGoal: 7,
   weeklyProgress: 0,
   wellnessGoals: [],
+  goalStepCompletions: {},
   recentActivity: [],
   moodTrendSamples: [],
 });
@@ -131,6 +134,7 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
         weeklyGoal: Math.max(data.weeklyGoal || 1, 1),
         weeklyProgress: Math.max(data.weeklyProgress || 0, 0),
         wellnessGoals: Array.isArray(data.wellnessGoals) ? data.wellnessGoals : [],
+        goalStepCompletions: data.goalStepCompletions || {},
         recentActivity: (data.recentActivity || [])
           .map((activity: RawActivity): Activity | null => {
             const timestamp = new Date(activity.timestamp);

@@ -38,6 +38,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { getSubscriptionStatus } from '../api/subscription';
+import { completeGoalStep } from '../api/users';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
@@ -104,6 +105,33 @@ const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string =
   return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || 'Fortsätt arbeta med ditt mål');
 };
 
+// Helper function för att mappa steg till direkta feature-länkar
+const getFeatureLinkForStep = (stepText: string): { route: string; label: string } | null => {
+  const stepLower = stepText.toLowerCase();
+
+  // Andningsövningar
+  if (stepLower.includes('andnings') || stepLower.includes('andetag') || stepLower.includes('breathe')) {
+    return { route: '/recommendations', label: 'Öppna andningsövning' };
+  }
+
+  // Journaling/Tacksamhet
+  if (stepLower.includes('skriv') || stepLower.includes('tacksam') || stepLower.includes('journal')) {
+    return { route: '/journal', label: 'Öppna journal' };
+  }
+
+  // Meditation
+  if (stepLower.includes('meditation') || stepLower.includes('mindfulness')) {
+    return { route: '/recommendations', label: 'Öppna meditation' };
+  }
+
+  // Sömn (om sleep tracking finns)
+  if (stepLower.includes('sömn') || stepLower.includes('lägg dig') || stepLower.includes('sleep')) {
+    return { route: '/recommendations', label: 'Se sömntips' };
+  }
+
+  return null;
+};
+
 const DASHBOARD_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => {
@@ -154,6 +182,22 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  const handleGoalStepToggle = async (goalId: string, stepText: string, isCompleted: boolean) => {
+    try {
+      await completeGoalStep(goalId, stepText, !isCompleted);
+      // Refresh dashboard data to show updated completions
+      refresh();
+      analytics.track('goal_step_toggled', { goalId, stepText, completed: !isCompleted });
+    } catch (error) {
+      logger.error('Failed to toggle goal step:', error);
+      setSnackbar({
+        open: true,
+        message: 'Kunde inte uppdatera steg. Försök igen.',
+        variant: 'error',
+      });
+    }
+  };
+
   // Debug wellness goals and show onboarding if empty
   useEffect(() => {
     if (loading) {
@@ -176,9 +220,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     weeklyGoal: Math.max(dashboardStats.weeklyGoal || 1, 1),
     weeklyProgress: Math.max(dashboardStats.weeklyProgress || 0, 0),
     wellnessGoals,
+    goalStepCompletions: dashboardStats.goalStepCompletions || {},
     recentActivity: dashboardStats.recentActivity || [],
     moodTrendSamples: dashboardStats.moodTrendSamples || [],
-  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.recentActivity, dashboardStats.moodTrendSamples]);
+  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.goalStepCompletions, dashboardStats.recentActivity, dashboardStats.moodTrendSamples]);
 
   const hasWellnessGoals = Array.isArray(safeDashboardStats.wellnessGoals) && safeDashboardStats.wellnessGoals.length > 0;
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
@@ -660,6 +705,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
                   const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
                   const nextStep = getNextStepForGoal(goal, t);
+                  const goalCompletions = safeDashboardStats.goalStepCompletions[goal] || {};
+                  const isStepCompleted = goalCompletions[nextStep] !== undefined;
+                  const featureLink = getFeatureLinkForStep(nextStep);
 
                   return (
                     <div
@@ -683,14 +731,37 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         />
                       </div>
 
-                      {/* Implementation intention - Next step */}
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {t('dashboard.nextStep')}: {nextStep}
-                      </p>
+                      {/* Implementation intention - Next step with checkbox */}
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          id={`step-${goal}`}
+                          checked={isStepCompleted}
+                          onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
+                          className="mt-0.5 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                          aria-label={`Markera "${nextStep}" som klar`}
+                        />
+                        <label
+                          htmlFor={`step-${goal}`}
+                          className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer flex-1"
+                        >
+                          {t('dashboard.nextStep')}: {nextStep}
+                        </label>
+                      </div>
 
-                      {/* CTA for recommendations */}
+                      {/* Direct feature link if available */}
+                      {featureLink && !isStepCompleted && (
+                        <button
+                          onClick={() => navigate(featureLink.route, { state: { goalFilter: goal } })}
+                          className="text-xs bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 px-2 py-1 rounded border border-primary-200 dark:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                        >
+                          {featureLink.label}
+                        </button>
+                      )}
+
+                      {/* CTA for recommendations with goal context */}
                       <button
-                        onClick={() => navigate('/recommendations')}
+                        onClick={() => navigate('/recommendations', { state: { goalFilter: goal } })}
                         className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline mt-1 text-left"
                       >
                         {t('worldDashboard.seeRecommendations')}

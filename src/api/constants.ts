@@ -107,6 +107,7 @@ export const API_ENDPOINTS = {
   /** User/Wellness endpoints */
   USERS: {
     WELLNESS_GOALS: '/api/v1/users',
+    WELLNESS_GOALS_STEPS: '/api/v1/users/wellness-goals/steps',
     /** @deprecated Use JOURNAL section instead */
     JOURNAL: '/api/v1/journal',
     MEDITATION_SESSIONS: '/api/v1/users',

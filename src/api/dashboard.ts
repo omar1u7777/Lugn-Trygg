@@ -1,6 +1,7 @@
 import { api } from "./client";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
+import type { GoalStepCompletions } from "./users";
 
 /**
  * APIResponse wrapper from backend
@@ -41,6 +42,7 @@ export interface DashboardSummary {
   weeklyGoal: number;
   weeklyProgress: number;
   wellnessGoals: string[];
+  goalStepCompletions: GoalStepCompletions;
   recentActivity: RecentActivityItem[];
   moodTrendSamples?: number[];
   cached: boolean;
