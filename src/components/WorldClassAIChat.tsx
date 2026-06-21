@@ -317,6 +317,12 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     onTranscript: (text) => {
       setInputMessage(text);
     },
+    onError: (error) => {
+      logger.error('Voice input error:', error);
+      setVoiceError(error.message);
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setVoiceError(null), 5000);
+    },
     language: speechLang,
   });
 
@@ -350,6 +356,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [limitError, setLimitError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Pagination - feeds from full messages array, shows latest 50, loads older on scroll up
   const {
@@ -717,6 +724,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             <div className="absolute top-[-2.5rem] sm:top-[-3rem] left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
               <div className="bg-rose-100 text-rose-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-sm">
                 {limitError}
+              </div>
+            </div>
+          )}
+          {voiceError && (
+            <div className="absolute top-[-2.5rem] sm:top-[-3rem] left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
+              <div className="bg-amber-100 text-amber-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-sm">
+                {voiceError}
               </div>
             </div>
           )}
