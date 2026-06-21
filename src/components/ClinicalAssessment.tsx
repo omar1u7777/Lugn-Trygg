@@ -75,8 +75,8 @@ const MAX_SCORE: Record<AssessmentType, number> = { phq9: 27, gad7: 21 };
 
 function getSeverityColor(severity: string): string {
   const map: Record<string, string> = {
-    minimal:          'text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-900/20',
-    mild:             'text-yellow-700 bg-yellow-50 dark:text-yellow-300 dark:bg-yellow-900/20',
+    minimal:          'text-teal-700 bg-teal-50 dark:text-teal-300 dark:bg-teal-900/20',
+    mild:             'text-indigo-700 bg-indigo-50 dark:text-indigo-300 dark:bg-indigo-900/20',
     moderate:         'text-orange-700 bg-orange-50 dark:text-orange-300 dark:bg-orange-900/20',
     moderately_severe:'text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-900/20',
     severe:           'text-red-800 bg-red-100 dark:text-red-200 dark:bg-red-900/40',
@@ -215,7 +215,7 @@ export const ClinicalAssessment: React.FC = () => {
             onClick={() => resetAssessment(tab)}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors text-sm ${
               activeTab === tab
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-teal-600 text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
@@ -226,7 +226,7 @@ export const ClinicalAssessment: React.FC = () => {
           onClick={() => setActiveTab('history')}
           className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors text-sm ${
             activeTab === 'history'
-              ? 'bg-indigo-600 text-white'
+              ? 'bg-teal-600 text-white'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
@@ -242,26 +242,34 @@ export const ClinicalAssessment: React.FC = () => {
           {/* Sparkline summary cards */}
           {!historyLoading && !historyError && (phq9History.length > 1 || gad7History.length > 1) && (
             <div className="grid grid-cols-2 gap-3 mb-5">
-              {phq9History.length > 1 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHQ-9 trend (senaste {phq9History.length})</p>
-                  <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-indigo-500" />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Senast: <strong className="text-gray-700 dark:text-gray-300">{phq9History[phq9History.length - 1].total_score} p</strong>
-                    {' — '}{severityLabel(phq9History[phq9History.length - 1].severity)}
-                  </p>
-                </div>
-              )}
-              {gad7History.length > 1 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">GAD-7 trend (senaste {gad7History.length})</p>
-                  <Sparkline values={gad7History.map(e => e.total_score)} max={MAX_SCORE.gad7} className="text-teal-500" />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Senast: <strong className="text-gray-700 dark:text-gray-300">{gad7History[gad7History.length - 1].total_score} p</strong>
-                    {' — '}{severityLabel(gad7History[gad7History.length - 1].severity)}
-                  </p>
-                </div>
-              )}
+              {phq9History.length > 1 && (() => {
+                const lastEntry = phq9History.at(-1);
+                if (!lastEntry) return null;
+                return (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHQ-9 trend (senaste {phq9History.length})</p>
+                    <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-indigo-500" />
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Senast: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} p</strong>
+                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown')}
+                    </p>
+                  </div>
+                );
+              })()}
+              {gad7History.length > 1 && (() => {
+                const lastEntry = gad7History.at(-1);
+                if (!lastEntry) return null;
+                return (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">GAD-7 trend (senaste {gad7History.length})</p>
+                    <Sparkline values={gad7History.map(e => e.total_score)} max={MAX_SCORE.gad7} className="text-teal-500" />
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Senast: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} p</strong>
+                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown')}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -270,7 +278,7 @@ export const ClinicalAssessment: React.FC = () => {
             <button
               onClick={loadHistory}
               disabled={historyLoading}
-              className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:underline disabled:opacity-50"
             >
               <ArrowPathIcon className={`w-3 h-3 ${historyLoading ? 'animate-spin' : ''}`} />
               Uppdatera
@@ -299,7 +307,7 @@ export const ClinicalAssessment: React.FC = () => {
                 </p>
                 <button
                   onClick={() => resetAssessment('phq9')}
-                  className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors"
                 >
                   Gör din första PHQ-9
                 </button>
@@ -339,7 +347,7 @@ export const ClinicalAssessment: React.FC = () => {
           {/* CTA to start new assessment */}
           {!historyLoading && history.length > 0 && (
             <div className="mt-6 flex gap-3 justify-center">
-              <button onClick={() => resetAssessment('phq9')} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+              <button onClick={() => resetAssessment('phq9')} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors">
                 Ny PHQ-9
               </button>
               <button onClick={() => resetAssessment('gad7')} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors">
@@ -363,7 +371,7 @@ export const ClinicalAssessment: React.FC = () => {
             </div>
             <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-indigo-600"
+                className="h-full bg-teal-600"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress * 100}%` }}
                 transition={{ duration: 0.3 }}
@@ -400,7 +408,7 @@ export const ClinicalAssessment: React.FC = () => {
                     key={q.id}
                     className={`rounded-lg p-4 shadow-sm border transition-colors ${
                       responses[q.id] !== undefined
-                        ? 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-700'
+                        ? 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-700'
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                     }`}
                   >
@@ -417,7 +425,7 @@ export const ClinicalAssessment: React.FC = () => {
                           onClick={() => setResponses(prev => ({ ...prev, [q.id]: option.value }))}
                           className={`p-2 rounded-lg text-left text-sm transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
                             responses[q.id] === option.value
-                              ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                              ? 'bg-teal-600 text-white ring-2 ring-teal-400'
                               : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
                           }`}
                         >
@@ -432,7 +440,7 @@ export const ClinicalAssessment: React.FC = () => {
                 <button
                   onClick={calculateScore}
                   disabled={loading || answeredCount < questions.length}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-600
+                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 dark:disabled:bg-gray-600
                            text-white font-medium rounded-lg transition-colors flex items-center
                            justify-center gap-2"
                 >
@@ -531,7 +539,7 @@ export const ClinicalAssessment: React.FC = () => {
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
                   <button
                     onClick={() => { resetAssessment(activeTab as AssessmentType); }}
-                    className="flex-1 py-3 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20
+                    className="flex-1 py-3 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20
                              transition-colors flex items-center justify-center gap-2 text-sm font-medium"
                   >
                     <ArrowPathIcon className="w-4 h-4" />
