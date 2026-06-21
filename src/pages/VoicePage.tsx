@@ -22,31 +22,48 @@ const voiceEmotionToMoodScore = (emotion: string): number => {
   return emotionMap[emotion] || 5;
 };
 
+const emotionEmojis: Record<string, string> = {
+  happy: '😊',
+  sad: '😢',
+  anxious: '😰',
+  angry: '😠',
+  calm: '😌',
+  neutral: '😐',
+  tired: '😴',
+};
+
 export const VoicePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [voiceHistory, setVoiceHistory] = useState<VoiceRecording[]>([]);
+  const [integrationSettings, setIntegrationSettings] = useState({
+    saveToJournal: true,
+    logMood: true,
+    saveMindfulness: true,
+  });
 
   const handleTranscriptComplete = async (transcript: string, emotion?: string, audioDurationMs?: number) => {
     logger.debug('Transcript received', { transcript });
     logger.debug('Emotion detected', { emotion });
 
-    // Auto-save to journal
     if (user?.user_id && transcript) {
-      try {
-        await saveJournalEntry(
-          user.user_id,
-          transcript,
-          undefined, // mood - can be derived from emotion if needed
-          emotion ? [emotion] : undefined // tags
-        );
-        logger.info('Voice transcript saved to journal');
-      } catch (error) {
-        logger.error('Failed to save transcript to journal:', error);
+      // Auto-save to journal
+      if (integrationSettings.saveToJournal) {
+        try {
+          await saveJournalEntry(
+            user.user_id,
+            transcript,
+            undefined,
+            emotion ? [emotion] : undefined
+          );
+          logger.info('Voice transcript saved to journal');
+        } catch (error) {
+          logger.error('Failed to save transcript to journal:', error);
+        }
       }
 
       // Auto-log mood from voice emotion
-      if (emotion && user?.user_id) {
+      if (emotion && integrationSettings.logMood) {
         const moodScore = voiceEmotionToMoodScore(emotion);
         try {
           await logMood(user.user_id, {
@@ -61,18 +78,20 @@ export const VoicePage: React.FC = () => {
         }
 
         // Save as mindfulness/meditation session
-        try {
-          await saveMeditationSession({
-            type: 'voice_reflection',
-            duration: Math.round((audioDurationMs || 0) / 1000), // Convert ms to seconds
-            technique: 'voice_mindfulness',
-            moodBefore: moodScore,
-            moodAfter: moodScore,
-            notes: transcript,
-          });
-          logger.info('Voice recording saved as mindfulness session');
-        } catch (error) {
-          logger.error('Failed to save mindfulness session:', error);
+        if (integrationSettings.saveMindfulness) {
+          try {
+            await saveMeditationSession({
+              type: 'voice_reflection',
+              duration: Math.round((audioDurationMs || 0) / 1000),
+              technique: 'voice_mindfulness',
+              moodBefore: moodScore,
+              moodAfter: moodScore,
+              notes: transcript,
+            });
+            logger.info('Voice recording saved as mindfulness session');
+          } catch (error) {
+            logger.error('Failed to save mindfulness session:', error);
+          }
         }
       }
     }
@@ -94,11 +113,20 @@ export const VoicePage: React.FC = () => {
     loadVoiceHistory();
   }, [user?.user_id]);
 
+  // Calculate stats
+  const todayRecordings = voiceHistory.filter(rec => {
+    const recDate = new Date(rec.created_at * 1000);
+    const today = new Date();
+    return recDate.toDateString() === today.toDateString();
+  }).length;
+
+  const lastEmotion = voiceHistory.length > 0 ? voiceHistory[0].primary_emotion : null;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <button
             onClick={() => navigate(-1)}
             className="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 mb-4 inline-flex items-center"
@@ -115,6 +143,60 @@ export const VoicePage: React.FC = () => {
           </p>
         </div>
 
+        {/* Status Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{todayRecordings}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Inspelningar idag</div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <div className="text-2xl">
+              {lastEmotion ? emotionEmojis[lastEmotion] || '🎭' : '—'}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Senaste känsla</div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{voiceHistory.length}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Totalt inspelningar</div>
+          </div>
+        </div>
+
+        {/* Integration Settings */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            Automatisk integration
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={integrationSettings.saveToJournal}
+                onChange={(e) => setIntegrationSettings(prev => ({ ...prev, saveToJournal: e.target.checked }))}
+                className="w-4 h-4 text-teal-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">📝 Spara till journal</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={integrationSettings.logMood}
+                onChange={(e) => setIntegrationSettings(prev => ({ ...prev, logMood: e.target.checked }))}
+                className="w-4 h-4 text-teal-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">😊 Logga humör</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={integrationSettings.saveMindfulness}
+                onChange={(e) => setIntegrationSettings(prev => ({ ...prev, saveMindfulness: e.target.checked }))}
+                className="w-4 h-4 text-teal-600 rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">🧘 Mindfulness session</span>
+            </label>
+          </div>
+        </div>
+
         {/* Voice Recorder */}
         <VoiceRecorder
           onTranscriptComplete={handleTranscriptComplete}
@@ -122,67 +204,9 @@ export const VoicePage: React.FC = () => {
           autoAnalyzeEmotion={true}
         />
 
-        {/* Feature Cards */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="text-4xl mb-3">🎤</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Rösttranskribering
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Konvertera din röst till text med Google Cloud Speech-to-Text API
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="text-4xl mb-3">🎭</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Känsloanalys
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Analysera känslor baserat på röstton, energi och innehåll
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="text-4xl mb-3">📊</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Röstegenskaper
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Analysera energinivå, talhastighet och volymvariation
-            </p>
-          </div>
-        </div>
-
-        {/* Use Cases */}
-        <div className="mt-12 bg-teal-50 dark:bg-teal-900/20 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            💡 Användningsområden
-          </h3>
-          <ul className="space-y-2 text-gray-700 dark:text-gray-300">
-            <li className="flex items-start">
-              <span className="mr-2">📝</span>
-              <span>Snabb journalföring - tala istället för att skriva</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">😊</span>
-              <span>Humörspårning - identifiera känslor automatiskt</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">🧘</span>
-              <span>Mindfulness - reflektera över din röst och känsloläge</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">📈</span>
-              <span>Trendanalys - spåra känslomönster över tid</span>
-            </li>
-          </ul>
-        </div>
-
         {/* Voice History & Trend Analysis */}
         {voiceHistory.length > 0 && (
-          <div className="mt-12">
+          <div className="mt-8">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               📈 Röstinspelningar & Trendanalys
             </h3>
@@ -200,16 +224,6 @@ export const VoicePage: React.FC = () => {
                       return acc;
                     }, {} as Record<string, number>);
 
-                    const emotionEmojis: Record<string, string> = {
-                      happy: '😊',
-                      sad: '😢',
-                      anxious: '😰',
-                      angry: '😠',
-                      calm: '😌',
-                      neutral: '😐',
-                      tired: '😴',
-                    };
-
                     return Object.entries(emotionCounts).map(([emotion, count]) => (
                       <span key={emotion} className="text-sm bg-white dark:bg-gray-700 px-3 py-1 rounded-full">
                         {emotionEmojis[emotion] || '🎭'} {emotion}: {count}
@@ -226,14 +240,7 @@ export const VoicePage: React.FC = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xl">
-                          {recording.primary_emotion === 'happy' && '😊'}
-                          {recording.primary_emotion === 'sad' && '😢'}
-                          {recording.primary_emotion === 'anxious' && '😰'}
-                          {recording.primary_emotion === 'angry' && '😠'}
-                          {recording.primary_emotion === 'calm' && '😌'}
-                          {recording.primary_emotion === 'neutral' && '😐'}
-                          {recording.primary_emotion === 'tired' && '😴'}
-                          {!recording.primary_emotion && '🎭'}
+                          {emotionEmojis[recording.primary_emotion] || '🎭'}
                         </span>
                         <span className="font-medium text-gray-900 dark:text-white capitalize">
                           {recording.primary_emotion || 'Okänd'}
