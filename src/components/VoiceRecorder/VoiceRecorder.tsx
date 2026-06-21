@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger';
 
 
 interface VoiceRecorderProps {
-  onTranscriptComplete?: (transcript: string, emotion?: string) => void;
+  onTranscriptComplete?: (transcript: string, emotion?: string, audioDurationMs?: number) => void;
   maxDuration?: number; // milliseconds
   autoAnalyzeEmotion?: boolean;
   autoSaveRecording?: boolean;
@@ -114,7 +114,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               setEmotion(emotionResult.primaryEmotion);
 
               if (onTranscriptComplete) {
-                onTranscriptComplete(transcriptionResult.transcript, emotionResult.primaryEmotion);
+                onTranscriptComplete(transcriptionResult.transcript, emotionResult.primaryEmotion, recordingTime);
               }
             } else {
               if (onTranscriptComplete) {

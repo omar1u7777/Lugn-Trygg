@@ -4,15 +4,30 @@ import { useNavigate } from 'react-router-dom';
 import { logger } from '../utils/logger';
 import { saveJournalEntry } from '../api/journaling';
 import { getVoiceRecordings, VoiceRecording } from '../api/voice';
+import { logMood } from '../api/api';
+import { saveMeditationSession } from '../api/meditation';
 import useAuth from '../hooks/useAuth';
+
+// Emotion to mood score mapping (same as in SuperMoodLogger)
+const voiceEmotionToMoodScore = (emotion: string): number => {
+  const emotionMap: { [key: string]: number } = {
+    happy: 9,
+    sad: 3,
+    anxious: 4,
+    angry: 2,
+    calm: 7,
+    neutral: 5,
+    tired: 3,
+  };
+  return emotionMap[emotion] || 5;
+};
 
 export const VoicePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [voiceHistory, setVoiceHistory] = useState<VoiceRecording[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const handleTranscriptComplete = async (transcript: string, emotion?: string) => {
+  const handleTranscriptComplete = async (transcript: string, emotion?: string, audioDurationMs?: number) => {
     logger.debug('Transcript received', { transcript });
     logger.debug('Emotion detected', { emotion });
 
@@ -29,6 +44,37 @@ export const VoicePage: React.FC = () => {
       } catch (error) {
         logger.error('Failed to save transcript to journal:', error);
       }
+
+      // Auto-log mood from voice emotion
+      if (emotion && user?.user_id) {
+        const moodScore = voiceEmotionToMoodScore(emotion);
+        try {
+          await logMood(user.user_id, {
+            score: moodScore,
+            mood_text: emotion,
+            note: transcript,
+            tags: [emotion],
+          });
+          logger.info('Voice emotion logged as mood', { emotion, moodScore });
+        } catch (error) {
+          logger.error('Failed to log mood from voice emotion:', error);
+        }
+
+        // Save as mindfulness/meditation session
+        try {
+          await saveMeditationSession({
+            type: 'voice_reflection',
+            duration: Math.round((audioDurationMs || 0) / 1000), // Convert ms to seconds
+            technique: 'voice_mindfulness',
+            moodBefore: moodScore,
+            moodAfter: moodScore,
+            notes: transcript,
+          });
+          logger.info('Voice recording saved as mindfulness session');
+        } catch (error) {
+          logger.error('Failed to save mindfulness session:', error);
+        }
+      }
     }
   };
 
@@ -37,13 +83,10 @@ export const VoicePage: React.FC = () => {
     const loadVoiceHistory = async () => {
       if (user?.user_id) {
         try {
-          setIsLoadingHistory(true);
           const data = await getVoiceRecordings(20);
           setVoiceHistory(data.recordings);
         } catch (error) {
           logger.error('Failed to load voice history:', error);
-        } finally {
-          setIsLoadingHistory(false);
         }
       }
     };
