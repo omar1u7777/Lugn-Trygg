@@ -168,7 +168,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
   if (insights.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center space-y-3">
+      <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center space-y-4">
         <LightBulbIcon className="w-10 h-10 text-indigo-300 mx-auto" />
         <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
           {t('insights.noInsights', 'Inga insikter just nu')}
@@ -176,6 +176,23 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
         </p>
+        <button
+          onClick={loadInsights}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              {t('insights.generating', 'Genererar...')}
+            </>
+          ) : (
+            <>
+              <LightBulbIcon className="w-4 h-4" />
+              {t('insights.generate', 'Generera insikter')}
+            </>
+          )}
+        </button>
       </div>
     );
   }
