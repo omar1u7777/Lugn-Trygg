@@ -217,7 +217,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
         {isProcessing && (
           <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
             <span className="ml-3 text-gray-700 dark:text-gray-300">
               Bearbetar inspelning...
             </span>
@@ -229,7 +229,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           {!isRecording && !isProcessing && (
             <button
               onClick={startRecording}
-              className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
             >
               <span className="flex items-center space-x-2">
                 <span>🎙️</span>
@@ -274,7 +274,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           </div>
 
           {emotion && (
-            <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+            <div className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Känsla:
               </h4>
@@ -288,8 +288,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
       {/* Instructions */}
       {!isRecording && !transcript && !isProcessing && (
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
+        <div className="mt-6 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+          <p className="text-sm text-teal-800 dark:text-teal-200">
             💡 Tips: Tala tydligt i 3-10 sekunder för bästa resultat
           </p>
         </div>
