@@ -150,13 +150,16 @@ const Navigation: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#2c8374] focus-visible:ring-offset-[#fff7f0] dark:focus-visible:ring-offset-slate-900';
 
+  // Header width: full for auth pages, offset for authenticated pages with sidebar
+  const headerWidthClass = isLoggedIn ? 'lg:left-64 lg:w-[calc(100%-16rem)]' : 'left-0 w-full';
+
   return (
     <>
       <nav
         id="navigation"
         role="navigation"
         aria-label={t('navigation.mainNav')}
-        className="flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-4 lg:px-5 py-3 w-full fixed top-0 left-0 lg:left-64 lg:w-[calc(100%-16rem)] z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300"
+        className={`flex justify-between items-center bg-[#fff7f0]/95 dark:bg-slate-900/95 px-3 md:px-4 lg:px-5 py-3 w-full fixed top-0 z-[120] shadow-sm border-b border-[#f2e4d4] dark:border-slate-700 backdrop-blur-md transition-colors duration-300 ${headerWidthClass}`}
       >
         {/* 🧘 Logo - Alltid synlig */}
         <Link
