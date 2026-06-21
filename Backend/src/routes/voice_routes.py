@@ -604,7 +604,7 @@ def get_voice_recordings():
 
         recordings_ref = db.collection('users').document(user_id)\
             .collection('voice_recordings')\
-            .order_by('created_at', direction=firestore.DESC)\
+            .order_by('created_at', direction='DESCENDING')\
             .limit(limit)
 
         recordings = recordings_ref.stream()
