@@ -248,6 +248,15 @@ class SubscriptionService:
         usage_type: UsageType,
         plan_limits: dict[str, Any],
     ) -> dict[str, Any]:
+        # Defensive: Validate inputs
+        if not user_id:
+            logger.error("consume_quota called with empty user_id")
+            raise ValueError("user_id is required")
+
+        if not plan_limits or not isinstance(plan_limits, dict):
+            logger.error("consume_quota called with invalid plan_limits: %s", plan_limits)
+            plan_limits = {}
+
         limit_field = PLAN_LIMIT_MAP[usage_type]
         limit_value = int(plan_limits.get(limit_field, 0))
 
