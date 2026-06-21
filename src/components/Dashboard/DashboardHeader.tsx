@@ -319,30 +319,29 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 
           {/* Welcome Text Section */}
           <div className="flex-1 min-w-0 animate-fade-in-up">
-            <div className="flex items-center gap-4 mb-2">
-              <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-semibold tracking-wide uppercase">
-                {new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-[10px] font-semibold tracking-wide uppercase">
+                {new Date().toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.75rem] font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-4">
-              {greeting}, <br className="hidden sm:block" />
-              <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-1">
+              {greeting}, <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
                 {userName}
               </span>
             </h1>
 
-            <p 
-              className="text-lg text-neutral-600 dark:text-neutral-300 max-w-xl leading-relaxed"
+            <p
+              className="text-sm text-neutral-600 dark:text-neutral-300 max-w-xl leading-tight truncate"
               role="doc-subtitle"
               aria-label={t('dashboardHeader.reflectionInvitation')}
             >
               {getContextualPrompt(hasLoggedToday, lastMood)}
             </p>
 
-            <div className="mt-4 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-neutral-500 dark:text-neutral-400">
               <span
-                className={`inline-block w-2 h-2 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}
+                className={`inline-block w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}
                 aria-hidden="true"
               />
               <span>
@@ -362,26 +361,26 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" 
             style={{ animationDelay: '200ms' }}
           >
-            <div 
-              className="p-6 rounded-[2rem] flex items-center gap-6 w-full sm:min-w-[300px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
+            <div
+              className="p-4 rounded-[1.5rem] flex items-center gap-4 w-full sm:min-w-[280px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
               aria-live="polite"
               aria-atomic="true"
             >
               <BreathingOrb />
-              <div>
-                <h3 className="font-serif text-lg text-neutral-900 dark:text-slate-100 mb-1">{focusContent.title}</h3>
-                <p className="text-sm text-neutral-700 dark:text-slate-300 leading-snug">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-serif text-sm text-neutral-900 dark:text-slate-100 mb-0.5 leading-tight">{focusContent.title}</h3>
+                <p className="text-xs text-neutral-700 dark:text-slate-300 leading-tight truncate">
                   {focusContent.description}
                 </p>
-                <p className="mt-2 text-xs text-neutral-500 dark:text-slate-400" aria-live="polite">
+                <p className="mt-1 text-[10px] text-neutral-500 dark:text-slate-400 leading-tight" aria-live="polite">
                   {isBreathingSessionActive
-                    ? `${t('breath.breathCount', 'Andetag')} ${activeBreathNumber} ${t('breath.of', 'av')} ${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
+                    ? `${activeBreathNumber}/${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
                     : sessionCompleted
-                      ? t('breath.completed', 'Bra jobbat! Du har slutfört dagens 3 andetag.')
-                      : t('breath.duration', 'Guidad övning: cirka 30 sekunder.')}
+                      ? t('breath.completed', 'Bra jobbat!')
+                      : t('breath.duration', '30 sekunder')}
                 </p>
                 {(isBreathingSessionActive || sessionCompleted) && (
-                  <div className="mt-2 h-1.5 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
+                  <div className="mt-1 h-1 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary-500 dark:bg-primary-400 transition-all duration-500"
                       style={{ width: `${breathingProgress}%` }}
@@ -392,26 +391,26 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   type="button"
                   onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
                   disabled={isBreathingSessionActive}
-                  aria-label={isBreathingSessionActive 
+                  aria-label={isBreathingSessionActive
                     ? t('breath.ariaInProgress', 'Guidad andningsövning pågår, följ instruktionerna')
-                    : sessionCompleted 
+                    : sessionCompleted
                       ? t('breath.ariaContinue', 'Fortsätt till humörcheck-in')
                       : `${t('breath.ariaStart', 'Starta guidad andningsövning')}: ${focusContent.description}`}
-                  className="mt-3 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+                  className="mt-2 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-semibold px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                 >
                   {isBreathingSessionActive
-                    ? t('breath.inProgress', 'Guidad paus pågår...')
+                    ? t('breath.inProgress', 'Pågår...')
                     : sessionCompleted
-                      ? t('breath.continue', 'Fortsätt till humörcheck-in')
+                      ? t('breath.continue', 'Fortsätt')
                       : focusContent.actionLabel}
                 </button>
                 {isBreathingSessionActive && (
                   <button
                     type="button"
                     onClick={handleContinueToCheckIn}
-                    className="mt-2 ml-2 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-xs font-semibold px-3 py-1.5 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+                    className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                   >
-                    {t('breath.skip', 'Hoppa över och fortsätt')}
+                    {t('breath.skip', 'Hoppa')}
                   </button>
                 )}
               </div>
