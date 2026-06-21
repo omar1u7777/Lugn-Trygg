@@ -104,8 +104,9 @@ const EMOTION_PROFILES: Record<string, EmotionProfile> = {
   },
 };
 
-const getEmotionProfile = (emotion: string): EmotionProfile =>
-  EMOTION_PROFILES[emotion] ?? EMOTION_PROFILES.neutral;
+const getEmotionProfile = (emotion: string): EmotionProfile | undefined => {
+  return EMOTION_PROFILES[emotion] ?? EMOTION_PROFILES.neutral;
+};
 
 
 interface VoiceChatProps {
@@ -118,7 +119,7 @@ interface Message {
   isUser: boolean;
   timestamp: Date;
   isVoice?: boolean;
-  emotionContext?: string;
+  emotionContext?: string | undefined;
 }
 
 const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
@@ -296,7 +297,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           speakingPace: detectedEmotion.speakingPace,
         });
 
-        logger.debug('🎭 Emotion:', detectedEmotion.primaryEmotion, 'confidence:', detectedEmotion.emotions[detectedEmotion.primaryEmotion]);
+        logger.debug(`🎭 Emotion: ${detectedEmotion.primaryEmotion}, confidence: ${detectedEmotion.emotions[detectedEmotion.primaryEmotion]}`);
       } catch (emoErr) {
         logger.warn('Emotion analysis error (non-fatal):', emoErr);
       }
@@ -323,7 +324,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       if (user?.user_id) {
         // Build context-aware message that includes emotional cues for the AI
         const emotionContext = detectedEmotion
-          ? `[Röstanalys: användaren låter ${getEmotionProfile(detectedEmotion.primaryEmotion).sv.toLowerCase()}, energinivå: ${detectedEmotion.energyLevel}, taltempo: ${detectedEmotion.speakingPace}] `
+          ? `[Röstanalys: användaren låter ${getEmotionProfile(detectedEmotion.primaryEmotion)?.sv.toLowerCase() || 'neutral'}, energinivå: ${detectedEmotion.energyLevel}, taltempo: ${detectedEmotion.speakingPace}] `
           : '';
         const aiInput = `${emotionContext}${transcribedText}`;
 
@@ -429,8 +430,9 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
     }
   };
 
-  const handleQuickAction = (action: string) => {
+  const handleQuickAction = async (action: string) => {
     setInputText(action);
+    await sendTextMessage();
     analytics.track('Quick Action Used', { component: 'VoiceChat', action });
   };
 
@@ -458,84 +460,100 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto gap-4">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-          🎤 Röstanalys &amp; AI Terapeut
-        </h1>
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            🎤 Röstanalys &amp; AI Terapeut
+          </h1>
+          <button
+            onClick={() => {
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                text: '💡 **Hur det fungerar:**\n\n1. Tryck på mikrofonen och prata i minst 3 sekunder\n2. Jag analyserar din röst och känslor\n3. Du får personliga insikter och rekommendationer\n4. Du kan också skriva eller klicka på snabbval nedan',
+                isUser: false,
+                timestamp: new Date(),
+              }]);
+            }}
+            className="text-gray-400 hover:text-indigo-500 transition-colors"
+            aria-label="Hjälp"
+          >
+            <ExclamationTriangleIcon className="w-5 h-5" />
+          </button>
+        </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Spela in din röst – se din känsloprofil och chatta med AI-terapeuten
+          Prata fritt – jag analyserar din röst och ger personliga insikter för ditt välmående
         </p>
       </div>
 
       {/* ── Recording Panel ─────────────────────────────────────── */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+      <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Mic button + timer */}
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <button
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isProcessing}
                 aria-label={isRecording ? 'Stoppa inspelning' : 'Starta röstinspelning'}
-                className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all
+                className={`relative w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all
                   ${isRecording
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                    ? 'bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse shadow-red-500/50'
                     : isProcessing
                       ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-                      : 'bg-indigo-600 hover:bg-indigo-700 hover:scale-105'
+                      : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 hover:scale-110 shadow-indigo-500/50'
                   }`}
               >
                 {isRecording
-                  ? <StopIcon className="w-9 h-9 text-white" />
-                  : <MicrophoneIcon className="w-9 h-9 text-white" />
+                  ? <StopIcon className="w-12 h-12 text-white" />
+                  : <MicrophoneIcon className="w-12 h-12 text-white" />
                 }
               </button>
               {isRecording && (
-                <span className="text-red-600 font-mono font-semibold text-lg">
+                <span className="text-red-600 dark:text-red-400 font-mono font-bold text-xl bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow">
                   {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')}
                 </span>
               )}
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 {isRecording
-                  ? 'Spelar in...'
+                  ? '🔴 Spelar in...'
                   : isProcessing
                     ? processingLabel
-                    : 'Tryck för att spela in'
+                    : 'Tryck för att börja'
                 }
               </span>
             </div>
 
             {/* Waveform / processing indicator */}
-            <div className="flex-1 flex items-center justify-center h-16">
+            <div className="flex-1 flex items-center justify-center h-20 bg-white dark:bg-gray-800 rounded-2xl shadow-inner">
               {isRecording ? (
-                <div className="flex items-end gap-1 h-full">
-                  {[...Array(20)].map((_, i) => (
+                <div className="flex items-end gap-1 h-full px-4">
+                  {[...Array(24)].map((_, i) => (
                     <div
                       key={i}
-                      className="w-1.5 bg-red-400 rounded-full"
+                      className="w-2 bg-gradient-to-t from-red-400 to-red-500 rounded-full"
                       style={{
-                        height: `${20 + Math.random() * 60}%`,
-                        animationDuration: `${0.3 + Math.random() * 0.5}s`,
+                        height: `${30 + Math.random() * 50}%`,
+                        animationDuration: `${0.4 + Math.random() * 0.4}s`,
                         animation: 'pulse 0.5s ease-in-out infinite alternate',
-                        animationDelay: `${i * 30}ms`,
+                        animationDelay: `${i * 25}ms`,
                       }}
                     />
                   ))}
                 </div>
               ) : isProcessing ? (
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex gap-2">
                     {[0, 150, 300].map(delay => (
-                      <div key={delay} className="w-3 h-3 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                      <div key={delay} className="w-4 h-4 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                     ))}
                   </div>
-                  <span className="text-gray-500 dark:text-gray-400 text-sm">{processingLabel}</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-medium text-sm">{processingLabel}</span>
                 </div>
               ) : (
-                <p className="text-gray-400 dark:text-gray-500 text-sm italic text-center">
+                <p className="text-gray-500 dark:text-gray-400 text-sm text-center px-4">
                   {lastTranscript
-                    ? `"${lastTranscript.substring(0, 80)}${lastTranscript.length > 80 ? '...' : ''}"`
-                    : 'Tala naturligt på svenska eller engelska i minst 3 sekunder'
+                    ? `"${lastTranscript.substring(0, 100)}${lastTranscript.length > 100 ? '...' : ''}"`
+                    : 'Tala naturligt i minst 3 sekunder. Jag analyserar din röst och känslor.'
                   }
                 </p>
               )}
@@ -581,6 +599,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               <div className="space-y-2">
                 {sortedEmotions.map(([emotion, score]) => {
                   const ep = getEmotionProfile(emotion);
+                  if (!ep) return null;
                   return (
                     <div key={emotion} className="flex items-center gap-2">
                       <span className="text-base w-5" role="img" aria-label={ep.sv}>{ep.emoji}</span>
@@ -715,11 +734,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                       {message.isVoice && (
                         <span className="text-xs opacity-70">🎤 röst</span>
                       )}
-                      {message.emotionContext && message.isUser && (
-                        <span className="text-xs opacity-70">
-                          {getEmotionProfile(message.emotionContext).emoji}
-                        </span>
-                      )}
+                      {message.emotionContext && message.isUser && (() => {
+                        const ep = getEmotionProfile(message.emotionContext);
+                        return ep ? <span className="text-xs opacity-70">{ep.emoji}</span> : null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -745,13 +763,17 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           </div>
 
           {/* Quick Actions */}
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap gap-1.5">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">
+              Snabbval
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {quickActions.map((action) => (
                 <button
                   key={action}
                   onClick={() => handleQuickAction(action)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  disabled={isProcessing}
+                  className="px-3 py-2 text-sm bg-white dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   {action}
                 </button>
@@ -762,49 +784,59 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       </Card>
 
       {/* ── Input Area ───────────────────────────────────────────── */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex gap-2">
+      <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800">
+        <CardContent className="p-4">
+          <div className="flex gap-3">
             <button
               onClick={isRecording ? stopRecording : startRecording}
               disabled={isProcessing}
               aria-label={isRecording ? 'Stoppa inspelning' : 'Röstinmatning'}
-              className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors
-                ${isRecording ? 'bg-red-500 text-white' : isProcessing ? 'bg-gray-200 dark:bg-gray-600 text-gray-400' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200'}`}
+              className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-all shadow-md
+                ${isRecording
+                  ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-pulse'
+                  : isProcessing
+                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 hover:scale-105'
+                }`}
             >
-              {isRecording ? <StopIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+              {isRecording ? <StopIcon className="w-6 h-6" /> : <MicrophoneIcon className="w-6 h-6" />}
             </button>
 
-            <Input
-              fullWidth
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Skriv ditt meddelande..."
-              disabled={isProcessing}
-              className="flex-1"
-            />
+            <div className="flex-1 relative">
+              <Input
+                fullWidth
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Skriv ditt meddelande..."
+                disabled={isProcessing}
+                className="flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
 
             <Button
               variant="primary"
               onClick={sendTextMessage}
               disabled={!inputText.trim() || isProcessing}
               aria-label="Skicka"
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-md px-6"
             >
               <PaperAirplaneIcon className="w-5 h-5" />
             </Button>
           </div>
 
           {isRecording && (
-            <div className="mt-2 flex items-center gap-2 text-red-500 text-xs">
+            <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              Spelar in – tryck på stopp-knappen för att avsluta och analysera
+              <span className="font-medium">Spelar in – tryck på stopp-knappen för att avsluta och analysera</span>
             </div>
           )}
 
-          <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-            🔒 Lugn &amp; Trygg ersätter inte professionell psykologhjälp • Mind: 90101
-          </p>
+          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800/50 px-4 py-2 rounded-full">
+            <span>🔒</span>
+            <span>Lugn &amp; Trygg ersätter inte professionell psykologhjälp</span>
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium">Mind: 90101</span>
+          </div>
         </CardContent>
       </Card>
     </div>
