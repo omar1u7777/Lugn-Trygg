@@ -721,7 +721,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   return (
                     <div
                       key={goal}
-                      className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow"
+                      className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow flex-nowrap"
                     >
                       <span className="text-sm flex-shrink-0">
                         {getWellnessGoalIcon(goal)}
