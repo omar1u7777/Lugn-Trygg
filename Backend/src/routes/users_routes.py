@@ -246,7 +246,7 @@ def update_notification_preferences():
         data = {k: v for k, v in raw.items() if k in allowed_keys}
         user_ref = db.collection('users').document(user_id)  # type: ignore
         user_ref.set({'notification_preferences': data, 'updatedAt': SERVER_TIMESTAMP}, merge=True)
-        logger.info(f"✅ USERS - Notification preferences saved to Firestore")
+        logger.info("✅ USERS - Notification preferences saved to Firestore")
         return APIResponse.success(data, "Preferences updated")
     except Exception as e:
         logger.exception(f"Failed to update notification preferences: {e}")
@@ -275,7 +275,7 @@ def set_notification_schedule():
         data = {k: v for k, v in raw.items() if k in allowed_keys}
         user_ref = db.collection('users').document(user_id)  # type: ignore
         user_ref.set({'notification_settings': data, 'updatedAt': SERVER_TIMESTAMP}, merge=True)
-        logger.info(f"✅ USERS - Notification schedule saved to Firestore")
+        logger.info("✅ USERS - Notification schedule saved to Firestore")
         return APIResponse.success(data, "Schedule saved")
     except Exception as e:
         logger.exception(f"Failed to save notification schedule: {e}")

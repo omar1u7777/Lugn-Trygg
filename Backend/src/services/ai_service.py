@@ -104,7 +104,7 @@ class AIServices:
 
     def _get_model_name(self) -> str:
         """Get the model/deployment name for API calls.
-        
+
         For Azure OpenAI: returns the deployment name (e.g., 'gpt-4o-mini')
         For standard OpenAI: returns the model name (e.g., 'gpt-4o-mini')
         """
