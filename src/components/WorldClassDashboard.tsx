@@ -752,10 +752,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         />
                         <label
                           htmlFor={`step-${goal}`}
-                          className="text-[9px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate"
+                          className="text-[9px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
                           title={nextStep}
                         >
-                          {nextStep.length > 20 ? nextStep.substring(0, 20) + '...' : nextStep}
+                          {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
                         </label>
                         <button
                           onClick={() => {
