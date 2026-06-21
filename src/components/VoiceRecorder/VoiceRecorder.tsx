@@ -140,8 +140,19 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         }
       }, maxDuration);
 
-    } catch (err) {
-      setError('Kunde inte starta inspelning. Kontrollera mikrofonbehörigheter.');
+    } catch (err: unknown) {
+      logger.error('Failed to start recording:', err);
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError('Mikrofonåtkomst nekad. Vänligen tillåta mikrofonåtkomst i webbläsaren och försök igen.');
+        } else if (err.name === 'NotFoundError') {
+          setError('Ingen mikrofon hittades. Kontrollera att en mikrofon är ansluten.');
+        } else {
+          setError(`Kunde inte starta inspelning: ${err.message}`);
+        }
+      } else {
+        setError('Kunde inte starta inspelning. Kontrollera mikrofonbehörigheter.');
+      }
       setIsRecording(false);
     }
   };
