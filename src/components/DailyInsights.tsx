@@ -7,7 +7,7 @@
  * 100% Tailwind Native - No MUI Dependencies
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -67,6 +67,8 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionStates, setActionStates] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
+  const timeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const isMounted = useRef(true);
 
   const loadInsights = useCallback(async () => {
     if (!userId) return;
@@ -96,7 +98,17 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
     loadInsights();
   }, [loadInsights]);
 
+  // Cleanup timeouts on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      Object.values(timeoutRef.current).forEach(clearTimeout);
+      timeoutRef.current = {};
+    };
+  }, []);
+
   const handleDismiss = async (insightId: string) => {
+    if (!userId) return;
     setActionStates(s => ({ ...s, [insightId]: 'loading' }));
     try {
       await dismissInsight(insightId);
@@ -108,16 +120,21 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   };
 
   const handleAction = async (insightId: string, action: string) => {
+    if (!userId) return;
     setActionStates(s => ({ ...s, [insightId]: 'loading' }));
     try {
       await markInsightActionTaken(insightId, action);
       setActionStates(s => ({ ...s, [insightId]: 'done' }));
       trackEvent('insight_action_taken', { userId, insightId, action });
       // Remove after short delay to show confirmation
-      setTimeout(() => {
-        setInsights(prev => prev.filter(i => i.insight_id !== insightId));
-        setActionStates(s => { const n = { ...s }; delete n[insightId]; return n; });
+      const timeoutId = setTimeout(() => {
+        if (isMounted.current) {
+          setInsights(prev => prev.filter(i => i.insight_id !== insightId));
+          setActionStates(s => { const n = { ...s }; delete n[insightId]; return n; });
+        }
+        delete timeoutRef.current[insightId];
       }, 1200);
+      timeoutRef.current[insightId] = timeoutId;
     } catch {
       setActionStates(s => ({ ...s, [insightId]: 'idle' }));
     }
@@ -168,7 +185,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       <AnimatePresence mode="popLayout">
         {insights.map((insight, index) => {
           const urgency = insight.urgency ?? 'low';
-          const style = URGENCY_STYLES[urgency] ?? URGENCY_STYLES.low;
+          const style = URGENCY_STYLES[urgency] || URGENCY_STYLES.low;
           const actionState = actionStates[insight.insight_id] ?? 'idle';
           const domainLabel = DOMAIN_LABELS[insight.domain] ?? insight.domain;
 
