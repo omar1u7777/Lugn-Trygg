@@ -258,10 +258,10 @@ def chat_with_ai():
 
             # CRISIS INTERVENTION: Real escalation with SMS/email/push
             try:
-                from ..services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+                from src.services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
 
                 # Use semantic crisis detector for better accuracy
-                from ..services.crisis_intervention import crisis_intervention_service
+                from src.services.crisis_intervention import crisis_intervention_service
 
                 # Get conversation context for better detection
                 conversation_context = [
@@ -359,13 +359,22 @@ def chat_with_ai():
                             MAX_RETRIES, alert.user_id, alert.risk_level, last_error,
                         )
 
-                    # Start escalation in background thread
+                    # Start escalation in background thread with timeout
                     escalation_thread = threading.Thread(
                         target=escalate_async,
                         args=(crisis_alert,),
                         daemon=True
                     )
                     escalation_thread.start()
+
+                    # Set thread timeout to prevent hanging (30 seconds max)
+                    escalation_thread.join(timeout=30.0)
+                    if escalation_thread.is_alive():
+                        logger.critical(
+                            "🚨 Crisis escalation thread timed out after 30s for user=%s. "
+                            "Requires manual review.",
+                            user_id
+                        )
 
                     # Store alert info in response for frontend
                     ai_response["crisis_escalation"] = {

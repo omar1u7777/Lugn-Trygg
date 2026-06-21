@@ -417,21 +417,22 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         const formatted: ChatMessage[] = (history || []).map((msg: { timestamp?: unknown; role?: string; content?: string }, i: number) => {
           // Helper to safely parse timestamp
           const ts = msg?.timestamp;
-          let timestamp: Date;
+          let timestamp: Date | null = null;
           if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
             timestamp = (ts as { toDate: () => Date }).toDate();
           } else if (typeof ts === 'string' || typeof ts === 'number') {
-            timestamp = new Date(ts);
-          } else {
-            timestamp = new Date();
+            const parsed = new Date(ts);
+            timestamp = isNaN(parsed.getTime()) ? null : parsed;
           }
-          
+
+          // Skip entries with invalid timestamps
+          if (!timestamp) {
+            return null;
+          }
+
           const sentimentValue = msg?.crisis_detected ? 'crisis' : (msg?.sentiment as string | undefined);
-          // Use stable ID derived from timestamp+role so cache lookups survive page reloads.
-          // Fall back to index only if timestamp is missing.
-          const stableId = (typeof msg?.timestamp === 'string' && msg.timestamp)
-            ? `srv-${msg.role}-${msg.timestamp}`
-            : `history-${i}`;
+          // Use stable ID derived from timestamp+role+index to prevent collisions
+          const stableId = `srv-${msg?.role}-${timestamp.getTime()}-${i}`;
           return {
             id: stableId,
             role: msg?.role === 'user' ? 'user' : 'assistant',
@@ -441,7 +442,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             ...(sentimentValue ? { sentiment: sentimentValue } : {}),
             ...(msg?.emotions ? { emotions: msg?.emotions as string[] } : {}),
           };
-        });
+        }).filter((msg): msg is ChatMessage => msg !== null);
 
         // Sync with cache
         await syncWithServer(formatted);
