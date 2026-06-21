@@ -203,25 +203,29 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       if (!isMountedRef.current) return;
       
       const normalized: RecentMood[] = (moodsResponse || [])
-        .map((mood: RawMoodEntry) => {
-          let timestamp: Date;
+        .map((mood: RawMoodEntry, index: number) => {
+          let timestamp: Date | null = null;
           if (mood.timestamp?.toDate) {
             timestamp = mood.timestamp.toDate();
           } else if (mood.timestamp instanceof Date) {
             timestamp = mood.timestamp;
           } else if (typeof mood.timestamp === 'string' || typeof mood.timestamp === 'number') {
             const parsed = new Date(mood.timestamp);
-            timestamp = isNaN(parsed.getTime()) ? new Date() : parsed;
-          } else {
-            timestamp = new Date();
+            timestamp = isNaN(parsed.getTime()) ? null : parsed;
           }
+
+          // Skip entries with invalid timestamps
+          if (!timestamp) {
+            return null;
+          }
+
           const score = mood.score || mood.sentiment_score || 5;
           // Always derive display label from score for consistency.
           // Old entries may have incorrect mood_text (e.g., "neutral" for all scores).
           const moodText = getMoodLabel(score);
 
           return {
-            id: mood.id || mood.docId || `${timestamp.getTime()}-${score}`,
+            id: mood.id || mood.docId || `${timestamp.getTime()}-${score}-${index}`,
             mood: moodText,
             score,
             timestamp,
@@ -231,6 +235,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             arousal: mood.arousal,
           };
         })
+        .filter((mood): mood is RecentMood => mood !== null)
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, 10);
 
