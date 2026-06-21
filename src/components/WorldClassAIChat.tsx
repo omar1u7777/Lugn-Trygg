@@ -548,34 +548,34 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="relative z-10 px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
+        <div className="relative z-10 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+              <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-display">{t('aiChat.sanctuary')}</h1>
-              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 font-display">{t('aiChat.sanctuary')}</h1>
+              <p className="text-[10px] sm:text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider flex items-center gap-2">
                 {isTyping || isStreaming ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
                 {!isOnline && (
                   <span className="flex items-center gap-1 text-amber-600">
-                    <WifiIcon className="w-3 h-3" />
-                    Offline
+                    <WifiIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span className="hidden sm:inline">Offline</span>
                   </span>
                 )}
                 {isRecovering && (
                   <span className="flex items-center gap-1 text-blue-600">
-                    <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    Återansluter...
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Återansluter...</span>
                   </span>
                 )}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {hasChatLimit && (
-              <div className="hidden sm:flex px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400">
+              <div className="hidden sm:flex px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400">
                 {remainingMessages > 0 ? t('aiChat.messagesLeft', { count: remainingMessages }) : t('aiChat.limitReached')}
               </div>
             )}
@@ -588,39 +588,39 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 onClose();
               }}
               aria-label={t('common.close')}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
             >
-              <XMarkIcon className="w-6 h-6 text-gray-500" />
+              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
             </button>
           </div>
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar scroll-smooth relative z-10">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 custom-scrollbar scroll-smooth relative z-10">
           {loading ? (
             <div className="flex items-center justify-center h-full flex-col gap-4">
-              <div className="w-12 h-12 border-4 border-teal-100 border-t-teal-500 rounded-full animate-spin" />
-              <p className="text-gray-400 animate-pulse">{t('aiChat.opening')}</p>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-teal-100 border-t-teal-500 rounded-full animate-spin" />
+              <p className="text-xs sm:text-sm text-gray-400 animate-pulse">{t('aiChat.opening')}</p>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto animate-fade-in-up">
-              <div className="w-20 h-20 bg-gradient-to-tr from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-slate-800 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm rotate-3">
-                <ChatBubbleLeftRightIcon className="w-10 h-10 text-teal-600 dark:text-teal-400" />
+            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto animate-fade-in-up px-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-tr from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-slate-800 rounded-[2rem] flex items-center justify-center mb-4 sm:mb-6 shadow-sm rotate-3">
+                <ChatBubbleLeftRightIcon className="w-8 h-8 sm:w-10 sm:h-10 text-teal-600 dark:text-teal-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t('aiChat.welcomeHome')}</h2>
-              <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t('aiChat.welcomeHome')}</h2>
+              <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 leading-relaxed">
                 {t('aiChat.welcomeText')}
               </p>
 
-              <div className="flex flex-wrap gap-3 justify-center">
+              <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
                 {quickSuggestions.map((s, i) => (
                   <button
                     key={i}
                     onClick={() => setInputMessage(s.text)}
                     aria-label={s.text}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all transform hover:-translate-y-0.5 text-sm text-gray-600 dark:text-gray-300"
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all transform hover:-translate-y-0.5 text-xs sm:text-sm text-gray-600 dark:text-gray-300"
                   >
-                    {s.icon} {s.text}
+                    {s.icon} <span className="hidden sm:inline">{s.text}</span>
                   </button>
                 ))}
               </div>
@@ -675,20 +675,20 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
               {/* Network error notification */}
               {networkError && (
-                <div className="flex justify-center mb-6 animate-fade-in-up">
-                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 flex items-center gap-2 max-w-md">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                    <p className="text-sm text-amber-800 dark:text-amber-200">{networkError}</p>
+                <div className="flex justify-center mb-4 sm:mb-6 animate-fade-in-up">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 max-w-md">
+                    <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-200">{networkError}</p>
                   </div>
                 </div>
               )}
 
               {isTyping && !isStreaming && (
-                <div className="flex justify-start mb-6 animate-fade-in-up">
-                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-4 py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-sm flex items-center gap-1.5 ml-12">
-                    <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex justify-start mb-4 sm:mb-6 animate-fade-in-up">
+                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-sm flex items-center gap-1.5 ml-8 sm:ml-12">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               )}
@@ -698,10 +698,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         </div>
 
         {/* Input Area */}
-        <div className="relative z-20 p-4 md:p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-t border-white/20 dark:border-white/5">
+        <div className="relative z-20 p-3 sm:p-4 md:p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-t border-white/20 dark:border-white/5">
           {limitError && (
-            <div className="absolute top-[-3rem] left-0 w-full px-6 flex justify-center animate-fade-in-up">
-              <div className="bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">
+            <div className="absolute top-[-2.5rem] sm:top-[-3rem] left-0 w-full px-4 sm:px-6 flex justify-center animate-fade-in-up">
+              <div className="bg-rose-100 text-rose-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium shadow-sm">
                 {limitError}
               </div>
             </div>
@@ -724,16 +724,16 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   }
                 }}
                 aria-label={isListening ? 'Stoppa röstinspelning' : 'Starta röstinspelning'}
-                className={`flex-shrink-0 p-3 rounded-full transition-all min-h-[44px] min-w-[44px] flex items-center justify-center ${
+                className={`flex-shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
                   isListening
                     ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
                 {isListening ? (
-                  <StopCircleIcon className="w-5 h-5" />
+                  <StopCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : (
-                  <MicrophoneIcon className="w-5 h-5" />
+                  <MicrophoneIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </button>
             )}
@@ -748,36 +748,36 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               aria-label={!isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
               disabled={!canSendMore || (isTyping && !isStreaming)}
               readOnly={isListening}
-              className="w-full pl-6 pr-14 py-4 bg-white dark:bg-slate-800 border-0 rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[3.5rem] max-h-32 disabled:opacity-60"
+              className="w-full pl-4 sm:pl-6 pr-12 sm:pr-14 py-2.5 sm:py-4 bg-white dark:bg-slate-800 border-0 rounded-[1.5rem] sm:rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-sm sm:text-base text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[2.75rem] sm:min-h-[3.5rem] max-h-24 sm:max-h-32 disabled:opacity-60"
             />
 
-            <div className="absolute right-2 bottom-2">
+            <div className="absolute right-1.5 sm:right-2 bottom-1.5 sm:bottom-2">
               <button
                 onClick={handleSendMessage}
                 disabled={(!inputMessage.trim() && !transcript) || !canSendMore || (isTyping && !isStreaming)}
                 aria-label={t('aiChat.send', 'Skicka meddelande')}
-                className={`p-3 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50 ${
+                className={`p-2 sm:p-3 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50 ${
                   !isOnline
                     ? 'bg-amber-500 hover:bg-amber-600 text-white'
                     : 'bg-gray-900 hover:bg-black dark:bg-teal-600 dark:hover:bg-teal-500 text-white'
                 }`}
               >
                 {!isOnline ? (
-                  <WifiIcon className="w-5 h-5" />
+                  <WifiIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : canSendMore ? (
-                  <PaperAirplaneIcon className="w-5 h-5 -rotate-90 translate-x-[1px]" />
+                  <PaperAirplaneIcon className="w-4 h-4 sm:w-5 sm:h-5 -rotate-90 translate-x-[1px]" />
                 ) : (
-                  <LockClosedIcon className="w-5 h-5" />
+                  <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </button>
             </div>
           </div>
 
-          <div className="text-center mt-3 space-y-1">
-            <span className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
+          <div className="text-center mt-2 sm:mt-3 space-y-1">
+            <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest font-semibold">
               {t('aiChat.footer')}
             </span>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug max-w-xs mx-auto">
+            <p className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 leading-snug max-w-xs mx-auto">
               {t('aiChat.disclaimer')}
             </p>
           </div>
