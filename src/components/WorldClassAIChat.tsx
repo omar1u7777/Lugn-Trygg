@@ -558,11 +558,11 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       <div className="w-full h-full md:h-[85vh] md:max-w-4xl bg-[#fdfbf7] dark:bg-slate-950 rounded-none md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative">
 
         {/* Ambient Background Glows */}
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-teal-200/20 rounded-full blur-[100px] pointer-events-none animate-pulse-slow" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-teal-200/20 rounded-full blur-[100px] pointer-events-none animate-pulse-slow z-0" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow z-0" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
               <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
