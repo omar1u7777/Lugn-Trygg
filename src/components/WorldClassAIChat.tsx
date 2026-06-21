@@ -562,7 +562,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow z-0" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-sm">
+        <div className="sticky top-0 z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 flex-shrink-0">
               <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
