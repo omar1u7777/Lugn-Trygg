@@ -308,6 +308,8 @@ export const API_ENDPOINTS = {
     TRANSCRIBE_AUDIO: '/api/v1/voice/transcribe',
     ANALYZE_VOICE_EMOTION: '/api/v1/voice/analyze-emotion',
     VOICE_STATUS: '/api/v1/voice/status',
+    SAVE_RECORDING: '/api/v1/voice/save-recording',
+    RECORDINGS: '/api/v1/voice/recordings',
   } as const,
 
   /** Predictive AI endpoints */
