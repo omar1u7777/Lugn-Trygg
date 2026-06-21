@@ -723,10 +723,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       key={goal}
                       className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow flex-nowrap"
                     >
-                      <span className="text-sm flex-shrink-0">
+                      <span className="text-xs flex-shrink-0">
                         {getWellnessGoalIcon(goal)}
                       </span>
-                      <span className="text-[10px] font-medium text-gray-900 dark:text-white flex-shrink-0 leading-tight whitespace-nowrap">
+                      <span className="text-[8px] font-medium text-gray-900 dark:text-white flex-shrink-0 leading-none whitespace-nowrap">
                         {goal}
                       </span>
 
@@ -749,10 +749,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       />
                       <label
                         htmlFor={`step-${goal}`}
-                        className="text-[9px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
+                        className="text-[8px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-none truncate whitespace-nowrap"
                         title={nextStep}
                       >
-                        {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
+                        {nextStep.length > 10 ? nextStep.substring(0, 10) + '...' : nextStep}
                       </label>
                       <button
                         onClick={() => {
