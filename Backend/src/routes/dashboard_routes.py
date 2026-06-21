@@ -486,11 +486,11 @@ def get_dashboard_summary(user_id: str):
             else:
                 # Skip chat entries without timestamp
                 continue
-            
+
             title = chat_data.get('title', 'Chat session')
             if not isinstance(title, str):
                 title = 'Chat session'
-            
+
             recent_activity.append({
                 'id': doc.id,
                 'type': 'chat',

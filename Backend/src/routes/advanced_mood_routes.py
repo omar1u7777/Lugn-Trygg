@@ -4,8 +4,8 @@ Integrates Swedish BERT NLP, LSTM forecasting, and clinical assessments
 """
 
 import logging
-from datetime import UTC, datetime
 
+from datetime import UTC, datetime
 from flask import Blueprint, g, request
 from pydantic import BaseModel, field_validator
 
@@ -16,12 +16,6 @@ from src.services.rate_limiting import rate_limit_by_endpoint
 from src.utils.response_utils import APIResponse
 
 # Import new professional services
-try:
-    from src.services.mood_nlp_service import get_mood_nlp
-    NLP_AVAILABLE = True
-except ImportError:
-    NLP_AVAILABLE = False
-
 try:
     from src.ml.temporal_lstm import get_lstm_forecaster
     LSTM_AVAILABLE = True
@@ -38,11 +32,16 @@ try:
         assess_clinical_risk,
         calculate_gad7,
         calculate_phq9,
-        ClinicalRiskStratification,
     )
     CLINICAL_AVAILABLE = True
 except ImportError:
     CLINICAL_AVAILABLE = False
+
+try:
+    from src.services.mood_nlp_service import get_mood_nlp
+    NLP_AVAILABLE = True
+except ImportError:
+    NLP_AVAILABLE = False
 
 try:
     from src.services.micro_journaling import get_micro_journaling_service, get_streak_gamification
