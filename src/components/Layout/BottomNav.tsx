@@ -55,7 +55,6 @@ const NAV_ITEMS: NavItem[] = [
 const EXPLORE_TILES: FeatureTile[] = [
   { path: '/daily-insights', label: 'Dagliga insikter', icon: LightBulbIcon, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300' },
   { path: '/mood/assessment', label: 'Klinisk bedömning', icon: ClipboardDocumentCheckIcon, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300' },
-  { path: '/voice', label: 'Röstinspelning', icon: MicrophoneIcon, color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-300' },
   { path: '/wellness', label: 'Välmående', icon: HeartIcon, premium: true, color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-300' },
   { path: '/sounds', label: 'Lugnande ljud', icon: MusicalNoteIcon, premium: true, color: 'bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-300' },
   { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, premium: true, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-300' },
