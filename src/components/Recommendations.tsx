@@ -1155,11 +1155,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
         {/* Featured Recommendations - Compact */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {recommendations.slice(0, 3).map((rec, index) => (
               <div
                 key={rec.id}
-                className={`group relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 hover:scale-[1.02] border border-transparent ${
+                className={`group relative overflow-hidden rounded-xl p-3 transition-all duration-300 hover:scale-[1.02] border border-transparent ${
                   rec.category.includes('Stress')
                     ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10'
                     : rec.category.includes('Sömn')
@@ -1168,22 +1168,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="absolute top-0 right-0 p-6 opacity-10 text-6xl group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 pointer-events-none">
+                <div className="absolute top-0 right-0 p-2 opacity-10 text-4xl group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 pointer-events-none">
                   {rec.image}
                 </div>
 
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-bold tracking-wider uppercase text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-gray-400">
                       {rec.category}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
                       {rec.duration} min
                     </span>
                   </div>
 
-                  <h3 className="text-xl font-serif font-bold text-gray-900 dark:text-gray-100 mb-2 leading-tight">
+                  <h3 className="text-sm font-serif font-bold text-gray-900 dark:text-gray-100 mb-1 leading-tight truncate">
                     {rec.title}
                   </h3>
 
