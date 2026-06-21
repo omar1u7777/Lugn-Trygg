@@ -704,7 +704,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
                   const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
                   const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
-                  const nextStep = useMemo(() => getNextStepForGoal(goal, t), [goal, t]);
+                  const nextStep = getNextStepForGoal(goal, t);
                   const goalCompletions = safeDashboardStats.goalStepCompletions[goal] || {};
                   const isStepCompleted = goalCompletions[nextStep] !== undefined;
                   const featureLink = getFeatureLinkForStep(nextStep);
