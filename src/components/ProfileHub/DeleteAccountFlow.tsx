@@ -120,15 +120,15 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const renderWarningStep = () => (
     <DialogContent>
       <div className="text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-          <ExclamationTriangleIcon className="h-8 w-8 text-red-600 dark:text-red-400" />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-3 sm:mb-4">
+          <ExclamationTriangleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 dark:text-red-400" />
         </div>
         
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('profileHub.deleteAccountWarning', 'Radera ditt konto?')}
         </DialogTitle>
         
-        <div className="text-left space-y-3 text-sm text-gray-600 dark:text-gray-300 mb-6">
+        <div className="text-left space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
           <p className="flex items-start gap-2">
             <span className="text-red-500">•</span>
             {t('profileHub.deleteWarning1', 'All din data kommer att raderas permanent')}
@@ -143,24 +143,24 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
           </p>
         </div>
 
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
           <p className="text-sm text-amber-800 dark:text-amber-200">
             💡 {t('profileHub.deleteAlternative', 'Överväg att ta en paus istället. Du kan alltid komma tillbaka.')}
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={onCancel}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {t('common.cancel', 'Avbryt')}
           </Button>
           <Button
             variant="primary"
             onClick={handleInitiateDelete}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            className="w-full sm:flex-1 bg-red-600 hover:bg-red-700 text-white"
           >
             {t('profileHub.continueToDelete', 'Fortsätt ändå')}
           </Button>
@@ -172,39 +172,39 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const renderConfirmStep = () => (
     <DialogContent>
       <div className="text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-900/20 mb-4">
-          <ClockIcon className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-amber-100 dark:bg-amber-900/20 mb-3 sm:mb-4">
+          <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-amber-600 dark:text-amber-400" />
         </div>
         
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('profileHub.confirmDeleteTitle', 'Bekräfta radering')}
         </DialogTitle>
         
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">
           {t('profileHub.confirmDeleteDesc', 'För att skydda ditt konto får det en 7-dagars ångertid.')}
         </p>
 
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
           <p className="text-sm text-blue-800 dark:text-blue-200">
             ✨ {t('profileHub.coolingPeriodBenefit', 'Du kan när som helst avbryta raderingen under dessa 7 dagar.')}
           </p>
         </div>
 
-        <div className="text-left mb-6">
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <div className="text-left mb-4 sm:mb-6">
+          <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white mb-2">
             {t('profileHub.typeToDelete', 'Skriv "RADERA" för att bekräfta:')}
           </label>
           <input
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
             placeholder="RADERA"
           />
         </div>
 
-        <div className="text-left mb-6">
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+        <div className="text-left mb-4 sm:mb-6">
+          <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white mb-2">
             {t('profileHub.confirmWithPassword', 'Bekräfta med ditt lösenord:')}
           </label>
           <input
@@ -212,19 +212,19 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
             placeholder={t('profileHub.passwordPlaceholder', 'Ditt lösenord')}
           />
           {deleteError && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+            <p className="mt-2 text-xs sm:text-sm text-red-600 dark:text-red-400">{deleteError}</p>
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={() => setStep('warning')}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {t('common.back', 'Tillbaka')}
           </Button>
@@ -232,7 +232,7 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
             variant="primary"
             onClick={handleConfirmDelete}
             disabled={confirmText !== 'RADERA' || !password || isDeleting}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            className="w-full sm:flex-1 bg-red-600 hover:bg-red-700 text-white"
           >
             {isDeleting ? t('common.loading', 'Laddar...') : t('profileHub.scheduleDeletion', 'Schemalägg radering')}
           </Button>
@@ -244,24 +244,24 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const renderCooldownStep = () => (
     <DialogContent>
       <div className="text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-900/20 mb-4">
-          <ClockIcon className="h-8 w-8 text-amber-600 dark:text-amber-400 animate-pulse" />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-amber-100 dark:bg-amber-900/20 mb-3 sm:mb-4">
+          <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-amber-600 dark:text-amber-400 animate-pulse" />
         </div>
         
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('profileHub.deletionScheduled', 'Radering schemalagd')}
         </DialogTitle>
         
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-6">
-          <p className="text-2xl font-bold text-amber-800 dark:text-amber-200 mb-2">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <p className="text-xl sm:text-2xl font-bold text-amber-800 dark:text-amber-200 mb-2">
             {cooldownDays}d {cooldownHours}h
           </p>
-          <p className="text-sm text-amber-700 dark:text-amber-300">
+          <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
             {t('profileHub.timeRemaining', 'Kvar tills radering')}
           </p>
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
           {t('profileHub.cancelAnytime', 'Du kan avbryta när som helst innan tiden löper ut.')}
         </p>
 
@@ -280,25 +280,25 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const renderSupportStep = () => (
     <DialogContent>
       <div className="text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/20 mb-4">
-          <HeartIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-blue-100 dark:bg-blue-900/20 mb-3 sm:mb-4">
+          <HeartIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
         </div>
         
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('profileHub.needSupport', 'Behöver du stöd?')}
         </DialogTitle>
         
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
           {t('profileHub.supportMessage', 'Vi märkte att du kanske har det svårt. Det finns hjälp att få.')}
         </p>
 
-        <div className="space-y-3 text-left mb-6">
+        <div className="space-y-2 sm:space-y-3 text-left mb-4 sm:mb-6">
           <Card className="border-blue-200 dark:border-blue-800">
-            <div className="p-4">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
                 📞 {t('profileHub.crisisLine', 'Krislinje')}
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                 1177 - Vårdguiden<br />
                 112 vid akut fara
               </p>
@@ -306,11 +306,11 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
           </Card>
 
           <Card className="border-blue-200 dark:border-blue-800">
-            <div className="p-4">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
                 💬 {t('profileHub.chatSupport', 'Chattstöd')}
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                 Mind.se - Gratis psykologstöd<br />
                 Jourhavande medmänniska
               </p>
@@ -318,18 +318,18 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
           </Card>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={() => setStep('warning')}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {t('profileHub.iNeedHelp', 'Jag behöver hjälp')}
           </Button>
           <Button
             variant="primary"
             onClick={() => setStep('confirm')}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {t('profileHub.continueAnyway', 'Fortsätt ändå')}
           </Button>
@@ -341,15 +341,15 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   const renderDoneStep = () => (
     <DialogContent>
       <div className="text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
-          <CheckCircleIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
+        <div className="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-3 sm:mb-4">
+          <CheckCircleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 dark:text-green-400" />
         </div>
         
-        <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
           {t('profileHub.accountDeleted', 'Kontot har raderats')}
         </DialogTitle>
         
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
           {t('profileHub.thankYouForTime', 'Tack för tiden du spenderade hos Lugn & Trygg. Vi önskar dig allt gott.')}
         </p>
 
@@ -367,12 +367,14 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
   return (
     <Dialog open={isOpen} onClose={onCancel}>
       <DialogHeader onClose={onCancel} />
+      <div className="max-w-md w-full mx-auto px-4 sm:px-6">
       
-      {step === 'warning' && renderWarningStep()}
-      {step === 'confirm' && renderConfirmStep()}
-      {step === 'cooldown' && renderCooldownStep()}
-      {step === 'support' && renderSupportStep()}
-      {step === 'done' && renderDoneStep()}
+        {step === 'warning' && renderWarningStep()}
+        {step === 'confirm' && renderConfirmStep()}
+        {step === 'cooldown' && renderCooldownStep()}
+        {step === 'support' && renderSupportStep()}
+        {step === 'done' && renderDoneStep()}
+      </div>
     </Dialog>
   );
 };
