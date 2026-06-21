@@ -69,7 +69,6 @@ const FREE_NAV_ITEMS: NavItem[] = [
   { path: '/mood-basic', label: 'Humör', icon: FaceSmileIcon, iconActive: FaceSmileIconSolid },
   { path: '/ai-chat', label: 'AI Stöd', icon: ChatBubbleLeftRightIcon, iconActive: ChatBubbleLeftRightIconSolid },
   { path: '/mood/assessment', label: 'Klinisk bedömning', icon: ClipboardDocumentCheckIcon, iconActive: ClipboardDocumentCheckIconSolid },
-  { path: '/voice', label: 'Röstinspelning', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid },
   { path: '/daily-insights', label: 'Dagliga insikter', icon: LightBulbIcon, iconActive: LightBulbIconSolid },
 ];
 
