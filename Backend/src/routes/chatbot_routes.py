@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import UTC, datetime
 
 from flask import Blueprint, Response, g, make_response, request, stream_with_context
@@ -519,10 +520,19 @@ def chat_stream():
             chunk_count = 0
             error_count = 0
             crisis_detected = False  # Track crisis state from streaming chunks
+            stream_timeout = 120  # CRITICAL FIX: 2 minute timeout for streaming to prevent hanging
+            start_time = time.time()
             try:
                 for sse_chunk in ai_services.generate_therapeutic_conversation_stream(
                     user_message, conversation_history, user_id=user_id
                 ):
+                    # Check for timeout
+                    if time.time() - start_time > stream_timeout:
+                        logger.error(f"Streaming timeout after {stream_timeout}s for user {user_id}")
+                        yield "data: {\"error\": \"Streaming timeout\"}\n\n"
+                        yield "data: [DONE]\n\n"
+                        break
+
                     chunk_count += 1
                     # Accumulate non-DONE chunks
                     if sse_chunk.strip() != "data: [DONE]":

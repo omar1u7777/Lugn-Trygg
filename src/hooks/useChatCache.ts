@@ -146,12 +146,13 @@ export const useChatCache = (userId: string) => {
   // Clear cache for user
   const clearUserCache = useCallback(() => {
     if (!userId) return;
-    
+
     const updatedCache = { ...cache };
     delete updatedCache[userId];
-    
+
     saveCache(updatedCache);
-    localStorage.removeItem(CACHE_KEY);
+    // CRITICAL FIX: Only remove from cache, don't clear entire localStorage
+    // localStorage.removeItem(CACHE_KEY); // This would delete cache for ALL users
   }, [userId, cache, saveCache]);
 
   // Mark messages as read

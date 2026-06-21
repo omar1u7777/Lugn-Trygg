@@ -86,6 +86,7 @@ class ChatRAGService:
         self._embedding_cache: dict[str, np.ndarray] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        self._max_cache_size = 1000  # CRITICAL FIX: Limit cache size to prevent memory leaks
 
     def _init_vector_store(self):
         """Initialize vector store (Pinecone preferred, Firestore fallback)"""
@@ -123,7 +124,7 @@ class ChatRAGService:
                 self._cache_misses += 1
 
                 # Limit cache size
-                if len(self._embedding_cache) > 1000:
+                if len(self._embedding_cache) > self._max_cache_size:
                     # Remove oldest entries (simple FIFO)
                     oldest_keys = list(self._embedding_cache.keys())[:100]
                     for key in oldest_keys:
