@@ -349,9 +349,14 @@ def assess_phq9():
             'recommendations': result.recommendations
         }
 
-        db.collection('users').document(user_id)\
-            .collection('clinical_assessments')\
-            .add(assessment_data)
+        try:
+            db.collection('users').document(user_id)\
+                .collection('clinical_assessments')\
+                .add(assessment_data)
+        except Exception as db_error:
+            logger.error(f"Failed to store PHQ-9 assessment for user {user_id}: {db_error}")
+            audit_log('phq9_storage_failed', user_id, {'error': str(db_error)})
+            # Return result anyway but flag storage issue
 
         # High risk alert
         if result.risk_level.value in ['severe', 'crisis']:
@@ -371,7 +376,7 @@ def assess_phq9():
         })
 
     except Exception as e:
-        logger.error(f"PHQ-9 assessment failed: {e}")
+        logger.error(f"PHQ-9 assessment failed: {e}", exc_info=True)
         return APIResponse.error("Assessment failed", "ASSESSMENT_ERROR", 500)
 
 
@@ -415,9 +420,14 @@ def assess_gad7():
             'recommendations': result.recommendations
         }
 
-        db.collection('users').document(user_id)\
-            .collection('clinical_assessments')\
-            .add(assessment_data)
+        try:
+            db.collection('users').document(user_id)\
+                .collection('clinical_assessments')\
+                .add(assessment_data)
+        except Exception as db_error:
+            logger.error(f"Failed to store GAD-7 assessment for user {user_id}: {db_error}")
+            audit_log('gad7_storage_failed', user_id, {'error': str(db_error)})
+            # Return result anyway but flag storage issue
 
         return APIResponse.success({
             'total_score': result.total_score,
@@ -429,7 +439,7 @@ def assess_gad7():
         })
 
     except Exception as e:
-        logger.error(f"GAD-7 assessment failed: {e}")
+        logger.error(f"GAD-7 assessment failed: {e}", exc_info=True)
         return APIResponse.error("Assessment failed", "ASSESSMENT_ERROR", 500)
 
 
