@@ -229,6 +229,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
   const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
+  // Memoize goal steps to prevent re-render changes
+  const goalStepsMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    safeDashboardStats.wellnessGoals.forEach((goal) => {
+      map[goal] = getNextStepForGoal(goal, t);
+    });
+    return map;
+  }, [safeDashboardStats.wellnessGoals, t]);
+
   // Use moodTrendSamples from backend for consistent sparkline data (same dataset as averageMood)
   const moodSamples = useMemo(() => {
     const samples = safeDashboardStats.moodTrendSamples || [];
@@ -704,7 +713,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
                   const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
                   const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
-                  const nextStep = getNextStepForGoal(goal, t);
+                  const nextStep = goalStepsMap[goal] || 'Logga ditt humör idag';
                   const goalCompletions = safeDashboardStats.goalStepCompletions[goal] || {};
                   const isStepCompleted = goalCompletions[nextStep] !== undefined;
                   const featureLink = getFeatureLinkForStep(nextStep);
