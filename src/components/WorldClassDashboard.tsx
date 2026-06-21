@@ -721,19 +721,17 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   return (
                     <div
                       key={goal}
-                      className="flex flex-col gap-1 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow"
+                      className="flex items-center gap-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800 hover:shadow-md transition-shadow"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm">
-                          {getWellnessGoalIcon(goal)}
-                        </span>
-                        <span className="text-[10px] font-medium text-gray-900 dark:text-white flex-1 leading-tight">
-                          {goal}
-                        </span>
-                      </div>
+                      <span className="text-sm flex-shrink-0">
+                        {getWellnessGoalIcon(goal)}
+                      </span>
+                      <span className="text-[10px] font-medium text-gray-900 dark:text-white flex-shrink-0 leading-tight whitespace-nowrap">
+                        {goal}
+                      </span>
 
                       {/* Progress bar based on weekly goal */}
-                      <div className="w-full h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="w-8 h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex-shrink-0">
                         <div
                           className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
@@ -741,36 +739,34 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       </div>
 
                       {/* Combined row: checkbox + CTA */}
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="checkbox"
-                          id={`step-${goal}`}
-                          checked={isStepCompleted}
-                          onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
-                          className="w-3 h-3 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
-                          aria-label={`Markera "${nextStep}" som klar`}
-                        />
-                        <label
-                          htmlFor={`step-${goal}`}
-                          className="text-[9px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
-                          title={nextStep}
-                        >
-                          {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
-                        </label>
-                        <button
-                          onClick={() => {
-                            if (featureLink && !isStepCompleted) {
-                              navigate(featureLink.route, { state: { goalFilter: goal } });
-                            } else {
-                              navigate('/recommendations', { state: { goalFilter: goal } });
-                            }
-                          }}
-                          className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
-                          title={t('worldDashboard.seeRecommendations')}
-                        >
-                          →
-                        </button>
-                      </div>
+                      <input
+                        type="checkbox"
+                        id={`step-${goal}`}
+                        checked={isStepCompleted}
+                        onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
+                        className="w-3 h-3 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
+                        aria-label={`Markera "${nextStep}" som klar`}
+                      />
+                      <label
+                        htmlFor={`step-${goal}`}
+                        className="text-[9px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
+                        title={nextStep}
+                      >
+                        {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
+                      </label>
+                      <button
+                        onClick={() => {
+                          if (featureLink && !isStepCompleted) {
+                            navigate(featureLink.route, { state: { goalFilter: goal } });
+                          } else {
+                            navigate('/recommendations', { state: { goalFilter: goal } });
+                          }
+                        }}
+                        className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
+                        title={t('worldDashboard.seeRecommendations')}
+                      >
+                        →
+                      </button>
                     </div>
                   );
                 })}
