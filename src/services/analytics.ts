@@ -290,12 +290,14 @@ export const analytics = {
       }
 
       // Sentry performance tracking
-      Sentry.addBreadcrumb({
-        category: 'performance',
-        message: `${metric.name}: ${metric.value}${metric.unit}`,
-        level: 'info',
-        data: performanceData,
-      });
+      if (Sentry && typeof Sentry.addBreadcrumb === 'function') {
+        Sentry.addBreadcrumb({
+          category: 'performance',
+          message: `${metric.name}: ${metric.value}${metric.unit}`,
+          level: 'info',
+          data: performanceData,
+        });
+      }
 
       logger.debug('⚡ Performance tracked:', performanceData);
     } catch (error) {
