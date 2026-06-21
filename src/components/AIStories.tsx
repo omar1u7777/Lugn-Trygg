@@ -252,7 +252,7 @@ const AIStories: React.FC = () => {
                           e.stopPropagation();
                           toggleFavorite(story.id);
                         }}
-                        className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="flex-shrink-0 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                       >
                         {story.isFavorite ? (
                           <HeartIconSolid className="w-6 h-6 text-red-500" />

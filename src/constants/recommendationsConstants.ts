@@ -70,7 +70,7 @@ export const KBT_DISTORTION_RULES: Array<KbtDistortionInsight & { pattern: RegEx
   },
 ];
 
-export const getKbtDistortionInsights = (negativeThought: string, t?: (key: string) => string): KbtDistortionInsight[] => {
+export const getKbtDistortionInsights = (negativeThought: string, _t?: (key: string) => string): KbtDistortionInsight[] => {
   const thought = negativeThought.trim();
   if (!thought) return [];
   
@@ -95,7 +95,7 @@ export const calculateKbtSessionQuality = (params: {
   const { beliefBefore, beliefAfter, negativeThoughtLength, evidenceLength, alternativeLength, actionPlanLength } = params;
   
   let qualityScore = 0;
-  let maxScore = 100;
+  const maxScore = 100;
   
   // Belief change (40 points max)
   if (typeof beliefBefore === 'number' && typeof beliefAfter === 'number') {

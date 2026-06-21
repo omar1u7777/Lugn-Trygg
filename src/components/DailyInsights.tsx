@@ -193,7 +193,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                   <button
                     onClick={() => handleDismiss(insight.insight_id)}
                     disabled={actionState === 'loading'}
-                    className="flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    className="flex-shrink-0 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Stäng"
                   >
                     <XMarkIcon className="w-4 h-4" />

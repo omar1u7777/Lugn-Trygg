@@ -255,7 +255,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             {!embedded && (
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label={t('common.close', 'Stäng')}
               >
                 ✕
@@ -515,7 +515,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         {/* Close Button - Only show if NOT embedded */}
         {!embedded && (
           <button
-            className="absolute top-4 right-4 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
+            className="absolute top-4 right-4 min-h-[44px] min-w-[44px] bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
             onClick={onClose}
             aria-label="Stäng"
           >

@@ -957,11 +957,10 @@ const ProfileHub: React.FC = () => {
       {/* Delete Account Flow with cooling period */}
       <DeleteAccountFlow
         isOpen={deleteAccountModal}
-        onDelete={async () => {
+        onDelete={async (password: string) => {
           if (!user?.user_id) throw new Error('No user ID');
-          // Schedule deletion with cooling period
-          // This would call a new endpoint like scheduleAccountDeletion
-          await deleteAccount(user.user_id);
+          // Password re-authenticates the user before deletion
+          await deleteAccount(user.user_id, password);
         }}
         onCancel={() => setDeleteAccountModal(false)}
       />

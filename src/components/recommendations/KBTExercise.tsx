@@ -30,9 +30,7 @@ interface KBTExerciseProps {
 }
 
 export const KBTExercise: React.FC<KBTExerciseProps> = ({ 
-  userId, 
   onComplete, 
-  onPhaseChange,
   initialBeliefBefore = null,
   initialStressBefore = null
 }) => {
@@ -48,7 +46,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
     stop,
   } = useKBTExercise({});
 
-  const [showInsights, setShowInsights] = useState(false);
+  const [_showInsights, _setShowInsights] = useState(false);
   const [kbtBeliefBefore, setKbtBeliefBefore] = useState<number | null>(initialBeliefBefore);
   const [kbtBeliefAfter, setKbtBeliefAfter] = useState<number | null>(null);
   const [kbtStressBefore, setKbtStressBefore] = useState<number | null>(initialStressBefore);
@@ -604,7 +602,7 @@ export const KBTExercise: React.FC<KBTExerciseProps> = ({
       default:
         return null;
     }
-  }, [phase, thoughts, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtExecutionConfidenceAfter, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, t]);
+  }, [phase, thoughts, kbtBeliefBefore, kbtBeliefAfter, kbtStressBefore, kbtStressAfter, kbtActionPlan, kbtExperimentHypothesis, kbtExperimentMeasure, kbtSocraticReflection, kbtIfThenPlan, kbtCopingCard, kbtExecutionConfidenceAfter, kbtObstaclePlan, kbtFollowUpWindow, kbtRehearsalContext, distortionInsights, updateThoughts, t]);
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-purple-200 dark:border-purple-800">

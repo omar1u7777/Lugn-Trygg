@@ -277,7 +277,7 @@ const WorldClassGamification: React.FC<WorldClassGamificationProps> = ({ onClose
               {t('gamification.celebrateProgress')}
             </p>
           </div>
-          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700" aria-label={t('common.close')}>
+          <button onClick={onClose} className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('common.close')}>
             <XMarkIcon className="w-6 h-6 text-gray-500" />
           </button>
         </header>

@@ -42,6 +42,7 @@ export interface DashboardSummary {
   weeklyProgress: number;
   wellnessGoals: string[];
   recentActivity: RecentActivityItem[];
+  moodTrendSamples?: number[];
   cached: boolean;
   responseTime: number;
 }

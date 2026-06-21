@@ -48,33 +48,6 @@ interface WorldClassDashboardProps {
   userId?: string;
 }
 
-const MOOD_LABEL_SCORES: Record<string, number> = {
-  ledsen: 2,
-  orolig: 3,
-  neutral: 5,
-  bra: 7,
-  glad: 8,
-  super: 10,
-};
-
-const extractMoodScoreFromDescription = (description: string): number | null => {
-  if (!description) {
-    return null;
-  }
-
-  const explicitScoreMatch = description.match(/(\d{1,2}(?:\.\d+)?)\s*\/\s*10/);
-  if (explicitScoreMatch) {
-    const parsed = Number(explicitScoreMatch[1]);
-    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 10) {
-      return parsed;
-    }
-  }
-
-  const normalized = description.toLowerCase();
-  const matchedLabel = Object.keys(MOOD_LABEL_SCORES).find((label) => normalized.includes(label));
-  return matchedLabel ? (MOOD_LABEL_SCORES[matchedLabel] ?? null) : null;
-};
-
 const WorldClassAnalyticsView = lazy(() => import('./WorldClassAnalytics'));
 const RecommendationsPanel = lazy(() => import('./Recommendations'));
 
@@ -204,25 +177,18 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     weeklyProgress: Math.max(dashboardStats.weeklyProgress || 0, 0),
     wellnessGoals,
     recentActivity: dashboardStats.recentActivity || [],
-  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.recentActivity]);
+    moodTrendSamples: dashboardStats.moodTrendSamples || [],
+  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.recentActivity, dashboardStats.moodTrendSamples]);
 
   const hasWellnessGoals = Array.isArray(safeDashboardStats.wellnessGoals) && safeDashboardStats.wellnessGoals.length > 0;
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
   const shouldReserveRecommendationsSection = loading || hasWellnessGoals;
 
-  // Transform data for component props - memoized to prevent re-renders
-  const moodSamples = useMemo(() => 
-    [...safeDashboardStats.recentActivity]
-      .filter((activity) => activity.type === 'mood')
-      .sort((left, right) => {
-        const leftTime = left.timestamp instanceof Date ? left.timestamp.getTime() : new Date(left.timestamp).getTime();
-        const rightTime = right.timestamp instanceof Date ? right.timestamp.getTime() : new Date(right.timestamp).getTime();
-        return leftTime - rightTime;
-      })
-      .map((activity) => extractMoodScoreFromDescription(activity.description))
-      .filter((score): score is number => score !== null),
-    [safeDashboardStats.recentActivity]
-  );
+  // Use moodTrendSamples from backend for consistent sparkline data (same dataset as averageMood)
+  const moodSamples = useMemo(() => {
+    const samples = safeDashboardStats.moodTrendSamples || [];
+    return samples.filter(s => Number.isFinite(s) && s >= 0 && s <= 10);
+  }, [safeDashboardStats.moodTrendSamples]);
 
   // Latest mood description for personalized greeting (not the numeric average)
   const latestMoodDescription = useMemo(() => {
@@ -416,10 +382,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   }, [location.pathname, location.search, navigate, refreshSubscription, resolvedUserId, t]);
 
   const handleRefresh = useCallback((reason: 'manual' | 'auto' | 'interval' | 'visibility' | 'online' = 'manual') => {
-    if (loading) {
-      return;
-    }
-
     logger.debug('Dashboard refresh triggered', { reason });
     analytics.track('World Class Dashboard Refreshed', {
       component: 'WorldClassDashboard',
@@ -428,7 +390,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     });
     refresh();
     setLastUpdatedAt(new Date());
-  }, [loading, refresh, user?.user_id]);
+  }, [refresh, user?.user_id]);
 
   useEffect(() => {
     if (!loading && !lastUpdatedAt) {
@@ -694,17 +656,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
-                  // Per-goal deterministic progress so goals don't look identical
                   const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
-                  const baseProgress = safeDashboardStats.weeklyProgress || 0;
-                  let goalHash = 0;
-                  for (let i = 0; i < goal.length; i++) goalHash = (goalHash * 31 + goal.charCodeAt(i)) | 0;
-                  const goalOffset = Math.abs(goalHash) % weeklyGoal;
-                  // Vary each goal's displayed progress slightly but keep it stable
-                  const goalCurrent = Math.min(Math.max(baseProgress + goalOffset - Math.floor(weeklyGoal / 2), 0), weeklyGoal);
-                  const progress = Math.min((goalCurrent / weeklyGoal) * 100, 100);
+                  const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
+                  const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
                   const nextStep = getNextStepForGoal(goal, t);
-                  
+
                   return (
                     <div
                       key={goal}
@@ -717,34 +673,21 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         <span className="text-sm font-medium text-gray-900 dark:text-white flex-1">
                           {goal}
                         </span>
-                        {/* Mastery tracking dots */}
-                        <div className="flex items-center gap-0.5">
-                          {[1, 2, 3, 4, 5].map((step) => (
-                            <div
-                              key={step}
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                step <= Math.ceil(progress / 20)
-                                  ? 'bg-primary-500'
-                                  : 'bg-gray-300 dark:bg-gray-600'
-                              }`}
-                            />
-                          ))}
-                        </div>
                       </div>
-                      
-                      {/* Progress bar per goal */}
+
+                      {/* Progress bar based on weekly goal */}
                       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
-                      
+
                       {/* Implementation intention - Next step */}
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {t('dashboard.nextStep')}: {nextStep}
                       </p>
-                      
+
                       {/* CTA for recommendations */}
                       <button
                         onClick={() => navigate('/recommendations')}

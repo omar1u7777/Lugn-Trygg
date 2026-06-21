@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     initializeAuth();
-  }, [getE2ETestAuthPayload]); // Removed setIsInitialized - it's stable and doesn't need to be in deps
+  }, [getE2ETestAuthPayload, setIsInitialized]);
 
   // 🔑 Kontrollera om användaren är inloggad (memoized for performance)
   const isLoggedIn = useMemo(() => {

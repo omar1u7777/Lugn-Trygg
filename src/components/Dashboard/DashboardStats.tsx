@@ -100,6 +100,11 @@ const deriveMoodTrend = (
  * Shows last 7 mood entries as a visual trend
  */
 const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
+  // Use stable unique gradient ID to avoid conflicts with multiple sparklines
+  // useId is SSR-safe (unlike Math.random)
+  const uniqueId = useId();
+  const gradientId = useMemo(() => `sparklineGradient-${uniqueId}`, [uniqueId]);
+
   const validSamples = samples.filter(s => Number.isFinite(s) && s >= 0 && s <= 10);
   if (validSamples.length < 2) return null;
 
@@ -119,9 +124,6 @@ const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
   });
 
   const pathD = `M ${points.join(' L ')}`;
-  // Use stable unique gradient ID to avoid conflicts with multiple sparklines
-  const uniqueId = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const gradientId = `sparklineGradient-${uniqueId}`;
 
   return (
     <svg 
@@ -468,13 +470,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
               <div className="mt-2 flex gap-2">
                 <a 
                   href="/ai-chat" 
-                  className="text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition-colors"
+                  className="text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   {t('dashboardStats.talkToAI')}
                 </a>
                 <a 
                   href="/crisis" 
-                  className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                  className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   {t('dashboardStats.getHelp')}
                 </a>

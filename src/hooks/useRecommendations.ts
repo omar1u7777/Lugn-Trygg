@@ -4,19 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from './useAccessibility';
 import useAuth from './useAuth';
-import { getWellnessGoals } from '../api/dashboard';
-import { saveFCMToken, getNotificationSettings, updateNotificationSettings } from '../api/notifications';
-import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
+import { getMeditationSessions } from '../api/meditation';
 import { logger } from '../utils/logger';
 import { Recommendation, RecommendationsProps } from '../types/recommendation';
 import { getRecommendationsPool } from '../constants/recommendations';
-import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { EMPTY_WELLNESS_GOALS, type RecommendationFeedback } from '../constants/recommendationsConstants';
 
-export const useRecommendations = ({ userId, wellnessGoals = EMPTY_WELLNESS_GOALS }: RecommendationsProps) => {
-  const navigate = useNavigate();
+export const useRecommendations = ({ wellnessGoals = EMPTY_WELLNESS_GOALS }: RecommendationsProps) => {
+  const _navigate = useNavigate();
   const { announceToScreenReader } = useAccessibility();
-  const { t } = useTranslation();
+  const { _t } = useTranslation();
   const { user } = useAuth();
   
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -24,7 +21,7 @@ export const useRecommendations = ({ userId, wellnessGoals = EMPTY_WELLNESS_GOAL
   const [error, setError] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [fcmTokenSaved, setFcmTokenSaved] = useState(false);
-  const [meditationSessions, setMeditationSessions] = useState<any[]>([]);
+  const [meditationSessions, setMeditationSessions] = useState<{ id: string; date: string; duration: number }[]>([]);
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
   const [feedback, setFeedback] = useState<Record<string, RecommendationFeedback>>({});
   const [savedRecommendations, setSavedRecommendations] = useState<Set<string>>(new Set());

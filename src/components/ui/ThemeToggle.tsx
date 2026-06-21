@@ -28,7 +28,7 @@ export const ThemeToggle: React.FC = () => {
       aria-label={isDarkMode ? 'Växla till ljust läge' : 'Växla till mörkt läge'}
       aria-pressed={isDarkMode}
       title={isDarkMode ? 'Växla till ljust läge' : 'Växla till mörkt läge'}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
     >
       {isDarkMode ? <SunIcon className="w-6 h-6" /> : <MoonIcon className="w-6 h-6" />}
     </button>

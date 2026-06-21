@@ -179,7 +179,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                     type="button"
                     onClick={() => removeTag(tag)}
                     disabled={disabled}
-                    className="ml-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5 transition-colors"
+                    className="ml-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
                     <XMarkIcon className="w-3.5 h-3.5" />
                   </button>

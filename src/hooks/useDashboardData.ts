@@ -33,6 +33,7 @@ interface DashboardStats {
   weeklyProgress: number;
   wellnessGoals: string[];
   recentActivity: Activity[];
+  moodTrendSamples: number[];
 }
 
 interface UseDashboardDataReturn {
@@ -61,6 +62,7 @@ const createInitialStats = (): DashboardStats => ({
   weeklyProgress: 0,
   wellnessGoals: [],
   recentActivity: [],
+  moodTrendSamples: [],
 });
 
 const getCachedStatsForUser = (userId: string): DashboardStats | null => {
@@ -144,6 +146,7 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
             };
           })
           .filter((a): a is Activity => a !== null),
+        moodTrendSamples: Array.isArray(data.moodTrendSamples) ? data.moodTrendSamples : [],
       };
 
       // Update cache for this user

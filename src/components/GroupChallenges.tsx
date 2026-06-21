@@ -379,7 +379,7 @@ export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
             </h2>
             <button
               onClick={() => setShowJoinDialog(false)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Stäng dialog"
             >
               <XMarkIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" aria-hidden="true" />

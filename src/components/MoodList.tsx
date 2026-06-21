@@ -457,7 +457,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
               <span className="text-sm font-medium text-slate-600 dark:text-slate-400 self-center">Period:</span>
               <button
                 onClick={() => setDateRange('all')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   dateRange === 'all'
                     ? 'bg-primary-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -467,7 +467,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
               </button>
               <button
                 onClick={() => setDateRange('week')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   dateRange === 'week'
                     ? 'bg-primary-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -477,7 +477,7 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
               </button>
               <button
                 onClick={() => setDateRange('month')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   dateRange === 'month'
                     ? 'bg-primary-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'

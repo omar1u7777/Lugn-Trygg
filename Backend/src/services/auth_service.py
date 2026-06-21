@@ -19,7 +19,10 @@ from webauthn import (
     verify_registration_response,
 )
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
-from webauthn.helpers.structs import UserVerificationRequirement
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+)
 
 from ..firebase_config import (
     auth as firebase_auth,
@@ -615,7 +618,10 @@ class AuthService:
                 rp_name=WEBAUTHN_RP_NAME,
                 user_id=user_id.encode('utf-8'),
                 user_name=user_id,
-                user_display_name=user_id
+                user_display_name=user_id,
+                authenticator_selection=AuthenticatorSelectionCriteria(
+                    user_verification=UserVerificationRequirement.REQUIRED
+                ),
             )
 
             # Store challenge temporarily
@@ -663,7 +669,7 @@ class AuthService:
                 expected_challenge=expected_challenge,
                 expected_origin=WEBAUTHN_ORIGIN,
                 expected_rp_id=WEBAUTHN_RP_ID,
-                require_user_verification=False
+                require_user_verification=True
             )
 
             # Store verified credential
@@ -712,7 +718,7 @@ class AuthService:
                 rp_id=WEBAUTHN_RP_ID,
                 challenge=secrets.token_bytes(32),
                 allow_credentials=credential_ids,
-                user_verification=UserVerificationRequirement.PREFERRED
+                user_verification=UserVerificationRequirement.REQUIRED
             )
 
             # Store challenge temporarily
@@ -786,7 +792,7 @@ class AuthService:
                 expected_rp_id=WEBAUTHN_RP_ID,
                 credential_public_key=credential_public_key,
                 credential_current_sign_count=cred_data.get("sign_count", 0),
-                require_user_verification=False
+                require_user_verification=True
             )
 
             # Update sign count
@@ -850,50 +856,60 @@ class AuthService:
 
     @staticmethod
     def record_failed_attempt(email: str):
-        """Record a failed login attempt"""
+        """Record a failed login attempt.
+
+        Uses a Firestore transaction so that the read-modify-write of
+        attempt_count is atomic. Without this, concurrent failed logins could
+        each read the same count and overwrite each other, letting an attacker
+        bypass the lockout via parallel requests.
+        """
         try:
+            from google.cloud import firestore
+
             # Hash email to create a safe Firestore document ID
             # (raw emails contain dots/@ which can cause issues)
             email_hash = hashlib.sha256(email.lower().encode()).hexdigest()
             doc_ref = _db.collection("failed_login_attempts").document(email_hash)
-            doc = doc_ref.get()
-
             current_time = datetime.now(UTC).isoformat()
 
-            attempt_count = 1
-            if doc.exists:
-                data = doc.to_dict()
-                if data:
+            transaction = _db.transaction()
+
+            @firestore.transactional
+            def _record_in_transaction(txn) -> int:
+                snapshot = doc_ref.get(transaction=txn)
+                if snapshot.exists:
+                    data = snapshot.to_dict() or {}
                     attempt_count = data.get("attempt_count", 0) + 1
-                else:
-                    attempt_count = 1
 
-                # Calculate lockout duration based on attempt count
-                lockout_until = None
-                if attempt_count >= MAX_FAILED_LOGIN_ATTEMPTS:
-                    if attempt_count < MAX_FAILED_LOGIN_ATTEMPTS * 2:
-                        lockout_minutes = LOCKOUT_DURATION_MINUTES_FIRST
-                    elif attempt_count < MAX_FAILED_LOGIN_ATTEMPTS * 3:
-                        lockout_minutes = LOCKOUT_DURATION_MINUTES_SECOND
-                    else:
-                        lockout_minutes = LOCKOUT_DURATION_MINUTES_THIRD
+                    # Calculate lockout duration based on attempt count
+                    lockout_until = None
+                    if attempt_count >= MAX_FAILED_LOGIN_ATTEMPTS:
+                        if attempt_count < MAX_FAILED_LOGIN_ATTEMPTS * 2:
+                            lockout_minutes = LOCKOUT_DURATION_MINUTES_FIRST
+                        elif attempt_count < MAX_FAILED_LOGIN_ATTEMPTS * 3:
+                            lockout_minutes = LOCKOUT_DURATION_MINUTES_SECOND
+                        else:
+                            lockout_minutes = LOCKOUT_DURATION_MINUTES_THIRD
 
-                    lockout_until = (datetime.now(UTC) + timedelta(minutes=lockout_minutes)).isoformat()
+                        lockout_until = (datetime.now(UTC) + timedelta(minutes=lockout_minutes)).isoformat()
 
-                doc_ref.update({
-                    "attempt_count": attempt_count,
-                    "last_attempt": current_time,
-                    "lockout_until": lockout_until
-                })
-            else:
-                doc_ref.set({
+                    txn.update(doc_ref, {
+                        "attempt_count": attempt_count,
+                        "last_attempt": current_time,
+                        "lockout_until": lockout_until,
+                    })
+                    return attempt_count
+
+                txn.set(doc_ref, {
                     "email_hash": email_hash,
                     "attempt_count": 1,
                     "last_attempt": current_time,
                     "lockout_until": None,
-                    "created_at": current_time
+                    "created_at": current_time,
                 })
+                return 1
 
+            attempt_count = _record_in_transaction(transaction)
             logger.warning(f"Failed login attempt recorded for {_mask_email(email)}, count: {attempt_count}")
 
         except Exception as e:
@@ -942,54 +958,62 @@ class AuthService:
 
     @staticmethod
     def verify_password_reset_token(token: str) -> tuple[str | None, str | None]:
-        """Verify a password reset token and return user_id if valid"""
+        """Verify a password reset token and return user_id if valid.
+
+        The validity check and the "used" marking run inside a Firestore
+        transaction so a token can only be consumed once even if two requests
+        with the same token arrive concurrently.
+        """
 
         # Hash the provided token
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
         try:
-            # Get token from database
-            token_doc = _db.collection('password_reset_tokens').document(token_hash).get()
+            from google.cloud import firestore
 
-            if not token_doc.exists:
-                logger.warning("Password reset token not found")
-                return None, "Invalid or expired reset token"
+            doc_ref = _db.collection('password_reset_tokens').document(token_hash)
+            transaction = _db.transaction()
 
-            token_data = token_doc.to_dict()
-            if not token_data:
-                logger.warning("Empty password reset token data")
-                return None, "Invalid reset token"
+            @firestore.transactional
+            def _consume(txn) -> tuple[str | None, str | None]:
+                snapshot = doc_ref.get(transaction=txn)
+                if not snapshot.exists:
+                    return None, "Invalid or expired reset token"
 
-            # Check if token is used
-            if token_data.get('used', False):
-                logger.warning("Password reset token already used")
-                return None, "Reset token has already been used"
+                token_data = snapshot.to_dict() or {}
+                if not token_data:
+                    return None, "Invalid reset token"
 
-            # Check expiry
-            expires_at = token_data.get('expires_at')
-            if expires_at:
-                expiry_time = datetime.fromisoformat(expires_at) if isinstance(expires_at, str) else expires_at
-                if not hasattr(expiry_time, 'tzinfo') or expiry_time.tzinfo is None:
-                    expiry_time = expiry_time.replace(tzinfo=UTC)
-                current_time = datetime.now(UTC)
+                # Check if token is already used
+                if token_data.get('used', False):
+                    return None, "Reset token has already been used"
 
-                if current_time > expiry_time:
-                    logger.warning("Password reset token expired")
-                    return None, "Reset token has expired"
+                # Check expiry
+                expires_at = token_data.get('expires_at')
+                if expires_at:
+                    expiry_time = datetime.fromisoformat(expires_at) if isinstance(expires_at, str) else expires_at
+                    if not hasattr(expiry_time, 'tzinfo') or expiry_time.tzinfo is None:
+                        expiry_time = expiry_time.replace(tzinfo=UTC)
+                    if datetime.now(UTC) > expiry_time:
+                        return None, "Reset token has expired"
 
-            user_id = token_data.get('user_id')
-            if not user_id:
-                logger.error("Password reset token missing user_id")
-                return None, "Invalid reset token"
+                user_id = token_data.get('user_id')
+                if not user_id:
+                    return None, "Invalid reset token"
 
-            # Mark token as used
-            _db.collection('password_reset_tokens').document(token_hash).update({
-                'used': True,
-                'used_at': datetime.now(UTC).isoformat()
-            })
+                # Atomically mark token as used
+                txn.update(doc_ref, {
+                    'used': True,
+                    'used_at': datetime.now(UTC).isoformat(),
+                })
+                return user_id, None
 
-            logger.info(f"Password reset token verified for user {user_id}")
-            return user_id, None
+            user_id, error = _consume(transaction)
+            if error:
+                logger.warning("Password reset token rejected: %s", error)
+            else:
+                logger.info(f"Password reset token verified for user {user_id}")
+            return user_id, error
 
         except Exception as e:
             logger.error(f"Failed to verify password reset token: {str(e)}")
