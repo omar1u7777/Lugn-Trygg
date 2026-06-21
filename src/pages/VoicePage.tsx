@@ -200,7 +200,7 @@ export const VoicePage: React.FC = () => {
         {/* Voice Recorder */}
         <VoiceRecorder
           onTranscriptComplete={handleTranscriptComplete}
-          maxDuration={10000}
+          maxDuration={60000}
           autoAnalyzeEmotion={true}
         />
 

@@ -323,7 +323,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {!isRecording && !transcript && !isProcessing && (
         <div className="mt-6 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
           <p className="text-sm text-teal-800 dark:text-teal-200">
-            💡 Tips: Tala tydligt i 3-10 sekunder för bästa resultat
+            💡 Tips: Tala tydligt i 5-60 sekunder för bästa resultat
           </p>
         </div>
       )}
