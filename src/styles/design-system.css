@@ -4,11 +4,11 @@
  */
 
 :root {
-  /* Color Palette - matches tailwind.config.js primary scale */
-  --color-primary: #2c8374;
-  --color-primary-dark: #1e5f54;
-  --color-secondary: #c08a5d;
-  --color-secondary-dark: #8f6a4a;
+  /* Color Palette - Mint & Lavendel wellness theme */
+  --color-primary: #14b8a6; /* Teal-500 */
+  --color-primary-dark: #0d9488; /* Teal-600 */
+  --color-secondary: #8b5cf6; /* Violet-500 */
+  --color-secondary-dark: #7c3aed; /* Violet-600 */
   --color-accent: #f59e0b;
   --color-accent-dark: #d97706;
 
@@ -88,10 +88,10 @@
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-  --color-primary: #4a9eff;
-  --color-primary-dark: #3a8ae6;
-  --color-secondary: #81c784;
-  --color-secondary-dark: #66bb6a;
+  --color-primary: #2dd4bf; /* Teal-400 */
+  --color-primary-dark: #14b8a6; /* Teal-500 */
+  --color-secondary: #a78bfa; /* Violet-400 */
+  --color-secondary-dark: #8b5cf6; /* Violet-500 */
   --color-accent: #ff6b6b;
   --color-accent-dark: #ee5a52;
 

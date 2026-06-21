@@ -332,9 +332,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const getCategoryColor = useCallback((category: string) => {
     const colors: Record<string, string> = {
       'Stresshantering': 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800',
-      'Sömn': 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800',
+      'Sömn': 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-800',
       'Fokus': 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800',
-      'Mental klarhet': 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800',
+      'Mental klarhet': 'bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-800',
       'Produktivitet': 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800',
       'Relationer': 'bg-pink-50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-800',
     };
@@ -1163,7 +1163,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   rec.category.includes('Stress')
                     ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10'
                     : rec.category.includes('Sömn')
-                      ? 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10'
+                      ? 'bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/10'
                       : 'bg-white hover:bg-gray-50 dark:bg-slate-800/50'
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -1409,9 +1409,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
         {/* Personalized session guidance */}
         {cbtSession && (
-          <div className="mb-5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-4">
-            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300 mb-1">🎯 Rekommenderad session för dig just nu</p>
-            <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-2">{cbtSession.guidance}</p>
+          <div className="mb-5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 p-4">
+            <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-1">🎯 Rekommenderad session för dig just nu</p>
+            <p className="text-sm text-teal-700 dark:text-teal-300 mb-2">{cbtSession.guidance}</p>
             {cbtSession.motivationalElements.length > 0 && (
               <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{cbtSession.motivationalElements[0]}</p>
             )}

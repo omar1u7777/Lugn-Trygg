@@ -57,13 +57,13 @@ const EXPLORE_TILES: FeatureTile[] = [
   { path: '/mood/assessment', label: 'Klinisk bedömning', icon: ClipboardDocumentCheckIcon, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300' },
   { path: '/wellness', label: 'Välmående', icon: HeartIcon, premium: true, color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-300' },
   { path: '/sounds', label: 'Lugnande ljud', icon: MusicalNoteIcon, premium: true, color: 'bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-300' },
-  { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, premium: true, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-300' },
+  { path: '/journal', label: 'Dagbok', icon: BookOpenIcon, premium: true, color: 'bg-teal-50 text-teal-600 dark:bg-teal-900/20 dark:text-teal-300' },
   { path: '/recommendations', label: 'Rekommendationer', icon: SparklesIcon, premium: true, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' },
   { path: '/ai-stories', label: 'AI-berättelser', icon: StarIcon, premium: true, color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300' },
   { path: '/insights', label: 'Insikter', icon: ChartBarIcon, premium: true, color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-300' },
   { path: '/rewards', label: 'Belöningar', icon: TrophyIcon, premium: true, color: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-300' },
   { path: '/social', label: 'Gemenskap', icon: UserGroupIcon, premium: true, color: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-300' },
-  { path: '/voice-chat', label: 'Röstchatt AI', icon: MicrophoneIcon, premium: true, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-300' },
+  { path: '/voice-chat', label: 'Röstchatt AI', icon: MicrophoneIcon, premium: true, color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-300' },
 ];
 
 /**

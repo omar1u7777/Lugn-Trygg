@@ -486,7 +486,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       </div>
 
       {/* ── Recording Panel ─────────────────────────────────────── */}
-      <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800">
+      <Card className="bg-gradient-to-br from-teal-50 to-violet-50 dark:from-teal-900/20 dark:to-violet-900/20 border-teal-200 dark:border-teal-800">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Mic button + timer */}
@@ -500,7 +500,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                     ? 'bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse shadow-red-500/50'
                     : isProcessing
                       ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-                      : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 hover:scale-110 shadow-indigo-500/50'
+                      : 'bg-gradient-to-br from-teal-500 to-violet-600 hover:from-teal-600 hover:to-violet-700 hover:scale-110 shadow-teal-500/50'
                   }`}
               >
                 {isRecording
@@ -544,10 +544,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex gap-2">
                     {[0, 150, 300].map(delay => (
-                      <div key={delay} className="w-4 h-4 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                      <div key={delay} className="w-4 h-4 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                     ))}
                   </div>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-medium text-sm">{processingLabel}</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-medium text-sm">{processingLabel}</span>
                 </div>
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-sm text-center px-4">
@@ -716,12 +716,12 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex gap-3 max-w-[85%] ${message.isUser ? 'flex-row-reverse' : ''}`}>
-                  <Avatar className={message.isUser ? 'bg-indigo-500' : 'bg-emerald-500'}>
+                  <Avatar className={message.isUser ? 'bg-teal-500' : 'bg-emerald-500'}>
                     {message.isUser ? '👤' : '🤖'}
                   </Avatar>
                   <div className={`rounded-2xl px-4 py-3 ${
                     message.isUser
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-gradient-to-br from-teal-500 to-violet-600 text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                   }`}>
                     <Typography variant="body1" className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -773,7 +773,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                   key={action}
                   onClick={() => handleQuickAction(action)}
                   disabled={isProcessing}
-                  className="px-3 py-2 text-sm bg-white dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-3 py-2 text-sm bg-white dark:bg-gray-700 hover:bg-teal-50 dark:hover:bg-teal-900/30 text-gray-700 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   {action}
                 </button>
@@ -784,7 +784,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       </Card>
 
       {/* ── Input Area ───────────────────────────────────────────── */}
-      <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800">
+      <Card className="bg-gradient-to-br from-teal-50 to-violet-50 dark:from-teal-900/20 dark:to-violet-900/20 border-teal-200 dark:border-teal-800">
         <CardContent className="p-4">
           <div className="flex gap-3">
             <button
@@ -796,7 +796,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                   ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-pulse'
                   : isProcessing
                     ? 'bg-gray-300 dark:bg-gray-600 text-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 hover:scale-105'
+                    : 'bg-gradient-to-br from-teal-500 to-violet-600 text-white hover:from-teal-600 hover:to-violet-700 hover:scale-105'
                 }`}
             >
               {isRecording ? <StopIcon className="w-6 h-6" /> : <MicrophoneIcon className="w-6 h-6" />}
@@ -810,7 +810,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 onKeyPress={handleKeyPress}
                 placeholder="Skriv ditt meddelande..."
                 disabled={isProcessing}
-                className="flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:ring-indigo-500"
+                className="flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500"
               />
             </div>
 
@@ -819,7 +819,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               onClick={sendTextMessage}
               disabled={!inputText.trim() || isProcessing}
               aria-label="Skicka"
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-md px-6"
+              className="bg-gradient-to-r from-teal-500 to-violet-600 hover:from-teal-600 hover:to-violet-700 shadow-md px-6"
             >
               <PaperAirplaneIcon className="w-5 h-5" />
             </Button>
@@ -835,7 +835,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800/50 px-4 py-2 rounded-full">
             <span>🔒</span>
             <span>Lugn &amp; Trygg ersätter inte professionell psykologhjälp</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-medium">Mind: 90101</span>
+            <span className="text-teal-600 dark:text-teal-400 font-medium">Mind: 90101</span>
           </div>
         </CardContent>
       </Card>

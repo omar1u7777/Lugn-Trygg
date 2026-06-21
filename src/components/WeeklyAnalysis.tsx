@@ -84,12 +84,12 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
     <div className="space-y-8">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
             📊
           </span>
           {t('dashboard.weeklyMoodAnalysis')}
         </h3>
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30">
+        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-teal-500 to-violet-500 text-white shadow-lg shadow-teal-500/30">
           AI Powered
         </span>
       </div>
@@ -103,7 +103,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
       <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white p-8 shadow-xl">
         {/* Abstract Background */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl -ml-10 -mb-10" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl -ml-10 -mb-10" />
 
         <div className="relative z-10">
           <h4 className="text-lg font-bold mb-6 flex items-center gap-2">
@@ -127,7 +127,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
                 </div>
               </div>
             ) : (
-              <div className="bg-indigo-500/10 backdrop-blur-md border border-indigo-500/20 rounded-2xl p-4 mb-4">
+              <div className="bg-teal-500/10 backdrop-blur-md border border-teal-500/20 rounded-2xl p-4 mb-4">
                 <div className="flex items-start gap-3">
                   <span className="text-indigo-300 text-xl">✨</span>
                   <div>
@@ -193,7 +193,7 @@ const WeeklyAnalysis: React.FC<WeeklyAnalysisProps> = ({ refreshTrigger = 0 }) =
               }
               return (
                 <div key={mem.id} className="group flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-700 transition-colors cursor-pointer">
-                  <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
                     <MicrophoneIcon className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <div>
