@@ -4,7 +4,6 @@ Integrates Swedish BERT NLP, LSTM forecasting, and clinical assessments
 """
 
 import logging
-
 from datetime import UTC, datetime
 from flask import Blueprint, g, request
 from pydantic import BaseModel, field_validator
