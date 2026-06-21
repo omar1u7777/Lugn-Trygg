@@ -25,7 +25,7 @@ export const extractDisplayName = (email: string): string => {
   }
 
   // Remove all numbers and special characters except dots, keep only letters and dots
-  const cleanedUsername = processedUsername.replace(/[^a-zA-Z.]/g, '');
+  let cleanedUsername = processedUsername.replace(/[^a-zA-Z.]/g, '');
 
   // Remove any remaining dots at the start or end
   cleanedUsername = cleanedUsername.replace(/^\.+|\.+$/g, '');
