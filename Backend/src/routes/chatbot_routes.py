@@ -367,11 +367,11 @@ def chat_with_ai():
                     )
                     escalation_thread.start()
 
-                    # Set thread timeout to prevent hanging (30 seconds max)
-                    escalation_thread.join(timeout=30.0)
+                    # Set thread timeout to prevent hanging (60 seconds max for external services)
+                    escalation_thread.join(timeout=60.0)
                     if escalation_thread.is_alive():
                         logger.critical(
-                            "🚨 Crisis escalation thread timed out after 30s for user=%s. "
+                            "🚨 Crisis escalation thread timed out after 60s for user=%s. "
                             "Requires manual review.",
                             user_id
                         )
