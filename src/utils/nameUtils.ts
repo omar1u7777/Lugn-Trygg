@@ -27,6 +27,9 @@ export const extractDisplayName = (email: string): string => {
   // Remove all numbers and special characters except dots, keep only letters and dots
   const cleanedUsername = processedUsername.replace(/[^a-zA-Z.]/g, '');
 
+  // Remove any remaining dots at the start or end
+  cleanedUsername = cleanedUsername.replace(/^\.+|\.+$/g, '');
+
   // Split by dots and filter out empty parts and parts without letters
   const parts = cleanedUsername.split('.').filter(part => part.length > 0 && /[a-zA-Z]/.test(part));
 
