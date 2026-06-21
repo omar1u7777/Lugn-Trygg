@@ -131,9 +131,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
     if (hasLogged) return t('dashboardHeader.checkedIn');
     if (mood) {
-      const hour = new Date().getHours();
-      if (hour < 10) return t('dashboardHeader.morningMood', { mood });
-      return t('dashboardHeader.welcomeBackMood', { mood });
+      return t('dashboardHeader.moodContext', { mood });
     }
     return t('dashboardHeader.mindfulPrompt');
   };
