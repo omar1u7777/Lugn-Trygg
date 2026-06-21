@@ -562,14 +562,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-200/20 rounded-full blur-[80px] pointer-events-none animate-pulse-slow z-0" style={{ animationDelay: '2s' }} />
 
         {/* Header */}
-        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
+        <div className="relative z-30 px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 flex-shrink-0">
               <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 font-display">{t('aiChat.sanctuary')}</h1>
-              <p className="text-[10px] sm:text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider flex items-center gap-2">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 font-display truncate">{t('aiChat.sanctuary')}</h1>
+              <p className="text-[10px] sm:text-xs text-teal-700 dark:text-teal-300 font-medium uppercase tracking-wider flex items-center gap-2">
                 {isTyping || isStreaming ? t('aiChat.thinking') : t('aiChat.alwaysHere')}
                 {!isOnline && (
                   <span className="flex items-center gap-1 text-amber-600">
@@ -587,7 +587,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {hasChatLimit && (
               <div className="hidden sm:flex px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400">
                 {remainingMessages > 0 ? t('aiChat.messagesLeft', { count: remainingMessages }) : t('aiChat.limitReached')}
@@ -602,9 +602,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 onClose();
               }}
               aria-label={t('common.close')}
-              className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors flex-shrink-0"
             >
-              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
+              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 dark:text-gray-300" />
             </button>
           </div>
         </div>
