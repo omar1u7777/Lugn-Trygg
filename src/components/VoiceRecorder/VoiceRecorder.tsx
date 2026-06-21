@@ -6,13 +6,15 @@ import { logger } from '../../utils/logger';
 interface VoiceRecorderProps {
   onTranscriptComplete?: (transcript: string, emotion?: string, audioDurationMs?: number) => void;
   maxDuration?: number; // milliseconds
+  maxFileSize?: number; // bytes (default 10MB to match backend limit)
   autoAnalyzeEmotion?: boolean;
   autoSaveRecording?: boolean;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   onTranscriptComplete,
-  maxDuration = 10000, // 10 seconds default
+  maxDuration = 60000, // 60 seconds default
+  maxFileSize = 10 * 1024 * 1024, // 10MB default (matches backend limit)
   autoAnalyzeEmotion = true,
   autoSaveRecording = true,
 }) => {
@@ -90,6 +92,14 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
+
+          // Check total file size
+          const totalSize = chunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0);
+          if (totalSize > maxFileSize) {
+            logger.warn(`Recording exceeded max file size (${maxFileSize} bytes), stopping`);
+            mediaRecorder.stop();
+            setError('Inspelningen blev för stor. Försök att spela in en kortare inspelning.');
+          }
         }
       };
 
