@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, recordAudio, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';
+import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, getVoiceServiceStatus, VoiceServiceStatus } from '@/api/voice';
 import { logger } from '../../utils/logger';
 
 
@@ -21,8 +21,11 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [serviceStatus, setServiceStatus] = useState<VoiceServiceStatus | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => {
     // Check service status on mount
@@ -57,57 +60,96 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     };
   }, [isRecording]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const startRecording = async () => {
     try {
       setError(null);
       setTranscript(null);
       setEmotion(null);
+      chunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+
+        setIsProcessing(true);
+        try {
+          const base64Audio = await blobToBase64(blob);
+          const transcriptionResult = await transcribeVoiceAudio(base64Audio, 'sv-SE');
+
+          if (transcriptionResult.transcript) {
+            setTranscript(transcriptionResult.transcript);
+
+            if (autoAnalyzeEmotion) {
+              const emotionResult = await analyzeVoiceEmotionDetailed(
+                base64Audio,
+                transcriptionResult.transcript
+              );
+              setEmotion(emotionResult.primaryEmotion);
+
+              if (onTranscriptComplete) {
+                onTranscriptComplete(transcriptionResult.transcript, emotionResult.primaryEmotion);
+              }
+            } else {
+              if (onTranscriptComplete) {
+                onTranscriptComplete(transcriptionResult.transcript);
+              }
+            }
+          } else if (transcriptionResult.fallback === 'web_speech_api') {
+            setError('Transkribering misslyckades. Prova att tala tydligare.');
+          }
+        } catch (err: unknown) {
+          logger.error('Voice recording error:', err);
+          setError(err instanceof Error ? err.message : 'Ett fel uppstod vid bearbetning av röstinspelningen.');
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+
+      mediaRecorder.start();
       setIsRecording(true);
+
+      // Auto-stop after maxDuration
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          setIsRecording(false);
+        }
+      }, maxDuration);
+
     } catch (err) {
       setError('Kunde inte starta inspelning. Kontrollera mikrofonbehörigheter.');
       setIsRecording(false);
     }
   };
 
-  const stopRecording = async () => {
-    setIsRecording(false);
-    setIsProcessing(true);
-
-    try {
-      // Record audio
-      const audioBlob = await recordAudio(maxDuration);
-      const base64Audio = await blobToBase64(audioBlob);
-
-      // Transcribe
-      const transcriptionResult = await transcribeVoiceAudio(base64Audio, 'sv-SE');
-      
-      if (transcriptionResult.transcript) {
-        setTranscript(transcriptionResult.transcript);
-
-        // Analyze emotion if enabled
-        if (autoAnalyzeEmotion) {
-          const emotionResult = await analyzeVoiceEmotionDetailed(
-            base64Audio,
-            transcriptionResult.transcript
-          );
-          setEmotion(emotionResult.primaryEmotion);
-
-          if (onTranscriptComplete) {
-            onTranscriptComplete(transcriptionResult.transcript, emotionResult.primaryEmotion);
-          }
-        } else {
-          if (onTranscriptComplete) {
-            onTranscriptComplete(transcriptionResult.transcript);
-          }
-        }
-      } else if (transcriptionResult.fallback === 'web_speech_api') {
-        setError('Transkribering misslyckades. Prova att tala tydligare.');
-      }
-    } catch (err: unknown) {
-      logger.error('Voice recording error:', err);
-      setError(err instanceof Error ? err.message : 'Ett fel uppstod vid bearbetning av röstinspelningen.');
-    } finally {
-      setIsProcessing(false);
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
 

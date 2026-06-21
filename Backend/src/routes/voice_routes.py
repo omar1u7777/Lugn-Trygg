@@ -75,9 +75,18 @@ def transcribe_audio():
     if not audio_base64:
         return APIResponse.bad_request("audio_data is required")
 
+    # Validate base64 size before decoding (max 10MB)
+    MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
+    if len(audio_base64) > MAX_AUDIO_SIZE * 4 / 3:  # Base64 is ~33% larger
+        logger.warning(f"Audio data too large: {len(audio_base64)} chars from user {user_id}")
+        return APIResponse.bad_request("Audio data too large (max 10MB)")
+
     # Decode base64 audio
     try:
         audio_bytes = base64.b64decode(audio_base64)
+        if len(audio_bytes) > MAX_AUDIO_SIZE:
+            logger.warning(f"Decoded audio too large: {len(audio_bytes)} bytes from user {user_id}")
+            return APIResponse.bad_request("Audio data too large (max 10MB)")
         logger.info(f"📦 Received audio: {len(audio_bytes)} bytes from user {user_id}")
     except Exception as decode_error:
         logger.error(f"❌ Failed to decode base64 audio: {decode_error}")
@@ -168,9 +177,18 @@ def analyze_voice_emotion():
     if not audio_base64:
         return APIResponse.bad_request("audio_data is required")
 
+    # Validate base64 size before decoding (max 10MB)
+    MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
+    if len(audio_base64) > MAX_AUDIO_SIZE * 4 / 3:  # Base64 is ~33% larger
+        logger.warning(f"Audio data too large: {len(audio_base64)} chars from user {user_id}")
+        return APIResponse.bad_request("Audio data too large (max 10MB)")
+
     # Decode audio
     try:
         audio_bytes = base64.b64decode(audio_base64)
+        if len(audio_bytes) > MAX_AUDIO_SIZE:
+            logger.warning(f"Decoded audio too large: {len(audio_bytes)} bytes from user {user_id}")
+            return APIResponse.bad_request("Audio data too large (max 10MB)")
     except Exception:
         return APIResponse.bad_request("Invalid base64 audio data")
 
