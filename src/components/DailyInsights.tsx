@@ -20,6 +20,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { trackEvent } from '../services/analytics';
+import { logger } from '../utils/logger';
 import {
   generateInsights,
   getPendingInsights,
@@ -72,8 +73,18 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const timeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const isMounted = useRef(true);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const loadInsights = useCallback(async () => {
     if (!userId) return;
+
+    // Cancel any in-flight request to prevent race conditions
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -81,23 +92,33 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       let pending = await getPendingInsights(userId);
 
       // If none pending, trigger generation (runs v2 ML pipeline)
-      if (pending.length === 0) {
+      if (pending.length === 0 && !controller.signal.aborted) {
         const generated = await generateInsights(userId);
         pending = generated;
       }
 
-      setInsights(pending);
-      trackEvent('daily_insights_viewed', { userId, count: pending.length });
+      if (!controller.signal.aborted) {
+        setInsights(pending);
+        trackEvent('daily_insights_viewed', { userId, count: pending.length });
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Okänt fel';
-      setError(msg);
+      if ((err instanceof Error && err.name === 'AbortError') || controller.signal.aborted) {
+        return; // Ignore abort errors
+      }
+      logger.error('Failed to load insights:', err);
+      setError('Kunde inte hämta insikter just nu. Försök igen.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [userId]);
 
   useEffect(() => {
     loadInsights();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [loadInsights]);
 
   // Cleanup timeouts on unmount to prevent memory leaks
