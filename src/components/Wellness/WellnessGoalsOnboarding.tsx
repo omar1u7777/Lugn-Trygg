@@ -34,15 +34,19 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
   const toggleGoal = (goalId: string) => {
     setSelectedGoals(prev => {
       if (prev.includes(goalId)) {
-        setMaxReachedHint(false);
         return prev.filter(g => g !== goalId);
-      } else {
-        if (prev.length < MAX_WELLNESS_GOALS) {
-          return [...prev, goalId];
-        }
-        setMaxReachedHint(true);
-        return prev;
       }
+      if (prev.length < MAX_WELLNESS_GOALS) {
+        return [...prev, goalId];
+      }
+      return prev;
+    });
+
+    // Update hint outside the updater to avoid nested state updates
+    setMaxReachedHint(prev => {
+      const currentlySelected = selectedGoals.includes(goalId);
+      if (currentlySelected) return false;
+      return selectedGoals.length >= MAX_WELLNESS_GOALS;
     });
   };
 

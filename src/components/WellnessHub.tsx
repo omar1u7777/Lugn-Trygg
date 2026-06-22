@@ -100,7 +100,7 @@ const calculateCurrentStreak = (records: ActivityRecord[]): number => {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  let cursor = daySet.has(toDateKey(today)) ? today : daySet.has(toDateKey(yesterday)) ? yesterday : null;
+  let cursor: Date | null = daySet.has(toDateKey(today)) ? today : daySet.has(toDateKey(yesterday)) ? yesterday : null;
   if (!cursor) {
     return 0;
   }
@@ -251,6 +251,8 @@ const WellnessHub: React.FC = () => {
   const [meditationStartTime, setMeditationStartTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const meditationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pausedDurationMsRef = useRef<number>(0);
+  const pauseStartTimeRef = useRef<Date | null>(null);
   const completeMeditationRef = useRef<() => Promise<void>>();
 
   // UI State
@@ -262,6 +264,13 @@ const WellnessHub: React.FC = () => {
 
   const fetchWellnessData = useCallback(async () => {
     if (!user?.user_id) { setLoading(false); return; }
+
+    // Cancel any in-flight request to prevent race conditions and state updates on unmount
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLoading(true);
     setError(null);
     try {
       // Parallel Fetch
@@ -270,6 +279,8 @@ const WellnessHub: React.FC = () => {
         getMeditationSessions(100),
         getWellnessGoals()
       ]);
+
+      if (controller.signal.aborted) return;
 
       const moods = moodsResult.status === 'fulfilled' ? moodsResult.value : [];
       const sessionData = sessionsResult.status === 'fulfilled' ? sessionsResult.value : { sessions: [] };
@@ -303,40 +314,37 @@ const WellnessHub: React.FC = () => {
       });
 
     } catch (err: unknown) {
+      if (controller.signal.aborted) return;
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status !== 401) {
-        setError('Kunde inte ladda wellness-data.');
+        setError(t('wellnessHub.loadError', 'Kunde inte ladda wellness-data.'));
       }
+      logger.error('Failed to load wellness data:', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, t]);
 
-  useEffect(() => { fetchWellnessData(); }, [fetchWellnessData]);
+  useEffect(() => {
+    fetchWellnessData();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [fetchWellnessData]);
   useEffect(() => { return () => { if (meditationTimerRef.current) clearInterval(meditationTimerRef.current); }; }, []);
 
   // ----------------------------------------------------------------------
   // Timer Logic
   // ----------------------------------------------------------------------
 
-  const startMeditation = (meditation: MeditationOption) => {
-    setSelectedMeditation(meditation);
-    setIsMeditationActive(true);
-    setMeditationTimeLeft(meditation.duration * 60);
-    setMeditationStartTime(new Date());
-    setIsPaused(false);
-    if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
-    meditationTimerRef.current = setInterval(() => {
-      setMeditationTimeLeft(prev => {
-        if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
   const completeMeditation = async () => {
     if (!selectedMeditation || !meditationStartTime || !user?.user_id) return;
-    const duration = Math.round((new Date().getTime() - meditationStartTime.getTime()) / 1000 / 60); // mins
+    // Subtract total paused time from raw elapsed time so saved duration reflects active playback only
+    const rawElapsedMs = new Date().getTime() - meditationStartTime.getTime();
+    const activeDurationMs = Math.max(0, rawElapsedMs - pausedDurationMsRef.current);
+    const duration = Math.round(activeDurationMs / 1000 / 60); // mins
     const safeDuration = Math.max(1, duration);
 
     // Save to backend
@@ -353,7 +361,7 @@ const WellnessHub: React.FC = () => {
       setWellnessStats(prev => ({
         ...applySessionCompletionStats(prev, selectedMeditation.type, safeDuration)
       }));
-    } catch (e) { logger.error(e); }
+    } catch (e) { logger.error('Failed to save meditation session:', e); }
 
     stopMeditation();
   };
@@ -367,11 +375,34 @@ const WellnessHub: React.FC = () => {
     setSelectedMeditation(null);
     setMeditationTimeLeft(0);
     setIsPaused(false);
+    pausedDurationMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+  };
+
+  const startMeditation = (meditation: MeditationOption) => {
+    setSelectedMeditation(meditation);
+    setIsMeditationActive(true);
+    setMeditationTimeLeft(meditation.duration * 60);
+    setMeditationStartTime(new Date());
+    setIsPaused(false);
+    pausedDurationMsRef.current = 0;
+    pauseStartTimeRef.current = null;
+    if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+    meditationTimerRef.current = setInterval(() => {
+      setMeditationTimeLeft(prev => {
+        if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const togglePause = () => {
     if (isPaused) {
-      // Resume
+      // Resume: accumulate paused duration
+      if (pauseStartTimeRef.current) {
+        pausedDurationMsRef.current += new Date().getTime() - pauseStartTimeRef.current.getTime();
+      }
+      pauseStartTimeRef.current = null;
       setIsPaused(false);
       meditationTimerRef.current = setInterval(() => {
         setMeditationTimeLeft(prev => {
@@ -382,6 +413,7 @@ const WellnessHub: React.FC = () => {
     } else {
       // Pause
       if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+      pauseStartTimeRef.current = new Date();
       setIsPaused(true);
     }
   };
@@ -536,6 +568,31 @@ const WellnessHub: React.FC = () => {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="flex items-center justify-center gap-2 py-4 text-sm text-slate-500 dark:text-slate-400">
+            <div className="w-5 h-5 border-2 border-slate-300 border-t-primary-500 rounded-full animate-spin" />
+            {t('common.loading', 'Laddar...')}
+          </div>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {error && !loading && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-800 p-4 text-center">
+            <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
+            <button
+              onClick={fetchWellnessData}
+              className="mt-2 text-xs px-4 py-2 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 transition-colors"
+            >
+              {t('common.retry', 'Försök igen')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 2. Navigation Pills */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8 overflow-x-auto scrollbar-hide">
         <div className="flex gap-3 pb-2">
@@ -607,7 +664,7 @@ const WellnessHub: React.FC = () => {
 
               <div className="p-2 sm:p-4">
                 <WellnessGoalsOnboarding
-                  userId={user?.user_id}
+                  {...(user?.user_id ? { userId: user.user_id } : {})}
                   initialGoals={userGoals}
                   onComplete={(goals) => {
                     setUserGoals(goals);
