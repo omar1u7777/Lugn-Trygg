@@ -311,10 +311,11 @@ def analyze_audio_features(audio_bytes: bytes) -> dict:
 
     In production, this would use librosa for proper audio analysis.
     This is a simplified version that works without extra dependencies.
+    Improved with RMS calculation and better normalization.
     """
     try:
         # Calculate basic statistics from audio bytes
-        # Convert bytes to amplitude values
+        # Convert bytes to amplitude values (16-bit PCM)
         amplitudes = [int.from_bytes(audio_bytes[i:i+2], 'little', signed=True)
                      for i in range(0, min(len(audio_bytes), 100000), 2)]
 
@@ -325,24 +326,31 @@ def analyze_audio_features(audio_bytes: bytes) -> dict:
                 'volume_variation': 'moderate'
             }
 
-        # Calculate statistics
+        # Calculate RMS (Root Mean Square) for more accurate energy estimation
+        rms = (sum(a * a for a in amplitudes) / len(amplitudes)) ** 0.5
+
+        # Calculate basic statistics
         avg_amplitude = sum(abs(a) for a in amplitudes) / len(amplitudes)
         max_amplitude = max(abs(a) for a in amplitudes)
 
-        # Estimate energy level
-        if avg_amplitude > 10000:
+        # Estimate energy level using RMS (more accurate than average)
+        # Normalized thresholds based on typical 16-bit audio
+        if rms > 5000:
             energy = 'high'
-        elif avg_amplitude > 3000:
+        elif rms > 1500:
             energy = 'medium'
         else:
             energy = 'low'
 
-        # Estimate volume variation
-        variance = sum((abs(a) - avg_amplitude) ** 2 for a in amplitudes) / len(amplitudes)
-        if variance > 50000000:
-            variation = 'high'
-        elif variance > 10000000:
-            variation = 'moderate'
+        # Estimate volume variation using coefficient of variation
+        if avg_amplitude > 0:
+            cv = (rms / avg_amplitude) if avg_amplitude > 0 else 0
+            if cv > 0.8:
+                variation = 'high'
+            elif cv > 0.4:
+                variation = 'moderate'
+            else:
+                variation = 'low'
         else:
             variation = 'low'
 
@@ -351,9 +359,10 @@ def analyze_audio_features(audio_bytes: bytes) -> dict:
                             if (amplitudes[i] > 0) != (amplitudes[i-1] > 0))
         crossing_rate = zero_crossings / len(amplitudes)
 
-        if crossing_rate > 0.3:
+        # Improved thresholds for speech pace
+        if crossing_rate > 0.25:
             pace = 'fast'
-        elif crossing_rate > 0.1:
+        elif crossing_rate > 0.08:
             pace = 'normal'
         else:
             pace = 'slow'
@@ -363,7 +372,8 @@ def analyze_audio_features(audio_bytes: bytes) -> dict:
             'pace': pace,
             'volume_variation': variation,
             'avg_amplitude': avg_amplitude,
-            'max_amplitude': max_amplitude
+            'max_amplitude': max_amplitude,
+            'rms': rms
         }
 
     except Exception as e:
@@ -381,23 +391,63 @@ def analyze_text_sentiment(text: str) -> dict:
 
     Uses keyword matching for Swedish emotional words.
     In production, this could use OpenAI or a Swedish NLP model.
+    Enhanced with more comprehensive keywords and weighted scoring.
     """
     text_lower = text.lower()
 
-    # Swedish emotion keywords
+    # Swedish emotion keywords (expanded with more variations)
     emotion_keywords = {
-        'happy': ['glad', 'lycklig', 'nöjd', 'fantastisk', 'underbar', 'bra', 'toppen', 'superbra'],
-        'sad': ['ledsen', 'sorgsen', 'nedstämd', 'deprimerad', 'olycklig', 'tråkig', 'melankolisk'],
-        'anxious': ['orolig', 'nervös', 'ångest', 'rädd', 'spänd', 'stressad', 'panik'],
-        'angry': ['arg', 'irriterad', 'frustrerad', 'upprörd', 'ilsken', 'förbannad'],
-        'calm': ['lugn', 'avslappnad', 'fridfull', 'stilla', 'ro', 'harmonisk'],
-        'tired': ['trött', 'utmattad', 'sliten', 'orkeslös', 'sömnig', 'dränerad']
+        'happy': [
+            'glad', 'lycklig', 'nöjd', 'fantastisk', 'underbar', 'bra', 'toppen', 'superbra',
+            'joy', 'glädje', 'tacksam', 'positiv', 'energisk', 'motiverad', 'entusiastisk',
+            'fint', 'härligt', 'underbart', 'perfekt', 'fantastiskt', 'utmärkt'
+        ],
+        'sad': [
+            'ledsen', 'sorgsen', 'nedstämd', 'deprimerad', 'olycklig', 'tråkig', 'melankolisk',
+            'sorg', 'tungt', 'mörkt', 'ensam', 'hoppaslös', 'bedrövad', 'känslig',
+            'gråter', 'gråt', 'sorglig', 'trist', 'dyster'
+        ],
+        'anxious': [
+            'orolig', 'nervös', 'ångest', 'rädd', 'spänd', 'stressad', 'panik',
+            'oro', 'skräck', 'äcklig', 'orolig', 'ångestfull', 'hyperventilerar',
+            'bång', 'skrämd', 'fobisk', 'spänd'
+        ],
+        'angry': [
+            'arg', 'irriterad', 'frustrerad', 'upprörd', 'ilsken', 'förbannad',
+            'ilska', 'rasande', 'förbannelse', 'vrede', 'grym', 'argt',
+            'ilsk', 'rasande', 'furiös'
+        ],
+        'calm': [
+            'lugn', 'avslappnad', 'fridfull', 'stilla', 'ro', 'harmonisk',
+            'sinnad', 'balanserad', 'frid', 'tyst', 'lugnt', 'avslappnat',
+            'stillhet', 'rofylld'
+        ],
+        'tired': [
+            'trött', 'utmattad', 'sliten', 'orkeslös', 'sömnig', 'dränerad',
+            'uttröttad', 'trött', 'sover', 'sömn', 'utmattning', 'tröttare',
+            'sömnbrist', 'dåsig'
+        ],
+        'fearful': [
+            'rädd', 'skräck', 'fara', 'hot', 'farlig', 'skrämd', 'panikartad',
+            'livrädd', 'förfärlig', 'skräckslagen'
+        ],
+        'surprised': [
+            'förvånad', 'överraskad', 'chockerad', 'häpnad', 'förvåning',
+            'överraskning', 'chock', 'häpnadsväckande'
+        ]
     }
 
-    # Count emotion matches
+    # Count emotion matches with weighted scoring (full word match = 2, partial = 1)
     emotion_scores = {}
     for emotion, keywords in emotion_keywords.items():
-        score = sum(1 for kw in keywords if kw in text_lower)
+        score = 0
+        for kw in keywords:
+            # Full word match (higher weight)
+            if f' {kw} ' in f' {text_lower} ' or text_lower.startswith(kw + ' ') or text_lower.endswith(' ' + kw):
+                score += 2
+            # Partial match (lower weight)
+            elif kw in text_lower:
+                score += 1
         if score > 0:
             emotion_scores[emotion] = score
 
