@@ -35,7 +35,9 @@ export interface BackendInsight {
  */
 export const generateInsights = async (userId: string): Promise<BackendInsight[]> => {
   try {
-    const response = await api.post(`${API_ENDPOINTS.INSIGHTS.GENERATE}/${userId}`);
+    const response = await api.post(`${API_ENDPOINTS.INSIGHTS.GENERATE}/${userId}`, {}, {
+      timeout: 60000, // 60s for ML pipeline; insight generation can be slow
+    });
     return response.data.data?.insights || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;

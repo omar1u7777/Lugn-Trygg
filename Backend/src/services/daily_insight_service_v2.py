@@ -14,6 +14,22 @@ from enum import Enum
 from src.firebase_config import db
 from src.services.audit_service import audit_log
 
+
+def _parse_timestamp(ts) -> datetime | None:
+    """Parse timestamp from Firestore (datetime, ISO string, or None)."""
+    if ts is None:
+        return None
+    if isinstance(ts, datetime):
+        return ts
+    if isinstance(ts, str):
+        try:
+            # Handle ISO strings with or without Z
+            clean = ts.replace('Z', '+00:00')
+            return datetime.fromisoformat(clean)
+        except (ValueError, TypeError):
+            return None
+    return None
+
 logger = logging.getLogger(__name__)
 
 
@@ -217,13 +233,13 @@ class DailyInsightGeneratorV2:
                 return insights
 
             # 1. Temporal trend analysis (linear regression on mood)
-            trend_insight = self._analyze_trend_statistical(memories, memories, user_id)
+            trend_insight = self._analyze_trend_statistical(memories, user_id)
             if trend_insight:
                 insights.append(trend_insight)
 
             # 2. Behavioral activation opportunities
             ba_insights = self._detect_behavioral_activation_targets(
-                memories, memories, user_id
+                memories, user_id
             )
             insights.extend(ba_insights)
 
@@ -252,6 +268,25 @@ class DailyInsightGeneratorV2:
             act_insights = self._generate_act_interventions(memories, user_id)
             insights.extend(act_insights)
 
+            # If user has enough logs but no real insights were generated yet,
+            # show a positive encouragement insight to keep them engaged
+            if len(insights) == 0 and len(memories) >= self.min_memories:
+                keep_logging_insight = TherapeuticInsight(
+                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_keep_logging",
+                    user_id=user_id,
+                    insight_type=InsightType.MILESTONE,
+                    domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
+                    title="Bra att du loggar ditt mående",
+                    message="Du har loggat ditt mående tre gånger. Fortsätt logga regelbundet så kommer personliga insikter och mönster att växa fram. Ju fler loggar du gör, desto tydligare blir bild av ditt välmående.",
+                    recommendation="Logga ditt mående igen om några dagar för att aktivera djupare analys.",
+                    evidence={'memory_count': len(memories)},
+                    urgency='low',
+                    suggested_action='Logga mående nu',
+                    related_memories=[],
+                    created_at=datetime.now()
+                )
+                insights.append(keep_logging_insight)
+
             # Save all insights
             for insight in insights:
                 self._save_insight(insight)
@@ -263,7 +298,7 @@ class DailyInsightGeneratorV2:
                 details={
                     "insight_count": len(insights),
                     "memory_count": len(memories),
-                    "mood_datapoints": len(mood_data),
+                    "mood_datapoints": len(memories),
                     "domains": [i.domain.value for i in insights],
                     "statistical_tests_performed": len(insights)
                 }
@@ -275,33 +310,50 @@ class DailyInsightGeneratorV2:
         # Sort by clinical priority
         return self._prioritize_insights(insights)
 
-    def _analyze_trend_statistical(self, memories: list[dict],
-                                   mood_data: list[dict], user_id: str) -> TherapeuticInsight | None:
+    def _analyze_trend_statistical(self, memories: list[dict], user_id: str) -> TherapeuticInsight | None:
         """
         Linear regression on mood scores with statistical validation.
         Returns insight if trend is statistically significant.
         """
-        if len(mood_data) < 5:
+        if len(memories) < 5:
             return None
 
         try:
-            # Extract time series
-            times = list(range(len(mood_data)))
-            scores = [m.get('score', 5) for m in mood_data]
+            # Extract time series with real timestamps (parse ISO strings)
+            time_points = []
+            scores = []
+            for m in memories:
+                ts = _parse_timestamp(m.get('timestamp'))
+                if ts is None:
+                    continue
+                time_points.append(ts)
+                scores.append(m.get('score', 5))
+
+            if len(time_points) < 5:
+                return None
+
+            # Sort by time to ensure chronological order
+            sorted_data = sorted(zip(time_points, scores), key=lambda x: x[0])
+            time_points = [d[0] for d in sorted_data]
+            scores = [d[1] for d in sorted_data]
+
+            # Use days since first measurement as time unit (more meaningful than index)
+            base_time = time_points[0]
+            times = [(t - base_time).total_seconds() / 86400.0 for t in time_points]
 
             # Simple linear regression
             n = len(times)
             mean_t = statistics.mean(times)
             mean_s = statistics.mean(scores)
 
-            # Calculate slope (beta)
+            # Calculate slope (beta) - mood points per day
             numerator = sum((t - mean_t) * (s - mean_s) for t, s in zip(times, scores, strict=False))
             denominator = sum((t - mean_t) ** 2 for t in times)
 
             if denominator == 0:
                 return None
 
-            beta = numerator / denominator
+            beta = numerator / denominator  # points per day
 
             # Calculate effect size (approximate)
             if len(scores) > 1:
@@ -310,8 +362,8 @@ class DailyInsightGeneratorV2:
             else:
                 effect_size = 0
 
-            # Only flag if clinically relevant decline
-            if beta < -0.1 and effect_size >= self.min_effect_size:
+            # Only flag if clinically relevant decline (>0.5 points per day decline)
+            if beta < -0.5 and effect_size >= self.min_effect_size:
                 template = self.TEMPLATES['declining_trend']
 
                 return TherapeuticInsight(
@@ -328,7 +380,7 @@ class DailyInsightGeneratorV2:
                         'n': n,
                         'method': 'linear_regression'
                     },
-                    urgency='high' if beta < -0.3 else 'medium',
+                    urgency='high' if beta < -1.0 else 'medium',
                     suggested_action=template['action'],
                     values_alignment=template['act_value']
                 )
@@ -339,7 +391,6 @@ class DailyInsightGeneratorV2:
         return None
 
     def _detect_behavioral_activation_targets(self, memories: list[dict],
-                                               mood_data: list[dict],
                                                user_id: str) -> list[TherapeuticInsight]:
         """
         Detect opportunities for behavioral activation.
@@ -438,7 +489,7 @@ class DailyInsightGeneratorV2:
 
     def _categorize_activity(self, memory: dict) -> str | None:
         """Categorize memory into activity type."""
-        content = memory.get('content', '').lower()
+        content = (memory.get('note', '') or memory.get('mood_text', '') or '').lower()
         photo_scene = memory.get('ai_analysis', {}).get('photo_analysis', {}).get('scene', '')
 
         nature_keywords = ['skog', 'natur', 'park', 'promenad', 'vandra', 'träd', 'sjö']
@@ -470,12 +521,14 @@ class DailyInsightGeneratorV2:
         social_memories = [
             m for m in memories
             if m.get('ai_analysis', {}).get('photo_analysis', {}).get('has_faces', False)
-            or any(kw in m.get('content', '').lower()
+            or any(kw in (m.get('note', '') or m.get('mood_text', '') or '').lower()
                    for kw in ['vän', 'familj', 'träff', 'pratade', 'samman'])
         ]
 
-        recent_social = [m for m in social_memories
-                        if m.get('created_at', datetime.now()) > week_ago]
+        recent_social = [
+            m for m in social_memories
+            if (ts := _parse_timestamp(m.get('timestamp'))) and ts > week_ago
+        ]
 
         # If no social contact in 7 days, flag it
         if len(recent_social) == 0 and len(memories) > 3:
@@ -501,9 +554,9 @@ class DailyInsightGeneratorV2:
 
         return None
 
-    def _analyze_circadian_patterns(self, mood_data: list[dict], user_id: str) -> TherapeuticInsight | None:
+    def _analyze_circadian_patterns(self, memories: list[dict], user_id: str) -> TherapeuticInsight | None:
         """Analyze time-of-day mood patterns."""
-        if len(mood_data) < 7:
+        if len(memories) < 7:
             return None
 
         try:
@@ -512,12 +565,12 @@ class DailyInsightGeneratorV2:
             afternoon_scores = []
             evening_scores = []
 
-            for entry in mood_data:
-                timestamp = entry.get('timestamp') or entry.get('created_at')
-                if not timestamp:
+            for entry in memories:
+                ts = _parse_timestamp(entry.get('timestamp') or entry.get('created_at'))
+                if not ts:
                     continue
 
-                hour = timestamp.hour if isinstance(timestamp, datetime) else 12
+                hour = ts.hour
                 score = entry.get('score', 5)
 
                 if 6 <= hour < 12:
@@ -713,7 +766,16 @@ class DailyInsightGeneratorV2:
                 filter=FieldFilter('status', '==', 'pending')
             ).order_by('created_at', direction='DESCENDING')
 
-            return [doc.to_dict() for doc in insights_query.stream()]
+            insights = []
+            for doc in insights_query.stream():
+                data = doc.to_dict()
+                # Convert datetime fields to ISO strings for JSON serialization
+                for key in ['created_at', 'dismissed_at', 'action_taken_at']:
+                    if key in data and isinstance(data[key], datetime):
+                        data[key] = data[key].isoformat()
+                insights.append(data)
+
+            return insights
 
         except Exception as e:
             logger.error(f"Failed to fetch pending insights: {e}")
