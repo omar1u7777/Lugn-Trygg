@@ -91,7 +91,7 @@ class InsightNotificationScheduler:
 
                 # Generate insights
                 generator = get_insight_generator()
-                insights = generator.generate_daily_insights(user_id)
+                insights = generator.generate_insights(user_id)
 
                 if insights:
                     processed += 1
