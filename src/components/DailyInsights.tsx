@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   LightBulbIcon,
   XMarkIcon,
@@ -63,6 +64,7 @@ const DOMAIN_LABELS: Record<string, string> = {
 
 export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [insights, setInsights] = useState<BackendInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +128,12 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       await markInsightActionTaken(insightId, action);
       setActionStates(s => ({ ...s, [insightId]: 'done' }));
       trackEvent('insight_action_taken', { userId, insightId, action });
+
+      // Navigate to mood logging if action is "Logga månde nu" or similar
+      if (action.toLowerCase().includes('logga') || action.toLowerCase().includes('månde')) {
+        navigate('/mood-basic');
+      }
+
       // Remove after short delay to show confirmation
       const timeoutId = setTimeout(() => {
         if (isMounted.current) {
