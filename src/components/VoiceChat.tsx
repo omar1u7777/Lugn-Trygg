@@ -474,7 +474,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 timestamp: new Date(),
               }]);
             }}
-            className="text-gray-400 hover:text-indigo-500 transition-colors"
+            className="text-gray-400 hover:text-teal-500 transition-colors"
             aria-label="Hjälp"
           >
             <ExclamationTriangleIcon className="w-5 h-5" />
@@ -658,13 +658,13 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             {/* Coping recommendations */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-3">
-                <SparklesIcon className="w-4 h-4 text-indigo-500" />
+                <SparklesIcon className="w-4 h-4 text-teal-500" />
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Vad du kan göra nu</h3>
               </div>
               <ul className="space-y-2">
                 {profile.recommendations.map((rec, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span className="text-indigo-500 font-bold mt-0.5">→</span>
+                    <span className="text-teal-500 font-bold mt-0.5">→</span>
                     <span>{rec}</span>
                   </li>
                 ))}
