@@ -44,9 +44,9 @@ const URGENCY_STYLES: Record<string, { border: string; icon: React.ReactNode; ba
     icon: <InformationCircleIcon className="w-5 h-5 text-amber-500" />,
   },
   low: {
-    border: 'border-indigo-200 dark:border-indigo-700',
-    badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
-    icon: <LightBulbIcon className="w-5 h-5 text-indigo-500" />,
+    border: 'border-teal-200 dark:border-teal-700',
+    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300',
+    icon: <LightBulbIcon className="w-5 h-5 text-teal-500" />,
   },
 };
 
@@ -143,7 +143,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <ArrowPathIcon className="w-8 h-8 text-indigo-400 animate-spin" />
+        <ArrowPathIcon className="w-8 h-8 text-teal-400 animate-spin" />
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {t('insights.loading', 'Analyserar dina mönster…')}
         </p>
@@ -169,7 +169,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   if (insights.length === 0) {
     return (
       <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center space-y-4">
-        <LightBulbIcon className="w-10 h-10 text-indigo-300 mx-auto" />
+        <LightBulbIcon className="w-10 h-10 text-teal-300 mx-auto" />
         <p className="text-base font-semibold text-gray-700 dark:text-gray-200">
           {t('insights.noInsights', 'Inga insikter just nu')}
         </p>
@@ -179,7 +179,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         <button
           onClick={loadInsights}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -202,7 +202,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       <AnimatePresence mode="popLayout">
         {insights.map((insight, index) => {
           const urgency = insight.urgency ?? 'low';
-          const style = URGENCY_STYLES[urgency] || URGENCY_STYLES.low;
+          const style = URGENCY_STYLES[urgency] ?? URGENCY_STYLES.low!;
           const actionState = actionStates[insight.insight_id] ?? 'idle';
           const domainLabel = DOMAIN_LABELS[insight.domain] ?? insight.domain;
 
@@ -246,11 +246,11 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
                 {/* Recommendation block */}
                 {insight.recommendation && (
-                  <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-xl p-3 mb-4">
-                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-0.5">
+                  <div className="bg-teal-50 dark:bg-teal-900/30 rounded-xl p-3 mb-4">
+                    <p className="text-xs font-semibold text-teal-700 dark:text-teal-300 mb-0.5">
                       {t('insights.recommendation', 'Rekommendation')}
                     </p>
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400">
+                    <p className="text-xs text-teal-600 dark:text-teal-400">
                       {insight.recommendation}
                     </p>
                   </div>
@@ -264,7 +264,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                     className={`w-full py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
                       actionState === 'done'
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 cursor-default'
-                        : 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-60 disabled:cursor-not-allowed'
+                        : 'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-60 disabled:cursor-not-allowed'
                     }`}
                   >
                     {actionState === 'done' ? (

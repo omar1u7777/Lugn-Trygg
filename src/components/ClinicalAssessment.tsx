@@ -248,7 +248,7 @@ export const ClinicalAssessment: React.FC = () => {
                 return (
                   <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHQ-9 trend (senaste {phq9History.length})</p>
-                    <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-indigo-500" />
+                    <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-violet-500" />
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                       Senast: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} p</strong>
                       {' — '}{severityLabel(lastEntry.severity ?? 'unknown')}

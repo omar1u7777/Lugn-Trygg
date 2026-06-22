@@ -40,13 +40,21 @@ def generate_insights(user_id: str):
             'generated_count': len(insights),
             'insights': [
                 {
-                    'id': i.insight_id,
-                    'type': i.insight_type.value,
+                    'insight_id': i.insight_id,
+                    'user_id': i.user_id,
+                    'insight_type': i.insight_type.value,
+                    'domain': i.domain.value,
                     'title': i.title,
                     'message': i.message,
                     'recommendation': i.recommendation,
+                    'evidence': i.evidence,
                     'urgency': i.urgency,
-                    'action': i.suggested_action
+                    'suggested_action': i.suggested_action,
+                    'related_memories': i.related_memories,
+                    'values_alignment': i.values_alignment,
+                    'behavioral_target': i.behavioral_target,
+                    'created_at': (i.created_at or datetime.now()).isoformat(),
+                    'status': 'pending',
                 }
                 for i in insights
             ]
