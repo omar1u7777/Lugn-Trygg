@@ -116,6 +116,30 @@ const DEFAULT_USAGE: DailyUsage = {
   lastResetDate: new Date().toISOString().split('T')[0] || '',
 };
 
+/**
+ * Safely convert a backend date value (ISO string, Firestore timestamp, or Date)
+ * to a valid Date object. Returns undefined if the value is invalid.
+ */
+const normalizeDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+
+  // Firestore timestamp object
+  if (typeof value === 'object' && value !== null && 'seconds' in value && typeof (value as { seconds: number }).seconds === 'number') {
+    const seconds = (value as { seconds: number; nanoseconds?: number }).seconds;
+    const nanoseconds = (value as { seconds: number; nanoseconds?: number }).nanoseconds ?? 0;
+    const date = new Date(seconds * 1000 + nanoseconds / 1_000_000);
+    return !isNaN(date.getTime()) ? date : undefined;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return !isNaN(date.getTime()) ? date : undefined;
+  }
+
+  return undefined;
+};
+
 // Local storage keys — namespaced per user
 const getUsageStorageKey = (userId?: string) => `lugn_trygg_daily_usage_${userId || 'anonymous'}`;
 const getSubscriptionCacheKey = (userId?: string) => `lugn_trygg_subscription_cache_${userId || 'anonymous'}`;
@@ -178,7 +202,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
           const { plan: cachedPlan, usage: cachedUsage, timestamp } = JSON.parse(cached);
           // Cache valid for 5 minutes
           if (Date.now() - timestamp < 5 * 60 * 1000) {
-            setPlan(cachedPlan);
+            const restoredPlan: SubscriptionPlan = {
+              ...cachedPlan,
+              expiresAt: normalizeDate(cachedPlan.expiresAt),
+              trialEndsAt: normalizeDate(cachedPlan.trialEndsAt),
+            };
+            setPlan(restoredPlan);
             if (cachedUsage) {
               setUsage(cachedUsage);
             }
@@ -234,10 +263,12 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       if (data.interval) newPlan.interval = data.interval;
       else if (basePlan.interval) newPlan.interval = basePlan.interval;
       
-      if (data.expiresAt) newPlan.expiresAt = new Date(data.expiresAt);
+      const parsedExpiresAt = normalizeDate(data.expiresAt);
+      if (parsedExpiresAt) newPlan.expiresAt = parsedExpiresAt;
       else if (basePlan.expiresAt) newPlan.expiresAt = basePlan.expiresAt;
-      
-      if (data.trialEndsAt) newPlan.trialEndsAt = new Date(data.trialEndsAt);
+
+      const parsedTrialEndsAt = normalizeDate(data.trialEndsAt);
+      if (parsedTrialEndsAt) newPlan.trialEndsAt = parsedTrialEndsAt;
       else if (basePlan.trialEndsAt) newPlan.trialEndsAt = basePlan.trialEndsAt;
 
       setPlan(newPlan);
