@@ -846,6 +846,18 @@ class DailyInsightGeneratorV2:
         except Exception as e:
             logger.error(f"Failed to save insight: {e}")
 
+    def mark_insight_sent(self, insight_id: str) -> bool:
+        """Mark a pending insight as notification sent."""
+        try:
+            db.collection('insights').document(insight_id).update({
+                'notification_sent': True,
+                'sent_at': datetime.now()
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to mark insight as sent: {e}")
+            return False
+
 
 # Export both versions
 DailyInsightGenerator = DailyInsightGeneratorV2
