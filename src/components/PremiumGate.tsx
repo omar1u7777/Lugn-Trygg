@@ -73,7 +73,10 @@ export const PremiumGate: React.FC<PremiumGateProps> = ({
 }) => {
   const { hasFeature, plan, loading, isTrial } = useSubscription();
   const navigate = useNavigate();
-  const trialEndTime = plan.trialEndsAt ? plan.trialEndsAt.getTime() : 0;
+  const trialEndTime =
+    plan.trialEndsAt && typeof plan.trialEndsAt.getTime === 'function'
+      ? plan.trialEndsAt.getTime()
+      : 0;
   const remainingMs = Math.max(0, trialEndTime - Date.now());
   const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
   const hasTrialEndDate = Boolean(plan.trialEndsAt);
