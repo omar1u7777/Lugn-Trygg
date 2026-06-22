@@ -84,14 +84,22 @@ def create_mock_collection():
     return mock_collection
 
 def create_mock_transaction(*args, **kwargs):
-    """Mock transaction function"""
+    """Mock transaction factory returned by db.transaction()"""
     def transaction_func(func):
         # Just call the function directly for testing
         return func()
     return transaction_func
 
+def create_mock_run_in_transaction(*args, **kwargs):
+    """Mock db.run_in_transaction(func, *args, **kwargs)."""
+    func = args[0]
+    func_args = args[1:]
+    mock_txn = MagicMock()
+    return func(mock_txn, *func_args, **kwargs)
+
 mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
 mock_db.transaction = MagicMock(side_effect=create_mock_transaction)
+mock_db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
 _shared_mock_db = mock_db
 
 
@@ -109,6 +117,7 @@ def _ensure_shared_mock_db() -> MagicMock:
     # Keep default behavior stable between tests
     db_obj.collection = MagicMock(side_effect=lambda name: create_mock_collection())
     db_obj.transaction = MagicMock(side_effect=create_mock_transaction)
+    db_obj.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
 
     firebase_module.db = db_obj
 
@@ -373,10 +382,12 @@ def _reset_shared_mock_db():
     db.reset_mock()
     # Restore the default side_effect so db.collection('x') returns a proper mock chain
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+    db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
     yield
     # Post-test cleanup: reset again to be safe
     db.reset_mock()
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
+    db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
 
 
 @pytest.fixture(autouse=True)

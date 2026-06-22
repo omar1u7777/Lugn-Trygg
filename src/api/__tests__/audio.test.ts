@@ -52,14 +52,14 @@ describe('getAudioLibrary', () => {
 
   it('returns library object on success', async () => {
     const library = { nature: { id: 'nature', name: 'Nature', icon: '🌿', description: 'calm', tracks: [] } };
-    mockApi.get.mockResolvedValueOnce({ data: { library } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { library } } });
 
     const result = await getAudioLibrary();
     expect(result).toEqual(library);
   });
 
   it('returns empty object when library is missing', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: {} });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: {} } });
 
     const result = await getAudioLibrary();
     expect(result).toEqual({});
@@ -77,14 +77,14 @@ describe('getAudioCategories', () => {
 
   it('returns categories array on success', async () => {
     const categories = [{ id: 'nature', name: 'Nature', icon: '🌿', description: 'calm' }];
-    mockApi.get.mockResolvedValueOnce({ data: { categories } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { categories } } });
 
     const result = await getAudioCategories();
     expect(result).toEqual(categories);
   });
 
   it('returns empty array when categories missing', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: {} });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: {} } });
 
     const result = await getAudioCategories();
     expect(result).toEqual([]);
@@ -103,7 +103,7 @@ describe('getAudioCategoryTracks', () => {
   it('returns category and tracks', async () => {
     const categoryInfo = { id: 'nature', name: 'Nature', icon: '🌿', description: 'calm' };
     const tracks = [{ id: 't1', title: 'Rain', artist: 'Nature', duration: '3:00', url: '/rain.mp3' }];
-    mockApi.get.mockResolvedValueOnce({ data: { category: categoryInfo, tracks } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { category: categoryInfo, tracks } } });
 
     const result = await getAudioCategoryTracks('nature');
     expect(result.category).toEqual(categoryInfo);
@@ -111,14 +111,14 @@ describe('getAudioCategoryTracks', () => {
   });
 
   it('returns empty tracks when missing', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: { category: { id: 'nature' } } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { category: { id: 'nature' } } } });
 
     const result = await getAudioCategoryTracks('nature');
     expect(result.tracks).toEqual([]);
   });
 
   it('encodes categoryId in URL', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: { category: {}, tracks: [] } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { category: {}, tracks: [] } } });
 
     await getAudioCategoryTracks('special category');
     expect(mockApi.get).toHaveBeenCalledWith(expect.stringContaining('special%20category'));
@@ -136,14 +136,14 @@ describe('searchAudioTracks', () => {
 
   it('returns search results', async () => {
     const results = [{ id: 't1', title: 'Rain', artist: 'Nature', duration: '3:00', url: '/rain.mp3' }];
-    mockApi.get.mockResolvedValueOnce({ data: { results } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { results } } });
 
     const result = await searchAudioTracks('rain');
     expect(result).toEqual(results);
   });
 
   it('passes query as q param', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: { results: [] } });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: { results: [] } } });
 
     await searchAudioTracks('forest');
     expect(mockApi.get).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe('searchAudioTracks', () => {
   });
 
   it('returns empty array when results missing', async () => {
-    mockApi.get.mockResolvedValueOnce({ data: {} });
+    mockApi.get.mockResolvedValueOnce({ data: { success: true, data: {} } });
 
     const result = await searchAudioTracks('rain');
     expect(result).toEqual([]);
