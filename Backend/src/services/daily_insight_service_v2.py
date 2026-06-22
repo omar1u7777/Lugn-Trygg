@@ -205,7 +205,6 @@ class DailyInsightGeneratorV2:
         try:
             # Extended data collection
             memories = self._fetch_memories(user_id, days=self.analysis_window)
-            mood_data = self._fetch_mood_history(user_id, days=self.analysis_window)
             self._fetch_activity_patterns(user_id)
 
             if len(memories) < self.min_memories:
@@ -218,13 +217,13 @@ class DailyInsightGeneratorV2:
                 return insights
 
             # 1. Temporal trend analysis (linear regression on mood)
-            trend_insight = self._analyze_trend_statistical(memories, mood_data, user_id)
+            trend_insight = self._analyze_trend_statistical(memories, memories, user_id)
             if trend_insight:
                 insights.append(trend_insight)
 
             # 2. Behavioral activation opportunities
             ba_insights = self._detect_behavioral_activation_targets(
-                memories, mood_data, user_id
+                memories, memories, user_id
             )
             insights.extend(ba_insights)
 
@@ -234,7 +233,7 @@ class DailyInsightGeneratorV2:
                 insights.append(social_insight)
 
             # 4. Circadian-mood correlation
-            circadian_insight = self._analyze_circadian_patterns(mood_data, user_id)
+            circadian_insight = self._analyze_circadian_patterns(memories, user_id)
             if circadian_insight:
                 insights.append(circadian_insight)
 
@@ -678,17 +677,17 @@ class DailyInsightGeneratorV2:
         return insights[:3]
 
     def _fetch_memories(self, user_id: str, days: int) -> list[dict]:
-        """Fetch memories from Firestore."""
+        """Fetch mood entries from Firestore (users/{user_id}/moods subcollection)."""
         try:
             from google.cloud.firestore import FieldFilter
 
             cutoff = datetime.now() - timedelta(days=days)
 
-            query = db.collection('memories').where(
-                filter=FieldFilter('user_id', '==', user_id)
-            ).where(
-                filter=FieldFilter('created_at', '>=', cutoff)
-            ).order_by('created_at', direction='DESCENDING')
+            # Fetch from users/{user_id}/moods subcollection (where mood data is actually stored)
+            mood_ref = db.collection('users').document(user_id).collection('moods')
+            query = mood_ref.where(
+                filter=FieldFilter('timestamp', '>=', cutoff)
+            ).order_by('timestamp', direction='DESCENDING')
 
             memories = []
             for doc in query.stream():
@@ -696,28 +695,11 @@ class DailyInsightGeneratorV2:
                 data['id'] = doc.id
                 memories.append(data)
 
+            logger.info(f"Fetched {len(memories)} mood entries for user {user_id}")
             return memories
 
         except Exception as e:
-            logger.error(f"Failed to fetch memories: {e}")
-            return []
-
-    def _fetch_mood_history(self, user_id: str, days: int) -> list[dict]:
-        """Fetch mood entries from users/{user_id}/moods subcollection."""
-        try:
-            from google.cloud.firestore import FieldFilter
-
-            cutoff = datetime.now() - timedelta(days=days)
-
-            mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.where(
-                filter=FieldFilter('timestamp', '>=', cutoff)
-            ).order_by('timestamp', direction='DESCENDING')
-
-            return [doc.to_dict() for doc in query.stream()]
-
-        except Exception as e:
-            logger.error(f"Failed to fetch mood data: {e}")
+            logger.error(f"Failed to fetch mood entries: {e}")
             return []
 
     def get_pending_insights(self, user_id: str) -> list[dict]:
