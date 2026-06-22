@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, Typography, Button, Input, Avatar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { blobToBase64, transcribeVoiceAudio, analyzeVoiceEmotionDetailed, AnalyzeVoiceEmotionResponse } from '../api/voice';
+import { blobToBase64, transcribeVoiceAudio, analyzeVoiceEmotionDetailed, AnalyzeVoiceEmotionResponse, saveVoiceRecording } from '../api/voice';
 import { chatWithAI } from '../api/ai';
 import useAuth from '../hooks/useAuth';
+import { useMountedRef } from '../hooks/useMountedRef';
 import { MicrophoneIcon, PaperAirplaneIcon, StopIcon, ExclamationTriangleIcon, HeartIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
@@ -122,13 +123,18 @@ interface Message {
   emotionContext?: string | undefined;
 }
 
+const MAX_RECORDING_SECONDS = 300; // 5 minutes hard limit
+const MAX_AUDIO_MB = 9; // Leave margin below backend 10 MB limit
+
 const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const { t: _t } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
+  const isMountedRef = useMountedRef();
+
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
+      id: 'welcome',
       text: 'Hej! Jag är din AI-terapeut. Hur känns det idag? Du kan prata med mig genom att trycka på mikrofon-knappen eller skriva.',
       isUser: false,
       timestamp: new Date(),
@@ -141,49 +147,95 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const [emotionResult, setEmotionResult] = useState<AnalyzeVoiceEmotionResponse | null>(null);
   const [lastTranscript, setLastTranscript] = useState('');
   const [processingStep, setProcessingStep] = useState<'idle' | 'transcribing' | 'analyzing' | 'done'>('idle');
-  const [quickActions] = useState([
+
+  const quickActions = useMemo(() => [
     'Jag känner mig stressad idag',
     'Hjälp mig med mindfulness',
     'Berätta en lugnande historia',
     'Vad kan jag göra för bättre sömn?',
     'Jag känner mig orolig',
     'Hjälp mig förstå mina känslor',
-  ]);
+  ], []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const processVoiceMessageRef = useRef<(blob: Blob) => Promise<void>>(async () => {});
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  const addMessage = useCallback((message: Omit<Message, 'id' | 'timestamp'>): Message | null => {
+    if (!isMountedRef.current) return null;
+    const newMessage: Message = {
+      ...message,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, newMessage]);
+    return newMessage;
+  }, [isMountedRef]);
+
+  const cleanupRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        logger.warn('MediaRecorder stop error during cleanup:', e);
+      }
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    audioChunksRef.current = [];
+    if (isMountedRef.current) setIsRecording(false);
+  }, [isMountedRef]);
+
+  const cleanupPendingRequests = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      if (timerRef.current) clearInterval(timerRef.current);
+      cleanupRecording();
+      cleanupPendingRequests();
     };
-  }, []);
+  }, [cleanupRecording, cleanupPendingRequests]);
 
   useEffect(() => {
     analytics.page('Voice Chat', { component: 'VoiceChat' });
     scrollToBottom();
-  }, []);
+  }, [scrollToBottom]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const startRecording = useCallback(async () => {
+    if (isRecording || isProcessing) return;
 
-  const startRecording = async () => {
+    cleanupPendingRequests();
+    abortControllerRef.current = new AbortController();
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
@@ -204,143 +256,191 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
+      mediaRecorder.onerror = (event) => {
+        logger.error('MediaRecorder error:', event);
+        cleanupRecording();
+        addMessage({
+          text: 'Ett fel uppstod under inspelningen. Försök igen.',
+          isUser: false,
+        });
+        announceToScreenReader('Inspelningsfel', 'assertive');
+      };
+
       mediaRecorder.onstop = async () => {
+        if (maxDurationTimerRef.current) {
+          clearTimeout(maxDurationTimerRef.current);
+          maxDurationTimerRef.current = null;
+        }
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        stream.getTracks().forEach(track => track.stop());
-        await processVoiceMessage(audioBlob);
+        audioChunksRef.current = [];
+
+        if (audioBlob.size === 0) {
+          addMessage({
+            text: 'Inspelningen blev tom. Försök prata tydligare och längre.',
+            isUser: false,
+          });
+          if (isMountedRef.current) setIsProcessing(false);
+          return;
+        }
+
+        if (audioBlob.size > MAX_AUDIO_MB * 1024 * 1024) {
+          addMessage({
+            text: `Inspelningen är för stor (max ${MAX_AUDIO_MB} MB). Försök igen med ett kortare meddelande.`,
+            isUser: false,
+          });
+          if (isMountedRef.current) setIsProcessing(false);
+          return;
+        }
+
+        await processVoiceMessageRef.current(audioBlob);
       };
 
       mediaRecorder.start(250); // collect data every 250 ms
-      setIsRecording(true);
-      setRecordingSeconds(0);
+      if (isMountedRef.current) {
+        setIsRecording(true);
+        setRecordingSeconds(0);
+      }
       setEmotionResult(null);
       setLastTranscript('');
       setProcessingStep('idle');
 
       // Recording timer
-      timerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+      timerRef.current = setInterval(() => {
+        if (isMountedRef.current) setRecordingSeconds((s) => s + 1);
+      }, 1000);
+
+      // Hard max duration guard
+      maxDurationTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          try {
+            mediaRecorderRef.current.stop();
+          } catch (e) {
+            logger.warn('MediaRecorder auto-stop error:', e);
+          }
+          cleanupRecording();
+          addMessage({
+            text: `Inspelningen stoppades automatiskt efter ${MAX_RECORDING_SECONDS} sekunder.`,
+            isUser: false,
+          });
+        }
+      }, MAX_RECORDING_SECONDS * 1000);
 
       announceToScreenReader('Röstinspelning startad', 'polite');
       analytics.track('Voice Recording Started', { component: 'VoiceChat' });
 
     } catch (error) {
       logger.error('Error starting recording:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
+      addMessage({
         text: 'Kunde inte starta inspelning. Kontrollera att webbläsaren har tillgång till mikrofonen.',
         isUser: false,
-        timestamp: new Date(),
-      }]);
-      announceToScreenReader('Kunde inte starta röstinspelning', 'assertive');
-    }
-  };
-
-  const stopRecording = () => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      announceToScreenReader('Röstinspelning stoppad', 'polite');
-
-      analytics.track('Voice Recording Stopped', {
-        component: 'VoiceChat',
       });
+      announceToScreenReader('Kunde inte starta röstinspelning', 'assertive');
+      cleanupRecording();
     }
-  };
+  }, [isRecording, isProcessing, cleanupPendingRequests, addMessage, isMountedRef, cleanupRecording, announceToScreenReader]);
 
-  const processVoiceMessage = async (audioBlob: Blob) => {
-    setIsProcessing(true);
+  const stopRecording = useCallback(() => {
+    if (!isRecording) return;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (isMountedRef.current) setIsProcessing(true);
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        logger.warn('MediaRecorder stop error:', e);
+      }
+    }
+    cleanupRecording();
+    announceToScreenReader('Röstinspelning stoppad', 'polite');
+    analytics.track('Voice Recording Stopped', { component: 'VoiceChat' });
+  }, [isRecording, cleanupRecording, isMountedRef, announceToScreenReader]);
+
+  const processVoiceMessage = useCallback(async (audioBlob: Blob) => {
+    if (isMountedRef.current) {
+      setIsProcessing(true);
+      setProcessingStep('transcribing');
+    }
     announceToScreenReader('Bearbetar röstmeddelande...', 'polite');
+
+    let transcribedText = '';
+    let detectedEmotion: AnalyzeVoiceEmotionResponse | null = null;
 
     try {
       // Convert blob to base64 (what the backend expects)
       const base64Audio = await blobToBase64(audioBlob);
 
       // Step 1: Transcribe with Google Cloud STT
-      setProcessingStep('transcribing');
-      let transcribedText = '';
       try {
         const transcriptionResult = await transcribeVoiceAudio(base64Audio, 'sv-SE');
         if (transcriptionResult.transcript) {
           transcribedText = transcriptionResult.transcript;
           logger.debug('✅ Transcription success:', transcribedText.substring(0, 60));
-        } else {
-          // Google STT failed – show instructive message, do NOT silently skip
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder). Eller skriv ditt meddelande nedan.',
-            isUser: false,
-            timestamp: new Date(),
-          }]);
-          setIsProcessing(false);
-          setProcessingStep('idle');
-          return;
         }
       } catch (sttErr) {
         logger.error('STT error:', sttErr);
-        // Still continue to emotion analysis even without transcript
-        transcribedText = '';
       }
 
       // Step 2: Analyse voice emotion (with transcript for multimodal fusion)
-      setProcessingStep('analyzing');
-      let detectedEmotion: AnalyzeVoiceEmotionResponse | null = null;
+      if (isMountedRef.current) setProcessingStep('analyzing');
       try {
         detectedEmotion = await analyzeVoiceEmotionDetailed(base64Audio, transcribedText || undefined);
-        setEmotionResult(detectedEmotion);
-        setLastTranscript(transcribedText);
-
+        if (isMountedRef.current) {
+          setEmotionResult(detectedEmotion);
+          setLastTranscript(transcribedText);
+        }
         analytics.track('Voice Emotion Detected', {
           component: 'VoiceChat',
           primaryEmotion: detectedEmotion.primaryEmotion,
           energyLevel: detectedEmotion.energyLevel,
           speakingPace: detectedEmotion.speakingPace,
         });
-
-        logger.debug(`🎭 Emotion: ${detectedEmotion.primaryEmotion}, confidence: ${detectedEmotion.emotions[detectedEmotion.primaryEmotion]}`);
       } catch (emoErr) {
         logger.warn('Emotion analysis error (non-fatal):', emoErr);
       }
 
-      setProcessingStep('done');
+      if (isMountedRef.current) setProcessingStep('done');
 
-      // If no transcript but emotion analysis succeeded, show emotion result
+      // If no transcript, show a single instructive error and stop
       if (!transcribedText) {
-        if (detectedEmotion) {
-          // Show emotion analysis result even without transcript
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder). Eller skriv ditt meddelande nedan.',
-            isUser: false,
-            timestamp: new Date(),
-          }]);
-        } else {
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder). Eller skriv ditt meddelande nedan.',
-            isUser: false,
-            timestamp: new Date(),
-          }]);
-        }
-        setIsProcessing(false);
-        setProcessingStep('idle');
+        addMessage({
+          text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder), eller skriv ditt meddelande nedan.',
+          isUser: false,
+        });
         return;
       }
 
       // Add user message with voice indicator + emotion context
-      const userMessage: Message = {
-        id: Date.now().toString(),
+      addMessage({
         text: transcribedText,
         isUser: true,
-        timestamp: new Date(),
         isVoice: true,
         emotionContext: detectedEmotion?.primaryEmotion,
-      };
-      setMessages(prev => [...prev, userMessage]);
+      });
+
+      // Save voice recording metadata (best-effort)
+      if (user?.user_id && detectedEmotion) {
+        try {
+          await saveVoiceRecording({
+            transcript: transcribedText,
+            primary_emotion: detectedEmotion.primaryEmotion,
+            emotion_confidences: detectedEmotion.emotions,
+            energy_level: detectedEmotion.energyLevel,
+            speaking_pace: detectedEmotion.speakingPace,
+            volume_variation: detectedEmotion.volumeVariation,
+            audio_duration_ms: recordingSeconds * 1000,
+            language: 'sv-SE',
+            ...(detectedEmotion.valence !== undefined && { valence: detectedEmotion.valence }),
+            ...(detectedEmotion.arousal !== undefined && { arousal: detectedEmotion.arousal }),
+          });
+        } catch (saveErr) {
+          logger.warn('Failed to save voice recording metadata:', saveErr);
+        }
+      }
 
       // Step 3: Send to AI chat with emotion context for personalized response
       if (user?.user_id) {
-        // Build context-aware message that includes emotional cues for the AI
         const emotionContext = detectedEmotion
           ? `[Röstanalys: användaren låter ${getEmotionProfile(detectedEmotion.primaryEmotion)?.sv.toLowerCase() || 'neutral'}, energinivå: ${detectedEmotion.energyLevel}, taltempo: ${detectedEmotion.speakingPace}] `
           : '';
@@ -348,29 +448,31 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
         try {
           const aiResult = await chatWithAI(user.user_id, aiInput);
-          setMessages(prev => [...prev, {
-            id: (Date.now() + 1).toString(),
+          addMessage({
             text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig.',
             isUser: false,
-            timestamp: new Date(),
-          }]);
+          });
           announceToScreenReader('AI svar mottaget', 'polite');
+
+          // Backend can detect crisis from text even when audio emotion looks neutral
+          if (aiResult.crisisDetected) {
+            addMessage({
+              text: '⚠️ Det låter som att du har det svårt just nu. Om du mår mycket dåligt: ring **112** eller **Mind 90101** (dygnet runt).',
+              isUser: false,
+            });
+          }
         } catch (aiError) {
           logger.error('AI response error:', aiError);
-          // Check if it's a timeout error
           const isTimeout = aiError instanceof Error && (
             aiError.message.includes('timeout') ||
             aiError.message.includes('timed out')
           );
-          const errorMessage = isTimeout
-            ? 'Det tog lite för långt att få ett svar. Försök igen eller skriv ditt meddelande istället.'
-            : 'Jag kunde inte svara just nu. Prova igen om en stund.';
-          setMessages(prev => [...prev, {
-            id: (Date.now() + 1).toString(),
-            text: errorMessage,
+          addMessage({
+            text: isTimeout
+              ? 'Det tog lite för långt att få ett svar. Försök igen eller skriv ditt meddelande istället.'
+              : 'Jag kunde inte svara just nu. Prova igen om en stund.',
             isUser: false,
-            timestamp: new Date(),
-          }]);
+          });
         }
       }
 
@@ -379,103 +481,101 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         messageLength: transcribedText.length,
       });
 
-      if (onMessageSent) onMessageSent(transcribedText, true);
+      onMessageSent?.(transcribedText, true);
 
     } catch (error) {
       logger.error('Error processing voice message:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
+      addMessage({
         text: 'Ett oväntat fel uppstod vid bearbetning av röstmeddelandet. Försök igen.',
         isUser: false,
-        timestamp: new Date(),
-      }]);
+      });
       announceToScreenReader('Kunde inte bearbeta röstmeddelande', 'assertive');
     } finally {
-      setIsProcessing(false);
+      if (isMountedRef.current) {
+        setIsProcessing(false);
+        setProcessingStep('idle');
+      }
     }
-  };
+  }, [user, recordingSeconds, addMessage, isMountedRef, onMessageSent, announceToScreenReader]);
+  processVoiceMessageRef.current = processVoiceMessage;
 
-  const sendTextMessage = async () => {
-    if (!inputText.trim()) return;
+  const sendTextMessage = useCallback(async () => {
+    const messageText = inputText.trim();
+    if (!messageText || isProcessing) return;
 
-    const messageText = inputText;
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: messageText,
-      isUser: true,
-      timestamp: new Date(),
-      isVoice: false,
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    setIsProcessing(true);
+    addMessage({ text: messageText, isUser: true, isVoice: false });
+    if (isMountedRef.current) {
+      setInputText('');
+      setIsProcessing(true);
+    }
 
     analytics.track('Text Message Sent', {
       component: 'VoiceChat',
       messageLength: messageText.length,
     });
 
-    // Call AI API
-    if (user?.user_id) {
-      try {
-        const aiResult = await chatWithAI(user.user_id, messageText);
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
-          isUser: false,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, aiResponse]);
-        announceToScreenReader('AI svar mottaget', 'polite');
-      } catch (error) {
-        logger.error('AI response error:', error);
-        // Check if it's a timeout error
-        const isTimeout = error instanceof Error && (
-          error.message.includes('timeout') ||
-          error.message.includes('timed out')
-        );
-        const errorMessage = isTimeout
-          ? 'Det tog lite för långt att få ett svar. Försök igen om en stund.'
-          : 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.';
-        const errorResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: errorMessage,
-          isUser: false,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, errorResponse]);
-      }
-    } else {
-      // No user logged in - show message
-      const loginMessage: Message = {
-        id: (Date.now() + 1).toString(),
+    if (!user?.user_id) {
+      addMessage({
         text: 'Logga in för att prata med AI-terapeuten.',
         isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, loginMessage]);
+      });
+      if (isMountedRef.current) setIsProcessing(false);
+      return;
     }
 
-    setIsProcessing(false);
+    cleanupPendingRequests();
+    abortControllerRef.current = new AbortController();
 
-    if (onMessageSent) {
-      onMessageSent(messageText, false);
+    try {
+      const aiResult = await chatWithAI(user.user_id, messageText);
+      addMessage({
+        text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
+        isUser: false,
+      });
+      announceToScreenReader('AI svar mottaget', 'polite');
+
+      if (aiResult.crisisDetected) {
+        addMessage({
+          text: '⚠️ Det låter som att du har det svårt just nu. Om du mår mycket dåligt: ring **112** eller **Mind 90101** (dygnet runt).',
+          isUser: false,
+        });
+      }
+    } catch (error) {
+      logger.error('AI response error:', error);
+      const isTimeout = error instanceof Error && (
+        error.message.includes('timeout') ||
+        error.message.includes('timed out')
+      );
+      addMessage({
+        text: isTimeout
+          ? 'Det tog lite för långt att få ett svar. Försök igen om en stund.'
+          : 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
+        isUser: false,
+      });
+    } finally {
+      if (isMountedRef.current) setIsProcessing(false);
+      abortControllerRef.current = null;
     }
-  };
 
-  const handleQuickAction = async (action: string) => {
-    setInputText(action);
+    onMessageSent?.(messageText, false);
+  }, [inputText, isProcessing, user, addMessage, isMountedRef, onMessageSent, announceToScreenReader, cleanupPendingRequests]);
+
+  const handleQuickAction = useCallback(async (action: string) => {
+    if (isProcessing) return;
+    if (isMountedRef.current) setInputText(action);
     await sendTextMessage();
     analytics.track('Quick Action Used', { component: 'VoiceChat', action });
-  };
+  }, [isProcessing, sendTextMessage, isMountedRef]);
 
-  const handleKeyPress = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      sendTextMessage();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendTextMessage();
+      }
+    },
+    [sendTextMessage]
+  );
 
   const processingLabel =
     processingStep === 'transcribing' ? 'Transkriberar tal...' :
@@ -841,7 +941,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 fullWidth
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Skriv ditt meddelande..."
                 disabled={isProcessing}
                 className="flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500"

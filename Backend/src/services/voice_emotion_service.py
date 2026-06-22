@@ -11,6 +11,9 @@ Features:
 """
 
 import logging
+import os
+import re
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -201,35 +204,84 @@ class ProfessionalVoiceEmotionAnalyzer:
 
         return self._analyze_fallback(audio_bytes)
 
+    def _convert_to_wav(self, audio_bytes: bytes) -> bytes | None:
+        """Convert arbitrary audio (WEBM/OPUS/OGG/MP3) to WAV using ffmpeg if available."""
+        ffmpeg_path = None
+        for candidate in ('ffmpeg', 'ffmpeg.exe'):
+            try:
+                subprocess.run([candidate, '-version'], capture_output=True, check=True, timeout=5)
+                ffmpeg_path = candidate
+                break
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+
+        if not ffmpeg_path:
+            return None
+
+        src_path = None
+        dst_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as src:
+                src.write(audio_bytes)
+                src_path = src.name
+
+            dst_path = src_path + '.wav'
+            subprocess.run(
+                [ffmpeg_path, '-y', '-i', src_path, '-ar', str(self.sample_rate), '-ac', '1', '-f', 'wav', dst_path],
+                capture_output=True,
+                check=True,
+                timeout=60,
+            )
+
+            with open(dst_path, 'rb') as f:
+                wav_bytes = f.read()
+
+            return wav_bytes
+        except Exception as e:
+            logger.warning(f"ffmpeg WAV conversion failed: {e}")
+            return None
+        finally:
+            try:
+                if os.path.exists(src_path):
+                    os.unlink(src_path)
+                if os.path.exists(dst_path):
+                    os.unlink(dst_path)
+            except Exception:
+                pass
+
     def _analyze_with_librosa(self, audio_bytes: bytes) -> VoiceEmotionResult:
         """Professional analysis using librosa"""
-        import os
+        tmp_path = None
 
         # Check if audio_bytes is raw PCM or already a WAV file
         is_wav = audio_bytes[:4] == b'RIFF' and audio_bytes[8:12] == b'WAVE'
 
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
-            if is_wav:
-                # Already a WAV file
-                tmp.write(audio_bytes)
-            else:
-                # Raw PCM - need to add WAV header using soundfile
-                try:
-                    import soundfile as sf
-                    # Convert bytes to numpy array (assuming 16-bit PCM)
-                    audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-                    # Normalize to float [-1, 1]
-                    audio_float = audio_array.astype(np.float32) / 32768.0
-                    # Write as WAV
-                    sf.write(tmp.name, audio_float, self.sample_rate, format='WAV')
-                except Exception as e:
-                    logger.warning(f"soundfile write failed: {e}, trying raw fallback")
-                    # Fallback: just write raw bytes and hope librosa can handle it
-                    tmp.write(audio_bytes)
-
-            tmp_path = tmp.name
-
         try:
+            if is_wav:
+                wav_bytes = audio_bytes
+            else:
+                wav_bytes = self._convert_to_wav(audio_bytes)
+                if wav_bytes is None:
+                    # Try soundfile for formats it supports (FLAC, OGG, etc.)
+                    try:
+                        import soundfile as sf
+                        with tempfile.NamedTemporaryFile(suffix='.audio', delete=False) as tmp:
+                            tmp.write(audio_bytes)
+                            tmp_path = tmp.name
+                        audio_array, file_sr = sf.read(tmp_path, dtype='float32')
+                        if audio_array.ndim > 1:
+                            audio_array = np.mean(audio_array, axis=1)
+                        wav_bytes = self._array_to_wav_bytes(audio_array, file_sr)
+                    except Exception as e:
+                        logger.warning(f"soundfile read failed: {e}, trying raw fallback")
+                        # Last resort: assume raw 16-bit PCM
+                        audio_array = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                        wav_bytes = self._array_to_wav_bytes(audio_array, self.sample_rate)
+
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+                tmp.write(wav_bytes)
+                tmp_path = tmp.name
+
             # Load audio
             y, sr = librosa.load(tmp_path, sr=self.sample_rate, mono=True)
             duration = len(y) / sr
@@ -265,8 +317,26 @@ class ProfessionalVoiceEmotionAnalyzer:
             )
 
         finally:
-            import os
-            os.unlink(tmp_path)
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+    def _array_to_wav_bytes(self, audio_array: np.ndarray, sr: int) -> bytes:
+        """Write a float32 numpy array to an in-memory WAV file."""
+        import soundfile as sf
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+            sf.write(tmp.name, audio_array, sr, format='WAV', subtype='PCM_16')
+            tmp_path = tmp.name
+        try:
+            with open(tmp_path, 'rb') as f:
+                return f.read()
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
     def _extract_prosodic_features(self, y: np.ndarray, sr: int) -> ProsodicFeatures:
         """Extract prosodic (pitch, intensity, timing) features"""
@@ -671,12 +741,14 @@ def _fuse_text_sentiment(audio_result: VoiceEmotionResult, transcript: str) -> V
     Fuse audio-derived emotion scores with text-based signals.
     Weights: 60 % audio, 40 % text.
     """
-    text_lower = transcript.lower()
+    text_lower = f' {transcript.lower()} '
     text_scores: dict[str, float] = dict.fromkeys(_EMOTION_TEXT_SIGNALS, 0.0)
 
     for emotion, keywords in _EMOTION_TEXT_SIGNALS.items():
         for kw in keywords:
-            if kw in text_lower:
+            # Full-word match to avoid "arg" matching "Margareta"
+            pattern = re.compile(r'(?<![a-zåäöé])' + re.escape(kw) + r'(?![a-zåäöé])')
+            if pattern.search(text_lower):
                 text_scores[emotion] += 1.0
 
     total_text = sum(text_scores.values())

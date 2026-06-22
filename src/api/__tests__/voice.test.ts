@@ -15,7 +15,7 @@ describe('voice API', () => {
 
   describe('transcribeVoiceAudio', () => {
     it('returns transcript with default language', async () => {
-      const data = { text: 'Hello world', confidence: 0.95 };
+      const data = { transcript: 'Hello world', confidence: 0.95, language: 'sv-SE' };
       apiMock.post.mockResolvedValueOnce({ data: { data } });
       const result = await transcribeVoiceAudio('base64audio==');
       expect(apiMock.post).toHaveBeenCalled();
@@ -23,7 +23,7 @@ describe('voice API', () => {
     });
 
     it('uses custom language', async () => {
-      apiMock.post.mockResolvedValueOnce({ data: { data: { text: 'Hi' } } });
+      apiMock.post.mockResolvedValueOnce({ data: { data: { transcript: 'Hi', language: 'en-US' } } });
       await transcribeVoiceAudio('base64audio==', 'en-US');
       expect(apiMock.post).toHaveBeenCalledWith(
         expect.anything(),
