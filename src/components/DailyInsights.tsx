@@ -176,6 +176,9 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
         </p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          Minst 3 mood-loggar behövs för att generera insikter.
+        </p>
         <button
           onClick={loadInsights}
           disabled={loading}

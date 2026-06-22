@@ -90,7 +90,7 @@ class DailyInsightGeneratorV2:
     """
 
     def __init__(self):
-        self.min_memories = 5  # Increased for statistical power
+        self.min_memories = 3  # Lowered for faster initial insights
         self.analysis_window = 14  # 2 weeks for better patterns
         self.statistical_threshold = 0.05
         self.min_effect_size = 0.3  # Small to medium effect
@@ -209,7 +209,12 @@ class DailyInsightGeneratorV2:
             self._fetch_activity_patterns(user_id)
 
             if len(memories) < self.min_memories:
-                logger.info(f"Insufficient data for {user_id}")
+                logger.info(f"Insufficient data for {user_id}, generating fallback insight")
+                # Generate onboarding insight for new users
+                fallback_insight = self._generate_onboarding_insight(user_id, len(memories))
+                if fallback_insight:
+                    insights.append(fallback_insight)
+                    self._save_insight(fallback_insight)
                 return insights
 
             # 1. Temporal trend analysis (linear regression on mood)
@@ -741,6 +746,33 @@ class DailyInsightGeneratorV2:
         """
         logger.debug("[B5] _fetch_activity_patterns is a stub; returning {} for user %s", user_id)
         return {}
+
+    def _generate_onboarding_insight(self, user_id: str, current_count: int) -> TherapeuticInsight | None:
+        """Generate onboarding insight for new users with insufficient data."""
+        needed = self.min_memories - current_count
+
+        messages = {
+            0: "Välkommen! Logga ditt mående dagligen för att få personliga insikter baserade på dina mönster.",
+            1: "Bra start! Logga ditt månde en gång till för att börja se dina första insikter.",
+            2: "Du är nära! Logga ditt månde en gång till för att få dina första personliga insikter.",
+        }
+
+        message = messages.get(current_count, messages[2])
+
+        return TherapeuticInsight(
+            insight_id=f"{user_id}_onboarding_{datetime.now().strftime('%Y%m%d')}",
+            user_id=user_id,
+            insight_type=InsightType.CHECKIN_NEEDED,
+            domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
+            title="Kom igång med daglig loggning",
+            message=message,
+            recommendation=f"Logga ditt månde {needed} gång(er) till för att aktivera insikter",
+            evidence={},
+            urgency="low",
+            suggested_action="Logga mående nu",
+            related_memories=[],
+            created_at=datetime.now(),
+        )
 
     def _save_insight(self, insight: TherapeuticInsight):
         """Save to Firestore."""

@@ -976,7 +976,13 @@ try:
             # start_key_rotation()
             # backup_service.start_scheduler()
             # monitoring_service.start_monitoring()
-            logger.info("✅ Background services initialization skipped (FAS 0)")
+
+            # Enable proactive insights scheduler for daily insight generation
+            from src.services.insight_scheduler import start_proactive_insights
+            start_proactive_insights()
+            logger.info("✅ Insight notification scheduler started")
+
+            logger.info("✅ Background services initialization completed")
         except Exception as e:
             logger.error(f"Failed to start background services: {e}")
 
