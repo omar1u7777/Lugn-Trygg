@@ -5,6 +5,8 @@ import {
   type AudioTrack,
   type AudioLibrary
 } from "../api/api";
+import { API_ENDPOINTS } from '../api/constants';
+import { tokenStorage } from '../utils/secureStorage';
 import { logger } from '../utils/logger';
 
 // Lazy load AI Music Generator for better performance
@@ -20,6 +22,7 @@ interface RelaxingSoundsProps {
 const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = false }) => {
   const { t, i18n } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const fallbackUrlRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<SoundTab>('library');
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
@@ -64,6 +67,12 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
 
   useEffect(() => {
     fetchAudioLibrary();
+    return () => {
+      if (fallbackUrlRef.current) {
+        URL.revokeObjectURL(fallbackUrlRef.current);
+        fallbackUrlRef.current = null;
+      }
+    };
   }, [fetchAudioLibrary]);
 
   const currentCategory = audioLibrary[selectedCategory];
@@ -85,15 +94,17 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       setAudioError(null);
     
       try {
-        const token = localStorage.getItem('token');
+        // Use the project's secure tokenStorage instead of localStorage; the access token is
+        // stored in memory by AuthContext and never under the 'token' localStorage key.
+        const token = await tokenStorage.getAccessToken();
         if (!token) {
           setAudioError(t('audio.authRequired', 'Autentisering krävs för att generera audio.'));
           return;
         }
-      
+
         // Call fallback audio generation endpoint
         const response = await fetch(
-          `/api/v1/audio/generate?type=ambient&brainwave=${brainwave}&duration=${duration}`,
+          `${API_ENDPOINTS.AUDIO.GENERATE}?type=ambient&brainwave=${brainwave}&duration=${duration}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -107,6 +118,12 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
 
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
+
+        // Revoke previous fallback blob URL to prevent memory leak
+        if (fallbackUrlRef.current) {
+          URL.revokeObjectURL(fallbackUrlRef.current);
+        }
+        fallbackUrlRef.current = audioUrl;
 
         if (audioRef.current) {
           audioRef.current.src = audioUrl;
