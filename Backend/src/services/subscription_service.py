@@ -270,10 +270,6 @@ class SubscriptionService:
         today = cls._today()
         usage_ref = cls._get_usage_ref(user_id)
 
-        # Use a Firestore transaction to prevent TOCTOU race condition
-        from google.cloud.firestore import transactional as _transactional
-
-        @_transactional
         def _consume_in_transaction(transaction: Any) -> dict[str, Any]:
             snapshot = usage_ref.get(transaction=transaction)
             data = snapshot.to_dict() if snapshot and snapshot.exists else None
@@ -302,8 +298,7 @@ class SubscriptionService:
         try:
             if db is None:
                 raise RuntimeError("Firestore database client is not initialized")
-            transaction = db.transaction()
-            return _consume_in_transaction(transaction)
+            return db.run_in_transaction(_consume_in_transaction)
         except SubscriptionLimitError:
             raise
         except Exception as exc:

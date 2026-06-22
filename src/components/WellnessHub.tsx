@@ -240,8 +240,9 @@ const WellnessHub: React.FC = () => {
     streakDays: 0
   });
   const [userGoals, setUserGoals] = useState<string[]>([]);
-  const [, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Meditation Playback State
   const [selectedMeditation, setSelectedMeditation] = useState<MeditationOption | null>(null);

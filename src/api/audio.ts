@@ -47,8 +47,8 @@ export interface AudioLibrary {
 export const getAudioLibrary = async (): Promise<AudioLibrary> => {
   try {
     const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_LIBRARY);
-    // Backend returns { success: true, library: {...} }
-    return response.data.library || {};
+    // Backend returns { success: true, data: { library: {...} } }
+    return response.data.data?.library || response.data.library || {};
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -64,7 +64,8 @@ export const getAudioLibrary = async (): Promise<AudioLibrary> => {
 export const getAudioCategories = async (): Promise<Omit<AudioCategory, 'tracks'>[]> => {
   try {
     const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_CATEGORIES);
-    return response.data.categories || [];
+    // Backend returns { success: true, data: { categories: [...] } }
+    return response.data.data?.categories || response.data.categories || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -81,9 +82,11 @@ export const getAudioCategories = async (): Promise<Omit<AudioCategory, 'tracks'
 export const getAudioCategoryTracks = async (categoryId: string): Promise<{ category: Omit<AudioCategory, 'tracks'>, tracks: AudioTrack[] }> => {
   try {
     const response = await api.get(`${API_ENDPOINTS.AUDIO.AUDIO_CATEGORY}/${encodeURIComponent(categoryId)}`);
+    // Backend returns { success: true, data: { category: {...}, tracks: [...] } }
+    const payload = response.data.data || response.data;
     return {
-      category: response.data.category,
-      tracks: response.data.tracks || []
+      category: payload.category,
+      tracks: payload.tracks || []
     };
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -103,7 +106,8 @@ export const searchAudioTracks = async (query: string): Promise<AudioTrack[]> =>
     const response = await api.get(API_ENDPOINTS.AUDIO.AUDIO_SEARCH, {
       params: { q: query }
     });
-    return response.data.results || [];
+    // Backend returns { success: true, data: { results: [...] } }
+    return response.data.data?.results || response.data.results || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
