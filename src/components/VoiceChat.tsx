@@ -304,8 +304,26 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
       setProcessingStep('done');
 
+      // If no transcript but emotion analysis succeeded, show emotion result
       if (!transcribedText) {
+        if (detectedEmotion) {
+          // Show emotion analysis result even without transcript
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder). Eller skriv ditt meddelande nedan.',
+            isUser: false,
+            timestamp: new Date(),
+          }]);
+        } else {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder). Eller skriv ditt meddelande nedan.',
+            isUser: false,
+            timestamp: new Date(),
+          }]);
+        }
         setIsProcessing(false);
+        setProcessingStep('idle');
         return;
       }
 
