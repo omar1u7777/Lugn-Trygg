@@ -2,10 +2,9 @@
  * Route Wrappers - Provides context and props to components requiring dependencies
  * This file makes all components accessible as standalone routes
  */
-import React, { useState, useEffect, lazy } from 'react';
+import React, { useState, lazy } from 'react';
 import useAuth from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { logger } from '../utils/logger';
 import { SuperMoodLogger } from './SuperMoodLogger';
 
 type AuthUserLike = {
@@ -61,68 +60,22 @@ export const WorldClassAnalyticsWrapper: React.FC = () => {
   return <WorldClassAnalytics onClose={() => navigate(-1)} />;
 };
 
-// DailyInsights Wrapper - 100% HONEST: Actually fetches real data or shows honest message
+// DailyInsights Wrapper - DailyInsights handles its own data fetching,
+// loading and error states via the v2 insights API. The wrapper only
+// supplies the authenticated user id.
 export const DailyInsightsWrapper: React.FC = () => {
   const { user } = useAuth();
-  const [moodData, setMoodData] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const userId = getUserId(user);
 
-  useEffect(() => {
-    // HONEST: Actually try to fetch real mood data
-    const fetchMoodData = async () => {
-      try {
-        setLoading(true);
-        const userId = getUserId(user);
-        if (userId) {
-          // Try to fetch real data from API
-          const { getMoods } = await import('../api/api');
-          const realMoodData = await getMoods(userId);
-          setMoodData(realMoodData || []);
-        } else {
-          setMoodData([]);
-        }
-      } catch (error) {
-        logger.error('Error fetching mood data:', error);
-        setError('Kunde inte hämta humördata');
-        setMoodData([]); // HONEST: Empty array, not fake data
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMoodData();
-  }, [user]);
-
-  // HONEST: Show loading state while fetching
-  if (loading) {
+  if (!userId) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Hämtar dina insikter...</p>
-        </div>
+        <p className="text-slate-600 dark:text-slate-400">Logga in för att se dina insikter.</p>
       </div>
     );
   }
 
-  // HONEST: Show error if fetching failed
-  if (error) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-6">
-        <div className="flex items-center gap-3">
-          <span className="text-red-500 text-xl">⚠️</span>
-          <div>
-            <h3 className="text-red-800 dark:text-red-300 font-semibold">Fel vid hämtning</h3>
-            <p className="text-red-700 dark:text-red-400 text-sm mt-1">
-              {error}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <DailyInsights userId={getUserId(user)} moodData={moodData} />;
+  return <DailyInsights userId={userId} />;
 };
 
 // Leaderboard Wrapper - Uses real Leaderboard component

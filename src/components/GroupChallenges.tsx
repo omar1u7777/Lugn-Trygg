@@ -29,7 +29,7 @@ import { logger } from '../utils/logger';
 
 interface GroupChallengesProps {
   userId: string;
-  username: string;
+  username?: string;
 }
 
 export const GroupChallenges: React.FC<GroupChallengesProps> = ({ userId }) => {
