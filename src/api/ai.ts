@@ -177,6 +177,8 @@ export const chatWithAI = async (
     const response = await api.post<ChatResponse>(API_ENDPOINTS.CHATBOT.CHAT, {
       user_id: userId,
       message,
+    }, {
+      timeout: 60000, // 60 second timeout for AI chat (longer than default 15s)
     });
     // Handle both APIResponse (data wrapper) and direct format
     const raw = response.data as unknown as Record<string, unknown>;

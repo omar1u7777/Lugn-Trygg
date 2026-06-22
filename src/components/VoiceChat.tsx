@@ -357,9 +357,17 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           announceToScreenReader('AI svar mottaget', 'polite');
         } catch (aiError) {
           logger.error('AI response error:', aiError);
+          // Check if it's a timeout error
+          const isTimeout = aiError instanceof Error && (
+            aiError.message.includes('timeout') ||
+            aiError.message.includes('timed out')
+          );
+          const errorMessage = isTimeout
+            ? 'Det tog lite för långt att få ett svar. Försök igen eller skriv ditt meddelande istället.'
+            : 'Jag kunde inte svara just nu. Prova igen om en stund.';
           setMessages(prev => [...prev, {
             id: (Date.now() + 1).toString(),
-            text: 'Jag kunde inte svara just nu. Prova igen om en stund.',
+            text: errorMessage,
             isUser: false,
             timestamp: new Date(),
           }]);
@@ -422,9 +430,17 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         announceToScreenReader('AI svar mottaget', 'polite');
       } catch (error) {
         logger.error('AI response error:', error);
+        // Check if it's a timeout error
+        const isTimeout = error instanceof Error && (
+          error.message.includes('timeout') ||
+          error.message.includes('timed out')
+        );
+        const errorMessage = isTimeout
+          ? 'Det tog lite för långt att få ett svar. Försök igen om en stund.'
+          : 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.';
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
+          text: errorMessage,
           isUser: false,
           timestamp: new Date(),
         };
