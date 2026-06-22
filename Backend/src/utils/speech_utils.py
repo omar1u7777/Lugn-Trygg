@@ -71,7 +71,6 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
             }
         ]
 
-        config = None
         last_error = None
 
         for fmt in formats_to_try:
@@ -86,40 +85,28 @@ def transcribe_audio_google(audio_data: bytes, language_code: str = "sv-SE") -> 
                     use_enhanced=True,
                     model="latest_long",
                 )
-                logger.info(f"🎙️ Försöker med {fmt['name']}-format...")
-                break
+                logger.info(f"🎙️ Försöker transkribera med {fmt['name']}-format...")
+                response = client.recognize(config=config, audio=audio)
+
+                if response.results and len(response.results) > 0:
+                    transcript = response.results[0].alternatives[0].transcript
+                    confidence = response.results[0].alternatives[0].confidence
+                    logger.info(
+                        f"✅ Transkribering lyckades ({fmt['name']}): {len(transcript)} tecken, "
+                        f"konfidens: {confidence:.2f}"
+                    )
+                    if confidence > 0.5:
+                        return transcript.strip()
+                    logger.warning(f"⚠️ {fmt['name']} konfidens för låg ({confidence:.2f}), provar nästa format")
+                else:
+                    logger.warning(f"⚠️ {fmt['name']} gav ingen transkribering, provar nästa format")
             except Exception as format_error:
-                logger.warning(f"⚠️ {fmt['name']} inte tillgängligt: {format_error}")
+                logger.warning(f"⚠️ {fmt['name']} misslyckades: {format_error}")
                 last_error = format_error
                 continue
 
-        if config is None:
-            logger.error(f"❌ Ingen kompatibel ljudformat hittades. Senaste fel: {last_error}")
-            return None
-
-        # Perform transcription with timeout
-        logger.info("🎙️ Startar transkribering med Google Speech-to-Text...")
-        try:
-            response = client.recognize(config=config, audio=audio, timeout=30.0)
-        except Exception as timeout_error:
-            logger.warning(f"⚠️ Transkribering timeout eller fel: {timeout_error}")
-            return None
-
-        # Extract transcript
-        if response.results and len(response.results) > 0:
-            transcript = response.results[0].alternatives[0].transcript
-            confidence = response.results[0].alternatives[0].confidence
-            logger.info(f"✅ Transkribering lyckades: {len(transcript)} tecken, konfidens: {confidence:.2f}")
-
-            # Only return transcript if confidence is reasonable
-            if confidence > 0.5:
-                return transcript.strip()
-            else:
-                logger.warning(f"⚠️ Transkribering har låg konfidens ({confidence:.2f}), hoppar över")
-                return None
-        else:
-            logger.warning("⚠️ Ingen transkribering kunde göras")
-            return None
+        logger.error(f"❌ Ingen kompatibel ljudformat lyckades. Senaste fel: {last_error}")
+        return None
 
     except ImportError:
         logger.error("❌ google-cloud-speech är inte installerat")

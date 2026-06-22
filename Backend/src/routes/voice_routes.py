@@ -15,6 +15,14 @@ from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
 from ..utils.speech_utils import initialize_google_speech, transcribe_audio_google
 
+# Supported voice languages
+SUPPORTED_VOICE_LANGUAGES = {'sv-SE', 'en-US', 'en-GB', 'de-DE', 'fr-FR', 'no-NO', 'da-DK', 'fi-FI'}
+
+# Valid energy/pace/volume enumerations
+VALID_ENERGY_LEVELS = {'low', 'medium', 'high'}
+VALID_SPEAKING_PACES = {'slow', 'normal', 'fast'}
+VALID_VOLUME_VARIATIONS = {'low', 'moderate', 'high'}
+
 voice_bp = Blueprint('voice', __name__)
 logger = logging.getLogger(__name__)
 
@@ -73,12 +81,18 @@ def transcribe_audio():
     audio_base64 = data.get('audio_data')
     language = sanitize_text(data.get('language', 'sv-SE'), max_length=10)
 
+    if not isinstance(audio_base64, str):
+        return APIResponse.bad_request("audio_data must be a base64 string")
+
     if not audio_base64:
         return APIResponse.bad_request("audio_data is required")
 
+    if language not in SUPPORTED_VOICE_LANGUAGES:
+        language = 'sv-SE'
+
     # Validate base64 size before decoding (max 10MB)
     MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
-    if len(audio_base64) > MAX_AUDIO_SIZE * 4 / 3:  # Base64 is ~33% larger
+    if len(audio_base64) > MAX_AUDIO_SIZE * 4 // 3:  # Base64 is ~33% larger
         logger.warning(f"Audio data too large: {len(audio_base64)} chars from user {user_id}")
         return APIResponse.bad_request("Audio data too large (max 10MB)")
 
@@ -175,12 +189,15 @@ def analyze_voice_emotion():
     audio_base64 = data.get('audio_data')
     transcript = sanitize_text(data.get('transcript', ''), max_length=10000) if data.get('transcript') else ''
 
+    if not isinstance(audio_base64, str):
+        return APIResponse.bad_request("audio_data must be a base64 string")
+
     if not audio_base64:
         return APIResponse.bad_request("audio_data is required")
 
     # Validate base64 size before decoding (max 10MB)
     MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
-    if len(audio_base64) > MAX_AUDIO_SIZE * 4 / 3:  # Base64 is ~33% larger
+    if len(audio_base64) > MAX_AUDIO_SIZE * 4 // 3:  # Base64 is ~33% larger
         logger.warning(f"Audio data too large: {len(audio_base64)} chars from user {user_id}")
         return APIResponse.bad_request("Audio data too large (max 10MB)")
 
@@ -244,6 +261,23 @@ def analyze_voice_emotion():
             else:
                 pace = "slow"
 
+            # Crisis detection from transcript (independent of audio emotion)
+            crisis_level = 0
+            crisis_message = None
+            if transcript:
+                try:
+                    from ..services.crisis_intervention import crisis_intervention_service
+                    assessment = crisis_intervention_service.assess_text_crisis_risk(transcript)
+                    if assessment.overall_risk_level in ('critical', 'high'):
+                        crisis_level = 2 if assessment.overall_risk_level == 'critical' else 1
+                        crisis_message = "Om du mår mycket dåligt: ring 112 eller Mind 90101 (dygnet runt)."
+                        logger.warning(
+                            "🚨 Crisis detected in voice transcript for user %s: risk=%s score=%.2f",
+                            user_id, assessment.overall_risk_level, assessment.risk_score
+                        )
+                except Exception as crisis_err:
+                    logger.warning(f"Crisis detection error: {crisis_err}")
+
             return APIResponse.success({
                 "emotions": emotions_dict,
                 "primaryEmotion": result.primary_emotion,
@@ -261,7 +295,9 @@ def analyze_voice_emotion():
                 "arousal": result.arousal,
                 "dominance": result.dominance,
                 "analysisMethod": result.analysis_method,
-                "confidence": result.confidence
+                "confidence": result.confidence,
+                "crisisLevel": crisis_level,
+                "crisisMessage": crisis_message
             }, "Voice emotion analysis successful (professional)")
 
         else:
@@ -584,16 +620,58 @@ def save_voice_recording():
     try:
         from ..firebase_config import db
 
+        # Validate and sanitize recording fields
+        emotion_confidences = data.get('emotion_confidences', {})
+        if not isinstance(emotion_confidences, dict):
+            emotion_confidences = {}
+        else:
+            emotion_confidences = {
+                str(k): float(v) if isinstance(v, (int, float)) and 0 <= v <= 1 else 0.0
+                for k, v in emotion_confidences.items()
+            }
+
+        audio_duration_ms = data.get('audio_duration_ms', 0)
+        try:
+            audio_duration_ms = int(audio_duration_ms)
+        except (TypeError, ValueError):
+            audio_duration_ms = 0
+        if audio_duration_ms < 0 or audio_duration_ms > 3_600_000:  # max 1 hour
+            audio_duration_ms = 0
+
+        energy_level = data.get('energy_level', 'medium')
+        if energy_level not in VALID_ENERGY_LEVELS:
+            energy_level = 'medium'
+
+        speaking_pace = data.get('speaking_pace', 'normal')
+        if speaking_pace not in VALID_SPEAKING_PACES:
+            speaking_pace = 'normal'
+
+        volume_variation = data.get('volume_variation', 'moderate')
+        if volume_variation not in VALID_VOLUME_VARIATIONS:
+            volume_variation = 'moderate'
+
+        valence = data.get('valence')
+        if isinstance(valence, (int, float)) and -1 <= valence <= 1:
+            valence = float(valence)
+        else:
+            valence = None
+
+        arousal = data.get('arousal')
+        if isinstance(arousal, (int, float)) and -1 <= arousal <= 1:
+            arousal = float(arousal)
+        else:
+            arousal = None
+
         recording_data = {
             'transcript': sanitize_text(data.get('transcript', ''), max_length=10000),
             'primary_emotion': sanitize_text(data.get('primary_emotion', ''), max_length=64),
-            'emotion_confidences': data.get('emotion_confidences', {}),
-            'energy_level': data.get('energy_level', 'medium'),
-            'speaking_pace': data.get('speaking_pace', 'normal'),
-            'volume_variation': data.get('volume_variation', 'moderate'),
-            'valence': data.get('valence'),
-            'arousal': data.get('arousal'),
-            'audio_duration_ms': data.get('audio_duration_ms', 0),
+            'emotion_confidences': emotion_confidences,
+            'energy_level': energy_level,
+            'speaking_pace': speaking_pace,
+            'volume_variation': volume_variation,
+            'valence': valence,
+            'arousal': arousal,
+            'audio_duration_ms': audio_duration_ms,
             'language': sanitize_text(data.get('language', 'sv-SE'), max_length=16),
             'created_at': firestore.SERVER_TIMESTAMP
         }
@@ -650,7 +728,10 @@ def get_voice_recordings():
     try:
         from ..firebase_config import db
 
-        limit = min(int(request.args.get('limit', 50)), 100)
+        try:
+            limit = min(int(request.args.get('limit', 50)), 100)
+        except (TypeError, ValueError):
+            limit = 50
 
         recordings_ref = db.collection('users').document(user_id)\
             .collection('voice_recordings')\

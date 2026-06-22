@@ -5,11 +5,11 @@ import base64
 
 def test_transcribe_audio_succeeds(client, auth_csrf_headers, mock_auth_service, mocker):
     mocker.patch('src.routes.voice_routes.transcribe_audio_google', return_value='Hej världen')
-    mocker.patch('src.routes.voice_routes.audit_log')  # Mock audit_log
+    mocker.patch('src.routes.voice_routes.audit_log')
     audio_payload = base64.b64encode(b'test-bytes').decode('utf-8')
 
     response = client.post(
-        '/api/voice/transcribe',
+        '/api/v1/voice/transcribe',
         json={'audio_data': audio_payload, 'language': 'sv-SE'},
         headers=auth_csrf_headers,
     )
@@ -24,7 +24,7 @@ def test_transcribe_audio_succeeds(client, auth_csrf_headers, mock_auth_service,
 
 def test_transcribe_audio_handles_invalid_base64(client, auth_csrf_headers, mock_auth_service):
     response = client.post(
-        '/api/voice/transcribe',
+        '/api/v1/voice/transcribe',
         json={'audio_data': '!!!notbase64!!!'},
         headers=auth_csrf_headers,
     )
@@ -49,14 +49,14 @@ def test_analyze_voice_emotion_combines_audio_and_text(client, auth_csrf_headers
         'all': {'happy': 0.9, 'neutral': 0.1},
         'primary': 'happy'
     })
-    mocker.patch('src.routes.voice_routes.audit_log')  # Mock audit_log
+    mocker.patch('src.routes.voice_routes.audit_log')
 
     payload = {
         'audio_data': base64.b64encode(b'audio').decode('utf-8'),
         'transcript': 'Jag känner mig glad'
     }
 
-    response = client.post('/api/voice/analyze-emotion', json=payload, headers=auth_csrf_headers)
+    response = client.post('/api/v1/voice/analyze-emotion', json=payload, headers=auth_csrf_headers)
 
     assert response.status_code == 200
     body = response.get_json()
@@ -70,7 +70,7 @@ def test_analyze_voice_emotion_combines_audio_and_text(client, auth_csrf_headers
 def test_voice_service_status_reports_google_flag(client, mocker):
     mocker.patch('src.utils.speech_utils.initialize_google_speech', return_value=True)
 
-    response = client.get('/api/voice/status')
+    response = client.get('/api/v1/voice/status')
 
     assert response.status_code == 200
     data = response.get_json()
