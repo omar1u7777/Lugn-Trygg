@@ -16,6 +16,9 @@ SECURITY.md
 
 # Test output files and one-off audit reports (may contain sensitive debug info) [D4]
 test_*.txt
+*-test-output.txt
+*-test-output*.txt
+.vitest-results.json
 DEPLOY_READINESS_REPORT_*.txt
 FULL_PROJECT_AUDIT_*.txt
 temp_vercel.css
