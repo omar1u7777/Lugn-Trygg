@@ -45,6 +45,49 @@
     "settings": "Settings",
     "logout": "Logout"
   },
+  "sidebar": {
+    "home": "Home",
+    "mood": "Mood",
+    "aiSupport": "AI Support",
+    "clinicalAssessment": "Clinical Assessment",
+    "dailyInsights": "Daily Insights",
+    "premiumFeatures": "Premium Features",
+    "upgradeToPremium": "Upgrade to Premium",
+    "unlockFeatures": "Unlock {{count}} exclusive features",
+    "seePremium": "See Premium →",
+    "accountAndMore": "Account & More",
+    "healthIntegrations": "Health Integrations",
+    "inviteFriends": "Invite Friends",
+    "giveFeedback": "Give Feedback",
+    "profile": "Profile",
+    "mainNavigationAria": "Main navigation",
+    "premium": {
+      "voiceChat": "Voice Chat",
+      "recommendations": "Recommendations",
+      "wellness": "Wellness",
+      "journal": "Journal",
+      "sounds": "Relaxing Sounds",
+      "aiStories": "AI Stories",
+      "moodAnalytics": "Mood Analytics",
+      "advancedMood": "Advanced Mood",
+      "aiForecast": "AI Forecast",
+      "weeklyAnalysis": "Weekly Analysis",
+      "insights": "Insights",
+      "rewards": "Rewards",
+      "community": "Community"
+    }
+  },
+  "bottomNav": {
+    "home": "Home",
+    "mood": "Mood",
+    "ai": "AI",
+    "explore": "Explore",
+    "profile": "Profile",
+    "voiceChat": "Voice Chat AI",
+    "exploreAllFeatures": "Explore all features",
+    "upgradeUnlockAll": "Upgrade to Premium — unlock everything",
+    "mobileNavigationAria": "Mobile navigation"
+  },
   "auth": {
     "login": "Login",
     "register": "Register",
@@ -183,7 +226,72 @@
     "nextStep": "Next step",
     "friend": "friend",
     "purchaseCancelled": "Purchase cancelled. You can try again when you are ready.",
-    "weeklyGoalProgress": "{{count}} entries until your weekly goal"
+    "weeklyGoalProgress": "{{count}} entries until your weekly goal",
+    "defaultGoalStep": "Log your mood today",
+    "continueGoal": "Keep working on your goal",
+    "goalStepUpdateError": "Could not update step. Try again.",
+    "markStepComplete": "Mark \"{{step}}\" as complete",
+    "openBreathingExercise": "Open breathing exercise",
+    "openJournal": "Open journal",
+    "openMeditation": "Open meditation",
+    "seeSleepTips": "See sleep tips"
+  },
+  "navLinks": {
+    "dashboard": "Dashboard",
+    "wellness": "Wellness",
+    "mood": "Mood",
+    "aiChat": "AI Chat",
+    "insights": "Insights",
+    "profile": "Profile"
+  },
+  "quickAction": {
+    "mood": {
+      "title": "Check in",
+      "ariaLabel": "Check in with your mood",
+      "description": "How are you feeling right now?"
+    },
+    "chat": {
+      "title": "Get support",
+      "ariaLabel": "Start a conversation with AI support",
+      "description": "Talk it out, anytime"
+    },
+    "sounds": {
+      "title": "Calming sounds",
+      "ariaLabel": "Listen to calming sounds and music",
+      "description": "Relax with music"
+    },
+    "journal": {
+      "title": "Journal",
+      "ariaLabel": "Write in your journal",
+      "description": "Write your thoughts"
+    },
+    "recommendations": {
+      "title": "Tips & advice",
+      "ariaLabel": "See personalized recommendations",
+      "description": "Tailored just for you"
+    },
+    "social": {
+      "title": "Community",
+      "ariaLabel": "Join the community",
+      "description": "Support each other"
+    }
+  },
+  "dashboardQuickActions": {
+    "title": "How do you want to take care of yourself?",
+    "unlimitedToday": "Unlimited today",
+    "remainingToday": "{{count}} left today",
+    "alwaysReady": "Always ready",
+    "remainingMessages": "{{count}} messages",
+    "quotaReached": "Quota reached today"
+  },
+  "dashboardActivity": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "earlierThisYear": "Earlier this year",
+    "older": "Older",
+    "emptyState": "No activity yet. Start logging your mood!",
+    "recentActivity": "Recent Activity",
+    "loadMore": "Show older activities ({{count}} more)"
   },
   "mood": {
     "title": "Mood Logging",
@@ -207,7 +315,55 @@
     "error": "Could not save mood",
     "score": "Mood Score",
     "negative": "Negative",
-    "positive": "Positive"
+    "positive": "Positive",
+    "valence": {
+      "label": "Valence (Pleasant ↔ Unpleasant)",
+      "min": "Unpleasant",
+      "max": "Pleasant",
+      "unpleasant": "Unpleasant",
+      "neutral": "Neutral",
+      "pleasant": "Pleasant",
+      "veryPleasant": "Very pleasant"
+    },
+    "arousal": {
+      "label": "Arousal (Energy/Activation)",
+      "min": "Calm",
+      "max": "Excited",
+      "calm": "Calm",
+      "moderate": "Moderate",
+      "energized": "Energized",
+      "excited": "Excited"
+    },
+    "circumplex": {
+      "title": "Circumplex Model",
+      "description": "Describe your emotional state in two dimensions",
+      "quadrant": "Emotional state",
+      "quadrantHappy": "Happy & Energized",
+      "quadrantTense": "Tense & Anxious",
+      "quadrantCalm": "Calm & Relaxed",
+      "quadrantSad": "Sad & Tired"
+    },
+    "tags": {
+      "label": "Tags (optional)",
+      "description": "Select tags to analyze what influences your mood",
+      "customPlaceholder": "Custom tag...",
+      "add": "Add",
+      "selected": "Selected tags",
+      "predefined": {
+        "work": "Work",
+        "family": "Family",
+        "friends": "Friends",
+        "exercise": "Exercise",
+        "sleep": "Sleep",
+        "health": "Health",
+        "stress": "Stress",
+        "relaxation": "Relaxation",
+        "social": "Social",
+        "alone": "Alone",
+        "nature": "Nature",
+        "creative": "Creative"
+      }
+    }
   },
   "memories": {
     "title": "My Memories",
@@ -273,9 +429,9 @@
     "screenReaderWidgetLabel": "Status card for {metric}"
   },
   "language": {
-    "swedish": "Svenska",
+    "swedish": "Swedish",
     "english": "English",
-    "norwegian": "Norsk",
+    "norwegian": "Norwegian",
     "selectLanguage": "Select language"
   },
   "consent": {
@@ -447,6 +603,44 @@
     "saveLog": "Save Log",
     "moodSaved": "Mood saved: {{mood}}",
     "saveFailed": "Could not save mood. Please try again.",
+    "moodSelected": "Selected mood: {{mood}}",
+    "duplicateWarning": "You just logged the same mood",
+    "moodLoggedSuccess": "Mood logged!",
+    "dailyLimitReachedMessage": "You have reached your daily mood logging limit.",
+    "moodLogFailed": "Could not log mood. Please try again.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "note": "Note (optional)",
+    "stopRecording": "Stop recording",
+    "startRecording": "Record voice",
+    "audioRecorded": "Voice recording ready",
+    "hideAdvanced": "▼ Hide advanced options",
+    "showAdvanced": "▶ Show advanced options (Circumplex + Tags)",
+    "context": "Context (optional)",
+    "contextPlaceholder": "e.g. \"home\", \"at work\", \"outside\"",
+    "moodLabels": {
+      "sad": "Sad",
+      "anxious": "Anxious",
+      "neutral": "Neutral",
+      "good": "Good",
+      "happy": "Happy",
+      "super": "Super"
+    },
+    "moodDescriptions": {
+      "sad": "Feeling sad or down",
+      "anxious": "Feeling worried or anxious",
+      "neutral": "Feeling neither good nor bad",
+      "good": "Feeling pretty good",
+      "happy": "Feeling happy and positive",
+      "super": "Feeling amazing!"
+    },
+    "reflectionPrompts": {
+      "low": "What would feel most helpful for you in the next 60 minutes?",
+      "mid": "What has influenced your mood the most so far today?",
+      "good": "What contributed to you feeling okay or good right now?",
+      "high": "What do you want to carry with you from this positive feeling for the rest of the day?"
+    },
+    "defaultNotePrefix": "Feeling",
     "moods": {
       "fantastic": "Fantastic",
       "good": "Good",
@@ -476,6 +670,9 @@
     "welcomeMessage": "Welcome to your sanctuary. I'm listening.",
     "newResponse": "New response from AI",
     "errorFallback": "Sorry, I lost track. Try again.",
+    "offlineMode": "You are offline. Your message will be saved and sent when you are back online.",
+    "offlinePlaceholder": "Offline mode - message saved...",
+    "messageQueued": "Message saved for later delivery",
     "suggestions": {
       "stressed": "I'm feeling stressed",
       "motivation": "Need motivation",
@@ -486,7 +683,152 @@
     "welcomeText": "No one judges you here. I'm here to listen, support and help you sort your thoughts. What's on your mind?",
     "inputPlaceholder": "Type your message...",
     "footer": "Calm & Safe AI • Private & Secure",
-    "disclaimer": "Lugn & Trygg does not replace professional psychological care. In a crisis, call 90101 or your local emergency number."
+    "disclaimer": "Lugn & Trygg does not replace professional psychological care. In a crisis, call 90101 or your local emergency number.",
+    "stopSpeaking": "Stop speaking",
+    "listenToMessage": "Listen to message",
+    "crisis": "CRISIS",
+    "offline": "Offline",
+    "reconnecting": "Reconnecting...",
+    "loadingOlder": "Loading older messages...",
+    "loadOlder": "Load older messages",
+    "stopRecording": "Stop voice recording",
+    "startRecording": "Start voice recording",
+    "listening": "🎤 Listening...",
+    "send": "Send message",
+    "errorShort": "Sorry, I couldn't respond right now. Please try again in a moment."
+  },
+  "voiceChat": {
+    "title": "🎤 Voice Analysis & AI Therapist",
+    "subtitle": "Speak freely – I analyze your voice and provide personalized insights for your wellbeing",
+    "helpAriaLabel": "Help",
+    "helpText": "💡 **How it works:**\n\n1. Press the microphone and speak for at least 3 seconds\n2. I analyze your voice and emotions\n3. You get personalized insights and recommendations\n4. You can also type or click a quick action below",
+    "startRecordingAria": "Start voice recording",
+    "stopRecordingAria": "Stop recording",
+    "voiceInputAria": "Voice input",
+    "recording": "🔴 Recording...",
+    "pressToStart": "Press to start",
+    "transcribing": "Transcribing speech...",
+    "analyzingEmotions": "Analyzing emotions...",
+    "processing": "Processing...",
+    "speakNaturally": "Speak naturally for at least 3 seconds. I analyze your voice and emotions.",
+    "welcomeMessage": "Hi! I'm your AI therapist. How are you feeling today? You can talk to me by pressing the microphone button or by typing.",
+    "recordingStarted": "Voice recording started",
+    "recordingStopped": "Voice recording stopped",
+    "processingVoice": "Processing voice message...",
+    "recordingError": "An error occurred during recording. Please try again.",
+    "recordingStartError": "Could not start recording. Check that your browser has microphone access.",
+    "recordingStartErrorAria": "Could not start voice recording",
+    "emptyRecording": "The recording was empty. Try speaking more clearly and longer.",
+    "recordingTooLarge": "The recording is too large (max {{max}} MB). Try again with a shorter message.",
+    "autoStopped": "Recording was automatically stopped after {{seconds}} seconds.",
+    "transcribeFailed": "⚠️ Could not transcribe your voice. Speak more clearly and longer (at least 2 seconds), or type your message below.",
+    "processError": "An unexpected error occurred while processing the voice message. Please try again.",
+    "processErrorAria": "Could not process voice message",
+    "aiResponseReceived": "AI response received",
+    "aiResponseFallback": "Thank you for sharing that with me.",
+    "aiResponseFallbackExtended": "Thank you for sharing that with me. Tell me more about how you feel.",
+    "crisisWarning": "⚠️ It sounds like you're having a hard time right now. If you're feeling very unwell: call **112** or **Mind 90101** (24/7).",
+    "aiTimeoutError": "It took a bit too long to get a response. Try again or type your message instead.",
+    "aiGenericError": "I couldn't respond right now. Please try again in a moment.",
+    "aiGenericErrorShort": "I couldn't process your message right now. Please try again in a moment.",
+    "loginRequired": "Log in to talk to the AI therapist.",
+    "quickActionsTitle": "Quick Actions",
+    "quickActions": {
+      "stressed": "I'm feeling stressed today",
+      "mindfulness": "Help me with mindfulness",
+      "calmStory": "Tell me a calming story",
+      "sleep": "What can I do for better sleep?",
+      "anxious": "I'm feeling anxious",
+      "understandEmotions": "Help me understand my emotions"
+    },
+    "aiTherapistLabel": "💬 AI Therapist",
+    "voiceLabel": "🎤 voice",
+    "confidenceLabel": "confidence",
+    "energyLabel": "Energy",
+    "energyHigh": "High",
+    "energyMedium": "Medium",
+    "energyLow": "Low",
+    "paceLabel": "Pace",
+    "paceFast": "Fast",
+    "paceSlow": "Slow",
+    "paceNormal": "Normal",
+    "volumeLabel": "Volume",
+    "volumeHigh": "Varied",
+    "volumeLow": "Constant",
+    "volumeModerate": "Moderate",
+    "emotionProfileTitle": "Emotion Profile",
+    "emotionDimensionsTitle": "Emotion Dimensions",
+    "valenceLabel": "Valence",
+    "valenceDesc": "Neg ↔ Pos",
+    "arousalLabel": "Arousal",
+    "arousalDesc": "Calm ↔ Active",
+    "dominanceLabel": "Dominance",
+    "dominanceDesc": "Submissive ↔ Dominant",
+    "insightTitle": "Psychological Insight",
+    "recommendationsTitle": "What you can do now",
+    "crisisTitle": "If you're feeling very unwell",
+    "crisisSos": "📞 SOS Alarm: 112",
+    "crisisMind": "💙 Mind: 90101 (24/7)",
+    "crisisDisclaimer": "Lugn & Trygg does not replace professional care. Seek help if you're feeling unwell.",
+    "crisisWarningLevel1": "If you need to talk to someone, you can call <strong>Mind suicide helpline: 90101</strong> (free, 24/7). Lugn & Trygg does not replace professional psychological help.",
+    "inputPlaceholder": "Type your message...",
+    "sendAria": "Send",
+    "recordingHint": "Recording – press the stop button to finish and analyze",
+    "disclaimer": "Lugn & Trygg does not replace professional psychological help",
+    "mindHelpline": "Mind: 90101",
+    "emotionLabels": {
+      "happy": "Happy",
+      "sad": "Sad",
+      "anxious": "Anxious",
+      "angry": "Angry",
+      "fearful": "Fearful",
+      "neutral": "Neutral",
+      "surprised": "Surprised",
+      "disgusted": "Disgusted",
+      "frustrated": "Frustrated",
+      "calm": "Calm",
+      "tired": "Tired"
+    },
+    "emotionInsights": {
+      "happy": "Your voice conveys joy and energy – a strong sign of wellbeing. Positive emotions strengthen your resilience and nourish your relationships.",
+      "sad": "Your voice carries a certain weight and sorrow. It's completely okay – grief is an important part of being human and helps us process loss. You don't have to carry it alone.",
+      "anxious": "Your voice shows signs of worry and inner tension. Your brain is trying to protect you – but worry can sometimes become disproportionate. You're not alone with this, and it can be managed.",
+      "angry": "Your voice carries intense energy suggesting frustration or anger. Anger is a signal that something important has been violated – it's human. It's about channeling it constructively.",
+      "fearful": "Your voice shows signs of fear or great worry. Fear is the body's alarm system – but sometimes it overreacts. If you're in danger or feeling very unwell: seek help now.",
+      "neutral": "Your voice sounds balanced and neutral. It could indicate calm and wellbeing – or that you're holding back emotions. Sometimes it's harder to reach the deeper layers.",
+      "surprised": "Your voice shows surprise or unexpected engagement. Surprise is often fleeting – notice what created it.",
+      "disgusted": "Disgust or aversion in the voice can signal that something conflicts with your values. It's important information about your boundaries.",
+      "frustrated": "Frustration is a signal of an obstacle or inequity. It's an active emotion that says: \"Something isn't right.\" Listen to it with curiosity."
+    },
+    "emotionRecommendations": {
+      "happy": ["Enjoy the moment – notice what created the joy", "Share your energy with someone you care about", "Write down three things you're grateful for today"],
+      "sad": ["Allow yourself to feel, don't flee the emotion", "Breathe deeply: in 4 sec → hold 2 sec → out 6 sec", "Call someone you trust – a conversation helps"],
+      "anxious": ["4-7-8 breathing: in 4 sec → hold 7 sec → out 8 sec", "Grounding technique: Name 5 things you see, 4 you hear, 3 you touch", "Ask yourself: How likely is this scenario really?"],
+      "angry": ["Box breathing: in 4 → hold 4 → out 4 → hold 4 sec", "Take a step back and count to 10 before reacting", "Move around – a quick walk lowers stress hormones"],
+      "fearful": ["If in immediate danger: Call 112 immediately", "Mind suicide helpline: 90101 (24/7)", "Grounding technique: Press your feet into the floor, breathe slowly"],
+      "neutral": ["Reflect: How are you really feeling deep inside?", "Mindfulness: Sit still for 5 minutes and observe your thoughts", "Write down your thoughts in a journal"],
+      "surprised": ["Consider: What surprised you and what does it say about your expectations?", "Curiosity is positive – let surprise lead to exploration"],
+      "disgusted": ["Identify what triggered the feeling", "Communicate your boundaries clearly and respectfully", "Is there something you need to distance yourself from?"],
+      "frustrated": ["Identify the specific obstacle: what can you control?", "Break the problem into smaller parts", "Move around – physical activity dissolves frustration thinking"]
+    }
+  },
+  "voiceRecorder": {
+    "title": "🎤 Voice Recording",
+    "subtitle": "Record your voice for transcription and emotion analysis",
+    "googleSpeechUnavailable": "⚠️ Google Speech API is not available. Using the browser's speech API.",
+    "processing": "Processing recording...",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "recordingTooLarge": "The recording was too large. Try recording a shorter clip.",
+    "transcribeFailed": "Transcription failed. Try speaking more clearly.",
+    "processingError": "An error occurred while processing the voice recording.",
+    "noMicrophone": "No microphone found. Check that a microphone is connected.",
+    "startError": "Could not start recording. Check microphone permissions.",
+    "micPermissionDenied": "Microphone access denied. Please allow microphone access in your browser and try again.",
+    "startErrorPrefix": "Could not start recording:",
+    "transcriptLabel": "Transcription:",
+    "emotionLabel": "Emotion:",
+    "tips": "💡 Tip: Speak clearly for 10-120 seconds for best results"
   },
   "gamification": {
     "myJourney": "My Journey 🏆",
@@ -713,7 +1055,14 @@
       "generateNew": "Generate new story",
       "generating": "Generating...",
       "play": "Play",
-      "generateError": "Could not generate story"
+      "pause": "Pause",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "generateError": "Could not generate story",
+      "loginRequired": "Log in to view your AI stories.",
+      "empty": "No stories yet. Generate your first AI story!",
+      "addFavorite": "Add to favorites",
+      "removeFavorite": "Remove from favorites"
     }
   },
   "analytics": {
@@ -764,7 +1113,25 @@
     "moodAriaLabel": "Ditt mående: {{score}} av 10. En svår dag just nu.",
     "itsOkay": " Det är okej att må så här. Du är inte ensam.",
     "talkToAI": "Prata med AI",
-    "getHelp": "Få hjälp nu"
+    "getHelp": "Få hjälp nu",
+    "moodNeedsAttention": "Your mood needs attention",
+    "stableOverall": "Stable overall",
+    "noData": "No data",
+    "exploringPhase": "Exploring phase",
+    "naturallyVarying": "Naturally varying",
+    "positiveDevelopment": "Positive development",
+    "balanced": "Balanced",
+    "stable": "Stable",
+    "trendTooltip": "Shows your mood direction over time: {{label}}",
+    "moodScoreOf10": "{{score}} of 10",
+    "streakDays": "{{count}} {{count, plural, one {day} other {days}}}",
+    "yourActivity": "Your activity",
+    "activityOfTotal": "{{current}} of {{total}} days",
+    "encouragement0": "🌱 Every day is a new opportunity",
+    "encouragement1": "🌱 Great start! Keep it up.",
+    "encouragement2": "🌱 Building a nice rhythm!",
+    "encouragement3": "✨ Strong consistency!",
+    "encouragement5": "🔥 Impressive dedication!"
   },
   "achievementProgress": {
     "title": "Framsteg mot nästa nivå",
@@ -801,13 +1168,15 @@
     "checkedIn": "Great job with today's check-in! Would you like to see your insights?",
     "morningMood": "Good morning! Yesterday your feeling was \"{{mood}}\". How does it feel to start today?",
     "welcomeBackMood": "Welcome back! Last time your feeling was \"{{mood}}\". What do you notice now?",
+    "moodContext": "Yesterday your feeling was \"{{mood}}\". How does it feel to start today?",
     "mindfulPrompt": "What feelings or thoughts are present right now? Everything is welcome here.",
     "breatheIn": "Breathe in",
     "breatheOut": "Breathe out",
     "pause": "Pause",
     "done": "Done",
     "breathingExercise": "Breathing exercise",
-    "reflectionInvitation": "Invitation to reflect"
+    "reflectionInvitation": "Invitation to reflect",
+    "defaultUserName": "friend"
   },
   "breath": {
     "breathCount": "Breaths",
@@ -823,6 +1192,8 @@
   },
   "loginForm": {
     "secureLogin": "Secure Login",
+    "title": "Sign In",
+    "subtitle": "Welcome back. Sign in to continue where you left off.",
     "loginTitle": "Sign In",
     "welcomeBack": "Welcome back. Sign in to continue where you left off.",
     "emailLabel": "📧 Email Address",
@@ -1057,7 +1428,83 @@
     "wellnessGoals": "Wellness goals",
     "availableExercises": "Available exercises",
     "evidenceBased": "Evidence-based content",
-    "searchPlaceholder": "Search recommendations..."
+    "searchPlaceholder": "Search recommendations...",
+    "lastAccessed": "Last",
+    "peopleDoingToday": "people completed this today",
+    "sort": {
+      "rating": "Rating",
+      "duration": "Duration",
+      "difficulty": "Difficulty"
+    },
+    "cta": {
+      "meditation": "View meditation",
+      "exercise": "View exercise",
+      "article": "View article",
+      "challenge": "View challenge",
+      "insight": "View insight",
+      "default": "View recommendation"
+    },
+    "matchReason": {
+      "goal": "Matches goal: {{goal}}",
+      "preference": "Matches interest: {{preference}}"
+    },
+    "error": {
+      "loadFailed": "Failed to load recommendations"
+    },
+    "announce": {
+      "opening": "Opening recommendation: {{title}}",
+      "exerciseCompleted": "Exercise completed! Great job!",
+      "pomodoroAllComplete": "All {{count}} Pomodoro sessions completed!",
+      "pomodoroBreak": "{{minutes}} minute break starting",
+      "pomodoroWorkResume": "Break over. Session {{session}} starting",
+      "articleCompleted": "The neuroscience and focus article is now completed!",
+      "quizScore": "You got {{score}} out of {{total}} correct on the quiz",
+      "remindersEnabled": "Daily reminders have been enabled",
+      "remindersDisabled": "Daily reminders have been disabled",
+      "reminderTimeUpdated": "Reminder time updated to {{time}}",
+      "saved": "{{title}} saved to your favorites",
+      "unsaved": "{{title}} removed from favorites",
+      "shared": "Recommendation shared successfully",
+      "linkCopied": "Link copied to clipboard",
+      "copyFailed": "Could not copy link",
+      "thanksForFeedback": "Thank you for your feedback!",
+      "actionPerformed": "Action {{action}} performed on {{title}}",
+      "thanksPositive": "Thank you for your positive feedback!",
+      "thanksNegative": "Thank you for your feedback, we're improving our recommendations!",
+      "baWriteActivity": "Write at least one activity",
+      "baSelectActivity": "Select an activity",
+      "baDescribePlan": "Describe your plan with at least 15 characters",
+      "baSelectPleasure": "Select an expected pleasure rating",
+      "wtWriteWorries": "Write at least one worry",
+      "wtCheckboxRequired": "Check the box to continue",
+      "wtWriteReflection": "Write a short reflection",
+      "gratitudeMinThree": "Write at least 3 things you're grateful for",
+      "alreadyCompleted": "{{title}} was already marked as completed.",
+      "markedCompleted": "{{title}} marked as completed",
+      "markCompletedFailed": "Could not mark as completed"
+    },
+    "notifications": {
+      "browserNotSupported": "This browser does not support push notifications",
+      "blocked": "You have blocked notifications. Enable them in your browser settings to use this feature.",
+      "enabled": "✅ Daily reminders enabled!\n\nYou will receive a friendly reminder every day at {{time}} to take care of your mental health.",
+      "enableFailed": "Could not enable daily reminders. Try again.",
+      "disabled": "Daily reminders have been disabled.",
+      "disableFailed": "Could not disable daily reminders. Try again.",
+      "updateTimeFailed": "Could not update reminder time. Try again."
+    },
+    "cbt": {
+      "selectMood": "Select your current mood",
+      "errorLoad": "CBT data could not be loaded right now. Try again later.",
+      "errorLoadShort": "CBT data could not be loaded right now.",
+      "mood": {
+        "neutral": "Neutral mood",
+        "highAnxiety": "High anxiety",
+        "lowMood": "Low mood",
+        "depression": "Depression",
+        "stress": "Stress",
+        "good": "Feeling good"
+      }
+    }
   },
   "wellnessHub": {
     "title": "Wellness Library",
@@ -1555,5 +2002,79 @@
         "description": "Deep rest with ocean rhythm and guidance"
       }
     ]
+  },
+  "clinicalAssessment": {
+    "title": "Clinical Self-Assessment",
+    "subtitle": "Validated scales for depression (PHQ-9) and anxiety (GAD-7)",
+    "tabs": {
+      "phq9": "PHQ-9 (Depression)",
+      "gad7": "GAD-7 (Anxiety)",
+      "history": "History"
+    },
+    "responseOptions": {
+      "labels": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+      "descriptions": ["0 points", "1 point", "2 points", "3 points"]
+    },
+    "severity": {
+      "minimal": "Minimal",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "moderately_severe": "Moderately severe",
+      "severe": "Severe"
+    },
+    "phq9Questions": {
+      "little_interest": "Little interest or pleasure in doing things",
+      "feeling_down": "Feeling down, depressed, or hopeless",
+      "sleep_problems": "Trouble falling asleep, or sleeping too much",
+      "feeling_tired": "Feeling tired or having little energy",
+      "appetite": "Poor appetite or overeating",
+      "feeling_bad": "Feeling bad about yourself or that you are a failure",
+      "concentration": "Trouble concentrating on things",
+      "moving_slowly": "Moving or speaking slowly, or being restless",
+      "self_harm": "Thoughts that you would be better off dead or of hurting yourself"
+    },
+    "gad7Questions": {
+      "feeling_nervous": "Feeling nervous, anxious, or on edge",
+      "cant_control_worry": "Not being able to stop or control worrying",
+      "worrying_too_much": "Worrying too much about different things",
+      "trouble_relaxing": "Trouble relaxing",
+      "restless": "Being so restless that it's hard to sit still",
+      "easily_annoyed": "Becoming easily annoyed or irritable",
+      "afraid": "Feeling afraid as if something awful might happen"
+    },
+    "selfHarmNote": "(Question about self-harm thoughts)",
+    "instruction": "Over the last 2 weeks, how often have you been bothered by the following?",
+    "progress": "Progress",
+    "unansweredError": "Please answer all questions. {{count}} remaining.",
+    "genericError": "An error occurred during calculation.",
+    "calculating": "Calculating…",
+    "calculate": "Calculate result",
+    "totalScore": "Total score",
+    "maxScore": "max {{max}} points",
+    "severityLabel": "Severity",
+    "immediateRiskTitle": "⚠️ Immediate risk detected",
+    "immediateRiskText": "You indicated thoughts of harming yourself. Contact psychiatric emergency or call 112 or crisis support 90101 (24/7).",
+    "recommendations": "Recommendations",
+    "hideQuestions": "Hide questions",
+    "showQuestions": "Show questions again",
+    "newAssessment": "New assessment",
+    "viewHistory": "View history",
+    "historyError": "Could not retrieve history. Please try again.",
+    "historyLoading": "Loading history…",
+    "retry": "Try again",
+    "refresh": "Refresh",
+    "emptyHistory": "No previous assessments found.",
+    "firstPhq9": "Take your first PHQ-9",
+    "newPhq9": "New PHQ-9",
+    "newGad7": "New GAD-7",
+    "historyType": {
+      "phq9": "PHQ-9 Depression",
+      "gad7": "GAD-7 Anxiety"
+    },
+    "risk": "Risk",
+    "phq9Trend": "PHQ-9 trend (last {{count}})",
+    "gad7Trend": "GAD-7 trend (last {{count}})",
+    "latest": "Latest",
+    "points": "pts"
   }
 }
