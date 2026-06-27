@@ -333,7 +333,7 @@ class DailyInsightGeneratorV2:
                 return None
 
             # Sort by time to ensure chronological order
-            sorted_data = sorted(zip(time_points, scores), key=lambda x: x[0])
+            sorted_data = sorted(zip(time_points, scores, strict=False), key=lambda x: x[0])
             time_points = [d[0] for d in sorted_data]
             scores = [d[1] for d in sorted_data]
 
