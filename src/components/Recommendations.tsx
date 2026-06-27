@@ -53,7 +53,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const navigate = useNavigate();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lastRecommendationsSignatureRef = useRef<string>('');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
@@ -206,7 +206,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       logger.error('Failed to update CBT progress:', error);
     });
     setActiveCbtExerciseId(null);
-    announceToScreenReader('Övning slutförd! Bra jobbat!', 'polite');
+    announceToScreenReader(t('recommendations.announce.exerciseCompleted', 'Övning slutförd! Bra jobbat!'), 'polite');
   };
 
   const [debugMode, setDebugMode] = useState(false);
@@ -295,11 +295,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     },
     onPhaseChange: (phase, session) => {
       if (phase === 'completed') {
-        announceToScreenReader(`Alla ${totalPomodoroSessions} Pomodoro - sessioner slutförda!`, 'polite');
+        announceToScreenReader(t('recommendations.announce.pomodoroAllComplete', 'Alla {{count}} Pomodoro-sessioner slutförda!', { count: totalPomodoroSessions }), 'polite');
       } else if (phase === 'break') {
-        announceToScreenReader(`${pomodoroBreakTime} minuters paus börjar`, 'polite');
+        announceToScreenReader(t('recommendations.announce.pomodoroBreak', '{{minutes}} minuters paus börjar', { minutes: pomodoroBreakTime }), 'polite');
       } else if (phase === 'work' && session > 1) {
-        announceToScreenReader(`Paus slut. Session ${session} börjar`, 'polite');
+        announceToScreenReader(t('recommendations.announce.pomodoroWorkResume', 'Paus slut. Session {{session}} börjar', { session }), 'polite');
       }
     }
   });
@@ -308,7 +308,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [articleProgress, setArticleProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState(0);
   const [readingTime, setReadingTime] = useState(0);
-  const articleReadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const articleReadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [articleCompleted, setArticleCompleted] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<{ [key: number]: number }>({});
   const [showQuiz, setShowQuiz] = useState(false);
@@ -328,17 +328,28 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     logger.debug('Journal history load requested');
   }, [user?.user_id]);
 
-  // Category color helper function
-  const getCategoryColor = useCallback((category: string) => {
+  // Category color helper function — uses categoryKey (original Swedish) which is stable across translations
+  const getCategoryColor = useCallback((categoryKey: string | undefined) => {
     const colors: Record<string, string> = {
       'Stresshantering': 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800',
-      'Sömn': 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-800',
+      'Avslappning': 'bg-teal-50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-800',
+      'Sömn': 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800',
+      'KBT': 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800',
       'Fokus': 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800',
       'Mental klarhet': 'bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-800',
       'Produktivitet': 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800',
       'Relationer': 'bg-pink-50 dark:bg-pink-900/10 border-pink-200 dark:border-pink-800',
+      'Utbildning': 'bg-cyan-50 dark:bg-cyan-900/10 border-cyan-200 dark:border-cyan-800',
+      'Meditation': 'bg-sky-50 dark:bg-sky-900/10 border-sky-200 dark:border-sky-800',
+      'Journaling': 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800',
+      'Utmaningar': 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800',
+      'Ångesthantering': 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800',
+      'Arbetsliv': 'bg-slate-50 dark:bg-slate-900/10 border-slate-200 dark:border-slate-800',
+      'Avancerad KBT': 'bg-fuchsia-50 dark:bg-fuchsia-900/10 border-fuchsia-200 dark:border-fuchsia-800',
+      'Avancerad Meditation': 'bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-800',
+      'Allmänt': 'bg-gray-50 dark:bg-gray-900/10 border-gray-200 dark:border-gray-800',
     };
-    return colors[category] || 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
+    return colors[categoryKey || ''] || 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
   }, []);
 
   useEffect(() => {
@@ -374,12 +385,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           .some((item) => item.status === 'fulfilled');
 
         if (!hasAtLeastOneSuccess) {
-          setCbtError('CBT-data kunde inte laddas just nu. Försök igen senare.');
+          setCbtError(t('recommendations.cbt.errorLoad', 'CBT-data kunde inte laddas just nu. Försök igen senare.'));
         }
       } catch (error) {
         logger.error('Failed to load CBT data', { error });
         if (active) {
-          setCbtError('CBT-data kunde inte laddas just nu.');
+          setCbtError(t('recommendations.cbt.errorLoadShort', 'CBT-data kunde inte laddas just nu.'));
         }
       } finally {
         if (active) {
@@ -437,7 +448,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     lastRecommendationsSignatureRef.current = recommendationSignature;
     setRecommendations(filteredRecommendations);
     if (!compact) {
-      screenReader(`${filteredRecommendations.length} personaliserade rekommendationer laddade`, 'polite');
+      screenReader(t('recommendations.announce.loadedCount', '{{count}} personaliserade rekommendationer laddade', { count: filteredRecommendations.length }), 'polite');
     }
   }, [compact, t]);
 
@@ -528,6 +539,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         clearInterval(articleReadingTimerRef.current);
         articleReadingTimerRef.current = null;
       }
+      pendingTimersRef.current.forEach(clearTimeout);
+      pendingTimersRef.current = [];
     };
   }, []);
 
@@ -618,13 +631,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }, 0);
 
     const wordsPerMinute = readingTime > 0 ? Math.round((totalWords / readingTime) * 60) : 0;
-    const readingSpeed = wordsPerMinute > 250 ? 'snabb' : wordsPerMinute > 150 ? 'normal' : 'långsam';
+    const readingSpeed = wordsPerMinute > 250 ? 'fast' : wordsPerMinute > 150 ? 'normal' : 'slow';
 
     logger.debug(`📊 Reading stats: ${totalWords} words in ${readingTime} s = ${wordsPerMinute} WPM (${readingSpeed})`);
 
     // Update progress with bonus based on reading speed
     const baseMinutes = 7;
-    const speedBonus = readingSpeed === 'snabb' ? 2 : readingSpeed === 'normal' ? 1 : 0;
+    const speedBonus = readingSpeed === 'fast' ? 2 : readingSpeed === 'normal' ? 1 : 0;
     updateProgress('article', baseMinutes + speedBonus);
 
     // Save completion with reading stats
@@ -641,7 +654,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       localStorage.setItem(`article_progress_focus-3_${user.user_id}`, JSON.stringify(completionData));
     }
 
-    announceToScreenReader('Artikeln om neurovetenskap och fokus är nu slutförd!', 'polite');
+    announceToScreenReader(t('recommendations.announce.articleCompleted', 'Artikeln om neurovetenskap och fokus är nu slutförd!'), 'polite');
   };
 
   const submitQuiz = () => {
@@ -661,7 +674,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     // Update progress for quiz completion
     updateProgress('exercise', 5);
 
-    announceToScreenReader(`Du fick ${score} av ${correctAnswers.length} rätt på quizet`, 'polite');
+    announceToScreenReader(t('recommendations.announce.quizScore', 'Du fick {{score}} av {{total}} rätt på quizet', { score, total: correctAnswers.length }), 'polite');
   };
 
 
@@ -711,10 +724,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   }, [recommendations, searchTerm, selectedCategory, sortBy]);
 
   const sortLabel = sortBy === 'rating'
-    ? 'Betyg'
+    ? t('recommendations.sort.rating', 'Betyg')
     : sortBy === 'duration'
-      ? 'Längd'
-      : 'Svårighetsgrad';
+      ? t('recommendations.sort.duration', 'Längd')
+      : t('recommendations.sort.difficulty', 'Svårighetsgrad');
 
   const getRecommendationMatchReason = (recommendation: Recommendation): string | null => {
     const recommendationText = `${recommendation.title} ${recommendation.description} ${recommendation.tags.join(' ')} ${recommendation.category}`.toLowerCase();
@@ -734,37 +747,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     });
 
     if (matchedGoal) {
-      return `Matchar mål: ${matchedGoal}`;
+      return t('recommendations.matchReason.goal', 'Matchar mål: {{goal}}', { goal: matchedGoal });
     }
 
     const matchedPreference = userPreferences.find((pref) => recommendationText.includes(pref.toLowerCase()));
-    return matchedPreference ? `Matchar intresse: ${matchedPreference}` : null;
-  };
-
-  // Crisis detection - comprehensive Swedish/English keywords
-  const _detectCrisis = (text: string) => {
-    const crisisKeywords = [
-      // Swedish suicide/self-harm
-      'självmord', 'suicide', 'självskada', 'self harm', 'dö', 'die',
-      'sluta leva', 'vill inte leva', 'ta livet', 'ta mitt liv', 'ta sitt liv',
-      'skada mig', 'hurt myself', 'skära mig', 'cut myself',
-
-      // Swedish hopelessness
-      'ingen mening', 'hopplös', 'värdelös', 'meningslös', 'poänglös',
-      'värt att leva', 'not worth living', 'ge upp', 'give up',
-      'trött på allt', 'trött på livet', 'vill försvinna',
-
-      // English equivalents
-      'suicide', 'kill myself', 'end it all', 'not worth living',
-      'hopeless', 'worthless', 'give up', 'tired of living',
-
-      // Crisis indicators
-      'ingen utväg', 'no way out', 'fast i en cirkel', 'stuck in a loop',
-      'vill bara sova', 'want to sleep forever'
-    ];
-
-    const lowerText = text.toLowerCase().trim();
-    return crisisKeywords.some(keyword => lowerText.includes(keyword));
+    return matchedPreference ? t('recommendations.matchReason.preference', 'Matchar intresse: {{preference}}', { preference: matchedPreference }) : null;
   };
 
   // Load user progress from localStorage
@@ -814,8 +801,9 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
   }, [showContentModal]);
 
-  // Debug: Check localStorage on mount
+  // Debug: Check localStorage on mount (dev only)
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     logger.debug('🔍 DEBUG: Checking all localStorage keys containing "progress"');
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -842,7 +830,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       logger.error('Failed to load notification settings:', error);
       // Keep default settings
     }
-  }, [user]);
+  }, [user?.user_id]);
 
   // Load notification settings on mount
   useEffect(() => {
@@ -851,7 +839,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const requestNotificationPermission = async () => {
     if (!('Notification' in window)) {
-      alert('Denna webbläsare stödjer inte push-notiser');
+      alert(t('recommendations.notifications.browserNotSupported', 'Denna webbläsare stödjer inte push-notiser'));
       return false;
     }
 
@@ -860,7 +848,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
 
     if (Notification.permission === 'denied') {
-      alert('Du har blockerat notiser. Aktivera dem i webbläsarens inställningar för att använda denna funktion.');
+      alert(t('recommendations.notifications.blocked', 'Du har blockerat notiser. Aktivera dem i webbläsarens inställningar för att använda denna funktion.'));
       return false;
     }
 
@@ -895,12 +883,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       setNotificationSettings(prev => ({ ...prev, dailyRemindersEnabled: true }));
 
-      alert(`✅ Dagliga påminnelser aktiverade!\n\nDu kommer få en vänlig påminnelse varje dag kl. ${notificationSettings.reminderTime} att ta hand om din mentala hälsa.`);
-      announceToScreenReader('Dagliga påminnelser har aktiverats', 'polite');
+      alert(t('recommendations.notifications.enabled', '✅ Dagliga påminnelser aktiverade!\n\nDu kommer få en vänlig påminnelse varje dag kl. {{time}} att ta hand om din mentala hälsa.', { time: notificationSettings.reminderTime }));
+      announceToScreenReader(t('recommendations.announce.remindersEnabled', 'Dagliga påminnelser har aktiverats'), 'polite');
 
     } catch (error) {
       logger.error('Failed to enable daily reminders:', error);
-      alert('Kunde inte aktivera dagliga påminnelser. Försök igen.');
+      alert(t('recommendations.notifications.enableFailed', 'Kunde inte aktivera dagliga påminnelser. Försök igen.'));
     } finally {
       setIsEnablingNotifications(false);
     }
@@ -916,12 +904,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       });
 
       setNotificationSettings(prev => ({ ...prev, dailyRemindersEnabled: false }));
-      alert('Dagliga påminnelser har inaktiverats.');
-      announceToScreenReader('Dagliga påminnelser har inaktiverats', 'polite');
+      alert(t('recommendations.notifications.disabled', 'Dagliga påminnelser har inaktiverats.'));
+      announceToScreenReader(t('recommendations.announce.remindersDisabled', 'Dagliga påminnelser har inaktiverats'), 'polite');
 
     } catch (error) {
       logger.error('Failed to disable daily reminders:', error);
-      alert('Kunde inte inaktivera dagliga påminnelser. Försök igen.');
+      alert(t('recommendations.notifications.disableFailed', 'Kunde inte inaktivera dagliga påminnelser. Försök igen.'));
     }
   };
 
@@ -935,11 +923,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       });
 
       setNotificationSettings(prev => ({ ...prev, reminderTime: newTime }));
-      announceToScreenReader(`Påminnelsetid uppdaterad till ${newTime} `, 'polite');
+      announceToScreenReader(t('recommendations.announce.reminderTimeUpdated', 'Påminnelsetid uppdaterad till {{time}}', { time: newTime }), 'polite');
 
     } catch (error) {
       logger.error('Failed to update reminder time:', error);
-      alert('Kunde inte uppdatera påminnelsetiden. Försök igen.');
+      alert(t('recommendations.notifications.updateTimeFailed', 'Kunde inte uppdatera påminnelsetiden. Försök igen.'));
     }
   };
 
@@ -992,8 +980,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         logger.debug(`${newSavedState ? '💾' : '🗑️'} ${newSavedState ? 'Saved' : 'Unsaved'}: `, recommendation.title);
         announceToScreenReader(
           newSavedState
-            ? `${recommendation.title} sparad till dina favoriter`
-            : `${recommendation.title} borttagen från favoriter`,
+            ? t('recommendations.announce.saved', '{{title}} sparad till dina favoriter', { title: recommendation.title })
+            : t('recommendations.announce.unsaved', '{{title}} borttagen från favoriter', { title: recommendation.title }),
           'polite'
         );
         break;
@@ -1010,7 +998,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           navigator.share(shareData)
             .then(() => {
               logger.debug('✅ Shared successfully:', recommendation.title);
-              announceToScreenReader('Rekommendation delad framgångsrikt', 'polite');
+              announceToScreenReader(t('recommendations.announce.shared', 'Rekommendation delad framgångsrikt'), 'polite');
             })
             .catch((error) => {
               logger.debug('Share cancelled or failed:', error);
@@ -1020,22 +1008,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           navigator.clipboard.writeText(`${shareData.title} \n${shareData.text} \n${shareData.url} `)
             .then(() => {
               logger.debug('✅ Copied to clipboard:', recommendation.title);
-              announceToScreenReader('Länk kopierad till urklipp', 'polite');
+              announceToScreenReader(t('recommendations.announce.linkCopied', 'Länk kopierad till urklipp'), 'polite');
             })
             .catch((error) => {
               logger.error('Failed to copy to clipboard:', error);
-              announceToScreenReader('Kunde inte kopiera länk', 'assertive');
+              announceToScreenReader(t('recommendations.announce.copyFailed', 'Kunde inte kopiera länk'), 'assertive');
             });
         }
         break;
       }
       case 'feedback':
         // Simple feedback - could be expanded to a proper feedback system
-        announceToScreenReader('Tack för din feedback!', 'polite');
+        announceToScreenReader(t('recommendations.announce.thanksForFeedback', 'Tack för din feedback!'), 'polite');
         break;
     }
 
-    announceToScreenReader(`Action ${action} performed on ${recommendation.title} `, 'polite');
+    announceToScreenReader(t('recommendations.announce.actionPerformed', 'Action {{action}} performed on {{title}}', { action, title: recommendation.title }), 'polite');
   };
 
   const handleRecommendationFeedback = (recommendation: Recommendation, feedback: RecommendationFeedback) => {
@@ -1049,30 +1037,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     if (feedback === 'helpful') {
       logger.debug('👍 Positive feedback for:', recommendation.title);
-      announceToScreenReader('Tack för din positiva feedback!', 'polite');
+      announceToScreenReader(t('recommendations.announce.thanksPositive', 'Tack för din positiva feedback!'), 'polite');
       return;
     }
 
     logger.debug('👎 Negative feedback for:', recommendation.title);
-    announceToScreenReader('Tack för din feedback, vi förbättrar våra rekommendationer!', 'polite');
-  };
-
-  // Quick start a recommendation directly without opening modal
-  const quickStartRecommendation = (recommendation: Recommendation) => {
-    logger.debug(`🚀 Quick start: ${recommendation.title}`);
-    
-    // For meditation types, start immediately
-    if (recommendation.type === 'meditation') {
-      // Set the recommendation and start immediately
-      setSelectedRecommendation(recommendation);
-      setShowContentModal(true);
-      
-    }
-    
-    analytics.track('Quick Start', {
-      recommendationId: recommendation.id,
-      type: recommendation.type,
-    });
+    announceToScreenReader(t('recommendations.announce.thanksNegative', 'Tack för din feedback, vi förbättrar våra rekommendationer!'), 'polite');
   };
 
 
@@ -1119,17 +1089,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const getCompactCtaLabel = (type: Recommendation['type']) => {
     switch (type) {
       case 'meditation':
-        return 'Visa meditation';
+        return t('recommendations.cta.meditation', 'Visa meditation');
       case 'exercise':
-        return 'Visa övning';
+        return t('recommendations.cta.exercise', 'Visa övning');
       case 'article':
-        return 'Visa artikel';
+        return t('recommendations.cta.article', 'Visa artikel');
       case 'challenge':
-        return 'Visa utmaning';
+        return t('recommendations.cta.challenge', 'Visa utmaning');
       case 'insight':
-        return 'Visa insikt';
+        return t('recommendations.cta.insight', 'Visa insikt');
       default:
-        return 'Visa rekommendation';
+        return t('recommendations.cta.default', 'Visa rekommendation');
     }
   };
 
@@ -1149,7 +1119,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {/* Error State - Compact */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-[2rem] p-6 text-center">
-            <p className="text-red-700 dark:text-red-300">Kunde inte ladda rekommendationer</p>
+            <p className="text-red-700 dark:text-red-300">{t('recommendations.error.loadFailedCompact', 'Kunde inte ladda rekommendationer')}</p>
           </div>
         )}
 
@@ -1160,10 +1130,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               <div
                 key={rec.id}
                 className={`group relative overflow-hidden rounded-xl p-3 transition-all duration-300 hover:scale-[1.02] border border-transparent ${
-                  rec.category.includes('Stress')
+                  (rec.categoryKey || '').includes('Stress') || (rec.categoryKey || '').includes('Avslappning') || (rec.categoryKey || '').includes('Ångest')
                     ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10'
-                    : rec.category.includes('Sömn')
-                      ? 'bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/10'
+                    : (rec.categoryKey || '').includes('Sömn')
+                      ? 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10'
                       : 'bg-white hover:bg-gray-50 dark:bg-slate-800/50'
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -1198,15 +1168,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                       </span>
-                      <span className="font-medium">⏸️ Påbörjad - {rec.completionRate}%</span>
+                      <span className="font-medium">{t('recommendations.compact.inProgress', '⏸️ Påbörjad - {{rate}}%', { rate: rec.completionRate })}</span>
                     </div>
                   )}
                   {rec.completed && (
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mb-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="font-medium">✓ Klar idag</span>
+                      <span className="font-medium">{t('recommendations.compact.completedToday', '✓ Klar idag')}</span>
                       {rec.streak && rec.streak > 1 && (
-                        <span className="text-amber-600 dark:text-amber-400 ml-1">🔥 {rec.streak} dagar</span>
+                        <span className="text-amber-600 dark:text-amber-400 ml-1">{t('recommendations.compact.streakDays', '🔥 {{count}} dagar', { count: rec.streak })}</span>
                       )}
                     </div>
                   )}
@@ -1222,27 +1192,27 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     className="flex items-center gap-2 font-medium text-primary-600 dark:text-primary-400 hover:underline group-hover:translate-x-1 transition-transform"
                     aria-label={
                       compact
-                        ? `${getCompactCtaLabel(rec.type)} i rekommendationer`
+                        ? t('recommendations.compact.ariaCta', '{{label}} i rekommendationer', { label: getCompactCtaLabel(rec.type) })
                         : rec.type === 'meditation'
-                          ? 'Starta passet'
-                          : 'Läs mer'
+                          ? t('recommendations.compact.startSession', 'Starta passet')
+                          : t('recommendations.compact.readMore', 'Läs mer')
                     }
                   >
                     {compact
                       ? (rec.completionRate !== undefined && rec.completionRate > 0 && rec.completionRate < 100)
-                        ? 'Fortsätt övningen →'
+                        ? t('recommendations.compact.continueExercise', 'Fortsätt övningen →')
                         : rec.completed
-                          ? 'Gör igen →'
+                          ? t('recommendations.compact.doAgain', 'Gör igen →')
                           : rec.type === 'meditation'
-                            ? `Gör övningen (${rec.duration || 5} min) →`
+                            ? t('recommendations.compact.doExercise', 'Gör övningen ({{duration}} min) →', { duration: rec.duration || 5 })
                             : rec.type === 'exercise'
-                              ? `Starta övningen (${rec.duration || 10} min) →`
+                              ? t('recommendations.compact.startExercise', 'Starta övningen ({{duration}} min) →', { duration: rec.duration || 10 })
                               : rec.type === 'article'
-                                ? `Läs artikeln (${rec.duration || 3} min) →`
-                                : 'Utforska →'
+                                ? t('recommendations.compact.readArticle', 'Läs artikeln ({{duration}} min) →', { duration: rec.duration || 3 })
+                                : t('recommendations.compact.explore', 'Utforska →')
                       : rec.type === 'meditation'
-                        ? 'Starta passet'
-                        : 'Läs mer'}
+                        ? t('recommendations.compact.startSession', 'Starta passet')
+                        : t('recommendations.compact.readMore', 'Läs mer')}
                   </button>
                 </div>
               </div>
@@ -1255,7 +1225,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="text-center py-12">
             <div className="text-4xl mb-4">🔍</div>
             <p className="text-gray-500 dark:text-gray-400">
-              Inga rekommendationer just nu.
+              {t('recommendations.compact.empty', 'Inga rekommendationer just nu.')}
             </p>
           </div>
         )}
@@ -1271,8 +1241,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const canManuallyCompleteSelectedRecommendation = !isStressBreathingRecommendation;
   const selectedRecommendationHasNextFlow = isSelectedRecommendationCompleted && !!selectedRecommendation;
   const nextCompletedActionLabel = selectedRecommendation?.type === 'exercise'
-    ? 'Reflektera i dagboken'
-    : 'Gå till nästa övning';
+    ? t('recommendations.content.reflectInJournal', 'Reflektera i dagboken')
+    : t('recommendations.content.goToNext', 'Gå till nästa övning');
   const isPrimaryActionDisabled = !isSelectedRecommendationCompleted && !canManuallyCompleteSelectedRecommendation;
 
   return (
@@ -1353,30 +1323,30 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
         {/* Disclaimer at top */}
         <div className="mb-4 p-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800 text-xs text-yellow-800 dark:text-yellow-300">
-          <strong>⚠️ Viktigt:</strong> Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: 112 | Självmordslinjen: 0900-011 200 | 1177
+          <strong>{t('recommendations.cbt.disclaimerPrefix', '⚠️ Viktigt:')}</strong> {t('recommendations.cbt.disclaimerBody', 'Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: 112 | Självmordslinjen: 0900-011 200 | 1177')}
         </div>
 
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">KBT-moduler (Kognitiv Beteendeterapi)</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('recommendations.cbt.modulesTitle', 'KBT-moduler (Kognitiv Beteendeterapi)')}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Evidensbaserade övningar anpassade till din nuvarande situation.
+              {t('recommendations.cbt.modulesSubtitle', 'Evidensbaserade övningar anpassade till din nuvarande situation.')}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {cbtLoading && <span className="text-sm text-blue-600 dark:text-blue-300">Laddar...</span>}
+            {cbtLoading && <span className="text-sm text-blue-600 dark:text-blue-300">{t('recommendations.cbt.loading', 'Laddar...')}</span>}
             <select
               value={cbtCurrentMood}
               onChange={(e) => setCbtCurrentMood(e.target.value)}
               className="text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-1 focus:ring-2 focus:ring-primary-500"
-              aria-label="Välj ditt nuvarande mående"
+              aria-label={t('recommendations.cbt.selectMood', 'Välj ditt nuvarande mående')}
             >
-              <option value="neutral">Neutralt mående</option>
-              <option value="high_anxiety">Hög ångest</option>
-              <option value="low_mood">Nedstämd</option>
-              <option value="depression">Depression</option>
-              <option value="stress">Stress</option>
-              <option value="good">Mår bra</option>
+              <option value="neutral">{t('recommendations.cbt.mood.neutral', 'Neutralt mående')}</option>
+              <option value="high_anxiety">{t('recommendations.cbt.mood.highAnxiety', 'Hög ångest')}</option>
+              <option value="low_mood">{t('recommendations.cbt.mood.lowMood', 'Nedstämd')}</option>
+              <option value="depression">{t('recommendations.cbt.mood.depression', 'Depression')}</option>
+              <option value="stress">{t('recommendations.cbt.mood.stress', 'Stress')}</option>
+              <option value="good">{t('recommendations.cbt.mood.good', 'Mår bra')}</option>
             </select>
           </div>
         </div>
@@ -1390,19 +1360,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {/* Progress stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Moduler</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.modules', 'Moduler')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtModules.length}</p>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Övningar gjorda</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.exercisesDone', 'Övningar gjorda')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtInsights?.exercisesCompleted ?? 0}</p>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Dagstreak</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.dayStreak', 'Dagstreak')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtInsights?.streak.current ?? 0} 🔥</p>
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">Total progress</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.totalProgress', 'Total progress')}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white">{Math.round((cbtInsights?.overallProgress ?? 0) * 100)}%</p>
           </div>
         </div>
@@ -1410,7 +1380,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {/* Personalized session guidance */}
         {cbtSession && (
           <div className="mb-5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 p-4">
-            <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-1">🎯 Rekommenderad session för dig just nu</p>
+            <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-1">{t('recommendations.cbt.recommendedSession', '🎯 Rekommenderad session för dig just nu')}</p>
             <p className="text-sm text-teal-700 dark:text-teal-300 mb-2">{cbtSession.guidance}</p>
             {cbtSession.motivationalElements.length > 0 && (
               <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{cbtSession.motivationalElements[0]}</p>
@@ -1431,8 +1401,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-base font-semibold text-gray-900 dark:text-white">{module.title}</h3>
-                      {module.isCompleted && <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded-full">✅ Klar</span>}
-                      {module.isLocked && <span className="text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded-full">🔒 Kräver förkunskaper</span>}
+                      {module.isCompleted && <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded-full">{t('recommendations.cbt.completed', '✅ Klar')}</span>}
+                      {module.isLocked && <span className="text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded-full">{t('recommendations.cbt.locked', '🔒 Kräver förkunskaper')}</span>}
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{module.description}</p>
                   </div>
@@ -1450,14 +1420,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <p className="text-xs text-gray-500 dark:text-gray-400">{ex.type.replace(/_/g, ' ')} • {ex.duration} min</p>
                         </div>
                         {ex.exerciseId === 'thought_record_basic' ? (
-                          <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">↓ Se KBT-övning nedan</span>
+                          <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{t('recommendations.cbt.seeExerciseBelow', '↓ Se KBT-övning nedan')}</span>
                         ) : (
                           <button
                             onClick={() => startCbtExercise(ex.exerciseId)}
                             disabled={activeCbtExerciseId !== null}
                             className="text-xs px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
                           >
-                            {activeCbtExerciseId === ex.exerciseId ? 'Pågår...' : 'Starta'}
+                            {activeCbtExerciseId === ex.exerciseId ? t('recommendations.cbt.inProgress', 'Pågår...') : t('recommendations.cbt.startBtn', 'Starta')}
                           </button>
                         )}
                       </div>
@@ -1466,14 +1436,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 )}
                 {module.isLocked && module.prerequisites.length > 0 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Slutför först: {module.prerequisites.join(', ')}
+                    {t('recommendations.cbt.prerequisites', 'Slutför först:')} {module.prerequisites.join(', ')}
                   </p>
                 )}
               </div>
             );
           })}
           {!cbtLoading && cbtModules.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Moduler kräver premium-prenumeration.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">{t('recommendations.cbt.requiresPremium', 'Moduler kräver premium-prenumeration.')}</p>
           )}
         </div>
 
@@ -1481,8 +1451,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {activeCbtExerciseId === 'behavioral_activation' && (
           <div className="mt-6 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">🌱 Beteendeaktivering</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Avbryt</button>
+              <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">{t('recommendations.cbt.ba.title', '🌱 Beteendeaktivering')}</h3>
+              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
             </div>
             <div className="mb-3 flex gap-1">
               {[1,2,3,4].map(s => (
@@ -1492,56 +1462,56 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
             {baStep === 1 && (
               <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Steg 1 av 4 — Identifiera aktiviteter</p>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step1Title', 'Steg 1 av 4 — Identifiera aktiviteter')}</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  Skriv ner 2–3 aktiviteter du brukade gilla eller som gav dig en känsla av prestation, glädje eller lugn — även om du inte känt för dem på länge.
+                  {t('recommendations.cbt.ba.step1Body', 'Skriv ner 2–3 aktiviteter du brukade gilla eller som gav dig en känsla av prestation, glädje eller lugn — även om du inte känt för dem på länge.')}
                 </p>
                 <textarea
                   value={baActivities}
                   onChange={(e) => setBaActivities(e.target.value)}
-                  placeholder="T.ex. promenera i parken, laga mat, ringa en vän, läsa, lyssna på musik..."
+                  placeholder={t('recommendations.cbt.ba.step1Placeholder', 'T.ex. promenera i parken, laga mat, ringa en vän, läsa, lyssna på musik...')}
                   className="w-full p-3 min-h-[100px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
                 />
                 <button
-                  onClick={() => baActivities.trim().length >= 10 ? setBaStep(2) : announceToScreenReader('Skriv minst en aktivitet', 'assertive')}
+                  onClick={() => baActivities.trim().length >= 10 ? setBaStep(2) : announceToScreenReader(t('recommendations.announce.baWriteActivity', 'Skriv minst en aktivitet'), 'assertive')}
                   className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                >Nästa →</button>
+                >{t('recommendations.cbt.next', 'Nästa →')}</button>
               </div>
             )}
 
             {baStep === 2 && (
               <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Steg 2 av 4 — Välj en aktivitet</p>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step2Title', 'Steg 2 av 4 — Välj en aktivitet')}</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  Välj EN aktivitet att fokusera på. Vad kan hindra dig från att göra den? Skriv ner dina tankar och hinder.
+                  {t('recommendations.cbt.ba.step2Body', 'Välj EN aktivitet att fokusera på. Vad kan hindra dig från att göra den? Skriv ner dina tankar och hinder.')}
                 </p>
                 <input
                   value={baSelectedActivity}
                   onChange={(e) => setBaSelectedActivity(e.target.value)}
-                  placeholder="Vilken aktivitet väljer du?"
+                  placeholder={t('recommendations.cbt.ba.step2ActivityPlaceholder', 'Vilken aktivitet väljer du?')}
                   className="w-full p-3 mb-3 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400"
                 />
                 <textarea
                   value={baBarriers}
                   onChange={(e) => setBaBarriers(e.target.value)}
-                  placeholder="Vad hindrar dig? T.ex. 'Jag känner inte för det', 'Det tar för lång tid', 'Ingen mening'..."
+                  placeholder={t('recommendations.cbt.ba.step2BarrierPlaceholder', 'Vad hindrar dig? T.ex. "Jag känner inte för det", "Det tar för lång tid", "Ingen mening"...')}
                   className="w-full p-3 min-h-[80px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
                 />
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setBaStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
-                    onClick={() => baSelectedActivity.trim().length >= 3 ? setBaStep(3) : announceToScreenReader('Välj en aktivitet', 'assertive')}
+                    onClick={() => baSelectedActivity.trim().length >= 3 ? setBaStep(3) : announceToScreenReader(t('recommendations.announce.baSelectActivity', 'Välj en aktivitet'), 'assertive')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                  >Nästa →</button>
+                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
                 </div>
               </div>
             )}
 
             {baStep === 3 && (
               <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Steg 3 av 4 — Planera konkret</p>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step3Title', 'Steg 3 av 4 — Planera konkret')}</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  Planera aktiviteten specifikt: NÄR? VAR? HUR länge? Konkreta planer ökar sannolikheten att du faktiskt gör det.
+                  {t('recommendations.cbt.ba.step3Body', 'Planera aktiviteten specifikt: NÄR? VAR? HUR länge? Konkreta planer ökar sannolikheten att du faktiskt gör det.')}
                 </p>
                 <textarea
                   value={baPlan}
@@ -1550,23 +1520,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   className="w-full p-3 min-h-[100px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
                 />
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setBaStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
-                    onClick={() => baPlan.trim().length >= 15 ? setBaStep(4) : announceToScreenReader('Beskriv planen med minst 15 tecken', 'assertive')}
+                    onClick={() => baPlan.trim().length >= 15 ? setBaStep(4) : announceToScreenReader(t('recommendations.announce.baDescribePlan', 'Beskriv planen med minst 15 tecken'), 'assertive')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                  >Nästa →</button>
+                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
                 </div>
               </div>
             )}
 
             {baStep === 4 && (
               <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Steg 4 av 4 — Förväntan och reflektion</p>
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step4Title', 'Steg 4 av 4 — Förväntan och reflektion')}</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  Hur nöjd tror du att du kommer att vara efter aktiviteten? (Kom ihåg: Vår förväntan är ofta lägre än verkligheten vid depression.)
+                  {t('recommendations.cbt.ba.step4Body', 'Hur nöjd tror du att du kommer att vara efter aktiviteten? (Kom ihåg: Vår förväntan är ofta lägre än verkligheten vid depression.)')}
                 </p>
                 <div className="mb-4">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Förväntad nöjdhet (1 = låg, 10 = hög)</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('recommendations.cbt.ba.expectedSatisfaction', 'Förväntad nöjdhet (1 = låg, 10 = hög)')}</p>
                   <div className="flex gap-1 flex-wrap">
                     {[1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setBaPleasureRating(n)}
@@ -1579,19 +1549,19 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 <textarea
                   value={baReflection}
                   onChange={(e) => setBaReflection(e.target.value)}
-                  placeholder="Vad hindrade dig eller vad lärde du dig av att planera denna aktivitet?"
+                  placeholder={t('recommendations.cbt.ba.step4ReflectionPlaceholder', 'Vad hindrade dig eller vad lärde du dig av att planera denna aktivitet?')}
                   className="w-full p-3 min-h-[80px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
                 />
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setBaStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
                     onClick={() => {
-                      if (!baPleasureRating) { announceToScreenReader('Välj en förväntad nöjdhet', 'assertive'); return; }
+                      if (!baPleasureRating) { announceToScreenReader(t('recommendations.announce.baSelectPleasure', 'Välj en förväntad nöjdhet'), 'assertive'); return; }
                       completeCbtExercise('behavioral_activation', 2);
                       setBaStep(0);
                     }}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
-                  >✅ Spara övning</button>
+                  >{t('recommendations.cbt.saveExercise', '✅ Spara övning')}</button>
                 </div>
               </div>
             )}
@@ -1602,8 +1572,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {activeCbtExerciseId === 'worry_time' && (
           <div className="mt-6 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-purple-900 dark:text-purple-200">⏰ Bekymmelsetid</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Avbryt</button>
+              <h3 className="text-lg font-bold text-purple-900 dark:text-purple-200">{t('recommendations.cbt.wt.title', '⏰ Bekymmelsetid')}</h3>
+              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
             </div>
             <div className="mb-3 flex gap-1">
               {[1,2,3,4].map(s => (
@@ -1613,52 +1583,50 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
             {wtStep === 1 && (
               <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">Steg 1 av 4 — Skriv ner dina bekymmer</p>
+                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step1Title', 'Steg 1 av 4 — Skriv ner dina bekymmer')}</p>
                 <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  Skriv ner alla bekymmer som dyker upp just nu. Att externalisera dem minskar deras känslomässiga laddning.
+                  {t('recommendations.cbt.wt.step1Body', 'Skriv ner alla bekymmer som dyker upp just nu. Att externalisera dem minskar deras känslomässiga laddning.')}
                 </p>
                 <textarea
                   value={wtWorries}
                   onChange={(e) => setWtWorries(e.target.value)}
-                  placeholder="T.ex. 'Jag är orolig för ekonomin', 'Jag vet inte om jobbet går bra', 'Familjen mår inte bra'..."
+                  placeholder={t('recommendations.cbt.wt.step1Placeholder', 'T.ex. "Jag är orolig för ekonomin", "Jag vet inte om jobbet går bra", "Familjen mår inte bra"...')}
                   className="w-full p-3 min-h-[110px] rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400 resize-none"
                 />
                 <button
-                  onClick={() => wtWorries.trim().length >= 10 ? setWtStep(2) : announceToScreenReader('Skriv minst ett bekymmer', 'assertive')}
+                  onClick={() => wtWorries.trim().length >= 10 ? setWtStep(2) : announceToScreenReader(t('recommendations.announce.wtWriteWorries', 'Skriv minst ett bekymmer'), 'assertive')}
                   className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                >Nästa →</button>
+                >{t('recommendations.cbt.next', 'Nästa →')}</button>
               </div>
             )}
 
             {wtStep === 2 && (
               <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">Steg 2 av 4 — Schemalägg din bekymmelsetid</p>
+                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step2Title', 'Steg 2 av 4 — Schemalägg din bekymmelsetid')}</p>
                 <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  Välj en fast tid (20 min) varje dag att tillåta dig att bekymra dig. Utanför denna tid skjuter du upp bekymren.
-                  Forskning (Borkovec et al.) visar att detta minskar spontan oro med 30–50%.
+                  {t('recommendations.cbt.wt.step2Body', 'Välj en fast tid (20 min) varje dag att tillåta dig att bekymra dig. Utanför denna tid skjuter du upp bekymren. Forskning (Borkovec et al.) visar att detta minskar spontan oro med 30–50%.')}
                 </p>
                 <input
                   value={wtScheduledTime}
                   onChange={(e) => setWtScheduledTime(e.target.value)}
-                  placeholder="T.ex. kl 18:00 varje kväll i vardagsrummet"
+                  placeholder={t('recommendations.cbt.wt.step2Placeholder', 'T.ex. kl 18:00 varje kväll i vardagsrummet')}
                   className="w-full p-3 rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400"
                 />
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setWtStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setWtStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
-                    onClick={() => wtScheduledTime.trim().length >= 3 ? setWtStep(3) : announceToScreenReader('Ange en tid', 'assertive')}
+                    onClick={() => wtScheduledTime.trim().length >= 3 ? setWtStep(3) : announceToScreenReader(t('recommendations.announce.wtSpecifyTime', 'Ange en tid'), 'assertive')}
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                  >Nästa →</button>
+                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
                 </div>
               </div>
             )}
 
             {wtStep === 3 && (
               <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">Steg 3 av 4 — Övning i uppskjutning</p>
+                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step3Title', 'Steg 3 av 4 — Övning i uppskjutning')}</p>
                 <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  När ett bekymmer dyker upp utanför {wtScheduledTime || 'din bekymmelsetid'}, påminn dig: "Det tar jag upp kl {wtScheduledTime || '[tid]'}."
-                  Bekymret är noterat — du behöver inte tänka på det nu.
+                  {t('recommendations.cbt.wt.step3Body', 'När ett bekymmer dyker upp utanför din bekymmelsetid, påminn dig: "Det tar jag upp kl [tid]." Bekymret är noterat — du behöver inte tänka på det nu.')}
                 </p>
                 <div className="p-3 bg-purple-100 dark:bg-purple-800/30 rounded-lg mb-3">
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -1669,43 +1637,42 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-400"
                     />
                     <span className="text-sm text-purple-800 dark:text-purple-200">
-                      Jag förbinder mig att skjuta upp bekymmer till min schemalagda tid ({wtScheduledTime || '...'}) och påminna mig att de redan är noterade.
+                      {t('recommendations.cbt.wt.commitmentText', 'Jag förbinder mig att skjuta upp bekymmer till min schemalagda tid och påminna mig att de redan är noterade.')}
                     </span>
                   </label>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setWtStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setWtStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
-                    onClick={() => wtPostponeCommitted ? setWtStep(4) : announceToScreenReader('Bocka i rutan för att fortsätta', 'assertive')}
+                    onClick={() => wtPostponeCommitted ? setWtStep(4) : announceToScreenReader(t('recommendations.announce.wtCheckboxRequired', 'Bocka i rutan för att fortsätta'), 'assertive')}
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                  >Nästa →</button>
+                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
                 </div>
               </div>
             )}
 
             {wtStep === 4 && (
               <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">Steg 4 av 4 — Reflektion</p>
+                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step4Title', 'Steg 4 av 4 — Reflektion')}</p>
                 <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  Har du provat att hålla din bekymmelsetid? Vilka bekymmer löste sig av sig självt?
-                  Ofta inser vi att de flesta bekymmer antingen inte inträffar eller löser sig utan aktiv insats.
+                  {t('recommendations.cbt.wt.step4Body', 'Har du provat att hålla din bekymmelsetid? Vilka bekymmer löste sig av sig självt? Ofta inser vi att de flesta bekymmer antingen inte inträffar eller löser sig utan aktiv insats.')}
                 </p>
                 <textarea
                   value={wtReflection}
                   onChange={(e) => setWtReflection(e.target.value)}
-                  placeholder="Vad lärde du dig? Vilka bekymmer försvann? Hur kändes det att skjuta upp dem?"
+                  placeholder={t('recommendations.cbt.wt.step4Placeholder', 'Vad lärde du dig? Vilka bekymmer försvann? Hur kändes det att skjuta upp dem?')}
                   className="w-full p-3 min-h-[90px] rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400 resize-none"
                 />
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setWtStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">← Tillbaka</button>
+                  <button onClick={() => setWtStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
                   <button
                     onClick={() => {
-                      if (wtReflection.trim().length < 10) { announceToScreenReader('Skriv en kort reflektion', 'assertive'); return; }
+                      if (wtReflection.trim().length < 10) { announceToScreenReader(t('recommendations.announce.wtWriteReflection', 'Skriv en kort reflektion'), 'assertive'); return; }
                       completeCbtExercise('worry_time', 3);
                       setWtStep(0);
                     }}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
-                  >✅ Spara övning</button>
+                  >{t('recommendations.cbt.saveExercise', '✅ Spara övning')}</button>
                 </div>
               </div>
             )}
@@ -1715,7 +1682,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {/* Insights footer */}
         {cbtInsights && cbtInsights.recommendedNextSteps.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">💡 Rekommenderade nästa steg:</p>
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('recommendations.cbt.recommendedNextSteps', '💡 Rekommenderade nästa steg:')}</p>
             <ul className="space-y-1">
               {cbtInsights.recommendedNextSteps.map((step, i) => (
                 <li key={i} className="text-xs text-gray-600 dark:text-gray-400">• {step}</li>
@@ -1751,7 +1718,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
-            <option value="all">Alla Kategorier</option>
+            <option value="all">{t('recommendations.filter.allCategories', 'Alla Kategorier')}</option>
             {categories.filter(cat => cat !== 'all').map(category => (
               <option key={category} value={category}>{category}</option>
             ))}
@@ -1763,16 +1730,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             onChange={(e) => setSortBy(e.target.value as 'rating' | 'duration' | 'difficulty')}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
-            <option value="rating">Sortera efter Betyg</option>
-            <option value="duration">Sortera efter Längd</option>
-            <option value="difficulty">Sortera efter Svårighetsgrad</option>
+            <option value="rating">{t('recommendations.sort.rating', 'Sortera efter Betyg')}</option>
+            <option value="duration">{t('recommendations.sort.duration', 'Sortera efter Längd')}</option>
+            <option value="difficulty">{t('recommendations.sort.difficulty', 'Sortera efter Svårighetsgrad')}</option>
           </select>
         </div>
 
         {/* Results Count and Reset */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-gray-700 dark:text-gray-300" aria-live="polite">
-            Visar {filteredRecommendations.length} av {recommendations.length} rekommendationer
+            {t('recommendations.filter.showingCount', 'Visar {{shown}} av {{total}} rekommendationer', { shown: filteredRecommendations.length, total: recommendations.length })}
           </div>
           {hasActiveFilters && (
             <button
@@ -1783,7 +1750,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               }}
               className="text-sm font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200 underline"
             >
-              Återställ filter
+              {t('recommendations.filter.reset', 'Återställ filter')}
             </button>
           )}
         </div>
@@ -1792,17 +1759,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="mt-3 flex flex-wrap gap-2">
             {searchTerm.trim() && (
               <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
-                Sökning: {searchTerm.trim()}
+                {t('recommendations.filter.searchLabel', 'Sökning: {{term}}', { term: searchTerm.trim() })}
               </span>
             )}
             {selectedCategory !== 'all' && (
               <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
-                Kategori: {selectedCategory}
+                {t('recommendations.filter.categoryLabel', 'Kategori: {{category}}', { category: selectedCategory })}
               </span>
             )}
             {sortBy !== 'rating' && (
               <span className="inline-flex items-center rounded-full bg-primary-50 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
-                Sortering: {sortLabel}
+                {t('recommendations.filter.sortLabel', 'Sortering: {{sort}}', { sort: sortLabel })}
               </span>
             )}
           </div>
@@ -1813,7 +1780,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       {!loading && !error && recommendations.length > 0 && (
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            🌟 Rekommenderat för Dig
+            {t('recommendations.featured.title', '🌟 Rekommenderat för Dig')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {recommendations.slice(0, 3).map((recommendation) => (
@@ -1863,10 +1830,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     onClick={() => handleRecommendationAction(recommendation, 'start')}
                     className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
                   >
-                    {recommendation.type === 'meditation' ? 'Starta' :
-                      recommendation.type === 'exercise' ? 'Börja' :
-                        recommendation.type === 'article' ? 'Läs' :
-                          recommendation.type === 'challenge' ? 'Påbörja' : 'Utforska'}
+                    {recommendation.type === 'meditation' ? t('recommendations.cta.start', 'Starta') :
+                      recommendation.type === 'exercise' ? t('recommendations.cta.begin', 'Börja') :
+                        recommendation.type === 'article' ? t('recommendations.cta.read', 'Läs') :
+                          recommendation.type === 'challenge' ? t('recommendations.cta.startChallenge', 'Påbörja') : t('recommendations.cta.explore', 'Utforska')}
                   </button>
                 </div>
               </div>
@@ -1878,13 +1845,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       {/* User Preferences */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-          Dina Intressen & Wellness-mål
+          {t('recommendations.preferences.title', 'Dina Intressen & Wellness-mål')}
         </h3>
 
         {/* Wellness Goals Display */}
         {fetchedWellnessGoals.length > 0 && (
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Aktuella mål:</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('recommendations.preferences.currentGoals', 'Aktuella mål:')}</p>
             <div className="flex flex-wrap gap-2">
               {fetchedWellnessGoals.map((goal) => (
                 <span
@@ -1909,7 +1876,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           ))}
         </div>
         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3">
-          Vi anpassar rekommendationer baserat på dina intressen, aktivitet och wellness-mål
+          {t('recommendations.preferences.adaptText', 'Vi anpassar rekommendationer baserat på dina intressen, aktivitet och wellness-mål')}
         </p>
       </div>
 
@@ -1917,7 +1884,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       {loading && (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Laddar personliga rekommendationer...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('recommendations.loading', 'Laddar personliga rekommendationer...')}</p>
         </div>
       )}
 
@@ -1927,7 +1894,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="flex items-center">
             <div className="text-red-600 dark:text-red-400 text-xl mr-3">⚠️</div>
             <div>
-              <h3 className="font-semibold text-red-800 dark:text-red-200">Ett fel uppstod</h3>
+              <h3 className="font-semibold text-red-800 dark:text-red-200">{t('recommendations.error.title', 'Ett fel uppstod')}</h3>
               <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
             </div>
           </div>
@@ -1939,10 +1906,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🔍</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Inga rekommendationer hittades
+            {t('recommendations.error.noResults', 'Inga rekommendationer hittades')}
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            Prova att ändra dina söktermer eller filter
+            {t('recommendations.error.noResultsHint', 'Prova att ändra dina söktermer eller filter')}
           </p>
         </div>
       )}
@@ -1952,10 +1919,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Alla Rekommendationer 📚
+              {t('recommendations.allRecommendations', 'Alla Rekommendationer 📚')}
             </h2>
             <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {filteredRecommendations.length} resultat
+              {t('recommendations.filter.resultsCount', '{{count}} resultat', { count: filteredRecommendations.length })}
             </div>
           </div>
 
@@ -1964,12 +1931,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               return (
               <div
                 key={recommendation.id}
-                className={`relative rounded-lg border p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group overflow-hidden ${getCategoryColor(recommendation.category)}`}
+                className={`relative rounded-lg border p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group overflow-hidden ${getCategoryColor(recommendation.categoryKey)}`}
               >
                 {/* Recommended for badge */}
                 {recommendation.primaryGoal && (
                   <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs px-3 py-1.5 text-center font-medium">
-                    ✨ Rekommenderas för {recommendation.primaryGoal}
+                    ✨ {t('recommendations.recommendedFor', 'Rekommenderas för')} {recommendation.primaryGoal}
                   </div>
                 )}
 
@@ -2021,10 +1988,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-primary-600 dark:text-primary-400 font-medium">
-                          ⏳ Påbörjad - {recommendation.completionRate}% klart
+                          ⏳ {t('recommendations.inProgress', 'Påbörjad')} - {recommendation.completionRate}% {t('recommendations.complete', 'klart')}
                         </span>
                         <span className="text-gray-400">
-                          {recommendation.lastAccessedAt && `Senast: ${new Date(recommendation.lastAccessedAt).toLocaleDateString('sv-SE')}`}
+                          {recommendation.lastAccessedAt && `${t('recommendations.lastAccessed', 'Senast')}: ${new Date(recommendation.lastAccessedAt).toLocaleDateString(i18n.language)}`}
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -2037,7 +2004,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         onClick={() => handleRecommendationAction(recommendation, 'start')}
                         className="mt-2 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline font-medium"
                       >
-                        Fortsätt där du slutade →
+                        {t('recommendations.cta.continueWhereLeft', 'Fortsätt där du slutade →')}
                       </button>
                     </div>
                   )}
@@ -2046,10 +2013,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   {recommendation.completed && (
                     <div className="flex items-center gap-1.5 mb-2 text-emerald-600 dark:text-emerald-400">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-medium">Klar idag ✓</span>
+                      <span className="text-xs font-medium">{t('recommendations.completedToday', 'Klar idag ✓')}</span>
                       {recommendation.streak && recommendation.streak > 1 && (
                         <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">
-                          🔥 {recommendation.streak} dagar i rad
+                          🔥 {t('recommendations.streakDays', '{{count}} dagar i rad', { count: recommendation.streak })}
                         </span>
                       )}
                     </div>
@@ -2130,26 +2097,26 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <PlayIcon className="w-5 h-5" aria-hidden="true" />
                     <span>
                       {recommendation.completionRate && recommendation.completionRate > 0 && recommendation.completionRate < 100
-                        ? 'Fortsätt övningen →'
+                        ? t('recommendations.cta.continueExercise', 'Fortsätt övningen →')
                         : recommendation.type === 'meditation'
-                          ? `Gör övningen nu (${recommendation.duration || 5} min) →`
+                          ? t('recommendations.cta.doNow', 'Gör övningen nu ({{duration}} min) →', { duration: recommendation.duration || 5 })
                           : recommendation.type === 'exercise'
-                            ? 'Starta träningen nu →'
+                            ? t('recommendations.cta.startTraining', 'Starta träningen nu →')
                             : recommendation.type === 'article'
-                              ? 'Läs artikeln (3 min) →'
+                              ? t('recommendations.cta.readArticle', 'Läs artikeln (3 min) →')
                               : recommendation.type === 'challenge'
-                                ? 'Påbörja utmaningen →'
-                                : 'Utforska nu →'}
+                                ? t('recommendations.cta.startChallenge', 'Påbörja utmaningen →')
+                                : t('recommendations.cta.exploreNow', 'Utforska nu →')}
                     </span>
                   </button>
 
                   {/* Quick start button (appears on hover) */}
                   {recommendation.type === 'meditation' && (
                     <button
-                      onClick={() => quickStartRecommendation(recommendation)}
+                      onClick={() => handleRecommendationAction(recommendation, 'start')}
                       className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-full p-2 hover:scale-110 z-10"
-                      title="Starta direkt"
-                      aria-label="Starta övning direkt"
+                      title={t('recommendations.cta.quickStart', 'Starta direkt')}
+                      aria-label={t('recommendations.cta.quickStartAria', 'Starta övning direkt')}
                     >
                       <span className="text-lg">▶️</span>
                     </button>
@@ -2163,14 +2130,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     </span>
-                    🔥 {recommendation.peopleDoingThisNow} personer gör detta just nu
+                    🔥 {t('recommendations.peopleDoingNow', '{{count}} personer gör detta just nu', { count: recommendation.peopleDoingThisNow })}
                   </p>
                 )}
 
                 {/* Social proof - users who completed today */}
                 {recommendation.dailyCompletions && recommendation.dailyCompletions > 0 && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-                    {recommendation.dailyCompletions.toLocaleString('sv-SE')} personer har gjort detta idag
+                    {recommendation.dailyCompletions.toLocaleString(i18n.language)} {t('recommendations.peopleDoingToday', 'personer har gjort detta idag')}
                   </p>
                 )}
 
@@ -2197,7 +2164,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       }`}
                   >
                     <HandThumbUpIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>{selectedFeedback === 'helpful' ? 'Tack för svar' : 'Hjälpsam'}</span>
+                    <span>{selectedFeedback === 'helpful' ? t('recommendations.feedback.thanks', 'Tack för svar') : t('recommendations.feedback.helpful', 'Hjälpsam')}</span>
                   </button>
                   <button
                     onClick={() => handleRecommendationFeedback(recommendation, 'not_relevant')}
@@ -2208,7 +2175,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       }`}
                   >
                     <HandThumbDownIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>{selectedFeedback === 'not_relevant' ? 'Markerad' : 'Inte relevant'}</span>
+                    <span>{selectedFeedback === 'not_relevant' ? t('recommendations.feedback.marked', 'Markerad') : t('recommendations.feedback.notRelevant', 'Inte relevant')}</span>
                   </button>
                       </>
                     );
@@ -2242,7 +2209,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 <button
                   onClick={handleCloseContentModal}
                   className="text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md p-2"
-                  aria-label="Stäng"
+                  aria-label={t('recommendations.content.close', 'Stäng')}
                 >
                   ✕
                 </button>
@@ -2330,18 +2297,18 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {selectedRecommendation.id === 'focus-3' && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                    🧠 Neurovetenskap: Så Fungerar Fokus
+                    {t('recommendations.article.neuroscienceTitle', '🧠 Neurovetenskap: Så Fungerar Fokus')}
                   </h3>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    Förstå hjärnans koncentrationsmekanismer och lär dig vetenskapligt beprövade strategier för bättre fokus.
+                    {t('recommendations.article.neuroscienceDesc', 'Förstå hjärnans koncentrationsmekanismer och lär dig vetenskapligt beprövade strategier för bättre fokus.')}
                   </p>
 
                   {/* Reading Progress */}
                   <div className="mb-6">
                     <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      <span>Läsningsframsteg</span>
-                      <span>{articleProgress}% • {formatReadingTime(readingTime)} läst</span>
+                      <span>{t('recommendations.article.readingProgress', 'Läsningsframsteg')}</span>
+                      <span>{articleProgress}% • {formatReadingTime(readingTime)} {t('recommendations.article.read', 'läst')}</span>
                     </div>
                     <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
@@ -2376,7 +2343,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       disabled={currentSection === 0}
                       className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     >
-                      ← Föregående
+                      {t('recommendations.article.previous', '← Föregående')}
                     </button>
 
                     <div className="flex gap-1">
@@ -2393,7 +2360,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                               ? 'bg-green-500'
                               : 'bg-gray-300 dark:bg-gray-600'
                             } `}
-                          aria-label={`Gå till sektion ${index + 1} `}
+                          aria-label={t('recommendations.article.goToSection', 'Gå till sektion {{index}}', { index: index + 1 })}
                         />
                       ))}
                     </div>
@@ -2410,7 +2377,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       }}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                     >
-                      {currentSection < neuroscienceArticleSections.length - 1 ? 'Nästa →' : 'Slutför Artikel'}
+                      {currentSection < neuroscienceArticleSections.length - 1 ? t('recommendations.article.next', 'Nästa →') : t('recommendations.article.complete', 'Slutför Artikel')}
                     </button>
                   </div>
 
@@ -2418,17 +2385,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   {articleCompleted && !showQuiz && (
                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
                       <h4 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
-                        🎉 Artikel Slutförd!
+                        {t('recommendations.article.completed', '🎉 Artikel Slutförd!')}
                       </h4>
                       <p className="text-green-700 dark:text-green-300 mb-4">
-                        Bra jobbat! Du har läst artikeln om neurovetenskap och fokus.
-                        Vill du testa dina kunskaper med ett kort quiz?
+                        {t('recommendations.article.completedQuizPrompt', 'Bra jobbat! Du har läst artikeln om neurovetenskap och fokus. Vill du testa dina kunskaper med ett kort quiz?')}
                       </p>
                       <button
                         onClick={() => setShowQuiz(true)}
                         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                       >
-                        Ta Quizet
+                        {t('recommendations.quiz.takeQuiz', 'Ta Quizet')}
                       </button>
                     </div>
                   )}
@@ -2437,7 +2403,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   {showQuiz && (
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6">
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        🧠 Kunskapstest: Neurovetenskap & Fokus
+                        {t('recommendations.quiz.quizTitle', '🧠 Kunskapstest: Neurovetenskap & Fokus')}
                       </h4>
 
                       {neuroscienceQuiz.map((question, qIndex) => (
@@ -2468,7 +2434,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         disabled={Object.keys(quizAnswers).length < neuroscienceQuiz.length}
                         className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
                       >
-                        Skicka Svar
+                        {t('recommendations.quiz.submit', 'Skicka Svar')}
                       </button>
                     </div>
                   )}
@@ -2487,8 +2453,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           ? 'text-yellow-800 dark:text-yellow-200'
                           : 'text-red-800 dark:text-red-200'
                         }`}>
-                        {quizScore >= 4 ? '🎉 Utmärkt förståelse!' :
-                          quizScore >= 2 ? '📚 Bra grundkunskaper!' : '📖 Mer läsning rekommenderas'}
+                        {quizScore >= 4 ? t('recommendations.quiz.excellent', '🎉 Utmärkt förståelse!') :
+                          quizScore >= 2 ? t('recommendations.quiz.goodBasic', '📚 Bra grundkunskaper!') : t('recommendations.quiz.moreReading', '📖 Mer läsning rekommenderas')}
                       </h4>
                       <p className={`mb-4 ${quizScore >= 4
                         ? 'text-green-700 dark:text-green-300'
@@ -2496,15 +2462,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           ? 'text-yellow-700 dark:text-yellow-300'
                           : 'text-red-700 dark:text-red-300'
                         }`}>
-                        Du fick <strong>{quizScore} av {neuroscienceQuiz.length} rätt</strong>
-                        {quizScore >= 4 && " - Du har utmärkt förståelse för neurovetenskapen bakom fokus!"}
-                        {quizScore >= 2 && quizScore < 4 && " - Du har bra grundkunskaper. Fortsätt lära dig!"}
-                        {quizScore < 2 && " - Läs gärna artikeln igen och fokusera på nyckelbegreppen."}
+                        {t('recommendations.quiz.youGotScore', 'Du fick')} <strong>{quizScore} {t('recommendations.quiz.outOf', 'av')} {neuroscienceQuiz.length} {t('recommendations.quiz.correct', 'rätt')}</strong>
+                        {quizScore >= 4 && t('recommendations.quiz.excellentDetail', ' - Du har utmärkt förståelse för neurovetenskapen bakom fokus!')}
+                        {quizScore >= 2 && quizScore < 4 && t('recommendations.quiz.goodBasicDetail', ' - Du har bra grundkunskaper. Fortsätt lära dig!')}
+                        {quizScore < 2 && t('recommendations.quiz.moreReadingDetail', ' - Läs gärna artikeln igen och fokusera på nyckelbegreppen.')}
                       </p>
 
                       {/* Detailed Answer Review */}
                       <div className="space-y-3">
-                        <h5 className="font-semibold text-gray-900 dark:text-white">📋 Svarsgenomgång:</h5>
+                        <h5 className="font-semibold text-gray-900 dark:text-white">{t('recommendations.quiz.answerReview', '📋 Svarsgenomgång:')}</h5>
                         {neuroscienceQuiz.map((question, index) => {
                           const userAnswer = quizAnswers[index];
                           const isCorrect = userAnswer === question.correct;
@@ -2519,13 +2485,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                                 </span>
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900 dark:text-white mb-1">
-                                    Fråga {index + 1}: {question.question}
+                                    {t('recommendations.quiz.question', 'Fråga')} {index + 1}: {question.question}
                                   </p>
                                   <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                    <strong>Ditt svar:</strong> {userAnswer !== undefined ? question.options[userAnswer] : 'Inget svar'}
+                                    <strong>{t('recommendations.quiz.yourAnswer', 'Ditt svar:')}</strong> {userAnswer !== undefined ? question.options[userAnswer] : t('recommendations.quiz.noAnswer', 'Inget svar')}
                                   </p>
                                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    <strong>Förklaring:</strong> {question.explanation}
+                                    <strong>{t('recommendations.quiz.explanation', 'Förklaring:')}</strong> {question.explanation}
                                   </p>
                                 </div>
                               </div>
@@ -2536,12 +2502,12 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                       {/* Learning Tips */}
                       <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <h6 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Inlärningstips:</h6>
+                        <h6 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.quiz.learningTips', '💡 Inlärningstips:')}</h6>
                         <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                          <li>• Fokusera på en uppgift åt gången för bättre inlärning</li>
-                          <li>• Ta regelbundna pauser för att bearbeta information</li>
-                          <li>• Applicera kunskapen praktiskt för bättre retention</li>
-                          <li>• Återkom till artikeln när du behöver repetition</li>
+                          <li>{t('recommendations.quiz.tip1', '• Fokusera på en uppgift åt gången för bättre inlärning')}</li>
+                          <li>{t('recommendations.quiz.tip2', '• Ta regelbundna pauser för att bearbeta information')}</li>
+                          <li>{t('recommendations.quiz.tip3', '• Applicera kunskapen praktiskt för bättre retention')}</li>
+                          <li>{t('recommendations.quiz.tip4', '• Återkom till artikeln när du behöver repetition')}</li>
                         </ul>
                       </div>
                     </div>
@@ -2554,14 +2520,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         onClick={startArticleReading}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        🚀 Börja Läsa
+                        {t('recommendations.article.startReading', '🚀 Börja Läsa')}
                       </button>
                     ) : (
                       <button
                         onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        🎉 Stäng
+                        {t('recommendations.article.close', '🎉 Stäng')}
                       </button>
                     )}
                   </div>
@@ -2572,11 +2538,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {selectedRecommendation.id === 'focus-1' && (
                 <div className="bg-gradient-to-br from-red-50 to-orange-100 dark:from-red-900/20 dark:to-orange-900/20 rounded-lg p-6 mb-4 border-2 border-red-200 dark:border-red-800">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                    🍅 Pomodoro-teknik för Bättre Fokus
+                    {t('recommendations.pomodoro.title', '🍅 Pomodoro-teknik för Bättre Fokus')}
                   </h3>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    Strukturerad arbetsmetod: 25 minuter fokuserat arbete följt av 5 minuters paus för maximal produktivitet.
+                    {t('recommendations.pomodoro.description', 'Strukturerad arbetsmetod: 25 minuter fokuserat arbete följt av 5 minuters paus för maximal produktivitet.')}
                   </p>
 
                   {/* Settings Panel */}
@@ -2584,13 +2550,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          ⚙️ Anpassa Inställningar
+                          {t('recommendations.pomodoro.customizeSettings', '⚙️ Anpassa Inställningar')}
                         </h4>
                         <button
                           onClick={() => setPomodoroSettingsOpen(!pomodoroSettingsOpen)}
                           className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
                         >
-                          {pomodoroSettingsOpen ? 'Dölj' : 'Visa'}
+                          {pomodoroSettingsOpen ? t('recommendations.pomodoro.hide', 'Dölj') : t('recommendations.pomodoro.show', 'Visa')}
                         </button>
                       </div>
 
@@ -2599,7 +2565,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Arbete (min)
+                                {t('recommendations.pomodoro.workMin', 'Arbete (min)')}
                               </label>
                               <input
                                 type="number"
@@ -2612,7 +2578,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Paus (min)
+                                {t('recommendations.pomodoro.breakMin', 'Paus (min)')}
                               </label>
                               <input
                                 type="number"
@@ -2626,7 +2592,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              Antal Sessioner
+                              {t('recommendations.pomodoro.sessionCount', 'Antal Sessioner')}
                             </label>
                             <input
                               type="number"
@@ -2683,10 +2649,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                             {formatPomodoroTime(pomodoroTimeLeft)}
                           </div>
                           <div className="text-lg font-medium text-gray-600 dark:text-gray-400">
-                            {pomodoroPhase === 'work' ? 'Arbete' : pomodoroPhase === 'break' ? 'Paus' : 'Slutfört'}
+                            {pomodoroPhase === 'work' ? t('recommendations.pomodoro.workLabel', 'Arbete') : pomodoroPhase === 'break' ? t('recommendations.pomodoro.breakLabel', 'Paus') : t('recommendations.pomodoro.completedLabel', 'Slutfört')}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-500">
-                            Session {pomodoroSession} av {totalPomodoroSessions}
+                            {t('recommendations.pomodoro.sessionOf', 'Session {{current}} av {{total}}', { current: pomodoroSession, total: totalPomodoroSessions })}
                           </div>
                         </div>
                       </div>
@@ -2701,10 +2667,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           } `}>
                           {pomodoroPhase === 'work' ? '🔴' : pomodoroPhase === 'break' ? '🟢' : '🎉'}
                           {pomodoroPhase === 'work'
-                            ? `Fokuserat arbete - ${pomodoroWorkTime} min`
+                            ? t('recommendations.pomodoro.focusedWork', 'Fokuserat arbete - {{minutes}} min', { minutes: pomodoroWorkTime })
                             : pomodoroPhase === 'break'
-                              ? `Välförtjänt paus - ${pomodoroBreakTime} min`
-                              : 'Alla sessioner slutförda!'}
+                              ? t('recommendations.pomodoro.wellEarnedBreak', 'Välförtjänt paus - {{minutes}} min', { minutes: pomodoroBreakTime })
+                              : t('recommendations.pomodoro.allSessionsComplete', 'Alla sessioner slutförda!')}
                         </div>
                       </div>
 
@@ -2731,16 +2697,16 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   {pomodoroHistory.length > 0 && (
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6">
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        📊 Senaste Sessioner
+                        {t('recommendations.pomodoro.recentSessions', '📊 Senaste Sessioner')}
                       </h4>
                       <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {pomodoroHistory.slice(0, 5).map((session) => (
-                          <div key={session.date} className="flex justify-between text-xs">
+                        {pomodoroHistory.slice(0, 5).map((session, idx) => (
+                          <div key={`${session.date}-${idx}`} className="flex justify-between text-xs">
                             <span className="text-gray-600 dark:text-gray-400">
                               {session.type === 'work' ? '🍅' : '☕'} Session {session.sessionNumber}
                             </span>
                             <span className="text-gray-500 dark:text-gray-500">
-                              {session.workDuration || session.breakDuration}min • {new Date(session.date).toLocaleTimeString()}
+                              {session.workDuration || session.breakDuration}min • {new Date(session.date).toLocaleTimeString(i18n.language)}
                             </span>
                           </div>
                         ))}
@@ -2755,21 +2721,21 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         onClick={startPomodoroTimer}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        🚀 Starta Pomodoro
+                        {t('recommendations.pomodoro.start', '🚀 Starta Pomodoro')}
                       </button>
                     ) : pomodoroPhase !== 'completed' ? (
                       <button
                         onClick={stopPomodoroTimer}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        ⏹️ Stoppa
+                        {t('recommendations.pomodoro.stop', '⏹️ Stoppa')}
                       </button>
                     ) : (
                       <button
                         onClick={handleCloseContentModal}
                         className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        🎉 Stäng
+                        {t('recommendations.pomodoro.close', '🎉 Stäng')}
                       </button>
                     )}
                   </div>
@@ -2779,11 +2745,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="text-center mt-6">
                       <div className="text-6xl mb-4">🎉</div>
                       <h4 className="text-xl font-bold text-green-600 dark:text-green-400 mb-2">
-                        Grattis! Alla Pomodoro-sessioner slutförda!
+                        {t('recommendations.pomodoro.congratsTitle', 'Grattis! Alla Pomodoro-sessioner slutförda!')}
                       </h4>
                       <p className="text-gray-700 dark:text-gray-300">
-                        Du har framgångsrikt genomfört {totalPomodoroSessions} fokuserade arbetssessioner.
-                        Detta är ett viktigt steg mot bättre produktivitet och fokus!
+                        {t('recommendations.pomodoro.congratsBody', 'Du har framgångsrikt genomfört {{count}} fokuserade arbetssessioner. Detta är ett viktigt steg mot bättre produktivitet och fokus!', { count: totalPomodoroSessions })}
                       </p>
                     </div>
                   )}
@@ -2793,15 +2758,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="text-center mt-6">
                       <div className="text-6xl mb-4">🧠</div>
                       <h4 className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        Artikeln Slutförd!
+                        {t('recommendations.article.completedTitle', 'Artikeln Slutförd!')}
                       </h4>
                       <p className="text-gray-700 dark:text-gray-300 mb-4">
-                        Du har läst artikeln om neurovetenskap och fokus på {formatReadingTime(readingTime)}.
+                        {t('recommendations.article.completedBody', 'Du har läst artikeln om neurovetenskap och fokus på {{time}}.', { time: formatReadingTime(readingTime) })}
                       </p>
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4">
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                          <strong>🧠 Kunskap ger kraft:</strong> Genom att förstå hur din hjärna fungerar
-                          kan du bättre optimera dina fokus-strategier och förbättra din produktivitet.
+                          {t('recommendations.article.knowledgePower', '🧠 Kunskap ger kraft: Genom att förstå hur din hjärna fungerar kan du bättre optimera dina fokus-strategier och förbättra din produktivitet.')}
                         </p>
                       </div>
                     </div>
@@ -2823,11 +2787,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {selectedRecommendation.id === 'generic-1' && (
                 <div className="bg-gradient-to-br from-orange-50 to-yellow-100 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg p-6 mb-4 border-2 border-orange-200 dark:border-orange-800">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                    🙏 7-Dagars Tacksamhetsutmaning
+                    {t('recommendations.gratitude.title', '🙏 7-Dagars Tacksamhetsutmaning')}
                   </h3>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    Utveckla en mer positiv syn genom att skriva ner tre saker du är tacksam för varje dag.
+                    {t('recommendations.gratitude.description', 'Utveckla en mer positiv syn genom att skriva ner tre saker du är tacksam för varje dag.')}
                   </p>
 
                   {/* Progress Indicator */}
@@ -2854,10 +2818,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="space-y-4">
                       <div className="text-center">
                         <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                          Dag {gratitudeDay}: {getGratitudePrompts(gratitudeDay)}
+                          {t('recommendations.gratitude.day', 'Dag {{day}}: {{prompt}}', { day: gratitudeDay, prompt: getGratitudePrompts(gratitudeDay) })}
                         </h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Skriv ner minst 3 saker du är tacksam för idag
+                          {t('recommendations.gratitude.writeThree', 'Skriv ner minst 3 saker du är tacksam för idag')}
                         </p>
                       </div>
 
@@ -2867,7 +2831,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                           <div key={index} className="relative">
                             <input
                               type="text"
-                              placeholder={`Tacksam sak ${index + 1}...`}
+                              placeholder={t('recommendations.gratitude.placeholder', 'Tacksam sak {{index}}...', { index: index + 1 })}
                               value={gratitudeEntries[gratitudeDay]?.[index] || ''}
                               onChange={(e) => {
                                 const currentEntries = gratitudeEntries[gratitudeDay] || ['', '', ''];
@@ -2892,7 +2856,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {Object.keys(gratitudeEntries).length > 0 && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
                           <h5 className="font-semibold text-gray-900 dark:text-white mb-2">
-                            Dina tidigare dagar:
+                            {t('recommendations.gratitude.previousDays', 'Dina tidigare dagar:')}
                           </h5>
                           <div className="space-y-2 max-h-32 overflow-y-auto">
                             {Object.entries(gratitudeEntries)
@@ -2902,7 +2866,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                               .map(([day, entries]) => (
                                 <div key={day} className="text-sm">
                                   <span className="font-medium text-orange-600 dark:text-orange-400">
-                                    Dag {day}:
+                                    {t('recommendations.gratitude.dayLabel', 'Dag {{day}}:', { day })}
                                   </span>
                                   <ul className="ml-4 mt-1 space-y-1">
                                     {entries.slice(0, 2).map((entry, i) => (
@@ -2912,7 +2876,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                                     ))}
                                     {entries.length > 2 && (
                                       <li className="text-gray-500 dark:text-gray-500 text-xs">
-                                        +{entries.length - 2} till
+                                        {t('recommendations.gratitude.more', '+{{count}} till', { count: entries.length - 2 })}
                                       </li>
                                     )}
                                   </ul>
@@ -2925,8 +2889,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       {/* Encouragement */}
                       <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
                         <p className="text-sm text-orange-700 dark:text-orange-300 text-center">
-                          💡 <strong>Kom ihåg:</strong> Tacksamhet förändrar hur vi ser på världen.
-                          Även små saker kan göra stor skillnad!
+                          {t('recommendations.gratitude.remember', '💡 Kom ihåg: Tacksamhet förändrar hur vi ser på världen. Även små saker kan göra stor skillnad!')}
                         </p>
                       </div>
                     </div>
@@ -2939,7 +2902,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         onClick={startGratitudeChallenge}
                         className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors"
                       >
-                        🚀 Starta Utmaningen
+                        {t('recommendations.gratitude.startChallenge', '🚀 Starta Utmaningen')}
                       </button>
                     ) : (
                       <>
@@ -2951,22 +2914,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                                 nextGratitudeDay();
                               });
                             } else {
-                              announceToScreenReader('Skriv minst 3 saker du är tacksam för', 'assertive');
+                              announceToScreenReader(t('recommendations.announce.gratitudeMinThree', 'Skriv minst 3 saker du är tacksam för'), 'assertive');
                             }
                           }}
                           className="px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
                           disabled={(gratitudeEntries[gratitudeDay] || []).filter(e => e.trim()).length < 3 || isSavingGratitude}
                         >
-                          {isSavingGratitude ? '💾 Sparar...' :
+                          {isSavingGratitude ? t('recommendations.gratitude.saving', '💾 Sparar...') :
                             (gratitudeEntries[gratitudeDay] && gratitudeEntries[gratitudeDay].filter(e => e.trim()).length >= 3) ?
-                              `✅ Dag ${gratitudeDay} Slutförd` :
-                              (gratitudeDay < 7 ? `Spara Dag ${gratitudeDay} →` : '🎉 Slutför Utmaningen')}
+                              t('recommendations.gratitude.dayComplete', '✅ Dag {{day}} Slutförd', { day: gratitudeDay }) :
+                              (gratitudeDay < 7 ? t('recommendations.gratitude.saveDay', 'Spara Dag {{day}} →', { day: gratitudeDay }) : t('recommendations.gratitude.finishChallenge', '🎉 Slutför Utmaningen'))}
                         </button>
                         <button
                           onClick={cancelGratitudeLogic}
                           className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
                         >
-                          ⏹️ Avbryt
+                          {t('recommendations.gratitude.cancel', '⏹️ Avbryt')}
                         </button>
                       </>
                     )}
@@ -2977,11 +2940,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     <div className="text-center mt-6">
                       <div className="text-6xl mb-4">🎉</div>
                       <h4 className="text-xl font-bold text-green-600 dark:text-green-400 mb-2">
-                        Grattis! Utmaningen är slutförd! 🌟
+                        {t('recommendations.gratitude.congratsTitle', 'Grattis! Utmaningen är slutförd! 🌟')}
                       </h4>
                       <p className="text-gray-700 dark:text-gray-300">
-                        Du har framgångsrikt genomfört 7 dagar av tacksamhetspraxis.
-                        Detta är ett viktigt steg mot bättre mental hälsa!
+                        {t('recommendations.gratitude.congratsBody', 'Du har framgångsrikt genomfört 7 dagar av tacksamhetspraxis. Detta är ett viktigt steg mot bättre mental hälsa!')}
                       </p>
                     </div>
                   )}
@@ -3009,7 +2971,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Content */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Instruktioner</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('recommendations.content.instructions', 'Instruktioner')}</h3>
                 <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
                   {selectedRecommendation.content}
                 </p>
@@ -3018,7 +2980,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {/* Tags */}
               {selectedRecommendation.tags.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Relaterade Ämnen</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{t('recommendations.content.relatedTopics', 'Relaterade Ämnen')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedRecommendation.tags.map((tag) => (
                       <button
@@ -3026,7 +2988,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         type="button"
                         onClick={() => {
                           setSearchTerm(tag);
-                          announceToScreenReader(`Filter aktiverat för ${tag}`, 'polite');
+                          announceToScreenReader(t('recommendations.announce.filterActivated', 'Filter aktiverat för {{tag}}', { tag }), 'polite');
                         }}
                         className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm hover:bg-primary-200 dark:hover:bg-primary-900/60 transition-colors"
                       >
@@ -3047,7 +3009,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                         if (selectedRecommendation.type === 'exercise') {
                           handleCloseContentModal();
                           navigate('/journal');
-                          announceToScreenReader('Öppnar dagboken för reflektion.', 'polite');
+                          announceToScreenReader(t('recommendations.announce.openingJournal', 'Öppnar dagboken för reflektion.'), 'polite');
                           return;
                         }
 
@@ -3056,15 +3018,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
                         if (nextRecommendation) {
                           setSelectedRecommendation(nextRecommendation);
-                          announceToScreenReader(`Nästa övning: ${nextRecommendation.title}`, 'polite');
+                          announceToScreenReader(t('recommendations.announce.nextExercise', 'Nästa övning: {{title}}', { title: nextRecommendation.title }), 'polite');
                         } else {
-                          announceToScreenReader('Du har gått igenom alla rekommendationer i listan.', 'polite');
+                          announceToScreenReader(t('recommendations.announce.allRecommendationsDone', 'Du har gått igenom alla rekommendationer i listan.'), 'polite');
                         }
                         return;
                       }
 
                       if (!canManuallyCompleteSelectedRecommendation) {
-                        announceToScreenReader('Slutför andningsövningen först för att markera aktiviteten som slutförd.', 'polite');
+                        announceToScreenReader(t('recommendations.announce.completeBreathingFirst', 'Slutför andningsövningen först för att markera aktiviteten som slutförd.'), 'polite');
                         return;
                       }
 
@@ -3103,13 +3065,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                       handleCloseContentModal();
                       announceToScreenReader(
                         alreadyCompleted
-                          ? `${selectedRecommendation.title} var redan markerad som slutförd.`
-                          : `${selectedRecommendation.title} markerad som slutförd`,
+                          ? t('recommendations.announce.alreadyCompleted', '{{title}} var redan markerad som slutförd.', { title: selectedRecommendation.title })
+                          : t('recommendations.announce.markedCompleted', '{{title}} markerad som slutförd', { title: selectedRecommendation.title }),
                         'polite'
                       );
                     } catch (error) {
                       logger.error('Failed to mark as completed:', error);
-                      announceToScreenReader('Kunde inte markera som slutförd', 'assertive');
+                      announceToScreenReader(t('recommendations.announce.markCompletedFailed', 'Kunde inte markera som slutförd'), 'assertive');
                     }
                   }}
                   className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors ${!isPrimaryActionDisabled
@@ -3117,18 +3079,18 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                     }`}
                 >
-                  {isSelectedRecommendationCompleted ? nextCompletedActionLabel : 'Markera som Slutförd'}
+                  {isSelectedRecommendationCompleted ? nextCompletedActionLabel : t('recommendations.content.markCompleted', 'Markera som Slutförd')}
                 </button>
                 <button
                   onClick={handleCloseContentModal}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Stäng
+                  {t('recommendations.content.close', 'Stäng')}
                 </button>
               </div>
               {isStressBreathingRecommendation && !canManuallyCompleteSelectedRecommendation && (
                 <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                  Slutför {selectedBreathingCycles} cykler först. När texten visar "Andningsövning slutförd" kan du markera aktiviteten.
+                  {t('recommendations.content.completeCyclesFirst', 'Slutför {{count}} cykler först. När texten visar "Andningsövning slutförd" kan du markera aktiviteten.', { count: selectedBreathingCycles })}
                 </p>
               )}
             </div>
@@ -3143,11 +3105,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             <div className="text-center">
               <div className="text-4xl mb-4">🚨</div>
               <h3 className="text-xl font-bold text-red-700 dark:text-red-300 mb-4">
-                Vi är oroliga för din säkerhet
+                {t('recommendations.crisis.title', 'Vi är oroliga för din säkerhet')}
               </h3>
               <p className="text-red-600 dark:text-red-400 mb-6 text-sm">
-                Det låter som att du kan behöva omedelbar hjälp. Du är inte ensam,
-                och det finns människor som vill hjälpa dig.
+                {t('recommendations.crisis.body', 'Det låter som att du kan behöva omedelbar hjälp. Du är inte ensam, och det finns människor som vill hjälpa dig.')}
               </p>
 
               <div className="space-y-3 mb-6">
@@ -3155,32 +3116,31 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   href="tel:112"
                   className="block w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
                 >
-                  🚨 Ring 112 (Akut)
+                  {t('recommendations.crisis.callEmergency', '🚨 Ring 112 (Akut)')}
                 </a>
                 <a
                   href="tel:0900011200"
                   className="block w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
                 >
-                  📞 Självmordslinjen: 0900-011 200
+                  {t('recommendations.crisis.suicideHotline', '📞 Självmordslinjen: 0900-011 200')}
                 </a>
                 <a
                   href="tel:1177"
                   className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
                 >
-                  🏥 Vårdguiden: 1177
+                  {t('recommendations.crisis.healthcare', '🏥 Vårdguiden: 1177')}
                 </a>
               </div>
 
               <p className="text-xs text-red-500 dark:text-red-400 mb-4">
-                Om du är i omedelbar fara, ring 112 genast.
-                Hjälplinjer är konfidentiella och tillgängliga dygnet runt.
+                {t('recommendations.crisis.footer', 'Om du är i omedelbar fara, ring 112 genast. Hjälplinjer är konfidentiella och tillgängliga dygnet runt.')}
               </p>
 
               <button
                 onClick={() => setShowCrisisAlert(false)}
                 className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-sm underline"
               >
-                Fortsätt med övningen (rekommenderas inte)
+                {t('recommendations.crisis.continue', 'Fortsätt med övningen (rekommenderas inte)')}
               </button>
             </div>
           </div>
@@ -3194,10 +3154,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
             <div className="text-center mb-6">
               <div className="text-4xl mb-4">🔔</div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                Dagliga Påminnelser
+                {t('recommendations.notifications.title', 'Dagliga Påminnelser')}
               </h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                Få vänliga dagliga påminnelser att ta hand om din mentala hälsa
+                {t('recommendations.notifications.subtitle', 'Få vänliga dagliga påminnelser att ta hand om din mentala hälsa')}
               </p>
             </div>
 
@@ -3206,20 +3166,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    Status:
+                    {t('recommendations.notifications.status', 'Status:')}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${notificationSettings.dailyRemindersEnabled
                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                     : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                     } `}>
-                    {notificationSettings.dailyRemindersEnabled ? 'Aktiverad' : 'Inaktiverad'}
+                    {notificationSettings.dailyRemindersEnabled ? t('recommendations.notifications.enabled', 'Aktiverad') : t('recommendations.notifications.disabled', 'Inaktiverad')}
                   </span>
                 </div>
 
                 {notificationSettings.dailyRemindersEnabled && (
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    📅 Tid: {notificationSettings.reminderTime}
-                    {notificationSettings.fcmToken && ' • ✅ Notiser redo'}
+                    {t('recommendations.notifications.time', '📅 Tid: {{time}}', { time: notificationSettings.reminderTime })}
+                    {notificationSettings.fcmToken && t('recommendations.notifications.ready', ' • ✅ Notiser redo')}
                   </div>
                 )}
               </div>
@@ -3227,7 +3187,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {/* Time Setting */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  🕐 Påminnelsetid
+                  {t('recommendations.notifications.reminderTime', '🕐 Påminnelsetid')}
                 </label>
                 <input
                   type="time"
@@ -3240,13 +3200,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {/* Information */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                  ℹ️ Vad händer när du aktiverar?
+                  {t('recommendations.notifications.whatHappens', 'ℹ️ Vad händer när du aktiverar?')}
                 </h4>
                 <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• Du får en vänlig påminnelse varje dag</li>
-                  <li>• Påminnelsen innehåller motivation och tips</li>
-                  <li>• Du kan ändra tiden eller stänga av när som helst</li>
-                  <li>• All data hanteras säkert och konfidentiellt</li>
+                  <li>{t('recommendations.notifications.bullet1', '• Du får en vänlig påminnelse varje dag')}</li>
+                  <li>{t('recommendations.notifications.bullet2', '• Påminnelsen innehåller motivation och tips')}</li>
+                  <li>{t('recommendations.notifications.bullet3', '• Du kan ändra tiden eller stänga av när som helst')}</li>
+                  <li>{t('recommendations.notifications.bullet4', '• All data hanteras säkert och konfidentiellt')}</li>
                 </ul>
               </div>
             </div>
@@ -3259,14 +3219,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   disabled={isEnablingNotifications}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
                 >
-                  {isEnablingNotifications ? '⏳ Aktiverar...' : '✅ Aktivera Dagliga Påminnelser'}
+                  {isEnablingNotifications ? t('recommendations.notifications.enabling', '⏳ Aktiverar...') : t('recommendations.notifications.enableBtn', '✅ Aktivera Dagliga Påminnelser')}
                 </button>
               ) : (
                 <button
                   onClick={disableDailyReminders}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
                 >
-                  ❌ Inaktivera Påminnelser
+                  {t('recommendations.notifications.disableBtn', '❌ Inaktivera Påminnelser')}
                 </button>
               )}
 
@@ -3274,7 +3234,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 onClick={() => setShowNotificationSettings(false)}
                 className="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Stäng
+                {t('recommendations.notifications.close', 'Stäng')}
               </button>
             </div>
 
@@ -3284,7 +3244,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                 onClick={() => updateReminderTime(notificationSettings.reminderTime)}
                 className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
               >
-                💾 Spara Ny Tid
+                {t('recommendations.notifications.saveNewTime', '💾 Spara Ny Tid')}
               </button>
             )}
           </div>
@@ -3297,15 +3257,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="text-yellow-600 dark:text-yellow-400 text-xl">⚠️</div>
           <div>
             <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-              Viktig Information om Mental Hälsa
+              {t('recommendations.disclaimer.title', 'Viktig Information om Mental Hälsa')}
             </h4>
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-              Detta är ett stödverktyg, inte en ersättning för professionell vård.
-              Om du upplever allvarliga mentala hälsoproblem, kontakta en kvalificerad vårdgivare.
+              {t('recommendations.disclaimer.body', 'Detta är ett stödverktyg, inte en ersättning för professionell vård. Om du upplever allvarliga mentala hälsoproblem, kontakta en kvalificerad vårdgivare.')}
             </p>
             <div className="text-xs text-yellow-600 dark:text-yellow-400">
-              <p className="mb-1"><strong>🔹 Krisnummer Sverige:</strong> 112 (akut) eller 1177 (vårdguiden)</p>
-              <p><strong>🔹 Självmordslinjen:</strong> 0900-011 200 (alla dagar 24/7)</p>
+              <p className="mb-1">{t('recommendations.disclaimer.crisisNumber', '🔹 Krisnummer Sverige: 112 (akut) eller 1177 (vårdguiden)')}</p>
+              <p>{t('recommendations.disclaimer.suicideLine', '🔹 Självmordslinjen: 0900-011 200 (alla dagar 24/7)')}</p>
             </div>
           </div>
         </div>
@@ -3317,27 +3276,24 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <LightBulbIcon className="w-12 h-12 sm:w-16 sm:h-16" aria-hidden="true" />
         </div>
         <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">
-          Dagens Inspiration
+          {t('recommendations.inspiration.title', 'Dagens Inspiration')}
         </h3>
         <p className="text-sm sm:text-base mb-4 sm:mb-6 opacity-90 max-w-2xl mx-auto">
-          "Små, konsekventa steg kan skapa positiva förändringar över tid.
-          En studie från University College London visar att det i genomsnitt tar 66 dagar att skapa nya vanor,
-          med en stor variation mellan individer (18-254 dagar).
-          Varje dag är en möjlighet att lära sig mer om mental hälsa."
+          {t('recommendations.inspiration.body', '"Små, konsekventa steg kan skapa positiva förändringar över tid. En studie från University College London visar att det i genomsnitt tar 66 dagar att skapa nya vanor, med en stor variation mellan individer (18-254 dagar). Varje dag är en möjlighet att lära sig mer om mental hälsa."')}
         </p>
         <button
           onClick={() => setShowNotificationSettings(true)}
           className="px-6 py-2.5 border-2 border-white text-white font-medium rounded-lg hover:bg-white hover:text-purple-600 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-purple-500 min-h-[44px]"
-          title="Konfigurera dagliga påminnelser för mental hälsa"
+          title={t('recommendations.inspiration.configureTitle', 'Konfigurera dagliga påminnelser för mental hälsa')}
         >
-          🔔 {notificationSettings.dailyRemindersEnabled ? 'Hantera Dagliga Påminnelser' : 'Aktivera Dagliga Påminnelser'}
+          🔔 {notificationSettings.dailyRemindersEnabled ? t('recommendations.inspiration.manageReminders', 'Hantera Dagliga Påminnelser') : t('recommendations.inspiration.enableReminders', 'Aktivera Dagliga Påminnelser')}
         </button>
       </div>
 
       {/* Progress Summary */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-8">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
-          Dina Framsteg Denna Vecka
+          {t('recommendations.progress.title', 'Dina Framsteg Denna Vecka')}
         </h3>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -3346,10 +3302,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {userProgress?.exercisesCompleted ?? 0}
             </h4>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Övningar Gjorda
+              {t('recommendations.progress.exercisesDone', 'Övningar Gjorda')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Denna vecka
+              {t('recommendations.progress.thisWeek', 'Denna vecka')}
             </p>
           </div>
 
@@ -3358,10 +3314,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {userProgress?.meditationMinutes ?? 0}
             </h4>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Minuter Meditation
+              {t('recommendations.progress.meditationMinutes', 'Minuter Meditation')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Denna vecka
+              {t('recommendations.progress.thisWeek', 'Denna vecka')}
             </p>
           </div>
 
@@ -3370,10 +3326,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {userProgress?.articlesRead ?? 0}
             </h4>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Artiklar Lästa
+              {t('recommendations.progress.articlesRead', 'Artiklar Lästa')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Denna vecka
+              {t('recommendations.progress.thisWeek', 'Denna vecka')}
             </p>
           </div>
 
@@ -3382,10 +3338,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               {userProgress?.weeklyGoalProgress ? Math.round(userProgress.weeklyGoalProgress) : 0}%
             </h4>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Mål Uppnått
+              {t('recommendations.progress.goalAchieved', 'Mål Uppnått')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Veckomål
+              {t('recommendations.progress.weeklyGoal', 'Veckomål')}
             </p>
           </div>
         </div>
@@ -3395,10 +3351,10 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 sm:p-8">
         <div className="text-center mb-8">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Ytterligare Stöd & Resurser 🏥
+            {t('recommendations.footer.title', 'Ytterligare Stöd & Resurser 🏥')}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Förutom våra interaktiva övningar finns det många professionella resurser tillgängliga
+            {t('recommendations.footer.subtitle', 'Förutom våra interaktiva övningar finns det många professionella resurser tillgängliga')}
           </p>
         </div>
 
@@ -3407,20 +3363,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="text-center mb-4">
               <div className="text-4xl mb-2">👨‍⚕️</div>
-              <h4 className="font-semibold text-gray-900 dark:text-white">Professionell Hjälp</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-white">{t('recommendations.footer.professionalHelp', 'Professionell Hjälp')}</h4>
             </div>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-              <li>• Psykolog eller psykoterapeut</li>
-              <li>• Psykiatrisk vård vid behov</li>
-              <li>• Krisintervention</li>
-              <li>• KBT-terapi</li>
+              <li>{t('recommendations.footer.prof1', '• Psykolog eller psykoterapeut')}</li>
+              <li>{t('recommendations.footer.prof2', '• Psykiatrisk vård vid behov')}</li>
+              <li>{t('recommendations.footer.prof3', '• Krisintervention')}</li>
+              <li>{t('recommendations.footer.prof4', '• KBT-terapi')}</li>
             </ul>
             <div className="mt-4 text-center">
               <a
                 href="tel:1177"
                 className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                Ring 1177
+                {t('recommendations.footer.call1177', 'Ring 1177')}
               </a>
             </div>
           </div>
@@ -3429,20 +3385,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="text-center mb-4">
               <div className="text-4xl mb-2">🤝</div>
-              <h4 className="font-semibold text-gray-900 dark:text-white">Gemenskap & Stöd</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-white">{t('recommendations.footer.community', 'Gemenskap & Stöd')}</h4>
             </div>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-              <li>• Självhjälpsgrupper</li>
-              <li>• Online-forum</li>
-              <li>• Stödlinjer</li>
-              <li>• Anhörigstöd</li>
+              <li>{t('recommendations.footer.comm1', '• Självhjälpsgrupper')}</li>
+              <li>{t('recommendations.footer.comm2', '• Online-forum')}</li>
+              <li>{t('recommendations.footer.comm3', '• Stödlinjer')}</li>
+              <li>{t('recommendations.footer.comm4', '• Anhörigstöd')}</li>
             </ul>
             <div className="mt-4 text-center">
               <a
                 href="tel:0900011200"
                 className="inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                Självmordslinjen
+                {t('recommendations.footer.suicideLine', 'Självmordslinjen')}
               </a>
             </div>
           </div>
@@ -3451,17 +3407,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="text-center mb-4">
               <div className="text-4xl mb-2">📚</div>
-              <h4 className="font-semibold text-gray-900 dark:text-white">Självhjälp & Utbildning</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-white">{t('recommendations.footer.selfHelp', 'Självhjälp & Utbildning')}</h4>
             </div>
             <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-              <li>• Böcker om mental hälsa</li>
-              <li>• Online-kurser</li>
-              <li>• Mindfulness-appar</li>
-              <li>• Utbildningsmaterial</li>
+              <li>{t('recommendations.footer.self1', '• Böcker om mental hälsa')}</li>
+              <li>{t('recommendations.footer.self2', '• Online-kurser')}</li>
+              <li>{t('recommendations.footer.self3', '• Mindfulness-appar')}</li>
+              <li>{t('recommendations.footer.self4', '• Utbildningsmaterial')}</li>
             </ul>
             <div className="mt-4 text-center">
               <button
-                onClick={() => window.open('https://www.1177.se', '_blank')}
+                onClick={() => window.open('https://www.1177.se', '_blank', 'noopener,noreferrer')}
                 className="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 1177.se
@@ -3473,23 +3429,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         {/* Call to Action */}
         <div className="text-center mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
           <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Redo att Ta Nästa Steg? 🌟
+            {t('recommendations.footer.ctaTitle', 'Redo att Ta Nästa Steg? 🌟')}
           </h4>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Fortsätt din resa mot bättre mental hälsa med våra dagliga utmaningar och meditationer
+            {t('recommendations.footer.ctaBody', 'Fortsätt din resa mot bättre mental hälsa med våra dagliga utmaningar och meditationer')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/dashboard')}
               className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
             >
-              Gå Till Dashboard
+              {t('recommendations.footer.goToDashboard', 'Gå Till Dashboard')}
             </button>
             <button
               onClick={() => navigate('/wellness')}
               className="px-6 py-3 border border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 font-medium rounded-lg transition-colors"
             >
-              Uppdatera Dina Mål
+              {t('recommendations.footer.updateGoals', 'Uppdatera Dina Mål')}
             </button>
           </div>
         </div>
