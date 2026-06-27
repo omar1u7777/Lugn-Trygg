@@ -565,6 +565,6 @@ export const getRecommendationsPool = (t: (key: string) => unknown): Recommendat
   return RECOMMENDATIONS_POOL.map(rec => {
     const tr = pool[rec.id];
     if (!tr) return rec;
-    return { ...rec, title: tr.title || rec.title, description: tr.description || rec.description, category: tr.category || rec.category, content: tr.content || rec.content };
+    return { ...rec, categoryKey: rec.category, title: tr.title || rec.title, description: tr.description || rec.description, category: tr.category || rec.category, content: tr.content || rec.content };
   });
 };
