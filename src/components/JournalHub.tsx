@@ -1,7 +1,8 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import OptimizedImage from './ui/OptimizedImage';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
+import { useMountedRef } from '../hooks/useMountedRef';
 import { getMoods, getMemories, saveJournalEntry, getJournalEntries } from '../api/api';
 import {
   HeartIcon,
@@ -18,6 +19,7 @@ const MoodList = lazy(() => import('./MoodList'));
 const MemoryJournal = lazy(() => import('./MemoryJournal'));
 
 const JOURNAL_HERO_IMAGE_ID = getJournalHeroImageId();
+const JOURNAL_HERO_FALLBACK = '/images/dashboard-hero-fallback.svg';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -40,6 +42,8 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
 const JournalHub: React.FC = () => {
   const { t: _t } = useTranslation();
   const { user } = useAuth();
+  const mountedRef = useMountedRef();
+  const messageTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState({
     moodCount: 0,
@@ -57,6 +61,37 @@ const JournalHub: React.FC = () => {
 
   /* Zen Mode State */
   const [zenMode, setZenMode] = useState(false);
+
+  // Robust streak calculation: handles ISO strings, Date objects, and Firestore timestamps.
+  const calculateStreak = useCallback((moods: Array<{ timestamp?: string | Date | { seconds?: number; toDate?: () => Date } }>) => {
+    if (!moods.length) return 0;
+    const today = new Date();
+    const getDateKey = (value: unknown): string | null => {
+      if (!value) return null;
+      let date: Date | undefined;
+      if (value instanceof Date) {
+        date = value;
+      } else if (typeof value === 'object' && value !== null && 'seconds' in value) {
+        const seconds = (value as { seconds: number }).seconds;
+        date = new Date(seconds * 1000);
+      } else if (typeof value === 'string') {
+        date = new Date(value);
+      }
+      if (!date || Number.isNaN(date.getTime())) return null;
+      return date.toISOString().split('T')[0];
+    };
+
+    let streak = 0;
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const hasLog = moods.some((m) => getDateKey(m.timestamp) === dateStr);
+      if (hasLog) streak++;
+      else break;
+    }
+    return streak;
+  }, []);
 
   const loadJournalStats = useCallback(async () => {
     // ... (keep existing implementation)
@@ -80,6 +115,7 @@ const JournalHub: React.FC = () => {
       const memories = memoriesResult.status === 'fulfilled' ? memoriesResult.value : [];
       const journals = journalsResult.status === 'fulfilled' ? journalsResult.value : [];
 
+      if (!mountedRef.current) return;
       setStats({
         moodCount: moods.length,
         memoryCount: memories.length,
@@ -88,16 +124,27 @@ const JournalHub: React.FC = () => {
       });
     } catch (error) {
       logger.error('Failed to load journal stats', { error });
+      if (!mountedRef.current) return;
       setStats({ moodCount: 0, memoryCount: 0, journalCount: 0, weekStreak: 0 });
     } finally {
-      setStatsLoading(false);
+      if (mountedRef.current) {
+        setStatsLoading(false);
+      }
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, calculateStreak, mountedRef]);
 
   useEffect(() => {
     logger.debug('JournalHub mounted', { userId: user?.user_id });
     loadJournalStats();
   }, [user?.user_id, loadJournalStats]);
+
+  // Cleanup pending message timeouts to avoid state updates after unmount.
+  useEffect(() => {
+    return () => {
+      messageTimeoutsRef.current.forEach(clearTimeout);
+      messageTimeoutsRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     logger.debug('Tab changed', { activeTab });
@@ -114,21 +161,13 @@ const JournalHub: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [zenMode]);
 
-  const calculateStreak = (moods: Array<{ timestamp?: string }>) => {
-    if (!moods.length) return 0;
-    const today = new Date();
-    let streak = 0;
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const hasLog = moods.some((m) =>
-        m.timestamp && m.timestamp.startsWith(dateStr)
-      );
-      if (hasLog) streak++;
-      else break;
-    }
-    return streak;
+  const showMessage = (message: { type: 'success' | 'error'; text: string }, durationMs: number) => {
+    setSubmitMessage(message);
+    const timeoutId = setTimeout(() => {
+      if (mountedRef.current) setSubmitMessage(null);
+      messageTimeoutsRef.current = messageTimeoutsRef.current.filter(id => id !== timeoutId);
+    }, durationMs);
+    messageTimeoutsRef.current.push(timeoutId);
   };
 
   const handleInlineJournalSubmit = async (e: React.FormEvent) => {
@@ -138,42 +177,44 @@ const JournalHub: React.FC = () => {
     const wordCount = trimmedText.split(/\s+/).filter(Boolean).length;
 
     if (!trimmedText) {
-      setSubmitMessage({ type: 'error', text: 'Dagboksanteckningen kan inte vara tom' });
-      setTimeout(() => setSubmitMessage(null), 5000);
+      showMessage({ type: 'error', text: 'Dagboksanteckningen kan inte vara tom' }, 5000);
       return;
     }
 
     if (wordCount < 3) {
-      setSubmitMessage({ type: 'error', text: 'Dagboksanteckningen måste innehålla minst 3 ord' });
-      setTimeout(() => setSubmitMessage(null), 5000);
+      showMessage({ type: 'error', text: 'Dagboksanteckningen måste innehålla minst 3 ord' }, 5000);
       return;
     }
 
     if (!user?.user_id) {
-      setSubmitMessage({ type: 'error', text: 'Du måste vara inloggad för att spara' });
-      setTimeout(() => setSubmitMessage(null), 5000);
+      showMessage({ type: 'error', text: 'Du måste vara inloggad för att spara' }, 5000);
       return;
     }
 
     setIsSubmittingJournal(true);
 
+    // Preserve selected prompt in the saved content so it is not lost to the user.
+    const contentToSave = journalPrompt ? `${journalPrompt}\n\n${trimmedText}` : trimmedText;
+
     try {
-      await saveJournalEntry(user.user_id, journalText, undefined, selectedJournalTags);
-      setStats(prev => ({ ...prev, journalCount: prev.journalCount + 1 }));
+      await saveJournalEntry(user.user_id, contentToSave, undefined, selectedJournalTags);
+      if (!mountedRef.current) return;
       setJournalText('');
       setJournalPrompt('');
       setSelectedJournalTags([]);
       await loadJournalStats();
-      setSubmitMessage({ type: 'success', text: 'Dagboksanteckning sparad framgångsrikt! 🎉' });
-      setTimeout(() => setSubmitMessage(null), 5000);
+      if (!mountedRef.current) return;
+      showMessage({ type: 'success', text: 'Dagboksanteckning sparad framgångsrikt! 🎉' }, 5000);
       if (zenMode) setZenMode(false); // Exit Zen mode on submit
     } catch (error: unknown) {
+      if (!mountedRef.current) return;
       const err = error as { response?: { data?: { error?: string } }; message?: string };
       const errorMessage = err?.response?.data?.error || err?.message || 'Ett fel uppstod';
-      setSubmitMessage({ type: 'error', text: `Kunde inte spara: ${errorMessage}` });
-      setTimeout(() => setSubmitMessage(null), 8000);
+      showMessage({ type: 'error', text: `Kunde inte spara: ${errorMessage}` }, 8000);
     } finally {
-      setIsSubmittingJournal(false);
+      if (mountedRef.current) {
+        setIsSubmittingJournal(false);
+      }
     }
   };
 
@@ -251,6 +292,8 @@ const JournalHub: React.FC = () => {
                     alt="Digital Journaling"
                     width={520}
                     height={420}
+                    priority
+                    fallbackSrc={JOURNAL_HERO_FALLBACK}
                     className="rounded-3xl shadow-2xl border-4 border-white/50 dark:border-white/10 backdrop-blur-sm"
                   />
                 </div>
@@ -291,7 +334,11 @@ const JournalHub: React.FC = () => {
       <div className={`bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-700 ${zenMode ? 'shadow-none border-none rounded-none bg-stone-50 dark:bg-stone-900 min-h-screen' : ''}`}>
         {!zenMode && (
           <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-            <nav className="flex p-2 gap-2 min-w-max">
+            <nav
+              role="tablist"
+              aria-label="Dagboksflikar"
+              className="flex p-2 gap-2 min-w-max"
+            >
               {[
                 { label: 'Skriv', icon: BookOpenIcon },
                 { label: 'Historik', icon: DocumentTextIcon },
@@ -300,13 +347,18 @@ const JournalHub: React.FC = () => {
               ].map((tab, idx) => (
                 <button
                   key={idx}
+                  role="tab"
+                  aria-selected={activeTab === idx}
+                  aria-controls={`journal-tabpanel-${idx}`}
+                  id={`journal-tab-${idx}`}
+                  tabIndex={activeTab === idx ? 0 : -1}
                   onClick={() => setActiveTab(idx)}
                   className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === idx
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <tab.icon className="w-4 h-4" aria-hidden="true" />
                   {tab.label}
                 </button>
               ))}

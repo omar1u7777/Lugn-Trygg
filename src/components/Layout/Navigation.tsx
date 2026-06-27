@@ -166,9 +166,9 @@ const Navigation: React.FC = () => {
           to={isLoggedIn ? "/dashboard" : "/"}
           className={`text-[#2f2a24] dark:text-white font-bold text-lg md:text-xl flex items-center gap-2 hover:text-[#2c8374] transition-all duration-200 group lg:hidden min-h-[44px] ${focusRing}`}
         >
-          <span className="text-xl md:text-2xl group-hover:scale-110 transition-transform">🧘</span>
+          <span className="text-xl md:text-2xl group-hover:scale-110 transition-transform" aria-hidden="true">🧘</span>
           <span className="text-[#2c8374] font-semibold text-sm sm:text-base whitespace-nowrap">
-            Lugn & Trygg
+            {t('app.name', 'Lugn & Trygg')}
           </span>
         </Link>
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getDashboardRegionProps } from '../../constants/accessibility';
 import { formatRelativeTimeFromNow } from '../../utils/intlFormatters';
 
@@ -109,9 +110,10 @@ const TimelineItem: React.FC<{ activity: ActivityItem; index: number }> = ({ act
 
 export const DashboardActivity: React.FC<DashboardActivityProps> = ({
   activities,
-  emptyStateMessage = 'Ingen aktivitet än. Börja logga ditt humör!',
+  emptyStateMessage,
   isLoading = false,
 }) => {
+  const { t } = useTranslation();
   const regionProps = getDashboardRegionProps('activity');
   const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_ACTIVITIES);
   const prevActivityCountRef = useRef(0);
@@ -146,10 +148,10 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
 
   const groupedActivities = useMemo(() => {
     const groups: ActivityGroup[] = [
-      { key: 'today', label: 'Idag', items: [] },
-      { key: 'yesterday', label: 'Igår', items: [] },
-      { key: 'earlier-this-year', label: 'Tidigare i år', items: [] },
-      { key: 'older', label: 'Äldre', items: [] },
+      { key: 'today', label: t('dashboardActivity.today'), items: [] },
+      { key: 'yesterday', label: t('dashboardActivity.yesterday'), items: [] },
+      { key: 'earlier-this-year', label: t('dashboardActivity.earlierThisYear'), items: [] },
+      { key: 'older', label: t('dashboardActivity.older'), items: [] },
     ];
 
     visibleActivities.forEach((activity) => {
@@ -183,7 +185,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
         <div className="p-12 text-center rounded-[2.5rem] bg-gray-50/50 dark:bg-slate-800/30 border border-dashed border-gray-200 dark:border-gray-700">
           <div className="text-6xl mb-4 opacity-50 grayscale" aria-hidden="true">📊</div>
           <p className="text-gray-500 dark:text-gray-400 font-medium">
-            {emptyStateMessage || 'Ingen aktivitet än. Börja chatta med AI-terapeuten eller prova en meditation!'}
+            {emptyStateMessage || t('dashboardActivity.emptyState')}
           </p>
         </div>
       </section>
@@ -194,7 +196,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
     <section {...regionProps} className="relative py-4">
       <h2 className="world-class-heading-2 mb-8 flex items-center gap-3">
         <span className="w-2 h-8 rounded-full bg-primary-400 block" />
-        Senaste Aktivitet
+        {t('dashboardActivity.recentActivity')}
       </h2>
 
       <div className="space-y-10 relative">
@@ -224,7 +226,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
               setVisibleCount((prev) => Math.min(prev + LOAD_MORE_BATCH_SIZE, nonMoodActivities.length));
             }}
           >
-            Visa äldre aktiviteter ({remainingActivities} till)
+            {t('dashboardActivity.loadMore', { count: remainingActivities })}
           </button>
         </div>
       )}

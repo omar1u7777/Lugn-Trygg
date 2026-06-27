@@ -5,6 +5,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokenStorage } from '../utils/secureStorage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -69,13 +70,14 @@ const SOUNDSCAPE_ICONS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
+async function authHeaders(): Promise<Record<string, string>> {
+  // Read from the project's secure in-memory tokenStorage instead of localStorage.
+  const token = await tokenStorage.getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function fetchAudioBlob(url: string): Promise<string> {
-  const res = await fetch(url, { headers: authHeaders() });
+  const res = await fetch(url, { headers: await authHeaders() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   return URL.createObjectURL(blob);
@@ -129,7 +131,7 @@ export const AIMusicGenerator: React.FC = () => {
       setCatalogueError(null);
       try {
         const res = await fetch('/api/v1/ai-music/soundscapes', {
-          headers: authHeaders(),
+          headers: await authHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -189,7 +191,7 @@ export const AIMusicGenerator: React.FC = () => {
     try {
       const res = await fetch('/api/v1/ai-music/adaptive-recommendation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({
           current_mood: selectedMood || 'neutral',
           time_of_day: timeOfDay,
@@ -252,7 +254,7 @@ export const AIMusicGenerator: React.FC = () => {
 
       const res = await fetch('/api/v1/ai-music/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify(payload),
       });
 

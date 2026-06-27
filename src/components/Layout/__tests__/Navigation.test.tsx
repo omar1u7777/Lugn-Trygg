@@ -28,6 +28,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
+        'app.name': 'Lugn & Trygg',
         'auth.login': 'Logga in',
         'auth.register': 'Registrera',
         'navigation.switchToDark': 'Byt till mörkt läge',

@@ -182,6 +182,7 @@ const MessageBubble: React.FC<{
   onSpeak?: () => void;
   onStopSpeak?: () => void;
 }> = ({ message, _isLast, isStreaming = false, ttsSupported = false, isSpeaking = false, onSpeak, onStopSpeak }) => {
+  const { t } = useTranslation();
   const isUser = message.role === 'user';
   const showSpeakButton = !isUser && !isStreaming && ttsSupported && (message.content?.trim().length ?? 0) > 0;
 
@@ -229,7 +230,7 @@ const MessageBubble: React.FC<{
           {showSpeakButton && (
             <button
               onClick={isSpeaking ? onStopSpeak : onSpeak}
-              aria-label={isSpeaking ? 'Stoppa uppläsning' : 'Lyssna på meddelandet'}
+              aria-label={isSpeaking ? t('aiChat.stopSpeaking') : t('aiChat.listenToMessage')}
               className={`absolute -bottom-2 -right-2 p-1.5 rounded-full shadow-md transition-all hover:scale-110 ${
                 isSpeaking
                   ? 'bg-teal-500 text-white animate-pulse'
@@ -256,7 +257,7 @@ const MessageBubble: React.FC<{
                `}>
                 {message.sentiment === 'POSITIVE' && <FaceSmileIcon className="w-3 h-3" />}
                 {message.sentiment === 'crisis' && <ExclamationTriangleIcon className="w-3 h-3" />}
-                {message.sentiment === 'crisis' ? 'KRIS' : message.sentiment}
+                {message.sentiment === 'crisis' ? t('aiChat.crisis') : message.sentiment}
               </span>
               {message.emotions?.map(e => (
                 <span key={e} className="text-xs text-gray-400 capitalize">{e}</span>
@@ -325,7 +326,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         clearTimeout(voiceErrorTimerRef.current);
       }
       voiceErrorTimerRef.current = setTimeout(() => {
-        if (mountedRef.current) {
+        if (isMountedRef.current) {
           setVoiceError(null);
         }
       }, 5000);
@@ -364,13 +365,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const [limitError, setLimitError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const mountedRef = useRef(true);
+  const isMountedRef = useRef(true);
   const voiceErrorTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Single cleanup effect: unmount safety + voice error timer cleanup
   useEffect(() => {
-    mountedRef.current = true;
+    isMountedRef.current = true;
     return () => {
-      mountedRef.current = false;
+      isMountedRef.current = false;
       if (voiceErrorTimerRef.current) {
         clearTimeout(voiceErrorTimerRef.current);
       }
@@ -392,15 +394,6 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const isMountedRef = useRef(true);
-
-  // Cleanup on unmount to prevent memory leaks
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   // Load History
   useEffect(() => {
@@ -446,7 +439,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     return () => clearTimeout(scrollTimer);
   }, [messages, isTyping, currentMessage?.content]);
 
-  const loadChatHistory = async () => {
+  const loadChatHistory = useCallback(async () => {
     if (!user?.user_id) { setLoading(false); return; }
     // getCachedMessages() guards isLoaded internally — returns [] until cache is ready,
     // so we always fall through to the server fetch without any artificial delay.
@@ -512,13 +505,15 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
       });
     } catch (e) {
       logger.error('Failed to load chat history:', e instanceof Error ? e.message : String(e));
-      setNetworkError(isOnline ? t('aiChat.errorFallback') : t('aiChat.offlineMode'));
+      if (isMountedRef.current) {
+        setNetworkError(isOnline ? t('aiChat.errorFallback') : t('aiChat.offlineMode'));
+      }
     } finally {
-      setLoading(false); 
+      if (isMountedRef.current) setLoading(false); 
     }
-  };
+  }, [user, getCachedMessages, isMountedRef, executeWithRecovery, isOnline, t, syncWithServer]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     // Use transcript from voice if available, otherwise typed input
     const messageText = (isListening ? transcript : inputMessage).trim();
     if (!messageText || !user?.user_id) return;
@@ -568,9 +563,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         }
       }
     } finally {
-      setIsTyping(false);
+      if (isMountedRef.current) setIsTyping(false);
     }
-  };
+  }, [isListening, transcript, inputMessage, user, canSendMore, t, stopListening, clearTranscript, addToCache, isOnline, streamMessage, messages, incrementChatMessage, isMountedRef]);
 
   const quickSuggestions = [
     { text: t('aiChat.suggestions.stressed'), icon: <HeartIcon className="w-4 h-4" /> },
@@ -600,13 +595,13 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 {!isOnline && (
                   <span className="flex items-center gap-1 text-amber-600">
                     <WifiIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                    <span className="hidden sm:inline">Offline</span>
+                    <span className="hidden sm:inline">{t('aiChat.offline')}</span>
                   </span>
                 )}
                 {isRecovering && (
                   <span className="flex items-center gap-1 text-blue-600">
                     <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    <span className="hidden sm:inline">Återansluter...</span>
+                    <span className="hidden sm:inline">{t('aiChat.reconnecting')}</span>
                   </span>
                 )}
               </p>
@@ -673,14 +668,14 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                   {paginationLoading ? (
                     <div className="flex items-center gap-2 text-xs text-gray-400">
                       <div className="w-3 h-3 border border-gray-300 border-t-teal-500 rounded-full animate-spin" />
-                      Laddar äldre meddelanden...
+                      {t('aiChat.loadingOlder')}
                     </div>
                   ) : (
                     <button
                       onClick={loadMore}
                       className="text-xs text-teal-600 dark:text-teal-400 hover:underline"
                     >
-                      Ladda äldre meddelanden
+                      {t('aiChat.loadOlder')}
                     </button>
                   )}
                 </div>
@@ -770,7 +765,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                     startListening();
                   }
                 }}
-                aria-label={isListening ? 'Stoppa röstinspelning' : 'Starta röstinspelning'}
+                aria-label={isListening ? t('aiChat.stopRecording') : t('aiChat.startRecording')}
                 className={`flex-shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
                   isListening
                     ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
@@ -791,7 +786,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               value={isListening ? transcript : inputMessage}
               onChange={(e) => { if (!isListening) setInputMessage(e.target.value); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              placeholder={isListening ? '🎤 Lyssnar...' : !isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
+              placeholder={isListening ? t('aiChat.listening') : !isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
               aria-label={!isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
               disabled={!canSendMore || (isTyping && !isStreaming)}
               readOnly={isListening}
@@ -802,7 +797,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               <button
                 onClick={handleSendMessage}
                 disabled={(!inputMessage.trim() && !transcript) || !canSendMore || (isTyping && !isStreaming)}
-                aria-label={t('aiChat.send', 'Skicka meddelande')}
+                aria-label={t('aiChat.send')}
                 className={`p-2 sm:p-3 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50 ${
                   !isOnline
                     ? 'bg-amber-500 hover:bg-amber-600 text-white'

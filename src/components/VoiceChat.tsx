@@ -10,97 +10,67 @@ import { useMountedRef } from '../hooks/useMountedRef';
 import { MicrophoneIcon, PaperAirplaneIcon, StopIcon, ExclamationTriangleIcon, HeartIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { logger } from '../utils/logger';
 
-// ─── Psychological emotion profiles (evidence-based, all in Swedish) ────────
+// ─── Psychological emotion profiles (evidence-based, i18n labels) ────────
 interface EmotionProfile {
-  sv: string;
   emoji: string;
   color: string;
   bgColor: string;
-  insight: string;
-  recommendations: string[];
   crisisLevel: 0 | 1 | 2;
 }
 
 const EMOTION_PROFILES: Record<string, EmotionProfile> = {
   happy: {
-    sv: 'Glad',
     emoji: '😊',
     color: '#16a34a',
     bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    insight: 'Din röst förmedlar glädje och energi – ett starkt tecken på välmående. Positiva känslor stärker din motståndskraft och närer dina relationer.',
-    recommendations: ['Njut av stunden – uppmärksamma vad som skapat glädjen', 'Dela din energi med någon du bryr dig om', 'Skriv ner tre saker du är tacksam för idag'],
     crisisLevel: 0,
   },
   sad: {
-    sv: 'Ledsen',
     emoji: '😢',
     color: '#2563eb',
     bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-    insight: 'Din röst bär en viss tyngd och sorg. Det är helt okej – sorg är en viktig del av att vara människa och hjälper oss att bearbeta förluster. Du behöver inte bära det ensam.',
-    recommendations: ['Tillåt dig att känna, inte fly känslan', 'Andas djupt: in 4 sek → håll 2 sek → ut 6 sek', 'Ring någon du litar på – ett samtal hjälper'],
     crisisLevel: 1,
   },
   anxious: {
-    sv: 'Orolig',
     emoji: '😰',
     color: '#d97706',
     bgColor: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
-    insight: 'Din röst visar tecken på oro och inre spänning. Din hjärna försöker skydda dig – men oro kan ibland bli oproportionerlig. Du är inte ensam med det här, och det går att lära sig hantera.',
-    recommendations: ['4-7-8-andning: in 4 sek → håll 7 sek → ut 8 sek', 'Jordeningsteknik: Namnge 5 saker du ser, 4 du hör, 3 du rör', 'Fråga dig: Hur sannolikt är detta scenario verkligen?'],
     crisisLevel: 1,
   },
   angry: {
-    sv: 'Arg',
     emoji: '😠',
     color: '#dc2626',
     bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-    insight: 'Din röst bär intensiv energi som tyder på frustration eller ilska. Ilska är en signal om att något viktigt kränkts – det är mänskligt. Det handlar om att kanalisera den konstruktivt.',
-    recommendations: ['Boxandning: in 4 → håll 4 → ut 4 → håll 4 sek', 'Ta ett steg tillbaka och räkna till 10 innan du reagerar', 'Rör på dig – en snabb promenad sänker stresshormoner'],
     crisisLevel: 0,
   },
   fearful: {
-    sv: 'Rädd',
     emoji: '😨',
     color: '#7c3aed',
     bgColor: 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800',
-    insight: 'Din röst visar tecken på rädsla eller stor oro. Rädsla är kroppens larmsystem – men ibland går det på överdrift. Om du befinner dig i fara eller mår mycket dåligt: sök hjälp nu.',
-    recommendations: ['Om akut fara: Ring 112 omedelbart', 'Mind självmordslinjen: 90101 (dygnet runt)', 'Jordeningsteknik: Tryck fötterna mot golvet, andas långsamt'],
     crisisLevel: 2,
   },
   neutral: {
-    sv: 'Neutral',
     emoji: '😐',
     color: '#4b5563',
     bgColor: 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600',
-    insight: 'Din röst låter balanserad och neutral. Det kan tyda på lugn och välmående – eller att du håller tillbaka känslor. Ibland är det svårare att nå de djupare lagren.',
-    recommendations: ['Reflektera: Hur mår du egentligen djupast inne?', 'Mindfulness: Sitt still i 5 minuter och observera tankarna', 'Skriv ner dina tankar i en dagbok'],
     crisisLevel: 0,
   },
   surprised: {
-    sv: 'Förvånad',
     emoji: '😮',
     color: '#0891b2',
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800',
-    insight: 'Din röst visar förvåning eller oväntat engagemang. Förvåning är ofta kortvarig – lägg märke till vad som skapade den.',
-    recommendations: ['Fundera: Vad överraskade dig och vad säger det om dina förväntningar?', 'Nyfikenhet är positivt – låt förvåningen leda till utforskning'],
     crisisLevel: 0,
   },
   disgusted: {
-    sv: 'Äcklad',
     emoji: '🤢',
     color: '#65a30d',
     bgColor: 'bg-lime-50 dark:bg-lime-900/20 border-lime-200 dark:border-lime-800',
-    insight: 'Avsky eller avsmak i rösten kan signalera att något strider mot dina värderingar. Det är viktigt information om dina gränser.',
-    recommendations: ['Identifiera vad som utlöste känslan', 'Kommunicera dina gränser tydligt och respektfullt', 'Är det något du behöver ta avstånd från?'],
     crisisLevel: 0,
   },
   frustrated: {
-    sv: 'Frustrerad',
     emoji: '😤',
     color: '#ea580c',
     bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
-    insight: 'Frustration är en signal om ett hinder eller ojämlikhet. Det är en aktiv känsla som säger: "Något stämmer inte." Lyssna på den med nyfikenhet.',
-    recommendations: ['Identifiera det specifika hindret: vad kan du kontrollera?', 'Dela upp problemet i mindre delar', 'Rör på dig – fysisk aktivitet löser upp frustrationstänkande'],
     crisisLevel: 0,
   },
 };
@@ -127,7 +97,9 @@ const MAX_RECORDING_SECONDS = 300; // 5 minutes hard limit
 const MAX_AUDIO_MB = 9; // Leave margin below backend 10 MB limit
 
 const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
-  const { t: _t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'no' ? 'nb-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
+  const voiceLanguage = i18n.language === 'no' ? 'no-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const isMountedRef = useMountedRef();
@@ -135,7 +107,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
-      text: 'Hej! Jag är din AI-terapeut. Hur känns det idag? Du kan prata med mig genom att trycka på mikrofon-knappen eller skriva.',
+      text: t('voiceChat.welcomeMessage'),
       isUser: false,
       timestamp: new Date(),
     }
@@ -149,13 +121,13 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   const [processingStep, setProcessingStep] = useState<'idle' | 'transcribing' | 'analyzing' | 'done'>('idle');
 
   const quickActions = useMemo(() => [
-    'Jag känner mig stressad idag',
-    'Hjälp mig med mindfulness',
-    'Berätta en lugnande historia',
-    'Vad kan jag göra för bättre sömn?',
-    'Jag känner mig orolig',
-    'Hjälp mig förstå mina känslor',
-  ], []);
+    t('voiceChat.quickActions.stressed'),
+    t('voiceChat.quickActions.mindfulness'),
+    t('voiceChat.quickActions.calmStory'),
+    t('voiceChat.quickActions.sleep'),
+    t('voiceChat.quickActions.anxious'),
+    t('voiceChat.quickActions.understandEmotions'),
+  ], [t]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -260,10 +232,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         logger.error('MediaRecorder error:', event);
         cleanupRecording();
         addMessage({
-          text: 'Ett fel uppstod under inspelningen. Försök igen.',
+          text: t('voiceChat.recordingError'),
           isUser: false,
         });
-        announceToScreenReader('Inspelningsfel', 'assertive');
+        announceToScreenReader(t('voiceChat.recordingError'), 'assertive');
       };
 
       mediaRecorder.onstop = async () => {
@@ -279,19 +251,25 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
         if (audioBlob.size === 0) {
           addMessage({
-            text: 'Inspelningen blev tom. Försök prata tydligare och längre.',
+            text: t('voiceChat.emptyRecording'),
             isUser: false,
           });
-          if (isMountedRef.current) setIsProcessing(false);
+          if (isMountedRef.current) {
+            setIsProcessing(false);
+            setIsRecording(false);
+          }
           return;
         }
 
         if (audioBlob.size > MAX_AUDIO_MB * 1024 * 1024) {
           addMessage({
-            text: `Inspelningen är för stor (max ${MAX_AUDIO_MB} MB). Försök igen med ett kortare meddelande.`,
+            text: t('voiceChat.recordingTooLarge', { max: MAX_AUDIO_MB }),
             isUser: false,
           });
-          if (isMountedRef.current) setIsProcessing(false);
+          if (isMountedRef.current) {
+            setIsProcessing(false);
+            setIsRecording(false);
+          }
           return;
         }
 
@@ -322,28 +300,38 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           }
           cleanupRecording();
           addMessage({
-            text: `Inspelningen stoppades automatiskt efter ${MAX_RECORDING_SECONDS} sekunder.`,
+            text: t('voiceChat.autoStopped', { seconds: MAX_RECORDING_SECONDS }),
             isUser: false,
           });
         }
       }, MAX_RECORDING_SECONDS * 1000);
 
-      announceToScreenReader('Röstinspelning startad', 'polite');
+      announceToScreenReader(t('voiceChat.recordingStarted'), 'polite');
       analytics.track('Voice Recording Started', { component: 'VoiceChat' });
 
     } catch (error) {
       logger.error('Error starting recording:', error);
       addMessage({
-        text: 'Kunde inte starta inspelning. Kontrollera att webbläsaren har tillgång till mikrofonen.',
+        text: t('voiceChat.recordingStartError'),
         isUser: false,
       });
-      announceToScreenReader('Kunde inte starta röstinspelning', 'assertive');
+      announceToScreenReader(t('voiceChat.recordingStartErrorAria'), 'assertive');
       cleanupRecording();
     }
-  }, [isRecording, isProcessing, cleanupPendingRequests, addMessage, isMountedRef, cleanupRecording, announceToScreenReader]);
+  }, [isRecording, isProcessing, cleanupPendingRequests, addMessage, isMountedRef, cleanupRecording, announceToScreenReader, t]);
 
   const stopRecording = useCallback(() => {
     if (!isRecording) return;
+    // Stop timer immediately for UI responsiveness, but don't clear audioChunksRef —
+    // the async onstop handler needs them to build the Blob.
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       if (isMountedRef.current) setIsProcessing(true);
       try {
@@ -352,17 +340,18 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         logger.warn('MediaRecorder stop error:', e);
       }
     }
-    cleanupRecording();
-    announceToScreenReader('Röstinspelning stoppad', 'polite');
+    // setIsRecording(false) is deferred to onstop → processVoiceMessage → finally block,
+    // so the recording state stays consistent until processing completes.
+    announceToScreenReader(t('voiceChat.recordingStopped'), 'polite');
     analytics.track('Voice Recording Stopped', { component: 'VoiceChat' });
-  }, [isRecording, cleanupRecording, isMountedRef, announceToScreenReader]);
+  }, [isRecording, isMountedRef, announceToScreenReader, t]);
 
   const processVoiceMessage = useCallback(async (audioBlob: Blob) => {
     if (isMountedRef.current) {
       setIsProcessing(true);
       setProcessingStep('transcribing');
     }
-    announceToScreenReader('Bearbetar röstmeddelande...', 'polite');
+    announceToScreenReader(t('voiceChat.processingVoice'), 'polite');
 
     let transcribedText = '';
     let detectedEmotion: AnalyzeVoiceEmotionResponse | null = null;
@@ -373,7 +362,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
       // Step 1: Transcribe with Google Cloud STT
       try {
-        const transcriptionResult = await transcribeVoiceAudio(base64Audio, 'sv-SE');
+        const transcriptionResult = await transcribeVoiceAudio(base64Audio, voiceLanguage);
         if (transcriptionResult.transcript) {
           transcribedText = transcriptionResult.transcript;
           logger.debug('✅ Transcription success:', transcribedText.substring(0, 60));
@@ -405,7 +394,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       // If no transcript, show a single instructive error and stop
       if (!transcribedText) {
         addMessage({
-          text: '⚠️ Kunde inte transkribera din röst. Tala tydligare och längre (minst 2 sekunder), eller skriv ditt meddelande nedan.',
+          text: t('voiceChat.transcribeFailed'),
           isUser: false,
         });
         return;
@@ -430,7 +419,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             speaking_pace: detectedEmotion.speakingPace,
             volume_variation: detectedEmotion.volumeVariation,
             audio_duration_ms: recordingSeconds * 1000,
-            language: 'sv-SE',
+            language: voiceLanguage,
             ...(detectedEmotion.valence !== undefined && { valence: detectedEmotion.valence }),
             ...(detectedEmotion.arousal !== undefined && { arousal: detectedEmotion.arousal }),
           });
@@ -442,22 +431,22 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       // Step 3: Send to AI chat with emotion context for personalized response
       if (user?.user_id) {
         const emotionContext = detectedEmotion
-          ? `[Röstanalys: användaren låter ${getEmotionProfile(detectedEmotion.primaryEmotion)?.sv.toLowerCase() || 'neutral'}, energinivå: ${detectedEmotion.energyLevel}, taltempo: ${detectedEmotion.speakingPace}] `
+          ? `[Voice analysis: user sounds ${detectedEmotion.primaryEmotion}, energy level: ${detectedEmotion.energyLevel}, speaking pace: ${detectedEmotion.speakingPace}] `
           : '';
         const aiInput = `${emotionContext}${transcribedText}`;
 
         try {
-          const aiResult = await chatWithAI(user.user_id, aiInput);
+          const aiResult = await chatWithAI(user.user_id, aiInput, abortControllerRef.current?.signal);
           addMessage({
-            text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig.',
+            text: aiResult.response || aiResult.message || t('voiceChat.aiResponseFallback'),
             isUser: false,
           });
-          announceToScreenReader('AI svar mottaget', 'polite');
+          announceToScreenReader(t('voiceChat.aiResponseReceived'), 'polite');
 
           // Backend can detect crisis from text even when audio emotion looks neutral
           if (aiResult.crisisDetected) {
             addMessage({
-              text: '⚠️ Det låter som att du har det svårt just nu. Om du mår mycket dåligt: ring **112** eller **Mind 90101** (dygnet runt).',
+              text: t('voiceChat.crisisWarning'),
               isUser: false,
             });
           }
@@ -469,8 +458,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           );
           addMessage({
             text: isTimeout
-              ? 'Det tog lite för långt att få ett svar. Försök igen eller skriv ditt meddelande istället.'
-              : 'Jag kunde inte svara just nu. Prova igen om en stund.',
+              ? t('voiceChat.aiTimeoutError')
+              : t('voiceChat.aiGenericError'),
             isUser: false,
           });
         }
@@ -486,21 +475,22 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
     } catch (error) {
       logger.error('Error processing voice message:', error);
       addMessage({
-        text: 'Ett oväntat fel uppstod vid bearbetning av röstmeddelandet. Försök igen.',
+        text: t('voiceChat.processError'),
         isUser: false,
       });
-      announceToScreenReader('Kunde inte bearbeta röstmeddelande', 'assertive');
+      announceToScreenReader(t('voiceChat.processErrorAria'), 'assertive');
     } finally {
       if (isMountedRef.current) {
         setIsProcessing(false);
+        setIsRecording(false);
         setProcessingStep('idle');
       }
     }
-  }, [user, recordingSeconds, addMessage, isMountedRef, onMessageSent, announceToScreenReader]);
+  }, [user, recordingSeconds, addMessage, isMountedRef, onMessageSent, announceToScreenReader, t]);
   processVoiceMessageRef.current = processVoiceMessage;
 
-  const sendTextMessage = useCallback(async () => {
-    const messageText = inputText.trim();
+  const sendTextMessage = useCallback(async (overrideText?: string) => {
+    const messageText = (overrideText ?? inputText).trim();
     if (!messageText || isProcessing) return;
 
     addMessage({ text: messageText, isUser: true, isVoice: false });
@@ -516,7 +506,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
     if (!user?.user_id) {
       addMessage({
-        text: 'Logga in för att prata med AI-terapeuten.',
+        text: t('voiceChat.loginRequired'),
         isUser: false,
       });
       if (isMountedRef.current) setIsProcessing(false);
@@ -527,16 +517,16 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
     abortControllerRef.current = new AbortController();
 
     try {
-      const aiResult = await chatWithAI(user.user_id, messageText);
+      const aiResult = await chatWithAI(user.user_id, messageText, abortControllerRef.current?.signal);
       addMessage({
-        text: aiResult.response || aiResult.message || 'Tack för att du delade det med mig. Berätta mer om hur du känner.',
+        text: aiResult.response || aiResult.message || t('voiceChat.aiResponseFallbackExtended'),
         isUser: false,
       });
-      announceToScreenReader('AI svar mottaget', 'polite');
+      announceToScreenReader(t('voiceChat.aiResponseReceived'), 'polite');
 
       if (aiResult.crisisDetected) {
         addMessage({
-          text: '⚠️ Det låter som att du har det svårt just nu. Om du mår mycket dåligt: ring **112** eller **Mind 90101** (dygnet runt).',
+          text: t('voiceChat.crisisWarning'),
           isUser: false,
         });
       }
@@ -548,8 +538,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       );
       addMessage({
         text: isTimeout
-          ? 'Det tog lite för långt att få ett svar. Försök igen om en stund.'
-          : 'Jag kunde inte bearbeta ditt meddelande just nu. Försök igen om en stund.',
+          ? t('voiceChat.aiTimeoutError')
+          : t('voiceChat.aiGenericErrorShort'),
         isUser: false,
       });
     } finally {
@@ -558,12 +548,12 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
     }
 
     onMessageSent?.(messageText, false);
-  }, [inputText, isProcessing, user, addMessage, isMountedRef, onMessageSent, announceToScreenReader, cleanupPendingRequests]);
+  }, [inputText, isProcessing, user, addMessage, isMountedRef, onMessageSent, announceToScreenReader, cleanupPendingRequests, t]);
 
   const handleQuickAction = useCallback(async (action: string) => {
     if (isProcessing) return;
     if (isMountedRef.current) setInputText(action);
-    await sendTextMessage();
+    await sendTextMessage(action);
     analytics.track('Quick Action Used', { component: 'VoiceChat', action });
   }, [isProcessing, sendTextMessage, isMountedRef]);
 
@@ -578,9 +568,9 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
   );
 
   const processingLabel =
-    processingStep === 'transcribing' ? 'Transkriberar tal...' :
-    processingStep === 'analyzing'    ? 'Analyserar känslor...' :
-    'Bearbetar...';
+    processingStep === 'transcribing' ? t('voiceChat.transcribing') :
+    processingStep === 'analyzing'    ? t('voiceChat.analyzingEmotions') :
+    t('voiceChat.processing');
 
   const profile = emotionResult ? getEmotionProfile(emotionResult.primaryEmotion) : null;
 
@@ -597,25 +587,25 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            🎤 Röstanalys &amp; AI Terapeut
+            {t('voiceChat.title')}
           </h1>
           <button
             onClick={() => {
               setMessages(prev => [...prev, {
                 id: Date.now().toString(),
-                text: '💡 **Hur det fungerar:**\n\n1. Tryck på mikrofonen och prata i minst 3 sekunder\n2. Jag analyserar din röst och känslor\n3. Du får personliga insikter och rekommendationer\n4. Du kan också skriva eller klicka på snabbval nedan',
+                text: t('voiceChat.helpText'),
                 isUser: false,
                 timestamp: new Date(),
               }]);
             }}
             className="text-gray-400 hover:text-teal-500 transition-colors"
-            aria-label="Hjälp"
+            aria-label={t('voiceChat.helpAriaLabel')}
           >
             <ExclamationTriangleIcon className="w-5 h-5" />
           </button>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Prata fritt – jag analyserar din röst och ger personliga insikter för ditt välmående
+          {t('voiceChat.subtitle')}
         </p>
       </div>
 
@@ -628,7 +618,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               <button
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isProcessing}
-                aria-label={isRecording ? 'Stoppa inspelning' : 'Starta röstinspelning'}
+                aria-label={isRecording ? t('voiceChat.stopRecordingAria') : t('voiceChat.startRecordingAria')}
                 className={`relative w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all
                   ${isRecording
                     ? 'bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse shadow-red-500/50'
@@ -649,10 +639,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               )}
               <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 {isRecording
-                  ? '🔴 Spelar in...'
+                  ? t('voiceChat.recording')
                   : isProcessing
                     ? processingLabel
-                    : 'Tryck för att börja'
+                    : t('voiceChat.pressToStart')
                 }
               </span>
             </div>
@@ -687,7 +677,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 <p className="text-gray-500 dark:text-gray-400 text-sm text-center px-4">
                   {lastTranscript
                     ? `"${lastTranscript.substring(0, 100)}${lastTranscript.length > 100 ? '...' : ''}"`
-                    : 'Tala naturligt i minst 3 sekunder. Jag analyserar din röst och känslor.'
+                    : t('voiceChat.speakNaturally')
                   }
                 </p>
               )}
@@ -703,23 +693,23 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
 
             {/* Primary emotion header */}
             <div className="flex items-center gap-4">
-              <span className="text-5xl" role="img" aria-label={profile.sv}>{profile.emoji}</span>
+              <span className="text-5xl" role="img" aria-label={t(`voiceChat.emotionLabels.${emotionResult.primaryEmotion}`)}>{profile.emoji}</span>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold" style={{ color: profile.color }}>{profile.sv}</h2>
+                  <h2 className="text-xl font-bold" style={{ color: profile.color }}>{t(`voiceChat.emotionLabels.${emotionResult.primaryEmotion}`)}</h2>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({Math.round((emotionResult.emotions[emotionResult.primaryEmotion] ?? 0) * 100)}% konfidens)
+                    ({Math.round((emotionResult.emotions[emotionResult.primaryEmotion] ?? 0) * 100)}% {t('voiceChat.confidenceLabel')})
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <span className="px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                    ⚡ Energi: {emotionResult.energyLevel === 'high' ? 'Hög' : emotionResult.energyLevel === 'medium' ? 'Medel' : 'Låg'}
+                    ⚡ {t('voiceChat.energyLabel')}: {emotionResult.energyLevel === 'high' ? t('voiceChat.energyHigh') : emotionResult.energyLevel === 'medium' ? t('voiceChat.energyMedium') : t('voiceChat.energyLow')}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                    🗣 Taltempo: {emotionResult.speakingPace === 'fast' ? 'Snabbt' : emotionResult.speakingPace === 'slow' ? 'Långsamt' : 'Normalt'}
+                    🗣 {t('voiceChat.paceLabel')}: {emotionResult.speakingPace === 'fast' ? t('voiceChat.paceFast') : emotionResult.speakingPace === 'slow' ? t('voiceChat.paceSlow') : t('voiceChat.paceNormal')}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                    🔊 Volym: {emotionResult.volumeVariation === 'high' ? 'Varierad' : emotionResult.volumeVariation === 'low' ? 'Konstant' : 'Måttlig'}
+                    🔊 {t('voiceChat.volumeLabel')}: {emotionResult.volumeVariation === 'high' ? t('voiceChat.volumeHigh') : emotionResult.volumeVariation === 'low' ? t('voiceChat.volumeLow') : t('voiceChat.volumeModerate')}
                   </span>
                 </div>
               </div>
@@ -728,7 +718,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             {/* Emotion confidence bars */}
             <div>
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                Känsloprofil
+                {t('voiceChat.emotionProfileTitle')}
               </h3>
               <div className="space-y-2">
                 {sortedEmotions.map(([emotion, score]) => {
@@ -736,8 +726,8 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                   if (!ep) return null;
                   return (
                     <div key={emotion} className="flex items-center gap-2">
-                      <span className="text-base w-5" role="img" aria-label={ep.sv}>{ep.emoji}</span>
-                      <span className="text-xs text-gray-600 dark:text-gray-400 w-20 truncate">{ep.sv}</span>
+                      <span className="text-base w-5" role="img" aria-label={t(`voiceChat.emotionLabels.${emotion}`)}>{ep.emoji}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400 w-20 truncate">{t(`voiceChat.emotionLabels.${emotion}`)}</span>
                       <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-700"
@@ -757,13 +747,13 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             {emotionResult.valence !== undefined && (
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Känslodimensioner
+                  {t('voiceChat.emotionDimensionsTitle')}
                 </h3>
                 <div className="grid grid-cols-3 gap-3 text-center text-xs">
                   {[
-                    { label: 'Valens', desc: 'Neg ↔ Pos', value: ((emotionResult.valence ?? 0) + 1) / 2, color: '#16a34a' },
-                    { label: 'Aktivering', desc: 'Lugn ↔ Aktiv', value: emotionResult.arousal, color: '#d97706' },
-                    { label: 'Dominans', desc: 'Submissiv ↔ Dominant', value: emotionResult.dominance, color: '#7c3aed' },
+                    { label: t('voiceChat.valenceLabel'), desc: t('voiceChat.valenceDesc'), value: ((emotionResult.valence ?? 0) + 1) / 2, color: '#16a34a' },
+                    { label: t('voiceChat.arousalLabel'), desc: t('voiceChat.arousalDesc'), value: emotionResult.arousal, color: '#d97706' },
+                    { label: t('voiceChat.dominanceLabel'), desc: t('voiceChat.dominanceDesc'), value: emotionResult.dominance, color: '#7c3aed' },
                   ].map(dim => (
                     <div key={dim.label} className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600">
                       <div className="font-semibold text-gray-700 dark:text-gray-300">{dim.label}</div>
@@ -784,19 +774,19 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
                 <HeartIcon className="w-4 h-4 text-rose-500" />
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Psykologisk insikt</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('voiceChat.insightTitle')}</h3>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{profile.insight}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{t(`voiceChat.emotionInsights.${emotionResult.primaryEmotion}`)}</p>
             </div>
 
             {/* Coping recommendations */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-3">
                 <SparklesIcon className="w-4 h-4 text-teal-500" />
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Vad du kan göra nu</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('voiceChat.recommendationsTitle')}</h3>
               </div>
               <ul className="space-y-2">
-                {profile.recommendations.map((rec, idx) => (
+                {(t(`voiceChat.emotionRecommendations.${emotionResult.primaryEmotion}`, { returnObjects: true }) as string[]).map((rec, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <span className="text-teal-500 font-bold mt-0.5">→</span>
                     <span>{rec}</span>
@@ -810,18 +800,18 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               <div className="bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-600 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
-                  <h3 className="font-bold text-red-700 dark:text-red-400">Om du mår mycket dåligt</h3>
+                  <h3 className="font-bold text-red-700 dark:text-red-400">{t('voiceChat.crisisTitle')}</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                   <a href="tel:112" className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors">
-                    📞 SOS Alarm: 112
+                    {t('voiceChat.crisisSos')}
                   </a>
                   <a href="tel:90101" className="flex items-center gap-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-3 py-2 rounded-lg font-semibold hover:bg-red-200 transition-colors">
-                    💙 Mind: 90101 (dygnet runt)
+                    {t('voiceChat.crisisMind')}
                   </a>
                 </div>
                 <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                  Lugn &amp; Trygg ersätter inte professionell vård. Sök hjälp om du mår dåligt.
+                  {t('voiceChat.crisisDisclaimer')}
                 </p>
               </div>
             )}
@@ -829,8 +819,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 flex items-start gap-2">
                 <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Om du behöver prata med någon kan du ringa <strong>Mind självmordslinjen: 90101</strong> (gratis, dygnet runt).
-                  Lugn &amp; Trygg ersätter inte professionell psykologhjälp.
+                  {t('voiceChat.crisisWarningLevel1')}
                 </p>
               </div>
             )}
@@ -843,7 +832,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         <CardContent className="p-0 h-full flex flex-col">
           <div className="px-4 pt-3 pb-2 border-b border-gray-200 dark:border-gray-700">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              💬 AI-terapeut
+              {t('voiceChat.aiTherapistLabel')}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -863,10 +852,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                     </Typography>
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-xs opacity-60">
-                        {message.timestamp.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                        {message.timestamp.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {message.isVoice && (
-                        <span className="text-xs opacity-70">🎤 röst</span>
+                        <span className="text-xs opacity-70">{t('voiceChat.voiceLabel')}</span>
                       )}
                       {message.emotionContext && message.isUser && (() => {
                         const ep = getEmotionProfile(message.emotionContext);
@@ -899,7 +888,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           {/* Quick Actions */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">
-              Snabbval
+              {t('voiceChat.quickActionsTitle')}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {quickActions.map((action) => (
@@ -924,7 +913,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
             <button
               onClick={isRecording ? stopRecording : startRecording}
               disabled={isProcessing}
-              aria-label={isRecording ? 'Stoppa inspelning' : 'Röstinmatning'}
+              aria-label={isRecording ? t('voiceChat.stopRecordingAria') : t('voiceChat.voiceInputAria')}
               className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-all shadow-md
                 ${isRecording
                   ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-pulse'
@@ -942,7 +931,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Skriv ditt meddelande..."
+                placeholder={t('voiceChat.inputPlaceholder')}
                 disabled={isProcessing}
                 className="flex-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-teal-500 focus:ring-teal-500"
               />
@@ -952,7 +941,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
               variant="primary"
               onClick={sendTextMessage}
               disabled={!inputText.trim() || isProcessing}
-              aria-label="Skicka"
+              aria-label={t('voiceChat.sendAria')}
               className="bg-gradient-to-r from-teal-500 to-violet-600 hover:from-teal-600 hover:to-violet-700 shadow-md px-6"
             >
               <PaperAirplaneIcon className="w-5 h-5" />
@@ -962,14 +951,14 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
           {isRecording && (
             <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="font-medium">Spelar in – tryck på stopp-knappen för att avsluta och analysera</span>
+              <span className="font-medium">{t('voiceChat.recordingHint')}</span>
             </div>
           )}
 
           <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800/50 px-4 py-2 rounded-full">
             <span>🔒</span>
-            <span>Lugn &amp; Trygg ersätter inte professionell psykologhjälp</span>
-            <span className="text-teal-600 dark:text-teal-400 font-medium">Mind: 90101</span>
+            <span>{t('voiceChat.disclaimer')}</span>
+            <span className="text-teal-600 dark:text-teal-400 font-medium">{t('voiceChat.mindHelpline')}</span>
           </div>
         </CardContent>
       </Card>

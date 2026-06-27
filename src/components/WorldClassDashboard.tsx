@@ -95,38 +95,38 @@ const RecommendationsSkeleton = () => (
 // Helper function för implementation intentions (nästa steg per mål)
 const getNextStepForGoal = (goal: string, t: (key: string) => unknown): string => {
   const steps = t('dashboard.goalSteps') as Record<string, string[]> | undefined;
-  const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || ['Logga ditt humör idag'];
+  const goalSteps: string[] = (steps && steps[goal]) || (steps?.['default'] as string[]) || [t('dashboard.defaultGoalStep') as string];
   // Deterministic selection: hash goal name + current day to avoid flicker on re-render
   // while still rotating the suggestion daily
   const dayOfYear = Math.floor(Date.now() / 86400000);
   let hash = 0;
   for (let i = 0; i < goal.length; i++) hash = (hash * 31 + goal.charCodeAt(i)) | 0;
   const index = Math.abs(hash + dayOfYear) % goalSteps.length;
-  return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || 'Fortsätt arbeta med ditt mål');
+  return goalSteps[index] || ((steps?.['fallback'] as string[])?.[0] || (t('dashboard.continueGoal') as string));
 };
 
 // Helper function för att mappa steg till direkta feature-länkar
-const getFeatureLinkForStep = (stepText: string): { route: string; label: string } | null => {
+const getFeatureLinkForStep = (stepText: string, t: (key: string) => string): { route: string; label: string } | null => {
   const stepLower = stepText.toLowerCase();
 
   // Andningsövningar
   if (stepLower.includes('andnings') || stepLower.includes('andetag') || stepLower.includes('breathe')) {
-    return { route: '/recommendations', label: 'Öppna andningsövning' };
+    return { route: '/recommendations', label: t('dashboard.openBreathingExercise') };
   }
 
   // Journaling/Tacksamhet
   if (stepLower.includes('skriv') || stepLower.includes('tacksam') || stepLower.includes('journal')) {
-    return { route: '/journal', label: 'Öppna journal' };
+    return { route: '/journal', label: t('dashboard.openJournal') };
   }
 
   // Meditation
   if (stepLower.includes('meditation') || stepLower.includes('mindfulness')) {
-    return { route: '/recommendations', label: 'Öppna meditation' };
+    return { route: '/recommendations', label: t('dashboard.openMeditation') };
   }
 
   // Sömn (om sleep tracking finns)
   if (stepLower.includes('sömn') || stepLower.includes('lägg dig') || stepLower.includes('sleep')) {
-    return { route: '/recommendations', label: 'Se sömntips' };
+    return { route: '/recommendations', label: t('dashboard.seeSleepTips') };
   }
 
   return null;
@@ -192,7 +192,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       logger.error('Failed to toggle goal step:', error);
       setSnackbar({
         open: true,
-        message: 'Kunde inte uppdatera steg. Försök igen.',
+        message: t('dashboard.goalStepUpdateError'),
         variant: 'error',
       });
     }
@@ -713,10 +713,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
                   const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
                   const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
-                  const nextStep = goalStepsMap[goal] || 'Logga ditt humör idag';
+                  const nextStep = goalStepsMap[goal] || (t('dashboard.defaultGoalStep') as string);
                   const goalCompletions = safeDashboardStats.goalStepCompletions[goal] || {};
                   const isStepCompleted = goalCompletions[nextStep] !== undefined;
-                  const featureLink = getFeatureLinkForStep(nextStep);
+                  const featureLink = getFeatureLinkForStep(nextStep, t);
 
                   return (
                     <div
@@ -745,7 +745,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         checked={isStepCompleted}
                         onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
                         className="w-3 h-3 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
-                        aria-label={`Markera "${nextStep}" som klar`}
+                        aria-label={t('dashboard.markStepComplete', { step: nextStep })}
                       />
                       <label
                         htmlFor={`step-${goal}`}

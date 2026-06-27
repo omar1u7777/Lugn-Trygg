@@ -15,18 +15,18 @@ interface TagSelectorProps {
 }
 
 const PREDEFINED_TAGS = [
-  { id: 'work', label: 'Arbete', emoji: '💼', color: 'blue' },
-  { id: 'family', label: 'Familj', emoji: '👨‍👩‍👧', color: 'pink' },
-  { id: 'friends', label: 'Vänner', emoji: '👥', color: 'purple' },
-  { id: 'exercise', label: 'Träning', emoji: '🏃', color: 'green' },
-  { id: 'sleep', label: 'Sömn', emoji: '😴', color: 'indigo' },
-  { id: 'health', label: 'Hälsa', emoji: '🏥', color: 'red' },
-  { id: 'stress', label: 'Stress', emoji: '😰', color: 'orange' },
-  { id: 'relaxation', label: 'Avkoppling', emoji: '🧘', color: 'teal' },
-  { id: 'social', label: 'Socialt', emoji: '🎉', color: 'yellow' },
-  { id: 'alone', label: 'Ensam', emoji: '🚶', color: 'gray' },
-  { id: 'nature', label: 'Natur', emoji: '🌳', color: 'emerald' },
-  { id: 'creative', label: 'Kreativt', emoji: '🎨', color: 'violet' },
+  { id: 'work', labelKey: 'mood.tags.predefined.work', emoji: '💼', color: 'blue' },
+  { id: 'family', labelKey: 'mood.tags.predefined.family', emoji: '👨‍👩‍👧', color: 'pink' },
+  { id: 'friends', labelKey: 'mood.tags.predefined.friends', emoji: '👥', color: 'purple' },
+  { id: 'exercise', labelKey: 'mood.tags.predefined.exercise', emoji: '🏃', color: 'green' },
+  { id: 'sleep', labelKey: 'mood.tags.predefined.sleep', emoji: '😴', color: 'indigo' },
+  { id: 'health', labelKey: 'mood.tags.predefined.health', emoji: '🏥', color: 'red' },
+  { id: 'stress', labelKey: 'mood.tags.predefined.stress', emoji: '😰', color: 'orange' },
+  { id: 'relaxation', labelKey: 'mood.tags.predefined.relaxation', emoji: '🧘', color: 'teal' },
+  { id: 'social', labelKey: 'mood.tags.predefined.social', emoji: '🎉', color: 'yellow' },
+  { id: 'alone', labelKey: 'mood.tags.predefined.alone', emoji: '🚶', color: 'gray' },
+  { id: 'nature', labelKey: 'mood.tags.predefined.nature', emoji: '🌳', color: 'emerald' },
+  { id: 'creative', labelKey: 'mood.tags.predefined.creative', emoji: '🎨', color: 'violet' },
 ];
 
 const COLOR_CLASSES = {
@@ -116,7 +116,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 `}
               >
                 <span>{tag.emoji}</span>
-                <span>{tag.label}</span>
+                <span>{t(tag.labelKey)}</span>
                 {isSelected && (
                   <XMarkIcon className="w-4 h-4 ml-1" />
                 )}
@@ -174,7 +174,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${colorClass}`}
                 >
                   {predefinedTag && <span>{predefinedTag.emoji}</span>}
-                  <span>{predefinedTag?.label || tag}</span>
+                  <span>{predefinedTag ? t(predefinedTag.labelKey) : tag}</span>
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}

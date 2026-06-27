@@ -61,8 +61,9 @@ export const SkipLink: React.FC<SkipLinkProps> = ({
  *
  * @param containerRef - Ref to the container element
  */
-export function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>) {
+export function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>, isActive = true) {
   React.useEffect(() => {
+    if (!isActive) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -108,7 +109,7 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>) 
     return () => {
       container.removeEventListener('keydown', handleKeyDown);
     };
-  }, [containerRef]);
+  }, [containerRef, isActive]);
 }
 
 /**

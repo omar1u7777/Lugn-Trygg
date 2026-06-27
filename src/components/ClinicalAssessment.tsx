@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ExclamationTriangleIcon,
@@ -19,6 +20,7 @@ import {
   type AssessmentType,
 } from '../api/clinical';
 import { logger } from '../utils/logger';
+import { useMountedRef } from '../hooks/useMountedRef';
 
 // ---------------------------------------------------------------------------
 // Static data
@@ -26,45 +28,31 @@ import { logger } from '../utils/logger';
 
 interface Question {
   id: string;
-  text: string;
 }
 
 const PHQ9_QUESTIONS: Question[] = [
-  { id: 'little_interest',  text: 'Litet intresse eller glädje av att göra saker' },
-  { id: 'feeling_down',     text: 'Känt dig nedstämd, deprimerad eller hopplös' },
-  { id: 'sleep_problems',   text: 'Svårt att somna eller sova för mycket' },
-  { id: 'feeling_tired',    text: 'Känt dig trött eller haft för liten energi' },
-  { id: 'appetite',         text: 'Dålig aptit eller ätit för mycket' },
-  { id: 'feeling_bad',      text: 'Känt dig dålig om dig själv eller att du svikit' },
-  { id: 'concentration',    text: 'Svårt att koncentrera dig' },
-  { id: 'moving_slowly',    text: 'Rört dig eller talat långsamt, eller varit rastlös' },
-  { id: 'self_harm',        text: 'Tankar att du hellre ville vara död eller skada dig själv' },
+  { id: 'little_interest' },
+  { id: 'feeling_down' },
+  { id: 'sleep_problems' },
+  { id: 'feeling_tired' },
+  { id: 'appetite' },
+  { id: 'feeling_bad' },
+  { id: 'concentration' },
+  { id: 'moving_slowly' },
+  { id: 'self_harm' },
 ];
 
 const GAD7_QUESTIONS: Question[] = [
-  { id: 'feeling_nervous',     text: 'Känt dig nervös, ängslig eller på helspänn' },
-  { id: 'cant_control_worry',  text: 'Inte kunnat sluta oroa dig eller kontrollera oron' },
-  { id: 'worrying_too_much',   text: 'Oroat dig för mycket för olika saker' },
-  { id: 'trouble_relaxing',    text: 'Haft svårt att koppla av' },
-  { id: 'restless',            text: 'Varit så rastlös att du haft svårt att sitta stilla' },
-  { id: 'easily_annoyed',      text: 'Blivit lätt irriterad eller retlig' },
-  { id: 'afraid',              text: 'Känt dig rädd som om något hemskt skulle hända' },
+  { id: 'feeling_nervous' },
+  { id: 'cant_control_worry' },
+  { id: 'worrying_too_much' },
+  { id: 'trouble_relaxing' },
+  { id: 'restless' },
+  { id: 'easily_annoyed' },
+  { id: 'afraid' },
 ];
 
-const RESPONSE_OPTIONS = [
-  { value: 0, label: 'Inte alls',                   description: '0 poäng' },
-  { value: 1, label: 'Flera dagar',                 description: '1 poäng' },
-  { value: 2, label: 'Mer än hälften av dagarna',   description: '2 poäng' },
-  { value: 3, label: 'Nästan varje dag',             description: '3 poäng' },
-];
-
-const SEVERITY_LABELS: Record<string, string> = {
-  minimal:          'Minimal',
-  mild:             'Lindrig',
-  moderate:         'Medelsvår',
-  moderately_severe:'Medelsvår–svår',
-  severe:           'Svår',
-};
+const RESPONSE_VALUES = [0, 1, 2, 3];
 
 // PHQ-9 max = 27; GAD-7 max = 21
 const MAX_SCORE: Record<AssessmentType, number> = { phq9: 27, gad7: 21 };
@@ -84,8 +72,10 @@ function getSeverityColor(severity: string): string {
   return map[severity] ?? 'text-gray-600 bg-gray-50 dark:text-gray-300 dark:bg-gray-800';
 }
 
-function severityLabel(severity: string): string {
-  return SEVERITY_LABELS[severity] ?? severity.replace('_', ' ');
+function severityLabel(severity: string, t: (key: string) => string): string {
+  const key = `clinicalAssessment:severity.${severity}`;
+  const label = t(key);
+  return label !== key ? label : severity.replace('_', ' ');
 }
 
 /** Render a tiny SVG sparkline from an array of numeric values (0..max). */
@@ -107,6 +97,10 @@ function Sparkline({ values, max, className }: { values: number[]; max: number; 
 // ---------------------------------------------------------------------------
 
 export const ClinicalAssessment: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const isMountedRef = useMountedRef();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [activeTab, setActiveTab] = useState<AssessmentType | 'history'>('phq9');
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [result, setResult] = useState<PHQ9Result | GAD7Result | null>(null);
@@ -117,6 +111,12 @@ export const ClinicalAssessment: React.FC = () => {
   const [history, setHistory] = useState<AssessmentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // Derive locale and question-text prefix from i18n language
+  const locale = i18n.language === 'sv' ? 'sv-SE' : i18n.language === 'no' ? 'nb-NO' : 'en-US';
+  const questionPrefix = activeTab === 'phq9' ? 'clinicalAssessment:phq9Questions' : 'clinicalAssessment:gad7Questions';
+  const responseLabels = t('clinicalAssessment:responseOptions.labels', { returnObjects: true }) as string[];
+  const responseDescriptions = t('clinicalAssessment:responseOptions.descriptions', { returnObjects: true }) as string[];
 
   const questions = activeTab === 'phq9'
     ? PHQ9_QUESTIONS
@@ -129,21 +129,37 @@ export const ClinicalAssessment: React.FC = () => {
   const progress = questions.length > 0 ? answeredCount / questions.length : 0;
 
   // ---------------------------------------------------------------------------
+  // Cleanup on unmount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Load history
   // ---------------------------------------------------------------------------
   const loadHistory = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     setHistoryLoading(true);
     setHistoryError(null);
     try {
-      const data = await getAssessmentHistory({ limit: 30 });
+      const data = await getAssessmentHistory({ limit: 30, signal });
+      if (!isMountedRef.current) return;
       setHistory(data.history ?? []);
     } catch (err) {
+      if (!isMountedRef.current || signal.aborted) return;
       logger.error('Assessment history load failed', err as Error);
-      setHistoryError('Kunde inte hämta historik. Försök igen.');
+      setHistoryError(t('clinicalAssessment:historyError'));
     } finally {
-      setHistoryLoading(false);
+      if (isMountedRef.current) setHistoryLoading(false);
     }
-  }, []);
+  }, [t, isMountedRef]);
 
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
@@ -152,39 +168,45 @@ export const ClinicalAssessment: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Submit assessment
   // ---------------------------------------------------------------------------
-  const calculateScore = async () => {
+  const calculateScore = useCallback(async () => {
     const unanswered = questions.filter(q => responses[q.id] === undefined);
     if (unanswered.length > 0) {
-      setAssessmentError(`Svara på alla frågor. ${unanswered.length} frågor kvar.`);
+      setAssessmentError(t('clinicalAssessment:unansweredError', { count: unanswered.length }));
       return;
     }
+
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     setLoading(true);
     setAssessmentError(null);
     try {
       const res = activeTab === 'phq9'
-        ? await submitPHQ9(responses)
-        : await submitGAD7(responses);
+        ? await submitPHQ9(responses, signal)
+        : await submitGAD7(responses, signal);
+      if (!isMountedRef.current || signal.aborted) return;
       setResult(res);
       setExpanded(false);
     } catch (e: unknown) {
+      if (!isMountedRef.current || signal.aborted) return;
       logger.error('Assessment submission failed', e as Error);
-      setAssessmentError(e instanceof Error ? e.message : 'Ett fel uppstod vid beräkning.');
+      setAssessmentError(e instanceof Error ? e.message : t('clinicalAssessment:genericError'));
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-  };
+  }, [questions, responses, activeTab, t, isMountedRef]);
 
   // ---------------------------------------------------------------------------
   // Reset to a new assessment (same or different scale)
   // ---------------------------------------------------------------------------
-  const resetAssessment = (tab: AssessmentType) => {
+  const resetAssessment = useCallback((tab: AssessmentType) => {
     setActiveTab(tab);
     setResponses({});
     setResult(null);
     setAssessmentError(null);
     setExpanded(true);
-  };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Derived history stats for sparklines
@@ -200,10 +222,10 @@ export const ClinicalAssessment: React.FC = () => {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Klinisk självbedömning
+          {t('clinicalAssessment:title')}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Validerade skalor för depression (PHQ-9) och ångest (GAD-7)
+          {t('clinicalAssessment:subtitle')}
         </p>
       </div>
 
@@ -219,7 +241,7 @@ export const ClinicalAssessment: React.FC = () => {
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
-            {tab === 'phq9' ? 'PHQ-9 (Depression)' : 'GAD-7 (Ångest)'}
+            {tab === 'phq9' ? t('clinicalAssessment:tabs.phq9') : t('clinicalAssessment:tabs.gad7')}
           </button>
         ))}
         <button
@@ -230,7 +252,7 @@ export const ClinicalAssessment: React.FC = () => {
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
-          Historik
+          {t('clinicalAssessment:tabs.history')}
         </button>
       </div>
 
@@ -247,11 +269,11 @@ export const ClinicalAssessment: React.FC = () => {
                 if (!lastEntry) return null;
                 return (
                   <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHQ-9 trend (senaste {phq9History.length})</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment:phq9Trend', { count: phq9History.length })}</p>
                     <Sparkline values={phq9History.map(e => e.total_score)} max={MAX_SCORE.phq9} className="text-violet-500" />
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Senast: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} p</strong>
-                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown')}
+                      {t('clinicalAssessment:latest')}: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} {t('clinicalAssessment:points')}</strong>
+                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown', t)}
                     </p>
                   </div>
                 );
@@ -261,11 +283,11 @@ export const ClinicalAssessment: React.FC = () => {
                 if (!lastEntry) return null;
                 return (
                   <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">GAD-7 trend (senaste {gad7History.length})</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment:gad7Trend', { count: gad7History.length })}</p>
                     <Sparkline values={gad7History.map(e => e.total_score)} max={MAX_SCORE.gad7} className="text-teal-500" />
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Senast: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} p</strong>
-                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown')}
+                      {t('clinicalAssessment:latest')}: <strong className="text-gray-700 dark:text-gray-300">{lastEntry.total_score} {t('clinicalAssessment:points')}</strong>
+                      {' — '}{severityLabel(lastEntry.severity ?? 'unknown', t)}
                     </p>
                   </div>
                 );
@@ -281,7 +303,7 @@ export const ClinicalAssessment: React.FC = () => {
               className="flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:underline disabled:opacity-50"
             >
               <ArrowPathIcon className={`w-3 h-3 ${historyLoading ? 'animate-spin' : ''}`} />
-              Uppdatera
+              {t('clinicalAssessment:refresh')}
             </button>
           </div>
 
@@ -289,27 +311,27 @@ export const ClinicalAssessment: React.FC = () => {
             {historyLoading && (
               <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400 text-sm">
                 <ArrowPathIcon className="animate-spin w-4 h-4 mr-2" />
-                Hämtar historik…
+                {t('clinicalAssessment:historyLoading')}
               </div>
             )}
 
             {!historyLoading && historyError && (
               <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400 flex items-center justify-between">
                 <span>{historyError}</span>
-                <button onClick={loadHistory} className="ml-3 underline text-xs min-h-[44px] min-w-[44px] px-2 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors">Försök igen</button>
+                <button onClick={loadHistory} className="ml-3 underline text-xs min-h-[44px] min-w-[44px] px-2 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors">{t('clinicalAssessment:retry')}</button>
               </div>
             )}
 
             {!historyLoading && !historyError && history.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">
-                  Inga tidigare bedömningar hittades.
+                  {t('clinicalAssessment:emptyHistory')}
                 </p>
                 <button
                   onClick={() => resetAssessment('phq9')}
                   className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors"
                 >
-                  Gör din första PHQ-9
+                  {t('clinicalAssessment:firstPhq9')}
                 </button>
               </div>
             )}
@@ -323,20 +345,20 @@ export const ClinicalAssessment: React.FC = () => {
                   <span className="text-xl" aria-hidden="true">{entry.type === 'phq9' ? '🧠' : '😰'}</span>
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white text-sm">
-                      {entry.type === 'phq9' ? 'PHQ-9 Depression' : 'GAD-7 Ångest'}
+                      {entry.type === 'phq9' ? t('clinicalAssessment:historyType.phq9') : t('clinicalAssessment:historyType.gad7')}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(entry.timestamp).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {new Date(entry.timestamp).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}
                     </div>
                   </div>
                 </div>
                 <div className="text-right flex flex-col items-end gap-1">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getSeverityColor(entry.severity)}`}>
-                    {entry.total_score} p — {severityLabel(entry.severity)}
+                    {entry.total_score} {t('clinicalAssessment:points')} — {severityLabel(entry.severity, t)}
                   </span>
                   {entry.type === 'phq9' && (entry as AssessmentHistoryEntry).suicidal_ideation && (
                     <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      <ExclamationTriangleIcon className="w-3 h-3" /> Risk
+                      <ExclamationTriangleIcon className="w-3 h-3" /> {t('clinicalAssessment:risk')}
                     </span>
                   )}
                 </div>
@@ -348,10 +370,10 @@ export const ClinicalAssessment: React.FC = () => {
           {!historyLoading && history.length > 0 && (
             <div className="mt-6 flex gap-3 justify-center">
               <button onClick={() => resetAssessment('phq9')} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors">
-                Ny PHQ-9
+                {t('clinicalAssessment:newPhq9')}
               </button>
               <button onClick={() => resetAssessment('gad7')} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors">
-                Ny GAD-7
+                {t('clinicalAssessment:newGad7')}
               </button>
             </div>
           )}
@@ -366,7 +388,7 @@ export const ClinicalAssessment: React.FC = () => {
           {/* Progress bar */}
           <div className="mb-4">
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-              <span>Framsteg</span>
+              <span>{t('clinicalAssessment:progress')}</span>
               <span>{answeredCount} / {questions.length}</span>
             </div>
             <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -400,7 +422,7 @@ export const ClinicalAssessment: React.FC = () => {
                 className="space-y-4"
               >
                 <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                  Under de senaste 2 veckorna, hur ofta har du besvärats av följande?
+                  {t('clinicalAssessment:instruction')}
                 </p>
 
                 {questions.map((q, idx) => (
@@ -413,24 +435,24 @@ export const ClinicalAssessment: React.FC = () => {
                     }`}
                   >
                     <p className="font-medium text-gray-900 dark:text-white mb-3 text-sm">
-                      {idx + 1}. {q.text}
+                      {idx + 1}. {t(`${questionPrefix}.${q.id}`)}
                       {q.id === 'self_harm' && (
-                        <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-normal">(Fråga om tankar på självskada)</span>
+                        <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-normal">{t('clinicalAssessment:selfHarmNote')}</span>
                       )}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      {RESPONSE_OPTIONS.map(option => (
+                      {RESPONSE_VALUES.map(value => (
                         <button
-                          key={option.value}
-                          onClick={() => setResponses(prev => ({ ...prev, [q.id]: option.value }))}
+                          key={value}
+                          onClick={() => setResponses(prev => ({ ...prev, [q.id]: value }))}
                           className={`p-2 rounded-lg text-left text-sm transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                            responses[q.id] === option.value
+                            responses[q.id] === value
                               ? 'bg-teal-600 text-white ring-2 ring-teal-400'
                               : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
                           }`}
                         >
-                          <span className="font-medium">{option.label}</span>
-                          <span className="text-xs opacity-75 block">{option.description}</span>
+                          <span className="font-medium">{responseLabels[value]}</span>
+                          <span className="text-xs opacity-75 block">{responseDescriptions[value]}</span>
                         </button>
                       ))}
                     </div>
@@ -447,11 +469,11 @@ export const ClinicalAssessment: React.FC = () => {
                   {loading ? (
                     <>
                       <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                      Beräknar…
+                      {t('clinicalAssessment:calculating')}
                     </>
                   ) : (
                     <>
-                      Beräkna resultat
+                      {t('clinicalAssessment:calculate')}
                       <ArrowRightIcon className="w-5 h-5" />
                     </>
                   )}
@@ -473,16 +495,16 @@ export const ClinicalAssessment: React.FC = () => {
                 <div className={`p-6 ${getSeverityColor(result.severity)}`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-75">Total poäng</p>
+                      <p className="text-sm opacity-75">{t('clinicalAssessment:totalScore')}</p>
                       <p className="text-4xl font-bold">{result.total_score}</p>
                       <p className="text-xs opacity-60 mt-0.5">
-                        max {activeTab === 'phq9' ? 27 : 21} poäng
+                        {t('clinicalAssessment:maxScore', { max: activeTab === 'phq9' ? 27 : 21 })}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm opacity-75">Svårighetsgrad</p>
+                      <p className="text-sm opacity-75">{t('clinicalAssessment:severityLabel')}</p>
                       <p className="text-xl font-semibold">
-                        {severityLabel(result.severity)}
+                        {severityLabel(result.severity, t)}
                       </p>
                     </div>
                   </div>
@@ -493,11 +515,9 @@ export const ClinicalAssessment: React.FC = () => {
                       <div className="flex items-start gap-2">
                         <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="font-semibold text-red-800 dark:text-red-200">⚠️ Omedelbar risk upptäckt</p>
+                          <p className="font-semibold text-red-800 dark:text-red-200">{t('clinicalAssessment:immediateRiskTitle')}</p>
                           <p className="text-sm text-red-700 dark:text-red-300">
-                            Du angav tankar om att skada dig själv. Kontakta psykiatrisk akutmottagning eller ring{' '}
-                            <a href="tel:112" className="font-bold underline">112</a> eller krisstöd{' '}
-                            <a href="tel:90101" className="font-bold underline">90101</a> (dygnet runt).
+                            {t('clinicalAssessment:immediateRiskText')}
                           </p>
                         </div>
                       </div>
@@ -514,7 +534,7 @@ export const ClinicalAssessment: React.FC = () => {
                 <div className="px-5 pb-5">
                   <h4 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-sm">
                     <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    Rekommendationer
+                    {t('clinicalAssessment:recommendations')}
                   </h4>
                   <ul className="space-y-2">
                     {result.recommendations.map((rec, idx) => (
@@ -533,7 +553,7 @@ export const ClinicalAssessment: React.FC = () => {
                     className="flex-1 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700
                              transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    {expanded ? 'Dölj frågor' : 'Visa frågor igen'}
+                    {expanded ? t('clinicalAssessment:hideQuestions') : t('clinicalAssessment:showQuestions')}
                     {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                   </button>
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
@@ -543,7 +563,7 @@ export const ClinicalAssessment: React.FC = () => {
                              transition-colors flex items-center justify-center gap-2 text-sm font-medium"
                   >
                     <ArrowPathIcon className="w-4 h-4" />
-                    Gör ny bedömning
+                    {t('clinicalAssessment:newAssessment')}
                   </button>
                   <div className="w-px bg-gray-200 dark:bg-gray-700" />
                   <button
@@ -551,7 +571,7 @@ export const ClinicalAssessment: React.FC = () => {
                     className="flex-1 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700
                              transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    Se historik
+                    {t('clinicalAssessment:viewHistory')}
                   </button>
                 </div>
               </motion.div>

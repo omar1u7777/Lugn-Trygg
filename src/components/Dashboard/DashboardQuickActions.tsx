@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { QUICK_ACTIONS } from '../../config/appFeatures';
 import { getDashboardRegionProps } from '../../constants/accessibility';
@@ -34,7 +35,8 @@ const QuickActionButton: React.FC<{
   isLocked: boolean;
   isDisabled?: boolean;
   index: number;
-}> = ({ action, onClick, description, isLocked, isDisabled = false, index }) => {
+  t: (key: string) => string;
+}> = ({ action, onClick, description, isLocked, isDisabled = false, index, t }) => {
   const getActionColor = (id: string): 'primary' | 'secondary' | 'accent' | 'neutral' => {
     if (id === 'mood') return 'secondary';
     if (id === 'chat') return 'primary';
@@ -54,7 +56,7 @@ const QuickActionButton: React.FC<{
           : `hover:scale-[1.03] active:scale-95 hover:border-black/5 dark:hover:border-white/10 ${BG_COLORS[colorKey]} motion-safe:duration-300`
       }`}
       style={{ animationDelay: `${index * 100}ms` }}
-      aria-label={action.ariaLabel}
+      aria-label={action.ariaLabelKey ? t(action.ariaLabelKey) : undefined}
       aria-disabled={isDisabled}
     >
       {isLocked && (
@@ -68,7 +70,7 @@ const QuickActionButton: React.FC<{
       </div>
 
       <h3 className="font-semibold text-gray-900 dark:text-white mb-1 text-sm sm:text-base">
-        {action.title}
+        {t(action.titleKey)}
       </h3>
 
       <p className="text-xs text-center text-gray-500 dark:text-gray-400 leading-tight">
@@ -85,6 +87,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
   onActionClick,
   isLoading = false,
 }) => {
+  const { t } = useTranslation();
   const { isPremium, getRemainingMoodLogs, getRemainingMessages, hasFeature } = useSubscription();
   const regionProps = getDashboardRegionProps('quickActions');
 
@@ -113,30 +116,30 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
   return (
     <section className="mb-12" {...regionProps}>
       <h2 className="world-class-heading-2 mb-6 text-center">
-        Hur vill du ta hand om dig?
+        {t('dashboardQuickActions.title')}
       </h2>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {QUICK_ACTIONS.map((action, index) => {
-          let description = action.defaultDescription;
+          let description = t(action.defaultDescriptionKey);
           let isQuotaReached = false;
 
           if (action.id === 'mood') {
             const hasUnlimitedMood = isPremium || isUnlimitedMoodLogs;
-            description = hasUnlimitedMood ? 'Obegränsat idag' : `${remainingMoodLogs} kvar idag`;
+            description = hasUnlimitedMood ? t('dashboardQuickActions.unlimitedToday') : t('dashboardQuickActions.remainingToday', { count: remainingMoodLogs });
             isQuotaReached = !hasUnlimitedMood && remainingMoodLogs <= 0;
           } else if (action.id === 'chat') {
             const hasUnlimitedChat = isPremium || isUnlimitedMessages;
-            description = hasUnlimitedChat ? 'Alltid redo' : `${remainingMessages} meddelanden`;
+            description = hasUnlimitedChat ? t('dashboardQuickActions.alwaysReady') : t('dashboardQuickActions.remainingMessages', { count: remainingMessages });
             isQuotaReached = !hasUnlimitedChat && remainingMessages <= 0;
           }
 
           if (isQuotaReached) {
-            description = 'Kvot nådd idag';
+            description = t('dashboardQuickActions.quotaReached');
           }
 
           // Validate action data before rendering
-          if (!action.id || !action.title) {
+          if (!action.id || !action.titleKey) {
             console.error('Invalid action data:', action);
             return null;
           }
@@ -150,6 +153,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
               description={description}
               isLocked={action.feature ? !hasFeature(action.feature) : false}
               isDisabled={isQuotaReached}
+              t={t}
             />
           );
         }).filter(Boolean)}

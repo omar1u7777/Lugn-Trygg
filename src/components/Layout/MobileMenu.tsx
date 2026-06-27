@@ -14,7 +14,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, children }) =>
   const menuPanelRef = useRef<HTMLDivElement>(null);
 
   // Aktivera fokus-trap när menyn öppnas
-  useFocusTrap(menuPanelRef);
+  useFocusTrap(menuPanelRef, isOpen);
 
   // Förhindra scrollning när menyn är öppen
   useEffect(() => {
