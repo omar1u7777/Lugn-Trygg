@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 _VALID_NOTIFICATION_TYPES = {'daily', 'reminder', 'exercise', 'mood', 'streak', 'weekly', 'custom'}
 
 
-
-
 @notifications_bp.route('/fcm-token', methods=['POST'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
