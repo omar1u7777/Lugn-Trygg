@@ -3,6 +3,33 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DashboardActivity, ActivityItem } from '../DashboardActivity';
 
+vi.mock('react-i18next', () => {
+  const translations: Record<string, string> = {
+    'dashboardActivity.today': 'Idag',
+    'dashboardActivity.yesterday': 'Igår',
+    'dashboardActivity.earlierThisYear': 'Tidigare i år',
+    'dashboardActivity.older': 'Äldre',
+    'dashboardActivity.emptyState': 'Ingen aktivitet än. Börja logga ditt humör!',
+    'dashboardActivity.recentActivity': 'Senaste aktivitet',
+    'dashboardActivity.loadMore': 'Visa {{count}} äldre aktiviteter',
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, fallbackOrOpts?: string | object) => {
+        if (typeof fallbackOrOpts === 'string') return fallbackOrOpts;
+        let result = translations[key] || key;
+        if (typeof fallbackOrOpts === 'object' && fallbackOrOpts !== null) {
+          for (const [k, v] of Object.entries(fallbackOrOpts)) {
+            result = result.replace(`{{${k}}}`, String(v));
+          }
+        }
+        return result;
+      },
+      i18n: { changeLanguage: vi.fn() },
+    }),
+  };
+});
+
 vi.mock('../../../constants/accessibility', () => ({
   getDashboardRegionProps: (_key: string) => ({
     'aria-label': `${_key} region`,
@@ -131,7 +158,7 @@ describe('DashboardActivity', () => {
       makeActivity(`bulk-${i}`, 'chat')
     );
     render(<DashboardActivity activities={activities} />);
-    expect(screen.getByRole('button', { name: /visa äldre aktiviteter/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /visa.*äldre aktiviteter/i })).toBeInTheDocument();
   });
 
   it('loads more activities on button click', () => {
@@ -139,9 +166,9 @@ describe('DashboardActivity', () => {
       makeActivity(`batch-${i}`, 'chat')
     );
     render(<DashboardActivity activities={activities} />);
-    const btn = screen.getByRole('button', { name: /visa äldre aktiviteter/i });
+    const btn = screen.getByRole('button', { name: /visa.*äldre aktiviteter/i });
     fireEvent.click(btn);
     // After clicking, all 13 should be visible (batch size=12, total=13)
-    expect(screen.queryByRole('button', { name: /visa äldre aktiviteter/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /visa.*äldre aktiviteter/i })).toBeNull();
   });
 });

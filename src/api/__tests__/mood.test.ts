@@ -61,7 +61,8 @@ describe('logMood', () => {
     const response = await logMood('user1', { score: 8, note: 'Good day' });
     expect(mockApi.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ user_id: 'user1', score: 8, note: 'Good day' })
+      expect.objectContaining({ user_id: 'user1', score: 8, note: 'Good day' }),
+      undefined
     );
     expect(response).toEqual(result);
   });
@@ -84,7 +85,8 @@ describe('logMood', () => {
     // Should have called post with FormData (browser sets Content-Type automatically)
     expect(mockApi.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(FormData)
+      expect.any(FormData),
+      undefined
     );
     expect(response).toEqual(result);
   });
@@ -210,7 +212,7 @@ describe('exportMoodData', () => {
 
     const result = await exportMoodData('user1', 'csv');
     expect(typeof result).toBe('string');
-    expect(result).toContain('Datum');
+    expect(result).toContain('Date');
   });
 
   it('returns JSON string when format is json', async () => {
@@ -242,7 +244,7 @@ describe('exportMoodData', () => {
     mockApi.get.mockRejectedValueOnce(new Error('Network fail'));
     // getMoods catches errors and returns [], so exportMoodData returns just the header row
     const result = await exportMoodData('user1', 'csv');
-    expect(result).toBe('Datum,Humör,Poäng,Anteckning,Taggar,Valens,Arousal');
+    expect(result).toBe('Date,Mood,Score,Note,Tags,Valence,Arousal');
   });
 });
 
@@ -332,7 +334,8 @@ describe('logMood additional branches', () => {
     const result = await logMood('u1', moodData, blob);
     expect(mockApi.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(FormData)
+      expect.any(FormData),
+      undefined
     );
     expect(result).toEqual({ id: 'x' });
   });

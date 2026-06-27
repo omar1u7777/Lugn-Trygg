@@ -4,12 +4,36 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
-    i18n: { changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', () => {
+  const translations: Record<string, string> = {
+    'mood.tags.predefined.work': 'Arbete',
+    'mood.tags.predefined.family': 'Familj',
+    'mood.tags.predefined.friends': 'Vänner',
+    'mood.tags.predefined.exercise': 'Träning',
+    'mood.tags.predefined.sleep': 'Sömn',
+    'mood.tags.predefined.health': 'Hälsa',
+    'mood.tags.predefined.stress': 'Stress',
+    'mood.tags.predefined.relaxation': 'Avslappning',
+    'mood.tags.predefined.social': 'Socialt',
+    'mood.tags.predefined.alone': 'Ensam',
+    'mood.tags.predefined.nature': 'Natur',
+    'mood.tags.predefined.creative': 'Kreativt',
+    'mood.tags.label': 'Taggar (valfritt)',
+    'mood.tags.description': 'Välj taggar för att analysera vad som påverkar ditt humör',
+    'mood.tags.customPlaceholder': 'Egen tagg...',
+    'mood.tags.add': 'Lägg till',
+    'mood.tags.selected': 'Valda taggar',
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, fallback?: string) => {
+        if (typeof fallback === 'string') return fallback;
+        return translations[key] || key;
+      },
+      i18n: { changeLanguage: vi.fn() },
+    }),
+  };
+});
 
 import { TagSelector } from '../TagSelector';
 

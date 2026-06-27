@@ -5,6 +5,46 @@ import { DashboardQuickActions } from '../DashboardQuickActions';
 
 const mockUseSubscription = vi.fn();
 
+vi.mock('react-i18next', () => {
+  const translations: Record<string, string> = {
+    'dashboardQuickActions.title': 'Hur vill du ta hand om dig?',
+    'dashboardQuickActions.remainingToday': '{{count}} kvar idag',
+    'dashboardQuickActions.remainingMessages': '{{count}} meddelanden',
+    'dashboardQuickActions.unlimitedToday': 'Obegränsat idag',
+    'dashboardQuickActions.alwaysReady': 'Alltid redo',
+    'dashboardQuickActions.quotaReached': 'Kvot nådd idag',
+    'quickAction.mood.title': 'Känn efter',
+    'quickAction.chat.title': 'Få stöd',
+    'quickAction.sounds.title': 'Ljud',
+    'quickAction.journal.title': 'Journal',
+    'quickAction.recommendations.title': 'Rekommendationer',
+    'quickAction.social.title': 'Socialt',
+    'quickAction.mood.ariaLabel': 'Checka in med ditt mående',
+    'quickAction.chat.ariaLabel': 'Starta samtal med AI-stöd',
+    'quickAction.mood.description': 'Logga hur du mår',
+    'quickAction.chat.description': 'Prata med AI',
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, fallbackOrOpts?: string | object) => {
+        if (typeof fallbackOrOpts === 'string') return fallbackOrOpts;
+        let result = translations[key] || key;
+        if (typeof fallbackOrOpts === 'object' && fallbackOrOpts !== null) {
+          for (const [k, v] of Object.entries(fallbackOrOpts)) {
+            result = result.replace(`{{${k}}}`, String(v));
+          }
+        }
+        return result;
+      },
+      i18n: { changeLanguage: vi.fn() },
+    }),
+  };
+});
+
+vi.mock('../../../constants/accessibility', () => ({
+  getDashboardRegionProps: vi.fn(() => ({ 'aria-label': 'Quick Actions', role: 'region' })),
+}));
+
 vi.mock('@/contexts/SubscriptionContext', () => ({
   useSubscription: () => mockUseSubscription(),
 }));
