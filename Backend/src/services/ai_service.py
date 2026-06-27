@@ -655,9 +655,9 @@ Var noga med att returnera endast giltig JSON."""
 
             Håll råden empatiska, praktiska och på svenska. Var kortfattad men hjälpsam."""
 
-            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
+            # CRITICAL FIX: Use _get_model_name() for Azure/OpenAI compatibility
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=[
                     {"role": "system", "content": "Du är en erfaren psykolog som ger empatiska råd på svenska för mental hälsa."},
                     {"role": "user", "content": prompt}
@@ -679,7 +679,7 @@ Var noga med att returnera endast giltig JSON."""
                 "recommendations": recommendations,
                 "confidence": 0.85,
                 "personalized": True,
-                "model_used": "gpt-4o-mini"
+                "model_used": self._get_model_name()
             }
 
         except RateLimitError as e:
@@ -812,9 +812,9 @@ Långsiktiga välbefinnande-strategier:
 
             prompt = prompts.get(locale, prompts['sv'])
 
-            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
+            # CRITICAL FIX: Use _get_model_name() for Azure/OpenAI compatibility
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=[
                     {"role": "system", "content": "Du är en erfaren psykolog som analyserar mental hälsa-data empatiskt och ger stödjande insikter." if locale == 'sv' else "You are an experienced psychologist who analyzes mental health data empathetically and provides supportive insights." if locale == 'en' else "Du er en erfaren psykolog som analyserer mentalhelsedata empatisk og gir støttende innsikter."},
                     {"role": "user", "content": prompt}
@@ -836,7 +836,7 @@ Långsiktiga välbefinnande-strategier:
                 "insights": insights,
                 "confidence": 0.8,
                 "comprehensive": True,
-                "model_used": "gpt-4o-mini"
+                "model_used": self._get_model_name()
             }
 
         except RateLimitError as e:
@@ -1691,7 +1691,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                 "cognitive_distortions_detected": [d.value for d in analysis['detected_distortions']],
                 "rag_augmented": user_id is not None,
                 "ai_generated": True,
-                "model_used": "gpt-4o-mini"
+                "model_used": self._get_model_name()
             }
 
         except RateLimitError as e:
@@ -2203,9 +2203,9 @@ Historien skal være på norsk, empatisk og støttende."""
 
             prompt = prompts.get(locale, prompts['sv'])
 
-            # CRITICAL FIX: Add explicit timeout to prevent 4.1s hangs
+            # CRITICAL FIX: Use _get_model_name() for Azure/OpenAI compatibility
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self._get_model_name(),
                 messages=[
                     {"role": "system", "content": "Du är en erfaren terapeut som använder berättelser för läkande och personlig utveckling." if locale == 'sv' else "You are an experienced therapist who uses stories for healing and personal development." if locale == 'en' else "Du er en erfaren terapeut som bruker fortellinger for helbredelse og personlig utvikling."},
                     {"role": "user", "content": prompt}
@@ -2221,12 +2221,12 @@ Historien skal være på norsk, empatisk og støttende."""
                 return self._fallback_therapeutic_story(user_mood_data, locale)
             story = content.strip()
 
-            logger.info("✅ Personalized therapeutic story generated using gpt-4o-mini")
+            logger.info("✅ Personalized therapeutic story generated using %s", self._get_model_name())
 
             return {
                 "story": story,
                 "ai_generated": True,
-                "model_used": "gpt-4o-mini",
+                "model_used": self._get_model_name(),
                 "locale": locale,
                 "mood_summary": mood_summary,
                 "word_count": len(story.split()),

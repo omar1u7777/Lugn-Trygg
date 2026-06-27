@@ -24,6 +24,7 @@ from src.services.cbt_engine import (
 )
 from src.services.rate_limiting import rate_limit_by_endpoint
 from src.services.subscription_service import SubscriptionService
+from src.utils.input_sanitization import sanitize_text
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ cbt_bp = Blueprint("cbt", __name__)
 
 _cbt_access_cache: dict[str, tuple[bool, str, float]] = {}
 _CBT_ACCESS_CACHE_TTL: float = 300.0  # 5 minutes
+_CBT_ACCESS_CACHE_MAX_SIZE: int = 10000  # Prevent unbounded memory growth
 
 
 def _check_cbt_access(user_id: str) -> tuple[bool, str]:
@@ -42,6 +44,15 @@ def _check_cbt_access(user_id: str) -> tuple[bool, str]:
     cached = _cbt_access_cache.get(user_id)
     if cached is not None and now - cached[2] < _CBT_ACCESS_CACHE_TTL:
         return cached[0], cached[1]
+
+    # Evict expired entries if cache is growing large
+    if len(_cbt_access_cache) > _CBT_ACCESS_CACHE_MAX_SIZE:
+        expired_keys = [
+            k for k, v in _cbt_access_cache.items()
+            if now - v[2] >= _CBT_ACCESS_CACHE_TTL
+        ]
+        for k in expired_keys:
+            del _cbt_access_cache[k]
 
     try:
         user_doc = db.collection("users").document(user_id).get()
@@ -411,7 +422,7 @@ def update_progress():
                 status_code=400,
             )
 
-        exercise_id = data.get("exerciseId")
+        exercise_id = sanitize_text(data.get("exerciseId"), max_length=100)
         if not exercise_id:
             return APIResponse.error(
                 message="exerciseId is required",
@@ -434,7 +445,7 @@ def update_progress():
             "successRate": min(1.0, max(0.0, float(data.get("successRate", 0.5)))),
             "timeSpent": int(data.get("timeSpent", 0)),
             "difficultyRating": min(5, max(1, int(data.get("difficultyRating", 3)))),
-            "notes": data.get("notes", ""),
+            "notes": sanitize_text(data.get("notes", ""), max_length=2000),
         }
         user_progress.exercise_history.append(exercise_entry)
         if len(user_progress.exercise_history) > 100:
