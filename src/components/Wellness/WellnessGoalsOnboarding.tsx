@@ -43,7 +43,7 @@ const WellnessGoalsOnboarding: React.FC<WellnessGoalsOnboardingProps> = ({
     });
 
     // Update hint outside the updater to avoid nested state updates
-    setMaxReachedHint(prev => {
+    setMaxReachedHint(_prev => {
       const currentlySelected = selectedGoals.includes(goalId);
       if (currentlySelected) return false;
       return selectedGoals.length >= MAX_WELLNESS_GOALS;

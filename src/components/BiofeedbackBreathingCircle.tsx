@@ -143,7 +143,7 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
   };
 
   return (
-    <div className={`flex flex-col items-center justify-center ${className}`}>
+    <div className={`flex flex-col items-center justify-center ${className}`} data-testid="biofeedback-circle">
       {/* Medical Disclaimer */}
       <div className="mb-6 w-full max-w-md bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
         <div className="text-sm text-amber-800">

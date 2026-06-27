@@ -95,36 +95,21 @@ describe('DashboardHeader', () => {
   });
 
   it('adds takeItEasy suffix for stressed mood', () => {
-    dashboardDataMock.useDashboardData.mockReturnValue({
-      stats: { averageMood: 'stress' },
-      isLoading: false,
-      refresh: vi.fn(),
-    });
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader userId="u1" />);
+    render(<DashboardHeader userId="u1" lastMood="stress" />);
     // The greeting will include takeItEasy suffix
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('greeting.takeItEasy');
   });
 
   it('adds restIsProductive suffix for tired mood', () => {
-    dashboardDataMock.useDashboardData.mockReturnValue({
-      stats: { averageMood: 'trött' },
-      isLoading: false,
-      refresh: vi.fn(),
-    });
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader userId="u1" />);
+    render(<DashboardHeader userId="u1" lastMood="trött" />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('greeting.restIsProductive');
   });
 
   it('adds greatToSeeYou suffix for happy mood', () => {
-    dashboardDataMock.useDashboardData.mockReturnValue({
-      stats: { averageMood: 'glad' },
-      isLoading: false,
-      refresh: vi.fn(),
-    });
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader userId="u1" />);
+    render(<DashboardHeader userId="u1" lastMood="glad" />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('greeting.greatToSeeYou');
   });
 
@@ -141,13 +126,13 @@ describe('DashboardHeader', () => {
   it('shows morningMood prompt with mood in the morning', () => {
     vi.setSystemTime(new Date('2026-04-06T08:00:00'));
     render(<DashboardHeader hasLoggedToday={false} lastMood="lugnare" />);
-    expect(screen.getByText('dashboardHeader.morningMood')).toBeInTheDocument();
+    expect(screen.getByText('dashboardHeader.moodContext')).toBeInTheDocument();
   });
 
   it('shows welcomeBackMood prompt with mood during daytime', () => {
     vi.setSystemTime(new Date('2026-04-06T14:00:00'));
     render(<DashboardHeader hasLoggedToday={false} lastMood="glad" />);
-    expect(screen.getByText('dashboardHeader.welcomeBackMood')).toBeInTheDocument();
+    expect(screen.getByText('dashboardHeader.moodContext')).toBeInTheDocument();
   });
 
   it('shows mindfulPrompt when no mood and not logged', () => {
@@ -260,8 +245,9 @@ describe('DashboardHeader', () => {
     render(<DashboardHeader />);
     const startBtn = getStartBreathingBtn();
     expect(startBtn).not.toBeDisabled();
+    const card = screen.getByRole('region', { name: /dashboardHeader\.breathingExercise/i });
     await act(async () => {
-      fireEvent.keyDown(window, { code: 'Space' });
+      fireEvent.keyDown(card, { code: 'Space' });
       await Promise.resolve();
     });
     expect(startBtn).toBeDisabled();
@@ -277,9 +263,10 @@ describe('DashboardHeader', () => {
       await Promise.resolve();
     });
     expect(startBtn).toBeDisabled();
+    const card = screen.getByRole('region', { name: /dashboardHeader\.breathingExercise/i });
     // Press Space again — should not throw, session remains
     await act(async () => {
-      fireEvent.keyDown(window, { code: 'Space' });
+      fireEvent.keyDown(card, { code: 'Space' });
       await Promise.resolve();
     });
     expect(startBtn).toBeDisabled();
@@ -289,8 +276,9 @@ describe('DashboardHeader', () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
     render(<DashboardHeader />);
     const startBtn = getStartBreathingBtn();
+    const card = screen.getByRole('region', { name: /dashboardHeader\.breathingExercise/i });
     await act(async () => {
-      fireEvent.keyDown(window, { code: 'Enter' });
+      fireEvent.keyDown(card, { code: 'Enter' });
       await Promise.resolve();
     });
     expect(startBtn).not.toBeDisabled();

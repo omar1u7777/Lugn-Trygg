@@ -113,7 +113,7 @@ const BreathingOrb = () => (
  * - Simplified, editorial typography
  */
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-  userName = 'vän',
+  userName,
   isLoading = false,
   lastUpdatedAt,
   onFocusAction,
@@ -122,11 +122,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   lastMood,
   averageMood: _averageMood,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const recentMood = lastMood;
 
   const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood));
   const [focusContent, setFocusContent] = useState(() => getDailyFocusContent(t));
+
+  const displayName = userName || t('dashboardHeader.defaultUserName');
 
   const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
     if (hasLogged) return t('dashboardHeader.checkedIn');
@@ -319,13 +321,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <div className="flex-1 min-w-0 animate-fade-in-up">
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-[10px] font-semibold tracking-wide uppercase">
-                {new Date().toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {new Date().toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-medium text-neutral-900 dark:text-neutral-50 tracking-tight leading-tight mb-1">
               {greeting} <span className="text-primary-600 dark:text-primary-400 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-500">
-                {userName}
+                {displayName}
               </span>
             </h1>
 

@@ -128,7 +128,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
             {t('mood.circumplex.quadrant', 'Känslotillstånd')}
           </p>
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            {getCircumplexQuadrant(valence, arousal)}
+            {getCircumplexQuadrant(valence, arousal, t)}
           </p>
         </div>
       </div>
@@ -136,19 +136,19 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
   );
 };
 
-function getCircumplexQuadrant(valence: number, arousal: number): string {
+function getCircumplexQuadrant(valence: number, arousal: number, t: (key: string) => string): string {
   // High arousal (>5), High valence (>5) = Excited/Happy
   if (arousal > 5 && valence > 5) {
-    return '😊 Glad & Energisk';
+    return `😊 ${t('mood.circumplex.quadrantHappy')}`;
   }
   // High arousal (>5), Low valence (≤5) = Tense/Anxious
   if (arousal > 5 && valence <= 5) {
-    return '😰 Spänd & Orolig';
+    return `😰 ${t('mood.circumplex.quadrantTense')}`;
   }
   // Low arousal (≤5), High valence (>5) = Calm/Relaxed
   if (arousal <= 5 && valence > 5) {
-    return '😌 Lugn & Avslappnad';
+    return `😌 ${t('mood.circumplex.quadrantCalm')}`;
   }
   // Low arousal (≤5), Low valence (≤5) = Sad/Depressed
-  return '😔 Ledsen & Trött';
+  return `😔 ${t('mood.circumplex.quadrantSad')}`;
 }

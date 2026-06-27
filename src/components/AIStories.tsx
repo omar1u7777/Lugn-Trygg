@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
-import api from '../api/api';
-import { API_ENDPOINTS } from '../api/constants';
+import { AIStory, getStories, generateStory } from '../api/ai';
 import {
   BookOpenIcon,
   PlayIcon,
@@ -19,19 +18,36 @@ import { Button, Alert, Card } from './ui/tailwind';
 import { logger } from '../utils/logger';
 
 
-interface AIStory {
-  id: string;
-  title: string;
-  content: string;
-  mood: string;
-  category: string;
-  duration: number;
-  isFavorite: boolean;
-  createdAt: string;
-}
+
+
+const ALLOWED_LOCALES = ['sv', 'en', 'no'] as const;
+const DEFAULT_LOCALE = 'sv';
+
+const getMoodColor = (mood: string) => {
+  const colorMap = {
+    happy: 'bg-green-500',
+    calm: 'bg-blue-500',
+    anxious: 'bg-orange-500',
+    sad: 'bg-purple-500',
+    stressed: 'bg-red-500',
+    neutral: 'bg-gray-500'
+  };
+  return colorMap[mood as keyof typeof colorMap] || colorMap.neutral;
+};
+
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} min`;
+};
+
+const formatTime = (seconds: number): string => {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
 
 const AIStories: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   // isDarkMode hanteras av Tailwind dark: classes
   const [stories, setStories] = useState<AIStory[]>([]);
@@ -43,37 +59,66 @@ const AIStories: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [generating, setGenerating] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const generatingRef = useRef(false);
+  const currentTimeRef = useRef(0);
+  const selectedStoryRef = useRef<AIStory | null>(null);
+
+  const favoritesKey = useMemo(() => {
+    return user?.user_id ? `lugn_trygg_favorite_stories_${user.user_id}` : null;
+  }, [user?.user_id]);
+
+  const locale = useMemo(() => {
+    const lang = i18n.language?.split('-')[0] || DEFAULT_LOCALE;
+    return ALLOWED_LOCALES.includes(lang as typeof ALLOWED_LOCALES[number]) ? lang : DEFAULT_LOCALE;
+  }, [i18n.language]);
+
+  const loadFavorites = useCallback((loadedStories: AIStory[]) => {
+    if (!favoritesKey) return loadedStories;
+    try {
+      const saved = localStorage.getItem(favoritesKey);
+      if (!saved) return loadedStories;
+      const favoriteIds: string[] = JSON.parse(saved);
+      return loadedStories.map(story => ({
+        ...story,
+        isFavorite: favoriteIds.includes(story.id),
+      }));
+    } catch {
+      // localStorage may be unavailable or corrupt
+      return loadedStories;
+    }
+  }, [favoritesKey]);
+
+  const saveFavorites = useCallback((updatedStories: AIStory[]) => {
+    if (!favoritesKey) return;
+    try {
+      const favoriteIds = updatedStories.filter(s => s.isFavorite).map(s => s.id);
+      localStorage.setItem(favoritesKey, JSON.stringify(favoriteIds));
+    } catch {
+      // localStorage may be unavailable
+    }
+  }, [favoritesKey]);
 
   const loadStories = useCallback(async () => {
     if (!user?.user_id) return;
-    
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(API_ENDPOINTS.AI.GET_STORIES);
-      const loadedStories: AIStory[] = response.data?.stories || [];
-      // Restore favorites from localStorage
-      try {
-        const saved = localStorage.getItem('lugn_trygg_favorite_stories');
-        if (saved) {
-          const favoriteIds: string[] = JSON.parse(saved);
-          loadedStories.forEach(s => { s.isFavorite = favoriteIds.includes(s.id); });
-        }
-      } catch { /* ignore */ }
-      setStories(loadedStories);
+      const loadedStories = await getStories();
+      setStories(loadFavorites(loadedStories));
     } catch (err) {
       setError(t('ai.stories.loadError'));
       logger.error('Failed to load AI stories:', err);
     } finally {
       setLoading(false);
     }
-  }, [user?.user_id, t]);
+  }, [user?.user_id, t, loadFavorites]);
 
   useEffect(() => {
     if (user?.user_id) {
       loadStories();
     } else {
       setStories([]);
+      setLoading(false);
     }
   }, [user?.user_id, loadStories]);
 
@@ -82,101 +127,131 @@ const AIStories: React.FC = () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      generatingRef.current = false;
     };
   }, []);
 
-  const generateNewStory = async () => {
+  const generateNewStory = useCallback(async () => {
     if (!user?.user_id) {
       setError('Du måste vara inloggad för att generera berättelser');
       return;
     }
-    
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    setGenerating(true);
+    setError(null);
+
     try {
-      setGenerating(true);
-      const response = await api.post(API_ENDPOINTS.AI.GENERATE_STORY, {
-        locale: 'sv'
-      });
-      setStories(prev => [response.data, ...prev]);
+      const newStory = await generateStory(locale);
+      setStories(prev => [newStory, ...prev]);
     } catch (err) {
       setError(t('ai.stories.generateError'));
       logger.error('Failed to generate story:', err);
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
-  };
+  }, [user?.user_id, t, locale]);
 
-  const toggleFavorite = async (storyId: string) => {
+  const toggleFavorite = useCallback((storyId: string) => {
     setStories(prev => {
       const updated = prev.map(story =>
         story.id === storyId
           ? { ...story, isFavorite: !story.isFavorite }
           : story
       );
-      // Persist favorites to localStorage
-      try {
-        const favoriteIds = updated.filter(s => s.isFavorite).map(s => s.id);
-        localStorage.setItem('lugn_trygg_favorite_stories', JSON.stringify(favoriteIds));
-      } catch { /* localStorage may be unavailable */ }
+      saveFavorites(updated);
       return updated;
     });
-  };
+  }, [saveFavorites]);
 
-  const stopPlayback = () => {
+  const stopPlayback = useCallback(() => {
     setIsPlaying(false);
     setCurrentTime(0);
+    currentTimeRef.current = 0;
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  };
+  }, []);
 
-  const playStory = (story: AIStory) => {
-    if (!story) return;
+  const pauseStory = useCallback(() => {
+    setIsPlaying(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const playStory = useCallback((story: AIStory) => {
+    if (!story?.duration) return;
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    const isResuming = selectedStoryRef.current?.id === story.id && currentTimeRef.current > 0 && currentTimeRef.current < story.duration;
 
     setSelectedStory(story);
+    selectedStoryRef.current = story;
     setIsPlaying(true);
-    setCurrentTime(0);
-    // In a real implementation, this would integrate with text-to-speech
-    // For now, we'll simulate playback with a timer
+    if (!isResuming) {
+      setCurrentTime(0);
+      currentTimeRef.current = 0;
+    }
+
+    // In a real implementation, this would integrate with text-to-speech.
+    // For now, we simulate playback with a timer.
     timerRef.current = setInterval(() => {
       setCurrentTime(prev => {
-        if (prev >= (story.duration || 0)) {
-          stopPlayback();
+        const next = prev + 1;
+        if (next >= story.duration) {
+          clearInterval(timerRef.current!);
+          timerRef.current = null;
+          setIsPlaying(false);
+          currentTimeRef.current = 0;
           return 0;
         }
-        return prev + 1;
+        currentTimeRef.current = next;
+        return next;
       });
     }, 1000);
-  };
+  }, []);
 
-  const pauseStory = () => {
-    setIsPlaying(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => !prev);
+  }, []);
 
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
+  const closePlayer = useCallback(() => {
+    stopPlayback();
+    setSelectedStory(null);
+    selectedStoryRef.current = null;
+  }, [stopPlayback]);
 
-  const getMoodColor = (mood: string) => {
-    const colorMap = {
-      happy: 'bg-green-500',
-      calm: 'bg-blue-500',
-      anxious: 'bg-orange-500',
-      sad: 'bg-purple-500',
-      stressed: 'bg-red-500',
-      neutral: 'bg-gray-500'
+  // ESC key handler for player dialog
+  useEffect(() => {
+    if (!selectedStory) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closePlayer();
+      }
     };
-    return colorMap[mood as keyof typeof colorMap] || colorMap.neutral;
-  };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedStory, closePlayer]);
+
+  // Body scroll lock when dialog is open
+  useEffect(() => {
+    if (selectedStory) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedStory]);
 
   if (loading) {
     return (
@@ -224,15 +299,33 @@ const AIStories: React.FC = () => {
 
         {error && (
           <Alert variant="error" className="mb-6">
-            {error}
+            <div className="flex justify-between items-center gap-4">
+              <span>{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="p-1 rounded hover:bg-white/20 dark:hover:bg-black/20 transition-colors"
+                aria-label={t('common.close', 'Stäng')}
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
           </Alert>
+        )}
+
+        {stories.length === 0 && !generating && (
+          <div className="text-center py-12">
+            <BookOpenIcon className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">
+              {t('ai.stories.empty', 'Inga berättelser ännu. Generera din första AI-berättelse!')}
+            </p>
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {stories.map((story, index) => (
               <motion.div
-                key={story.id || `story-${index}`}
+                key={story.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
@@ -253,6 +346,7 @@ const AIStories: React.FC = () => {
                           toggleFavorite(story.id);
                         }}
                         className="flex-shrink-0 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                        aria-label={story.isFavorite ? t('ai.stories.removeFavorite', 'Ta bort favorit') : t('ai.stories.addFavorite', 'Lägg till favorit')}
                       >
                         {story.isFavorite ? (
                           <HeartIconSolid className="w-6 h-6 text-red-500" />
@@ -267,7 +361,7 @@ const AIStories: React.FC = () => {
                         {story.category}
                       </span>
                       <span className="px-2 py-1 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-full text-gray-700 dark:text-gray-300">
-                        {story.duration || 0} min
+                        {formatDuration(story.duration)}
                       </span>
                     </div>
 
@@ -296,13 +390,18 @@ const AIStories: React.FC = () => {
         </div>
 
         {/* Story Player Dialog */}
-        {selectedStory && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <AnimatePresence>
+          {selectedStory && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={closePlayer}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
@@ -316,11 +415,9 @@ const AIStories: React.FC = () => {
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    stopPlayback();
-                    setSelectedStory(null);
-                  }}
+                  onClick={closePlayer}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  aria-label={t('common.close', 'Stäng')}
                 >
                   <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
                 </button>
@@ -339,6 +436,7 @@ const AIStories: React.FC = () => {
                   <button
                     onClick={isPlaying ? pauseStory : () => playStory(selectedStory)}
                     className="p-3 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                    aria-label={isPlaying ? t('ai.stories.pause', 'Pausa') : t('ai.stories.play', 'Spela upp')}
                   >
                     {isPlaying ? (
                       <PauseIcon className="w-6 h-6" />
@@ -350,6 +448,7 @@ const AIStories: React.FC = () => {
                   <button
                     onClick={toggleMute}
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label={isMuted ? t('ai.stories.unmute', 'Sätt på ljud') : t('ai.stories.mute', 'Ljud av')}
                   >
                     {isMuted ? (
                       <SpeakerXMarkIcon className="w-6 h-6 text-gray-600 dark:text-gray-400" />
@@ -364,7 +463,7 @@ const AIStories: React.FC = () => {
                         className="h-full bg-primary-600 rounded-full transition-all duration-300"
                         style={{
                           width: `${Math.min(
-                            (currentTime / Math.max(selectedStory.duration || 1, 1)) * 100,
+                            (currentTime / Math.max(selectedStory.duration, 1)) * 100,
                             100
                           )}%`,
                         }}
@@ -373,12 +472,7 @@ const AIStories: React.FC = () => {
                   </div>
 
                   <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
-                    {Math.floor(currentTime / 60)}:
-                    {(currentTime % 60).toString().padStart(2, '0')} /{' '}
-                    {Math.floor(Math.max(selectedStory.duration || 0, 0) / 60)}:
-                    {Math.floor(Math.max((selectedStory.duration || 0) % 60, 0))
-                      .toString()
-                      .padStart(2, '0')}
+                    {formatTime(currentTime)} / {formatTime(selectedStory.duration)}
                   </span>
                 </div>
               </div>
@@ -388,17 +482,15 @@ const AIStories: React.FC = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => {
-                    stopPlayback();
-                    setSelectedStory(null);
-                  }}
+                  onClick={closePlayer}
                 >
                   {t('common.close')}
                 </Button>
               </div>
             </motion.div>
           </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

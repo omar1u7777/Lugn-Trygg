@@ -49,6 +49,7 @@ interface DashboardStatsProps {
  * - Focus on self-awareness rather than performance
  */
 const deriveMoodTrend = (
+  t: (key: string) => string,
   moodSamples: number[] | undefined,
   averageMood: number
 ): { direction: 'up' | 'down' | 'stable'; value: string } => {
@@ -59,7 +60,7 @@ const deriveMoodTrend = (
   if (validSamples.length < 2) {
     return { 
       direction: 'stable', 
-      value: averageMood <= 4 ? 'Måendet behöver uppmärksamhet' : 'Stabilt överlag' 
+      value: averageMood <= 4 ? t('dashboardStats.moodNeedsAttention') : t('dashboardStats.stableOverall') 
     };
   }
   
@@ -71,28 +72,25 @@ const deriveMoodTrend = (
   const lastSample = validSamples[validSamples.length - 1];
   
   if (firstSample === undefined || lastSample === undefined) {
-    return { direction: 'stable', value: 'Ingen data' };
+    return { direction: 'stable', value: t('dashboardStats.noData') };
   }
   
   const changeOverPeriod = lastSample - firstSample;
   const latestScore = lastSample;
 
-  // Psychologically-informed trend labeling
-  // "Nedåtgående" reframed to "Utforskande" - neutral, curious framing
   if (changeOverPeriod <= -2 && latestScore <= 7) {
-    return { direction: 'down', value: 'Utforskande fas' };
+    return { direction: 'down', value: t('dashboardStats.exploringPhase') };
   }
 
-  // "Fluktuerande" reframed to "Varierande" - more natural, less clinical
   if (standardDeviation >= 1.8) {
-    return { direction: 'stable', value: 'Naturligt varierande' };
+    return { direction: 'stable', value: t('dashboardStats.naturallyVarying') };
   }
 
   if (changeOverPeriod >= 2) {
-    return { direction: 'up', value: 'Positiv utveckling' };
+    return { direction: 'up', value: t('dashboardStats.positiveDevelopment') };
   }
 
-  return { direction: 'stable', value: 'Balanserat' };
+  return { direction: 'stable', value: t('dashboardStats.balanced') };
 };
 
 /**
@@ -189,16 +187,16 @@ const BentoItem: React.FC<{
   valueClassName?: string;
   label?: string | undefined;
   ariaLabel?: string;
-}> = ({ title, value, icon, className = '', trend, color, large, children, subtitle, valueClassName, label, ariaLabel }) => {
+  t: (key: string) => string;
+}> = ({ title, value, icon, className = '', trend, color, large, children, subtitle, valueClassName, label, ariaLabel, t }) => {
   
   const bgColors = BG_COLORS;
   const iconColors = ICON_COLORS;
 
-  // Psychologically-informed trend icons and labels
   const trendConfig = {
-    up: { icon: '✦', label: 'Positiv utveckling', color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
-    down: { icon: '~', label: 'Naturlig variation', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
-    stable: { icon: '○', label: 'Stabilt', color: 'bg-white/90 text-neutral-700 dark:bg-slate-700/80 dark:text-neutral-200 shadow-sm' }
+    up: { icon: '✦', label: t('dashboardStats.positiveDevelopment'), color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+    down: { icon: '~', label: t('dashboardStats.naturallyVarying'), color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
+    stable: { icon: '○', label: t('dashboardStats.stable'), color: 'bg-white/90 text-neutral-700 dark:bg-slate-700/80 dark:text-neutral-200 shadow-sm' }
   };
 
   const currentTrend = trend ? trendConfig[trend.direction] : null;
@@ -221,7 +219,7 @@ const BentoItem: React.FC<{
           <span 
             className={`text-xs font-medium px-2 sm:px-2.5 py-1 rounded-full backdrop-blur-sm 
               transition-colors duration-200 ${currentTrend.color}`}
-            title={`Visar din måendets riktning över tid: ${currentTrend.label}`}
+            title={t('dashboardStats.trendTooltip', { label: currentTrend.label })}
           >
             {currentTrend.icon} {currentTrend.label}
           </span>
@@ -259,20 +257,27 @@ const BentoItem: React.FC<{
  * Consistency Progress Component
  * Ny design utan loss aversion - fokuserar på tillväxt istället för "streak"
  */
-const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({ 
+const ConsistencyProgress: React.FC<{ current: number; total: number; t: (key: string, opts?: Record<string, unknown>) => string }> = ({ 
   current, 
-  total 
+  total,
+  t,
 }) => {
   const percentage = useMemo(() => {
     if (total === 0) return 0;
     return Math.min((current / total) * 100, 100);
   }, [current, total]);
 
+  const encouragementKey = current === 0 ? 'dashboardStats.encouragement0'
+    : current === 1 ? 'dashboardStats.encouragement1'
+    : current === 2 ? 'dashboardStats.encouragement2'
+    : current >= 3 && current < 5 ? 'dashboardStats.encouragement3'
+    : 'dashboardStats.encouragement5';
+
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between text-xs mb-1.5">
-        <span className="text-gray-500">Din aktivitet</span>
-        <span className="font-medium text-gray-700">{current} av {total} {total === 1 ? 'dag' : 'dagar'}</span>
+        <span className="text-gray-500">{t('dashboardStats.yourActivity')}</span>
+        <span className="font-medium text-gray-700">{t('dashboardStats.activityOfTotal', { current, total })}</span>
       </div>
       
       <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -283,11 +288,7 @@ const ConsistencyProgress: React.FC<{ current: number; total: number }> = ({
       </div>
       
       <p className="mt-1.5 text-xs text-gray-500">
-        {current === 1 && '🌱 Bra start! Fortsätt så.'}
-        {current === 2 && '🌱 Fin rytm byggs upp!'}
-        {current >= 3 && current < 5 && '✨ Stark konsekvens!'}
-        {current >= 5 && '🔥 Imponerande dedikation!'}
-        {current === 0 && '🌱 Varje dag är en ny möjlighet'}
+        {t(encouragementKey)}
       </p>
     </div>
   );
@@ -363,8 +364,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
 
   // Memoize trend calculation to prevent unnecessary recalculations
   const moodTrend = useMemo(
-    () => stats.moodTrend || deriveMoodTrend(stats.moodSamples, stats.averageMood),
-    [stats.moodTrend, stats.moodSamples, stats.averageMood]
+    () => stats.moodTrend || deriveMoodTrend(t, stats.moodSamples, stats.averageMood),
+    [stats.moodTrend, stats.moodSamples, stats.averageMood, t]
   );
 
   // Memoize mood samples count for subtitle
@@ -388,12 +389,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   // 🎯 Dynamisk mood display - mindre klinisk för låga värden
   const moodDisplay = useMemo(() => {
     const score = stats.averageMood;
-    const isSwedish = t('dashboardStats.days') === 'dagar';
     
     if (score <= 4 && score > 0) {
-      // För lågt mående: hela tal, varm text, mindre font, kvalitativ etikett
       return {
-        value: `${Math.round(score)} ${isSwedish ? 'av' : 'of'} 10`, // "3 av 10" inte "3,0/10"
+        value: t('dashboardStats.moodScoreOf10', { score: Math.round(score) }),
         className: 'font-serif font-bold text-xl sm:text-2xl text-rose-600 dark:text-rose-400',
         label: t('dashboardStats.hardDay'),
         ariaLabel: t('dashboardStats.moodAriaLabel', { score: Math.round(score) }),
@@ -401,7 +400,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     }
     
     return {
-      value: `${formatNumber(score, { minimumFractionDigits: 1 })} ${isSwedish ? 'av' : 'of'} 10`,
+      value: t('dashboardStats.moodScoreOf10', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
       className: `font-serif font-bold text-2xl sm:text-3xl ${score >= 7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-secondary-600 dark:text-secondary-400'}`,
       label: undefined,
       ariaLabel: t('dashboardStats.yourMood', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
@@ -411,8 +410,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   // 🎯 Dynamisk streak display med singular/plural
   const streakText = useMemo(() => {
     const days = stats.streakDays;
-    return `${days} ${days === 1 ? 'dag' : 'dagar'}`;
-  }, [stats.streakDays]);
+    return t('dashboardStats.streakDays', { count: days });
+  }, [stats.streakDays, t]);
   const weeklyContext = useMemo(() => {
     const weekly = stats.weeklyChats || 0;
     if (weekly === 0) return t('dashboardStats.noChatsThisWeek');
@@ -453,6 +452,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           className="md:col-span-2 md:row-span-1"
           trend={showSafetyBlock ? undefined : moodTrend}
           subtitle={t('dashboardStats.basedOnLogs', { count: moodSampleCount })}
+          t={t}
         >
           {/* Mini sparkline - dold på mobil för att spara plats */}
           {stats.moodSamples && stats.moodSamples.length > 1 && (
@@ -492,10 +492,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           icon="🌱"
           color="accent"
           trend={{ direction: 'up', value: t('dashboardStats.streakActive') }}
+          t={t}
         >
           <ConsistencyProgress 
             current={stats.streakDays} 
-            total={stats.longestStreak || Math.max(stats.streakDays * 2, 7)} 
+            total={stats.longestStreak || Math.max(stats.streakDays * 2, 7)}
+            t={t}
           />
         </BentoItem>
 
@@ -507,6 +509,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           color="primary"
           trend={{ direction: 'stable', value: t('dashboardStats.total') }}
           subtitle={weeklyContext}
+          t={t}
         />
 
         {/* Achievements Card with Progress */}
@@ -517,6 +520,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           color="neutral"
           className="md:col-span-4 lg:col-span-4"
           trend={nextAchievementIn > 0 ? { direction: 'up', value: t('dashboardStats.progressOngoing') } : { direction: 'up', value: t('dashboardStats.allUnlocked') }}
+          t={t}
         >
           <AchievementProgress 
             count={stats.achievementsCount} 

@@ -50,6 +50,10 @@ interface RecentMood {
   arousal?: number;
 }
 
+/** Timestamp shapes returned by the API (Firestore, ISO string, epoch, Date) */
+type FirestoreTimestamp = { toDate: () => Date };
+type RawTimestamp = FirestoreTimestamp | string | number | Date;
+
 /** Raw mood entry from API — fields may vary since backend is flexible */
 interface RawMoodEntry {
   id?: string;
@@ -61,7 +65,7 @@ interface RawMoodEntry {
   tags?: string[];
   valence?: number;
   arousal?: number;
-  timestamp?: { toDate: () => Date } | string | number | Date;
+  timestamp?: RawTimestamp;
 }
 
 interface RecentMoodGroup {
@@ -71,35 +75,6 @@ interface RecentMoodGroup {
 }
 
 const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
-
-/**
- * Convert voice emotion to mood score (1-10)
- * Maps emotion to circumplex model valence/arousal
- */
-const voiceEmotionToMoodScore = (emotion: string, valence?: number, arousal?: number): { score: number; valence: number; arousal: number } => {
-  const emotionMap: { [key: string]: { score: number; valence: number; arousal: number } } = {
-    happy: { score: 9, valence: 0.8, arousal: 0.6 },
-    sad: { score: 3, valence: -0.7, arousal: -0.3 },
-    anxious: { score: 4, valence: -0.5, arousal: 0.7 },
-    angry: { score: 2, valence: -0.6, arousal: 0.8 },
-    calm: { score: 7, valence: 0.5, arousal: -0.4 },
-    neutral: { score: 5, valence: 0, arousal: 0 },
-    tired: { score: 3, valence: -0.3, arousal: -0.6 },
-  };
-
-  const mapped = emotionMap[emotion] || emotionMap.neutral;
-
-  if (!mapped) {
-    return { score: 5, valence: 0, arousal: 0 };
-  }
-
-  // Use provided valence/arousal if available, otherwise use mapped values
-  return {
-    score: mapped.score,
-    valence: valence !== undefined ? valence : mapped.valence,
-    arousal: arousal !== undefined ? arousal : mapped.arousal,
-  };
-};
 
 const getMoodVisual = (score: number) => {
   if (score >= 10) {
@@ -156,19 +131,43 @@ const getMoodVisual = (score: number) => {
   };
 };
 
-const getReflectionPrompt = (score: number): string => {
-  if (score <= 3) return 'Vad skulle kännas mest hjälpsamt för dig de kommande 60 minuterna?';
-  if (score <= 5) return 'Vad har påverkat ditt mående mest hittills idag?';
-  if (score <= 8) return 'Vad bidrog till att du känner dig okej eller bra just nu?';
-  return 'Vad vill du ta med dig från den här positiva känslan resten av dagen?';
+const getReflectionPrompt = (score: number, t: (key: string) => string): string => {
+  if (score <= 3) return t('moodLogger.reflectionPrompts.low');
+  if (score <= 5) return t('moodLogger.reflectionPrompts.mid');
+  if (score <= 8) return t('moodLogger.reflectionPrompts.good');
+  return t('moodLogger.reflectionPrompts.high');
 };
+
+/** Convert any raw timestamp shape into a Date (or null if invalid/missing). */
+function parseTimestamp(raw: RawTimestamp | undefined): Date | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && 'toDate' in raw && typeof raw.toDate === 'function') {
+    return raw.toDate();
+  }
+  if (raw instanceof Date) return raw;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const parsed = new Date(raw);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
+const MOODS = [
+  { emoji: '😢', labelKey: 'sad', value: 2 },
+  { emoji: '😟', labelKey: 'anxious', value: 3 },
+  { emoji: '😐', labelKey: 'neutral', value: 5 },
+  { emoji: '🙂', labelKey: 'good', value: 7 },
+  { emoji: '😊', labelKey: 'happy', value: 8 },
+  { emoji: '🤩', labelKey: 'super', value: 10 },
+];
 
 export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   onMoodLogged,
   showRecentMoods = false,
   enableVoiceRecording = false,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'no' ? 'nb-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { canLogMood, incrementMoodLog, plan } = useSubscription();
@@ -199,23 +198,21 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const lastMoodSubmissionRef = useRef<{ moodScore: number; timestampMs: number } | null>(null);
   const submitLockRef = useRef(false);
   const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const moods = [
-    { emoji: '😢', label: 'Ledsen', value: 2, description: 'Känner mig ledsen eller nedstämd' },
-    { emoji: '😟', label: 'Orolig', value: 3, description: 'Känner oro eller ångest' },
-    { emoji: '😐', label: 'Neutral', value: 5, description: 'Känner mig varken bra eller dåligt' },
-    { emoji: '🙂', label: 'Bra', value: 7, description: 'Känner mig ganska bra' },
-    { emoji: '😊', label: 'Glad', value: 8, description: 'Känner mig glad och positiv' },
-    { emoji: '🤩', label: 'Super', value: 10, description: 'Känner mig fantastisk!' },
-  ];
+  const moods = MOODS;
 
   // Cleanup on unmount to prevent memory leaks
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
       }
@@ -225,23 +222,21 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const loadRecentMoods = useCallback(async () => {
     if (!user?.user_id) return;
 
+    // Abort any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const moodsResponse = await getMoods(user.user_id);
+      const moodsResponse = await getMoods(user.user_id, abortControllerRef.current.signal);
       
       // Only update state if component is still mounted
       if (!isMountedRef.current) return;
       
       const normalized: RecentMood[] = (moodsResponse || [])
-        .map((mood: RawMoodEntry, index: number) => {
-          let timestamp: Date | null = null;
-          if (mood.timestamp?.toDate) {
-            timestamp = mood.timestamp.toDate();
-          } else if (mood.timestamp instanceof Date) {
-            timestamp = mood.timestamp;
-          } else if (typeof mood.timestamp === 'string' || typeof mood.timestamp === 'number') {
-            const parsed = new Date(mood.timestamp);
-            timestamp = isNaN(parsed.getTime()) ? null : parsed;
-          }
+        .map((mood: RawMoodEntry, index: number): RecentMood | null => {
+          const timestamp = parseTimestamp(mood.timestamp);
 
           // Skip entries with invalid timestamps
           if (!timestamp) {
@@ -253,16 +248,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
           // Old entries may have incorrect mood_text (e.g., "neutral" for all scores).
           const moodText = getMoodLabel(score);
 
-          return {
+          const entry: RecentMood = {
             id: mood.id || mood.docId || `${timestamp.getTime()}-${score}-${index}`,
             mood: moodText,
             score,
             timestamp,
-            note: mood.note,
-            tags: mood.tags,
-            valence: mood.valence,
-            arousal: mood.arousal,
           };
+          if (mood.note !== undefined) entry.note = mood.note;
+          if (mood.tags !== undefined) entry.tags = mood.tags;
+          if (mood.valence !== undefined) entry.valence = mood.valence;
+          if (mood.arousal !== undefined) entry.arousal = mood.arousal;
+          return entry;
         })
         .filter((mood): mood is RecentMood => mood !== null)
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -270,7 +266,14 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
       setRecentMoods(normalized);
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (!isMountedRef.current) return;
       logger.error('Failed to load recent moods:', err);
+    } finally {
+      if (abortControllerRef.current?.signal.aborted) {
+        abortControllerRef.current = null;
+      }
     }
   }, [user?.user_id]);
 
@@ -280,7 +283,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     }
   }, [user?.user_id, showRecentMoods, loadRecentMoods]);
 
-  const handleMoodSelect = (mood: typeof moods[0]) => {
+  const handleMoodSelect = useCallback((mood: typeof moods[0]) => {
     setSelectedMood(mood.value);
     
     // Auto-adjust Circumplex values
@@ -298,8 +301,8 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       setArousal(mood.value === 10 ? 9 : 7);
     }
     
-    announceToScreenReader(t('moodLogger.moodSelected', { mood: mood.label }) || 'Valde humör: ' + mood.label, 'polite');
-  };
+    announceToScreenReader(t('moodLogger.moodSelected', { mood: t(`moodLogger.moodLabels.${mood.labelKey}`) }) || t(`moodLogger.moodLabels.${mood.labelKey}`), 'polite');
+  }, [t, announceToScreenReader]);
 
   const isDuplicateMoodWithinCooldown = (moodScore: number): boolean => {
     const last = lastMoodSubmissionRef.current;
@@ -311,7 +314,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     return last.moodScore === moodScore && elapsed < DUPLICATE_MOOD_COOLDOWN_MS;
   };
 
-  const handleLogMood = async () => {
+  const handleLogMood = useCallback(async () => {
     if (selectedMood === null || !user?.user_id) return;
     if (isLogging || submitLockRef.current) return;
 
@@ -331,36 +334,43 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     setIsLogging(true);
     setLimitError(null);
 
+    // Abort any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       const moodObj = moods.find(m => m.value === selectedMood);
-      const moodText = moodObj?.label || 'Neutral';
+      const moodText = moodObj ? t(`moodLogger.moodLabels.${moodObj.labelKey}`) : 'Neutral';
       const trimmedNote = note.trim();
+      const defaultNote = `${t('moodLogger.defaultNotePrefix')} ${moodText.toLowerCase()}`;
 
       if (audioBlob) {
         const formData = new FormData();
         formData.append('score', String(selectedMood));
         formData.append('mood_text', moodText);
-        formData.append('note', trimmedNote || `Känner mig ${moodText.toLowerCase()}`);
+        formData.append('note', trimmedNote || defaultNote);
         if (showAdvanced && valence) formData.append('valence', String(valence));
         if (showAdvanced && arousal) formData.append('arousal', String(arousal));
         if (selectedTags.length > 0) formData.append('tags', JSON.stringify(selectedTags));
         if (context.trim()) formData.append('context', context.trim());
         formData.append('audio', audioBlob, 'recording.webm');
 
-        await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, { signal: abortControllerRef.current!.signal });
       } else {
         await logMood(user.user_id, {
           score: selectedMood,
           mood_text: moodText,
-          note: trimmedNote || `Känner mig ${moodText.toLowerCase()}`,
+          note: trimmedNote || defaultNote,
           valence: showAdvanced ? valence : undefined,
           arousal: showAdvanced ? arousal : undefined,
           tags: selectedTags.length > 0 ? selectedTags : undefined,
           context: context.trim() || undefined,
-        });
+        }, undefined, abortControllerRef.current!.signal);
       }
+
+      if (!isMountedRef.current) return;
 
       incrementMoodLog();
       lastMoodSubmissionRef.current = { moodScore: selectedMood, timestampMs: Date.now() };
@@ -368,7 +378,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       analytics.track('Mood Logged', {
         mood_value: selectedMood,
         mood_text: moodText,
-        has_note: note.length > 0,
+        has_note: trimmedNote.length > 0,
         has_tags: selectedTags.length > 0,
         has_circumplex: showAdvanced,
         has_voice: !!audioBlob,
@@ -383,6 +393,8 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         await loadRecentMoods();
       }
 
+      if (!isMountedRef.current) return;
+
       // Reset form
       setSelectedMood(null);
       setNote('');
@@ -394,6 +406,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       setAudioBlob(null);
 
     } catch (error: unknown) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (!isMountedRef.current) return;
       logger.error('Failed to log mood:', error);
       const axiosError = error as AxiosError<{ error?: string }>;
       const quotaExceeded = axiosError.response?.status === 429;
@@ -409,12 +424,15 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         setLimitError(friendlyMessage);
       }
     } finally {
-      setIsLogging(false);
+      if (isMountedRef.current) {
+        setIsLogging(false);
+      }
       submitLockRef.current = false;
+      abortControllerRef.current = null;
     }
-  };
+  }, [selectedMood, user, isLogging, canLogMood, t, announceToScreenReader, moods, note, showAdvanced, valence, arousal, selectedTags, context, audioBlob, plan.tier, onMoodLogged, showRecentMoods, loadRecentMoods]);
 
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -430,26 +448,32 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
+        if (isMountedRef.current) {
+          setAudioBlob(blob);
+        }
       };
 
       mediaRecorder.start();
-      setIsRecording(true);
+      if (isMountedRef.current) {
+        setIsRecording(true);
+      }
     } catch (err) {
       logger.error('Failed to start recording', err as Error);
     }
-  };
+  }, []);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      if (isMountedRef.current) {
+        setIsRecording(false);
+      }
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-  };
+  }, []);
 
   // Cleanup recording on unmount
   useEffect(() => {
@@ -463,9 +487,9 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
 
   const groupedMoods = useMemo(() => {
     return recentMoods.reduce<RecentMoodGroup[]>((groups, mood) => {
-      const dayKey = mood.timestamp.toLocaleDateString('sv-SE');
-      const today = new Date().toLocaleDateString('sv-SE');
-      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv-SE');
+      const dayKey = mood.timestamp.toLocaleDateString(locale);
+      const today = new Date().toLocaleDateString(locale);
+      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString(locale);
 
       let label = dayKey;
       if (dayKey === today) label = t('moodLogger.today', 'Idag');
@@ -479,10 +503,10 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       group.entries.push(mood);
       return groups;
     }, []);
-  }, [recentMoods, t]);
+  }, [recentMoods, t, locale]);
 
   const canSubmit = selectedMood !== null;
-  const reflectionPrompt = selectedMood !== null ? getReflectionPrompt(selectedMood) : '';
+  const reflectionPrompt = selectedMood !== null ? getReflectionPrompt(selectedMood, t) : '';
 
   return (
     <div className="space-y-6">
@@ -513,7 +537,6 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {moods.map(mood => {
-                const _visual = getMoodVisual(mood.value);
                 const isSelected = selectedMood === mood.value;
                 
                 return (
@@ -534,7 +557,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                   >
                     <div className="text-4xl mb-2">{mood.emoji}</div>
                     <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      {mood.label}
+                      {t(`moodLogger.moodLabels.${mood.labelKey}`)}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {mood.value}/10
@@ -674,11 +697,11 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       </Card>
 
       {/* Recent Moods - Hidden on dashboard to prevent layout shift */}
-      {showRecentMoods && recentMoods.length > 0 && false && (
+      {showRecentMoods && recentMoods.length > 0 && (
         <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <ClockIcon className="w-4 h-4" />
-            Dina senaste humörloggningar
+            {t('moodLogger.recentMoods', 'Dina senaste humör')}
           </h3>
           <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
             <div className="space-y-4">
@@ -710,7 +733,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                   {mood.score}/10
                                 </span>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                  {mood.timestamp.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                                  {mood.timestamp.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
                               {mood.note && (

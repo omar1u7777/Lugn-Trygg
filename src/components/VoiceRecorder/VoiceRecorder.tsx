@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transcribeVoiceAudio, analyzeVoiceEmotionDetailed, blobToBase64, getVoiceServiceStatus, saveVoiceRecording, VoiceServiceStatus } from '@/api/voice';
+import { useTranslation } from 'react-i18next';
+import {
+  transcribeVoiceAudio,
+  analyzeVoiceEmotionDetailed,
+  blobToBase64,
+  getVoiceServiceStatus,
+  saveVoiceRecording,
+  VoiceServiceStatus,
+  SaveVoiceRecordingRequest,
+} from '@/api/voice';
 import { logger } from '../../utils/logger';
 
 
@@ -18,6 +27,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   autoAnalyzeEmotion = true,
   autoSaveRecording = true,
 }) => {
+  const { t, i18n } = useTranslation();
+  const voiceLanguage = i18n.language === 'no' ? 'no-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -103,7 +114,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           if (totalSize > maxFileSize) {
             logger.warn(`Recording exceeded max file size (${maxFileSize} bytes), stopping`);
             mediaRecorder.stop();
-            setError('Inspelningen blev för stor. Försök att spela in en kortare inspelning.');
+            setError(t('voiceRecorder.recordingTooLarge'));
           }
         }
       };
@@ -115,7 +126,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         setIsProcessing(true);
         try {
           const base64Audio = await blobToBase64(blob);
-          const transcriptionResult = await transcribeVoiceAudio(base64Audio, 'sv-SE');
+          const transcriptionResult = await transcribeVoiceAudio(base64Audio, voiceLanguage);
 
           if (transcriptionResult.transcript) {
             setTranscript(transcriptionResult.transcript);
@@ -140,7 +151,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             // Auto-save recording to Firestore
             if (autoSaveRecording && transcriptionResult.transcript) {
               try {
-                const saveData: any = {
+                const saveData: SaveVoiceRecordingRequest = {
                   transcript: transcriptionResult.transcript,
                   primary_emotion: emotionResult?.primaryEmotion || 'neutral',
                   emotion_confidences: emotionResult?.emotions || {},
@@ -148,7 +159,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                   speaking_pace: emotionResult?.speakingPace || 'normal',
                   volume_variation: emotionResult?.volumeVariation || 'moderate',
                   audio_duration_ms: recordingTime,
-                  language: 'sv-SE',
+                  language: voiceLanguage,
                 };
 
                 // Only include valence/arousal if they exist
@@ -167,11 +178,11 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               }
             }
           } else if (transcriptionResult.fallback === 'web_speech_api') {
-            setError('Transkribering misslyckades. Prova att tala tydligare.');
+            setError(t('voiceRecorder.transcribeFailed'));
           }
         } catch (err: unknown) {
           logger.error('Voice recording error:', err);
-          setError(err instanceof Error ? err.message : 'Ett fel uppstod vid bearbetning av röstinspelningen.');
+          setError(err instanceof Error ? err.message : t('voiceRecorder.processingError'));
         } finally {
           setIsProcessing(false);
         }
@@ -192,14 +203,14 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       logger.error('Failed to start recording:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setError('Mikrofonåtkomst nekad. Vänligen tillåta mikrofonåtkomst i webbläsaren och försök igen.');
+          setError(t('voiceRecorder.micPermissionDenied'));
         } else if (err.name === 'NotFoundError') {
-          setError('Ingen mikrofon hittades. Kontrollera att en mikrofon är ansluten.');
+          setError(t('voiceRecorder.noMicrophone'));
         } else {
-          setError(`Kunde inte starta inspelning: ${err.message}`);
+          setError(`${t('voiceRecorder.startErrorPrefix')} ${err.message}`);
         }
       } else {
-        setError('Kunde inte starta inspelning. Kontrollera mikrofonbehörigheter.');
+        setError(t('voiceRecorder.startError'));
       }
       setIsRecording(false);
     }
@@ -236,10 +247,10 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 max-w-2xl mx-auto">
       <div className="text-center mb-6">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          🎤 Röstinspelning
+          {t('voiceRecorder.title')}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Spela in din röst för transkribering och känsloanalys
+          {t('voiceRecorder.subtitle')}
         </p>
       </div>
 
@@ -247,7 +258,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {serviceStatus && !serviceStatus.googleSpeech && (
         <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            ⚠️ Google Speech API är inte tillgänglig. Använder webbläsarens talröst-API.
+            {t('voiceRecorder.googleSpeechUnavailable')}
           </p>
         </div>
       )}
@@ -267,7 +278,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
             <span className="ml-3 text-gray-700 dark:text-gray-300">
-              Bearbetar inspelning...
+              {t('voiceRecorder.processing')}
             </span>
           </div>
         )}
@@ -281,7 +292,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             >
               <span className="flex items-center space-x-2">
                 <span>🎙️</span>
-                <span>Starta Inspelning</span>
+                <span>{t('voiceRecorder.startRecording')}</span>
               </span>
             </button>
           )}
@@ -293,7 +304,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             >
               <span className="flex items-center space-x-2">
                 <span>⏹️</span>
-                <span>Stoppa Inspelning</span>
+                <span>{t('voiceRecorder.stopRecording')}</span>
               </span>
             </button>
           )}
@@ -314,7 +325,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         <div className="space-y-4">
           <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Transkribering:
+              {t('voiceRecorder.transcriptLabel')}
             </h4>
             <p className="text-gray-900 dark:text-white">
               "{transcript}"
@@ -324,7 +335,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           {emotion && (
             <div className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Känsla:
+                {t('voiceRecorder.emotionLabel')}
               </h4>
               <p className="text-2xl">
                 {getEmotionEmoji(emotion)} {emotion.charAt(0).toUpperCase() + emotion.slice(1)}
@@ -338,7 +349,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {!isRecording && !transcript && !isProcessing && (
         <div className="mt-6 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
           <p className="text-sm text-teal-800 dark:text-teal-200">
-            💡 Tips: Tala tydligt i 10-120 sekunder för bästa resultat
+            {t('voiceRecorder.tips')}
           </p>
         </div>
       )}
