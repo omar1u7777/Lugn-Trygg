@@ -15,6 +15,8 @@ from src.utils.response_utils import APIResponse
 notifications_bp = Blueprint('notifications', __name__)
 logger = logging.getLogger(__name__)
 
+_VALID_NOTIFICATION_TYPES = {'daily', 'reminder', 'exercise', 'mood', 'streak', 'weekly', 'custom'}
+
 
 
 
@@ -32,7 +34,7 @@ def save_fcm_token():
         token = data.get('fcmToken')
 
         if not token:
-            return APIResponse.bad_request("FCM token is missing", "MISSING_TOKEN")
+            return APIResponse.bad_request("FCM token is missing")
 
         # Sanitize token
         token = sanitize_text(token, max_length=500)
@@ -72,6 +74,9 @@ def send_reminder():
         data = request.get_json(silent=True) or {}
         message = sanitize_text(data.get('message', 'Reminder from Lugn & Trygg'), max_length=500)
         notification_type = sanitize_text(data.get('type', 'daily'), max_length=50)
+
+        if notification_type not in _VALID_NOTIFICATION_TYPES:
+            return APIResponse.bad_request("Invalid notification type")
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
@@ -156,7 +161,7 @@ def schedule_daily():
         try:
             time.fromisoformat(reminder_time)
         except ValueError:
-            return APIResponse.bad_request("Invalid time format. Use HH:MM", "INVALID_TIME")
+            return APIResponse.bad_request("Invalid time format. Use HH:MM")
 
         if db is None:
             return APIResponse.error("Database connection unavailable", "DB_ERROR", 503)
@@ -273,7 +278,7 @@ def notification_settings():
                     time.fromisoformat(reminder_time)
                     update_data['reminderTime'] = reminder_time
                 except ValueError:
-                    return APIResponse.bad_request("Invalid time format. Use HH:MM", "INVALID_TIME")
+                    return APIResponse.bad_request("Invalid time format. Use HH:MM")
 
             user_ref.set(update_data, merge=True)
 

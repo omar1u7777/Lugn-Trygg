@@ -330,8 +330,16 @@ def log_mood() -> Response | tuple[Response, int]:
 
         # Sanitize tags: limit count, length, and strip dangerous characters
         if not isinstance(tags, list):
-            tags = [tags] if tags else []
-        tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, str) and t.strip()]
+            # FormData sends tags as a JSON string — parse it back to a list
+            if isinstance(tags, str) and tags.strip():
+                try:
+                    parsed = json.loads(tags)
+                    tags = parsed if isinstance(parsed, list) else [tags]
+                except (ValueError, TypeError):
+                    tags = [tags]
+            else:
+                tags = [tags] if tags else []
+        tags = [str(t).strip()[:50] for t in tags[:10] if isinstance(t, (str, int, float)) and str(t).strip()]
 
         # Get user-submitted score (1-10 scale)
         user_score = data.get('score') if data else None
