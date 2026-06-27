@@ -150,6 +150,27 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     });
   }, []);
 
+  // End backend session
+  const endBackendSession = useCallback(async () => {
+    if (!sessionRef.current) return;
+
+    try {
+      const data = await endBreathingSession(sessionRef.current.sessionId);
+      if (data.success) {
+        logger.info('Session summary', data.summary);
+      }
+
+      // Close WebSocket
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+
+    } catch (error) {
+      logger.error('Failed to end session', error as Error);
+    }
+  }, []);
+
   // Timer hook
   const {
     isActive,
@@ -392,27 +413,6 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     const token = localStorage.getItem('token');
     await connectBiofeedback(sessionRef.current.sessionId, token || '');
   }, [connectBiofeedback]);
-
-  // End backend session
-  const endBackendSession = useCallback(async () => {
-    if (!sessionRef.current) return;
-
-    try {
-      const data = await endBreathingSession(sessionRef.current.sessionId);
-      if (data.success) {
-        logger.info('Session summary', data.summary);
-      }
-
-      // Close WebSocket
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
-    } catch (error) {
-      logger.error('Failed to end session', error as Error);
-    }
-  }, []);
 
   // Start exercise
   const start = useCallback(async (userId?: string) => {
