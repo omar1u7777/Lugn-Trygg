@@ -59,7 +59,8 @@ describe('MeditationSession', () => {
       />
     );
 
-    const playButton = screen.getByRole('button').querySelector('svg');
+    const buttons = screen.getAllByRole('button');
+    const playButton = buttons[1].querySelector('svg');
     if (playButton) {
       fireEvent.click(playButton.parentElement as HTMLElement);
     }

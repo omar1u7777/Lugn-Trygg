@@ -5,6 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
+import { tokenStorage } from '../../utils/secureStorage';
 
 // Mock HTMLMediaElement methods (jsdom doesn't support audio)
 beforeAll(() => {
@@ -33,6 +34,14 @@ vi.mock('react-i18next', () => {
 
 vi.mock('../../utils/logger', () => ({
   logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+vi.mock('../../utils/secureStorage', () => ({
+  tokenStorage: {
+    getAccessToken: vi.fn(),
+    setAccessToken: vi.fn(),
+    clearTokens: vi.fn(),
+  },
 }));
 
 // Lazy loaded component mock
@@ -437,8 +446,8 @@ describe('RelaxingSounds', () => {
   });
 
   it('loadFallbackAudio - shows auth error when no token', async () => {
-    // Remove token from localStorage
-    localStorage.removeItem('token');
+    // Simulate no auth token in secure storage
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue(null);
 
     getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
     render(<RelaxingSounds onClose={vi.fn()} />);
@@ -461,7 +470,7 @@ describe('RelaxingSounds', () => {
   });
 
   it('loadFallbackAudio - generates audio when token present', async () => {
-    localStorage.setItem('token', 'test-token-123');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue('test-token-123');
     const audioBlob = new Blob(['audio-data'], { type: 'audio/mpeg' });
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -485,12 +494,12 @@ describe('RelaxingSounds', () => {
       expect(mockFetch).toHaveBeenCalled();
     });
 
-    localStorage.removeItem('token');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue(null);
     vi.unstubAllGlobals();
   });
 
   it('loadFallbackAudio - shows error when fetch fails', async () => {
-    localStorage.setItem('token', 'test-token-123');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue('test-token-123');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
 
     getAudioLibraryMock.mockResolvedValue(mockAudioLibrary);
@@ -507,13 +516,13 @@ describe('RelaxingSounds', () => {
       expect(screen.getByText(/Kunde inte ladda meditation|fallbackFailed/i)).toBeInTheDocument();
     });
 
-    localStorage.removeItem('token');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue(null);
     vi.unstubAllGlobals();
   });
 
   it('audio error on fallback audio shows playback error (no re-trigger)', async () => {
     // When usingFallbackAudio is true, audio error shows playbackError instead
-    localStorage.setItem('token', 'test-token-123');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue('test-token-123');
     const audioBlob = new Blob(['audio-data'], { type: 'audio/mpeg' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -540,7 +549,7 @@ describe('RelaxingSounds', () => {
       expect(screen.getByText(/Kunde inte spela upp|Kunde inte ladda/i)).toBeInTheDocument();
     });
 
-    localStorage.removeItem('token');
+    vi.mocked(tokenStorage.getAccessToken).mockResolvedValue(null);
     vi.unstubAllGlobals();
   });
 

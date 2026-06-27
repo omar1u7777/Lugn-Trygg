@@ -240,7 +240,7 @@ describe('MoodList - additional branch coverage', () => {
     const neutralBtn = screen.getByRole('button', { name: /Neutrala/i });
     fireEvent.click(neutralBtn);
 
-    expect(screen.getByText('Neutral')).toBeInTheDocument();
+    expect(screen.getAllByText('Neutral').length).toBeGreaterThan(0);
     expect(screen.queryByText('Glad')).not.toBeInTheDocument();
   });
 

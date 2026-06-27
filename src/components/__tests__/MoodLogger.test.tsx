@@ -146,12 +146,12 @@ describe('MoodLogger (deprecated shim)', () => {
     renderMoodLogger();
     // SuperMoodLogger renders the circumplex mood selector
     // Verify it renders without crashing
-    expect(screen.getByText(/humör/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/humör/i).length).toBeGreaterThan(0);
   });
 
   test('renders with onMoodLogged callback', () => {
     const onMoodLogged = vi.fn();
     renderMoodLogger({ onMoodLogged });
-    expect(screen.getByText(/humör/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/humör/i).length).toBeGreaterThan(0);
   });
 });

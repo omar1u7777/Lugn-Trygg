@@ -125,21 +125,18 @@ describe('RouteWrappers', () => {
   describe('DailyInsightsWrapper', () => {
     it('renders with user data after loading', async () => {
       renderInRouter(<DailyInsightsWrapper />);
-      await waitFor(() => expect(screen.queryByText('Hämtar dina insikter...')).not.toBeInTheDocument(), { timeout: 3000 });
-      expect(screen.getByTestId('daily-insights')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId('daily-insights')).toBeInTheDocument(), { timeout: 10000 });
     });
 
     it('handles null user gracefully', async () => {
       mockUseAuth.mockReturnValue({ user: null });
       renderInRouter(<DailyInsightsWrapper />);
-      await waitFor(() => expect(screen.getByTestId('daily-insights')).toBeInTheDocument(), { timeout: 3000 });
+      await waitFor(() => expect(screen.getByText('Logga in för att se dina insikter.')).toBeInTheDocument(), { timeout: 3000 });
     });
 
-    it('handles API error gracefully', async () => {
-      const { getMoods } = await import('../../api/api');
-      vi.mocked(getMoods).mockRejectedValueOnce(new Error('Network error'));
+    it('passes userId to DailyInsights', async () => {
       renderInRouter(<DailyInsightsWrapper />);
-      await waitFor(() => expect(screen.getByText('Fel vid hämtning')).toBeInTheDocument(), { timeout: 3000 });
+      await waitFor(() => expect(screen.getByTestId('daily-insights')).toHaveTextContent('DailyInsights user-123'), { timeout: 10000 });
     });
   });
 

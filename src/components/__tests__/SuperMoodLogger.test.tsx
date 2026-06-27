@@ -8,7 +8,24 @@ import { vi } from 'vitest';
 
 // Stable t reference to avoid infinite re-renders
 vi.mock('react-i18next', () => {
-  const t = (key: string, fallback?: string) => (typeof fallback === 'string' ? fallback : key);
+  const translations: Record<string, string> = {
+    'moodLogger.moodLabels.sad': 'Ledsen',
+    'moodLogger.moodLabels.anxious': 'Orolig',
+    'moodLogger.moodLabels.neutral': 'Neutral',
+    'moodLogger.moodLabels.good': 'Bra',
+    'moodLogger.moodLabels.happy': 'Glad',
+    'moodLogger.moodLabels.super': 'Super',
+    'moodLogger.reflectionPrompts.low': 'Vad skulle kännas mest hjälpsamt för dig de kommande 60 minuterna?',
+    'moodLogger.reflectionPrompts.mid': 'Vad har påverkat ditt mående mest hittills idag?',
+    'moodLogger.reflectionPrompts.good': 'Vad bidrog till att du känner dig okej eller bra just nu?',
+    'moodLogger.reflectionPrompts.high': 'Vad vill du ta med dig från den här positiva känslan resten av dagen?',
+    'moodLogger.defaultNotePrefix': 'Känner mig',
+  };
+  const t = (key: string, fallback?: string) => {
+    if (typeof fallback === 'string') return fallback;
+    if (translations[key]) return translations[key];
+    return key;
+  };
   return {
     useTranslation: () => ({ t, i18n: { language: 'sv' } }),
   };

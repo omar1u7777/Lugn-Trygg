@@ -81,7 +81,7 @@ vi.mock('../../hooks/useAccessibility', () => ({
 }));
 
 // Mock heavy child components to keep tests focused on the Dashboard shell
-vi.mock('../MoodLogger', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-mood-logger' }, 'MoodLogger') }));
+vi.mock('../SuperMoodLogger', () => ({ SuperMoodLogger: () => React.createElement('div', { 'data-testid': 'mock-mood-logger' }, 'MoodLogger') }));
 vi.mock('../MoodList', () => ({ default: (props: any) => React.createElement('div', { 'data-testid': 'mock-mood-list' }, React.createElement('button', { onClick: props.onClose }, 'close')) }));
 vi.mock('../WorldClassAIChat', () => ({ default: (props: any) => React.createElement('div', { 'data-testid': 'mock-ai-chat' }, React.createElement('button', { onClick: props.onClose }, 'close')) }));
 vi.mock('../WorldClassGamification', () => ({ default: () => React.createElement('div', { 'data-testid': 'mock-gamification' }, 'Gamification') }));
@@ -104,7 +104,7 @@ const defaultStats = {
   weeklyProgress: 4,
   wellnessGoals: ['Hantera stress'],
   recentActivity: [
-    { id: 'a1', type: 'mood' as const, timestamp: new Date(), description: 'Loggade humör: Glad' },
+    { id: 'a1', type: 'chat' as const, timestamp: new Date(), description: 'Loggade humör: Glad' },
   ],
 };
 
@@ -276,13 +276,13 @@ describe('WorldClassDashboard', () => {
 
   test('renders recent activity section', () => {
     renderDashboard();
-    expect(screen.getByText('Loggade humör: Glad')).toBeInTheDocument();
+    expect(screen.getByText(/Loggade humör: Glad/)).toBeInTheDocument();
   });
 
   test('renders empty activity message when no activities', () => {
     setupMocks({ stats: { recentActivity: [] } });
     renderDashboard();
-    expect(screen.getByText(/Ingen aktivitet än/)).toBeInTheDocument();
+    expect(screen.getByText(/Ingen övrig aktivitet än/)).toBeInTheDocument();
   });
 
   test('shows Swedish info notice when Stripe checkout was canceled', async () => {

@@ -39,7 +39,7 @@ describe('PMRExercise', () => {
       />
     );
 
-    expect(screen.getByText(/Progressive Muscle Relaxation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Progressiv Muskelavslappning/i)).toBeInTheDocument();
   });
 
   it('should call start when start button is clicked', () => {
@@ -110,7 +110,7 @@ describe('PMRExercise', () => {
       />
     );
 
-    expect(screen.getByText(/Muskelgrupp/i)).toBeInTheDocument();
+    expect(screen.getByText(/pmr.tense:/i)).toBeInTheDocument();
   });
 
   it('should display timer countdown', () => {

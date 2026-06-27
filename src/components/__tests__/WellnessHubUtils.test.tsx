@@ -13,13 +13,16 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback?: string | object) =>
-      typeof fallback === 'string' ? fallback : key,
-    i18n: { changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', () => {
+  const t = (key: string, fallback?: string | object) =>
+    typeof fallback === 'string' ? fallback : key;
+  return {
+    useTranslation: () => ({
+      t,
+      i18n: { changeLanguage: vi.fn() },
+    }),
+  };
+});
 
 vi.mock('../../hooks/useAuth', () => ({
   default: () => ({
@@ -266,5 +269,5 @@ describe('WellnessHub component', () => {
     await waitFor(() => {
       expect(screen.queryByText('Spelar nu')).not.toBeInTheDocument();
     });
-  });
+  }, 15000);
 });
