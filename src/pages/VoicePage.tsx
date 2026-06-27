@@ -7,20 +7,7 @@ import { getVoiceRecordings, VoiceRecording } from '../api/voice';
 import { logMood } from '../api/api';
 import { saveMeditationSession } from '../api/meditation';
 import useAuth from '../hooks/useAuth';
-
-// Emotion to mood score mapping (same as in SuperMoodLogger)
-const voiceEmotionToMoodScore = (emotion: string): number => {
-  const emotionMap: { [key: string]: number } = {
-    happy: 9,
-    sad: 3,
-    anxious: 4,
-    angry: 2,
-    calm: 7,
-    neutral: 5,
-    tired: 3,
-  };
-  return emotionMap[emotion] || 5;
-};
+import { voiceEmotionToMoodScore } from '../utils/voiceEmotionScoring';
 
 const emotionEmojis: Record<string, string> = {
   happy: '😊',
@@ -64,7 +51,7 @@ export const VoicePage: React.FC = () => {
 
       // Auto-log mood from voice emotion
       if (emotion && integrationSettings.logMood) {
-        const moodScore = voiceEmotionToMoodScore(emotion);
+        const moodScore = voiceEmotionToMoodScore(emotion).score;
         try {
           await logMood(user.user_id, {
             score: moodScore,

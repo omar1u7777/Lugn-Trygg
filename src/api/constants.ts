@@ -210,6 +210,7 @@ export const API_ENDPOINTS = {
     AUDIO_LIBRARY: '/api/v1/audio/library',
     AUDIO_TRACK: '/api/v1/audio/track',
     AUDIO_SEARCH: '/api/v1/audio/search',
+    GENERATE: '/api/v1/audio/generate',
   } as const,
 
   /** AI-powered features endpoints */

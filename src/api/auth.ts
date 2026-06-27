@@ -396,7 +396,8 @@ export const exportUserData = async (): Promise<ExportDataResponse> => {
       responseType: "blob"
     });
 
-    if (!(response.data instanceof Blob)) {
+    const isBlob = response.data instanceof Blob || Object.prototype.toString.call(response.data) === '[object Blob]';
+    if (!isBlob) {
       throw new AuthError("Invalid response data for export");
     }
 

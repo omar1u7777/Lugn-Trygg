@@ -5,7 +5,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../client', () => ({
-  apiClient: {
+  api: {
     get: vi.fn(),
     post: vi.fn(),
     delete: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../constants', () => ({
   },
 }));
 
-import { apiClient } from '../client';
+import { api } from '../client';
 import {
   grantBulkConsents,
   getUserConsents,
@@ -31,7 +31,7 @@ import {
   mapFrontendConsentsToBackend,
 } from '../consent';
 
-const mockApiClient = apiClient as {
+const mockApi = api as {
   get: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
@@ -43,15 +43,15 @@ describe('grantBulkConsents', () => {
   it('posts bulk consents and returns response', async () => {
     const consents = { data_processing_consent: true, ai_analysis_consent: true, marketing_consent: false, terms_of_service: true, privacy_policy: true };
     const response = { success: true };
-    mockApiClient.post.mockResolvedValueOnce({ data: response });
+    mockApi.post.mockResolvedValueOnce({ data: response });
 
     const result = await grantBulkConsents(consents);
-    expect(mockApiClient.post).toHaveBeenCalledWith(expect.any(String), consents);
+    expect(mockApi.post).toHaveBeenCalledWith(expect.any(String), consents);
     expect(result).toEqual(response);
   });
 
   it('throws on error', async () => {
-    mockApiClient.post.mockRejectedValueOnce(new Error('Forbidden'));
+    mockApi.post.mockRejectedValueOnce(new Error('Forbidden'));
     await expect(grantBulkConsents({ data_processing_consent: true, ai_analysis_consent: true, marketing_consent: false, terms_of_service: true, privacy_policy: true })).rejects.toThrow();
   });
 });
@@ -61,14 +61,14 @@ describe('getUserConsents', () => {
 
   it('returns user consents', async () => {
     const data = { consents: [{ type: 'data_processing', granted: true }] };
-    mockApiClient.get.mockResolvedValueOnce({ data });
+    mockApi.get.mockResolvedValueOnce({ data });
 
     const result = await getUserConsents();
     expect(result).toEqual(data);
   });
 
   it('throws on error', async () => {
-    mockApiClient.get.mockRejectedValueOnce(new Error('Unauthorized'));
+    mockApi.get.mockRejectedValueOnce(new Error('Unauthorized'));
     await expect(getUserConsents()).rejects.toThrow();
   });
 });
@@ -78,10 +78,10 @@ describe('grantConsent', () => {
 
   it('posts to correct endpoint with version', async () => {
     const data = { type: 'data_processing', granted: true };
-    mockApiClient.post.mockResolvedValueOnce({ data });
+    mockApi.post.mockResolvedValueOnce({ data });
 
     const result = await grantConsent('data_processing', '1.0');
-    expect(mockApiClient.post).toHaveBeenCalledWith(
+    expect(mockApi.post).toHaveBeenCalledWith(
       expect.stringContaining('data_processing'),
       { version: '1.0' }
     );
@@ -89,14 +89,14 @@ describe('grantConsent', () => {
   });
 
   it('uses default version 1.0 when not provided', async () => {
-    mockApiClient.post.mockResolvedValueOnce({ data: {} });
+    mockApi.post.mockResolvedValueOnce({ data: {} });
 
     await grantConsent('ai_processing');
-    expect(mockApiClient.post).toHaveBeenCalledWith(expect.any(String), { version: '1.0' });
+    expect(mockApi.post).toHaveBeenCalledWith(expect.any(String), { version: '1.0' });
   });
 
   it('throws on error', async () => {
-    mockApiClient.post.mockRejectedValueOnce(new Error('Failed'));
+    mockApi.post.mockRejectedValueOnce(new Error('Failed'));
     await expect(grantConsent('data_processing')).rejects.toThrow();
   });
 });
@@ -106,15 +106,15 @@ describe('withdrawConsent', () => {
 
   it('sends delete to correct endpoint', async () => {
     const data = { type: 'data_processing', granted: false };
-    mockApiClient.delete.mockResolvedValueOnce({ data });
+    mockApi.delete.mockResolvedValueOnce({ data });
 
     const result = await withdrawConsent('data_processing');
-    expect(mockApiClient.delete).toHaveBeenCalledWith(expect.stringContaining('data_processing'));
+    expect(mockApi.delete).toHaveBeenCalledWith(expect.stringContaining('data_processing'));
     expect(result).toEqual(data);
   });
 
   it('throws on error', async () => {
-    mockApiClient.delete.mockRejectedValueOnce(new Error('Conflict'));
+    mockApi.delete.mockRejectedValueOnce(new Error('Conflict'));
     await expect(withdrawConsent('marketing')).rejects.toThrow();
   });
 });
@@ -124,15 +124,15 @@ describe('validateFeatureAccess', () => {
 
   it('gets feature validation', async () => {
     const data = { hasAccess: true, missingConsents: [] };
-    mockApiClient.get.mockResolvedValueOnce({ data });
+    mockApi.get.mockResolvedValueOnce({ data });
 
     const result = await validateFeatureAccess('voice-chat');
-    expect(mockApiClient.get).toHaveBeenCalledWith(expect.stringContaining('voice-chat'));
+    expect(mockApi.get).toHaveBeenCalledWith(expect.stringContaining('voice-chat'));
     expect(result).toEqual(data);
   });
 
   it('throws on error', async () => {
-    mockApiClient.get.mockRejectedValueOnce(new Error('Error'));
+    mockApi.get.mockRejectedValueOnce(new Error('Error'));
     await expect(validateFeatureAccess('feature')).rejects.toThrow();
   });
 });
@@ -142,15 +142,15 @@ describe('checkConsent', () => {
 
   it('gets consent check result', async () => {
     const data = { type: 'analytics', granted: true };
-    mockApiClient.get.mockResolvedValueOnce({ data });
+    mockApi.get.mockResolvedValueOnce({ data });
 
     const result = await checkConsent('analytics');
-    expect(mockApiClient.get).toHaveBeenCalledWith(expect.stringContaining('analytics'));
+    expect(mockApi.get).toHaveBeenCalledWith(expect.stringContaining('analytics'));
     expect(result).toEqual(data);
   });
 
   it('throws on error', async () => {
-    mockApiClient.get.mockRejectedValueOnce(new Error('Error'));
+    mockApi.get.mockRejectedValueOnce(new Error('Error'));
     await expect(checkConsent('analytics')).rejects.toThrow();
   });
 });

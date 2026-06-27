@@ -47,7 +47,14 @@ vi.mock('@/utils/logger', () => ({
 }));
 
 import { api } from '@/api/client';
+import { registerCsrfFetcher } from '@/api/csrf';
 import { tokenStorage } from '@/utils/secureStorage';
+
+registerCsrfFetcher(async () => {
+  const response = await api.get('/api/v1/auth/csrf-token');
+  const responseData = response.data?.data || response.data;
+  return responseData?.csrfToken || responseData?.csrf_token || null;
+});
 import {
   loginUser,
   registerUser,
@@ -468,6 +475,7 @@ describe('exportUserData', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('downloads blob and returns success with filename from header', async () => {
+    mockApi.get.mockReset();
     const blob = new Blob(['{}'], { type: 'application/json' });
     mockApi.get.mockResolvedValueOnce({
       data: blob,
@@ -488,6 +496,7 @@ describe('exportUserData', () => {
   });
 
   it('uses default filename when content-disposition has no filename', async () => {
+    mockApi.get.mockReset();
     const blob = new Blob(['{}'], { type: 'application/json' });
     mockApi.get.mockResolvedValueOnce({
       data: blob,
@@ -506,6 +515,7 @@ describe('exportUserData', () => {
   });
 
   it('throws when response data is not a Blob', async () => {
+    mockApi.get.mockReset();
     mockApi.get.mockResolvedValueOnce({
       data: { notABlob: true },
       headers: {},
@@ -515,6 +525,7 @@ describe('exportUserData', () => {
   });
 
   it('throws on API error', async () => {
+    mockApi.get.mockReset();
     mockApi.get.mockRejectedValueOnce(new Error('Network error'));
     await expect(exportUserData()).rejects.toThrow('Network error');
   });

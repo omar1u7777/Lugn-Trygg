@@ -108,7 +108,7 @@ export interface TodayMoodResponse {
  * @returns Promise resolving to mood log response
  * @throws Error if mood logging fails
  */
-export const logMood = async (userId: string, moodData: MoodData, audioBlob?: Blob): Promise<GenericObject> => {
+export const logMood = async (userId: string, moodData: MoodData, audioBlob?: Blob, signal?: AbortSignal): Promise<GenericObject> => {
   try {
     if (audioBlob) {
       const formData = new FormData();
@@ -121,16 +121,14 @@ export const logMood = async (userId: string, moodData: MoodData, audioBlob?: Bl
       if (moodData.context) formData.append('context', moodData.context);
       formData.append('audio', audioBlob, 'recording.webm');
 
-      const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, formData, signal ? { signal } : undefined);
       return (response.data?.data || response.data) as GenericObject;
     }
 
     const response = await api.post(API_ENDPOINTS.MOOD.LOG_MOOD, {
       user_id: userId,
       ...moodData
-    });
+    }, signal ? { signal } : undefined);
     return (response.data?.data || response.data) as GenericObject;
   } catch (error: unknown) {
     if (error instanceof ApiError) {
@@ -145,14 +143,16 @@ export const logMood = async (userId: string, moodData: MoodData, audioBlob?: Bl
  * @param _userId - User ID (backend gets it from JWT, parameter kept for compatibility)
  * @returns Promise resolving to array of mood entries
  */
-export const getMoods = async (_userId: string) => {
+export const getMoods = async (_userId: string, signal?: AbortSignal) => {
   try {
     // Token added automatically by interceptor
     // Backend route is /api/mood (GET) - user_id comes from JWT token, not query param
-    const response = await api.get(API_ENDPOINTS.MOOD.GET_MOODS);
+    const response = await api.get(API_ENDPOINTS.MOOD.GET_MOODS, signal ? { signal } : undefined);
     const data = response.data?.data || response.data;
     return Array.isArray(data.moods) ? (data.moods as GenericObject[]) : [];
   } catch (error: unknown) {
+    // Ignore abort errors
+    if (error instanceof Error && error.name === 'AbortError') return [];
     logger.error("API Mood Fetch error:", error);
     // Return empty array for graceful degradation
     return [];
@@ -259,8 +259,8 @@ export const exportMoodData = async (userId: string, format: 'csv' | 'json' = 'c
       return JSON.stringify(moods, null, 2);
     }
     
-    // CSV export
-    const headers = ['Datum', 'Humör', 'Poäng', 'Anteckning', 'Taggar', 'Valens', 'Arousal'];
+    // CSV export - use English headers for data portability
+    const headers = ['Date', 'Mood', 'Score', 'Note', 'Tags', 'Valence', 'Arousal'];
     const rows = moods.map((m: { timestamp?: string | Date; mood_text?: string; score?: number; note?: string; tags?: string[]; valence?: number; arousal?: number }) => {
       const date = m.timestamp ? new Date(m.timestamp).toLocaleDateString('sv-SE') : '';
       const mood = m.mood_text || '';

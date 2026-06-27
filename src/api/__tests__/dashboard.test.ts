@@ -117,7 +117,7 @@ describe('getDashboardQuickStats', () => {
     mockApi.get.mockRejectedValueOnce(new Error('Timeout'));
 
     const result = await getDashboardQuickStats('user1');
-    expect(result).toEqual({ totalMoods: 0, totalChats: 0, cached: false });
+    expect(result).toEqual({ totalMoods: 0, totalChats: 0, cached: false, error: 'Timeout' });
   });
 });
 

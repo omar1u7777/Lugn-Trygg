@@ -73,14 +73,14 @@ describe('journaling API', () => {
 
   describe('getJournalEntryById', () => {
     it('returns a single entry from entries list', async () => {
-      const entries = [{ id: 'j1', content: 'Test' }, { id: 'j2', content: 'Other' }];
-      apiMock.get.mockResolvedValueOnce({ data: { data: { entries } } });
+      const entry = { id: 'j1', content: 'Test' };
+      apiMock.get.mockResolvedValueOnce({ data: { data: entry } });
       const result = await getJournalEntryById('u1', 'j1');
       expect(result).toMatchObject({ id: 'j1', content: 'Test' });
     });
 
     it('returns null when entry not found', async () => {
-      apiMock.get.mockResolvedValueOnce({ data: { data: { entries: [] } } });
+      apiMock.get.mockResolvedValueOnce({ data: { data: null } });
       const result = await getJournalEntryById('u1', 'missing');
       expect(result).toBeNull();
     });

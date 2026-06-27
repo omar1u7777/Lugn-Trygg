@@ -1,7 +1,22 @@
 ﻿import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 const apiMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
-vi.mock('../client', () => ({ api: apiMock, default: apiMock, apiClient: apiMock }));
+vi.mock('../client', () => ({
+  api: apiMock,
+  default: apiMock,
+  apiClient: apiMock,
+  unwrapApiResponse: (payload: unknown) => {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'data' in payload &&
+      ('success' in payload || 'status' in payload || 'timestamp' in payload)
+    ) {
+      return (payload as { data: unknown }).data;
+    }
+    return payload;
+  },
+}));
 vi.mock('../errors', () => ({
   ApiError: class ApiError extends Error {
     constructor(msg: string, opts: Record<string, unknown> = {}) { super(msg); Object.assign(this, opts); }
@@ -10,7 +25,7 @@ vi.mock('../errors', () => ({
 }));
 vi.mock('../../utils/logger', () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
-import { chatWithAI, getChatHistory, analyzeMoodPatterns, startExercise, completeExercise, transcribeAudio, analyzeVoiceEmotion } from '../ai';
+import { chatWithAI, getChatHistory, analyzeMoodPatterns, startExercise, completeExercise, transcribeAudio, analyzeVoiceEmotion, getStories, generateStory } from '../ai';
 
 describe('ai API', () => {
   beforeEach(() => {
@@ -123,6 +138,58 @@ describe('ai API', () => {
       // Function catches and returns { emotion: 'neutral', confidence: 0.5 } fallback
       expect(result).toHaveProperty('emotion');
       expect(result).toHaveProperty('confidence');
+    });
+  });
+
+  describe('getStories', () => {
+    it('returns normalized stories on success', async () => {
+      const rawStories = [
+        {
+          id: 'story-1',
+          storyPreview: 'Once upon a time there was a calm forest. The end.',
+          generatedAt: '2026-01-01T00:00:00Z',
+        },
+      ];
+      apiMock.get.mockResolvedValueOnce({ data: { stories: rawStories } });
+      const result = await getStories();
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'story-1',
+        content: rawStories[0].storyPreview,
+        isFavorite: false,
+      });
+      expect(result[0].duration).toBeGreaterThan(0);
+      expect(result[0].title).toBeTruthy();
+    });
+
+    it('throws on error', async () => {
+      apiMock.get.mockRejectedValueOnce(new Error('fail'));
+      await expect(getStories()).rejects.toThrow();
+    });
+  });
+
+  describe('generateStory', () => {
+    it('returns normalized story on success', async () => {
+      const mockStory = {
+        story: 'A long, long time ago in a peaceful valley...',
+        moodSummary: { dominantMood: 'calm' },
+        generatedAt: '2026-01-02T00:00:00Z',
+      };
+      apiMock.post.mockResolvedValueOnce({ data: mockStory });
+      const result = await generateStory('sv');
+      expect(result.content).toBe(mockStory.story);
+      expect(result.mood).toBe('calm');
+      expect(result.duration).toBeGreaterThan(0);
+      expect(apiMock.post).toHaveBeenCalledWith(
+        '/api/v1/ai/story',
+        { locale: 'sv' },
+        expect.objectContaining({ timeout: 120000 })
+      );
+    });
+
+    it('throws on error', async () => {
+      apiMock.post.mockRejectedValueOnce(new Error('fail'));
+      await expect(generateStory('sv')).rejects.toThrow();
     });
   });
 });

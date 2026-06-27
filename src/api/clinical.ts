@@ -74,10 +74,12 @@ const BASE = '/api/v1/advanced-mood/assess';
  */
 export async function submitPHQ9(
   responses: Record<string, number>,
+  signal?: AbortSignal,
 ): Promise<PHQ9Result> {
   const res = await api.post<{ success: boolean; data: PHQ9Result }>(
     `${BASE}/phq9`,
     { responses },
+    signal ? { signal } : undefined,
   );
   if (!res.data?.success) throw new Error('PHQ-9 calculation failed');
   return res.data.data;
@@ -88,10 +90,12 @@ export async function submitPHQ9(
  */
 export async function submitGAD7(
   responses: Record<string, number>,
+  signal?: AbortSignal,
 ): Promise<GAD7Result> {
   const res = await api.post<{ success: boolean; data: GAD7Result }>(
     `${BASE}/gad7`,
     { responses },
+    signal ? { signal } : undefined,
   );
   if (!res.data?.success) throw new Error('GAD-7 calculation failed');
   return res.data.data;
@@ -102,7 +106,7 @@ export async function submitGAD7(
  * Optionally filter by type ('phq9' | 'gad7').
  */
 export async function getAssessmentHistory(
-  options: { type?: AssessmentType; limit?: number } = {},
+  options: { type?: AssessmentType; limit?: number; signal?: AbortSignal } = {},
 ): Promise<AssessmentHistoryResponse> {
   const params: Record<string, string | number> = {};
   if (options.type) params.type = options.type;
@@ -110,7 +114,7 @@ export async function getAssessmentHistory(
 
   const res = await api.get<{ success: boolean; data: AssessmentHistoryResponse }>(
     `${BASE}/history`,
-    { params },
+    { params, ...(options.signal ? { signal: options.signal } : {}) },
   );
   if (!res.data?.success) throw new Error('Could not retrieve assessment history');
   return res.data.data;

@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, unwrapApiResponse } from "./client";
 import { ApiError } from "./errors";
 import { API_ENDPOINTS } from "./constants";
 import { logger } from "../utils/logger";
@@ -131,6 +131,96 @@ export interface ExerciseSession {
 }
 
 /**
+ * AI-generated therapeutic story exposed to the UI.
+ */
+export interface AIStory {
+  id: string;
+  title: string;
+  content: string;
+  mood: string;
+  category: string;
+  duration: number; // seconds
+  isFavorite: boolean;
+  createdAt: string;
+}
+
+/**
+ * Raw story item returned by GET /api/v1/ai/stories.
+ */
+interface StoryHistoryItem {
+  id: string;
+  storyPreview?: string;
+  locale?: string;
+  moodDataPoints?: number;
+  aiGenerated?: boolean;
+  modelUsed?: string;
+  confidence?: number;
+  generatedAt?: string;
+}
+
+/**
+ * Raw response returned by POST /api/v1/ai/story.
+ */
+interface GeneratedStoryResponse {
+  story?: string;
+  locale?: string;
+  moodSummary?: Record<string, unknown>;
+  aiGenerated?: boolean;
+  modelUsed?: string;
+  confidence?: number;
+  wordCount?: number;
+  generatedAt?: string;
+}
+
+const WORDS_PER_MINUTE = 130;
+
+const estimateDurationSeconds = (text: string): number => {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(60, Math.ceil((words / WORDS_PER_MINUTE) * 60));
+};
+
+const deriveTitle = (text: string): string => {
+  if (!text) return "Untitled Story";
+  const firstSentence = text.split(/[.!?]\s+/)[0] || "";
+  return firstSentence.trim().slice(0, 60) || "Untitled Story";
+};
+
+const deriveMood = (moodSummary?: Record<string, unknown>): string => {
+  const mood = moodSummary?.dominantMood || moodSummary?.dominant_mood || "neutral";
+  return typeof mood === "string" ? mood.toLowerCase() : "neutral";
+};
+
+const mapHistoryToAIStory = (raw: StoryHistoryItem): AIStory => {
+  const content = raw.storyPreview || "";
+  const mood = "neutral"; // history endpoint does not preserve mood summary
+  return {
+    id: raw.id,
+    title: deriveTitle(content),
+    content,
+    mood,
+    category: mood,
+    duration: estimateDurationSeconds(content),
+    isFavorite: false,
+    createdAt: raw.generatedAt || "",
+  };
+};
+
+const mapGeneratedToAIStory = (raw: GeneratedStoryResponse): AIStory => {
+  const content = raw.story || "";
+  const mood = deriveMood(raw.moodSummary);
+  return {
+    id: `generated-${Date.now()}`,
+    title: deriveTitle(content),
+    content,
+    mood,
+    category: mood,
+    duration: estimateDurationSeconds(content),
+    isFavorite: false,
+    createdAt: raw.generatedAt || new Date().toISOString(),
+  };
+};
+
+/**
  * Pattern analysis response (supports both camelCase and snake_case)
  */
 export interface PatternAnalysisResponse {
@@ -171,7 +261,8 @@ export interface PatternAnalysisResponse {
  */
 export const chatWithAI = async (
   userId: string,
-  message: string
+  message: string,
+  signal?: AbortSignal
 ): Promise<ChatResponse> => {
   try {
     const response = await api.post<ChatResponse>(API_ENDPOINTS.CHATBOT.CHAT, {
@@ -179,6 +270,7 @@ export const chatWithAI = async (
       message,
     }, {
       timeout: 60000, // 60 second timeout for AI chat (longer than default 15s)
+      signal,
     });
     // Handle both APIResponse (data wrapper) and direct format
     const raw = response.data as unknown as Record<string, unknown>;
@@ -379,5 +471,49 @@ export const analyzeVoiceEmotion = async (
     // Fallback for unimplemented endpoint
     logger.warn('Voice emotion analysis not available, using fallback');
     return { emotion: 'neutral', confidence: 0.5 };
+  }
+};
+
+/**
+ * Fetch the user's generated therapeutic story history.
+ * @returns Promise resolving to normalized AIStory array
+ * @throws Error if retrieval fails
+ */
+export const getStories = async (): Promise<AIStory[]> => {
+  try {
+    const response = await api.get<{ stories?: StoryHistoryItem[] }>(
+      API_ENDPOINTS.AI.GET_STORIES
+    );
+    const payload = unwrapApiResponse(response.data);
+    const rawStories = payload?.stories || [];
+    return rawStories.map(mapHistoryToAIStory);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
+/**
+ * Generate a new personalized therapeutic story.
+ * @param locale - Preferred locale (sv/en/no)
+ * @returns Promise resolving to normalized AIStory
+ * @throws Error if generation fails
+ */
+export const generateStory = async (locale: string): Promise<AIStory> => {
+  try {
+    const response = await api.post<GeneratedStoryResponse>(
+      API_ENDPOINTS.AI.GENERATE_STORY,
+      { locale },
+      { timeout: 120000 } // AI generation can exceed the default 15s timeout
+    );
+    const payload = unwrapApiResponse(response.data);
+    return mapGeneratedToAIStory(payload);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw ApiError.fromAxiosError(error);
   }
 };
