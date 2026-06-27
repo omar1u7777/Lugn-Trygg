@@ -45,6 +45,49 @@
     "settings": "Innstillinger",
     "logout": "Logg ut"
   },
+  "sidebar": {
+    "home": "Hjem",
+    "mood": "Humør",
+    "aiSupport": "AI-støtte",
+    "clinicalAssessment": "Klinisk vurdering",
+    "dailyInsights": "Daglige innsikter",
+    "premiumFeatures": "Premium-funksjoner",
+    "upgradeToPremium": "Oppgrader til Premium",
+    "unlockFeatures": "Lås opp {{count}} eksklusive funksjoner",
+    "seePremium": "Se Premium →",
+    "accountAndMore": "Konto & mer",
+    "healthIntegrations": "Helseintegrasjoner",
+    "inviteFriends": "Inviter venner",
+    "giveFeedback": "Gi tilbakemelding",
+    "profile": "Profil",
+    "mainNavigationAria": "Hovednavigasjon",
+    "premium": {
+      "voiceChat": "Stemmesamtale",
+      "recommendations": "Anbefalinger",
+      "wellness": "Velvære",
+      "journal": "Dagbok",
+      "sounds": "Beroligende lyder",
+      "aiStories": "AI-historier",
+      "moodAnalytics": "Humøranalyse",
+      "advancedMood": "Avansert humør",
+      "aiForecast": "AI-prognose",
+      "weeklyAnalysis": "Ukesanalyse",
+      "insights": "Innsikter",
+      "rewards": "Belønninger",
+      "community": "Fellesskap"
+    }
+  },
+  "bottomNav": {
+    "home": "Hjem",
+    "mood": "Humør",
+    "ai": "AI",
+    "explore": "Utforsk",
+    "profile": "Profil",
+    "voiceChat": "Stemmesamtale AI",
+    "exploreAllFeatures": "Utforsk alle funksjoner",
+    "upgradeUnlockAll": "Oppgrader til Premium — lås opp alt",
+    "mobileNavigationAria": "Mobilnavigasjon"
+  },
   "auth": {
     "login": "Logg inn",
     "register": "Registrer",
@@ -126,6 +169,46 @@
         "Ring en venn",
         "Gjør noe snilt for noen"
       ],
+      "Mental klarhet": [
+        "Skriv ned dagens 3 viktigste mål",
+        "Gjør en 5-minutters mindfulness-øvelse",
+        "Slå av varsler i 30 minutter"
+      ],
+      "Ångesthantering": [
+        "Pust inn 4 sek, hold 7, ut 8",
+        "Skriv ned bekymringstankene dine",
+        "Gå en kort tur utendørs"
+      ],
+      "Självkänsla": [
+        "Si 3 positive ting om deg selv",
+        "Gjør noe du er stolt av",
+        "Skriv et vennlig brev til deg selv"
+      ],
+      "Relationsstöd": [
+        "Ring eller send melding til noen du er glad i",
+        "Planlegg en aktivitet med en venn",
+        "Lytt aktivt uten å avbryte i dag"
+      ],
+      "Arbetsbalans": [
+        "Ta en 10-minutters pause fra skjermen",
+        "Prioriter én ting om gangen",
+        "Sett en tydelig grense for arbeidsdagen"
+      ],
+      "Mindfulness": [
+        "Fokuser på pusten i 3 minutter",
+        "Spis et måltid langsomt og bevisst",
+        "Legg bort mobilen i 1 time"
+      ],
+      "Emotionell balans": [
+        "Identifiser hvilken følelse du har akkurat nå",
+        "Skriv i dagboken om dagen",
+        "Gjør noe som gir deg ro"
+      ],
+      "Energi": [
+        "Drikk et stort glass vann",
+        "Gjør 5-minutters tøying",
+        "Gå en 15-minutters power walk"
+      ],
       "default": [
         "Logg humøret ditt i dag",
         "Reflekter over dagen",
@@ -143,7 +226,72 @@
     "nextStep": "Neste steg",
     "friend": "venn",
     "purchaseCancelled": "Kjøpet ble avbrutt. Du kan prøve igjen når du er klar.",
-    "weeklyGoalProgress": "{{count}} innlegg til ukemålet ditt"
+    "weeklyGoalProgress": "{{count}} innlegg til ukemålet ditt",
+    "defaultGoalStep": "Logg humøret ditt i dag",
+    "continueGoal": "Fortsett å jobbe med målet ditt",
+    "goalStepUpdateError": "Kunne ikke oppdatere trinn. Prøv igjen.",
+    "markStepComplete": "Marker \"{{step}}\" som fullført",
+    "openBreathingExercise": "Åpne pusteøvelse",
+    "openJournal": "Åpne journal",
+    "openMeditation": "Åpne meditasjon",
+    "seeSleepTips": "Se søvntips"
+  },
+  "navLinks": {
+    "dashboard": "Oversikt",
+    "wellness": "Velvære",
+    "mood": "Humør",
+    "aiChat": "AI-chat",
+    "insights": "Innsikter",
+    "profile": "Profil"
+  },
+  "quickAction": {
+    "mood": {
+      "title": "Kjenn etter",
+      "ariaLabel": "Sjekk inn med humøret ditt",
+      "description": "Hvordan har du det akkurat nå?"
+    },
+    "chat": {
+      "title": "Få støtte",
+      "ariaLabel": "Start en samtale med AI-støtte",
+      "description": "Snakk det ut, når som helst"
+    },
+    "sounds": {
+      "title": "Beroligende lyder",
+      "ariaLabel": "Lytt til beroligende lyder og musikk",
+      "description": "Slapp av med musikk"
+    },
+    "journal": {
+      "title": "Dagbok",
+      "ariaLabel": "Skriv i dagboken din",
+      "description": "Skriv ned tankene dine"
+    },
+    "recommendations": {
+      "title": "Tips & råd",
+      "ariaLabel": "Se personlige anbefalinger",
+      "description": "Tilpasset for deg"
+    },
+    "social": {
+      "title": "Fellesskap",
+      "ariaLabel": "Bli med i fellesskapet",
+      "description": "Støtt hverandre"
+    }
+  },
+  "dashboardQuickActions": {
+    "title": "Hvordan vil du ta vare på deg selv?",
+    "unlimitedToday": "Ubegrenset i dag",
+    "remainingToday": "{{count}} igjen i dag",
+    "alwaysReady": "Alltid klar",
+    "remainingMessages": "{{count}} meldinger",
+    "quotaReached": "Kvote nådd i dag"
+  },
+  "dashboardActivity": {
+    "today": "I dag",
+    "yesterday": "I går",
+    "earlierThisYear": "Tidligere i år",
+    "older": "Eldre",
+    "emptyState": "Ingen aktivitet ennå. Begynn å logge humøret ditt!",
+    "recentActivity": "Siste Aktivitet",
+    "loadMore": "Vis eldre aktiviteter ({{count}} til)"
   },
   "mood": {
     "title": "Humørlogging",
@@ -167,7 +315,55 @@
     "error": "Kunne ikke lagre humør",
     "score": "Humörpoäng",
     "negative": "Negativ",
-    "positive": "Positiv"
+    "positive": "Positiv",
+    "valence": {
+      "label": "Valens (Behagelig ↔ Ubehagelig)",
+      "min": "Ubehagelig",
+      "max": "Behagelig",
+      "unpleasant": "Ubehagelig",
+      "neutral": "Nøytral",
+      "pleasant": "Behagelig",
+      "veryPleasant": "Veldig behagelig"
+    },
+    "arousal": {
+      "label": "Arousal (Energi/Aktivering)",
+      "min": "Rolig",
+      "max": "Opphisset",
+      "calm": "Rolig",
+      "moderate": "Måtelig",
+      "energized": "Energisk",
+      "excited": "Opphisset"
+    },
+    "circumplex": {
+      "title": "Circumplex Model",
+      "description": "Beskriv din følelsesmessige tilstand i to dimensjoner",
+      "quadrant": "Følelsesmessig tilstand",
+      "quadrantHappy": "Glad & Energisk",
+      "quadrantTense": "Anspent & Engstelig",
+      "quadrantCalm": "Rolig & Avslappet",
+      "quadrantSad": "Trist & Sliten"
+    },
+    "tags": {
+      "label": "Tags (valgfritt)",
+      "description": "Velg tags for å analysere hva som påvirker humøret ditt",
+      "customPlaceholder": "Egen tag...",
+      "add": "Legg til",
+      "selected": "Valgte tags",
+      "predefined": {
+        "work": "Arbeid",
+        "family": "Familie",
+        "friends": "Venner",
+        "exercise": "Trening",
+        "sleep": "Søvn",
+        "health": "Helse",
+        "stress": "Stress",
+        "relaxation": "Avslapping",
+        "social": "Sosialt",
+        "alone": "Alene",
+        "nature": "Natur",
+        "creative": "Kreativt"
+      }
+    }
   },
   "memories": {
     "title": "Mine minner",
@@ -212,7 +408,19 @@
     "welcomeText": "Ingen dømmer deg her. Jeg er her for å lytte, støtte og hjelpe deg å sortere tankene dine. Hva er på ditt sinn?",
     "inputPlaceholder": "Fortell hva du føler...",
     "footer": "Lugn AI • Privat & Sikker",
-    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologhjelp. Ved akutt krise, ring 113 (Selvmordslinjen) eller 112."
+    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologhjelp. Ved akutt krise, ring 113 (Selvmordslinjen) eller 112.",
+    "stopSpeaking": "Stopp opplesning",
+    "listenToMessage": "Lytt til meldingen",
+    "crisis": "KRISE",
+    "offline": "Offline",
+    "reconnecting": "Kobler til igjen...",
+    "loadingOlder": "Laster eldre meldinger...",
+    "loadOlder": "Last eldre meldinger",
+    "stopRecording": "Stopp stemmeopptak",
+    "startRecording": "Start stemmeopptak",
+    "listening": "🎤 Lytter...",
+    "send": "Send melding",
+    "errorShort": "Beklager, jeg kunne ikke svare akkurat nå. Prøv igjen om en liten stund."
   },
   "subscription": {
     "title": "Oppgrader til Premium",
@@ -393,12 +601,19 @@
   },
   "ai": {
     "stories": {
-      "title": "AI-berättelser",
-      "loadError": "Kunde inte ladda AI-berättelser",
-      "generateNew": "Generera ny berättelse",
-      "generating": "Genererar...",
-      "play": "Spela upp",
-      "generateError": "Kunde inte generera berättelse"
+      "title": "AI-historier",
+      "loadError": "Kunne ikke laste AI-historier",
+      "generateNew": "Generer ny historie",
+      "generating": "Genererer...",
+      "play": "Spill av",
+      "pause": "Pause",
+      "mute": "Lyd av",
+      "unmute": "Slå på lyd",
+      "generateError": "Kunne ikke generere historie",
+      "loginRequired": "Logg inn for å se dine AI-historier.",
+      "empty": "Ingen historier ennå. Generer din første AI-historie!",
+      "addFavorite": "Legg til favoritt",
+      "removeFavorite": "Fjern favoritt"
     }
   },
   "analytics": {
@@ -437,6 +652,44 @@
     "saveLog": "Lagre Logg",
     "moodSaved": "Humør lagret: {{mood}}",
     "saveFailed": "Kunne ikke lagre humør. Prøv igjen.",
+    "moodSelected": "Valgt humør: {{mood}}",
+    "duplicateWarning": "Du logget akkurat det samme humøret",
+    "moodLoggedSuccess": "Humør logget!",
+    "dailyLimitReachedMessage": "Du har nådd din daglige grense for humørlogging.",
+    "moodLogFailed": "Kunne ikke logge humør. Prøv igjen.",
+    "today": "I dag",
+    "yesterday": "I går",
+    "note": "Notat (valgfritt)",
+    "stopRecording": "Stopp opptak",
+    "startRecording": "Ta opp tale",
+    "audioRecorded": "Taleopptak klart",
+    "hideAdvanced": "▼ Skjul avanserte alternativer",
+    "showAdvanced": "▶ Vis avanserte alternativer (Circumplex + Tags)",
+    "context": "Kontekst (valgfritt)",
+    "contextPlaceholder": "f.eks. \"hjemme\", \"på jobb\", \"ute\"",
+    "moodLabels": {
+      "sad": "Trist",
+      "anxious": "Engstelig",
+      "neutral": "Nøytral",
+      "good": "Bra",
+      "happy": "Glad",
+      "super": "Super"
+    },
+    "moodDescriptions": {
+      "sad": "Føler meg trist eller nedstemt",
+      "anxious": "Føler uro eller angst",
+      "neutral": "Føler meg verken bra eller dårlig",
+      "good": "Føler meg ganske bra",
+      "happy": "Føler meg glad og positiv",
+      "super": "Føler meg fantastisk!"
+    },
+    "reflectionPrompts": {
+      "low": "Hva ville føles mest til hjelp for deg de neste 60 minuttene?",
+      "mid": "Hva har påvirket humøret ditt mest hittils i dag?",
+      "good": "Hva bidro til at du føler deg ok eller bra akkurat nå?",
+      "high": "Hva vil du ta med deg fra denne positive følelsen resten av dagen?"
+    },
+    "defaultNotePrefix": "Føler meg",
     "moods": {
       "fantastic": "Fantastisk",
       "good": "Bra",
@@ -455,34 +708,167 @@
       "food": "Mat",
       "weather": "Vær"
     },
-    "title": "Hur mår du?",
-    "subtitle": "Logga ditt humör och få insikter",
-    "backToDashboard": "Tillbaka till Dashboard",
-    "loading": "Laddar...",
-    "checkInProgress": "Check-in progress",
-    "selectMood": "Välj ditt humör",
-    "keyboardTip": "Tips: Tryck 1-6 på tangentbordet för snabbval ",
-    "selectedMood": "Valt humör: {{mood}}",
-    "readyToLog": " Perfekt! Redo att logga ",
-    "hardDaySupport": "Det är okej att ha svåra dagar. Du gör ditt bäst. ",
-    "addNote": "Lägg till en anteckning (valfritt)",
-    "notePlaceholder": "Vad får dig att känna så här idag? ",
-    "reflectionAdded": "Reflektion tillagd",
-    "characterTip": "Tips: 15+ tecken ger bättre personlig uppföljning",
-    "characters": "tecken",
-    "logging": "Loggar...",
-    "logCompleteCheckIn": "Logga komplett check-in",
-    "logMood": "Logga humör",
-    "dailyLimitReached": "Daglig gräns nådd",
-    "upgradeForUnlimited": "Uppgradera till Premium för obegränsade loggningar",
-    "recentMoods": "Dina senaste humör",
-    "logsThisWeek": "{{count}} loggningar denna vecka ",
-    "noMoodsYet": "Inga humör loggade ännu",
-    "startLogging": "Börja logga dina humör för att se historik här",
-    "connecting": "Ansluter till server...",
-    "networkError": "Nätverksfel. Kunde inte ansluta till servern.",
-    "tryAgain": "Försök igen",
-    "retrying": "Försöker igen..."
+    "title": "Hvordan har du det?",
+    "subtitle": "Logg humøret ditt og få innsikt",
+    "backToDashboard": "Tilbake til Dashboard",
+    "loading": "Laster...",
+    "checkInProgress": "Pågår",
+    "selectMood": "Velg humør",
+    "keyboardTip": "Tips: Trykk 1-6 på tastaturet for raskt valg ⌨️",
+    "selectedMood": "Valgt humør: {{mood}}",
+    "readyToLog": "✨ Perfekt! Klar til å logge ✨",
+    "hardDaySupport": "Det er greit å ha vanskelige dager. Du gjør ditt beste. 💙",
+    "addNote": "Legg til et notat (valgfritt)",
+    "notePlaceholder": "Hva får deg til å føle slik i dag? ✨",
+    "reflectionAdded": "Refleksjon lagt til",
+    "characterTip": "Tips: 15+ tegn gir bedre personlig oppfølging",
+    "characters": "tegn",
+    "logging": "Logger...",
+    "logCompleteCheckIn": "Logg komplett check-in",
+    "logMood": "Logg humør",
+    "dailyLimitReached": "Daglig grense nådd",
+    "upgradeForUnlimited": "Oppgrader til Premium for ubegrenset logging",
+    "recentMoods": "Dine siste humør",
+    "logsThisWeek": "{{count}} logginger denne uken 💪",
+    "noMoodsYet": "Ingen humør logget enda",
+    "startLogging": "Begynn å logge humøret ditt for å se historikk her",
+    "connecting": "Kobler til server...",
+    "networkError": "Nettverksfeil. Kunne ikke koble til serveren.",
+    "tryAgain": "Prøv igjen",
+    "retrying": "Prøver igjen..."
+  },
+  "voiceChat": {
+    "title": "🎤 Stemmeanalyse & AI Terapeut",
+    "subtitle": "Snakk fritt – jeg analyserer stemmen din og gir personlige innsikter for ditt velvære",
+    "helpAriaLabel": "Hjelp",
+    "helpText": "💡 **Hvordan det fungerer:**\n\n1. Trykk på mikrofonen og snakk i minst 3 sekunder\n2. Jeg analyserer stemmen og følelsene dine\n3. Du får personlige innsikter og anbefalinger\n4. Du kan også skrive eller klikke på en hurtigvalg nedenunder",
+    "startRecordingAria": "Start stemmeopptak",
+    "stopRecordingAria": "Stopp opptak",
+    "voiceInputAria": "Stemmeinndata",
+    "recording": "🔴 Spiller inn...",
+    "pressToStart": "Trykk for å starte",
+    "transcribing": "Transkriberer tale...",
+    "analyzingEmotions": "Analyserer følelser...",
+    "processing": "Behandler...",
+    "speakNaturally": "Snakk naturlig i minst 3 sekunder. Jeg analyserer stemmen og følelsene dine.",
+    "welcomeMessage": "Hei! Jeg er din AI-terapeut. Hvordan føles det i dag? Du kan snakke med meg ved å trykke på mikrofon-knappen eller ved å skrive.",
+    "recordingStarted": "Stemmeopptak startet",
+    "recordingStopped": "Stemmeopptak stoppet",
+    "processingVoice": "Behandler stemmemelding...",
+    "recordingError": "Det oppstod en feil under opptaket. Prøv igjen.",
+    "recordingStartError": "Kunne ikke starte opptak. Sjekk at nettleseren har tilgang til mikrofonen.",
+    "recordingStartErrorAria": "Kunne ikke starte stemmeopptak",
+    "emptyRecording": "Opptaket ble tomt. Prøv å snakke tydeligere og lengre.",
+    "recordingTooLarge": "Opptaket er for stort (maks {{max}} MB). Prøv igjen med en kortere melding.",
+    "autoStopped": "Opptaket ble automatisk stoppet etter {{seconds}} sekunder.",
+    "transcribeFailed": "⚠️ Kunne ikke transkribere stemmen din. Snakk tydeligere og lengre (minst 2 sekunder), eller skriv meldingen din nedenunder.",
+    "processError": "Det oppstod en uventet feil ved behandling av stemmemeldingen. Prøv igjen.",
+    "processErrorAria": "Kunne ikke behandle stemmemelding",
+    "aiResponseReceived": "AI-svar mottatt",
+    "aiResponseFallback": "Takk for at du delte det med meg.",
+    "aiResponseFallbackExtended": "Takk for at du delte det med meg. Fortell mer om hvordan du føler deg.",
+    "crisisWarning": "⚠️ Det høres ut som du har det vanskelig akkurat nå. Hvis du føler deg v dårlig: ring **112** eller **Mind 90101** (døgnet rundt).",
+    "aiTimeoutError": "Det tok litt for lang tid å få et svar. Prøv igjen eller skriv meldingen din i stedet.",
+    "aiGenericError": "Jeg kunne ikke svare akkurat nå. Prøv igjen om en liten stund.",
+    "aiGenericErrorShort": "Jeg kunne ikke behandle meldingen din akkurat nå. Prøv igjen om en liten stund.",
+    "loginRequired": "Logg inn for å snakke med AI-terapeuten.",
+    "quickActionsTitle": "Hurtigvalg",
+    "quickActions": {
+      "stressed": "Jeg føler meg stresset i dag",
+      "mindfulness": "Hjelp meg med mindfulness",
+      "calmStory": "Fortell en beroligende historie",
+      "sleep": "Hva kan jeg gjøre for bedre søvn?",
+      "anxious": "Jeg føler meg engstelig",
+      "understandEmotions": "Hjelp meg å forstå følelsene mine"
+    },
+    "aiTherapistLabel": "💬 AI-terapeut",
+    "voiceLabel": "🎤 stemme",
+    "confidenceLabel": "konfidens",
+    "energyLabel": "Energi",
+    "energyHigh": "Høy",
+    "energyMedium": "Middels",
+    "energyLow": "Lav",
+    "paceLabel": "Taletempo",
+    "paceFast": "Raskt",
+    "paceSlow": "Sakte",
+    "paceNormal": "Normalt",
+    "volumeLabel": "Volum",
+    "volumeHigh": "Variert",
+    "volumeLow": "Konstant",
+    "volumeModerate": "Måttelig",
+    "emotionProfileTitle": "Følelsesprofil",
+    "emotionDimensionsTitle": "Følelsesdimensjoner",
+    "valenceLabel": "Valens",
+    "valenceDesc": "Neg ↔ Pos",
+    "arousalLabel": "Aktivering",
+    "arousalDesc": "Ro ↔ Aktiv",
+    "dominanceLabel": "Dominans",
+    "dominanceDesc": "Underdanig ↔ Dominant",
+    "insightTitle": "Psykologisk innsikt",
+    "recommendationsTitle": "Hva du kan gjøre nå",
+    "crisisTitle": "Hvis du føler deg veldig dårlig",
+    "crisisSos": "📞 SOS Alarm: 112",
+    "crisisMind": "💙 Mind: 90101 (døgnet rundt)",
+    "crisisDisclaimer": "Lugn & Trygg erstatter ikke profesjonell omsorg. Søk hjelp hvis du føler deg dårlig.",
+    "crisisWarningLevel1": "Hvis du trenger å snakke med noen, kan du ringe <strong>Mind selvmordslinjen: 90101</strong> (gratis, døgnet rundt). Lugn & Trygg erstatter ikke profesjonell psykologhjelp.",
+    "inputPlaceholder": "Skriv meldingen din...",
+    "sendAria": "Send",
+    "recordingHint": "Spiller inn – trykk på stopp-knappen for å avslutte og analysere",
+    "disclaimer": "Lugn & Trygg erstatter ikke profesjonell psykologhjelp",
+    "mindHelpline": "Mind: 90101",
+    "emotionLabels": {
+      "happy": "Glad",
+      "sad": "Trist",
+      "anxious": "Engstelig",
+      "angry": "Sint",
+      "fearful": "Redd",
+      "neutral": "Nøytral",
+      "surprised": "Overrasket",
+      "disgusted": "Ekel",
+      "frustrated": "Frustrert",
+      "calm": "Rolig",
+      "tired": "Trøtt"
+    },
+    "emotionInsights": {
+      "happy": "Stemmen din formidler glede og energi – et sterkt tegn på velvære. Positive følelser styrker din motstandskraft og nære dine relasjoner.",
+      "sad": "Stemmen din bærer en viss tyngde og sorg. Det er helt greit – sorg er en viktig del av å være menneske og hjelper oss å bearbeide tap. Du trenger ikke bære det alene.",
+      "anxious": "Stemmen din viser tegn på uro og indre spenning. Hjernen din prøver å beskytte deg – men uro kan noen ganger bli uforholdsmessig. Du er ikke alene med dette, og det kan læres å håndtere.",
+      "angry": "Stemmen din bærer intens energi som tyder på frustrasjon eller sinne. Sinne er et signal om at noe viktig er krenket – det er menneskelig. Det handler om å kanalisere det konstruktivt.",
+      "fearful": "Stemmen din viser tegn på frykt eller stor uro. Frykt er kroppens alarmsystem – men noen ganger reagerer det for sterkt. Hvis du er i fare eller føler deg veldig dårlig: søk hjelp nå.",
+      "neutral": "Stemmen din høres balansert og nøytral ut. Det kan tyde på ro og velvære – eller at du holder tilbake følelser. Noen ganger er det vanskeligere å nå de dypere lagene.",
+      "surprised": "Stemmen din viser overraskelse eller uventet engasjement. Overraskelse er ofte kortvarig – legg merke til hva som skapte den.",
+      "disgusted": "Avsky eller avsmak i stemmen kan signalisere at noe strider mot dine verdier. Det er viktig informasjon om dine grenser.",
+      "frustrated": "Frustrasjon er et signal om et hinder eller urettferdighet. Det er en aktiv følelse som sier: \"Noe stemmer ikke.\" Lytt til den med nysgjerrighet."
+    },
+    "emotionRecommendations": {
+      "happy": ["Nyt øyeblikket – legg merke til hva som skapte gleden", "Del energien din med noen du bryr deg om", "Skriv ned tre ting du er takknemlig for i dag"],
+      "sad": ["Tillat deg å føle, ikke fly fra følelsen", "Pust dypt: inn 4 sek → hold 2 sek → ut 6 sek", "Ring noen du stoler på – en samtale hjelper"],
+      "anxious": ["4-7-8-pusting: inn 4 sek → hold 7 sek → ut 8 sek", "Jordingsteknikk: Nevn 5 ting du ser, 4 du hører, 3 du tar på", "Spør deg selv: Hvor sannsynlig er dette scenariet egentlig?"],
+      "angry": ["Bokspusting: inn 4 → hold 4 → ut 4 → hold 4 sek", "Ta et skritt tilbake og tell til 10 før du reagerer", "Beveg deg – en rask gåtur senker stresshormoner"],
+      "fearful": ["Hvis akutt fare: Ring 112 umiddelbart", "Mind selvmordslinjen: 90101 (døgnet rundt)", "Jordingsteknikk: Press føttene mot gulvet, pust sakte"],
+      "neutral": ["Reflekter: Hvordan føler du deg egentlig dypt inne?", "Mindfulness: Sitt stille i 5 minutter og observer tankene", "Skriv ned tankene dine i en dagbok"],
+      "surprised": ["Funder: Hva overrasket deg og hva sier det om forventningene dine?", "Nysgjerrighet er positivt – la overraskelsen lede til utforskning"],
+      "disgusted": ["Identifiser hva som utløste følelsen", "Kommuniser grensene dine tydelig og respektfullt", "Er det noe du trenger å ta avstand fra?"],
+      "frustrated": ["Identifiser det spesifikke hinderet: hva kan du kontrollere?", "Bryt problemet ned i mindre deler", "Beveg deg – fysisk aktivitet løser opp frustrasjonstenkning"]
+    }
+  },
+  "voiceRecorder": {
+    "title": "🎤 Stemmeopptak",
+    "subtitle": "Ta opp stemmen din for transkribering og følelsesanalyse",
+    "googleSpeechUnavailable": "⚠️ Google Speech API er ikke tilgjengelig. Bruker nettleserens tale-API.",
+    "processing": "Behandler opptak...",
+    "startRecording": "Start Opptak",
+    "stopRecording": "Stopp Opptak",
+    "recordingTooLarge": "Opptaket ble for stort. Prøv å ta opp et kortere opptak.",
+    "transcribeFailed": "Transkribering mislyktes. Prøv å snakke tydeligere.",
+    "processingError": "Det oppstod en feil ved behandling av stemmeopptaket.",
+    "noMicrophone": "Ingen mikrofon funnet. Sjekk at en mikrofon er tilkoblet.",
+    "startError": "Kunne ikke starte opptak. Sjekk mikrofontillatelser.",
+    "micPermissionDenied": "Mikrofontilgang nektet. Vennligst tillat mikrofontilgang i nettleseren og prøv igjen.",
+    "startErrorPrefix": "Kunne ikke starte opptak:",
+    "transcriptLabel": "Transkribering:",
+    "emotionLabel": "Følelse:",
+    "tips": "💡 Tips: Snakk tydelig i 10-120 sekunder for best resultat"
   },
   "gamification": {
     "myJourney": "Min Resa 🏆",
@@ -649,7 +1035,10 @@
     "weeklyGoalReached": "Grattis! Du har nått ditt veckomål!",
     "entriesLeft": "{{count}} inlägg kvar till nästa achievement",
     "noActivityYet": "Ingen aktivitet än. Börja logga ditt humör eller prata med AI-terapeuten!",
-    "seeRecommendations": "Se anbefalinger →"
+    "seeRecommendations": "Se anbefalinger →",
+    "latestMoods": "Dine siste humører",
+    "noMoodsYet": "Ingen humør logget ennå. Begynn å logge humøret ditt i dag!",
+    "noOtherActivityYet": "Ingen annen aktivitet ennå. Begynn å chatte med AI-terapeuten eller prøv en meditasjon!"
   },
   "social": {
     "title": "",
@@ -725,6 +1114,24 @@
     "itsOkay": " Det er helt greit å føle seg slik. Du er ikke alene.",
     "talkToAI": "Chat med AI",
     "getHelp": "Få hjelp nå",
+    "moodNeedsAttention": "Humøret ditt trenger oppmerksomhet",
+    "stableOverall": "Stabilt overlag",
+    "noData": "Ingen data",
+    "exploringPhase": "Utforskende fase",
+    "naturallyVarying": "Naturlig varierende",
+    "positiveDevelopment": "Positiv utvikling",
+    "balanced": "Balansert",
+    "stable": "Stabilt",
+    "trendTooltip": "Viser humørets retning over tid: {{label}}",
+    "moodScoreOf10": "{{score}} av 10",
+    "streakDays": "{{count}} {{count, plural, one {dag} other {dager}}}",
+    "yourActivity": "Din aktivitet",
+    "activityOfTotal": "{{current}} av {{total}} dager",
+    "encouragement0": "🌱 Hver dag er en ny mulighet",
+    "encouragement1": "🌱 Bra start! Fortsett slik.",
+    "encouragement2": "🌱 Fin rytme bygges!",
+    "encouragement3": "✨ Sterk konsekvens!",
+    "encouragement5": "🔥 Imponerende dedikasjon!",
     "achievementProgress": "Prestasjon Fremgang",
     "safetyBlock": "Sikkerhetsblokk"
   },
@@ -743,13 +1150,15 @@
     "checkedIn": "Flott jobbet med dagens innsjekk! Vil du se innsiktene dine?",
     "morningMood": "God morgen! I går var følelsen din \"{{mood}}\". Hvordan kjennes det å starte i dag?",
     "welcomeBackMood": "Velkommen tilbake! Sist var følelsen din \"{{mood}}\". Hva legger du merke til nå?",
+    "moodContext": "I går var følelsen din \"{{mood}}\". Hvordan kjennes det å starte i dag?",
     "mindfulPrompt": "Hvilke følelser eller tanker er til stede akkurat nå? Alt er velkommen her.",
     "breatheIn": "Pust inn",
     "breatheOut": "Pust ut",
     "pause": "Pause",
     "done": "Ferdig",
     "breathingExercise": "Pusteøvelse",
-    "reflectionInvitation": "Invitasjon til refleksjon"
+    "reflectionInvitation": "Invitasjon til refleksjon",
+    "defaultUserName": "venn"
   },
   "breath": {
     "breathCount": "Åndedrag",
@@ -785,6 +1194,8 @@
   },
   "loginForm": {
     "secureLogin": "Sikker innlogging",
+    "title": "Logg inn",
+    "subtitle": "Velkommen tilbake. Logg inn for å fortsette der du sluttet.",
     "loginTitle": "Logg inn",
     "welcomeBack": "Velkommen tilbake. Logg inn for å fortsette der du sluttet.",
     "emailLabel": "📧 E-postadresse",
@@ -809,7 +1220,13 @@
     "defaultError": "En feil oppstod under innlogging",
     "loggingInGoogle": "Logger inn med Google...",
     "invalidEmail": "Vennligst skriv inn en gyldig e-postadresse",
-    "passwordRequired": "Passord er påkrevd"
+    "passwordRequired": "Passord er påkrevd",
+    "formErrors": "Skjemaet inneholder feil. Rett opp og prøv igjen.",
+    "serverTimeout": "Serveren svarer ikke akkurat nå. Prøv igjen om noen sekunder.",
+    "networkError": "Kunne ikke koble til serveren. Sjekk internettforbindelsen.",
+    "popupBlocked": "Popup ble blokkert. Tillat popups for dette nettstedet.",
+    "popupClosed": "Innloggingsvinduet ble lukket. Prøv igjen.",
+    "popupCancelled": "Innloggingsvinduet ble avbrutt. Prøv igjen."
   },
   "forgotPassword": {
     "title": "Tilbakestill passord",
@@ -1013,7 +1430,83 @@
     "wellnessGoals": "Velværemål",
     "availableExercises": "Tilgjengelige øvelser",
     "evidenceBased": "Evidensbasert innhold",
-    "searchPlaceholder": "Søk etter anbefalinger..."
+    "searchPlaceholder": "Søk etter anbefalinger...",
+    "lastAccessed": "Sist",
+    "peopleDoingToday": "personer har gjort dette i dag",
+    "sort": {
+      "rating": "Vurdering",
+      "duration": "Varighet",
+      "difficulty": "Vanskelighetsgrad"
+    },
+    "cta": {
+      "meditation": "Vis meditasjon",
+      "exercise": "Vis øvelse",
+      "article": "Vis artikkel",
+      "challenge": "Vis utfordring",
+      "insight": "Vis innsikt",
+      "default": "Vis anbefaling"
+    },
+    "matchReason": {
+      "goal": "Matcher mål: {{goal}}",
+      "preference": "Matcher interesse: {{preference}}"
+    },
+    "error": {
+      "loadFailed": "Kunne ikke laste anbefalinger"
+    },
+    "announce": {
+      "opening": "Åpner anbefaling: {{title}}",
+      "exerciseCompleted": "Øvelse fullført! Bra jobbet!",
+      "pomodoroAllComplete": "Alle {{count}} Pomodoro-økter fullført!",
+      "pomodoroBreak": "{{minutes}} minutters pause starter",
+      "pomodoroWorkResume": "Pause over. Økt {{session}} starter",
+      "articleCompleted": "Artikkelen om nevrovitenskap og fokus er nå fullført!",
+      "quizScore": "Du fikk {{score}} av {{total}} riktig på quizen",
+      "remindersEnabled": "Daglige påminnelser er aktivert",
+      "remindersDisabled": "Daglige påminnelser er deaktivert",
+      "reminderTimeUpdated": "Påminnelsestid oppdatert til {{time}}",
+      "saved": "{{title}} lagret i favorittene dine",
+      "unsaved": "{{title}} fjernet fra favoritter",
+      "shared": "Anbefaling delt vellykket",
+      "linkCopied": "Lenke kopiert til utklippstavle",
+      "copyFailed": "Kunne ikke kopiere lenke",
+      "thanksForFeedback": "Takk for din tilbakemelding!",
+      "actionPerformed": "Handling {{action}} utført på {{title}}",
+      "thanksPositive": "Takk for din positive tilbakemelding!",
+      "thanksNegative": "Takk for din tilbakemelding, vi forbedrer våre anbefalinger!",
+      "baWriteActivity": "Skriv minst én aktivitet",
+      "baSelectActivity": "Velg en aktivitet",
+      "baDescribePlan": "Beskriv planen med minst 15 tegn",
+      "baSelectPleasure": "Velg en forventet nytelsesvurdering",
+      "wtWriteWorries": "Skriv minst ett bekymring",
+      "wtCheckboxRequired": "Kryss av i boksen for å fortsette",
+      "wtWriteReflection": "Skriv en kort refleksjon",
+      "gratitudeMinThree": "Skriv minst 3 ting du er takknemlig for",
+      "alreadyCompleted": "{{title}} var allerede markert som fullført.",
+      "markedCompleted": "{{title}} markert som fullført",
+      "markCompletedFailed": "Kunne ikke markere som fullført"
+    },
+    "notifications": {
+      "browserNotSupported": "Denne nettleseren støtter ikke push-varsler",
+      "blocked": "Du har blokkert varsler. Aktiver dem i nettleserinnstillingene for å bruke denne funksjonen.",
+      "enabled": "✅ Daglige påminnelser aktivert!\n\nDu vil få en vennlig påminnelse hver dag kl. {{time}} om å ta vare på din mentale helse.",
+      "enableFailed": "Kunne ikke aktivere daglige påminnelser. Prøv igjen.",
+      "disabled": "Daglige påminnelser er deaktivert.",
+      "disableFailed": "Kunne ikke deaktivere daglige påminnelser. Prøv igjen.",
+      "updateTimeFailed": "Kunne ikke oppdatere påminnelsestiden. Prøv igjen."
+    },
+    "cbt": {
+      "selectMood": "Velg ditt nåværende humør",
+      "errorLoad": "KBT-data kunne ikke lastes akkurat nå. Prøv igjen senere.",
+      "errorLoadShort": "KBT-data kunne ikke lastes akkurat nå.",
+      "mood": {
+        "neutral": "Nøytralt humør",
+        "highAnxiety": "Høy angst",
+        "lowMood": "Lavt humør",
+        "depression": "Depresjon",
+        "stress": "Stress",
+        "good": "Føler meg bra"
+      }
+    }
   },
   "wellnessHub": {
     "title": "Velværebibliotek",
@@ -1511,5 +2004,79 @@
         "description": "Dyp hvile med havets rytme og veiledning"
       }
     ]
+  },
+  "clinicalAssessment": {
+    "title": "Klinisk selvbedømmelse",
+    "subtitle": "Validerte skalaer for depresjon (PHQ-9) og angst (GAD-7)",
+    "tabs": {
+      "phq9": "PHQ-9 (Depresjon)",
+      "gad7": "GAD-7 (Angst)",
+      "history": "Historikk"
+    },
+    "responseOptions": {
+      "labels": ["Ikke i det hele tatt", "Flere dager", "Mer enn halvparten av dagene", "Nesten hver dag"],
+      "descriptions": ["0 poeng", "1 poeng", "2 poeng", "3 poeng"]
+    },
+    "severity": {
+      "minimal": "Minimal",
+      "mild": "Mild",
+      "moderate": "Middels",
+      "moderately_severe": "Middels–alvorlig",
+      "severe": "Alvorlig"
+    },
+    "phq9Questions": {
+      "little_interest": "Lite interesse eller glede ved å gjøre ting",
+      "feeling_down": "Følt deg nedstemt, deprimert eller håpløs",
+      "sleep_problems": "Vanskeligheter med å sovne eller sove for mye",
+      "feeling_tired": "Følt deg trøtt eller hatt for lite energi",
+      "appetite": "Dårlig appetitt eller spist for mye",
+      "feeling_bad": "Følt deg dårlig om deg selv eller at du har sviktet",
+      "concentration": "Vanskeligheter med å konsentrere deg",
+      "moving_slowly": "Beveget deg eller snakket langsomt, eller vært rastløs",
+      "self_harm": "Tanker om at du heller ville vært død eller skade deg selv"
+    },
+    "gad7Questions": {
+      "feeling_nervous": "Følt deg nervøs, engstelig eller på helspenn",
+      "cant_control_worry": "Ikke klart å slutte å bekymre deg eller kontrollere bekymringen",
+      "worrying_too_much": "Bekymret deg for mye for forskjellige ting",
+      "trouble_relaxing": "Hatt vanskelig for å slappe av",
+      "restless": "Vært så rastløs at du har hatt vanskelig for å sitte stille",
+      "easily_annoyed": "Bli lett irritert eller hissig",
+      "afraid": "Følt deg redd som om noe forferdelig skulle skje"
+    },
+    "selfHarmNote": "(Spørsmål om tanker om selvskading)",
+    "instruction": "I løpet av de siste 2 ukene, hvor ofte har du vært plaget av følgende?",
+    "progress": "Fremdrift",
+    "unansweredError": "Vennligst svar på alle spørsmål. {{count}} gjenstår.",
+    "genericError": "Det oppstod en feil under beregningen.",
+    "calculating": "Beregner…",
+    "calculate": "Beregn resultat",
+    "totalScore": "Total poengsum",
+    "maxScore": "maks {{max}} poeng",
+    "severityLabel": "Alvorlighetsgrad",
+    "immediateRiskTitle": "⚠️ Umiddelbar risiko oppdaget",
+    "immediateRiskText": "Du anga tanker om å skade deg selv. Kontakt psykiatrisk akuttmottak eller ring 112 eller krisestøtte 90101 (døgnet rundt).",
+    "recommendations": "Anbefalinger",
+    "hideQuestions": "Skjul spørsmål",
+    "showQuestions": "Vis spørsmål igjen",
+    "newAssessment": "Ny bedømmelse",
+    "viewHistory": "Se historikk",
+    "historyError": "Kunne ikke hente historikk. Prøv igjen.",
+    "historyLoading": "Henter historikk…",
+    "retry": "Prøv igjen",
+    "refresh": "Oppdater",
+    "emptyHistory": "Ingen tidligere bedømmelser funnet.",
+    "firstPhq9": "Ta din første PHQ-9",
+    "newPhq9": "Ny PHQ-9",
+    "newGad7": "Ny GAD-7",
+    "historyType": {
+      "phq9": "PHQ-9 Depresjon",
+      "gad7": "GAD-7 Angst"
+    },
+    "risk": "Risiko",
+    "phq9Trend": "PHQ-9 trend (siste {{count}})",
+    "gad7Trend": "GAD-7 trend (siste {{count}})",
+    "latest": "Sist",
+    "points": "p"
   }
 }

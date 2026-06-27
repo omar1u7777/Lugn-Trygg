@@ -1,0 +1,17 @@
+{
+  "_comment": "Allowlist for translation keys that are intentionally identical to Swedish. Remove entries as translations are added.",
+  "allowedIdentical": {
+    "en": [
+      "dashboard.title",
+      "common.ok",
+      "common.status",
+      "analytics.trend",
+      "dashboardStats.achievementsTitle",
+      "language.english",
+      "moodLogger.checkInProgress",
+      "gamification.xpProgress",
+      "gamification.ranking"
+    ],
+    "no": ["*"]
+  }
+}
