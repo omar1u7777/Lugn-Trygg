@@ -84,12 +84,13 @@ stripe==11.3.0
 google-cloud-firestore==2.23.0
 
 # Email Services
+resend==2.0.0
 
 # Data Validation
 pydantic==2.12.5
 pydantic-settings==2.7.0
 email-validator==2.3.0
-marshmallow==4.2.2
+marshmallow==3.26.3
 
 # API Documentation
 apispec==6.9.0
@@ -128,4 +129,4 @@ gevent==24.11.1
 flask-socketio==5.3.7      # [B2] WebSocket biofeedback — required, not optional
 
 # API Documentation (extended)
-flask-apispec==0.11.4
+flask-apispec==0.11.4  # requires marshmallow 3.x

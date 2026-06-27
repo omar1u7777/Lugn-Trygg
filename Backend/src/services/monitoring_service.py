@@ -54,10 +54,14 @@ class MonitoringService:
 
         # Initialize Redis if available
         try:
-            # Build Redis URL from config
-            redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}" if config.REDIS_PASSWORD else f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
+            # Build Redis URL from config — use redis_url property if available (Settings),
+            # otherwise construct from individual Config attributes
+            if hasattr(config, 'redis_url'):
+                redis_url = config.redis_url
+            else:
+                redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}" if config.REDIS_PASSWORD else f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
             self.redis_client = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
-            logger.info(f"✅ Redis connected for monitoring: {config.REDIS_HOST}:{config.REDIS_PORT}")
+            logger.info(f"✅ Redis connected for monitoring")
         except Exception as e:
             logger.warning(f"Redis connection failed: {e}")
 
