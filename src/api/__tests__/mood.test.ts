@@ -81,11 +81,10 @@ describe('logMood', () => {
     const blob = new Blob(['audio'], { type: 'audio/webm' });
     const response = await logMood('user1', { score: 7, note: 'voice note' }, blob);
 
-    // Should have called post with FormData and multipart headers
+    // Should have called post with FormData (browser sets Content-Type automatically)
     expect(mockApi.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(FormData),
-      expect.objectContaining({ headers: { 'Content-Type': 'multipart/form-data' } })
+      expect.any(FormData)
     );
     expect(response).toEqual(result);
   });
@@ -333,8 +332,7 @@ describe('logMood additional branches', () => {
     const result = await logMood('u1', moodData, blob);
     expect(mockApi.post).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(FormData),
-      expect.any(Object)
+      expect.any(FormData)
     );
     expect(result).toEqual({ id: 'x' });
   });

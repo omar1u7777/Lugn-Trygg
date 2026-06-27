@@ -2,81 +2,81 @@ import type { FeatureName } from '@/components/PremiumGate';
 
 export interface NavLinkConfig {
   path: string;
-  label: string;
+  labelKey: string;
   icon: string;
   feature?: FeatureName;
 }
 
 export const NAV_LINKS: NavLinkConfig[] = [
-  { path: '/dashboard', label: 'Översikt', icon: '📊' },
-  { path: '/wellness', label: 'Välmående', icon: '🧘', feature: 'wellness' },
-  { path: '/mood-logger', label: 'Humör', icon: '😊' },
-  { path: '/ai-chat', label: 'AI-chatt', icon: '💬' },
-  { path: '/insights', label: 'Insikter', icon: '📈', feature: 'insights' },
-  { path: '/profile', label: 'Profil', icon: '👤' },
+  { path: '/dashboard', labelKey: 'navLinks.dashboard', icon: '📊' },
+  { path: '/wellness', labelKey: 'navLinks.wellness', icon: '🧘', feature: 'wellness' },
+  { path: '/mood-logger', labelKey: 'navLinks.mood', icon: '😊' },
+  { path: '/ai-chat', labelKey: 'navLinks.aiChat', icon: '💬' },
+  { path: '/insights', labelKey: 'navLinks.insights', icon: '📈', feature: 'insights' },
+  { path: '/profile', labelKey: 'navLinks.profile', icon: '👤' },
 ];
 
 export interface QuickActionConfig {
   id: 'mood' | 'mood-list' | 'chat' | 'meditation' | 'journal' | 'sounds' | 'social' | 'insights' | 'recommendations';
-  title: string;
+  titleKey: string;
   icon: string;
   colorClass: string;
-  ariaLabel?: string;
+  ariaLabelKey?: string;
   feature?: FeatureName;
-  defaultDescription: string;
+  defaultDescriptionKey: string;
 }
 
 export const QUICK_ACTIONS: QuickActionConfig[] = [
   {
     id: 'mood',
-    title: 'Känn efter',
+    titleKey: 'quickAction.mood.title',
     icon: '🧘‍♀️',
     colorClass: 'text-secondary-500',
-    ariaLabel: 'Checka in med ditt mående',
-    defaultDescription: 'Hur mår du i stunden?',
+    ariaLabelKey: 'quickAction.mood.ariaLabel',
+    defaultDescriptionKey: 'quickAction.mood.description',
   },
   {
     id: 'chat',
-    title: 'Få stöd',
+    titleKey: 'quickAction.chat.title',
     icon: '💬',
     colorClass: 'text-success-500',
-    ariaLabel: 'Starta samtal med AI-stöd',
-    defaultDescription: 'Prata av dig, när som helst',
+    ariaLabelKey: 'quickAction.chat.ariaLabel',
+    defaultDescriptionKey: 'quickAction.chat.description',
   },
   {
     id: 'sounds',
-    title: 'Lugnande ljud',
+    titleKey: 'quickAction.sounds.title',
     icon: '🎵',
     colorClass: 'text-primary-500',
-    ariaLabel: 'Lyssna på lugnande ljud och musik',
+    ariaLabelKey: 'quickAction.sounds.ariaLabel',
     feature: 'sounds',
-    defaultDescription: 'Slappna av med musik',
+    defaultDescriptionKey: 'quickAction.sounds.description',
   },
   {
     id: 'journal',
-    title: 'Dagbok',
+    titleKey: 'quickAction.journal.title',
     icon: '📖',
     colorClass: 'text-accent-500',
-    ariaLabel: 'Skriv i din dagbok',
+    ariaLabelKey: 'quickAction.journal.ariaLabel',
     feature: 'journal',
-    defaultDescription: 'Skriv dina tankar',
+    defaultDescriptionKey: 'quickAction.journal.description',
   },
   {
     id: 'recommendations',
-    title: 'Tips & råd',
+    titleKey: 'quickAction.recommendations.title',
     icon: '✨',
     colorClass: 'text-primary-500',
-    ariaLabel: 'Se personliga rekommendationer',
+    ariaLabelKey: 'quickAction.recommendations.ariaLabel',
     feature: 'recommendations',
-    defaultDescription: 'Anpassat just för dig',
+    defaultDescriptionKey: 'quickAction.recommendations.description',
   },
   {
     id: 'social',
-    title: 'Gemenskap',
+    titleKey: 'quickAction.social.title',
     icon: '👥',
     colorClass: 'text-neutral-500',
-    ariaLabel: 'Gå med i gemenskapen',
+    ariaLabelKey: 'quickAction.social.ariaLabel',
     feature: 'social',
-    defaultDescription: 'Stöd varandra',
+    defaultDescriptionKey: 'quickAction.social.description',
   },
 ];

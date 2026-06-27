@@ -174,9 +174,9 @@ export const getJournalEntryById = async (
     const response = await api.get<JournalApiResponse<JournalEntry>>(
       `${API_ENDPOINTS.JOURNAL.ENTRY}/${userId}/journal/${entryId}`
     );
-    const entry = response.data?.data || response.data as unknown as JournalEntry;
+    const entry = response.data?.data !== undefined ? response.data?.data : response.data as unknown as JournalEntry;
     logger.debug('Journal entry retrieved', { found: !!entry });
-    return entry || null;
+    return entry ?? null;
   } catch (error: unknown) {
     const apiError = error as { response?: { status?: number; data?: { error?: string } } };
     if (apiError.response?.status === 404) {

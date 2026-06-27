@@ -90,7 +90,7 @@ export const getCSRFToken = async (): Promise<string> => {
  * @returns Promise resolving to dashboard summary data
  * @throws Error if dashboard summary retrieval fails
  */
-export const getDashboardSummary = async (userId: string, forceRefresh = false): Promise<DashboardSummary> => {
+export const getDashboardSummary = async (userId: string, forceRefresh = false, signal?: AbortSignal): Promise<DashboardSummary> => {
   if (!userId) {
     throw new Error('User ID is required for dashboard summary');
   }
@@ -100,7 +100,8 @@ export const getDashboardSummary = async (userId: string, forceRefresh = false):
     const url = `${API_ENDPOINTS.DASHBOARD.DASHBOARD_SUMMARY}/${userId}/summary`;
 
     const response = await api.get<APIResponseWrapper<DashboardSummary>>(url, {
-      params: forceRefresh ? { forceRefresh: 'true' } : {}
+      params: forceRefresh ? { forceRefresh: 'true' } : {},
+      signal,
     });
     const duration = performance.now() - startTime;
 

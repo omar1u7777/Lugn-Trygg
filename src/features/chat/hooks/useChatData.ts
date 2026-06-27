@@ -4,7 +4,8 @@
  * Custom hook for managing AI chat state and operations.
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { chatWithAI } from '../../../api/ai';
 import useAuth from '../../../hooks/useAuth';
 import { ChatMessage, AIResponse } from '../types';
@@ -27,6 +28,20 @@ interface UseChatDataReturn {
 export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn {
   const { maxMessages = 100 } = options;
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,8 +76,16 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
         setSessionId(`session_${Date.now()}`);
       }
 
-      // Send to API
-      const response = await chatWithAI(user.user_id, content);
+      // Abort any previous in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      // Send to API with abort signal
+      const response = await chatWithAI(user.user_id, content, abortControllerRef.current.signal);
+
+      if (!isMountedRef.current) return null;
 
       // Parse response
       const aiResponse: AIResponse = {
@@ -84,10 +107,14 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
         },
       };
 
+      if (!isMountedRef.current) return null;
       setMessages(prev => [...prev.slice(-(maxMessages - 1)), assistantMessage]);
 
       return aiResponse;
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return null;
+      if (!isMountedRef.current) return null;
       const errorMessage = err instanceof Error ? err : new Error('Failed to send message');
       setError(errorMessage);
       
@@ -95,7 +122,7 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
       const errorChatMessage: ChatMessage = {
         id: generateMessageId(),
         role: 'assistant',
-        content: 'Tyvärr kunde jag inte svara just nu. Försök igen om en stund.',
+        content: t('aiChat.errorShort'),
         timestamp: new Date(),
       };
       
@@ -103,9 +130,10 @@ export function useChatData(options: UseChatDataOptions = {}): UseChatDataReturn
       
       return null;
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [user, sessionId, maxMessages, generateMessageId]);
+  }, [user, sessionId, maxMessages, generateMessageId, t]);
 
   const clearChat = useCallback(() => {
     setMessages([]);
