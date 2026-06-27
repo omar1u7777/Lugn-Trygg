@@ -90,7 +90,7 @@ resend==2.0.0
 pydantic==2.12.5
 pydantic-settings==2.7.0
 email-validator==2.3.0
-marshmallow==3.26.3
+marshmallow==3.26.2
 
 # API Documentation
 apispec==6.9.0
