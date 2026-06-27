@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from './useAccessibility';
-import useAuth from './useAuth';
 import { getMeditationSessions } from '../api/meditation';
 import { logger } from '../utils/logger';
 import { Recommendation, RecommendationsProps } from '../types/recommendation';
@@ -12,7 +11,6 @@ import { EMPTY_WELLNESS_GOALS, type RecommendationFeedback } from '../constants/
 export const useRecommendations = ({ wellnessGoals = EMPTY_WELLNESS_GOALS }: RecommendationsProps) => {
   const { announceToScreenReader } = useAccessibility();
   const { t } = useTranslation();
-  const { user } = useAuth();
   
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);

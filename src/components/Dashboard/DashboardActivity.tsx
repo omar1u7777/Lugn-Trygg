@@ -163,7 +163,7 @@ export const DashboardActivity: React.FC<DashboardActivityProps> = ({
     });
 
     return groups.filter((group) => group.items.length > 0);
-  }, [visibleActivities]);
+  }, [visibleActivities, t]);
 
   if (isLoading) {
     return (
