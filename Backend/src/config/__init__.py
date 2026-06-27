@@ -47,6 +47,9 @@ def get_env_variable(
         )
         raise ValueError(f"Miljövariabel '{var_name}' saknas och är obligatorisk!")
 
+    if value is None:
+        return None
+
     try:
         if cast_type is bool:
             value = str(value).strip().lower() in ["1", "true", "yes"]
