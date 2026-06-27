@@ -4,7 +4,7 @@
  * Respects subscription limits for free tier users
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getDashboardSummary } from '../api/dashboard';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
@@ -95,6 +95,19 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const loadDashboardData = useCallback(async (forceRefresh = false) => {
     if (!userId) {
       setLoading(false);
@@ -102,25 +115,41 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
       return;
     }
 
+    // Abort any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     // Check cache first (client-side caching) scoped per user
     if (!forceRefresh) {
       const cachedStats = getCachedStatsForUser(userId);
       if (cachedStats) {
-        setStats(cachedStats);
-        setLoading(false);
+        if (isMountedRef.current) {
+          setStats(cachedStats);
+          setLoading(false);
+        }
         analytics.track('Dashboard Cache Hit', { userId });
         return;
       }
     }
 
     try {
-      setLoading(true);
-      setError(null);
+      if (isMountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
 
       const startTime = performance.now();
 
       // Single API call - backend handles batching and caching
-      const data = await getDashboardSummary(userId, forceRefresh);
+      const data = await getDashboardSummary(userId, forceRefresh, abortController.signal);
+
+      // Check if component is still mounted and request wasn't aborted
+      if (!isMountedRef.current || abortController.signal.aborted) {
+        return;
+      }
 
       logger.debug('📊 Dashboard data received:', data);
       logger.debug('🎯 Wellness goals from backend:', data.wellnessGoals);
@@ -156,7 +185,9 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
       // Update cache for this user
       setCachedStatsForUser(userId, newStats);
 
-      setStats(newStats);
+      if (isMountedRef.current) {
+        setStats(newStats);
+      }
 
       const loadTime = performance.now() - startTime;
       analytics.track('Dashboard Data Loaded', {
@@ -169,6 +200,12 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
       });
 
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      if (!isMountedRef.current) return;
+
       logger.error('Failed to load dashboard data:', error);
       const errorObj = error instanceof Error ? error : new Error('Unknown error occurred');
       setError(errorObj);
@@ -186,7 +223,9 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
         return prev;
       });
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [userId]);
 

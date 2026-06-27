@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 
 // Mock logger to suppress output in tests
 vi.mock('../../utils/logger', () => ({
@@ -96,7 +96,7 @@ describe('useGratitude', () => {
     expect(p1).toContain('tacksam');
   });
 
-  it('loads progress from localStorage on mount', () => {
+  it('loads progress from localStorage on mount', async () => {
     const saved = {
       entries: { 1: ['a', 'b', 'c'] },
       currentDay: 3,
@@ -105,7 +105,7 @@ describe('useGratitude', () => {
     localStorage.setItem(`gratitude_challenge_${mockUser.user_id}`, JSON.stringify(saved));
 
     const { result } = renderGratitude();
-    expect(result.current.day).toBe(3);
+    await waitFor(() => expect(result.current.day).toBe(3));
     expect(result.current.entries).toEqual({ 1: ['a', 'b', 'c'] });
   });
 

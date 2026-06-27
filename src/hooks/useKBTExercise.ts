@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useExerciseTimer } from './useExerciseTimer';
 import { KBT_PHASES } from '../constants/recommendations';
 import { KBTPhaseName } from '../types/recommendation';
@@ -54,6 +55,7 @@ export const useKBTExercise = (options: {
     onComplete?: () => void;
     announce?: (message: string, priority?: 'polite' | 'assertive') => void;
 } = {}) => {
+    const { t } = useTranslation();
     const [phase, setPhase] = useState<KBTPhaseName>(options.initialPhase || 'identify');
     const [thoughts, setThoughts] = useState<UserThoughts>(options.initialThoughts || {
         negative: '',
@@ -67,10 +69,12 @@ export const useKBTExercise = (options: {
         callbacksRef.current = { onComplete: options.onComplete, announce: options.announce };
     }, [options.onComplete, options.announce]);
 
+    const nextPhaseRef = useRef<() => void>(() => {});
+
     const { isActive, start: startTimer, stop: stopTimer, setTime } = useExerciseTimer(0, {
         countdown: true,
         onTick: (t) => setTimeLeft(t),
-        onComplete: () => nextPhase()
+        onComplete: () => nextPhaseRef.current()
     });
 
     const nextPhase = useCallback(() => {
@@ -80,35 +84,35 @@ export const useKBTExercise = (options: {
 
         // Validation
         if (phase === 'identify' && negativeThought.length < MIN_NEGATIVE_LENGTH) {
-            callbacksRef.current.announce?.(`Skriv minst ${MIN_NEGATIVE_LENGTH} tecken i din negativa tanke innan du fortsätter`, 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.minLength', 'Skriv minst {{count}} tecken i din negativa tanke innan du fortsätter', { count: MIN_NEGATIVE_LENGTH }), 'assertive');
             return;
         }
         if (phase === 'identify' && getWordCount(negativeThought) < 4) {
-            callbacksRef.current.announce?.('Försök beskriva tanken med minst fyra ord för att göra den tydlig', 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.minWords', 'Försök beskriva tanken med minst fyra ord för att göra den tydlig'), 'assertive');
             return;
         }
         if (phase === 'identify' && isLowQualityInput(negativeThought)) {
-            callbacksRef.current.announce?.('Skriv en konkret tanke, inte bara ett kort standardsvar', 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.lowQuality', 'Skriv en konkret tanke, inte bara ett kort standardsvar'), 'assertive');
             return;
         }
         if (phase === 'challenge' && evidence.length < MIN_EVIDENCE_LENGTH) {
-            callbacksRef.current.announce?.(`Beskriv bevisen med minst ${MIN_EVIDENCE_LENGTH} tecken innan du fortsätter`, 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.evidenceLength', 'Beskriv bevisen med minst {{count}} tecken innan du fortsätter', { count: MIN_EVIDENCE_LENGTH }), 'assertive');
             return;
         }
         if (phase === 'challenge' && !hasEvidenceStructure(evidence)) {
-            callbacksRef.current.announce?.('Använd gärna strukturen "För:" och "Emot:" för en mer balanserad analys', 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.evidenceStructure', 'Använd gärna strukturen "För:" och "Emot:" för en mer balanserad analys'), 'assertive');
             return;
         }
         if (phase === 'replace' && alternative.length < MIN_ALTERNATIVE_LENGTH) {
-            callbacksRef.current.announce?.(`Skapa en balanserad alternativ tanke med minst ${MIN_ALTERNATIVE_LENGTH} tecken`, 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.alternativeLength', 'Skapa en balanserad alternativ tanke med minst {{count}} tecken', { count: MIN_ALTERNATIVE_LENGTH }), 'assertive');
             return;
         }
         if (phase === 'replace' && getWordCount(alternative) < 4) {
-            callbacksRef.current.announce?.('Försök skriva minst fyra ord i din balanserade tanke', 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.alternativeMinWords', 'Försök skriva minst fyra ord i din balanserade tanke'), 'assertive');
             return;
         }
         if (phase === 'replace' && alternative.toLowerCase() === negativeThought.toLowerCase()) {
-            callbacksRef.current.announce?.('Din alternativa tanke behöver skilja sig från den negativa tanken', 'assertive');
+            callbacksRef.current.announce?.(t('kbt.validation.alternativeDifferent', 'Din alternativa tanke behöver skilja sig från den negativa tanken'), 'assertive');
             return;
         }
 
@@ -135,7 +139,11 @@ export const useKBTExercise = (options: {
             setPhase('complete');
             callbacksRef.current.onComplete?.();
         }
-    }, [phase, thoughts, isActive, startTimer, stopTimer, setTime]);
+    }, [phase, thoughts, isActive, startTimer, stopTimer, setTime, t]);
+
+    useEffect(() => {
+        nextPhaseRef.current = nextPhase;
+    }, [nextPhase]);
 
     const start = useCallback(() => {
         setPhase('identify');

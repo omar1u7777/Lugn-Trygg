@@ -14,6 +14,7 @@ export interface Recommendation {
     saved?: boolean;
     image?: string;
     category: string;
+    categoryKey?: string;
     // New fields for enhanced UX
     completionRate?: number; // 0-100 percentage
     streak?: number; // current streak days
