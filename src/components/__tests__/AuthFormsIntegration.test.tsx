@@ -27,6 +27,7 @@ const firebaseAuthModuleMocks = vi.hoisted(() => ({
   GoogleAuthProvider: vi.fn(function () {
     return { setCustomParameters: vi.fn() };
   }),
+  signInWithPopup: vi.fn().mockResolvedValue({ user: { getIdToken: vi.fn().mockResolvedValue('id-token') } }),
   signInWithRedirect: vi.fn().mockResolvedValue(undefined),
   getRedirectResult: vi.fn().mockResolvedValue(null),
   sendPasswordResetEmail: vi.fn(),
@@ -244,7 +245,8 @@ describe('🔐 Login Form Integration', () => {
 
   describe('Google Sign-In', () => {
     test('should handle Google sign-in button click', async () => {
-      firebaseAuthModuleMocks.signInWithRedirect.mockResolvedValue(undefined);
+      firebaseAuthModuleMocks.signInWithPopup.mockResolvedValue({ user: { getIdToken: vi.fn().mockResolvedValue('id-token') } });
+      mockAPI.api.post.mockResolvedValueOnce({ data: { accessToken: 'token', userId: 'google-user' } });
 
       renderWithRouter(<LoginForm />);
 
@@ -252,12 +254,12 @@ describe('🔐 Login Form Integration', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(firebaseAuthModuleMocks.signInWithRedirect).toHaveBeenCalled();
+        expect(firebaseAuthModuleMocks.signInWithPopup).toHaveBeenCalled();
       }, { timeout: 2000 });
     });
 
     test('should handle Google sign-in error', async () => {
-      firebaseAuthModuleMocks.signInWithRedirect.mockRejectedValue(new Error('Redirect failed'));
+      firebaseAuthModuleMocks.signInWithPopup.mockRejectedValue(new Error('Popup failed'));
 
       renderWithRouter(<LoginForm />);
 
@@ -265,7 +267,7 @@ describe('🔐 Login Form Integration', () => {
       fireEvent.click(googleButton);
 
       await waitFor(() => {
-        expect(firebaseAuthModuleMocks.signInWithRedirect).toHaveBeenCalled();
+        expect(firebaseAuthModuleMocks.signInWithPopup).toHaveBeenCalled();
       }, { timeout: 2000 });
     });
   });
@@ -370,8 +372,8 @@ describe('📝 Register Form Integration', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(document.getElementById('confirm-password-error')).toBeInTheDocument();
-        expect(document.getElementById('confirm-password-error')).toHaveTextContent(/lösenorden matchar inte/i);
+        expect(document.getElementById('confirmPassword-error')).toBeInTheDocument();
+        expect(document.getElementById('confirmPassword-error')).toHaveTextContent(/Lösenorden matchar inte/i);
       });
     });
 

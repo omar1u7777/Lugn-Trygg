@@ -17,12 +17,16 @@ const MOCK_AUTH_STATE = {
 
 // Mock API calls
 vi.mock('../../api/subscription', () => ({
-  getSubscriptionStatus: vi.fn().mockResolvedValue({
-    plan: 'free',
-    isPremium: false,
-    limits: { dailyMoodLogs: 5, dailyChatMessages: 10 },
-    features: {},
+  getSubscriptionStatus: vi.fn(),
+}));
+
+vi.mock('../../api/usage', () => ({
+  getUsageStatus: vi.fn().mockResolvedValue({
+    mood_logs: 0,
+    chat_messages: 0,
   }),
+  incrementMoodLog: vi.fn().mockResolvedValue({ success: true, mood_logs: 1 }),
+  incrementChatMessage: vi.fn().mockResolvedValue({ success: true, chat_messages: 1 }),
 }));
 
 vi.mock('../AuthContext', () => ({
@@ -49,6 +53,12 @@ describe('SubscriptionContext', () => {
     Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true });
     localStorageMock.clear();
     vi.clearAllMocks();
+    getSubscriptionStatus.mockResolvedValue({
+      plan: 'free',
+      isPremium: false,
+      limits: { dailyMoodLogs: 5, dailyChatMessages: 10 },
+      features: {},
+    });
   });
 
   it('renders children', () => {

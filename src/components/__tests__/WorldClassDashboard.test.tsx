@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const navigateMock = vi.fn();
 const announceMock = vi.fn();
@@ -46,23 +46,22 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('react-i18next', async () => {
   const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
+  const t = (key: string, vars?: Record<string, unknown>) => {
+    if (key === 'dashboard.goalSteps') {
+      return {
+        default: ['Ta ett litet steg'],
+        fallback: 'Fortsatt fokus',
+        BetterSleep: ['Lagg dig 10 min tidigare'],
+      };
+    }
+    if (vars && typeof vars === 'object') {
+      return `${key}:${Object.keys(vars).join(',')}`;
+    }
+    return key;
+  };
   return {
     ...actual,
-    useTranslation: () => ({
-      t: (key: string, vars?: Record<string, unknown>) => {
-        if (key === 'dashboard.goalSteps') {
-          return {
-            default: ['Ta ett litet steg'],
-            fallback: 'Fortsatt fokus',
-            BetterSleep: ['Lagg dig 10 min tidigare'],
-          };
-        }
-        if (vars && typeof vars === 'object') {
-          return `${key}:${Object.keys(vars).join(',')}`;
-        }
-        return key;
-      },
-    }),
+    useTranslation: () => ({ t }),
   };
 });
 
@@ -171,10 +170,11 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 vi.mock('../../hooks/useAuth', () => ({
-  default: () => ({ user: { user_id: 'u1', email: 'test@example.com' } }),
+  default: vi.fn(() => ({ user: { user_id: 'u1', email: 'test@example.com' } })),
 }));
 
 import WorldClassDashboard from '../WorldClassDashboard';
+import useAuth from '../../hooks/useAuth';
 
 describe('WorldClassDashboard', () => {
   beforeEach(() => {
@@ -206,7 +206,7 @@ describe('WorldClassDashboard', () => {
     dashboardDataState.error = new Error('boom');
     render(<WorldClassDashboard userId="u1" />);
 
-    expect(screen.getByText('worldDashboard.loadError')).toBeTruthy();
+    expect(screen.getByText((content) => content.includes('worldDashboard.loadError'))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'worldDashboard.tryAgain' }));
     expect(refreshMock).toHaveBeenCalled();
   });
@@ -235,8 +235,8 @@ describe('WorldClassDashboard', () => {
     render(<WorldClassDashboard userId="u1" />);
 
     expect(screen.getByText('worldDashboard.wellnessGoals')).toBeTruthy();
-    fireEvent.click(screen.getByText('worldDashboard.seeRecommendations'));
-    expect(navigateMock).toHaveBeenCalledWith('/recommendations');
+    fireEvent.click(screen.getByTitle('worldDashboard.seeRecommendations'));
+    expect(navigateMock).toHaveBeenCalledWith('/recommendations', { state: { goalFilter: 'BetterSleep' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'dashboard.updateGoalsAria' }));
     expect(screen.getByRole('dialog', { name: 'worldDashboard.wellnessGoalsLabel' })).toBeTruthy();
@@ -287,11 +287,13 @@ describe('WorldClassDashboard', () => {
   });
 
   it('handles checkout success with missing user as warning', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null } as ReturnType<typeof useAuth>);
     locationState.search = '?success=true&session_id=abc';
     render(<WorldClassDashboard />);
 
     expect(await screen.findByTestId('snackbar')).toBeTruthy();
     expect(screen.getByTestId('snackbar').textContent).toContain('dashboard.verifyFailed');
+    vi.mocked(useAuth).mockReturnValue({ user: { user_id: 'u1', email: 'test@example.com' } });
   });
 
   it('handles checkout success and premium sync path', async () => {
@@ -304,11 +306,16 @@ describe('WorldClassDashboard', () => {
   });
 
   it('shows error snackbar when sync throws', async () => {
+    vi.useFakeTimers();
     getSubscriptionStatusMock.mockRejectedValue(new Error('sync fail'));
     refreshSubscriptionMock.mockRejectedValue(new Error('refresh fail'));
     locationState.search = '?success=true&session_id=abc';
 
     render(<WorldClassDashboard userId="u1" />);
-    await waitFor(() => expect(screen.getByTestId('snackbar').textContent).toContain('dashboard.updateFailed'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25000);
+    });
+    expect(screen.getByTestId('snackbar').textContent).toContain('dashboard.updateFailed');
+    vi.useRealTimers();
   });
 });
