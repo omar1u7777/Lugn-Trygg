@@ -403,7 +403,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     return () => {
       active = false;
     };
-  }, [user?.user_id, cbtCurrentMood]);
+  }, [user?.user_id, cbtCurrentMood, t]);
 
   const loadRecommendations = useCallback((goals: string[], screenReader: typeof announceToScreenReader) => {
     const allRecommendations = getRecommendationsPool(t);

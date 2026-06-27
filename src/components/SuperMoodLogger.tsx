@@ -430,7 +430,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       submitLockRef.current = false;
       abortControllerRef.current = null;
     }
-  }, [selectedMood, user, isLogging, canLogMood, t, announceToScreenReader, moods, note, showAdvanced, valence, arousal, selectedTags, context, audioBlob, plan.tier, onMoodLogged, showRecentMoods, loadRecentMoods]);
+  }, [selectedMood, user, isLogging, canLogMood, t, announceToScreenReader, moods, note, showAdvanced, valence, arousal, selectedTags, context, audioBlob, plan.tier, onMoodLogged, showRecentMoods, loadRecentMoods, incrementMoodLog]);
 
   const startRecording = useCallback(async () => {
     try {

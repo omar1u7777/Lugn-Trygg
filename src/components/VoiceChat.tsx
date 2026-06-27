@@ -486,7 +486,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onMessageSent }) => {
         setProcessingStep('idle');
       }
     }
-  }, [user, recordingSeconds, addMessage, isMountedRef, onMessageSent, announceToScreenReader, t]);
+  }, [user, recordingSeconds, addMessage, isMountedRef, onMessageSent, announceToScreenReader, t, voiceLanguage]);
   processVoiceMessageRef.current = processVoiceMessage;
 
   const sendTextMessage = useCallback(async (overrideText?: string) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -118,11 +118,11 @@ export const ClinicalAssessment: React.FC = () => {
   const responseLabels = t('clinicalAssessment:responseOptions.labels', { returnObjects: true }) as string[];
   const responseDescriptions = t('clinicalAssessment:responseOptions.descriptions', { returnObjects: true }) as string[];
 
-  const questions = activeTab === 'phq9'
+  const questions = useMemo(() => activeTab === 'phq9'
     ? PHQ9_QUESTIONS
     : activeTab === 'gad7'
       ? GAD7_QUESTIONS
-      : [];
+      : [], [activeTab]);
 
   // Guard division by zero — only relevant when questions.length > 0
   const answeredCount = Object.keys(responses).length;
