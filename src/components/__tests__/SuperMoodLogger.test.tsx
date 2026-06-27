@@ -168,7 +168,7 @@ describe('SuperMoodLogger', () => {
     });
 
     await waitFor(() => {
-      expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({ score: 8 }));
+      expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({ score: 8 }), undefined, expect.any(AbortSignal));
     });
     expect(onMoodLogged).toHaveBeenCalledWith(8, '');
   });
@@ -289,7 +289,7 @@ describe('SuperMoodLogger', () => {
     await waitFor(() => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
         note: 'Great morning!',
-      }));
+      }), undefined, expect.any(AbortSignal));
     });
   });
 
@@ -350,7 +350,7 @@ describe('SuperMoodLogger', () => {
     await waitFor(() => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
         tags: ['work', 'stress'],
-      }));
+      }), undefined, expect.any(AbortSignal));
     });
   });
 
@@ -410,7 +410,7 @@ describe('SuperMoodLogger', () => {
     await waitFor(() => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
         context: 'på jobbet',
-      }));
+      }), undefined, expect.any(AbortSignal));
     });
   });
 
@@ -427,7 +427,7 @@ describe('SuperMoodLogger', () => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
         valence: 3,
         arousal: 7,
-      }));
+      }), undefined, expect.any(AbortSignal));
     });
   });
 

@@ -5,13 +5,63 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallbackOrOpts?: string | object) =>
-      typeof fallbackOrOpts === 'string' ? fallbackOrOpts : key,
-    i18n: { changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', () => {
+  const translations: Record<string, string> = {
+    'dashboardStats.positiveDevelopment': 'Positiv utveckling',
+    'dashboardStats.naturallyVarying': 'Naturlig variation',
+    'dashboardStats.stable': 'Stabilt',
+    'dashboardStats.stableOverall': 'Stabilt overall',
+    'dashboardStats.moodNeedsAttention': 'Behöver uppmärksamhet',
+    'dashboardStats.noData': 'Ingen data',
+    'dashboardStats.exploringPhase': 'Utforskande fas',
+    'dashboardStats.balanced': 'Balanserad',
+    'dashboardStats.moodTitle': 'Humör',
+    'dashboardStats.streakTitle': 'Svit',
+    'dashboardStats.chatsTitle': 'Chattar',
+    'dashboardStats.streakActive': 'Svit aktiv',
+    'dashboardStats.streakDays': '{{count}} dagar',
+    'dashboardStats.sectionTitle': 'Statistik',
+    'dashboardStats.basedOnLogs': 'Baserat på {{count}} loggar',
+    'dashboardStats.yourActivity': 'Din aktivitet',
+    'dashboardStats.activityOfTotal': '{{current}} av {{total}}',
+    'dashboardStats.startJourney': 'Starta din resa',
+    'dashboardStats.allAchievementsUnlocked': 'Alla prestationer upplåsta',
+    'dashboardStats.nextMilestone': 'Nästa milstolpe',
+    'dashboardStats.almostThere': 'Nästan där!',
+    'dashboardStats.activitiesToNext': '{{count}} aktiviteter kvar',
+    'dashboardStats.moodScoreOf10': '{{score}}/10',
+    'dashboardStats.hardDay': 'Tuff dag',
+    'dashboardStats.yourMood': 'Ditt humör {{score}}',
+    'dashboardStats.moodAriaLabel': 'Humör {{score}}',
+    'dashboardStats.noChatsThisWeek': 'Inga chattar denna vecka',
+    'dashboardStats.oneChatThisWeek': 'En chatt denna vecka',
+    'dashboardStats.chatsThisWeek': '{{count}} chattar denna vecka',
+    'dashboardStats.itsOkay': 'Det är okej',
+    'dashboardStats.talkToAI': 'Prata med AI',
+    'dashboardStats.getHelp': 'Få hjälp',
+    'dashboardStats.trendTooltip': 'Trend: {{label}}',
+    'dashboardStats.encouragement0': 'Varje ny dag är en ny möjlighet att börja om!',
+    'dashboardStats.encouragement1': 'Bra start! En dag i rad.',
+    'dashboardStats.encouragement2': 'Fortfarande igång! Två dagar i rad.',
+    'dashboardStats.encouragement3': 'Bygger momentum!',
+    'dashboardStats.encouragement5': 'Fantastisk konsistens!',
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, fallbackOrOpts?: string | object) => {
+        if (typeof fallbackOrOpts === 'string') return fallbackOrOpts;
+        let result = translations[key] || key;
+        if (typeof fallbackOrOpts === 'object' && fallbackOrOpts !== null) {
+          for (const [k, v] of Object.entries(fallbackOrOpts)) {
+            result = result.replace(`{{${k}}}`, String(v));
+          }
+        }
+        return result;
+      },
+      i18n: { changeLanguage: vi.fn() },
+    }),
+  };
+});
 
 vi.mock('../../../constants/accessibility', () => ({
   getDashboardRegionProps: vi.fn(() => ({ 'aria-label': 'Stats', role: 'region' })),
