@@ -553,7 +553,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
           {/* Mood Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              {t('moodLogger.selectMood', 'Välj humör')} <span className="text-red-500" title={t('moodLogger.required', 'Obligatoriskt')} aria-label={t('moodLogger.required', 'Obligatoriskt')}>*</span>
+              {t('moodLogger.selectMood', 'Välj humör')} <span className="text-red-500" title={t('moodLogger.required', 'Obligatoriskt')} aria-label={t('moodLogger.required', 'Obligatoriskt')}>*</span> <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">({t('moodLogger.required', 'Obligatoriskt')})</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {moods.map(mood => {
