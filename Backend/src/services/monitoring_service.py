@@ -61,7 +61,7 @@ class MonitoringService:
             else:
                 redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}" if config.REDIS_PASSWORD else f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
             self.redis_client = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
-            logger.info(f"✅ Redis connected for monitoring")
+            logger.info("✅ Redis connected for monitoring")
         except Exception as e:
             logger.warning(f"Redis connection failed: {e}")
 

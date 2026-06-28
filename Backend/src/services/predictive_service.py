@@ -67,7 +67,7 @@ class PredictiveAnalyticsService:
         df = pd.DataFrame(mood_entries)
 
         # Ensure timestamp is datetime
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', utc=True)
         df = df.sort_values('timestamp')
 
         # Extract time-based features
@@ -229,7 +229,7 @@ class PredictiveAnalyticsService:
                     'predictions': []
                 }
 
-            current_date = pd.to_datetime(last_entry['timestamp'])
+            current_date = pd.to_datetime(last_entry['timestamp'], format='mixed', utc=True)
 
             for i in range(1, days_ahead + 1):
                 pred_date = current_date + timedelta(days=i)
