@@ -1151,6 +1151,8 @@
     "morningMood": "God morgen! I går var følelsen din \"{{mood}}\". Hvordan kjennes det å starte i dag?",
     "welcomeBackMood": "Velkommen tilbake! Sist var følelsen din \"{{mood}}\". Hva legger du merke til nå?",
     "moodContext": "I går var følelsen din \"{{mood}}\". Hvordan kjennes det å starte i dag?",
+    "todayMood": "I dag var følelsen din \"{{mood}}\". Hvordan kjennes det nå?",
+    "olderMood": "Ditt siste humør ({{mood}}) var for {{days}} dager siden. Hvordan kjennes det i dag?",
     "mindfulPrompt": "Hvilke følelser eller tanker er til stede akkurat nå? Alt er velkommen her.",
     "breatheIn": "Pust inn",
     "breatheOut": "Pust ut",

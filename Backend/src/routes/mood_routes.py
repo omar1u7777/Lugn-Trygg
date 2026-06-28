@@ -325,6 +325,10 @@ def log_mood() -> Response | tuple[Response, int]:
         # INPUT SANITIZATION: Validate and sanitize text fields
         if note and len(note) > 2000:
             note = note[:2000]  # Truncate to prevent abuse
+        if note and note.strip():
+            unique_chars = set(note.replace(' ', '').replace('\t', '').replace('\n', ''))
+            if len(unique_chars) < 3:
+                return APIResponse.bad_request('Note appears to be repetitive or spam. Please write something more meaningful.')
         if context and len(context) > 500:
             context = context[:500]
 

@@ -1169,6 +1169,8 @@
     "morningMood": "Good morning! Yesterday your feeling was \"{{mood}}\". How does it feel to start today?",
     "welcomeBackMood": "Welcome back! Last time your feeling was \"{{mood}}\". What do you notice now?",
     "moodContext": "Yesterday your feeling was \"{{mood}}\". How does it feel to start today?",
+    "todayMood": "Today your feeling was \"{{mood}}\". How does it feel now?",
+    "olderMood": "Your last mood ({{mood}}) was {{days}} days ago. How does it feel today?",
     "mindfulPrompt": "What feelings or thoughts are present right now? Everything is welcome here.",
     "breatheIn": "Breathe in",
     "breatheOut": "Breathe out",

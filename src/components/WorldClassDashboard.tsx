@@ -245,14 +245,18 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   }, [safeDashboardStats.moodTrendSamples]);
 
   // Latest mood description for personalized greeting (not the numeric average)
-  const latestMoodDescription = useMemo(() => {
+  const latestMoodInfo = useMemo(() => {
     const moodActivities = safeDashboardStats.recentActivity.filter((a) => a.type === 'mood');
     if (!moodActivities.length) return undefined;
-    return moodActivities.reduce((latest, current) => {
+    const latest = moodActivities.reduce((latest, current) => {
       const latestTime = latest.timestamp instanceof Date ? latest.timestamp.getTime() : new Date(latest.timestamp).getTime();
       const currentTime = current.timestamp instanceof Date ? current.timestamp.getTime() : new Date(current.timestamp).getTime();
       return currentTime > latestTime ? current : latest;
-    }).description;
+    });
+    return {
+      description: latest.description,
+      timestamp: latest.timestamp instanceof Date ? latest.timestamp : new Date(latest.timestamp),
+    };
   }, [safeDashboardStats.recentActivity]);
 
   // Memoize stats object to prevent DashboardStats re-renders
@@ -651,7 +655,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         lastUpdatedAt={lastUpdatedAt || undefined}
         onFocusAction={scrollToMoodCheckIn}
         averageMood={safeDashboardStats.averageMood}
-        lastMood={latestMoodDescription}
+        lastMood={latestMoodInfo?.description}
+        lastMoodTimestamp={latestMoodInfo?.timestamp}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
