@@ -132,7 +132,7 @@ describe('getSubscriptionStatus', () => {
     mockApi.get.mockResolvedValueOnce({ data: { data: {} } });
 
     const result = await getSubscriptionStatus('user1');
-    expect(result.limits.moodLogsPerDay).toBe(3);
+    expect(result.limits.moodLogsPerDay).toBe(5);
     expect(result.limits.chatMessagesPerDay).toBe(10);
   });
 

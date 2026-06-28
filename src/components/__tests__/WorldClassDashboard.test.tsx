@@ -31,7 +31,7 @@ const dashboardDataState = {
 
 const subscriptionState = {
   hasFeature: vi.fn((feature: string) => feature !== 'premium' && feature !== 'unlimited_usage'),
-  plan: { name: 'free', limits: { moodLogsPerDay: 3, chatMessagesPerDay: 10 } },
+  plan: { name: 'free', limits: { moodLogsPerDay: 5, chatMessagesPerDay: 10 } },
   refreshSubscription: refreshSubscriptionMock,
 };
 
@@ -197,7 +197,7 @@ describe('WorldClassDashboard', () => {
     dashboardDataState.error = null;
 
     subscriptionState.hasFeature = vi.fn((feature: string) => feature !== 'premium' && feature !== 'unlimited_usage');
-    subscriptionState.plan = { name: 'free', limits: { moodLogsPerDay: 3, chatMessagesPerDay: 10 } };
+    subscriptionState.plan = { name: 'free', limits: { moodLogsPerDay: 5, chatMessagesPerDay: 10 } };
 
     getSubscriptionStatusMock.mockResolvedValue({ isPremium: true, isTrial: false, plan: 'premium' });
   });

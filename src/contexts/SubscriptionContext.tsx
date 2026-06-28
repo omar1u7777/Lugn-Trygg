@@ -13,7 +13,7 @@ import { logger } from '../utils/logger';
 export type SubscriptionTier = 'free' | 'premium' | 'trial' | 'enterprise';
 
 export interface SubscriptionLimits {
-  moodLogsPerDay: number;      // Free: 3, Premium: unlimited (-1)
+  moodLogsPerDay: number;      // Free: 5, Premium: unlimited (-1)
   chatMessagesPerDay: number;  // Free: 10, Premium: unlimited (-1)
   historyDays: number;         // Free: 7, Premium: unlimited (-1)
 }

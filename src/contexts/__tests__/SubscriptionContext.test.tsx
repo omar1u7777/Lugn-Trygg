@@ -149,7 +149,7 @@ describe('SubscriptionContext', () => {
       <SubscriptionProvider>{children}</SubscriptionProvider>
     );
     const { result } = renderHook(() => useSubscription(), { wrapper });
-    // free plan: moodLogsPerDay=3, usage.moodLogs=0 → can log
+    // free plan: moodLogsPerDay=5, usage.moodLogs=0 → can log
     expect(result.current.canLogMood()).toBe(true);
   });
 
@@ -158,8 +158,10 @@ describe('SubscriptionContext', () => {
       <SubscriptionProvider>{children}</SubscriptionProvider>
     );
     const { result } = renderHook(() => useSubscription(), { wrapper });
-    // Increment past the free limit (3)
+    // Increment past the free limit (5)
     await act(async () => {
+      result.current.incrementMoodLog();
+      result.current.incrementMoodLog();
       result.current.incrementMoodLog();
       result.current.incrementMoodLog();
       result.current.incrementMoodLog();
@@ -194,8 +196,8 @@ describe('SubscriptionContext', () => {
       <SubscriptionProvider>{children}</SubscriptionProvider>
     );
     const { result } = renderHook(() => useSubscription(), { wrapper });
-    // free plan: 3 per day, 0 used
-    expect(result.current.getRemainingMoodLogs()).toBe(3);
+    // free plan: 5 per day, 0 used
+    expect(result.current.getRemainingMoodLogs()).toBe(5);
   });
 
   it('getRemainingMessages returns remaining count', () => {
