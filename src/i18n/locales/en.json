@@ -222,6 +222,7 @@
     "paymentRegistered": "Payment registered. Premium will update automatically shortly.",
     "updateFailed": "Could not update subscription right now. Try again in a moment.",
     "updateGoals": "📝 Update",
+    "changeGoals": "Change goals",
     "updateGoalsAria": "Update wellness goals",
     "nextStep": "Next step",
     "friend": "friend",

@@ -222,6 +222,7 @@
     "paymentRegistered": "Betalningen registrerades. Premium uppdateras inom kort automatiskt.",
     "updateFailed": "Kunde inte uppdatera prenumerationen just nu. Försök igen om en stund.",
     "updateGoals": "📝 Uppdatera",
+    "changeGoals": "Ändra mål",
     "updateGoalsAria": "Uppdatera wellness-mål",
     "nextStep": "Nästa steg",
     "friend": "vän",
