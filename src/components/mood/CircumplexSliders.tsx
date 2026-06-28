@@ -169,7 +169,12 @@ function getCircumplexQuadrant(valence: number, arousal: number, t: (key: string
   return `🌙 ${t('mood.circumplex.quadrantSad')}`;
 }
 
+const VALID_MOOD_SCORES = [2, 3, 5, 7, 8, 10];
+
 function deriveMoodScore(valence: number, arousal: number): number {
-  const avg = (valence + arousal) / 2;
-  return Math.max(1, Math.min(10, Math.round(avg)));
+  const weighted = valence * 0.7 + arousal * 0.3;
+  const clamped = Math.max(1, Math.min(10, Math.round(weighted)));
+  return VALID_MOOD_SCORES.reduce((closest, score) =>
+    Math.abs(score - clamped) < Math.abs(closest - clamped) ? score : closest
+  );
 }
