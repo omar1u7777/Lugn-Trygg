@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useEffect, useState, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "./components/Layout/ProtectedRoute";
 import { usePageTracking } from "./hooks/useAnalytics";
@@ -9,8 +9,9 @@ import { FeatureErrorBoundary } from "./features/shared/FeatureErrorBoundary";
 import { PremiumGate } from "./components/PremiumGate";
 import { ROUTES, type RouteDefinition } from "./config/appRoutes";
 import AuthEntryLayout from "./components/Layout/AuthEntryLayout";
+import { lazyWithRetry } from "./utils/performance";
 
-const ProtectedAppShell = lazy(() => import("./components/Layout/ProtectedAppShell"));
+const ProtectedAppShell = lazyWithRetry(() => import("./components/Layout/ProtectedAppShell"));
 
 const AUTH_ROUTE_PATHS = new Set(["/", "/login", "/register"]);
 
