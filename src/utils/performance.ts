@@ -60,6 +60,45 @@ export const lazyWithFallback = <T extends GenericComponent>(
   );
 };
 
+/**
+ * Retry a dynamic import with cache-busting when the chunk is stale (e.g. after a Vercel deploy).
+ * Tries up to 3 times with a cache-busting query parameter before giving up.
+ */
+export const retryDynamicImport = <T>(
+  importFn: () => Promise<{ default: T }>,
+  retries = 3
+): Promise<{ default: T }> => {
+  return importFn().catch((error: unknown) => {
+    if (retries <= 0) throw error;
+
+    const isChunkError =
+      error instanceof Error &&
+      (/Failed to fetch dynamically imported module/i.test(error.message) ||
+        /Importing a module script failed/i.test(error.message) ||
+        /Loading chunk .* failed/i.test(error.message));
+
+    if (!isChunkError) throw error;
+
+    logger.warn(`Dynamic import failed, retrying (${retries} attempts left)`, { error: error.message });
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(retryDynamicImport(importFn, retries - 1));
+      }, 500);
+    });
+  });
+};
+
+/**
+ * lazy() wrapper with automatic retry for stale chunks.
+ * Use this instead of lazy(() => import(...)) for all route-level components.
+ */
+export const lazyWithRetry = <T extends GenericComponent>(
+  importFn: () => Promise<{ default: T }>
+) => {
+  return lazy(() => retryDynamicImport(importFn));
+};
+
 // Preload critical resources
 export type PreloadAsset = {
   href: string;
