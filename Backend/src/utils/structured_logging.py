@@ -115,6 +115,13 @@ class StructuredLogger:
         extra["context"] = self._get_context()
         self.logger.error(message, exc_info=exc_info, extra=extra)
 
+    def exception(self, message: str, *args: Any, **kwargs: Any) -> None:
+        """Log error message with exception info — mirrors logging.Logger.exception"""
+        extra = kwargs.pop("extra", {})
+        extra["extra_fields"] = kwargs
+        extra["context"] = self._get_context()
+        self.logger.error(message, *args, exc_info=True, extra=extra)
+
     def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message with structured data"""
         extra = kwargs.pop("extra", {})
