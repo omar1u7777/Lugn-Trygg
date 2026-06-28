@@ -143,7 +143,7 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
     expiresAt: data.expiresAt,
     trialEndsAt: data.trialEndsAt,
     limits: data.limits || {
-      moodLogsPerDay: 3,
+      moodLogsPerDay: 5,
       chatMessagesPerDay: 10,
       historyDays: 7,
     },

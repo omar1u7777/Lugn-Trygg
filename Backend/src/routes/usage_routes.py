@@ -30,7 +30,7 @@ def get_subscription_limits(subscription_tier: str) -> dict[str, int]:
     plan = plans.get(subscription_tier, plans.get("free", {}))
     limits = plan.get("limits", {})
     return {
-        "mood_logs_per_day": limits.get("moodLogsPerDay", 3),
+        "mood_logs_per_day": limits.get("moodLogsPerDay", 5),
         "chat_messages_per_day": limits.get("chatMessagesPerDay", 10),
     }
 

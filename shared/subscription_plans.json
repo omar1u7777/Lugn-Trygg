@@ -5,7 +5,7 @@
     "currency": "SEK",
     "interval": "month",
     "limits": {
-      "moodLogsPerDay": 3,
+      "moodLogsPerDay": 5,
       "chatMessagesPerDay": 10,
       "historyDays": 7
     },
