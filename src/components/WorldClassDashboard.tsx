@@ -141,7 +141,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
   const location = useLocation();
   const navigate = useNavigate();
   const { hasFeature, plan, refreshSubscription } = useSubscription();
-  const moodLogLimit = plan?.limits?.moodLogsPerDay ?? 3;
+  const moodLogLimit = plan?.limits?.moodLogsPerDay ?? 5;
   const chatMessageLimit = plan?.limits?.chatMessagesPerDay ?? 10;
   const hasUnlimitedUsage = moodLogLimit === -1 && chatMessageLimit === -1;
   const planName = typeof plan === 'string' ? plan : plan?.name;
