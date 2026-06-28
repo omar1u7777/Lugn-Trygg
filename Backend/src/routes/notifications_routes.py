@@ -15,7 +15,7 @@ from src.utils.response_utils import APIResponse
 notifications_bp = Blueprint('notifications', __name__)
 logger = logging.getLogger(__name__)
 
-_VALID_NOTIFICATION_TYPES = {'daily', 'reminder', 'exercise', 'mood', 'streak', 'weekly', 'custom'}
+_VALID_NOTIFICATION_TYPES = {'daily', 'reminder', 'exercise', 'mood', 'mood_check', 'streak', 'weekly', 'custom'}
 
 
 @notifications_bp.route('/fcm-token', methods=['POST'])
@@ -137,7 +137,7 @@ def send_reminder():
         logger.error(f"❌ FCM API error: {e}")
         return APIResponse.error("Failed to send notification via FCM", "FCM_ERROR", 500)
     except Exception as e:
-        logger.exception(f"❌ Failed to send reminder: {e}")
+        logger.error(f"❌ Failed to send reminder: {e}", exc_info=True)
         return APIResponse.error("Failed to send reminder", "SEND_ERROR", 500)
 
 
