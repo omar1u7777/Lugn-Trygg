@@ -13,6 +13,7 @@ interface CircumplexSlidersProps {
   onValenceChange: (value: number) => void;
   onArousalChange: (value: number) => void;
   disabled?: boolean;
+  onQuadrantChange?: (score: number) => void;
 }
 
 export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
@@ -20,9 +21,24 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
   arousal,
   onValenceChange,
   onArousalChange,
-  disabled = false
+  disabled = false,
+  onQuadrantChange,
 }) => {
   const { t } = useTranslation();
+
+  const handleValenceChange = (value: number) => {
+    onValenceChange(value);
+    if (onQuadrantChange) {
+      onQuadrantChange(deriveMoodScore(value, arousal));
+    }
+  };
+
+  const handleArousalChange = (value: number) => {
+    onArousalChange(value);
+    if (onQuadrantChange) {
+      onQuadrantChange(deriveMoodScore(valence, value));
+    }
+  };
 
   const getValenceLabel = (value: number): string => {
     if (value <= 3) return t('mood.valence.unpleasant', 'Obehaglig');
@@ -65,7 +81,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
           min="1"
           max="10"
           value={valence}
-          onChange={(e) => onValenceChange(parseInt(e.target.value))}
+          onChange={(e) => handleValenceChange(parseInt(e.target.value))}
           disabled={disabled}
           className="w-full h-2 bg-gradient-to-r from-red-400 via-yellow-300 to-green-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
@@ -101,7 +117,7 @@ export const CircumplexSliders: React.FC<CircumplexSlidersProps> = ({
           min="1"
           max="10"
           value={arousal}
-          onChange={(e) => onArousalChange(parseInt(e.target.value))}
+          onChange={(e) => handleArousalChange(parseInt(e.target.value))}
           disabled={disabled}
           className="w-full h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-orange-400 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
@@ -143,12 +159,17 @@ function getCircumplexQuadrant(valence: number, arousal: number, t: (key: string
   }
   // High arousal (>5), Low valence (≤5) = Tense/Anxious
   if (arousal > 5 && valence <= 5) {
-    return `😰 ${t('mood.circumplex.quadrantTense')}`;
+    return `⚡ ${t('mood.circumplex.quadrantTense')}`;
   }
   // Low arousal (≤5), High valence (>5) = Calm/Relaxed
   if (arousal <= 5 && valence > 5) {
     return `😌 ${t('mood.circumplex.quadrantCalm')}`;
   }
-  // Low arousal (≤5), Low valence (≤5) = Sad/Depressed
-  return `😔 ${t('mood.circumplex.quadrantSad')}`;
+  // Low arousal (≤5), Low valence (≤5) = Low energy
+  return `🌙 ${t('mood.circumplex.quadrantSad')}`;
+}
+
+function deriveMoodScore(valence: number, arousal: number): number {
+  const avg = (valence + arousal) / 2;
+  return Math.max(1, Math.min(10, Math.round(avg)));
 }
