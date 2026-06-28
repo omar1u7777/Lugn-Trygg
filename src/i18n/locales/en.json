@@ -338,10 +338,10 @@
       "title": "Circumplex Model",
       "description": "Describe your emotional state in two dimensions",
       "quadrant": "Emotional state",
-      "quadrantHappy": "Happy & Energized",
-      "quadrantTense": "Tense & Anxious",
-      "quadrantCalm": "Calm & Relaxed",
-      "quadrantSad": "Sad & Tired"
+      "quadrantHappy": "High energy, pleasant",
+      "quadrantTense": "High energy, unpleasant",
+      "quadrantCalm": "Low energy, pleasant",
+      "quadrantSad": "Low energy, unpleasant"
     },
     "tags": {
       "label": "Tags (optional)",
@@ -608,6 +608,8 @@
     "moodLoggedSuccess": "Mood logged!",
     "dailyLimitReachedMessage": "You have reached your daily mood logging limit.",
     "moodLogFailed": "Could not log mood. Please try again.",
+    "required": "Required",
+    "resetAdvanced": "Reset advanced",
     "today": "Today",
     "yesterday": "Yesterday",
     "note": "Note (optional)",

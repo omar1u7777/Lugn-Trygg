@@ -84,7 +84,13 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {t('mood.tags.label', 'Taggar (valfritt)')}
-          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+          <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
+            selectedTags.length >= 5
+              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+              : selectedTags.length >= 4
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+          }`}>
             {selectedTags.length}/5
           </span>
         </label>

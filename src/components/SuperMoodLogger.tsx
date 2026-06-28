@@ -304,6 +304,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     announceToScreenReader(t('moodLogger.moodSelected', { mood: t(`moodLogger.moodLabels.${mood.labelKey}`) }) || t(`moodLogger.moodLabels.${mood.labelKey}`), 'polite');
   }, [t, announceToScreenReader]);
 
+  const handleResetAdvanced = useCallback(() => {
+    setValence(5);
+    setArousal(5);
+    setSelectedTags([]);
+    setContext('');
+  }, []);
+
+  const handleQuadrantChange = useCallback((score: number) => {
+    setSelectedMood(score);
+  }, []);
+
   const isDuplicateMoodWithinCooldown = (moodScore: number): boolean => {
     const last = lastMoodSubmissionRef.current;
     if (!last) return false;
@@ -542,7 +553,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
           {/* Mood Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              {t('moodLogger.selectMood', 'Välj humör')} <span className="text-red-500">*</span>
+              {t('moodLogger.selectMood', 'Välj humör')} <span className="text-red-500" title={t('moodLogger.required', 'Obligatoriskt')} aria-label={t('moodLogger.required', 'Obligatoriskt')}>*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {moods.map(mood => {
@@ -659,6 +670,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                 onValenceChange={setValence}
                 onArousalChange={setArousal}
                 disabled={isLogging}
+                onQuadrantChange={handleQuadrantChange}
               />
 
               <TagSelector
@@ -685,6 +697,33 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                            disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
+
+              {/* Reset Advanced */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleResetAdvanced}
+                  disabled={isLogging}
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:underline font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t('moodLogger.resetAdvanced', 'Återställ avancerat')}
+                </button>
+              </div>
+
+              {/* Submit button inside advanced section */}
+              <button
+                onClick={handleLogMood}
+                disabled={!canSubmit || isLogging}
+                className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
+                         transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                         transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {isLogging
+                  ? t('moodLogger.logging', 'Loggar...')
+                  : t('moodLogger.logMood', 'Logga humör')
+                }
+              </button>
             </div>
           )}
 

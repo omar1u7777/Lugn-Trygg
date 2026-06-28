@@ -338,10 +338,10 @@
       "title": "Circumplex Model",
       "description": "Beskriv ditt känslotillstånd i två dimensioner",
       "quadrant": "Känslotillstånd",
-      "quadrantHappy": "Glad & Energisk",
-      "quadrantTense": "Spänd & Orolig",
-      "quadrantCalm": "Lugn & Avslappnad",
-      "quadrantSad": "Ledsen & Trött"
+      "quadrantHappy": "Hög energi, behaglig",
+      "quadrantTense": "Hög energi, obehaglig",
+      "quadrantCalm": "Låg energi, behaglig",
+      "quadrantSad": "Låg energi, obehaglig"
     },
     "tags": {
       "label": "Taggar (valfritt)",
@@ -685,6 +685,8 @@
     "moodLoggedSuccess": "Humör loggat!",
     "dailyLimitReachedMessage": "Du har nått din dagliga gräns för humörloggningar.",
     "moodLogFailed": "Kunde inte logga humör. Försök igen.",
+    "required": "Obligatoriskt",
+    "resetAdvanced": "Återställ avancerat",
     "today": "Idag",
     "yesterday": "Igår",
     "note": "Anteckning (valfritt)",

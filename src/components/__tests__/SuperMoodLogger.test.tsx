@@ -344,7 +344,7 @@ describe('SuperMoodLogger', () => {
     fireEvent.click(screen.getByText('Add Tags'));
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /logga/i }));
+      fireEvent.click(screen.getAllByRole('button', { name: /logga/i })[0]);
     });
 
     await waitFor(() => {
@@ -359,7 +359,7 @@ describe('SuperMoodLogger', () => {
     render(<SuperMoodLogger />);
     fireEvent.click(screen.getByText('Glad'));
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: /logga/i }));
+      fireEvent.click(screen.getAllByRole('button', { name: /logga/i })[0]);
     });
     expect(screen.getByText(/Loggar\.\.\./i)).toBeInTheDocument();
   });
@@ -405,7 +405,7 @@ describe('SuperMoodLogger', () => {
     fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
     fireEvent.change(screen.getByPlaceholderText(/hemma/i), { target: { value: 'på jobbet' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /logga/i }));
+      fireEvent.click(screen.getAllByRole('button', { name: /logga/i })[0]);
     });
     await waitFor(() => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({
@@ -421,7 +421,7 @@ describe('SuperMoodLogger', () => {
     fireEvent.change(screen.getByTestId('valence-slider'), { target: { value: '3' } });
     fireEvent.change(screen.getByTestId('arousal-slider'), { target: { value: '7' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /logga/i }));
+      fireEvent.click(screen.getAllByRole('button', { name: /logga/i })[0]);
     });
     await waitFor(() => {
       expect(logMoodMock).toHaveBeenCalledWith('user-1', expect.objectContaining({

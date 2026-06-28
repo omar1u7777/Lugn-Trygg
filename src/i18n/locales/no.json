@@ -338,10 +338,10 @@
       "title": "Circumplex Model",
       "description": "Beskriv din følelsesmessige tilstand i to dimensjoner",
       "quadrant": "Følelsesmessig tilstand",
-      "quadrantHappy": "Glad & Energisk",
-      "quadrantTense": "Anspent & Engstelig",
-      "quadrantCalm": "Rolig & Avslappet",
-      "quadrantSad": "Trist & Sliten"
+      "quadrantHappy": "Høy energi, behagelig",
+      "quadrantTense": "Høy energi, ubehagelig",
+      "quadrantCalm": "Lav energi, behagelig",
+      "quadrantSad": "Lav energi, ubehagelig"
     },
     "tags": {
       "label": "Tags (valgfritt)",
@@ -657,6 +657,8 @@
     "moodLoggedSuccess": "Humør logget!",
     "dailyLimitReachedMessage": "Du har nådd din daglige grense for humørlogging.",
     "moodLogFailed": "Kunne ikke logge humør. Prøv igjen.",
+    "required": "Obligatorisk",
+    "resetAdvanced": "Tilbakestill avansert",
     "today": "I dag",
     "yesterday": "I går",
     "note": "Notat (valgfritt)",
