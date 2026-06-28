@@ -672,7 +672,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {t('worldDashboard.takeAMoment')}
               </p>
             </div>
-            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} showRecentMoods={true} />
+            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} showRecentMoods={true} hideHeader={true} />
           </div>
         </Card>
 
