@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
@@ -51,6 +51,7 @@ import {
 
 const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, wellnessGoals = EMPTY_WELLNESS_GOALS, compact = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
@@ -816,6 +817,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   }, []);
 
+  // Auto-open recommendation when navigated from dashboard with autoOpenRecId
+  useEffect(() => {
+    const state = location.state as { autoOpenRecId?: string } | null;
+    if (state?.autoOpenRecId && recommendations.length > 0 && !selectedRecommendation) {
+      const rec = recommendations.find(r => r.id === state.autoOpenRecId);
+      if (rec) {
+        setSelectedRecommendation(rec);
+        setShowContentModal(true);
+        // Clear state so it doesn't re-open on refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, recommendations, selectedRecommendation]);
+
   const loadNotificationSettings = useCallback(async () => {
     if (!user?.user_id) return;
 
@@ -1184,7 +1199,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                   <button
                     onClick={() => {
                       if (compact) {
-                        navigate('/recommendations');
+                        navigate('/recommendations', { state: { autoOpenRecId: rec.id } });
                       } else {
                         setSelectedRecommendation(rec);
                       }
