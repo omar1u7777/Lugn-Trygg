@@ -129,6 +129,16 @@ const getFeatureLinkForStep = (stepText: string, t: (key: string) => string): { 
     return { route: '/recommendations', label: t('dashboard.seeSleepTips') };
   }
 
+  // Humör/Mood logging
+  if (stepLower.includes('humör') || stepLower.includes('mood') || stepLower.includes('logga')) {
+    return { route: '/', label: t('dashboard.openMoodLogger') };
+  }
+
+  // Promenad/Fysisk aktivitet
+  if (stepLower.includes('promenad') || stepLower.includes('walk') || stepLower.includes('stretching') || stepLower.includes('vatten')) {
+    return { route: '/recommendations', label: t('dashboard.seeRecommendations') };
+  }
+
   return null;
 };
 
@@ -710,7 +720,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                   className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline transition-colors"
                   aria-label={t('dashboard.updateGoalsAria')}
                 >
-                  {t('dashboard.updateGoals')}
+                  {t('dashboard.changeGoals', 'Ändra mål')}
                 </button>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2">
@@ -735,12 +745,9 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         {goal}
                       </span>
 
-                      {/* Progress bar based on weekly goal */}
-                      <div className="w-8 h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex-shrink-0">
-                        <div
-                          className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
-                          style={{ width: `${progress}%` }}
-                        />
+                      {/* Step completion indicator (per-goal) */}
+                      <div className="flex-shrink-0 text-[8px] font-medium text-gray-500 dark:text-gray-400">
+                        {isStepCompleted ? '✓' : '○'}
                       </div>
 
                       {/* Combined row: checkbox + CTA */}
@@ -754,21 +761,22 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       />
                       <label
                         htmlFor={`step-${goal}`}
-                        className="text-[8px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-none truncate whitespace-nowrap"
+                        className="text-[8px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
                         title={nextStep}
                       >
-                        {nextStep.length > 10 ? nextStep.substring(0, 10) + '...' : nextStep}
+                        {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
                       </label>
                       <button
                         onClick={() => {
-                          if (featureLink && !isStepCompleted) {
+                          if (featureLink) {
                             navigate(featureLink.route, { state: { goalFilter: goal } });
                           } else {
                             navigate('/recommendations', { state: { goalFilter: goal } });
                           }
                         }}
                         className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
-                        title={t('worldDashboard.seeRecommendations')}
+                        title={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
+                        aria-label={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       >
                         →
                       </button>
