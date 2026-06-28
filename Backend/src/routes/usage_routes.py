@@ -60,7 +60,7 @@ def get_usage_status():
         })
     except Exception as e:
         logger.error(f"Error getting usage status: {e}")
-        audit_log("usage_status_error", {"error": str(e)})
+        audit_log("usage_status_error", user_id if 'user_id' in locals() else 'unknown', {"error": str(e)})
         return APIResponse.error("Failed to get usage status", "INTERNAL_ERROR", 500)
 
 
@@ -85,10 +85,10 @@ def increment_mood_log():
                 {"moodLogsPerDay": limits["mood_logs_per_day"]},
             )
         except SubscriptionLimitError:
-            audit_log("mood_limit_reached", {"user_id": user_id, "tier": subscription_tier})
+            audit_log("mood_limit_reached", user_id, {"tier": subscription_tier})
             return APIResponse.error("Daily mood log limit reached", "RATE_LIMIT_EXCEEDED", 429)
 
-        audit_log("mood_log_incremented", {"user_id": user_id, "count": result["mood_logs"]})
+        audit_log("mood_log_incremented", user_id, {"count": result["mood_logs"]})
 
         return APIResponse.success({
             "success": True,
@@ -97,7 +97,7 @@ def increment_mood_log():
         })
     except Exception as e:
         logger.error(f"Error incrementing mood log: {e}")
-        audit_log("mood_increment_error", {"error": str(e)})
+        audit_log("mood_increment_error", user_id if 'user_id' in locals() else 'unknown', {"error": str(e)})
         return APIResponse.error("Failed to increment mood log", "INTERNAL_ERROR", 500)
 
 
@@ -126,7 +126,7 @@ def increment_chat_message():
         # Read current count from System A — do NOT increment again
         usage = SubscriptionService.get_daily_usage(user_id)
 
-        audit_log("chat_message_synced", {"user_id": user_id, "count": usage["chat_messages"]})
+        audit_log("chat_message_synced", user_id, {"count": usage["chat_messages"]})
 
         return APIResponse.success({
             "success": True,
@@ -136,9 +136,9 @@ def increment_chat_message():
     except RuntimeError as e:
         # Firestore not initialized error
         logger.error(f"Firestore not initialized: {e}")
-        audit_log("chat_increment_firestore_error", {"error": str(e), "user_id": user_id if 'user_id' in locals() else 'unknown'})
+        audit_log("chat_increment_firestore_error", user_id if 'user_id' in locals() else 'unknown', {"error": str(e)})
         return APIResponse.error("Database connection error", "SERVICE_UNAVAILABLE", 503)
     except Exception as e:
         logger.error(f"Error syncing chat message count: {e}", exc_info=True)
-        audit_log("chat_increment_error", {"error": str(e), "user_id": user_id if 'user_id' in locals() else 'unknown'})
+        audit_log("chat_increment_error", user_id if 'user_id' in locals() else 'unknown', {"error": str(e)})
         return APIResponse.error("Failed to sync chat message count", "INTERNAL_ERROR", 500)

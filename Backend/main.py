@@ -963,7 +963,7 @@ try:
     @app.errorhandler(Exception)
     def handle_unhandled_exception(error):
         """Catch-all for unhandled exceptions — always return JSON, never HTML."""
-        logger.exception(f"Unhandled exception: {type(error).__name__}")
+        logger.error(f"Unhandled exception: {type(error).__name__}: {error}", exc_info=True)
         return jsonify({
             'error': 'Internt serverfel',
             'message': 'Ett oväntat fel inträffade'
