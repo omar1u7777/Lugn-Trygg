@@ -330,6 +330,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       return;
     }
 
+    // Validate note: if provided, must have at least 3 unique non-whitespace characters
+    if (note.trim()) {
+      const uniqueChars = new Set(note.replace(/\s/g, ''));
+      if (uniqueChars.size < 3) {
+        const message = t('moodLogger.noteTooSimple', 'Anteckningen verkar vara för upprepad. Skriv något mer meningsfullt.');
+        setLimitError(message);
+        announceToScreenReader(message, 'assertive');
+        return;
+      }
+    }
+
     submitLockRef.current = true;
     setIsLogging(true);
     setLimitError(null);
@@ -341,16 +352,14 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      const moodObj = moods.find(m => m.value === selectedMood);
-      const moodText = moodObj ? t(`moodLogger.moodLabels.${moodObj.labelKey}`) : 'Neutral';
+      const moodText = getMoodLabel(selectedMood);
       const trimmedNote = note.trim();
-      const defaultNote = `${t('moodLogger.defaultNotePrefix')} ${moodText.toLowerCase()}`;
 
       if (audioBlob) {
         const formData = new FormData();
         formData.append('score', String(selectedMood));
         formData.append('mood_text', moodText);
-        formData.append('note', trimmedNote || defaultNote);
+        formData.append('note', trimmedNote);
         if (showAdvanced && valence) formData.append('valence', String(valence));
         if (showAdvanced && arousal) formData.append('arousal', String(arousal));
         if (selectedTags.length > 0) formData.append('tags', JSON.stringify(selectedTags));
@@ -362,7 +371,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         await logMood(user.user_id, {
           score: selectedMood,
           mood_text: moodText,
-          note: trimmedNote || defaultNote,
+          note: trimmedNote,
           valence: showAdvanced ? valence : undefined,
           arousal: showAdvanced ? arousal : undefined,
           tags: selectedTags.length > 0 ? selectedTags : undefined,
