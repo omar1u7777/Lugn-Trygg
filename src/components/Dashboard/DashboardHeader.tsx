@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
@@ -138,18 +138,19 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     return t('dashboardHeader.mindfulPrompt');
   };
 
-  const getPhaseLabel = () => {
-    if (breathingPhase === 'inhale') return t('dashboardHeader.breatheIn');
-    if (breathingPhase === 'exhale') return t('dashboardHeader.breatheOut');
-    if (breathingPhase === 'hold') return t('dashboardHeader.pause');
-    return t('dashboardHeader.done');
-  };
   const [isBreathingSessionActive, setIsBreathingSessionActive] = useState(false);
   const [completedBreaths, setCompletedBreaths] = useState(0);
   const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('inhale');
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(PHASE_SECONDS.inhale);
   const breathingCardRef = useRef<HTMLDivElement>(null);
+
+  const getPhaseLabel = () => {
+    if (breathingPhase === 'inhale') return t('dashboardHeader.breatheIn');
+    if (breathingPhase === 'exhale') return t('dashboardHeader.breatheOut');
+    if (breathingPhase === 'hold') return t('dashboardHeader.pause');
+    return t('dashboardHeader.done');
+  };
 
   // Focus management när breathing session startar
   useEffect(() => {
@@ -273,13 +274,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     };
   }, [isBreathingSessionActive, breathingPhase, completedBreaths]);
 
-  const startBreathingSession = () => {
+  const startBreathingSession = useCallback(() => {
     setCompletedBreaths(0);
     setBreathingPhase('inhale');
     setSessionCompleted(false);
     setPhaseSecondsLeft(PHASE_SECONDS.inhale);
     setIsBreathingSessionActive(true);
-  };
+  }, []);
+
+  const stopBreathingSession = useCallback(() => {
+    setIsBreathingSessionActive(false);
+    setBreathingPhase('inhale');
+    setCompletedBreaths(0);
+    setPhaseSecondsLeft(PHASE_SECONDS.inhale);
+  }, []);
 
   // Keyboard shortcut för att starta breathing session med Space
   // CRITICAL: Only handle Space when the breathing card itself has focus,
@@ -296,9 +304,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     };
     card.addEventListener('keydown', handleKeyDown);
     return () => card.removeEventListener('keydown', handleKeyDown);
-  }, [isBreathingSessionActive, sessionCompleted]);
+  }, [isBreathingSessionActive, sessionCompleted, startBreathingSession]);
 
   const handleContinueToCheckIn = () => {
+    onFocusAction?.();
+  };
+
+  const handleSkipBreathing = () => {
+    stopBreathingSession();
     onFocusAction?.();
   };
 
@@ -347,7 +360,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <span>
                 {isLoading
                   ? t('dashboardHeader.updatingData')
-                  : `${t('dashboardHeader.autoUpdate')}${getSmartTimestamp(t, lastUpdatedAt)}`}
+                  : getSmartTimestamp(t, lastUpdatedAt)}
               </span>
             </div>
           </div>
@@ -377,7 +390,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     ? `${activeBreathNumber}/${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
                     : sessionCompleted
                       ? t('breath.completed', 'Bra jobbat!')
-                      : t('breath.duration', '30 sekunder')}
+                      : t('breath.duration', 'Cirka 30 sekunder')}
                 </p>
                 {(isBreathingSessionActive || sessionCompleted) && (
                   <div className="mt-1 h-1 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
@@ -407,7 +420,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 {isBreathingSessionActive && (
                   <button
                     type="button"
-                    onClick={handleContinueToCheckIn}
+                    onClick={handleSkipBreathing}
                     className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
                   >
                     {t('breath.skip', 'Hoppa')}

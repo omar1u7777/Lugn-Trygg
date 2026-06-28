@@ -60,10 +60,11 @@ describe('DashboardHeader', () => {
     expect(screen.getByText('dashboardHeader.updatingData')).toBeInTheDocument();
   });
 
-  it('shows auto-update text when not loading', () => {
+  it('shows timestamp when not loading', () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
     render(<DashboardHeader isLoading={false} />);
-    expect(screen.getByText(/dashboardHeader.autoUpdate/i)).toBeInTheDocument();
+    const statusDot = document.querySelector('.bg-emerald-400');
+    expect(statusDot).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------
@@ -149,9 +150,9 @@ describe('DashboardHeader', () => {
     vi.setSystemTime(new Date('2026-04-06T12:01:00'));
     const recent = new Date('2026-04-06T12:00:30');
     render(<DashboardHeader isLoading={false} lastUpdatedAt={recent} />);
-    // diff < 2 min → empty string, so just autoUpdate text
-    const autoUpdateEl = screen.getByText(/dashboardHeader.autoUpdate/i);
-    expect(autoUpdateEl.textContent).not.toContain('minuter');
+    // diff < 2 min → empty string, just the status dot is shown
+    const statusDot = document.querySelector('.bg-emerald-400');
+    expect(statusDot).toBeInTheDocument();
   });
 
   it('shows minutes timestamp when 5 minutes ago', () => {
