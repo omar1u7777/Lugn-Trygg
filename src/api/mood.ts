@@ -160,6 +160,20 @@ export const getMoods = async (_userId: string, signal?: AbortSignal) => {
 };
 
 /**
+ * Deletes a single mood entry by ID
+ * @param moodId - The mood entry ID to delete
+ * @returns Promise resolving when deletion is complete
+ */
+export const deleteMood = async (moodId: string): Promise<void> => {
+  try {
+    await api.delete(`${API_ENDPOINTS.MOOD.GET_MOODS}/${moodId}`);
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error;
+    throw ApiError.fromAxiosError(error);
+  }
+};
+
+/**
  * Gets weekly mood analysis for the user
  * @param _userId - User ID (backend gets it from JWT)
  * @returns Promise resolving to weekly analysis data or fallback data

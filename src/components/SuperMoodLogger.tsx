@@ -18,10 +18,11 @@ import {
   MinusCircleIcon,
   SparklesIcon,
   MicrophoneIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { logMood, getMoods } from '../api/api';
+import { logMood, getMoods, deleteMood } from '../api/api';
 import { api } from '../api/client';
 import { API_ENDPOINTS } from '../api/constants';
 import useAuth from '../hooks/useAuth';
@@ -76,6 +77,17 @@ interface RecentMoodGroup {
 }
 
 const DUPLICATE_MOOD_COOLDOWN_MS = 5 * 60 * 1000;
+
+const isLowQualityNote = (note: string | undefined): boolean => {
+  if (!note || !note.trim()) return false; // Empty notes are fine (just not shown)
+  const trimmed = note.trim();
+  // Filter auto-generated default notes from old code: "Känner mig super", "Känner mig glad", etc.
+  if (/^känner mig (super|glad|bra|neutral|orolig|ledsen)$/i.test(trimmed)) return true;
+  // Filter repetitive spam: fewer than 3 unique non-whitespace characters
+  const uniqueChars = new Set(trimmed.replace(/\s/g, ''));
+  if (uniqueChars.size < 3) return true;
+  return false;
+};
 
 const getMoodVisual = (score: number) => {
   if (score >= 10) {
@@ -256,7 +268,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             score,
             timestamp,
           };
-          if (mood.note !== undefined) entry.note = mood.note;
+          if (mood.note !== undefined && !isLowQualityNote(mood.note)) entry.note = mood.note;
           if (mood.tags !== undefined) entry.tags = mood.tags;
           if (mood.valence !== undefined) entry.valence = mood.valence;
           if (mood.arousal !== undefined) entry.arousal = mood.arousal;
@@ -316,6 +328,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   const handleQuadrantChange = useCallback((score: number) => {
     setSelectedMood(score);
   }, []);
+
+  const handleDeleteMood = useCallback(async (moodId: string) => {
+    try {
+      await deleteMood(moodId);
+      setRecentMoods(prev => prev.filter(m => m.id !== moodId));
+      announceToScreenReader(t('moodLogger.moodDeleted', 'Humörinlägg raderat'), 'polite');
+    } catch (err) {
+      logger.error('Failed to delete mood:', err);
+      announceToScreenReader(t('moodLogger.deleteFailed', 'Kunde inte radera humörinlägg'), 'assertive');
+    }
+  }, [announceToScreenReader, t]);
 
   const isDuplicateMoodWithinCooldown = (moodScore: number): boolean => {
     const last = lastMoodSubmissionRef.current;
@@ -810,6 +833,15 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                                 </div>
                               )}
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMood(mood.id!)}
+                              className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded"
+                              aria-label={t('moodLogger.delete', 'Radera')}
+                              title={t('moodLogger.delete', 'Radera')}
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       );
