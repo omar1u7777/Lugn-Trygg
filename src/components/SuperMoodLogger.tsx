@@ -727,20 +727,22 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            onClick={handleLogMood}
-            disabled={!canSubmit || isLogging}
-            className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
-                     transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
-                     transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            {isLogging 
-              ? t('moodLogger.logging', 'Loggar...')
-              : t('moodLogger.logMood', 'Logga humör')
-            }
-          </button>
+          {/* Submit Button (hidden when advanced is open — advanced section has its own) */}
+          {!showAdvanced && (
+            <button
+              onClick={handleLogMood}
+              disabled={!canSubmit || isLogging}
+              className="w-full py-3 px-6 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg
+                       transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900
+                       transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {isLogging 
+                ? t('moodLogger.logging', 'Loggar...')
+                : t('moodLogger.logMood', 'Logga humör')
+              }
+            </button>
+          )}
         </div>
       </Card>
 
