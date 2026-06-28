@@ -37,6 +37,7 @@ interface SuperMoodLoggerProps {
   onMoodLogged?: (mood?: number, note?: string) => void;
   showRecentMoods?: boolean;
   enableVoiceRecording?: boolean;
+  hideHeader?: boolean;
 }
 
 interface RecentMood {
@@ -165,6 +166,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   onMoodLogged,
   showRecentMoods = false,
   enableVoiceRecording = false,
+  hideHeader = false,
 }) => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'no' ? 'nb-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
@@ -533,15 +535,17 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       {/* Main Logger Card */}
       <Card className="p-6">
         <div className="space-y-6">
-          {/* Header */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              {t('moodLogger.title', 'Hur mår du?')}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('moodLogger.subtitle', 'Logga ditt humör för att följa dina mönster över tid')}
-            </p>
-          </div>
+          {/* Header (hidden when embedded in dashboard that provides its own heading) */}
+          {!hideHeader && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                {t('moodLogger.title', 'Hur mår du?')}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t('moodLogger.subtitle', 'Logga ditt humör för att följa dina mönster över tid')}
+              </p>
+            </div>
+          )}
 
           {/* Limit Error */}
           {limitError && (
