@@ -10,6 +10,7 @@ interface DashboardHeaderProps {
   userId?: string;
   hasLoggedToday?: boolean;
   lastMood: string | undefined;
+  lastMoodTimestamp?: Date | undefined;
   averageMood?: number;
 }
 
@@ -120,6 +121,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userId: _userId,
   hasLoggedToday,
   lastMood,
+  lastMoodTimestamp,
   averageMood: _averageMood,
 }) => {
   const { t, i18n } = useTranslation();
@@ -133,6 +135,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
     if (hasLogged) return t('dashboardHeader.checkedIn');
     if (mood) {
+      if (lastMoodTimestamp) {
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - lastMoodTimestamp.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) {
+          return t('dashboardHeader.todayMood', { mood });
+        } else if (diffDays === 1) {
+          return t('dashboardHeader.moodContext', { mood });
+        } else {
+          return t('dashboardHeader.olderMood', { mood, days: diffDays });
+        }
+      }
       return t('dashboardHeader.moodContext', { mood });
     }
     return t('dashboardHeader.mindfulPrompt');
