@@ -12,9 +12,11 @@ bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"
 # Fallback formula: (2×cores)+1 capped at 9 (used when the env var is not set).
 _default_workers = min(max(2, multiprocessing.cpu_count() * 2 + 1), 9)
 workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
-worker_class = "gevent"  # Async worker for high concurrency
-threads = 2  # Reduced threads per worker for better memory management
-worker_connections = 1000  # Reduced for Render Starter 512 MB stability
+# Switched from gevent to gthread — gevent's monkey.patch_all() cannot
+# properly patch ssl when aiohttp/urllib3/jwt already imported it in the
+# arbiter before forking.  gthread uses native threads with no patching.
+worker_class = "gthread"
+threads = 4  # Threads per worker for concurrent request handling
 
 # Timeout settings - optimized for Render Starter
 timeout = 120  # Allow worker to finish post-fork app load before heartbeat
@@ -26,7 +28,7 @@ max_requests = 1000  # Restart worker after 1000 requests (more frequent for sta
 max_requests_jitter = 50  # Add randomness to avoid all workers restarting at once
 
 # Performance optimizations
-preload_app = False  # Load app in worker after gevent patches (avoids ssl monkey-patch deadlock)
+preload_app = False  # Each worker loads app independently
 reuse_port = True  # Enable SO_REUSEPORT for better load distribution
 backlog = 2048  # Increased backlog for high concurrency
 
