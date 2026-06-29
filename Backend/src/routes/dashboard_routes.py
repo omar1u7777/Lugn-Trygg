@@ -357,6 +357,14 @@ def get_dashboard_summary(user_id: str):
             total_chats = 0
             chat_docs = []
 
+        # Count chats from this calendar week (local time)
+        weekly_chats = 0
+        for doc in chat_docs:
+            chat_data = doc.to_dict()
+            chat_time = _parse_to_utc_datetime(chat_data.get('timestamp') or chat_data.get('createdAt'))
+            if chat_time and chat_time >= week_start:
+                weekly_chats += 1
+
         # Calculate streak days - count consecutive days with mood logs
         streak_days = 0
         if mood_docs:
@@ -388,6 +396,21 @@ def get_dashboard_summary(user_id: str):
                     current_date -= timedelta(days=1)
 
             logger.info(f"📊 Dashboard - Streak: {streak_days} days, logged dates: {len(logged_dates)}")
+
+            # Calculate longest streak from all logged dates
+            longest_streak = 0
+            if logged_dates:
+                sorted_dates = sorted(logged_dates)
+                temp_streak = 1
+                for i in range(1, len(sorted_dates)):
+                    if (sorted_dates[i] - sorted_dates[i - 1]).days == 1:
+                        temp_streak += 1
+                    else:
+                        longest_streak = max(longest_streak, temp_streak)
+                        temp_streak = 1
+                longest_streak = max(longest_streak, temp_streak)
+        else:
+            longest_streak = 0
 
         # Build recent activity
         recent_activity = []
@@ -523,6 +546,43 @@ def get_dashboard_summary(user_id: str):
         )
         recent_activity = valid_activity
 
+        # Fetch meditation sessions for weekly progress and achievements
+        meditation_count = 0
+        weekly_meditations = 0
+        try:
+            med_ref = db.collection('users').document(user_id).collection('meditation_sessions').limit(200)
+            med_docs = list(med_ref.stream())
+            meditation_count = len(med_docs)
+            for doc in med_docs:
+                med_data = doc.to_dict()
+                med_time = _parse_to_utc_datetime(med_data.get('createdAt') or med_data.get('timestamp'))
+                if med_time and med_time >= week_start:
+                    weekly_meditations += 1
+        except Exception as e:
+            logger.warning(f"⚠️ Meditation query failed: {e}")
+
+        # Expand weekly_progress to include all wellness activities this week
+        weekly_progress = weekly_progress + weekly_chats + weekly_meditations
+
+        # Calculate real achievements count based on actual milestones
+        achievements_count = 0
+        # Mood milestones
+        if total_moods >= 1: achievements_count += 1
+        if total_moods >= 10: achievements_count += 1
+        if total_moods >= 50: achievements_count += 1
+        if total_moods >= 100: achievements_count += 1
+        # Streak milestones
+        if streak_days >= 3: achievements_count += 1
+        if streak_days >= 7: achievements_count += 1
+        if streak_days >= 14: achievements_count += 1
+        if streak_days >= 30: achievements_count += 1
+        # Chat milestones
+        if total_chats >= 1: achievements_count += 1
+        if total_chats >= 10: achievements_count += 1
+        # Meditation milestones
+        if meditation_count >= 1: achievements_count += 1
+        if meditation_count >= 10: achievements_count += 1
+
         response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         summary = {
@@ -536,6 +596,10 @@ def get_dashboard_summary(user_id: str):
             'goalStepCompletions': goal_step_completions,
             'recentActivity': recent_activity,
             'moodTrendSamples': mood_trend_samples,
+            'longestStreak': longest_streak,
+            'weeklyChats': weekly_chats,
+            'achievementsCount': achievements_count,
+            'totalMeditations': meditation_count,
             'cached': False,
             'responseTime': round(response_time, 2)
         }

@@ -45,6 +45,10 @@ export interface DashboardSummary {
   goalStepCompletions: GoalStepCompletions;
   recentActivity: RecentActivityItem[];
   moodTrendSamples?: number[];
+  longestStreak?: number;
+  weeklyChats?: number;
+  achievementsCount?: number;
+  totalMeditations?: number;
   cached: boolean;
   responseTime: number;
 }
