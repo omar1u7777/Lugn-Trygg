@@ -12,13 +12,12 @@ from typing import Any
 
 import numpy as np
 
-# Vector store with graceful fallback
+# Embedding via Azure OpenAI API (no local model — saves ~420 MB RAM on Starter)
 try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
+    from openai import AzureOpenAI
+    OPENAI_AVAILABLE = True
 except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-    logging.warning("sentence-transformers not available, using fallback embeddings")
+    OPENAI_AVAILABLE = False
 
 try:
     import pinecone
@@ -68,15 +67,27 @@ class ChatRAGService:
         self.user_id = user_id
         self.session_id = hashlib.sha256(f"{user_id}_{datetime.now().isoformat()}".encode()).hexdigest()[:16]
 
-        # Initialize embedding model
-        self.embedding_model = None
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            try:
-                # Use Swedish-compatible multilingual model
-                self.embedding_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-                logger.info(f"RAG: Loaded embedding model for user {user_id}")
-            except Exception as e:
-                logger.warning(f"RAG: Failed to load embedding model: {e}")
+        # Initialize Azure OpenAI embedding client
+        self.embedding_client = None
+        self._embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
+        if OPENAI_AVAILABLE:
+            azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+            azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+            azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+            if azure_key and azure_endpoint:
+                try:
+                    import httpx
+                    timeout = httpx.Timeout(10.0, connect=5.0, read=30.0, write=10.0, pool=5.0)
+                    self.embedding_client = AzureOpenAI(
+                        api_key=azure_key,
+                        azure_endpoint=azure_endpoint,
+                        api_version=azure_api_version,
+                        timeout=timeout,
+                        max_retries=2,
+                    )
+                    logger.info(f"RAG: Azure OpenAI embedding client ready for user {user_id}")
+                except Exception as e:
+                    logger.warning(f"RAG: Failed to init Azure OpenAI embedding client: {e}")
 
         # Pinecone or Firestore vector store
         self.vector_store = None
@@ -116,16 +127,19 @@ class ChatRAGService:
             self._cache_hits += 1
             return self._embedding_cache[cache_key]
 
-        # Generate embedding
-        if self.embedding_model:
+        # Generate embedding via Azure OpenAI API
+        if self.embedding_client:
             try:
-                embedding = self.embedding_model.encode(text, convert_to_numpy=True)
+                response = self.embedding_client.embeddings.create(
+                    input=text,
+                    model=self._embedding_deployment,
+                )
+                embedding = np.array(response.data[0].embedding, dtype=np.float32)
                 self._embedding_cache[cache_key] = embedding
                 self._cache_misses += 1
 
                 # Limit cache size
                 if len(self._embedding_cache) > self._max_cache_size:
-                    # Remove oldest entries (simple FIFO)
                     oldest_keys = list(self._embedding_cache.keys())[:100]
                     for key in oldest_keys:
                         del self._embedding_cache[key]
