@@ -8,7 +8,9 @@ import { getWellnessGoals } from '../api/dashboard';
 import { getNotificationSettings, updateNotificationSettings } from '../api/notifications';
 import { initializeMessaging } from '../services/notifications';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
+import { getMoods } from '../api/mood';
 import { logger } from '../utils/logger';
+import { personalizeRecommendations, analyzeMoodTrend, type PersonalizationContext, type MoodTrendData } from '../utils/recommendationPersonalization';
 import {
   getCBTExercises,
   getCBTInsights,
@@ -62,6 +64,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
   const [completedRecommendationIds, setCompletedRecommendationIds] = useState<Record<string, boolean>>({});
+  const [moodTrendData, setMoodTrendData] = useState<MoodTrendData | null>(null);
   const resolvedWellnessGoals = Array.isArray(wellnessGoals) ? wellnessGoals : EMPTY_WELLNESS_GOALS;
   const wellnessGoalsSignature = resolvedWellnessGoals.join('|');
   
@@ -438,7 +441,22 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         .slice(0, 6);
     }
 
-    const recommendationSignature = filteredRecommendations
+    // Apply rule-based personalization scoring
+    const personalizationCtx: PersonalizationContext = {
+      moodTrend: moodTrendData,
+      completedRecIds: Object.keys(completedRecommendationIds),
+      exercisesCompleted: userProgress.exercisesCompleted,
+      dayStreak: cbtInsights?.streak?.current ?? 0,
+      hour: new Date().getHours(),
+    };
+
+    const personalized = personalizeRecommendations(filteredRecommendations, personalizationCtx);
+    const finalRecommendations = personalized.map(r => {
+      const { personalizationScore: _score, personalizationReasons: _reasons, ...rec } = r;
+      return rec as Recommendation;
+    });
+
+    const recommendationSignature = finalRecommendations
       .map((recommendation) => recommendation.id)
       .join('|');
 
@@ -447,11 +465,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
 
     lastRecommendationsSignatureRef.current = recommendationSignature;
-    setRecommendations(filteredRecommendations);
+    setRecommendations(finalRecommendations);
     if (!compact) {
-      screenReader(t('recommendations.announce.loadedCount', '{{count}} personaliserade rekommendationer laddade', { count: filteredRecommendations.length }), 'polite');
+      screenReader(t('recommendations.announce.loadedCount', '{{count}} personaliserade rekommendationer laddade', { count: finalRecommendations.length }), 'polite');
     }
-  }, [compact, t]);
+  }, [compact, t, moodTrendData, completedRecommendationIds, userProgress.exercisesCompleted, cbtInsights?.streak?.current]);
 
   // Fetch wellness goals on mount
   useEffect(() => {
@@ -508,6 +526,41 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
     fetchWellnessGoalsData();
   }, [compact, resolvedWellnessGoals, user?.user_id, wellnessGoalsSignature]);
+
+  // Fetch mood data for personalization trend analysis
+  useEffect(() => {
+    if (!user?.user_id) return;
+
+    let cancelled = false;
+
+    const fetchMoodTrend = async () => {
+      try {
+        const moods = await getMoods(user!.user_id!);
+        if (cancelled || !Array.isArray(moods)) return;
+
+        const scores = moods
+          .map((m: Record<string, unknown>) => (m.score || m.sentiment_score) as number | undefined)
+          .filter((s): s is number => typeof s === 'number' && s > 0)
+          .slice(-10); // Last 10 mood entries
+
+        if (scores.length >= 3) {
+          const trend = analyzeMoodTrend(scores);
+          if (!cancelled && trend) {
+            setMoodTrendData(trend);
+            logger.debug('Mood trend for personalization:', trend);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          logger.debug('Could not fetch mood trend for personalization:', err);
+        }
+      }
+    };
+
+    void fetchMoodTrend();
+
+    return () => { cancelled = true; };
+  }, [user?.user_id]);
 
   const hasTrackedPageViewRef = useRef(false);
 
@@ -1140,6 +1193,17 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
         {/* Featured Recommendations - Compact */}
         {!loading && !error && (
+          <>
+          {moodTrendData && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+              <span className="text-sm">✨</span>
+              {moodTrendData.trend === 'declining'
+                ? t('recommendations.personalized.lowMood', 'Anpassat efter ditt humör — fokus på lättnad idag')
+                : moodTrendData.trend === 'improving'
+                  ? t('recommendations.personalized.improving', 'Anpassat efter ditt humör — du mår bättre, dags för tillväxt')
+                  : t('recommendations.personalized.stable', 'Anpassat efter ditt humör och dina mål')}
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {recommendations.slice(0, 3).map((rec, index) => (
               <div
@@ -1233,6 +1297,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
               </div>
             ))}
           </div>
+          </>
         )}
 
         {/* Empty State - Compact */}
