@@ -281,7 +281,7 @@ try:
     ).split(',')
     socketio = _SocketIO(
         app,
-        async_mode='gevent',
+        async_mode='threading',
         cors_allowed_origins=_socketio_cors,
         logger=False,
         engineio_logger=False,
@@ -289,7 +289,7 @@ try:
         ping_interval=25,
     )
     _SOCKETIO_INITIALIZED = True
-    logger.info("✅ [B2] SocketIO initialized (gevent, biofeedback WebSocket ready)")
+    logger.info("✅ [B2] SocketIO initialized (threading, biofeedback WebSocket ready)")
 except ImportError:
     socketio = None
     _SOCKETIO_INITIALIZED = False

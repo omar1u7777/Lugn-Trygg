@@ -5,20 +5,12 @@ Runs daily to deliver the "last mile" of therapeutic support.
 """
 
 import logging
+import time
 from datetime import datetime, timedelta
+from threading import Thread
 
 from src.firebase_config import db
 from src.services.daily_insight_service_v2 import get_insight_generator
-
-# Use gevent-native sleep/spawn when available (production under gunicorn gevent),
-# otherwise fall back to threading (development).
-try:
-    from gevent import sleep as _gevent_sleep, spawn as _gevent_spawn
-    _HAS_GEVENT = True
-except ImportError:
-    import time as _time_module
-    from threading import Thread as _PyThread
-    _HAS_GEVENT = False
 
 logger = logging.getLogger(__name__)
 
@@ -41,24 +33,19 @@ class InsightNotificationScheduler:
         self.batch_size = 100
 
     def start_scheduler(self):
-        """Start background scheduler (gevent greenlet or thread)."""
+        """Start background scheduler thread."""
         if self.is_running:
             return
 
         self.is_running = True
-        if _HAS_GEVENT:
-            self._greenlet = _gevent_spawn(self._scheduler_loop)
-        else:
-            self.scheduler_thread = _PyThread(target=self._scheduler_loop, daemon=True)
-            self.scheduler_thread.start()
+        self.scheduler_thread = Thread(target=self._scheduler_loop, daemon=True)
+        self.scheduler_thread.start()
         logger.info("✅ Insight notification scheduler started")
 
     def stop_scheduler(self):
         """Stop scheduler gracefully."""
         self.is_running = False
-        if hasattr(self, '_greenlet') and self._greenlet:
-            self._greenlet.kill()
-        elif hasattr(self, 'scheduler_thread') and self.scheduler_thread:
+        if self.scheduler_thread:
             self.scheduler_thread.join(timeout=5)
         logger.info("🛑 Insight notification scheduler stopped")
 
@@ -76,18 +63,12 @@ class InsightNotificationScheduler:
                 if current_hour % 2 == 0 and self.optimal_hours[0] <= current_hour <= self.optimal_hours[1]:
                     self._send_pending_notifications()
 
-                # Sleep for 1 hour (gevent-safe)
-                if _HAS_GEVENT:
-                    _gevent_sleep(3600)
-                else:
-                    _time_module.sleep(3600)
+                # Sleep for 1 hour
+                time.sleep(3600)
 
             except Exception as e:
                 logger.error(f"Scheduler error: {e}")
-                if _HAS_GEVENT:
-                    _gevent_sleep(300)
-                else:
-                    _time_module.sleep(300)
+                time.sleep(300)  # Retry in 5 min on error
 
     def _process_daily_insights(self):
         """Generate insights for all active users."""
