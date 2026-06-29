@@ -224,7 +224,7 @@ describe('SuperMoodLogger', () => {
 
   it('shows advanced options when toggle clicked', () => {
     render(<SuperMoodLogger />);
-    const advancedToggle = screen.getByRole('button', { name: /Visa avancerade/i });
+    const advancedToggle = screen.getByRole('button', { name: /Fler alternativ/i });
     fireEvent.click(advancedToggle);
     expect(screen.getByTestId('circumplex-sliders')).toBeInTheDocument();
     expect(screen.getByTestId('tag-selector')).toBeInTheDocument();
@@ -338,7 +338,7 @@ describe('SuperMoodLogger', () => {
     fireEvent.click(screen.getByText('Glad'));
 
     // Open advanced
-    fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
 
     // Add tags
     fireEvent.click(screen.getByText('Add Tags'));
@@ -385,15 +385,15 @@ describe('SuperMoodLogger', () => {
 
   it('hides advanced options when toggle clicked again', () => {
     render(<SuperMoodLogger />);
-    fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
     expect(screen.getByTestId('circumplex-sliders')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Dölj avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Dölj avancerade alternativ/i }));
     expect(screen.queryByTestId('circumplex-sliders')).not.toBeInTheDocument();
   });
 
   it('allows entering context in advanced options', () => {
     render(<SuperMoodLogger />);
-    fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
     const contextInput = screen.getByPlaceholderText(/hemma/i);
     fireEvent.change(contextInput, { target: { value: 'på jobbet' } });
     expect(contextInput).toHaveValue('på jobbet');
@@ -402,7 +402,7 @@ describe('SuperMoodLogger', () => {
   it('submits context value when provided', async () => {
     render(<SuperMoodLogger />);
     fireEvent.click(screen.getByText('Glad'));
-    fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
     fireEvent.change(screen.getByPlaceholderText(/hemma/i), { target: { value: 'på jobbet' } });
     await act(async () => {
       fireEvent.click(screen.getAllByRole('button', { name: /logga/i })[0]);
@@ -417,7 +417,7 @@ describe('SuperMoodLogger', () => {
   it('submits changed valence and arousal from sliders', async () => {
     render(<SuperMoodLogger />);
     fireEvent.click(screen.getByText('Glad'));
-    fireEvent.click(screen.getByRole('button', { name: /Visa avancerade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fler alternativ/i }));
     fireEvent.change(screen.getByTestId('valence-slider'), { target: { value: '3' } });
     fireEvent.change(screen.getByTestId('arousal-slider'), { target: { value: '7' } });
     await act(async () => {

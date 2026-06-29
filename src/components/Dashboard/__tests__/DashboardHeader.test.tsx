@@ -21,7 +21,7 @@ const dashboardDataMock = vi.hoisted(() => ({
 
 vi.mock('../../../hooks/useDashboardData', () => dashboardDataMock);
 
-import { DashboardHeader } from '../DashboardHeader';
+import { DashboardHeader, BreathingFocusCard } from '../DashboardHeader';
 
 describe('DashboardHeader', () => {
   beforeEach(() => {
@@ -171,14 +171,14 @@ describe('DashboardHeader', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Breathing session interaction branches
+  // Breathing session interaction branches (now in BreathingFocusCard)
   // -----------------------------------------------------------------------
 
   const getStartBreathingBtn = () => screen.getByRole('button', { name: /breath\.ariaStart/i });
 
   it('renders the start breathing button', () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const btn = getStartBreathingBtn();
     expect(btn).toBeInTheDocument();
     expect(btn).not.toBeDisabled();
@@ -186,7 +186,7 @@ describe('DashboardHeader', () => {
 
   it('starts breathing session on button click', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const btn = getStartBreathingBtn();
     await act(async () => {
       fireEvent.click(btn);
@@ -198,7 +198,7 @@ describe('DashboardHeader', () => {
 
   it('shows skip button when breathing session is active', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     await act(async () => {
       fireEvent.click(startBtn);
@@ -210,7 +210,7 @@ describe('DashboardHeader', () => {
   it('calls onFocusAction when skip button is clicked', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
     const onFocusAction = vi.fn();
-    render(<DashboardHeader onFocusAction={onFocusAction} />);
+    render(<BreathingFocusCard onFocusAction={onFocusAction} />);
     const startBtn = getStartBreathingBtn();
     await act(async () => {
       fireEvent.click(startBtn);
@@ -225,7 +225,7 @@ describe('DashboardHeader', () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
     const todayKey = new Date('2026-04-06T09:00:00').toISOString().slice(0, 10);
     localStorage.setItem('lugn-trygg-focus-breathing-last-completed', todayKey);
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     // Session already completed — should show "continue" button
     expect(screen.getByText('breath.continue')).toBeInTheDocument();
   });
@@ -235,7 +235,7 @@ describe('DashboardHeader', () => {
     const todayKey = new Date('2026-04-06T09:00:00').toISOString().slice(0, 10);
     localStorage.setItem('lugn-trygg-focus-breathing-last-completed', todayKey);
     const onFocusAction = vi.fn();
-    render(<DashboardHeader onFocusAction={onFocusAction} />);
+    render(<BreathingFocusCard onFocusAction={onFocusAction} />);
     const continueBtn = screen.getByText('breath.continue');
     fireEvent.click(continueBtn);
     expect(onFocusAction).toHaveBeenCalled();
@@ -243,7 +243,7 @@ describe('DashboardHeader', () => {
 
   it('starts breathing on Space keydown when session not active', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     expect(startBtn).not.toBeDisabled();
     const card = screen.getByRole('region', { name: /dashboardHeader\.breathingExercise/i });
@@ -256,7 +256,7 @@ describe('DashboardHeader', () => {
 
   it('does not start breathing on Space when session already active', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     // Start session
     await act(async () => {
@@ -275,7 +275,7 @@ describe('DashboardHeader', () => {
 
   it('does not trigger breathing on non-Space key', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     const card = screen.getByRole('region', { name: /dashboardHeader\.breathingExercise/i });
     await act(async () => {
@@ -287,7 +287,7 @@ describe('DashboardHeader', () => {
 
   it('advances breathing phases after timer fires', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     await act(async () => {
       fireEvent.click(startBtn);
@@ -304,7 +304,7 @@ describe('DashboardHeader', () => {
 
   it('completes breathing session after all cycles', async () => {
     vi.setSystemTime(new Date('2026-04-06T09:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     const startBtn = getStartBreathingBtn();
     await act(async () => {
       fireEvent.click(startBtn);
@@ -328,24 +328,24 @@ describe('DashboardHeader', () => {
   });
 
   // -----------------------------------------------------------------------
-  // getDailyFocusContent branches (visible through rendered titles)
+  // getDailyFocusContent branches (now in BreathingFocusCard)
   // -----------------------------------------------------------------------
 
   it('shows morning focus content before 10:00', () => {
     vi.setSystemTime(new Date('2026-04-06T08:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     expect(screen.getByText('dashboardHeader.morningFocus')).toBeInTheDocument();
   });
 
   it('shows day focus content between 10:00 and 18:00', () => {
     vi.setSystemTime(new Date('2026-04-06T12:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     expect(screen.getByText('dashboardHeader.dayFocus')).toBeInTheDocument();
   });
 
   it('shows evening focus content after 18:00', () => {
     vi.setSystemTime(new Date('2026-04-06T20:00:00'));
-    render(<DashboardHeader />);
+    render(<BreathingFocusCard />);
     expect(screen.getByText('dashboardHeader.eveningFocus')).toBeInTheDocument();
   });
 

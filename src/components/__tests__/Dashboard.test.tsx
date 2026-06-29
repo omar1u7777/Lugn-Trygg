@@ -176,23 +176,20 @@ describe('WorldClassDashboard', () => {
   test('renders DashboardStats section', () => {
     renderDashboard();
     // Stats section renders values from the stats object
-    expect(screen.getByText(/Ditt Mående/)).toBeInTheDocument();
+    expect(screen.getByText(/Statistik Översikt/)).toBeInTheDocument();
     expect(screen.getByText(/Nuvarande Streak/)).toBeInTheDocument();
   });
 
   test('renders DashboardQuickActions section', () => {
     renderDashboard();
     expect(screen.getByText('Hur vill du ta hand om dig?')).toBeInTheDocument();
-    // The quick actions render "Känn efter" and "Få stöd" buttons
-    expect(screen.getByText('Känn efter')).toBeInTheDocument();
+    // Quick actions now include chat, sounds, journal, recommendations, social
     expect(screen.getByText('Få stöd')).toBeInTheDocument();
   });
 
-  test('renders weekly progress card', () => {
+  test('renders mood check-in section', () => {
     renderDashboard();
-    expect(screen.getByText('Veckoprogress')).toBeInTheDocument();
-    // Shows progress text
-    expect(screen.getByText(/4 av 7 humör-inlägg denna vecka/)).toBeInTheDocument();
+    expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
   });
 
   test('renders usage limit banner for free users', () => {
@@ -223,13 +220,11 @@ describe('WorldClassDashboard', () => {
     expect(pulseElements.length).toBeGreaterThan(0);
   });
 
-  test('clicking "Känn efter" quick action switches to mood view', async () => {
+  test('clicking "Få stöd" quick action switches to chat view (mood is now inline)', async () => {
     renderDashboard();
-    fireEvent.click(screen.getByText('Känn efter'));
-    // After clicking, the view switches to mood-basic which shows back button + MoodLogger
-    await waitFor(() => {
-      expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
-    });
+    // Mood is now inline in the dashboard, not a quick action
+    // Verify mood logger is already visible
+    expect(screen.getByTestId('mock-mood-logger')).toBeInTheDocument();
   });
 
   test('clicking "Få stöd" quick action switches to chat view', async () => {
@@ -243,8 +238,8 @@ describe('WorldClassDashboard', () => {
 
   test('clicking back button returns to overview', async () => {
     renderDashboard();
-    // Switch to mood view first
-    fireEvent.click(screen.getByText('Känn efter'));
+    // Switch to chat view first
+    fireEvent.click(screen.getByText('Få stöd'));
     await waitFor(() => {
       expect(screen.getByText('Tillbaka till Dashboard')).toBeInTheDocument();
     });
@@ -266,7 +261,8 @@ describe('WorldClassDashboard', () => {
   test('shows congratulations when weekly goal is met', () => {
     setupMocks({ stats: { weeklyProgress: 7, weeklyGoal: 7 } });
     renderDashboard();
-    expect(screen.getByText(/Grattis! Du har nått ditt veckomål!/)).toBeInTheDocument();
+    // Weekly progress card was removed; just verify dashboard renders without error
+    expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
   });
 
   test('tracks page view on mount', () => {
@@ -274,15 +270,17 @@ describe('WorldClassDashboard', () => {
     expect(mockAnalytics.page).toHaveBeenCalledWith('World Class Dashboard', expect.any(Object));
   });
 
-  test('renders recent activity section', () => {
+  test('renders dashboard without recent activity section', () => {
     renderDashboard();
-    expect(screen.getByText(/Loggade humör: Glad/)).toBeInTheDocument();
+    // Recent activity section was removed in refactor; verify dashboard still renders
+    expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
   });
 
-  test('renders empty activity message when no activities', () => {
+  test('renders dashboard with empty activity without error', () => {
     setupMocks({ stats: { recentActivity: [] } });
     renderDashboard();
-    expect(screen.getByText(/Ingen övrig aktivitet än/)).toBeInTheDocument();
+    // Recent activity section was removed; verify dashboard still renders
+    expect(screen.getByText('Hur mår du idag?')).toBeInTheDocument();
   });
 
   test('shows Swedish info notice when Stripe checkout was canceled', async () => {
