@@ -16,10 +16,10 @@ workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
 # properly patch ssl when aiohttp/urllib3/jwt already imported it in the
 # arbiter before forking.  gthread uses native threads with no patching.
 worker_class = "gthread"
-threads = 4  # Threads per worker for concurrent request handling
+threads = int(os.environ.get("GUNICORN_THREADS", 2))  # Threads per worker
 
 # Timeout settings - optimized for Render Starter
-timeout = 120  # Allow worker to finish post-fork app load before heartbeat
+timeout = 60  # Workers that hang for >60s get restarted
 graceful_timeout = 30
 keepalive = 10  # Increased keepalive for better connection reuse
 
