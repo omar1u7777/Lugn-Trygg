@@ -12,8 +12,6 @@ services:
 
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn -c gunicorn_config.py main:app
-    healthCheckPath: /health
-    healthCheckGracePeriodSeconds: 60
 
     envVars:
       - key: FLASK_ENV
@@ -59,6 +57,6 @@ services:
       - key: PORT
         sync: false
       - key: GUNICORN_WORKERS
-        value: "1"
+        value: "2"
       - key: GUNICORN_THREADS
         value: "2"

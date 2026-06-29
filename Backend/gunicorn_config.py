@@ -28,7 +28,7 @@ max_requests = 1000  # Restart worker after 1000 requests (more frequent for sta
 max_requests_jitter = 50  # Add randomness to avoid all workers restarting at once
 
 # Performance optimizations
-preload_app = False  # Each worker loads app independently
+preload_app = True  # Master loads app once, workers share via copy-on-write (saves ~150MB on Starter)
 reuse_port = True  # Enable SO_REUSEPORT for better load distribution
 backlog = 2048  # Increased backlog for high concurrency
 
