@@ -22,7 +22,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   initialCycles = 4,
   initialStressBefore = null 
 }) => {
-  const { _t } = useTranslation();
+  const { t } = useTranslation();
   
   // Advanced state
   const [selectedBreathingCycles, setSelectedBreathingCycles] = useState<4 | 8 | 12>(initialCycles);
@@ -58,7 +58,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
     ...(onPhaseChange ? { onPhaseChange } : {})
   });
 
-  const phases = getBreathingPhases();
+  const phases = getBreathingPhases(t);
   const currentPhase = phases.find(p => p.name === breathingPhase);
   const breathingCue = currentPhase || { title: breathingPhase, detail: '', icon: '🫁' };
 
