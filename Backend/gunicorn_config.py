@@ -14,10 +14,10 @@ _default_workers = min(max(2, multiprocessing.cpu_count() * 2 + 1), 9)
 workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
 worker_class = "gevent"  # Async worker for high concurrency
 threads = 2  # Reduced threads per worker for better memory management
-worker_connections = 5000  # Reduced from 10k for stability, still supports high concurrency
+worker_connections = 1000  # Reduced for Render Starter 512 MB stability
 
-# Timeout settings - optimized for performance
-timeout = 60  # Reduced from 120s for faster failure recovery
+# Timeout settings - optimized for Render Starter
+timeout = 120  # Allow worker to finish post-fork app load before heartbeat
 graceful_timeout = 30
 keepalive = 10  # Increased keepalive for better connection reuse
 
@@ -26,7 +26,7 @@ max_requests = 1000  # Restart worker after 1000 requests (more frequent for sta
 max_requests_jitter = 50  # Add randomness to avoid all workers restarting at once
 
 # Performance optimizations
-preload_app = True  # Load app before forking workers (faster startup)
+preload_app = False  # Load app in worker after gevent patches (avoids ssl monkey-patch deadlock)
 reuse_port = True  # Enable SO_REUSEPORT for better load distribution
 backlog = 2048  # Increased backlog for high concurrency
 
