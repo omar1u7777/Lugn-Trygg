@@ -1431,6 +1431,11 @@
     "title": "Personliga Rekommendationer 💡",
     "subtitle": "Innehåll anpassat efter dina behov och framsteg",
     "description": "Här ser du personliga förslag baserade på dina mål. I Välmåendebiblioteket hittar du hela utbudet av övningar och innehåll.",
+    "personalized": {
+      "lowMood": "Anpassat efter ditt humör — fokus på lättnad idag",
+      "improving": "Anpassat efter ditt humör — du mår bättre, dags för tillväxt",
+      "stable": "Anpassat efter ditt humör och dina mål"
+    },
     "wellnessGoals": "Wellness-mål",
     "availableExercises": "Tillgängliga övningar",
     "evidenceBased": "Evidensbaserat innehåll",

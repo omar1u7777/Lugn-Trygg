@@ -1433,6 +1433,11 @@
     "title": "Personal Recommendations 💡",
     "subtitle": "Content tailored to your needs and progress",
     "description": "Here you see personal suggestions based on your goals. In the Wellness Library you find the full range of exercises and content.",
+    "personalized": {
+      "lowMood": "Tailored to your mood — focus on relief today",
+      "improving": "Tailored to your mood — you're feeling better, time for growth",
+      "stable": "Tailored to your mood and your goals"
+    },
     "wellnessGoals": "Wellness goals",
     "availableExercises": "Available exercises",
     "evidenceBased": "Evidence-based content",

@@ -1435,6 +1435,11 @@
     "title": "Personlige anbefalinger 💡",
     "subtitle": "Innhold tilpasset dine behov og fremgang",
     "description": "Her ser du personlige forslag basert på målene dine. I Velværebiblioteket finner du hele utvalget av øvelser og innhold.",
+    "personalized": {
+      "lowMood": "Tilpasset ditt humør — fokus på lettelser i dag",
+      "improving": "Tilpasset ditt humør — du har det bedre, tid for vekst",
+      "stable": "Tilpasset ditt humør og dine mål"
+    },
     "wellnessGoals": "Velværemål",
     "availableExercises": "Tilgjengelige øvelser",
     "evidenceBased": "Evidensbasert innhold",
