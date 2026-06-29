@@ -36,6 +36,10 @@ interface DashboardStats {
   goalStepCompletions: GoalStepCompletions;
   recentActivity: Activity[];
   moodTrendSamples: number[];
+  longestStreak: number;
+  weeklyChats: number;
+  achievementsCount: number;
+  totalMeditations: number;
 }
 
 interface UseDashboardDataReturn {
@@ -66,6 +70,10 @@ const createInitialStats = (): DashboardStats => ({
   goalStepCompletions: {},
   recentActivity: [],
   moodTrendSamples: [],
+  longestStreak: 0,
+  weeklyChats: 0,
+  achievementsCount: 0,
+  totalMeditations: 0,
 });
 
 const getCachedStatsForUser = (userId: string): DashboardStats | null => {
@@ -180,6 +188,10 @@ export const useDashboardData = (userId?: string): UseDashboardDataReturn => {
           })
           .filter((a): a is Activity => a !== null),
         moodTrendSamples: Array.isArray(data.moodTrendSamples) ? data.moodTrendSamples : [],
+        longestStreak: data.longestStreak || 0,
+        weeklyChats: data.weeklyChats || 0,
+        achievementsCount: data.achievementsCount || 0,
+        totalMeditations: data.totalMeditations || 0,
       };
 
       // Update cache for this user

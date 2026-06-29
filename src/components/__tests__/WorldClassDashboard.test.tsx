@@ -192,6 +192,11 @@ describe('WorldClassDashboard', () => {
       weeklyProgress: 2,
       wellnessGoals: [],
       recentActivity: [],
+      moodTrendSamples: [],
+      longestStreak: 6,
+      weeklyChats: 1,
+      achievementsCount: 3,
+      totalMeditations: 2,
     };
     dashboardDataState.loading = false;
     dashboardDataState.error = null;

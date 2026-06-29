@@ -233,7 +233,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     goalStepCompletions: dashboardStats.goalStepCompletions || {},
     recentActivity: dashboardStats.recentActivity || [],
     moodTrendSamples: dashboardStats.moodTrendSamples || [],
-  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.goalStepCompletions, dashboardStats.recentActivity, dashboardStats.moodTrendSamples]);
+    longestStreak: dashboardStats.longestStreak || 0,
+    weeklyChats: dashboardStats.weeklyChats || 0,
+    achievementsCount: dashboardStats.achievementsCount || 0,
+    totalMeditations: dashboardStats.totalMeditations || 0,
+  }), [dashboardStats.totalMoods, dashboardStats.totalChats, dashboardStats.averageMood, dashboardStats.streakDays, dashboardStats.weeklyGoal, dashboardStats.weeklyProgress, wellnessGoals, dashboardStats.goalStepCompletions, dashboardStats.recentActivity, dashboardStats.moodTrendSamples, dashboardStats.longestStreak, dashboardStats.weeklyChats, dashboardStats.achievementsCount, dashboardStats.totalMeditations]);
 
   const hasWellnessGoals = Array.isArray(safeDashboardStats.wellnessGoals) && safeDashboardStats.wellnessGoals.length > 0;
   const shouldRenderWellnessSkeleton = loading && !hasWellnessGoals;
@@ -274,9 +278,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     averageMood: safeDashboardStats.averageMood,
     streakDays: safeDashboardStats.streakDays,
     totalChats: safeDashboardStats.totalChats,
-    achievementsCount: Math.floor(safeDashboardStats.streakDays / 7) + Math.floor(safeDashboardStats.totalMoods / 10),
+    achievementsCount: safeDashboardStats.achievementsCount,
     moodSamples,
-  }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.totalMoods, moodSamples]);
+    longestStreak: safeDashboardStats.longestStreak,
+    weeklyChats: safeDashboardStats.weeklyChats,
+  }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.achievementsCount, safeDashboardStats.longestStreak, safeDashboardStats.weeklyChats, moodSamples]);
 
   const formattedWeeklyProgress = formatNumber(safeDashboardStats.weeklyProgress);
   const formattedWeeklyGoal = formatNumber(safeDashboardStats.weeklyGoal);
