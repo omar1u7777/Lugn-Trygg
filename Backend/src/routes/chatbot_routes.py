@@ -662,7 +662,62 @@ def generate_enhanced_therapeutic_response(user_message: str, conversation_histo
         except Exception as e:
             logger.warning(f"Framework detection failed: {e}")
 
-    # 3. Generate AI response with context augmentation
+    # 3. Build user profile from Firestore for personalised AI context
+    user_profile: dict = {}
+    if user_id:
+        try:
+            from src.firebase_config import db as _db
+            if _db is not None:
+                user_doc = _db.collection("users").document(user_id).get()
+                if user_doc.exists:
+                    raw = user_doc.to_dict() or {}
+                    user_profile = {
+                        "name": raw.get("name") or raw.get("displayName") or "",
+                        "email": raw.get("email", ""),
+                        "values": raw.get("values", []),
+                        "effective_techniques": raw.get("effective_techniques", []),
+                        "goals": raw.get("goals", []),
+                    }
+
+                # Fetch latest PHQ-9 and GAD-7 scores from clinical_assessments
+                try:
+                    from google.cloud.firestore import FieldFilter
+                except ImportError:
+                    FieldFilter = None  # type: ignore[assignment]
+
+                for assessment_type, score_key in [("phq9", "phq9_score"), ("gad7", "gad7_score")]:
+                    try:
+                        if FieldFilter:
+                            assessments = list(
+                                _db.collection("users")
+                                .document(user_id)
+                                .collection("clinical_assessments")
+                                .where(filter=FieldFilter("type", "==", assessment_type))
+                                .order_by("timestamp", direction="DESCENDING")
+                                .limit(1)
+                                .stream()
+                            )
+                        else:
+                            assessments = list(
+                                _db.collection("users")
+                                .document(user_id)
+                                .collection("clinical_assessments")
+                                .where("type", "==", assessment_type)
+                                .order_by("timestamp", direction="DESCENDING")
+                                .limit(1)
+                                .stream()
+                            )
+                        if assessments:
+                            a_data = assessments[0].to_dict()
+                            user_profile[score_key] = a_data.get("total_score")
+                            user_profile[f"{assessment_type}_severity"] = a_data.get("severity")
+                            user_profile[f"{assessment_type}_date"] = a_data.get("timestamp")
+                    except Exception:
+                        pass
+        except Exception as profile_err:
+            logger.warning("Failed to build user_profile for chat: %s", profile_err)
+
+    # 4. Generate AI response with context augmentation
     try:
         if rag_context_used and contexts:
             # Build augmented prompt with RAG context
@@ -677,13 +732,17 @@ Please provide a personalized response that considers this context while being n
 
             ai_response = ai_services.generate_therapeutic_conversation(
                 augmented_message,
-                conversation_history
+                conversation_history,
+                user_profile=user_profile if user_profile else None,
+                user_id=user_id
             )
         else:
             # Standard response without RAG
             ai_response = ai_services.generate_therapeutic_conversation(
                 user_message,
-                conversation_history
+                conversation_history,
+                user_profile=user_profile if user_profile else None,
+                user_id=user_id
             )
 
         # Add metadata about advanced features

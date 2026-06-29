@@ -1549,6 +1549,14 @@ Ta hänsyn till användarens humörmönster när du svarar."""
                 sentiment_guidance = "Användarens sinnesstämning är neutral - var nyfiken och utforskande."
 
             # Add Swedish language enforcement and mood context
+            # Fetch user profile context (name, assessments) for personalisation
+            profile_context = ""
+            if user_id:
+                try:
+                    profile_context = self._fetch_user_profile_context(user_id)
+                except Exception as prof_err:
+                    logger.warning("⚠️ Failed to load profile context for non-stream chat: %s", prof_err)
+
             enhanced_prompt = f"""Du är en empatisk och professionell mental hälsa-assistent för appen Lugn & Trygg.
 
 Din roll:
@@ -1557,13 +1565,14 @@ Din roll:
 - Föreslå evidensbaserade coping-strategier (CBT, DBT, ACT)
 - Uppmuntra professionell hjälp vid behov
 - Aldrig diagnostisera eller ge medicinsk rådgivning
+{profile_context}
 
 {sentiment_guidance}
 
 {base_prompt}
 {mood_context}
 
-VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig."""
+VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."""
 
             # 5. Apply RAG if user_id available for personalization
             final_prompt = enhanced_prompt
@@ -1842,6 +1851,14 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             except Exception as mem_err:
                 logger.warning("⚠️ Failed to load session summaries: %s", mem_err)
 
+        # User profile context: name, PHQ-9, GAD-7 scores for personalisation
+        profile_context = ""
+        if user_id:
+            try:
+                profile_context = self._fetch_user_profile_context(user_id)
+            except Exception as prof_err:
+                logger.warning("⚠️ Failed to load user profile context: %s", prof_err)
+
         # Cross-source context: pull in journal entries + active goals so the
         # assistant can reference what the user has been writing about and
         # working towards. Recency-based — fast, no embeddings required.
@@ -1862,13 +1879,82 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             "- Uppmuntra professionell hjälp vid behov\n"
             "- Aldrig diagnostisera eller ge medicinsk rådgivning\n"
             "- Skapa en säker, trygg atmosfär för reflektion\n\n"
+            f"{profile_context}"
             f"{sentiment_guidance}"
             f"{mood_context}"
             f"{cross_context}"
             f"{memory_context}\n\n"
             "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). "
-            "Var empatisk och personlig."
+            "Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."
         )
+
+    def _fetch_user_profile_context(self, user_id: str) -> str:
+        """Fetch user's name and latest clinical assessment scores for
+        personalisation. Returns empty string if no useful data.
+        """
+        from src.firebase_config import db
+
+        if db is None:
+            return ""
+
+        parts: list[str] = []
+
+        # 1. User's name from the users collection
+        try:
+            user_doc = db.collection("users").document(user_id).get()
+            if user_doc.exists:
+                raw = user_doc.to_dict() or {}
+                name = (raw.get("name") or raw.get("displayName") or "").strip()
+                if name:
+                    parts.append(f"\n\nANVÄNDARENS PROFIL:\n- Namn: {name}")
+        except Exception as exc:
+            logger.warning("User profile name fetch failed: %s", exc)
+
+        # 2. Latest PHQ-9 and GAD-7 assessment scores from clinical_assessments
+        for assessment_type, label in [("phq9", "PHQ-9 (depression)"), ("gad7", "GAD-7 (ångest)")]:
+            try:
+                try:
+                    from google.cloud.firestore import FieldFilter
+                    q = (
+                        db.collection("users")
+                        .document(user_id)
+                        .collection("clinical_assessments")
+                        .where(filter=FieldFilter("type", "==", assessment_type))
+                        .order_by("timestamp", direction="DESCENDING")
+                        .limit(1)
+                    )
+                except ImportError:
+                    q = (
+                        db.collection("users")
+                        .document(user_id)
+                        .collection("clinical_assessments")
+                        .where("type", "==", assessment_type)
+                        .order_by("timestamp", direction="DESCENDING")
+                        .limit(1)
+                    )
+
+                docs = list(q.stream())
+                if docs:
+                    a_data = docs[0].to_dict() or {}
+                    score = a_data.get("total_score")
+                    if score is not None:
+                        severity = a_data.get("severity") or ""
+                        severity_part = f" — {severity}" if severity else ""
+                        parts.append(f"- Senaste {label}: {score} p{severity_part}")
+            except Exception as exc:
+                logger.warning("%s score fetch failed: %s", assessment_type, exc)
+
+        if len(parts) <= 1:
+            # Only name or nothing useful
+            return "".join(parts) if parts else ""
+
+        # Add guidance for the AI
+        parts.append(
+            "\nAnvänd denna information för att ge personligt stöd. "
+            "Referera naturligt till användarens namn och vara medveten om "
+            "deras nuvarande symtomnivå, men upprepa inte poängen mekaniskt."
+        )
+        return "\n\n".join(parts)
 
     def _fetch_cross_source_context(self, user_id: str) -> str:
         """Build a compact context block from the user's recent journal entries
