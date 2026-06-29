@@ -251,14 +251,6 @@ describe('WorldClassDashboard', () => {
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
   });
 
-  it('renders weekly goal reached state', () => {
-    dashboardDataState.stats.weeklyGoal = 3;
-    dashboardDataState.stats.weeklyProgress = 3;
-
-    render(<WorldClassDashboard userId="u1" />);
-    expect(screen.getByText('worldDashboard.weeklyGoalReached')).toBeTruthy();
-  });
-
   it('opens feature views from quick actions and supports chat', () => {
     render(<WorldClassDashboard userId="u1" />);
 

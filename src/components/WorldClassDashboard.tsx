@@ -42,7 +42,6 @@ import { completeGoalStep } from '../api/users';
 import { analytics } from '../services/analytics';
 import { logger } from '../utils/logger';
 import useAuth from '../hooks/useAuth';
-import { formatNumber } from '../utils/intlFormatters';
 import { extractDisplayName } from '../utils/nameUtils';
 
 interface WorldClassDashboardProps {
@@ -283,9 +282,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     longestStreak: safeDashboardStats.longestStreak,
     weeklyChats: safeDashboardStats.weeklyChats,
   }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.achievementsCount, safeDashboardStats.longestStreak, safeDashboardStats.weeklyChats, moodSamples]);
-
-  const formattedWeeklyProgress = formatNumber(safeDashboardStats.weeklyProgress);
-  const formattedWeeklyGoal = formatNumber(safeDashboardStats.weeklyGoal);
 
   // Transform activities with icons and colors - memoized for performance
   const activities = useMemo(() => {
@@ -826,48 +822,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
           onActionClick={handleQuickAction}
           isLoading={loading}
         />
-
-        {/* Weekly Progress Card */}
-        <Card className="world-class-dashboard-card world-class-dashboard-card-premium mb-6">
-          <div className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl sm:text-3xl" aria-hidden="true">🎯</span>
-              <div>
-                <h5 className="text-lg sm:text-xl font-bold text-white">
-                  {t('worldDashboard.weeklyProgress')}
-                </h5>
-                <p className="text-sm text-white/70">
-                  {t('worldDashboard.weeklyProgressText', { current: formattedWeeklyProgress, goal: formattedWeeklyGoal })}
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((safeDashboardStats.weeklyProgress / safeDashboardStats.weeklyGoal) * 100, 100)}%` }}
-                  role="progressbar"
-                  aria-valuenow={safeDashboardStats.weeklyProgress}
-                  aria-valuemin={0}
-                  aria-valuemax={safeDashboardStats.weeklyGoal}
-                  aria-label={t('worldDashboard.weeklyProgressLabel', { current: safeDashboardStats.weeklyProgress, goal: safeDashboardStats.weeklyGoal })}
-                />
-              </div>
-            </div>
-
-            {safeDashboardStats.weeklyProgress >= safeDashboardStats.weeklyGoal ? (
-              <Alert variant="success" className="bg-white/10 border-white/20 text-white">
-                <span className="mr-2" aria-hidden="true">🎉</span>
-                <strong>{t('worldDashboard.weeklyGoalReached')}</strong>
-              </Alert>
-            ) : (
-              <p className="text-sm text-white/70">
-                🎯 {t('dashboard.weeklyGoalProgress', { count: safeDashboardStats.weeklyGoal - safeDashboardStats.weeklyProgress })}
-              </p>
-            )}
-          </div>
-        </Card>
 
         {/* Recent Activity (excludes moods — shown in SuperMoodLogger above) */}
         <DashboardActivity
