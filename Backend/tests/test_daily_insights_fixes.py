@@ -129,11 +129,11 @@ class TestActivityPatterns:
             }
             mock_docs.append(doc)
 
-        # Mock: db.collection('users').document(user_id).collection('moods').where(...).stream()
+        # Mock: db.collection('users').document(user_id).collection('moods').order_by(...).stream()
         mock_query = MagicMock()
         mock_query.stream.return_value = mock_docs
         mock_moods_collection = MagicMock()
-        mock_moods_collection.where.return_value = mock_query
+        mock_moods_collection.order_by.return_value = mock_query
         mock_user_doc = MagicMock()
         mock_user_doc.collection.return_value = mock_moods_collection
         mock_users_collection = MagicMock()
@@ -150,38 +150,39 @@ class TestActivityPatterns:
 
 
 class TestPendingInsightsFallback:
-    """#4: get_pending_insights should fallback when composite index is missing."""
+    """#4: get_pending_insights should work without composite index."""
 
     @patch('src.services.daily_insight_service_v2.db')
     def test_fallback_to_simple_query_on_index_error(self, mock_db, generator):
-        """If composite query fails, should fallback to user_id-only filter."""
-        # Composite query stream raises
-        composite_query = MagicMock()
-        composite_query.stream.side_effect = Exception("The query requires a composite index")
-
-        # Fallback doc
-        simple_doc = MagicMock()
-        simple_doc.to_dict.return_value = {
+        """Should use single-field query and filter status in Python."""
+        # Pending doc (should be returned)
+        pending_doc = MagicMock()
+        pending_doc.to_dict.return_value = {
             'insight_id': 'i1',
             'user_id': 'user123',
             'status': 'pending',
             'title': 'Test',
             'created_at': datetime.now(),
         }
+        # Dismissed doc (should be filtered out)
+        dismissed_doc = MagicMock()
+        dismissed_doc.to_dict.return_value = {
+            'insight_id': 'i2',
+            'user_id': 'user123',
+            'status': 'dismissed',
+            'title': 'Old',
+            'created_at': datetime.now(),
+        }
 
-        # Mock collection.where() returns X
-        # Composite path: X.where().order_by().stream() → raises
-        # Fallback path: X.stream() → returns docs
-        X = MagicMock()
-        X.where.return_value.order_by.return_value = composite_query
-        X.stream.return_value = [simple_doc]
-
+        # Mock: db.collection('insights').where(user_id).stream() → returns both docs
+        mock_query = MagicMock()
+        mock_query.stream.return_value = [pending_doc, dismissed_doc]
         mock_collection = MagicMock()
-        mock_collection.where.return_value = X
+        mock_collection.where.return_value = mock_query
         mock_db.collection.return_value = mock_collection
 
         result = generator.get_pending_insights('user123')
 
-        # Should return results from fallback, not empty list
-        assert len(result) >= 1
+        # Should only return pending insights, not dismissed ones
+        assert len(result) == 1
         assert result[0]['insight_id'] == 'i1'
