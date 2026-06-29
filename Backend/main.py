@@ -249,11 +249,26 @@ def _block_invalid_paths():
 
 # Rate limiting - optimized for 10k concurrent users during load testing
 _testing_mode = os.getenv("TESTING", "").lower() == "true"
+_redis_url = os.getenv("REDIS_URL", "memory://")
+_storage_uri = _redis_url
+
+# Verify Redis is actually reachable; fall back to memory if not
+if _redis_url and _redis_url != "memory://":
+    try:
+        import redis as _redis_check
+        _rc = _redis_check.from_url(_redis_url, socket_connect_timeout=2, socket_timeout=2)
+        _rc.ping()
+        _rc.close()
+        logger.info("✅ Flask-Limiter Redis storage verified")
+    except Exception as _redis_err:
+        logger.warning(f"⚠️ Redis unreachable for Flask-Limiter ({_redis_err}), falling back to in-memory")
+        _storage_uri = "memory://"
+
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=[] if _testing_mode else ["5000 per day", "1000 per hour", "300 per minute"],
-    storage_uri=os.getenv("REDIS_URL", "memory://")
+    storage_uri=_storage_uri
 )
 
 # [B5] Production guard — warn if rate limiting falls back to in-memory.
