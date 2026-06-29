@@ -36,3 +36,8 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     dispatchEvent: () => false,
   });
 }
+
+// Polyfill window.scrollTo for jsdom
+if (typeof window !== 'undefined' && !window.scrollTo) {
+  window.scrollTo = () => {};
+}

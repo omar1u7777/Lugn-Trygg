@@ -2068,6 +2068,47 @@
     "phq9Trend": "PHQ-9 trend (last {{count}})",
     "gad7Trend": "GAD-7 trend (last {{count}})",
     "latest": "Latest",
-    "points": "pts"
+    "points": "pts",
+    "crisisContacts": {
+      "emergency": "Emergency: 112",
+      "crisisLine": "Crisis support: 90101 (24/7)",
+      "psychiatric": "Psychiatric emergency room",
+      "chat": "Chat with crisis support: mind.se"
+    },
+    "q9HighRiskTitle": "⚠️ Acute self-harm risk",
+    "q9HighRiskText": "You indicated frequent thoughts of harming yourself. This requires immediate help. Call 112 or crisis support 90101 now.",
+    "q9ModerateRiskTitle": "⚠️ Self-harm thoughts detected",
+    "q9ModerateRiskText": "You indicated thoughts of self-harm. Contact your healthcare center or psychiatry as soon as possible. Crisis support 90101 (24/7).",
+    "safetyPlan": {
+      "title": "Safety Plan",
+      "subtitle": "If you have thoughts of self-harm — follow these steps",
+      "step1": "1. Call crisis support 90101 or 112 now",
+      "step2": "2. Contact a trusted person — tell them how you feel",
+      "step3": "3. Remove access to means of self-harm",
+      "step4": "4. Go to the nearest psychiatric emergency room",
+      "step5": "5. Use the app's breathing exercises to calm down"
+    },
+    "followUp": {
+      "title": "Next assessment",
+      "24_hours": "within 24 hours",
+      "1_week": "within 1 week",
+      "2_weeks": "within 2 weeks",
+      "1_month": "within 1 month",
+      "routine": "as needed"
+    },
+    "scoreSwingWarning": "⚠️ Large change ({{delta}} pts) between two measurements — consider discussing the result with a healthcare provider",
+    "compositeRisk": {
+      "title": "Combined risk assessment",
+      "none": "No risk",
+      "mild": "Low risk",
+      "moderate": "Moderate risk",
+      "severe": "High risk",
+      "crisis": "Acute risk",
+      "riskFactors": "Risk factors",
+      "protectiveFactors": "Protective factors",
+      "interventions": "Recommended interventions",
+      "loading": "Calculating combined risk…",
+      "error": "Could not calculate combined risk"
+    }
   }
 }

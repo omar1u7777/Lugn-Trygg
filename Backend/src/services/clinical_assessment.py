@@ -28,8 +28,10 @@ class PHQ9Result:
     risk_level: RiskLevel
     item_scores: dict[str, int]
     suicidal_ideation_flag: bool
+    self_harm_score: int  # 0-3, score on Q9 specifically
     interpretation: str
     recommendations: list[str]
+    follow_up_timeframe: str  # e.g. '24_hours', '1_week', '2_weeks', '1_month', 'routine'
 
 
 @dataclass
@@ -41,6 +43,7 @@ class GAD7Result:
     item_scores: dict[str, int]
     interpretation: str
     recommendations: list[str]
+    follow_up_timeframe: str  # e.g. '1_week', '2_weeks', '1_month', 'routine'
 
 
 @dataclass
@@ -111,10 +114,14 @@ class PHQ9Assessment:
         severity, risk_level, interpretation = cls._get_severity(total)
 
         # Check suicidal ideation (question 9)
-        suicidal_ideation = item_scores.get('self_harm', 0) > 0
+        self_harm_score = item_scores.get('self_harm', 0)
+        suicidal_ideation = self_harm_score > 0
 
         # Generate recommendations
         recommendations = cls._generate_recommendations(total, suicidal_ideation, risk_level)
+
+        # Determine follow-up timeframe
+        follow_up = cls._follow_up_timeframe(risk_level, suicidal_ideation, self_harm_score)
 
         return PHQ9Result(
             total_score=total,
@@ -122,8 +129,10 @@ class PHQ9Assessment:
             risk_level=risk_level,
             item_scores=item_scores,
             suicidal_ideation_flag=suicidal_ideation,
+            self_harm_score=self_harm_score,
             interpretation=interpretation,
-            recommendations=recommendations
+            recommendations=recommendations,
+            follow_up_timeframe=follow_up,
         )
 
     @classmethod
@@ -133,6 +142,19 @@ class PHQ9Assessment:
             if min_score <= total <= max_score:
                 return severity, risk, interpretation
         return 'severe', RiskLevel.CRISIS, 'Svår depression - omedelbar behandling krävs'
+
+    @classmethod
+    def _follow_up_timeframe(cls, risk: RiskLevel, suicidal: bool, self_harm_score: int) -> str:
+        """Determine recommended follow-up timeframe."""
+        if suicidal and self_harm_score >= 2:
+            return '24_hours'
+        if risk in (RiskLevel.SEVERE, RiskLevel.CRISIS):
+            return '1_week'
+        if risk == RiskLevel.MODERATE:
+            return '2_weeks'
+        if risk == RiskLevel.MILD:
+            return '1_month'
+        return 'routine'
 
     @classmethod
     def _generate_recommendations(cls, total: int, suicidal: bool, risk: RiskLevel) -> list[str]:
@@ -200,6 +222,7 @@ class GAD7Assessment:
 
         severity, risk_level, interpretation = cls._get_severity(total)
         recommendations = cls._generate_recommendations(total, risk_level)
+        follow_up = cls._follow_up_timeframe(risk_level)
 
         return GAD7Result(
             total_score=total,
@@ -207,7 +230,8 @@ class GAD7Assessment:
             risk_level=risk_level,
             item_scores=item_scores,
             interpretation=interpretation,
-            recommendations=recommendations
+            recommendations=recommendations,
+            follow_up_timeframe=follow_up,
         )
 
     @classmethod
@@ -217,6 +241,17 @@ class GAD7Assessment:
             if min_score <= total <= max_score:
                 return severity, risk, interpretation
         return 'severe', RiskLevel.SEVERE, 'Svår ångest - aktiv behandling nödvändig'
+
+    @classmethod
+    def _follow_up_timeframe(cls, risk: RiskLevel) -> str:
+        """Determine recommended follow-up timeframe."""
+        if risk == RiskLevel.SEVERE:
+            return '1_week'
+        if risk == RiskLevel.MODERATE:
+            return '2_weeks'
+        if risk == RiskLevel.MILD:
+            return '1_month'
+        return 'routine'
 
     @classmethod
     def _generate_recommendations(cls, total: int, risk: RiskLevel) -> list[str]:
