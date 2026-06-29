@@ -343,7 +343,7 @@ class ClinicalRiskStratification:
         # Mood trajectory analysis
         if recent_moods and len(recent_moods) >= 7:
             # Check for rapid decline
-            recent_valences = [m.get('valence', 0) for m in recent_moods[-7:]]
+            recent_valences = [float(m.get('valence') or 0) for m in recent_moods[-7:]]
             if len(recent_valences) >= 3:
                 trend = (recent_valences[-1] - recent_valences[0]) / len(recent_valences)
                 if trend < -0.1:  # Declining more than 0.1 per entry
@@ -352,7 +352,7 @@ class ClinicalRiskStratification:
             # Check consecutive negative days
             negative_streak = 0
             for mood in reversed(recent_moods):
-                if mood.get('valence', 0) < -0.3:
+                if float(mood.get('valence') or 0) < -0.3:
                     negative_streak += 1
                 else:
                     break
