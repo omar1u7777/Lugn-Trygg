@@ -457,11 +457,15 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
       if (error instanceof Error && error.name === 'AbortError') return;
       if (!isMountedRef.current) return;
       logger.error('Failed to log mood:', error);
-      const axiosError = error as AxiosError<{ error?: string }>;
-      const quotaExceeded = axiosError.response?.status === 429;
-      
-      if (quotaExceeded) {
-        const serverMessage = axiosError.response?.data?.error;
+      const axiosError = error as AxiosError<{ error?: string; message?: string }>;
+      const status = axiosError.response?.status;
+      const serverMessage = axiosError.response?.data?.message || axiosError.response?.data?.error;
+
+      if (status === 409) {
+        const friendlyMessage = serverMessage || t('moodLogger.duplicateWarning', 'Du loggade precis samma humör. Vänta några minuter.');
+        setLimitError(friendlyMessage);
+        announceToScreenReader(friendlyMessage, 'polite');
+      } else if (status === 429) {
         const friendlyMessage = serverMessage || t('moodLogger.dailyLimitReachedMessage');
         setLimitError(friendlyMessage);
         announceToScreenReader(friendlyMessage, 'assertive');
