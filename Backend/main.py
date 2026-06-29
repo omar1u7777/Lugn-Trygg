@@ -3,14 +3,6 @@ Lugn & Trygg - Mental Health Platform Backend
 Production-ready Flask application with comprehensive security and monitoring
 """
 
-# Patch stdlib before any other imports when running under Gunicorn gevent workers
-# This prevents blocking time.sleep / threading / socket calls from freezing the event loop
-try:
-    from gevent import monkey
-    monkey.patch_all()
-except ImportError:
-    pass  # Not running under gevent (e.g. development server)
-
 import logging
 import os
 import sys

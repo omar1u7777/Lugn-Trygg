@@ -1,10 +1,3 @@
-# Monkey-patch FIRST — before gunicorn/arbiter imports ssl, socket, etc.
-# The arbiter loads this config file very early; patching here means forked
-# gevent workers inherit a fully patched stdlib and the event loop will not
-# be blocked by SSL/socket calls (fixes idle WORKER TIMEOUT + SIGKILL).
-from gevent import monkey
-monkey.patch_all()
-
 import multiprocessing
 import os
 
