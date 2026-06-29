@@ -52,16 +52,16 @@ const URGENCY_STYLES: Record<string, { border: string; icon: React.ReactNode; ba
   },
 };
 
-/** Map CBT/ACT domain to Swedish label */
-const DOMAIN_LABELS: Record<string, string> = {
-  behavioral_activation: 'Beteendeaktivering',
-  cognitive_restructuring: 'Kognitiv omstrukturering',
-  sleep_hygiene: 'Sömnhygien',
-  social_connection: 'Social kontakt',
-  mindfulness: 'Mindfulness',
-  physical_activity: 'Fysisk aktivitet',
-  emotion_regulation: 'Känslohantering',
-};
+/** Map CBT/ACT domain to i18n key suffix */
+const DOMAIN_KEYS: readonly string[] = [
+  'behavioral_activation',
+  'cognitive_restructuring',
+  'sleep_hygiene',
+  'social_connection',
+  'mindfulness',
+  'physical_activity',
+  'emotion_regulation',
+] as const;
 
 export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
@@ -206,7 +206,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
           {t('insights.noInsightsHint', 'Logga ditt mående regelbundet så genereras personliga insikter efter hand.')}
         </p>
         <p className="text-xs text-gray-400 dark:text-gray-500">
-          Minst 3 mood-loggar behövs för att generera insikter.
+          {t('dailyInsights.minMoodsRequired')}
         </p>
         <button
           onClick={loadInsights}
@@ -236,7 +236,8 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
           const urgency = insight.urgency ?? 'low';
           const style = URGENCY_STYLES[urgency] ?? URGENCY_STYLES.low!;
           const actionState = actionStates[insight.insight_id] ?? 'idle';
-          const domainLabel = DOMAIN_LABELS[insight.domain] ?? insight.domain;
+          const domainKey = DOMAIN_KEYS.includes(insight.domain) ? insight.domain : null;
+          const domainLabel = domainKey ? t(`dailyInsights.domains.${domainKey}`) : insight.domain;
 
           return (
             <motion.div
@@ -260,7 +261,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                     onClick={() => handleDismiss(insight.insight_id)}
                     disabled={actionState === 'loading'}
                     className="flex-shrink-0 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    aria-label="Stäng"
+                    aria-label={t('dailyInsights.close')}
                   >
                     <XMarkIcon className="w-4 h-4" />
                   </button>
@@ -302,7 +303,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                     {actionState === 'done' ? (
                       <span className="flex items-center justify-center gap-1.5">
                         <CheckCircleIcon className="w-4 h-4" />
-                        Klart!
+                        {t('dailyInsights.done')}
                       </span>
                     ) : actionState === 'loading' ? (
                       <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" />

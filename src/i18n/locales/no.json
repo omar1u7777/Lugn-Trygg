@@ -2110,5 +2110,19 @@
       "loading": "Beregner kombinert risiko…",
       "error": "Kunne ikke beregne kombinert risiko"
     }
+  },
+  "dailyInsights": {
+    "minMoodsRequired": "Minst 3 humørlogger trengs for å generere innsikt.",
+    "done": "Ferdig!",
+    "close": "Lukk",
+    "domains": {
+      "behavioral_activation": "Atferdsaktivering",
+      "cognitive_restructuring": "Kognitiv omstrukturering",
+      "sleep_hygiene": "Søvnhygiene",
+      "social_connection": "Sosial kontakt",
+      "mindfulness": "Mindfulness",
+      "physical_activity": "Fysisk aktivitet",
+      "emotion_regulation": "Følelsesregulering"
+    }
   }
 }

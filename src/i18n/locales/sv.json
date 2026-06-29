@@ -2108,5 +2108,19 @@
       "loading": "Beräknar kombinerad risk…",
       "error": "Kunde inte beräkna kombinerad risk"
     }
+  },
+  "dailyInsights": {
+    "minMoodsRequired": "Minst 3 mood-loggar behövs för att generera insikter.",
+    "done": "Klart!",
+    "close": "Stäng",
+    "domains": {
+      "behavioral_activation": "Beteendeaktivering",
+      "cognitive_restructuring": "Kognitiv omstrukturering",
+      "sleep_hygiene": "Sömnhygien",
+      "social_connection": "Social kontakt",
+      "mindfulness": "Mindfulness",
+      "physical_activity": "Fysisk aktivitet",
+      "emotion_regulation": "Känslohantering"
+    }
   }
 }
