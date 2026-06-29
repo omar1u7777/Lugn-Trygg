@@ -129,9 +129,17 @@ const InsightsHub: React.FC = () => {
             ? previousWeekMoods.reduce((sum: number, m) => sum + (m.score || 0), 0) / previousWeekMoods.length
             : averageMoodScore;
 
-          const trendPercentage = prevWeekAvg > 0
-            ? Math.round(((lastWeekAvg - prevWeekAvg) / prevWeekAvg) * 100)
-            : 0;
+          // #9: Fix division by zero and cap unreasonable percentages
+          let trendPercentage: number;
+          if (previousWeekMoods.length === 0 || prevWeekAvg === 0) {
+            // No previous data or zero baseline: use absolute change instead of relative
+            const absChange = lastWeekAvg - prevWeekAvg;
+            trendPercentage = absChange > 0.5 ? 100 : absChange < -0.5 ? -100 : 0;
+          } else {
+            const rawPct = ((lastWeekAvg - prevWeekAvg) / prevWeekAvg) * 100;
+            // Cap at ±200% to avoid misleading values (e.g. 1→10 = 900%)
+            trendPercentage = Math.round(Math.max(-200, Math.min(200, rawPct)));
+          }
 
           const trendDirection = trendPercentage > 5 ? 'up' : trendPercentage < -5 ? 'down' : 'stable';
 
@@ -166,8 +174,25 @@ const InsightsHub: React.FC = () => {
             Math.abs(curr - bestHour) < Math.abs(prev - bestHour) ? curr : prev
           );
 
+          // #8: Data-driven activity suggestion based on mood score and trend
           const activities = ['meditation', 'promenad', 'djupandning', 'journalskrivning', 'musik'];
-          const suggestedActivity = activities[Math.floor(averageMoodScore) % activities.length] || 'meditation';
+          let suggestedActivity: string;
+          if (trendDirection === 'down' && averageMoodScore < 5) {
+            // Low mood + declining: recommend behavioral activation
+            suggestedActivity = 'promenad';
+          } else if (averageMoodScore >= 7) {
+            // Good mood: maintain with mindfulness
+            suggestedActivity = 'meditation';
+          } else if (trendDirection === 'stable' && averageMoodScore >= 5 && averageMoodScore < 7) {
+            // Moderate stable: try journaling for growth
+            suggestedActivity = 'journalskrivning';
+          } else if (averageMoodScore < 5) {
+            // Low mood: breathing exercises for regulation
+            suggestedActivity = 'djupandning';
+          } else {
+            // Default: use best time-of-day score to pick
+            suggestedActivity = activities[bestHour % activities.length] || 'meditation';
+          }
 
           setAiPrediction({
             trendDirection,

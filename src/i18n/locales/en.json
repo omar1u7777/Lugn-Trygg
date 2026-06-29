@@ -2110,5 +2110,19 @@
       "loading": "Calculating combined risk…",
       "error": "Could not calculate combined risk"
     }
+  },
+  "dailyInsights": {
+    "minMoodsRequired": "At least 3 mood logs are needed to generate insights.",
+    "done": "Done!",
+    "close": "Close",
+    "domains": {
+      "behavioral_activation": "Behavioral Activation",
+      "cognitive_restructuring": "Cognitive Restructuring",
+      "sleep_hygiene": "Sleep Hygiene",
+      "social_connection": "Social Connection",
+      "mindfulness": "Mindfulness",
+      "physical_activity": "Physical Activity",
+      "emotion_regulation": "Emotion Regulation"
+    }
   }
 }

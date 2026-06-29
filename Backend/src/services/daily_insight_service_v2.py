@@ -414,15 +414,16 @@ class DailyInsightGeneratorV2:
                     continue
 
                 # Get mood scores for these memories
+                # #7: Coerce None sentiment_score to 0 (same pattern as valence fix)
                 mood_scores = []
                 for m in activity_memories:
-                    sentiment = m.get('ai_analysis', {}).get('sentiment_score', 0)
+                    sentiment = float(m.get('ai_analysis', {}).get('sentiment_score') or 0)
                     mood_scores.append(sentiment)
 
                 avg_mood = statistics.mean(mood_scores)
 
                 # Compare to baseline (all memories)
-                all_sentiments = [m.get('ai_analysis', {}).get('sentiment_score', 0)
+                all_sentiments = [float(m.get('ai_analysis', {}).get('sentiment_score') or 0)
                                  for m in memories]
                 baseline = statistics.mean(all_sentiments) if all_sentiments else 0
 
@@ -756,43 +757,105 @@ class DailyInsightGeneratorV2:
             return []
 
     def get_pending_insights(self, user_id: str) -> list[dict]:
-        """Get pending insights for a user."""
+        """Get pending insights for a user.
+        
+        #4: Falls back to single-field query if composite index is missing.
+        """
         try:
             from google.cloud.firestore import FieldFilter
 
-            insights_query = db.collection('insights').where(
-                filter=FieldFilter('user_id', '==', user_id)
-            ).where(
-                filter=FieldFilter('status', '==', 'pending')
-            ).order_by('created_at', direction='DESCENDING')
+            try:
+                # Try composite query first (requires composite index)
+                insights_query = db.collection('insights').where(
+                    filter=FieldFilter('user_id', '==', user_id)
+                ).where(
+                    filter=FieldFilter('status', '==', 'pending')
+                ).order_by('created_at', direction='DESCENDING')
 
-            insights = []
-            for doc in insights_query.stream():
-                data = doc.to_dict()
-                # Convert datetime fields to ISO strings for JSON serialization
-                for key in ['created_at', 'dismissed_at', 'action_taken_at']:
-                    if key in data and isinstance(data[key], datetime):
-                        data[key] = data[key].isoformat()
-                insights.append(data)
+                insights = []
+                for doc in insights_query.stream():
+                    data = doc.to_dict()
+                    for key in ['created_at', 'dismissed_at', 'action_taken_at']:
+                        if key in data and isinstance(data[key], datetime):
+                            data[key] = data[key].isoformat()
+                    insights.append(data)
 
-            return insights
+                return insights
+
+            except Exception as composite_err:
+                # Fallback: query by user_id only, filter in memory
+                logger.warning(f"Composite query failed, using fallback: {composite_err}")
+                simple_query = db.collection('insights').where(
+                    filter=FieldFilter('user_id', '==', user_id)
+                )
+
+                insights = []
+                for doc in simple_query.stream():
+                    data = doc.to_dict()
+                    # Filter pending in memory
+                    if data.get('status') != 'pending':
+                        continue
+                    for key in ['created_at', 'dismissed_at', 'action_taken_at']:
+                        if key in data and isinstance(data[key], datetime):
+                            data[key] = data[key].isoformat()
+                    insights.append(data)
+
+                # Sort by created_at descending in memory
+                insights.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+                return insights
 
         except Exception as e:
             logger.error(f"Failed to fetch pending insights: {e}")
             return []
 
     def _fetch_activity_patterns(self, user_id: str) -> dict:
-        """Fetch user activity patterns.
-
-        [B5] Stub — activity tracking integration not yet implemented.
-        Returns an empty dict so callers receive a safe no-op result.
-        Tracked in backlog as 'coming soon'.
+        """Fetch user activity patterns from mood entry tags.
+        
+        #6: Replaces stub with real tag-based activity detection.
+        Reads tags from users/{user_id}/moods and aggregates counts.
         """
-        logger.debug("[B5] _fetch_activity_patterns is a stub; returning {} for user %s", user_id)
-        return {}
+        try:
+            from google.cloud.firestore import FieldFilter
+
+            cutoff = datetime.now() - timedelta(days=self.analysis_window)
+            mood_ref = db.collection('users').document(user_id).collection('moods')
+            query = mood_ref.where(
+                filter=FieldFilter('timestamp', '>=', cutoff)
+            )
+
+            tag_counts: dict[str, int] = {}
+            for doc in query.stream():
+                data = doc.to_dict()
+                tags = data.get('tags', [])
+                if isinstance(tags, list):
+                    for tag in tags:
+                        if isinstance(tag, str) and tag:
+                            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+            logger.debug(f"Activity patterns for {user_id}: {tag_counts}")
+            return tag_counts
+
+        except Exception as e:
+            logger.error(f"Failed to fetch activity patterns: {e}")
+            return {}
 
     def _generate_onboarding_insight(self, user_id: str, current_count: int) -> TherapeuticInsight | None:
-        """Generate onboarding insight for new users with insufficient data."""
+        """Generate onboarding insight for new users with insufficient data.
+        
+        #5: Checks Firestore for existing onboarding insight today to avoid duplicates.
+        """
+        # Check if onboarding insight already exists for today
+        today_str = datetime.now().strftime('%Y%m%d')
+        expected_id = f"{user_id}_onboarding_{today_str}"
+        try:
+            existing = db.collection('insights').document(expected_id).get()
+            if existing.exists:
+                logger.debug(f"Onboarding insight already exists for {user_id} today")
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to check existing onboarding insight: {e}")
+            # Continue to generate if check fails
+
         needed = self.min_memories - current_count
 
         messages = {
@@ -804,7 +867,7 @@ class DailyInsightGeneratorV2:
         message = messages.get(current_count, messages[2])
 
         return TherapeuticInsight(
-            insight_id=f"{user_id}_onboarding_{datetime.now().strftime('%Y%m%d')}",
+            insight_id=expected_id,
             user_id=user_id,
             insight_type=InsightType.CHECKIN_NEEDED,
             domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
