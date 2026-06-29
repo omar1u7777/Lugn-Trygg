@@ -264,6 +264,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     };
   }, [safeDashboardStats.recentActivity]);
 
+  // Check if user has logged a mood today (for header contextual prompt)
+  const hasLoggedToday = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return safeDashboardStats.recentActivity.some(
+      (a) => a.type === 'mood' && a.timestamp instanceof Date && a.timestamp >= today
+    );
+  }, [safeDashboardStats.recentActivity]);
+
   // Memoize stats object to prevent DashboardStats re-renders
   const stats = useMemo(() => ({
     streakDays: safeDashboardStats.streakDays,
@@ -600,6 +609,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         averageMood={safeDashboardStats.averageMood}
         lastMood={latestMoodInfo?.description}
         lastMoodTimestamp={latestMoodInfo?.timestamp}
+        hasLoggedToday={hasLoggedToday}
       />
 
       <div className="world-class-dashboard-content px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -661,9 +671,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {safeDashboardStats.wellnessGoals.map((goal) => {
-                  const weeklyGoal = safeDashboardStats.weeklyGoal || 1;
-                  const weeklyProgress = safeDashboardStats.weeklyProgress || 0;
-                  const progress = Math.min((weeklyProgress / weeklyGoal) * 100, 100);
                   const nextStep = goalStepsMap[goal] || (t('dashboard.defaultGoalStep') as string);
                   const goalCompletions = safeDashboardStats.goalStepCompletions[goal] || {};
                   const isStepCompleted = goalCompletions[nextStep] !== undefined;

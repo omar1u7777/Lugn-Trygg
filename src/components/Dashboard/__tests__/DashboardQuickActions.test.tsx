@@ -74,43 +74,37 @@ describe('DashboardQuickActions', () => {
 
     it('renders action buttons with correct titles', () => {
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
-      expect(screen.getByText('Känn efter')).toBeInTheDocument();
+      // Only chat is visible for free users (other actions are feature-gated)
       expect(screen.getByText('Få stöd')).toBeInTheDocument();
     });
 
     it('shows remaining counts for free users', () => {
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
-      expect(screen.getByText('3 kvar idag')).toBeInTheDocument();
+      // Chat shows remaining messages for free users
       expect(screen.getByText('5 meddelanden')).toBeInTheDocument();
     });
 
     it('calls onActionClick with the correct action id when clicked', () => {
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
-      fireEvent.click(screen.getByText('Känn efter'));
-      expect(mockOnActionClick).toHaveBeenCalledWith('mood');
-
       fireEvent.click(screen.getByText('Få stöd'));
       expect(mockOnActionClick).toHaveBeenCalledWith('chat');
     });
 
-    it('disables mood and chat actions when quota is exhausted', () => {
+    it('disables chat action when quota is exhausted', () => {
       mockUseSubscription.mockReturnValue({
         isPremium: false,
         getRemainingMoodLogs: () => 0,
-        getRemainingMessages: () => -2,
+        getRemainingMessages: () => 0,
         hasFeature: () => false,
       });
 
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
 
-      const moodButton = screen.getByRole('button', { name: /Checka in med ditt mående/i });
       const chatButton = screen.getByRole('button', { name: /Starta samtal med AI-stöd/i });
 
-      expect(screen.getAllByText('Kvot nådd idag').length).toBeGreaterThanOrEqual(2);
-      expect(moodButton).toBeDisabled();
+      expect(screen.getByText('Kvot nådd idag')).toBeInTheDocument();
       expect(chatButton).toBeDisabled();
 
-      fireEvent.click(moodButton);
       fireEvent.click(chatButton);
       expect(mockOnActionClick).not.toHaveBeenCalled();
     });
@@ -125,9 +119,8 @@ describe('DashboardQuickActions', () => {
 
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
 
-      expect(screen.getByText('Obegränsat idag')).toBeInTheDocument();
+      // Chat shows "Alltid redo" when unlimited (-1)
       expect(screen.getByText('Alltid redo')).toBeInTheDocument();
-      expect(screen.queryByText('-1 kvar idag')).not.toBeInTheDocument();
       expect(screen.queryByText('-1 meddelanden')).not.toBeInTheDocument();
     });
   });
@@ -144,7 +137,7 @@ describe('DashboardQuickActions', () => {
 
     it('shows unlimited descriptions for premium users', () => {
       render(<DashboardQuickActions onActionClick={mockOnActionClick} />);
-      expect(screen.getByText('Obegränsat idag')).toBeInTheDocument();
+      // Chat shows "Alltid redo" for premium users
       expect(screen.getByText('Alltid redo')).toBeInTheDocument();
     });
 

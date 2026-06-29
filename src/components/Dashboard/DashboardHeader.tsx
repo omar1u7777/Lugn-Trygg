@@ -177,13 +177,12 @@ export const BreathingFocusCard: React.FC<{
       return msUntilBoundary;
     };
     
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: number;
     
     const scheduleNextUpdate = () => {
       const msToNext = calculateMsToNextBoundary();
       
       timeoutId = window.setTimeout(() => {
-        setGreeting(getGreeting(t));
         setFocusContent(getDailyFocusContent(t));
         // Schedule next update
         scheduleNextUpdate();
