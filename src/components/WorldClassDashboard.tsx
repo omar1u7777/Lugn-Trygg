@@ -1,13 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  HeartIcon,
-  ChatBubbleLeftRightIcon,
-  TrophyIcon,
-  SparklesIcon,
-  BookOpenIcon
-} from '@heroicons/react/24/solid';
 
 import ErrorBoundary from './ErrorBoundary';
 
@@ -20,7 +13,6 @@ import { Snackbar } from './ui/tailwind';
 // Dashboard Components (Extracted for maintainability)
 import { DashboardHeader } from './Dashboard/DashboardHeader';
 import { DashboardStats } from './Dashboard/DashboardStats';
-import { DashboardActivity } from './Dashboard/DashboardActivity';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 
 // Feature Components - Direct imports to prevent code splitting
@@ -282,46 +274,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     longestStreak: safeDashboardStats.longestStreak,
     weeklyChats: safeDashboardStats.weeklyChats,
   }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.achievementsCount, safeDashboardStats.longestStreak, safeDashboardStats.weeklyChats, moodSamples]);
-
-  // Transform activities with icons and colors - memoized for performance
-  const activities = useMemo(() => {
-    return safeDashboardStats.recentActivity.map(activity => {
-      let Icon = HeartIcon;
-      let colorClass = 'text-secondary-500';
-
-      switch (activity.type) {
-        case 'mood':
-          Icon = HeartIcon;
-          colorClass = 'text-secondary-500';
-          break;
-        case 'chat':
-          Icon = ChatBubbleLeftRightIcon;
-          colorClass = 'text-primary-500';
-          break;
-        case 'achievement':
-          Icon = TrophyIcon;
-          colorClass = 'text-warning-500';
-          break;
-        case 'meditation':
-          Icon = SparklesIcon;
-          colorClass = 'text-teal-500';
-          break;
-        case 'journal':
-          Icon = BookOpenIcon;
-          colorClass = 'text-indigo-500';
-          break;
-      }
-
-      return {
-        id: activity.id,
-        type: activity.type as 'mood' | 'chat' | 'achievement' | 'meditation' | 'journal',
-        timestamp: activity.timestamp instanceof Date ? activity.timestamp : new Date(activity.timestamp),
-        description: activity.description,
-        icon: <Icon className="w-5 h-5 sm:w-6 sm:h-6" />,
-        colorClass
-      };
-    });
-  }, [safeDashboardStats.recentActivity]);
 
   // Track page view once on mount (not on every loading state change)
   useEffect(() => {
@@ -821,13 +773,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         <DashboardQuickActions
           onActionClick={handleQuickAction}
           isLoading={loading}
-        />
-
-        {/* Recent Activity (excludes moods — shown in SuperMoodLogger above) */}
-        <DashboardActivity
-          activities={activities}
-          isLoading={loading}
-          emptyStateMessage={t('worldDashboard.noOtherActivityYet', 'Ingen övrig aktivitet än. Börja chatta med AI-terapeuten eller prova en meditation!')}
         />
       </div>
 
