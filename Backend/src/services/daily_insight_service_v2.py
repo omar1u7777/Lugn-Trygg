@@ -8,7 +8,7 @@ import logging
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 from src.firebase_config import db
@@ -738,7 +738,8 @@ class DailyInsightGeneratorV2:
         all moods ordered by timestamp and filtering in Python.
         """
         try:
-            cutoff = datetime.now() - timedelta(days=days)
+            # Use timezone-aware UTC to match Firestore's timezone-aware datetimes
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             cutoff_iso = cutoff.isoformat()
 
             # Fetch all moods ordered by timestamp DESC (no where filter = no index needed)
@@ -749,16 +750,18 @@ class DailyInsightGeneratorV2:
             for doc in query.stream():
                 data = doc.to_dict()
                 data['id'] = doc.id
-                # Filter by cutoff in Python (timestamps stored as ISO strings)
-                ts_str = data.get('timestamp')
-                if ts_str is None:
+                # Filter by cutoff in Python (timestamps may be ISO strings or datetime objects)
+                ts = data.get('timestamp')
+                if ts is None:
                     continue
-                # Compare ISO strings lexicographically (works for same-format ISO)
-                if isinstance(ts_str, str):
-                    if ts_str >= cutoff_iso:
+                if isinstance(ts, str):
+                    if ts >= cutoff_iso:
                         memories.append(data)
-                elif isinstance(ts_str, datetime):
-                    if ts_str >= cutoff:
+                elif isinstance(ts, datetime):
+                    # Normalize naive datetime to UTC to avoid comparison errors
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    if ts >= cutoff:
                         memories.append(data)
 
             logger.info(f"Fetched {len(memories)} mood entries for user {user_id} (cutoff={cutoff_iso})")
@@ -809,7 +812,8 @@ class DailyInsightGeneratorV2:
         #8: Avoid composite index by fetching without where filter, filter in Python.
         """
         try:
-            cutoff = datetime.now() - timedelta(days=self.analysis_window)
+            # Use timezone-aware UTC to match Firestore's timezone-aware datetimes
+            cutoff = datetime.now(timezone.utc) - timedelta(days=self.analysis_window)
             cutoff_iso = cutoff.isoformat()
 
             mood_ref = db.collection('users').document(user_id).collection('moods')
@@ -819,14 +823,17 @@ class DailyInsightGeneratorV2:
             for doc in query.stream():
                 data = doc.to_dict()
                 # Filter by cutoff in Python
-                ts_str = data.get('timestamp')
-                if ts_str is None:
+                ts = data.get('timestamp')
+                if ts is None:
                     continue
-                if isinstance(ts_str, str):
-                    if ts_str < cutoff_iso:
+                if isinstance(ts, str):
+                    if ts < cutoff_iso:
                         continue
-                elif isinstance(ts_str, datetime):
-                    if ts_str < cutoff:
+                elif isinstance(ts, datetime):
+                    # Normalize naive datetime to UTC to avoid comparison errors
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    if ts < cutoff:
                         continue
 
                 tags = data.get('tags', [])
