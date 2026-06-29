@@ -1905,42 +1905,42 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             if user_doc.exists:
                 raw = user_doc.to_dict() or {}
                 name = (raw.get("name") or raw.get("displayName") or "").strip()
+                email = (raw.get("email") or "").strip()
+                if not name and email and "@" in email:
+                    # Derive name from email as fallback
+                    local_part = email.split("@")[0]
+                    # Replace dots/underscores with spaces, title-case
+                    name = local_part.replace(".", " ").replace("_", " ").title()
                 if name:
                     parts.append(f"\n\nANVÄNDARENS PROFIL:\n- Namn: {name}")
+            else:
+                logger.debug("User doc does not exist for user_id=%s", user_id[:12])
         except Exception as exc:
             logger.warning("User profile name fetch failed: %s", exc)
 
         # 2. Latest PHQ-9 and GAD-7 assessment scores from clinical_assessments
+        # Avoid composite index requirement by fetching recent docs and filtering in Python
         for assessment_type, label in [("phq9", "PHQ-9 (depression)"), ("gad7", "GAD-7 (ångest)")]:
             try:
-                try:
-                    from google.cloud.firestore import FieldFilter
-                    q = (
-                        db.collection("users")
-                        .document(user_id)
-                        .collection("clinical_assessments")
-                        .where(filter=FieldFilter("type", "==", assessment_type))
-                        .order_by("timestamp", direction="DESCENDING")
-                        .limit(1)
-                    )
-                except ImportError:
-                    q = (
-                        db.collection("users")
-                        .document(user_id)
-                        .collection("clinical_assessments")
-                        .where("type", "==", assessment_type)
-                        .order_by("timestamp", direction="DESCENDING")
-                        .limit(1)
-                    )
-
-                docs = list(q.stream())
-                if docs:
-                    a_data = docs[0].to_dict() or {}
-                    score = a_data.get("total_score")
-                    if score is not None:
-                        severity = a_data.get("severity") or ""
-                        severity_part = f" — {severity}" if severity else ""
-                        parts.append(f"- Senaste {label}: {score} p{severity_part}")
+                # Fetch latest 10 assessments ordered by timestamp (no where filter = no index needed)
+                docs = list(
+                    db.collection("users")
+                    .document(user_id)
+                    .collection("clinical_assessments")
+                    .order_by("timestamp", direction="DESCENDING")
+                    .limit(10)
+                    .stream()
+                )
+                # Filter in Python for the specific assessment type
+                for doc in docs:
+                    a_data = doc.to_dict() or {}
+                    if a_data.get("type") == assessment_type:
+                        score = a_data.get("total_score")
+                        if score is not None:
+                            severity = a_data.get("severity") or ""
+                            severity_part = f" — {severity}" if severity else ""
+                            parts.append(f"- Senaste {label}: {score} p{severity_part}")
+                        break
             except Exception as exc:
                 logger.warning("%s score fetch failed: %s", assessment_type, exc)
 

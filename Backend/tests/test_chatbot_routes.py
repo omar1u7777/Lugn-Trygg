@@ -1109,8 +1109,8 @@ class TestUserProfileContext:
         mock_user_doc.exists = True
         mock_user_doc.to_dict.return_value = {"name": "Omaralhaek"}
         mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
-        # clinical_assessments queries return empty
-        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+        # clinical_assessments queries return empty (no where filter, just order_by + limit)
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = []
 
         ai = AIServices.__new__(AIServices)
         result = ai._fetch_user_profile_context("test_user_id")
@@ -1128,13 +1128,21 @@ class TestUserProfileContext:
         mock_user_doc.to_dict.return_value = {"name": "Test User"}
         mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
 
-        # Mock clinical_assessments query results
-        mock_assessment_doc = Mock()
-        mock_assessment_doc.to_dict.return_value = {
+        # Mock clinical_assessments query results (no where filter, just order_by + limit)
+        # Return both phq9 and gad7 docs since we filter in Python now
+        mock_phq9_doc = Mock()
+        mock_phq9_doc.to_dict.return_value = {
+            "type": "phq9",
             "total_score": 3,
             "severity": "Minimal",
         }
-        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = [mock_assessment_doc]
+        mock_gad7_doc = Mock()
+        mock_gad7_doc.to_dict.return_value = {
+            "type": "gad7",
+            "total_score": 2,
+            "severity": "Minimal",
+        }
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = [mock_phq9_doc, mock_gad7_doc]
 
         ai = AIServices.__new__(AIServices)
         result = ai._fetch_user_profile_context("test_user_id")
@@ -1152,7 +1160,7 @@ class TestUserProfileContext:
         mock_user_doc = Mock()
         mock_user_doc.exists = False
         mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
-        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = []
 
         ai = AIServices.__new__(AIServices)
         result = ai._fetch_user_profile_context("nonexistent_user")
