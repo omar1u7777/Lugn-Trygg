@@ -731,25 +731,37 @@ class DailyInsightGeneratorV2:
         return insights[:3]
 
     def _fetch_memories(self, user_id: str, days: int) -> list[dict]:
-        """Fetch mood entries from Firestore (users/{user_id}/moods subcollection)."""
+        """Fetch mood entries from Firestore (users/{user_id}/moods subcollection).
+        
+        #8: Moods are stored with ISO-string timestamps, so cutoff must also be
+        an ISO string. We avoid where+order_by (composite index) by fetching
+        all moods ordered by timestamp and filtering in Python.
+        """
         try:
-            from google.cloud.firestore import FieldFilter
-
             cutoff = datetime.now() - timedelta(days=days)
+            cutoff_iso = cutoff.isoformat()
 
-            # Fetch from users/{user_id}/moods subcollection (where mood data is actually stored)
+            # Fetch all moods ordered by timestamp DESC (no where filter = no index needed)
             mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.where(
-                filter=FieldFilter('timestamp', '>=', cutoff)
-            ).order_by('timestamp', direction='DESCENDING')
+            query = mood_ref.order_by('timestamp', direction='DESCENDING')
 
             memories = []
             for doc in query.stream():
                 data = doc.to_dict()
                 data['id'] = doc.id
-                memories.append(data)
+                # Filter by cutoff in Python (timestamps stored as ISO strings)
+                ts_str = data.get('timestamp')
+                if ts_str is None:
+                    continue
+                # Compare ISO strings lexicographically (works for same-format ISO)
+                if isinstance(ts_str, str):
+                    if ts_str >= cutoff_iso:
+                        memories.append(data)
+                elif isinstance(ts_str, datetime):
+                    if ts_str >= cutoff:
+                        memories.append(data)
 
-            logger.info(f"Fetched {len(memories)} mood entries for user {user_id}")
+            logger.info(f"Fetched {len(memories)} mood entries for user {user_id} (cutoff={cutoff_iso})")
             return memories
 
         except Exception as e:
@@ -760,49 +772,30 @@ class DailyInsightGeneratorV2:
         """Get pending insights for a user.
         
         #4: Falls back to single-field query if composite index is missing.
+        #8: Simplified — always use single-field query + filter in Python to avoid index issues.
         """
         try:
             from google.cloud.firestore import FieldFilter
 
-            try:
-                # Try composite query first (requires composite index)
-                insights_query = db.collection('insights').where(
-                    filter=FieldFilter('user_id', '==', user_id)
-                ).where(
-                    filter=FieldFilter('status', '==', 'pending')
-                ).order_by('created_at', direction='DESCENDING')
+            # Query by user_id only (single-field, no composite index needed)
+            simple_query = db.collection('insights').where(
+                filter=FieldFilter('user_id', '==', user_id)
+            )
 
-                insights = []
-                for doc in insights_query.stream():
-                    data = doc.to_dict()
-                    for key in ['created_at', 'dismissed_at', 'action_taken_at']:
-                        if key in data and isinstance(data[key], datetime):
-                            data[key] = data[key].isoformat()
-                    insights.append(data)
+            insights = []
+            for doc in simple_query.stream():
+                data = doc.to_dict()
+                # Filter pending in memory
+                if data.get('status') != 'pending':
+                    continue
+                for key in ['created_at', 'dismissed_at', 'action_taken_at']:
+                    if key in data and isinstance(data[key], datetime):
+                        data[key] = data[key].isoformat()
+                insights.append(data)
 
-                return insights
-
-            except Exception as composite_err:
-                # Fallback: query by user_id only, filter in memory
-                logger.warning(f"Composite query failed, using fallback: {composite_err}")
-                simple_query = db.collection('insights').where(
-                    filter=FieldFilter('user_id', '==', user_id)
-                )
-
-                insights = []
-                for doc in simple_query.stream():
-                    data = doc.to_dict()
-                    # Filter pending in memory
-                    if data.get('status') != 'pending':
-                        continue
-                    for key in ['created_at', 'dismissed_at', 'action_taken_at']:
-                        if key in data and isinstance(data[key], datetime):
-                            data[key] = data[key].isoformat()
-                    insights.append(data)
-
-                # Sort by created_at descending in memory
-                insights.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-                return insights
+            # Sort by created_at descending in memory
+            insights.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            return insights
 
         except Exception as e:
             logger.error(f"Failed to fetch pending insights: {e}")
@@ -813,19 +806,29 @@ class DailyInsightGeneratorV2:
         
         #6: Replaces stub with real tag-based activity detection.
         Reads tags from users/{user_id}/moods and aggregates counts.
+        #8: Avoid composite index by fetching without where filter, filter in Python.
         """
         try:
-            from google.cloud.firestore import FieldFilter
-
             cutoff = datetime.now() - timedelta(days=self.analysis_window)
+            cutoff_iso = cutoff.isoformat()
+
             mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.where(
-                filter=FieldFilter('timestamp', '>=', cutoff)
-            )
+            query = mood_ref.order_by('timestamp', direction='DESCENDING')
 
             tag_counts: dict[str, int] = {}
             for doc in query.stream():
                 data = doc.to_dict()
+                # Filter by cutoff in Python
+                ts_str = data.get('timestamp')
+                if ts_str is None:
+                    continue
+                if isinstance(ts_str, str):
+                    if ts_str < cutoff_iso:
+                        continue
+                elif isinstance(ts_str, datetime):
+                    if ts_str < cutoff:
+                        continue
+
                 tags = data.get('tags', [])
                 if isinstance(tags, list):
                     for tag in tags:
