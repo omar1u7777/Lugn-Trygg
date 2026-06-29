@@ -72,6 +72,7 @@ vi.mock('react-i18next', async () => {
 
 vi.mock('../Dashboard/DashboardHeader', () => ({
   DashboardHeader: ({ userName }: { userName: string }) => <div data-testid="dashboard-header">{userName}</div>,
+  BreathingFocusCard: () => <div data-testid="breathing-focus-card" />,
 }));
 
 vi.mock('../Dashboard/DashboardStats', () => ({

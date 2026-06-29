@@ -11,7 +11,7 @@ import { Alert } from './ui/tailwind/Feedback';
 import { Snackbar } from './ui/tailwind';
 
 // Dashboard Components (Extracted for maintainability)
-import { DashboardHeader } from './Dashboard/DashboardHeader';
+import { DashboardHeader, BreathingFocusCard } from './Dashboard/DashboardHeader';
 import { DashboardStats } from './Dashboard/DashboardStats';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 
@@ -615,9 +615,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                 {t('worldDashboard.takeAMoment')}
               </p>
             </div>
-            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} showRecentMoods={true} hideHeader={true} />
+            <SuperMoodLogger onMoodLogged={() => handleRefresh('auto')} showRecentMoods={true} hideHeader={true} maxRecentMoods={3} />
           </div>
         </Card>
+
+        {/* Breathing Focus Card — moved from header to after mood check-in */}
+        <BreathingFocusCard onFocusAction={scrollToMoodCheckIn} />
 
         {shouldRenderWellnessSkeleton && (
           <Card className="mb-6 animate-pulse" aria-hidden="true">
@@ -674,12 +677,12 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                       <span className="text-xs flex-shrink-0">
                         {getWellnessGoalIcon(goal)}
                       </span>
-                      <span className="text-[8px] font-medium text-gray-900 dark:text-white flex-shrink-0 leading-none whitespace-nowrap">
+                      <span className="text-xs font-medium text-gray-900 dark:text-white flex-shrink-0 leading-tight whitespace-nowrap">
                         {goal}
                       </span>
 
                       {/* Step completion indicator (per-goal) */}
-                      <div className="flex-shrink-0 text-[8px] font-medium text-gray-500 dark:text-gray-400">
+                      <div className="flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                         {isStepCompleted ? '✓' : '○'}
                       </div>
 
@@ -689,15 +692,15 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                         id={`step-${goal}`}
                         checked={isStepCompleted}
                         onChange={() => handleGoalStepToggle(goal, nextStep, isStepCompleted)}
-                        className="w-3 h-3 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer flex-shrink-0"
                         aria-label={t('dashboard.markStepComplete', { step: nextStep })}
                       />
                       <label
                         htmlFor={`step-${goal}`}
-                        className="text-[8px] text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
+                        className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight truncate whitespace-nowrap"
                         title={nextStep}
                       >
-                        {nextStep.length > 15 ? nextStep.substring(0, 15) + '...' : nextStep}
+                        {nextStep.length > 20 ? nextStep.substring(0, 20) + '...' : nextStep}
                       </label>
                       <button
                         onClick={() => {
@@ -707,7 +710,7 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
                             navigate('/recommendations', { state: { goalFilter: goal } });
                           }
                         }}
-                        className="text-[9px] text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
+                        className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex-shrink-0 leading-tight"
                         title={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                         aria-label={featureLink ? featureLink.label : t('worldDashboard.seeRecommendations')}
                       >
@@ -764,6 +767,11 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
         {/* Statistics Grid */}
         <DashboardStats stats={stats} isLoading={loading} />
+
+        {/* Visual separator between stats and quick actions */}
+        <div className="mt-8 mb-2 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+        </div>
 
         {/* Quick Actions */}
         <DashboardQuickActions

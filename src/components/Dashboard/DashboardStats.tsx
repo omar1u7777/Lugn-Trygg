@@ -72,8 +72,8 @@ const BentoItem: React.FC<{
   return (
     <div 
       className={`relative overflow-hidden rounded-[2rem] p-6 transition-all duration-300 
-        hover:scale-[1.02] hover:shadow-lg border border-transparent hover:border-black/5 
-        active:scale-[0.98] cursor-pointer select-none min-h-[160px]
+        hover:shadow-lg border border-transparent hover:border-black/5 
+        min-h-[160px]
         ${bgColors[color]} ${className}`}
     >
       <div className="flex justify-between items-start mb-4">
@@ -197,19 +197,15 @@ const AchievementProgress: React.FC<{
     );
   }
 
-  // Calculate actual progress toward next milestone
-  const milestones = [1, 3, 5, 10, 15, 20, 25, 30, 40, 50];
-  const currentMilestone = milestones.find(m => m > count) || 50;
-  const previousMilestone = milestones[milestones.indexOf(currentMilestone) - 1] || 0;
-  const progressInMilestone = count - previousMilestone;
-  const milestoneSize = currentMilestone - previousMilestone;
-  const progress = Math.min((progressInMilestone / milestoneSize) * 100, 100);
+  // Progress toward all achievements (max 12 from backend)
+  const maxAchievements = 12;
+  const progress = Math.min((count / maxAchievements) * 100, 100);
   
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="text-gray-500">{t('dashboardStats.nextMilestone')}</span>
-        <span className="font-medium text-gray-700">{count} / {currentMilestone}</span>
+        <span className="font-medium text-gray-700">{count} / {maxAchievements}</span>
       </div>
       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
@@ -234,12 +230,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   // (mood trend removed — mood shown in SuperMoodLogger above)
 
   // Calculate next achievement milestone
+  // Backend awards max 12 achievements (mood: 4, streak: 4, chat: 2, meditation: 2)
   const nextAchievementIn = useMemo(() => {
     const count = stats.achievementsCount || 0;
-    // Milestones at 1, 3, 5, 10, 15, 20, 25, 30, 40, 50
-    const milestones = [1, 3, 5, 10, 15, 20, 25, 30, 40, 50];
-    const next = milestones.find(m => m > count);
-    return next ? next - count : 0;
+    const maxAchievements = 12;
+    if (count >= maxAchievements) return 0;
+    return maxAchievements - count;
   }, [stats.achievementsCount]);
 
   // 🎯 Dynamisk streak display med singular/plural
@@ -263,7 +259,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
 
   return (
     <section className="mt-8" {...regionProps}>
-      <h2 className="sr-only">{t('dashboardStats.sectionTitle')}</h2>
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4">
+        {t('dashboardStats.sectionTitle')}
+      </h2>
 
       {/* Bento Grid Layout - Streak + Achievements */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 auto-rows-[minmax(180px,auto)]">
@@ -274,12 +272,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           value={streakText}
           icon="🌱"
           color="accent"
-          trend={{ direction: 'up', value: t('dashboardStats.streakActive') }}
+          trend={stats.streakDays > 0 ? { direction: 'up', value: t('dashboardStats.streakActive') } : undefined}
           t={t}
         >
           <ConsistencyProgress 
             current={stats.streakDays} 
-            total={stats.longestStreak || Math.max(stats.streakDays * 2, 7)}
+            total={7}
             t={t}
           />
         </BentoItem>

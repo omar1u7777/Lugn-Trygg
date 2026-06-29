@@ -105,51 +105,22 @@ const BreathingOrb = () => (
 );
 
 /**
- * DashboardHeader Component (2026 Redesign)
- * 
+ * BreathingFocusCard Component (2026 Redesign)
+ *
+ * Standalone breathing exercise card — rendered after mood check-in
+ * on the dashboard so the first interactive element is mood logging.
+ *
  * Features:
- * - Dynamic Time-based Greeting
  * - "Breathing Orb" visual anchor
- * - Glassmorphism cards
- * - Simplified, editorial typography
+ * - Glassmorphism card
+ * - Guided 3-breath exercise
  */
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-  userName,
-  isLoading = false,
-  lastUpdatedAt,
-  onFocusAction,
-  userId: _userId,
-  hasLoggedToday,
-  lastMood,
-  lastMoodTimestamp,
-  averageMood: _averageMood,
-}) => {
-  const { t, i18n } = useTranslation();
-  const recentMood = lastMood;
+export const BreathingFocusCard: React.FC<{
+  onFocusAction?: () => void;
+}> = ({ onFocusAction }) => {
+  const { t } = useTranslation();
 
-  const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood));
   const [focusContent, setFocusContent] = useState(() => getDailyFocusContent(t));
-
-  const displayName = userName || t('dashboardHeader.defaultUserName');
-
-  const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
-    if (hasLogged) return t('dashboardHeader.checkedIn');
-    if (mood) {
-      if (lastMoodTimestamp) {
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - lastMoodTimestamp.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) {
-          return t('dashboardHeader.todayMood', { mood });
-        } else if (diffDays === 1) {
-          return t('dashboardHeader.moodContext', { mood });
-        } else {
-          return t('dashboardHeader.olderMood', { mood, days: diffDays });
-        }
-      }
-      return t('dashboardHeader.moodContext', { mood });
-    }
-    return t('dashboardHeader.mindfulPrompt');
-  };
 
   const [isBreathingSessionActive, setIsBreathingSessionActive] = useState(false);
   const [completedBreaths, setCompletedBreaths] = useState(0);
@@ -171,13 +142,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       breathingCardRef.current.focus();
     }
   }, [isBreathingSessionActive]);
-
-  // Uppdatera hälsning när mood-data ändras
-  useEffect(() => {
-    if (recentMood !== undefined) {
-      setGreeting(getGreeting(t, recentMood.toString()));
-    }
-  }, [recentMood, t]);
 
   useEffect(() => {
     // Update greeting only at hour boundaries (10:00, 14:00, 18:00) when greeting changes
@@ -328,7 +292,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onFocusAction?.();
   };
 
-
   const activeBreathNumber = Math.min(completedBreaths + 1, BREATH_COUNT_TARGET);
   const completedPhaseOffset =
     breathingPhase === 'inhale' ? 0 : breathingPhase === 'exhale' ? 1 : breathingPhase === 'hold' ? 2 : 3;
@@ -337,6 +300,152 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     ? totalPhases
     : Math.min(completedBreaths * 3 + completedPhaseOffset, totalPhases);
   const breathingProgress = Math.round((completedPhases / totalPhases) * 100);
+
+  return (
+    <div
+      ref={breathingCardRef}
+      tabIndex={isBreathingSessionActive ? 0 : -1}
+      role="region"
+      aria-label={t('dashboardHeader.breathingExercise')}
+      className="w-full animate-fade-in-up mb-6"
+      style={{ animationDelay: '200ms' }}
+    >
+      <div
+        className="p-4 rounded-[1.5rem] flex items-center gap-4 w-full max-w-2xl mx-auto bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <BreathingOrb />
+        <div className="flex-1 min-w-0">
+          <h3 className="font-serif text-sm text-neutral-900 dark:text-slate-100 mb-0.5 leading-tight">{focusContent.title}</h3>
+          <p className="text-xs text-neutral-700 dark:text-slate-300 leading-tight truncate">
+            {focusContent.description}
+          </p>
+          <p className="mt-1 text-[10px] text-neutral-500 dark:text-slate-400 leading-tight" aria-live="polite">
+            {isBreathingSessionActive
+              ? `${activeBreathNumber}/${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
+              : sessionCompleted
+                ? t('breath.completed', 'Bra jobbat!')
+                : t('breath.duration', 'Cirka 30 sekunder')}
+          </p>
+          {(isBreathingSessionActive || sessionCompleted) && (
+            <div className="mt-1 h-1 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary-500 dark:bg-primary-400 transition-all duration-500"
+                style={{ width: `${breathingProgress}%` }}
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
+            disabled={isBreathingSessionActive}
+            aria-label={isBreathingSessionActive
+              ? t('breath.ariaInProgress', 'Guidad andningsövning pågår, följ instruktionerna')
+              : sessionCompleted
+                ? t('breath.ariaContinue', 'Fortsätt till humörcheck-in')
+                : `${t('breath.ariaStart', 'Starta guidad andningsövning')}: ${focusContent.description}`}
+            className="mt-2 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-semibold px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+          >
+            {isBreathingSessionActive
+              ? t('breath.inProgress', 'Pågår...')
+              : sessionCompleted
+                ? t('breath.continue', 'Fortsätt')
+                : focusContent.actionLabel}
+          </button>
+          {isBreathingSessionActive && (
+            <button
+              type="button"
+              onClick={handleSkipBreathing}
+              className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
+            >
+              {t('breath.skip', 'Hoppa')}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * DashboardHeader Component (2026 Redesign)
+ *
+ * Features:
+ * - Dynamic Time-based Greeting
+ * - Simplified, editorial typography
+ * - No breathing card (moved to BreathingFocusCard below mood check-in)
+ */
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  userName,
+  isLoading = false,
+  lastUpdatedAt,
+  onFocusAction: _onFocusAction,
+  userId: _userId,
+  hasLoggedToday,
+  lastMood,
+  lastMoodTimestamp,
+  averageMood: _averageMood,
+}) => {
+  const { t, i18n } = useTranslation();
+  const recentMood = lastMood;
+
+  const [greeting, setGreeting] = useState(() => getGreeting(t, recentMood));
+
+  const displayName = userName || t('dashboardHeader.defaultUserName');
+
+  const getContextualPrompt = (hasLogged?: boolean, mood?: string): string => {
+    if (hasLogged) return t('dashboardHeader.checkedIn');
+    if (mood) {
+      if (lastMoodTimestamp) {
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - lastMoodTimestamp.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) {
+          return t('dashboardHeader.todayMood', { mood });
+        } else if (diffDays === 1) {
+          return t('dashboardHeader.moodContext', { mood });
+        } else {
+          return t('dashboardHeader.olderMood', { mood, days: diffDays });
+        }
+      }
+      return t('dashboardHeader.moodContext', { mood });
+    }
+    return t('dashboardHeader.mindfulPrompt');
+  };
+
+  // Uppdatera hälsning när mood-data ändras
+  useEffect(() => {
+    if (recentMood !== undefined) {
+      setGreeting(getGreeting(t, recentMood.toString()));
+    }
+  }, [recentMood, t]);
+
+  useEffect(() => {
+    const calculateMsToNextBoundary = (): number => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentSecond = now.getSeconds();
+      const currentMs = now.getMilliseconds();
+      const boundaryHours = [10, 14, 18];
+      let nextBoundaryHour = boundaryHours.find(h => h > currentHour);
+      if (!nextBoundaryHour) nextBoundaryHour = 10;
+      let hoursUntilBoundary = nextBoundaryHour - currentHour;
+      if (hoursUntilBoundary < 0) hoursUntilBoundary += 24;
+      const minutesUntilBoundary = (hoursUntilBoundary * 60) - currentMinute;
+      return (minutesUntilBoundary * 60 * 1000) - (currentSecond * 1000) - currentMs;
+    };
+    let timeoutId: number;
+    const scheduleNextUpdate = () => {
+      timeoutId = window.setTimeout(() => {
+        setGreeting(getGreeting(t));
+        scheduleNextUpdate();
+      }, calculateMsToNextBoundary());
+    };
+    scheduleNextUpdate();
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative overflow-hidden mb-4">
@@ -375,71 +484,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   ? t('dashboardHeader.updatingData')
                   : getSmartTimestamp(t, lastUpdatedAt)}
               </span>
-            </div>
-          </div>
-
-          {/* Visual Anchor Section - The "Breathing" Card */}
-          <div 
-            ref={breathingCardRef}
-            tabIndex={isBreathingSessionActive ? 0 : -1}
-            role="region"
-            aria-label={t('dashboardHeader.breathingExercise')}
-            className="w-full lg:w-auto mt-6 lg:mt-0 animate-fade-in-up" 
-            style={{ animationDelay: '200ms' }}
-          >
-            <div
-              className="p-4 rounded-[1.5rem] flex items-center gap-4 w-full sm:min-w-[280px] max-w-sm bg-white/85 dark:bg-slate-800/85 border border-white/70 dark:border-white/15 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.45)]"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              <BreathingOrb />
-              <div className="flex-1 min-w-0">
-                <h3 className="font-serif text-sm text-neutral-900 dark:text-slate-100 mb-0.5 leading-tight">{focusContent.title}</h3>
-                <p className="text-xs text-neutral-700 dark:text-slate-300 leading-tight truncate">
-                  {focusContent.description}
-                </p>
-                <p className="mt-1 text-[10px] text-neutral-500 dark:text-slate-400 leading-tight" aria-live="polite">
-                  {isBreathingSessionActive
-                    ? `${activeBreathNumber}/${BREATH_COUNT_TARGET} · ${getPhaseLabel()} ${phaseSecondsLeft}s`
-                    : sessionCompleted
-                      ? t('breath.completed', 'Bra jobbat!')
-                      : t('breath.duration', 'Cirka 30 sekunder')}
-                </p>
-                {(isBreathingSessionActive || sessionCompleted) && (
-                  <div className="mt-1 h-1 w-full bg-primary-100 dark:bg-primary-900/50 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary-500 dark:bg-primary-400 transition-all duration-500"
-                      style={{ width: `${breathingProgress}%` }}
-                    />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={sessionCompleted ? handleContinueToCheckIn : startBreathingSession}
-                  disabled={isBreathingSessionActive}
-                  aria-label={isBreathingSessionActive
-                    ? t('breath.ariaInProgress', 'Guidad andningsövning pågår, följ instruktionerna')
-                    : sessionCompleted
-                      ? t('breath.ariaContinue', 'Fortsätt till humörcheck-in')
-                      : `${t('breath.ariaStart', 'Starta guidad andningsövning')}: ${focusContent.description}`}
-                  className="mt-2 inline-flex items-center rounded-full bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-semibold px-2 py-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
-                >
-                  {isBreathingSessionActive
-                    ? t('breath.inProgress', 'Pågår...')
-                    : sessionCompleted
-                      ? t('breath.continue', 'Fortsätt')
-                      : focusContent.actionLabel}
-                </button>
-                {isBreathingSessionActive && (
-                  <button
-                    type="button"
-                    onClick={handleSkipBreathing}
-                    className="mt-1 ml-1 inline-flex items-center rounded-full border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 text-[10px] font-semibold px-2 py-1 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800"
-                  >
-                    {t('breath.skip', 'Hoppa')}
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
