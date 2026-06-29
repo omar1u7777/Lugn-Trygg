@@ -1,7 +1,6 @@
-import React, { useMemo, useId } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getDashboardRegionProps } from '../../constants/accessibility';
-import { formatNumber } from '../../utils/intlFormatters';
 
 // 🎨 Konstanta färgobjekt - flyttade utanför komponent för prestanda
 const BG_COLORS = {
@@ -19,10 +18,10 @@ const ICON_COLORS = {
 } as const;
 
 export interface DashboardStatsData {
-  averageMood: number;
   streakDays: number;
-  totalChats: number;
   achievementsCount: number;
+  averageMood?: number;
+  totalChats?: number;
   moodSamples?: number[];
   moodTrend?: { direction: 'up' | 'down' | 'stable'; value: string };
   streakTrend?: { direction: 'up' | 'down' | 'stable'; value: string };
@@ -39,137 +38,6 @@ interface DashboardStatsProps {
   stats: DashboardStatsData;
   isLoading?: boolean;
 }
-
-/**
- * Derive mood trend with psychological reframing
- * 
- * Psychological principles:
- * - Avoid negative labeling ("Nedåtgående" → "Varierande")
- * - Emphasize normalcy of emotional fluctuation
- * - Focus on self-awareness rather than performance
- */
-const deriveMoodTrend = (
-  t: (key: string) => string,
-  moodSamples: number[] | undefined,
-  averageMood: number
-): { direction: 'up' | 'down' | 'stable'; value: string } => {
-  const validSamples = (moodSamples || []).filter(
-    (sample) => Number.isFinite(sample) && sample >= 0 && sample <= 10
-  );
-
-  if (validSamples.length < 2) {
-    return { 
-      direction: 'stable', 
-      value: averageMood <= 4 ? t('dashboardStats.moodNeedsAttention') : t('dashboardStats.stableOverall') 
-    };
-  }
-  
-  const mean = validSamples.reduce((sum, value) => sum + value, 0) / validSamples.length;
-  const variance =
-    validSamples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / validSamples.length;
-  const standardDeviation = Math.sqrt(variance);
-  const firstSample = validSamples[0];
-  const lastSample = validSamples[validSamples.length - 1];
-  
-  if (firstSample === undefined || lastSample === undefined) {
-    return { direction: 'stable', value: t('dashboardStats.noData') };
-  }
-  
-  const changeOverPeriod = lastSample - firstSample;
-  const latestScore = lastSample;
-
-  if (changeOverPeriod <= -2 && latestScore <= 7) {
-    return { direction: 'down', value: t('dashboardStats.exploringPhase') };
-  }
-
-  if (standardDeviation >= 1.8) {
-    return { direction: 'stable', value: t('dashboardStats.naturallyVarying') };
-  }
-
-  if (changeOverPeriod >= 2) {
-    return { direction: 'up', value: t('dashboardStats.positiveDevelopment') };
-  }
-
-  return { direction: 'stable', value: t('dashboardStats.balanced') };
-};
-
-/**
- * Mini Sparkline Chart Component
- * Shows last 7 mood entries as a visual trend
- */
-const MoodSparkline: React.FC<{ samples: number[] }> = ({ samples }) => {
-  // Use stable unique gradient ID to avoid conflicts with multiple sparklines
-  // useId is SSR-safe (unlike Math.random)
-  const uniqueId = useId();
-  const gradientId = useMemo(() => `sparklineGradient-${uniqueId}`, [uniqueId]);
-
-  const validSamples = samples.filter(s => Number.isFinite(s) && s >= 0 && s <= 10);
-  if (validSamples.length < 2) return null;
-
-  // Take last 7 samples
-  const recentSamples = validSamples.slice(-7);
-  const min = Math.min(...recentSamples);
-  const max = Math.max(...recentSamples);
-  const range = max - min || 1;
-
-  // Create SVG path
-  const width = 100;
-  const height = 24;
-  const points = recentSamples.map((value, index) => {
-    const x = (index / (recentSamples.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
-    return `${x},${y}`;
-  });
-
-  const pathD = `M ${points.join(' L ')}`;
-
-  return (
-    <svg 
-      viewBox={`0 0 ${width} ${height}`} 
-      className="w-full h-6 mt-3 overflow-visible"
-      aria-hidden="true"
-    >
-      {/* Gradient area under line */}
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-      
-      {/* Area fill */}
-      <path
-        d={`${pathD} L ${width},${height} L 0,${height} Z`}
-        fill={`url(#${gradientId})`}
-      />
-      
-      {/* Line */}
-      <path
-        d={pathD}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      
-      {/* Dots for each point */}
-      {points.map((point, i) => {
-        const [x, y] = point.split(',').map(Number);
-        return (
-          <circle
-            key={i}
-            cx={x}
-            cy={y}
-            r="3"
-            fill="currentColor"
-            className="opacity-60"
-          />
-        );
-      })}
-    </svg>
-  );
-};
 
 /**
  * Bento Grid Item Component
@@ -363,16 +231,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   const regionProps = getDashboardRegionProps('stats');
 
   // Memoize trend calculation to prevent unnecessary recalculations
-  const moodTrend = useMemo(
-    () => stats.moodTrend || deriveMoodTrend(t, stats.moodSamples, stats.averageMood),
-    [stats.moodTrend, stats.moodSamples, stats.averageMood, t]
-  );
-
-  // Memoize mood samples count for subtitle
-  const moodSampleCount = useMemo(
-    () => (stats.moodSamples || []).filter(s => Number.isFinite(s)).length,
-    [stats.moodSamples]
-  );
+  // (mood trend removed — mood shown in SuperMoodLogger above)
 
   // Calculate next achievement milestone
   const nextAchievementIn = useMemo(() => {
@@ -383,49 +242,19 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     return next ? next - count : 0;
   }, [stats.achievementsCount]);
 
-  // 💚 Psykologisk säkerhetsspärr för lågt mående
-  const showSafetyBlock = stats.averageMood <= 4 && stats.averageMood > 0;
-
-  // 🎯 Dynamisk mood display - mindre klinisk för låga värden
-  const moodDisplay = useMemo(() => {
-    const score = stats.averageMood;
-    
-    if (score <= 4 && score > 0) {
-      return {
-        value: t('dashboardStats.moodScoreOf10', { score: Math.round(score) }),
-        className: 'font-serif font-bold text-xl sm:text-2xl text-rose-600 dark:text-rose-400',
-        label: t('dashboardStats.hardDay'),
-        ariaLabel: t('dashboardStats.moodAriaLabel', { score: Math.round(score) }),
-      };
-    }
-    
-    return {
-      value: t('dashboardStats.moodScoreOf10', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
-      className: `font-serif font-bold text-2xl sm:text-3xl ${score >= 7 ? 'text-emerald-600 dark:text-emerald-400' : 'text-secondary-600 dark:text-secondary-400'}`,
-      label: undefined,
-      ariaLabel: t('dashboardStats.yourMood', { score: formatNumber(score, { minimumFractionDigits: 1 }) }),
-    };
-  }, [stats.averageMood, t]);
-
   // 🎯 Dynamisk streak display med singular/plural
   const streakText = useMemo(() => {
     const days = stats.streakDays;
     return t('dashboardStats.streakDays', { count: days });
   }, [stats.streakDays, t]);
-  const weeklyContext = useMemo(() => {
-    const weekly = stats.weeklyChats || 0;
-    if (weekly === 0) return t('dashboardStats.noChatsThisWeek');
-    if (weekly === 1) return t('dashboardStats.oneChatThisWeek');
-    return t('dashboardStats.chatsThisWeek', { count: weekly });
-  }, [stats.weeklyChats, t]);
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mt-8 animate-pulse">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mt-8 animate-pulse">
+        {[...Array(2)].map((_, i) => (
           <div 
             key={i} 
-            className={`h-40 bg-gray-100 dark:bg-gray-800 rounded-[2rem] ${i === 0 ? 'md:col-span-2' : ''}`} 
+            className="h-40 bg-gray-100 dark:bg-gray-800 rounded-[2rem]" 
           />
         ))}
       </div>
@@ -436,54 +265,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     <section className="mt-8" {...regionProps}>
       <h2 className="sr-only">{t('dashboardStats.sectionTitle')}</h2>
 
-      {/* Bento Grid Layout - Enhanced 2026 Style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 auto-rows-[minmax(180px,auto)]">
-
-        {/* Main Hero Card - Mood with Sparkline */}
-        <BentoItem
-          title={t('dashboardStats.moodTitle')}
-          value={moodDisplay.value}
-          valueClassName={moodDisplay.className}
-          label={moodDisplay.label}
-          ariaLabel={moodDisplay.ariaLabel}
-          icon="❤️"
-          color="secondary"
-          large
-          className="md:col-span-2 md:row-span-1"
-          trend={showSafetyBlock ? undefined : moodTrend}
-          subtitle={t('dashboardStats.basedOnLogs', { count: moodSampleCount })}
-          t={t}
-        >
-          {/* Mini sparkline - dold på mobil för att spara plats */}
-          {stats.moodSamples && stats.moodSamples.length > 1 && (
-            <div className="hidden sm:block">
-              <MoodSparkline samples={stats.moodSamples} />
-            </div>
-          )}
-          
-          {/* 💚 Psykologisk säkerhetsspärr för lågt mående */}
-          {showSafetyBlock && (
-            <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl">
-              <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">
-                {t('dashboardStats.itsOkay')}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <a 
-                  href="/ai-chat" 
-                  className="text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  {t('dashboardStats.talkToAI')}
-                </a>
-                <a 
-                  href="/crisis" 
-                  className="text-xs bg-white text-rose-600 border border-rose-600 px-2 py-1 rounded hover:bg-rose-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  {t('dashboardStats.getHelp')}
-                </a>
-              </div>
-            </div>
-          )}
-        </BentoItem>
+      {/* Bento Grid Layout - Streak + Achievements */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 auto-rows-[minmax(180px,auto)]">
 
         {/* Streak Card - Ny "consistency" design utan loss aversion */}
         <BentoItem
@@ -501,24 +284,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
           />
         </BentoItem>
 
-        {/* Chats Card with Weekly Context */}
-        <BentoItem
-          title={t('dashboardStats.chatsTitle')}
-          value={formatNumber(stats.totalChats)}
-          icon="💬"
-          color="primary"
-          trend={{ direction: 'stable', value: t('dashboardStats.total') }}
-          subtitle={weeklyContext}
-          t={t}
-        />
-
         {/* Achievements Card with Progress */}
         <BentoItem
           title={t('dashboardStats.achievementsTitle')}
           value={stats.achievementsCount}
           icon="🏆"
           color="neutral"
-          className="md:col-span-4 lg:col-span-4"
           trend={nextAchievementIn > 0 ? { direction: 'up', value: t('dashboardStats.progressOngoing') } : { direction: 'up', value: t('dashboardStats.allUnlocked') }}
           t={t}
         >
