@@ -1063,3 +1063,126 @@ class TestHelperFunctions:
         assert result["suggestForecast"] is False
         assert result["storyReason"] == "Du verkar intresserad"
         assert result["forecastReason"] == ""
+
+
+class TestUserProfileContext:
+    """Tests for user profile context personalisation in chatbot responses."""
+
+    @patch('src.routes.chatbot_routes.db')
+    @patch('src.routes.chatbot_routes.generate_enhanced_therapeutic_response')
+    @patch('src.routes.chatbot_routes.generate_ai_feature_suggestions')
+    def test_chat_passes_user_id_to_ai(self, mock_suggestions, mock_response, mock_db, client):
+        """Verify that chat endpoint passes user_id to generate_enhanced_therapeutic_response."""
+        _mock_db_chain(mock_db)
+
+        mock_response.return_value = {
+            "response": "Hej!",
+            "emotions_detected": [],
+            "suggested_actions": [],
+            "crisis_detected": False,
+            "ai_generated": True,
+            "model_used": "test",
+            "sentiment_analysis": {"sentiment": "NEUTRAL"},
+        }
+        mock_suggestions.return_value = {
+            "suggest_story": False,
+            "suggest_forecast": False,
+            "story_reason": "",
+            "forecast_reason": "",
+        }
+
+        client.post(f"{BASE}/chat", json={"message": "Hej"})
+
+        # generate_enhanced_therapeutic_response should have been called
+        # with user_id from the JWT token (set by conftest)
+        call_args = mock_response.call_args
+        assert call_args is not None
+        # Third positional arg should be user_id
+        assert call_args[0][2] is not None  # user_id positional arg
+
+    @patch('src.firebase_config.db')
+    def test_fetch_user_profile_context_returns_name(self, mock_db):
+        """Test that _fetch_user_profile_context fetches user's name from Firestore."""
+        from src.services.ai_service import AIServices
+
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"name": "Omaralhaek"}
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
+        # clinical_assessments queries return empty
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+
+        ai = AIServices.__new__(AIServices)
+        result = ai._fetch_user_profile_context("test_user_id")
+
+        assert "Omaralhaek" in result
+        assert "Namn" in result
+
+    @patch('src.firebase_config.db')
+    def test_fetch_user_profile_context_includes_assessments(self, mock_db):
+        """Test that _fetch_user_profile_context includes PHQ-9 and GAD-7 scores."""
+        from src.services.ai_service import AIServices
+
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"name": "Test User"}
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
+
+        # Mock clinical_assessments query results
+        mock_assessment_doc = Mock()
+        mock_assessment_doc.to_dict.return_value = {
+            "total_score": 3,
+            "severity": "Minimal",
+        }
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = [mock_assessment_doc]
+
+        ai = AIServices.__new__(AIServices)
+        result = ai._fetch_user_profile_context("test_user_id")
+
+        assert "Test User" in result
+        assert "PHQ-9" in result
+        assert "3" in result
+        assert "GAD-7" in result
+
+    @patch('src.firebase_config.db')
+    def test_fetch_user_profile_context_empty_when_no_data(self, mock_db):
+        """Test that _fetch_user_profile_context returns empty string when no user data."""
+        from src.services.ai_service import AIServices
+
+        mock_user_doc = Mock()
+        mock_user_doc.exists = False
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+
+        ai = AIServices.__new__(AIServices)
+        result = ai._fetch_user_profile_context("nonexistent_user")
+
+        assert result == ""
+
+    @patch('src.firebase_config.db')
+    def test_build_enhanced_system_prompt_includes_profile(self, mock_db):
+        """Test that _build_enhanced_system_prompt includes user profile context."""
+        from src.services.ai_service import AIServices
+
+        mock_user_doc = Mock()
+        mock_user_doc.exists = True
+        mock_user_doc.to_dict.return_value = {"name": "Omaralhaek"}
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_user_doc
+
+        # clinical_assessments queries return empty, mood queries return empty
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = []
+
+        ai = AIServices.__new__(AIServices)
+        ai._sentiment_pipeline = None
+        ai._transformer_sentiment_enabled = False
+        ai.google_nlp_available = False
+
+        # Mock enhanced_sentiment_analysis to avoid NLP dependency
+        with patch.object(ai, 'enhanced_sentiment_analysis', return_value={"sentiment": "NEUTRAL"}):
+            prompt = ai._build_enhanced_system_prompt("Hej", user_id="test_user")
+
+        assert "Omaralhaek" in prompt
+        assert "Namn" in prompt
+        assert "svenska" in prompt
+
