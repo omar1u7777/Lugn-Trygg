@@ -24,30 +24,45 @@ def create_redis_pool() -> ConnectionPool:
     """
     Create Redis connection pool with optimized settings for high concurrency.
 
+    Supports both REDIS_URL (Render Key Value / Upstash) and individual
+    REDIS_HOST/REDIS_PORT env vars for backwards compatibility.
+
     Returns:
         ConnectionPool: Configured Redis connection pool
     """
+    redis_url = os.getenv("REDIS_URL")
+
+    if redis_url:
+        return ConnectionPool.from_url(
+            redis_url,
+            max_connections=config.REDIS_MAX_CONNECTIONS,
+            decode_responses=True,
+            socket_timeout=5,
+            socket_connect_timeout=5,
+            socket_keepalive=True,
+            health_check_interval=30,
+            retry_on_timeout=True,
+        )
+
     pool_kwargs = {
         "host": config.REDIS_HOST,
         "port": config.REDIS_PORT,
         "db": config.REDIS_DB,
         "max_connections": config.REDIS_MAX_CONNECTIONS,
-        "decode_responses": True,  # Return strings instead of bytes
-        "socket_timeout": 5,  # 5 second timeout
+        "decode_responses": True,
+        "socket_timeout": 5,
         "socket_connect_timeout": 5,
         "socket_keepalive": True,
-        "health_check_interval": 30,  # Health check every 30 seconds
+        "health_check_interval": 30,
         "retry_on_timeout": True,
     }
 
-    # Add password if configured
     if config.REDIS_PASSWORD:
         pool_kwargs["password"] = config.REDIS_PASSWORD
 
-    # Add SSL if configured
     if config.REDIS_SSL:
         pool_kwargs["ssl"] = True
-        pool_kwargs["ssl_cert_reqs"] = None  # For self-signed certificates
+        pool_kwargs["ssl_cert_reqs"] = None
 
     return ConnectionPool(**pool_kwargs)
 
