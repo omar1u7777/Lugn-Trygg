@@ -38,7 +38,6 @@ const QuickActionButton: React.FC<{
   t: (key: string) => string;
 }> = ({ action, onClick, description, isLocked, isDisabled = false, index, t }) => {
   const getActionColor = (id: string): 'primary' | 'secondary' | 'accent' | 'neutral' => {
-    if (id === 'mood') return 'secondary';
     if (id === 'chat') return 'primary';
     return 'neutral';
   };
@@ -87,19 +86,16 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
   isLoading = false,
 }) => {
   const { t } = useTranslation();
-  const { isPremium, getRemainingMoodLogs, getRemainingMessages, hasFeature } = useSubscription();
+  const { isPremium, getRemainingMessages, hasFeature } = useSubscription();
   const regionProps = getDashboardRegionProps('quickActions');
 
-  const rawMoodLogsRemaining = getRemainingMoodLogs();
   const rawMessagesRemaining = getRemainingMessages();
-  const isUnlimitedMoodLogs = rawMoodLogsRemaining === -1;
   const isUnlimitedMessages = rawMessagesRemaining === -1;
-  const remainingMoodLogs = isUnlimitedMoodLogs ? 0 : Math.max(0, rawMoodLogsRemaining);
   const remainingMessages = isUnlimitedMessages ? 0 : Math.max(0, rawMessagesRemaining);
 
   // Validate subscription data
-  if (typeof rawMoodLogsRemaining !== 'number' || typeof rawMessagesRemaining !== 'number') {
-    console.error('Invalid subscription data:', { rawMoodLogsRemaining, rawMessagesRemaining });
+  if (typeof rawMessagesRemaining !== 'number') {
+    console.error('Invalid subscription data:', { rawMessagesRemaining });
   }
 
   if (isLoading) {
@@ -123,11 +119,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
           let description = t(action.defaultDescriptionKey);
           let isQuotaReached = false;
 
-          if (action.id === 'mood') {
-            const hasUnlimitedMood = isPremium || isUnlimitedMoodLogs;
-            description = hasUnlimitedMood ? t('dashboardQuickActions.unlimitedToday') : t('dashboardQuickActions.remainingToday', { count: remainingMoodLogs });
-            isQuotaReached = !hasUnlimitedMood && remainingMoodLogs <= 0;
-          } else if (action.id === 'chat') {
+          if (action.id === 'chat') {
             const hasUnlimitedChat = isPremium || isUnlimitedMessages;
             description = hasUnlimitedChat ? t('dashboardQuickActions.alwaysReady') : t('dashboardQuickActions.remainingMessages', { count: remainingMessages });
             isQuotaReached = !hasUnlimitedChat && remainingMessages <= 0;

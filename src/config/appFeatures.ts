@@ -28,14 +28,6 @@ export interface QuickActionConfig {
 
 export const QUICK_ACTIONS: QuickActionConfig[] = [
   {
-    id: 'mood',
-    titleKey: 'quickAction.mood.title',
-    icon: '🧘‍♀️',
-    colorClass: 'text-secondary-500',
-    ariaLabelKey: 'quickAction.mood.ariaLabel',
-    defaultDescriptionKey: 'quickAction.mood.description',
-  },
-  {
     id: 'chat',
     titleKey: 'quickAction.chat.title',
     icon: '💬',

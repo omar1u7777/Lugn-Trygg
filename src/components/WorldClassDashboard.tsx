@@ -531,9 +531,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     }
 
     switch (actionId) {
-      case 'mood':
-        setActiveView('mood-basic');
-        break;
       case 'chat':
         setActiveView('chat');
         break;

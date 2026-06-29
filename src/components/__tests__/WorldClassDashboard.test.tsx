@@ -85,7 +85,6 @@ vi.mock('../Dashboard/DashboardActivity', () => ({
 vi.mock('../Dashboard/DashboardQuickActions', () => ({
   DashboardQuickActions: ({ onActionClick }: { onActionClick: (actionId: string) => void }) => (
     <div>
-      <button onClick={() => onActionClick('mood')}>qa-mood</button>
       <button onClick={() => onActionClick('chat')}>qa-chat</button>
       <button onClick={() => onActionClick('journal')}>qa-journal</button>
       <button onClick={() => onActionClick('sounds')}>qa-sounds</button>
@@ -260,13 +259,9 @@ describe('WorldClassDashboard', () => {
     expect(screen.getByText('worldDashboard.weeklyGoalReached')).toBeTruthy();
   });
 
-  it('opens feature views from quick actions and supports mood/chat', () => {
+  it('opens feature views from quick actions and supports chat', () => {
     render(<WorldClassDashboard userId="u1" />);
 
-    fireEvent.click(screen.getByText('qa-mood'));
-    expect(screen.getByTestId('super-mood-logger')).toBeTruthy();
-
-    render(<WorldClassDashboard userId="u1" />);
     fireEvent.click(screen.getByText('qa-chat'));
     expect(screen.getByTestId('ai-chat')).toBeTruthy();
   });
