@@ -510,11 +510,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     });
 
     // Premium features require subscription check
-    if (actionId === 'meditation' && !hasFeature('wellness')) {
-      navigate('/upgrade');
-      return;
-    }
-
     if (actionId === 'journal' && !hasFeature('journal')) {
       navigate('/upgrade');
       return;
@@ -539,14 +534,8 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
       case 'mood':
         setActiveView('mood-basic');
         break;
-      case 'mood-list':
-        setActiveView('mood-list');
-        break;
       case 'chat':
         setActiveView('chat');
-        break;
-      case 'meditation':
-        navigate('/wellness');
         break;
       case 'journal':
         navigate('/journal');
@@ -559,9 +548,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
         break;
       case 'recommendations':
         navigate('/recommendations');
-        break;
-      case 'insights':
-        navigate('/insights');
         break;
       default:
         break;

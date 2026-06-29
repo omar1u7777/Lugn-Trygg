@@ -23,6 +23,11 @@ const dashboardDataState = {
     weeklyProgress: 2,
     wellnessGoals: [] as string[],
     recentActivity: [] as Array<{ id: string; type: string; timestamp: string; description: string }>,
+    moodTrendSamples: [] as number[],
+    longestStreak: 6,
+    weeklyChats: 1,
+    achievementsCount: 3,
+    totalMeditations: 2,
   },
   loading: false,
   error: null as Error | null,
@@ -82,13 +87,10 @@ vi.mock('../Dashboard/DashboardQuickActions', () => ({
     <div>
       <button onClick={() => onActionClick('mood')}>qa-mood</button>
       <button onClick={() => onActionClick('chat')}>qa-chat</button>
-      <button onClick={() => onActionClick('meditation')}>qa-meditation</button>
       <button onClick={() => onActionClick('journal')}>qa-journal</button>
       <button onClick={() => onActionClick('sounds')}>qa-sounds</button>
       <button onClick={() => onActionClick('social')}>qa-social</button>
       <button onClick={() => onActionClick('recommendations')}>qa-recommendations</button>
-      <button onClick={() => onActionClick('analytics')}>qa-analytics</button>
-      <button onClick={() => onActionClick('gamification')}>qa-gamification</button>
     </div>
   ),
 }));
@@ -273,7 +275,6 @@ describe('WorldClassDashboard', () => {
     subscriptionState.hasFeature = vi.fn(() => false);
     render(<WorldClassDashboard userId="u1" />);
 
-    fireEvent.click(screen.getByText('qa-meditation'));
     fireEvent.click(screen.getByText('qa-journal'));
     fireEvent.click(screen.getByText('qa-sounds'));
     fireEvent.click(screen.getByText('qa-social'));
