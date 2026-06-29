@@ -2066,6 +2066,47 @@
     "phq9Trend": "PHQ-9 trend (senaste {{count}})",
     "gad7Trend": "GAD-7 trend (senaste {{count}})",
     "latest": "Senast",
-    "points": "p"
+    "points": "p",
+    "crisisContacts": {
+      "emergency": "Nödnummer: 112",
+      "crisisLine": "Krisstöd: 90101 (dygnet runt)",
+      "psychiatric": "Psykiatrisk akutmottagning",
+      "chat": "Chatta med krisstöd: mind.se"
+    },
+    "q9HighRiskTitle": "⚠️ Akut självskaderisk",
+    "q9HighRiskText": "Du angav frekventa tankar på att skada dig själv. Detta kräver omedelbar hjälp. Ring 112 eller krisstöd 90101 nu.",
+    "q9ModerateRiskTitle": "⚠️ Självskadetankar upptäckta",
+    "q9ModerateRiskText": "Du angav tankar på självskada. Kontakta vårdcentral eller psykiatri så snart som möjligt. Krisstöd 90101 (dygnet runt).",
+    "safetyPlan": {
+      "title": "Säkerhetsplan",
+      "subtitle": "Vid tankar på självskada — följ dessa steg",
+      "step1": "1. Ring krisstöd 90101 eller 112 nu",
+      "step2": "2. Kontakta en betrodd person — berätta hur du mår",
+      "step3": "3. Ta bort tillgång till medel för självskada",
+      "step4": "4. Gå till närmaste psykiatrisk akutmottagning",
+      "step5": "5. Använd appens andningsövningar för att lugna dig"
+    },
+    "followUp": {
+      "title": "Nästa bedömning",
+      "24_hours": "inom 24 timmar",
+      "1_week": "inom 1 vecka",
+      "2_weeks": "inom 2 veckor",
+      "1_month": "inom 1 månad",
+      "routine": "vid behov"
+    },
+    "scoreSwingWarning": "⚠️ Stor förändring ({{delta}} p) mellan två mätningar — överväg att diskutera resultatet med en vårdgivare",
+    "compositeRisk": {
+      "title": "Kombinerad riskbedömning",
+      "none": "Ingen risk",
+      "mild": "Låg risk",
+      "moderate": "Medelhög risk",
+      "severe": "Hög risk",
+      "crisis": "Akut risk",
+      "riskFactors": "Riskfaktorer",
+      "protectiveFactors": "Skyddsfaktorer",
+      "interventions": "Rekommenderade åtgärder",
+      "loading": "Beräknar kombinerad risk…",
+      "error": "Kunde inte beräkna kombinerad risk"
+    }
   }
 }

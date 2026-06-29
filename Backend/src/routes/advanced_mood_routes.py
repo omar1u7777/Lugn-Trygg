@@ -346,6 +346,8 @@ def assess_phq9():
             'severity': result.severity,
             'risk_level': result.risk_level.value,
             'suicidal_ideation': result.suicidal_ideation_flag,
+            'self_harm_score': result.self_harm_score,
+            'follow_up_timeframe': result.follow_up_timeframe,
             'recommendations': result.recommendations
         }
 
@@ -370,9 +372,11 @@ def assess_phq9():
             'severity': result.severity,
             'risk_level': result.risk_level.value,
             'suicidal_ideation': result.suicidal_ideation_flag,
+            'self_harm_score': result.self_harm_score,
             'item_scores': result.item_scores,
             'interpretation': result.interpretation,
-            'recommendations': result.recommendations
+            'recommendations': result.recommendations,
+            'follow_up_timeframe': result.follow_up_timeframe
         })
 
     except Exception as e:
@@ -417,6 +421,7 @@ def assess_gad7():
             'total_score': result.total_score,
             'severity': result.severity,
             'risk_level': result.risk_level.value,
+            'follow_up_timeframe': result.follow_up_timeframe,
             'recommendations': result.recommendations
         }
 
@@ -435,7 +440,8 @@ def assess_gad7():
             'risk_level': result.risk_level.value,
             'item_scores': result.item_scores,
             'interpretation': result.interpretation,
-            'recommendations': result.recommendations
+            'recommendations': result.recommendations,
+            'follow_up_timeframe': result.follow_up_timeframe
         })
 
     except Exception as e:

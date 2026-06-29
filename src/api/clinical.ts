@@ -18,9 +18,11 @@ export interface PHQ9Result {
   severity: SeverityLevel;
   risk_level: string;
   suicidal_ideation: boolean;
+  self_harm_score: number;
   item_scores: Record<string, number>;
   interpretation: string;
   recommendations: string[];
+  follow_up_timeframe: string;
 }
 
 export interface GAD7Result {
@@ -30,6 +32,7 @@ export interface GAD7Result {
   item_scores: Record<string, number>;
   interpretation: string;
   recommendations: string[];
+  follow_up_timeframe: string;
 }
 
 export type AssessmentResult = PHQ9Result | GAD7Result;
@@ -41,6 +44,8 @@ export interface AssessmentHistoryEntry {
   severity: SeverityLevel;
   risk_level: string;
   suicidal_ideation?: boolean;
+  self_harm_score?: number;
+  follow_up_timeframe?: string;
   timestamp: string;
   recommendations?: string[];
 }

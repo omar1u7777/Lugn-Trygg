@@ -2068,6 +2068,47 @@
     "phq9Trend": "PHQ-9 trend (siste {{count}})",
     "gad7Trend": "GAD-7 trend (siste {{count}})",
     "latest": "Sist",
-    "points": "p"
+    "points": "p",
+    "crisisContacts": {
+      "emergency": "Nødnummer: 113",
+      "crisisLine": "Krisestøtte: 116 117 (døgnet rundt)",
+      "psychiatric": "Psykiatrisk akuttmottak",
+      "chat": "Chat med krisestøtte: sidetmedord.no"
+    },
+    "q9HighRiskTitle": "⚠️ Akutt selvskaderisiko",
+    "q9HighRiskText": "Du anga hyppige tanker om å skade deg selv. Dette krever umiddelbar hjelp. Ring 113 eller krisestøtte 116 117 nå.",
+    "q9ModerateRiskTitle": "⚠️ Selvskadetanker oppdaget",
+    "q9ModerateRiskText": "Du anga tanker om selvskading. Kontakt legevakten eller psykiatri så snart som mulig. Krisestøtte 116 117 (døgnet rundt).",
+    "safetyPlan": {
+      "title": "Sikkerhetsplan",
+      "subtitle": "Ved tanker om selvskading — følg disse trinnene",
+      "step1": "1. Ring krisestøtte 116 117 eller 113 nå",
+      "step2": "2. Kontakt en du stoler på — fortell hvordan du har det",
+      "step3": "3. Fjern tilgang til midler for selvskading",
+      "step4": "4. Gå til nærmeste psykiatriske akuttmottak",
+      "step5": "5. Bruk appens pusteøvelser for å roe deg ned"
+    },
+    "followUp": {
+      "title": "Neste bedømmelse",
+      "24_hours": "innen 24 timer",
+      "1_week": "innen 1 uke",
+      "2_weeks": "innen 2 uker",
+      "1_month": "innen 1 måned",
+      "routine": "etter behov"
+    },
+    "scoreSwingWarning": "⚠️ Stor endring ({{delta}} p) mellom to målinger — vurder å diskutere resultatet med en helsepersonell",
+    "compositeRisk": {
+      "title": "Kombinert risikovurdering",
+      "none": "Ingen risiko",
+      "mild": "Lav risiko",
+      "moderate": "Middels risiko",
+      "severe": "Høy risiko",
+      "crisis": "Akutt risiko",
+      "riskFactors": "Risikofaktorer",
+      "protectiveFactors": "Beskyttelsesfaktorer",
+      "interventions": "Anbefalte tiltak",
+      "loading": "Beregner kombinert risiko…",
+      "error": "Kunne ikke beregne kombinert risiko"
+    }
   }
 }

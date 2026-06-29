@@ -14,10 +14,12 @@ import {
   submitPHQ9,
   submitGAD7,
   getAssessmentHistory,
+  getComprehensiveRisk,
   type PHQ9Result,
   type GAD7Result,
   type AssessmentHistoryEntry,
   type AssessmentType,
+  type ComprehensiveRiskResult,
 } from '../api/clinical';
 import { logger } from '../utils/logger';
 import { useMountedRef } from '../hooks/useMountedRef';
@@ -112,8 +114,15 @@ export const ClinicalAssessment: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
+  // Composite risk state (#5)
+  const [compositeRisk, setCompositeRisk] = useState<ComprehensiveRiskResult | null>(null);
+  const [compositeLoading, setCompositeLoading] = useState(false);
+  const [compositeError, setCompositeError] = useState<string | null>(null);
+
   // Derive locale and question-text prefix from i18n language
   const locale = i18n.language === 'sv' ? 'sv-SE' : i18n.language === 'no' ? 'nb-NO' : 'en-US';
+  const crisisEmergency = t('clinicalAssessment.crisisContacts.emergency');
+  const crisisLine = t('clinicalAssessment.crisisContacts.crisisLine');
   const questionPrefix = activeTab === 'phq9' ? 'clinicalAssessment.phq9Questions' : 'clinicalAssessment.gad7Questions';
   const responseLabels = t('clinicalAssessment.responseOptions.labels', { returnObjects: true }) as string[];
   const responseDescriptions = t('clinicalAssessment.responseOptions.descriptions', { returnObjects: true }) as string[];
@@ -127,6 +136,41 @@ export const ClinicalAssessment: React.FC = () => {
   // Guard division by zero — only relevant when questions.length > 0
   const answeredCount = Object.keys(responses).length;
   const progress = questions.length > 0 ? answeredCount / questions.length : 0;
+
+  // ---------------------------------------------------------------------------
+  // Derived history stats for sparklines (declared before effects that use them)
+  // ---------------------------------------------------------------------------
+  const phq9History = history.filter(e => e.type === 'phq9').slice(0, 10).reverse();
+  const gad7History = history.filter(e => e.type === 'gad7').slice(0, 10).reverse();
+
+  // Check if both assessment types exist in history (#5 composite risk)
+  const hasBothTypes = phq9History.length > 0 && gad7History.length > 0;
+
+  // Detect score swings >10 points between consecutive same-type entries (#7)
+  const scoreSwings = useMemo(() => {
+    const swings: { index: number; delta: number }[] = [];
+    const sorted = [...history].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i]?.type === sorted[i - 1]?.type) {
+        const delta = Math.abs((sorted[i]?.total_score ?? 0) - (sorted[i - 1]?.total_score ?? 0));
+        if (delta > 10) {
+          const historyIndex = history.findIndex(h => h.id === sorted[i]?.id);
+          if (historyIndex !== -1) swings.push({ index: historyIndex, delta });
+        }
+      }
+    }
+    return swings;
+  }, [history]);
+
+  // Show safety plan condition (#3)
+  const showSafetyPlan = result && (
+    ('suicidal_ideation' in result && result.suicidal_ideation) ||
+    ['moderate', 'moderately_severe', 'severe'].includes(result.severity)
+  );
+
+  // Q9 risk level (#2)
+  const q9HighRisk = result && 'self_harm_score' in result && (result as PHQ9Result).self_harm_score >= 2;
+  const q9ModerateRisk = result && 'self_harm_score' in result && (result as PHQ9Result).self_harm_score === 1;
 
   // ---------------------------------------------------------------------------
   // Cleanup on unmount
@@ -164,6 +208,31 @@ export const ClinicalAssessment: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
   }, [activeTab, loadHistory]);
+
+  // ---------------------------------------------------------------------------
+  // Load composite risk (#5) — only when both PHQ-9 and GAD-7 exist
+  // ---------------------------------------------------------------------------
+  const loadCompositeRisk = useCallback(async () => {
+    setCompositeLoading(true);
+    setCompositeError(null);
+    try {
+      const data = await getComprehensiveRisk();
+      if (!isMountedRef.current) return;
+      setCompositeRisk(data);
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      logger.error('Composite risk load failed', err as Error);
+      setCompositeError(t('clinicalAssessment.compositeRisk.error'));
+    } finally {
+      if (isMountedRef.current) setCompositeLoading(false);
+    }
+  }, [t, isMountedRef]);
+
+  useEffect(() => {
+    if (activeTab === 'history' && hasBothTypes) {
+      loadCompositeRisk();
+    }
+  }, [activeTab, hasBothTypes, loadCompositeRisk]);
 
   // ---------------------------------------------------------------------------
   // Submit assessment
@@ -207,12 +276,6 @@ export const ClinicalAssessment: React.FC = () => {
     setAssessmentError(null);
     setExpanded(true);
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Derived history stats for sparklines
-  // ---------------------------------------------------------------------------
-  const phq9History = history.filter(e => e.type === 'phq9').slice(0, 10).reverse();
-  const gad7History = history.filter(e => e.type === 'gad7').slice(0, 10).reverse();
 
   // ---------------------------------------------------------------------------
   // Render
@@ -336,7 +399,7 @@ export const ClinicalAssessment: React.FC = () => {
               </div>
             )}
 
-            {!historyLoading && history.map(entry => (
+            {!historyLoading && history.map((entry, idx) => (
               <div
                 key={entry.id}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between"
@@ -350,6 +413,13 @@ export const ClinicalAssessment: React.FC = () => {
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(entry.timestamp).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}
                     </div>
+                    {/* Score swing warning (#7) */}
+                    {scoreSwings.some(s => s.index === idx) && (
+                      <div className="mt-1 text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                        <ExclamationTriangleIcon className="w-3 h-3" />
+                        {t('clinicalAssessment.scoreSwingWarning', { delta: scoreSwings.find(s => s.index === idx)?.delta })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right flex flex-col items-end gap-1">
@@ -365,6 +435,69 @@ export const ClinicalAssessment: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Composite risk assessment (#5) */}
+          {!historyLoading && hasBothTypes && (
+            <div className="mt-5">
+              {compositeLoading && (
+                <div className="flex items-center justify-center py-6 text-gray-500 dark:text-gray-400 text-sm">
+                  <ArrowPathIcon className="animate-spin w-4 h-4 mr-2" />
+                  {t('clinicalAssessment.compositeRisk.loading')}
+                </div>
+              )}
+              {compositeError && !compositeLoading && (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-900/20 p-3 text-sm text-orange-700 dark:text-orange-400">
+                  {compositeError}
+                </div>
+              )}
+              {compositeRisk && !compositeLoading && !compositeError && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-3">
+                    {t('clinicalAssessment.compositeRisk.title')}
+                  </h3>
+                  <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${getSeverityColor(compositeRisk.composite_risk === 'none' ? 'minimal' : compositeRisk.composite_risk === 'crisis' ? 'severe' : compositeRisk.composite_risk)}`}>
+                    {t(`clinicalAssessment.compositeRisk.${compositeRisk.composite_risk}`)}
+                  </div>
+                  {compositeRisk.risk_factors.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.riskFactors')}</p>
+                      <ul className="space-y-1">
+                        {compositeRisk.risk_factors.map((factor, i) => (
+                          <li key={i} className="text-xs text-orange-700 dark:text-orange-400 flex items-start gap-1.5">
+                            <ExclamationTriangleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {compositeRisk.protective_factors.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.protectiveFactors')}</p>
+                      <ul className="space-y-1">
+                        {compositeRisk.protective_factors.map((factor, i) => (
+                          <li key={i} className="text-xs text-green-700 dark:text-green-400 flex items-start gap-1.5">
+                            <CheckCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {factor}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {compositeRisk.suggested_interventions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t('clinicalAssessment.compositeRisk.interventions')}</p>
+                      <ul className="space-y-1">
+                        {compositeRisk.suggested_interventions.map((intervention, i) => (
+                          <li key={i} className="text-xs text-indigo-700 dark:text-indigo-400 flex items-start gap-1.5">
+                            <InformationCircleIcon className="w-3 h-3 mt-0.5 flex-shrink-0" /> {intervention.replace(/_/g, ' ').toLowerCase()}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* CTA to start new assessment */}
           {!historyLoading && history.length > 0 && (
@@ -509,16 +642,23 @@ export const ClinicalAssessment: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* PHQ-9 suicidal ideation alert */}
+                  {/* PHQ-9 suicidal ideation alert — differentiated by Q9 score (#2) */}
                   {'suicidal_ideation' in result && result.suicidal_ideation && (
-                    <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg">
+                    <div className={`mt-4 p-3 border rounded-lg ${q9HighRisk ? 'bg-red-200 dark:bg-red-900/60 border-red-400 dark:border-red-600' : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700'}`}>
                       <div className="flex items-start gap-2">
                         <ExclamationTriangleIcon className="w-5 h-5 text-red-700 dark:text-red-300 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="font-semibold text-red-800 dark:text-red-200">{t('clinicalAssessment.immediateRiskTitle')}</p>
-                          <p className="text-sm text-red-700 dark:text-red-300">
-                            {t('clinicalAssessment.immediateRiskText')}
+                          <p className="font-semibold text-red-800 dark:text-red-200">
+                            {q9HighRisk ? t('clinicalAssessment.q9HighRiskTitle') : t('clinicalAssessment.q9ModerateRiskTitle')}
                           </p>
+                          <p className="text-sm text-red-700 dark:text-red-300">
+                            {q9HighRisk ? t('clinicalAssessment.q9HighRiskText') : t('clinicalAssessment.q9ModerateRiskText')}
+                          </p>
+                          {/* Localized crisis contacts (#8) */}
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm font-medium text-red-800 dark:text-red-200">{crisisEmergency}</p>
+                            <p className="text-sm font-medium text-red-800 dark:text-red-200">{crisisLine}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -545,6 +685,44 @@ export const ClinicalAssessment: React.FC = () => {
                     ))}
                   </ul>
                 </div>
+
+                {/* Follow-up reminder (#4) */}
+                {'follow_up_timeframe' in result && result.follow_up_timeframe && (
+                  <div className="px-5 pb-4">
+                    <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 p-3 flex items-center gap-2">
+                      <InformationCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                        {t('clinicalAssessment.followUp.title')}: {t(`clinicalAssessment.followUp.${result.follow_up_timeframe}`)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Safety plan (#3) */}
+                {showSafetyPlan && (
+                  <div className="px-5 pb-5">
+                    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 p-4">
+                      <h4 className="font-semibold text-red-800 dark:text-red-200 mb-1">
+                        {t('clinicalAssessment.safetyPlan.title')}
+                      </h4>
+                      <p className="text-xs text-red-600 dark:text-red-400 mb-3">
+                        {t('clinicalAssessment.safetyPlan.subtitle')}
+                      </p>
+                      <ol className="space-y-2">
+                        {[1, 2, 3, 4, 5].map(step => (
+                          <li key={step} className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
+                            <span className="flex-shrink-0">{t(`clinicalAssessment.safetyPlan.step${step}`)}</span>
+                          </li>
+                        ))}
+                      </ol>
+                      {/* Localized crisis contacts in safety plan (#8) */}
+                      <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-700 space-y-1">
+                        <p className="text-sm font-medium text-red-800 dark:text-red-200">{crisisEmergency}</p>
+                        <p className="text-sm font-medium text-red-800 dark:text-red-200">{crisisLine}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Action row */}
                 <div className="border-t border-gray-200 dark:border-gray-700 flex">
