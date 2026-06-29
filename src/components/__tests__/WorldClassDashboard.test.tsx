@@ -78,10 +78,6 @@ vi.mock('../Dashboard/DashboardStats', () => ({
   DashboardStats: ({ isLoading }: { isLoading: boolean }) => <div data-testid="dashboard-stats">{String(isLoading)}</div>,
 }));
 
-vi.mock('../Dashboard/DashboardActivity', () => ({
-  DashboardActivity: () => <div data-testid="dashboard-activity">activity</div>,
-}));
-
 vi.mock('../Dashboard/DashboardQuickActions', () => ({
   DashboardQuickActions: ({ onActionClick }: { onActionClick: (actionId: string) => void }) => (
     <div>
