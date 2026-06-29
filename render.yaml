@@ -47,6 +47,8 @@ services:
         sync: false
       - key: AZURE_OPENAI_API_VERSION
         value: "2024-12-01-preview"
+      - key: OPENAI_API_VERSION
+        value: "2024-12-01-preview"
       - key: AZURE_OPENAI_DEPLOYMENT
         value: gpt-4o
         sync: false
