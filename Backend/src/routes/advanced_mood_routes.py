@@ -540,8 +540,10 @@ def comprehensive_clinical_assessment():
                     risk_level=RiskLevel(phq9_data.get('risk_level', 'none')),
                     item_scores=phq9_data.get('item_scores', {}),
                     suicidal_ideation_flag=bool(phq9_data.get('suicidal_ideation', False)),
+                    self_harm_score=int(phq9_data.get('self_harm_score', phq9_data.get('item_scores', {}).get('self_harm', 0)) or 0),
                     interpretation=phq9_data.get('interpretation', ''),
                     recommendations=phq9_data.get('recommendations', []),
+                    follow_up_timeframe=phq9_data.get('follow_up_timeframe', 'routine'),
                 )
             except Exception as re:
                 logger.warning(f"Could not reconstruct PHQ9Result: {re}")
@@ -556,6 +558,7 @@ def comprehensive_clinical_assessment():
                     item_scores=gad7_data.get('item_scores', {}),
                     interpretation=gad7_data.get('interpretation', ''),
                     recommendations=gad7_data.get('recommendations', []),
+                    follow_up_timeframe=gad7_data.get('follow_up_timeframe', 'routine'),
                 )
             except Exception as re:
                 logger.warning(f"Could not reconstruct GAD7Result: {re}")
