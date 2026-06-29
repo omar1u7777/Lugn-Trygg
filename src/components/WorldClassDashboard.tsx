@@ -266,14 +266,10 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
 
   // Memoize stats object to prevent DashboardStats re-renders
   const stats = useMemo(() => ({
-    averageMood: safeDashboardStats.averageMood,
     streakDays: safeDashboardStats.streakDays,
-    totalChats: safeDashboardStats.totalChats,
     achievementsCount: safeDashboardStats.achievementsCount,
-    moodSamples,
     longestStreak: safeDashboardStats.longestStreak,
-    weeklyChats: safeDashboardStats.weeklyChats,
-  }), [safeDashboardStats.averageMood, safeDashboardStats.streakDays, safeDashboardStats.totalChats, safeDashboardStats.achievementsCount, safeDashboardStats.longestStreak, safeDashboardStats.weeklyChats, moodSamples]);
+  }), [safeDashboardStats.streakDays, safeDashboardStats.achievementsCount, safeDashboardStats.longestStreak]);
 
   // Track page view once on mount (not on every loading state change)
   useEffect(() => {
