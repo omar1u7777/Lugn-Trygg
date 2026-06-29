@@ -40,7 +40,6 @@ const QuickActionButton: React.FC<{
   const getActionColor = (id: string): 'primary' | 'secondary' | 'accent' | 'neutral' => {
     if (id === 'mood') return 'secondary';
     if (id === 'chat') return 'primary';
-    if (id === 'meditation') return 'accent';
     return 'neutral';
   };
 
