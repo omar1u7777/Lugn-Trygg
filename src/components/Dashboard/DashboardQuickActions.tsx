@@ -116,6 +116,10 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {QUICK_ACTIONS.map((action, index) => {
+          // Hide locked actions for free users to avoid paywall-feel
+          const isLocked = action.feature ? !hasFeature(action.feature) : false;
+          if (isLocked) return null;
+
           let description = t(action.defaultDescriptionKey);
           let isQuotaReached = false;
 
@@ -142,7 +146,7 @@ export const DashboardQuickActions: React.FC<DashboardQuickActionsProps> = ({
               index={index}
               onClick={() => onActionClick(action.id)}
               description={description}
-              isLocked={action.feature ? !hasFeature(action.feature) : false}
+              isLocked={false}
               isDisabled={isQuotaReached}
               t={t}
             />

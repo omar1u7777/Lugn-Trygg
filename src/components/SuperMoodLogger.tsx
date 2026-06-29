@@ -39,6 +39,7 @@ interface SuperMoodLoggerProps {
   showRecentMoods?: boolean;
   enableVoiceRecording?: boolean;
   hideHeader?: boolean;
+  maxRecentMoods?: number;
 }
 
 interface RecentMood {
@@ -179,6 +180,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
   showRecentMoods = false,
   enableVoiceRecording = false,
   hideHeader = false,
+  maxRecentMoods = 10,
 }) => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'no' ? 'nb-NO' : i18n.language === 'en' ? 'en-US' : 'sv-SE';
@@ -276,7 +278,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         })
         .filter((mood): mood is RecentMood => mood !== null)
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 10);
+        .slice(0, maxRecentMoods);
 
       setRecentMoods(normalized);
     } catch (err) {
@@ -289,7 +291,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
         abortControllerRef.current = null;
       }
     }
-  }, [user?.user_id]);
+  }, [user?.user_id, maxRecentMoods]);
 
   useEffect(() => {
     if (showRecentMoods && user?.user_id) {
@@ -642,9 +644,11 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
                        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
                        disabled:opacity-50 disabled:cursor-not-allowed resize-none"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {note.length}/1000
-            </p>
+            {note.length > 0 && (
+              <p className={`text-xs mt-1 ${note.length > 900 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                {1000 - note.length} {t('moodLogger.characters', 'tecken kvar')}
+              </p>
+            )}
           </div>
 
           {/* Voice Recording */}
@@ -684,7 +688,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
           >
             {showAdvanced 
               ? t('moodLogger.hideAdvanced', '▼ Dölj avancerade alternativ')
-              : t('moodLogger.showAdvanced', '▶ Visa avancerade alternativ (Circumplex + Taggar)')
+              : t('moodLogger.showAdvanced', '▶ Fler alternativ')
             }
           </button>
 
@@ -780,7 +784,7 @@ export const SuperMoodLogger: React.FC<SuperMoodLoggerProps> = ({
             <ClockIcon className="w-4 h-4" />
             {t('moodLogger.recentMoods', 'Dina senaste humör')}
           </h3>
-          <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
+          <div className="space-y-3">
             <div className="space-y-4">
               {groupedMoods.map(group => (
                 <div key={group.key}>
