@@ -243,12 +243,6 @@ const WorldClassDashboard: React.FC<WorldClassDashboardProps> = ({ userId }) => 
     return map;
   }, [safeDashboardStats.wellnessGoals, t]);
 
-  // Use moodTrendSamples from backend for consistent sparkline data (same dataset as averageMood)
-  const moodSamples = useMemo(() => {
-    const samples = safeDashboardStats.moodTrendSamples || [];
-    return samples.filter(s => Number.isFinite(s) && s >= 0 && s <= 10);
-  }, [safeDashboardStats.moodTrendSamples]);
-
   // Latest mood description for personalized greeting (not the numeric average)
   const latestMoodInfo = useMemo(() => {
     const moodActivities = safeDashboardStats.recentActivity.filter((a) => a.type === 'mood');

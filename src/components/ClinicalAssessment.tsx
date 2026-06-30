@@ -170,7 +170,6 @@ export const ClinicalAssessment: React.FC = () => {
 
   // Q9 risk level (#2)
   const q9HighRisk = result && 'self_harm_score' in result && (result as PHQ9Result).self_harm_score >= 2;
-  const q9ModerateRisk = result && 'self_harm_score' in result && (result as PHQ9Result).self_harm_score === 1;
 
   // ---------------------------------------------------------------------------
   // Cleanup on unmount
