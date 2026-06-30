@@ -196,7 +196,7 @@ except Exception as e:
 
 # Import app from Backend's main.py (one level up from tests/)
 import importlib.util
-from datetime import UTC
+from datetime import UTC, datetime
 
 spec = importlib.util.spec_from_file_location("main", os.path.join(os.path.dirname(__file__), '..', 'main.py'))
 main_module = importlib.util.module_from_spec(spec)
@@ -310,6 +310,8 @@ _LEGACY_CSRF_MODULES = {
     'test_sync_history_routes.py',
     'test_voice_routes.py',
     'test_webhook_security.py',
+    'test_qa_integration.py',
+    'test_qa_security_edge.py',
 }
 
 
@@ -455,3 +457,217 @@ def mock_db():
     db.collection = MagicMock(side_effect=get_or_create_collection)
 
     return db
+
+
+# ===========================================================================
+# QA Test Suite Fixtures (Humör, AI Stöd, Klinisk bedömning, Dagliga insikter)
+# ===========================================================================
+
+@pytest.fixture
+def mock_redis_client():
+    """In-memory Redis mock supporting get/set/setex/delete/scan/ping/ttl."""
+    import fnmatch
+    store: dict[str, str] = {}
+    ttls: dict[str, float] = {}
+
+    client = MagicMock()
+    client.ping = MagicMock(return_value=True)
+    client._store = store
+
+    def _get(key):
+        return store.get(key)
+
+    def _set(key, value, ex=None, **kwargs):
+        store[key] = str(value)
+        if ex:
+            ttls[key] = datetime.now(UTC).timestamp() + ex
+        return True
+
+    def _setex(key, ttl, value):
+        store[key] = str(value)
+        ttls[key] = datetime.now(UTC).timestamp() + ttl
+        return True
+
+    def _delete(*keys):
+        deleted = 0
+        for key in keys:
+            if key in store:
+                del store[key]
+                ttls.pop(key, None)
+                deleted += 1
+        return deleted
+
+    def _exists(key):
+        return 1 if key in store else 0
+
+    def _scan(cursor=0, match=None, count=100):
+        matched = []
+        for key in store:
+            if match and '*' in match:
+                if fnmatch.fnmatch(key, match):
+                    matched.append(key)
+            elif match and key == match:
+                matched.append(key)
+            elif not match:
+                matched.append(key)
+        return (0, matched)
+
+    def _expire(key, ttl):
+        ttls[key] = datetime.now(UTC).timestamp() + ttl
+        return True
+
+    def _ttl(key):
+        if key not in ttls:
+            return -1
+        remaining = ttls[key] - datetime.now(UTC).timestamp()
+        return int(remaining) if remaining > 0 else -2
+
+    client.get = MagicMock(side_effect=_get)
+    client.set = MagicMock(side_effect=_set)
+    client.setex = MagicMock(side_effect=_setex)
+    client.delete = MagicMock(side_effect=_delete)
+    client.exists = MagicMock(side_effect=_exists)
+    client.scan = MagicMock(side_effect=_scan)
+    client.expire = MagicMock(side_effect=_expire)
+    client.ttl = MagicMock(side_effect=_ttl)
+
+    return client
+
+
+@pytest.fixture
+def mock_redis_down():
+    """Simulate Redis being unavailable (connection refused)."""
+    import redis
+    client = MagicMock()
+    client.ping = MagicMock(side_effect=redis.ConnectionError("Connection refused"))
+    client.get = MagicMock(side_effect=redis.ConnectionError("Connection refused"))
+    client.set = MagicMock(side_effect=redis.ConnectionError("Connection refused"))
+    client.setex = MagicMock(side_effect=redis.ConnectionError("Connection refused"))
+    return client
+
+
+@pytest.fixture
+def no_auth_headers():
+    """Empty headers (no Authorization) for testing 401 responses."""
+    return {}
+
+
+@pytest.fixture
+def invalid_auth_headers():
+    """Invalid Authorization header for testing 401 responses."""
+    return {"Authorization": "Bearer invalid-token-abc123"}
+
+
+@pytest.fixture
+def strict_auth_client():
+    """Flask test client with REAL JWT auth (not mocked).
+
+    Stops the global mock_jwt_required patcher, creates a minimal Flask app
+    with endpoints protected by the real AuthService.jwt_required decorator,
+    and yields a test client. Restores the mock after the test.
+    """
+    from flask import Flask
+    from src.services.auth_service import AuthService
+
+    # Stop the global mock so AuthService.jwt_required is the real implementation
+    try:
+        jwt_required_patcher.stop()
+    except Exception:
+        pass
+
+    test_app = Flask(__name__)
+    test_app.config['SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-that-is-at-least-32-chars-long')
+
+    # Register minimal endpoints with REAL auth decorator
+    @test_app.route('/api/v1/mood/log', methods=['POST'])
+    @AuthService.jwt_required
+    def _log_mood():
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/mood', methods=['GET'])
+    @AuthService.jwt_required
+    def _get_mood():
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/chatbot/chat', methods=['POST'])
+    @AuthService.jwt_required
+    def _chat():
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/advanced-mood/assess/phq9', methods=['POST'])
+    @AuthService.jwt_required
+    def _phq9():
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/advanced-mood/assess/gad7', methods=['POST'])
+    @AuthService.jwt_required
+    def _gad7():
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/insights/pending/<user_id>', methods=['GET'])
+    @AuthService.jwt_required
+    def _pending_insights(user_id):
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/insights/generate/<user_id>', methods=['POST'])
+    @AuthService.jwt_required
+    def _generate_insights(user_id):
+        return {'status': 'ok'}, 200
+
+    @test_app.route('/api/v1/cbt/modules', methods=['GET'])
+    @AuthService.jwt_required
+    def _cbt_modules():
+        return {'status': 'ok'}, 200
+
+    with test_app.test_client() as test_client:
+        yield test_client
+
+    # Restore the global mock
+    try:
+        jwt_required_patcher.start()
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def make_mood_data():
+    """Factory for creating valid mood log payloads."""
+    def _make(score=5, mood_text="Neutral", note="", tags=None, valence=5, arousal=5):
+        return {
+            'score': score,
+            'mood_text': mood_text,
+            'note': note,
+            'tags': tags or [],
+            'valence': valence,
+            'arousal': arousal,
+            'timestamp': datetime.now(UTC).isoformat(),
+        }
+    return _make
+
+
+@pytest.fixture
+def make_phq9_data():
+    """Factory for creating PHQ-9 assessment payloads with correct question keys."""
+    phq9_keys = [
+        'little_interest', 'feeling_down', 'sleep_problems', 'feeling_tired',
+        'appetite', 'feeling_bad', 'concentration', 'moving_slowly', 'self_harm'
+    ]
+    def _make(answers=None):
+        if answers is None:
+            answers = [0] * 9
+        return {'responses': {k: a for k, a in zip(phq9_keys, answers)}}
+    return _make
+
+
+@pytest.fixture
+def make_gad7_data():
+    """Factory for creating GAD-7 assessment payloads with correct question keys."""
+    gad7_keys = [
+        'feeling_nervous', 'cant_control_worry', 'worrying_too_much',
+        'trouble_relaxing', 'restless', 'easily_annoyed', 'afraid'
+    ]
+    def _make(answers=None):
+        if answers is None:
+            answers = [0] * 7
+        return {'responses': {k: a for k, a in zip(gad7_keys, answers)}}
+    return _make
