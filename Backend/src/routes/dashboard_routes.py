@@ -567,21 +567,33 @@ def get_dashboard_summary(user_id: str):
         # Calculate real achievements count based on actual milestones
         achievements_count = 0
         # Mood milestones
-        if total_moods >= 1: achievements_count += 1
-        if total_moods >= 10: achievements_count += 1
-        if total_moods >= 50: achievements_count += 1
-        if total_moods >= 100: achievements_count += 1
+        if total_moods >= 1:
+            achievements_count += 1
+        if total_moods >= 10:
+            achievements_count += 1
+        if total_moods >= 50:
+            achievements_count += 1
+        if total_moods >= 100:
+            achievements_count += 1
         # Streak milestones
-        if streak_days >= 3: achievements_count += 1
-        if streak_days >= 7: achievements_count += 1
-        if streak_days >= 14: achievements_count += 1
-        if streak_days >= 30: achievements_count += 1
+        if streak_days >= 3:
+            achievements_count += 1
+        if streak_days >= 7:
+            achievements_count += 1
+        if streak_days >= 14:
+            achievements_count += 1
+        if streak_days >= 30:
+            achievements_count += 1
         # Chat milestones
-        if total_chats >= 1: achievements_count += 1
-        if total_chats >= 10: achievements_count += 1
+        if total_chats >= 1:
+            achievements_count += 1
+        if total_chats >= 10:
+            achievements_count += 1
         # Meditation milestones
-        if meditation_count >= 1: achievements_count += 1
-        if meditation_count >= 10: achievements_count += 1
+        if meditation_count >= 1:
+            achievements_count += 1
+        if meditation_count >= 10:
+            achievements_count += 1
 
         response_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
 

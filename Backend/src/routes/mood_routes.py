@@ -478,7 +478,6 @@ def log_mood() -> Response | tuple[Response, int]:
         # BACKEND DEDUPLICATION: Prevent same score within 5 minutes
         if user_score is not None:
             try:
-                now_iso = datetime.now(UTC).isoformat()
                 five_min_ago = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
                 recent_moods = db.collection('users').document(user_id).collection('moods')
                 recent_query = recent_moods.where(filter=FieldFilter('timestamp', '>=', five_min_ago)).limit(10)
