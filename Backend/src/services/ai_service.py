@@ -1495,6 +1495,7 @@ Långsiktiga välbefinnande-strategier:
 
             # 4. Fetch user's mood history for context-aware responses
             mood_context = ""
+            safety_check_context = ""
             if user_id:
                 try:
                     from src.firebase_config import db
@@ -1503,14 +1504,46 @@ Långsiktiga välbefinnande-strategier:
 
                     if recent_moods:
                         mood_scores = []
+                        mood_entries_raw: list[str] = []
+                        low_mood_count = 0
+                        negative_notes: list[str] = []
+
                         for mood_doc in recent_moods:
                             mood_data = mood_doc.to_dict()
                             score = mood_data.get("score", mood_data.get("sentiment_score", 5))
                             mood_scores.append(score)
 
+                            # Build raw data entry for transparency
+                            ts = mood_data.get("timestamp")
+                            if isinstance(ts, datetime):
+                                date_str = ts.strftime("%Y-%m-%d %H:%M")
+                            elif isinstance(ts, str):
+                                date_str = ts[:16]
+                            else:
+                                date_str = "okänt datum"
+
+                            note = (mood_data.get("note") or "").strip()
+                            tags = mood_data.get("tags") or []
+                            tags_str = f" [{', '.join(tags)}]" if tags else ""
+                            note_str = f" — \"{note}\"" if note else ""
+                            mood_entries_raw.append(f"  • {date_str}: {score}/10{tags_str}{note_str}")
+
+                            # Track low moods and negative notes for safety check
+                            if score <= 3:
+                                low_mood_count += 1
+                            if note:
+                                negative_notes.append(note)
+
                         avg_mood = sum(mood_scores) / len(mood_scores) if mood_scores else 5
 
-                        # Determine trend
+                        # Determine trend with confidence level
+                        if len(mood_scores) >= 5:
+                            confidence = "hög"
+                        elif len(mood_scores) >= 3:
+                            confidence = "måttlig"
+                        else:
+                            confidence = "låg"
+
                         if len(mood_scores) >= 3:
                             recent_avg = sum(mood_scores[:3]) / 3
                             older_avg = sum(mood_scores[3:]) / len(mood_scores[3:]) if len(mood_scores) > 3 else recent_avg
@@ -1523,14 +1556,31 @@ Långsiktiga välbefinnande-strategier:
                         else:
                             trend = "är okänt (för lite data)"
 
-                        mood_context = f"""\n\nAnvändarens humörkontext (senaste 7 dagarna):
+                        # Build enriched mood context with raw data + confidence marker
+                        raw_entries = "\n".join(mood_entries_raw)
+                        mood_context = f"""\n\nAnvändarens humördata (senaste {len(mood_scores)} loggningar, konfidens: {confidence}):
 - Genomsnittligt humör: {avg_mood:.1f}/10
 - Humörtrend: {trend}
-- Antal inlägg: {len(mood_scores)}
 - Senaste humör: {mood_scores[0]}/10
 
-Ta hänsyn till användarens humörmönster när du svarar."""
-                        logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}")
+Rådata (visa detta först, innan tolkning):
+{raw_entries}
+
+VIKTIGA INSTRUKTIONER FÖR SVARET:
+1. Börja med att referera konkreta data: "Baserat på dina senaste {len(mood_scores)} loggningar..."
+2. Visa vad datan faktiskt säger (scores, datum, anteckningar) INNAN du tolkar.
+3. Gör få tolkningar — låt användaren dra egna slutsatser.
+4. Om trenden bygger på färre än 5 loggningar, nämn att datan är begränsad."""
+                        logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}, confidence={confidence}, entries={len(mood_scores)}")
+
+                        # Safety check: low moods (<=3) combined with negative notes
+                        if low_mood_count >= 2 and negative_notes:
+                            safety_check_context = f"""\n\nSÄKERHETSCHECK (aktiv):
+Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.
+Lägg till en försiktig fråga i slutet av ditt svar, t.ex.:
+"Du har loggat flera låga värden den senaste tiden. Vill du prata med någon professionell? Jag kan hjälpa dig att hitta rätt stöd."
+Var inte alarmistisk — erbjud som ett val, inte ett krav."""
+                            logger.info(f"🛡️ Safety check triggered: {low_mood_count} low moods with notes")
                 except Exception as mood_err:
                     logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
                     mood_context = ""
@@ -1571,6 +1621,7 @@ Din roll:
 
 {base_prompt}
 {mood_context}
+{safety_check_context}
 
 VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk och personlig. Om du vet användarens namn, använd det naturligt."""
 
@@ -1806,6 +1857,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         # Per-user mood history for personalised context
         mood_context = ""
+        safety_check_context = ""
         if user_id:
             try:
                 from src.firebase_config import db
@@ -1814,11 +1866,44 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                     mood_ref.order_by("timestamp", direction="DESCENDING").limit(7).stream()
                 )
                 if recent_moods:
-                    mood_scores = [
-                        m.to_dict().get("score", m.to_dict().get("sentiment_score", 5))
-                        for m in recent_moods
-                    ]
+                    mood_scores = []
+                    mood_entries_raw: list[str] = []
+                    low_mood_count = 0
+                    negative_notes: list[str] = []
+
+                    for m in recent_moods:
+                        md = m.to_dict()
+                        score = md.get("score", md.get("sentiment_score", 5))
+                        mood_scores.append(score)
+
+                        ts = md.get("timestamp")
+                        if isinstance(ts, datetime):
+                            date_str = ts.strftime("%Y-%m-%d %H:%M")
+                        elif isinstance(ts, str):
+                            date_str = ts[:16]
+                        else:
+                            date_str = "okänt datum"
+
+                        note = (md.get("note") or "").strip()
+                        tags = md.get("tags") or []
+                        tags_str = f" [{', '.join(tags)}]" if tags else ""
+                        note_str = f" — \"{note}\"" if note else ""
+                        mood_entries_raw.append(f"  • {date_str}: {score}/10{tags_str}{note_str}")
+
+                        if score <= 3:
+                            low_mood_count += 1
+                        if note:
+                            negative_notes.append(note)
+
                     avg_mood = sum(mood_scores) / len(mood_scores)
+
+                    if len(mood_scores) >= 5:
+                        confidence = "hög"
+                    elif len(mood_scores) >= 3:
+                        confidence = "måttlig"
+                    else:
+                        confidence = "låg"
+
                     if len(mood_scores) >= 3:
                         recent_avg = sum(mood_scores[:3]) / 3
                         older_avg = sum(mood_scores[3:]) / max(len(mood_scores[3:]), 1)
@@ -1830,13 +1915,31 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                             trend = "är stabilt"
                     else:
                         trend = "är okänt (för lite data)"
+
+                    raw_entries = "\n".join(mood_entries_raw)
                     mood_context = (
-                        f"\n\nAnvändarens humörkontext (senaste 7 dagarna):\n"
+                        f"\n\nAnvändarens humördata (senaste {len(mood_scores)} loggningar, konfidens: {confidence}):\n"
                         f"- Genomsnittligt humör: {avg_mood:.1f}/10\n"
                         f"- Humörtrend: {trend}\n"
                         f"- Senaste humör: {mood_scores[0]}/10\n\n"
-                        "Ta hänsyn till användarens humörmönster när du svarar."
+                        f"Rådata (visa detta först, innan tolkning):\n"
+                        f"{raw_entries}\n\n"
+                        "VIKTIGA INSTRUKTIONER FÖR SVARET:\n"
+                        f"1. Börja med att referera konkreta data: \"Baserat på dina senaste {len(mood_scores)} loggningar...\"\n"
+                        "2. Visa vad datan faktiskt säger (scores, datum, anteckningar) INNAN du tolkar.\n"
+                        "3. Gör få tolkningar — låt användaren dra egna slutsatser.\n"
+                        "4. Om trenden bygger på färre än 5 loggningar, nämn att datan är begränsad."
                     )
+
+                    if low_mood_count >= 2 and negative_notes:
+                        safety_check_context = (
+                            f"\n\nSÄKERHETSCHECK (aktiv):\n"
+                            f"Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.\n"
+                            "Lägg till en försiktig fråga i slutet av ditt svar, t.ex.:\n"
+                            "\"Du har loggat flera låga värden den senaste tiden. Vill du prata med någon professionell? Jag kan hjälpa dig att hitta rätt stöd.\"\n"
+                            "Var inte alarmistisk — erbjud som ett val, inte ett krav."
+                        )
+                        logger.info("🛡️ Safety check triggered (stream): %s low moods with notes", low_mood_count)
             except Exception as mood_err:
                 logger.warning("⚠️ Failed to fetch mood history for system prompt: %s", mood_err)
 
@@ -1882,6 +1985,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             f"{profile_context}"
             f"{sentiment_guidance}"
             f"{mood_context}"
+            f"{safety_check_context}"
             f"{cross_context}"
             f"{memory_context}\n\n"
             "VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). "
