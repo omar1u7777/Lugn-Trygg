@@ -8,7 +8,7 @@ import logging
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 from src.firebase_config import db
@@ -732,14 +732,14 @@ class DailyInsightGeneratorV2:
 
     def _fetch_memories(self, user_id: str, days: int) -> list[dict]:
         """Fetch mood entries from Firestore (users/{user_id}/moods subcollection).
-        
+
         #8: Moods are stored with ISO-string timestamps, so cutoff must also be
         an ISO string. We avoid where+order_by (composite index) by fetching
         all moods ordered by timestamp and filtering in Python.
         """
         try:
             # Use timezone-aware UTC to match Firestore's timezone-aware datetimes
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
             cutoff_iso = cutoff.isoformat()
 
             # Fetch all moods ordered by timestamp DESC (no where filter = no index needed)
@@ -760,7 +760,7 @@ class DailyInsightGeneratorV2:
                 elif isinstance(ts, datetime):
                     # Normalize naive datetime to UTC to avoid comparison errors
                     if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=timezone.utc)
+                        ts = ts.replace(tzinfo=UTC)
                     if ts >= cutoff:
                         memories.append(data)
 
@@ -773,7 +773,7 @@ class DailyInsightGeneratorV2:
 
     def get_pending_insights(self, user_id: str) -> list[dict]:
         """Get pending insights for a user.
-        
+
         #4: Falls back to single-field query if composite index is missing.
         #8: Simplified — always use single-field query + filter in Python to avoid index issues.
         """
@@ -806,14 +806,14 @@ class DailyInsightGeneratorV2:
 
     def _fetch_activity_patterns(self, user_id: str) -> dict:
         """Fetch user activity patterns from mood entry tags.
-        
+
         #6: Replaces stub with real tag-based activity detection.
         Reads tags from users/{user_id}/moods and aggregates counts.
         #8: Avoid composite index by fetching without where filter, filter in Python.
         """
         try:
             # Use timezone-aware UTC to match Firestore's timezone-aware datetimes
-            cutoff = datetime.now(timezone.utc) - timedelta(days=self.analysis_window)
+            cutoff = datetime.now(UTC) - timedelta(days=self.analysis_window)
             cutoff_iso = cutoff.isoformat()
 
             mood_ref = db.collection('users').document(user_id).collection('moods')
@@ -832,7 +832,7 @@ class DailyInsightGeneratorV2:
                 elif isinstance(ts, datetime):
                     # Normalize naive datetime to UTC to avoid comparison errors
                     if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=timezone.utc)
+                        ts = ts.replace(tzinfo=UTC)
                     if ts < cutoff:
                         continue
 
@@ -851,7 +851,7 @@ class DailyInsightGeneratorV2:
 
     def _generate_onboarding_insight(self, user_id: str, current_count: int) -> TherapeuticInsight | None:
         """Generate onboarding insight for new users with insufficient data.
-        
+
         #5: Checks Firestore for existing onboarding insight today to avoid duplicates.
         """
         # Check if onboarding insight already exists for today
