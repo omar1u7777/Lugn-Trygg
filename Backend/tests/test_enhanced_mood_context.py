@@ -113,3 +113,45 @@ def test_low_confidence_with_2_entries(mock_getenv, ai_service, mock_openai_clie
         c.stream.return_value = moods
         prompt = ai_service._build_enhanced_system_prompt("test", "u1")
     assert "konfidens: låg" in prompt
+
+
+@patch('src.services.ai_service.os.getenv')
+def test_crisis_alert_triggered_for_suicidal_ideation(mock_getenv, ai_service, mock_openai_client):
+    """When PHQ-9 shows suicidal ideation, prompt must include KRISISLARM."""
+    mock_getenv.return_value = "test-key"
+    _setup_ai(ai_service, mock_openai_client)
+    moods = [_mood(5, datetime(2026, 7, 1, tzinfo=UTC)) for _ in range(3)]
+    phq9_doc = Mock()
+    phq9_doc.to_dict.return_value = {
+        "type": "phq9", "total_score": 7, "severity": "mild",
+        "suicidal_ideation": True, "self_harm_score": 1,
+    }
+    with patch('src.firebase_config.db') as mock_db:
+        mood_chain = mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value
+        mood_chain.stream.return_value = moods
+        assess_chain = mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value
+        assess_chain.stream.return_value = [phq9_doc]
+        prompt = ai_service._build_enhanced_system_prompt("test", "u1")
+    assert "KRISISLARM" in prompt
+    assert "90101" in prompt
+    assert "självskadetankar" in prompt
+
+
+@patch('src.services.ai_service.os.getenv')
+def test_no_crisis_alert_when_no_suicidal_ideation(mock_getenv, ai_service, mock_openai_client):
+    """When PHQ-9 has no suicidal ideation, prompt should NOT include KRISISLARM."""
+    mock_getenv.return_value = "test-key"
+    _setup_ai(ai_service, mock_openai_client)
+    moods = [_mood(5, datetime(2026, 7, 1, tzinfo=UTC)) for _ in range(3)]
+    phq9_doc = Mock()
+    phq9_doc.to_dict.return_value = {
+        "type": "phq9", "total_score": 7, "severity": "mild",
+        "suicidal_ideation": False, "self_harm_score": 0,
+    }
+    with patch('src.firebase_config.db') as mock_db:
+        mood_chain = mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value
+        mood_chain.stream.return_value = moods
+        assess_chain = mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value
+        assess_chain.stream.return_value = [phq9_doc]
+        prompt = ai_service._build_enhanced_system_prompt("test", "u1")
+    assert "KRISISLARM" not in prompt

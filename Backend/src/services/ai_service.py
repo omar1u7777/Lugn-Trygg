@@ -2036,6 +2036,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
 
         # 2. Latest PHQ-9 and GAD-7 assessment scores from clinical_assessments
         # Avoid composite index requirement by fetching recent docs and filtering in Python
+        crisis_alert = ""
         for assessment_type, label in [("phq9", "PHQ-9 (depression)"), ("gad7", "GAD-7 (ångest)")]:
             try:
                 # Fetch latest 10 assessments ordered by timestamp (no where filter = no index needed)
@@ -2056,6 +2057,23 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                             severity = a_data.get("severity") or ""
                             severity_part = f" — {severity}" if severity else ""
                             parts.append(f"- Senaste {label}: {score} p{severity_part}")
+                            # Check for suicidal ideation (PHQ-9 Q9)
+                            if assessment_type == "phq9":
+                                suicidal = a_data.get("suicidal_ideation", False)
+                                self_harm = a_data.get("self_harm_score", 0)
+                                if suicidal or (isinstance(self_harm, (int, float)) and self_harm > 0):
+                                    crisis_alert = (
+                                        "\n\nKRISISLARM (aktiv — HÖGST PRIORITET):\n"
+                                        f"Användarens senaste PHQ-9 visar självskadetankar (Q9 poäng: {self_harm}).\n"
+                                        "Du MÅSTE:\n"
+                                        "1. Bekräfta användarens känslor med empati\n"
+                                        "2. Fråga direkt och öppet om hur de mår just nu\n"
+                                        "3. Påminna om krisstöd: 90101 (dygnet runt) eller 112 vid akut fara\n"
+                                        "4. Erbjud professionell hjälp som ett konkret nästa steg\n"
+                                        "Var inte alarmistisk men var TYDLIG om att hjälp finns.\n"
+                                        "Säg inte 'det kommer gå över' eller minimera — validera istället."
+                                    )
+                                    logger.warning("🚨 Crisis alert: PHQ-9 suicidal ideation detected (self_harm_score=%s) for user %s", self_harm, user_id[:12])
                         break
             except Exception as exc:
                 logger.warning("%s score fetch failed: %s", assessment_type, exc)
@@ -2070,7 +2088,7 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
             "Referera naturligt till användarens namn och vara medveten om "
             "deras nuvarande symtomnivå, men upprepa inte poängen mekaniskt."
         )
-        return "\n\n".join(parts)
+        return "\n\n".join(parts) + crisis_alert
 
     def _fetch_cross_source_context(self, user_id: str) -> str:
         """Build a compact context block from the user's recent journal entries
