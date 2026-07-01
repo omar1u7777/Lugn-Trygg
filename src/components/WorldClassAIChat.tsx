@@ -278,7 +278,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
   const { announceToScreenReader } = useAccessibility();
   const { user } = useAuth();
-  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan } = useSubscription();
+  const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium } = useSubscription();
 
   // Streaming hook - onComplete adds the completed AI message to messages state
   const { isStreaming, currentMessage, streamMessage, clearStreamingMessage } = useStreamingChat({
@@ -718,6 +718,31 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
                 </div>
               )}
 
+              {/* Crisis escalation banner — shown when any message has crisis sentiment */}
+              {displayedMessages.some(m => m.sentiment === 'crisis') && (
+                <div className="flex justify-center mb-4 sm:mb-6 animate-fade-in-up">
+                  <div className="bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-600 rounded-xl p-3 sm:p-4 max-w-md w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                      <h3 className="font-bold text-red-700 dark:text-red-400 text-sm sm:text-base">
+                        {t('aiChat.crisisTitle', { defaultValue: 'Om du mår mycket dåligt' })}
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <a href="tel:112" className="flex items-center justify-center gap-2 bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm">
+                        <span>📞</span> {t('aiChat.crisisSos', { defaultValue: 'SOS Alarm: 112' })}
+                      </a>
+                      <a href="tel:90101" className="flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-3 py-2 rounded-lg font-semibold hover:bg-red-200 transition-colors text-sm">
+                        <span>💙</span> {t('aiChat.crisisMind', { defaultValue: 'Mind: 90101 (dygnet runt)' })}
+                      </a>
+                    </div>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                      {t('aiChat.crisisDisclaimer', { defaultValue: 'Lugn & Trygg ersätter inte professionell vård. Sök hjälp om du mår dåligt.' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {isTyping && !isStreaming && (
                 <div className="flex justify-start mb-4 sm:mb-6 animate-fade-in-up">
                   <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm border border-white/40 shadow-sm flex items-center gap-1.5 ml-8 sm:ml-12">
@@ -750,34 +775,44 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
           )}
 
           <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
-            {/* Voice input button (mobile-first, only if browser supports it) */}
+            {/* Voice input button — premium feature with gate for free users */}
             {voiceSupported && (
-              <button
-                onClick={() => {
-                  if (isListening) {
-                    stopListening();
-                    if (transcript) {
-                      setInputMessage(transcript);
+              isPremium ? (
+                <button
+                  onClick={() => {
+                    if (isListening) {
+                      stopListening();
+                      if (transcript) {
+                        setInputMessage(transcript);
+                        clearTranscript();
+                      }
+                    } else {
                       clearTranscript();
+                      startListening();
                     }
-                  } else {
-                    clearTranscript();
-                    startListening();
-                  }
-                }}
-                aria-label={isListening ? t('aiChat.stopRecording') : t('aiChat.startRecording')}
-                className={`flex-shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
-                  isListening
-                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-              >
-                {isListening ? (
-                  <StopCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                ) : (
+                  }}
+                  aria-label={isListening ? t('aiChat.stopRecording') : t('aiChat.startRecording')}
+                  className={`flex-shrink-0 p-2 sm:p-3 rounded-full transition-all min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {isListening ? (
+                    <StopCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ) : (
+                    <MicrophoneIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  )}
+                </button>
+              ) : (
+                <div
+                  className="flex-shrink-0 p-2 sm:p-3 rounded-full min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed relative"
+                  title={t('aiChat.voicePremium', { defaultValue: 'Röst är en Premium-funktion' })}
+                >
                   <MicrophoneIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                )}
-              </button>
+                  <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-400 text-amber-900 rounded-full">PRO</span>
+                </div>
+              )
             )}
 
             <textarea
@@ -820,7 +855,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               {t('aiChat.footer')}
             </span>
             <p className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 leading-snug max-w-xs mx-auto">
-              {t('aiChat.disclaimer')}
+              {t('aiChat.disclaimer')}{' '}
+              <a href="tel:90101" className="text-teal-600 dark:text-teal-400 font-medium hover:underline">
+                {t('aiChat.mindHelpline', { defaultValue: 'Mind: 90101' })}
+              </a>
             </p>
           </div>
         </div>

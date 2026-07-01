@@ -421,7 +421,13 @@
     "startRecording": "Starta röstinspelning",
     "listening": "🎤 Lyssnar...",
     "send": "Skicka meddelande",
-    "errorShort": "Tyvärr kunde jag inte svara just nu. Försök igen om en stund."
+    "errorShort": "Tyvärr kunde jag inte svara just nu. Försök igen om en stund.",
+    "mindHelpline": "Mind: 90101",
+    "crisisTitle": "Om du mår mycket dåligt",
+    "crisisSos": "📞 SOS Alarm: 112",
+    "crisisMind": "💙 Mind: 90101 (dygnet runt)",
+    "crisisDisclaimer": "Lugn & Trygg ersätter inte professionell vård. Sök hjälp om du mår dåligt.",
+    "voicePremium": "Röst är en Premium-funktion"
   },
   "subscription": {
     "title": "Uppgradera till Premium",

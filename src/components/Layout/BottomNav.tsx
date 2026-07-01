@@ -16,7 +16,6 @@ import {
   TrophyIcon,
   UserGroupIcon,
   SparklesIcon,
-  MicrophoneIcon,
   StarIcon,
   LightBulbIcon,
   ClipboardDocumentCheckIcon,
@@ -66,7 +65,6 @@ const EXPLORE_TILES: FeatureTile[] = [
   { path: '/insights', labelKey: 'sidebar.premium.insights', labelDefault: 'Insikter', icon: ChartBarIcon, premium: true, color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-300' },
   { path: '/rewards', labelKey: 'sidebar.premium.rewards', labelDefault: 'Belöningar', icon: TrophyIcon, premium: true, color: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-300' },
   { path: '/social', labelKey: 'sidebar.premium.community', labelDefault: 'Gemenskap', icon: UserGroupIcon, premium: true, color: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-300' },
-  { path: '/voice-chat', labelKey: 'bottomNav.voiceChat', labelDefault: 'Röstchatt AI', icon: MicrophoneIcon, premium: true, color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-300' },
 ];
 
 /**

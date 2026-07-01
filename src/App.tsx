@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import ProtectedRoute from "./components/Layout/ProtectedRoute";
@@ -129,6 +129,9 @@ function App() {
                             />
                         ))}
                     </Route>
+
+                    {/* Redirect old /voice-chat to unified /ai-chat */}
+                    <Route path="/voice-chat" element={<Navigate to="/ai-chat" replace />} />
 
                     <Route
                         path="*"

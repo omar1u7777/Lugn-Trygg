@@ -13,7 +13,6 @@ import {
   ChartBarIcon,
   TrophyIcon,
   UserGroupIcon,
-  MicrophoneIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   MusicalNoteIcon,
@@ -39,7 +38,6 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   TrophyIcon as TrophyIconSolid,
   UserGroupIcon as UserGroupIconSolid,
-  MicrophoneIcon as MicrophoneIconSolid,
   MusicalNoteIcon as MusicalNoteIconSolid,
   LightBulbIcon as LightBulbIconSolid,
   PresentationChartLineIcon as PresentationChartLineIconSolid,
@@ -79,7 +77,6 @@ const FREE_NAV_ITEMS: NavItem[] = [
 
 /** Premium items grouped separately — free users see a collapsed section instead of 10+ cluttered items. */
 const PREMIUM_NAV_ITEMS: NavItem[] = [
-  { path: '/voice-chat', labelKey: 'sidebar.premium.voiceChat', labelDefault: 'Röstchatt', icon: MicrophoneIcon, iconActive: MicrophoneIconSolid, premium: true },
   { path: '/recommendations', labelKey: 'sidebar.premium.recommendations', labelDefault: 'Rekommendationer', icon: SparklesIcon, iconActive: SparklesIconSolid, premium: true },
   { path: '/wellness', labelKey: 'sidebar.premium.wellness', labelDefault: 'Välmående', icon: HeartIcon, iconActive: HeartIconSolid, premium: true },
   { path: '/journal', labelKey: 'sidebar.premium.journal', labelDefault: 'Dagbok', icon: BookOpenIcon, iconActive: BookOpenIconSolid, premium: true },

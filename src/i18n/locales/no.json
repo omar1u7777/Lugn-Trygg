@@ -421,7 +421,13 @@
     "startRecording": "Start stemmeopptak",
     "listening": "🎤 Lytter...",
     "send": "Send melding",
-    "errorShort": "Beklager, jeg kunne ikke svare akkurat nå. Prøv igjen om en liten stund."
+    "errorShort": "Beklager, jeg kunne ikke svare akkurat nå. Prøv igjen om en liten stund.",
+    "mindHelpline": "Mind: 90101",
+    "crisisTitle": "Hvis du føler deg veldig dårlig",
+    "crisisSos": "📞 SOS Alarm: 112",
+    "crisisMind": "💙 Mind: 90101 (døgnet rundt)",
+    "crisisDisclaimer": "Lugn & Trygg erstatter ikke profesjonell omsorg. Søk hjelp hvis du føler deg dårlig.",
+    "voicePremium": "Stemme er en Premium-funksjon"
   },
   "subscription": {
     "title": "Oppgrader til Premium",

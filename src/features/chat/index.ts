@@ -6,7 +6,6 @@
 
 // Components
 export { default as WorldClassAIChat } from '../../components/WorldClassAIChat';
-export { default as VoiceChat } from '../../components/VoiceChat';
 
 // Hooks
 export { useChatData } from './hooks/useChatData';

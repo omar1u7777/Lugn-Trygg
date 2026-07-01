@@ -37,12 +37,11 @@ const PREMIUM_BENEFITS = [
   'Belöningar & gamification',
   'Sociala funktioner',
   'Exportera din data',
-  'Röstchatt med AI',
+  'Röstinput i AI-chatten',
 ];
 
 /** Funktionsnamn på svenska */
-const FEATURE_NAMES: Record<FeatureName, string> = {
-  voiceChat: 'Röstchatt',
+const FEATURE_NAMES: Partial<Record<FeatureName, string>> = {
   sounds: 'Lugnande ljud',
   analytics: 'Analyser',
   insights: 'Insikter',

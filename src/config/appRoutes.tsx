@@ -26,7 +26,6 @@ const OAuthHealthIntegrations = lazy(() => import('@/components/Integrations/OAu
 const ReferralProgram = lazy(() => import('@/components/Referral/ReferralProgram'));
 const FeedbackForm = lazy(() => import('@/components/Feedback/FeedbackForm'));
 const ProfileHub = lazy(() => import('@/components/ProfileHub'));
-const VoiceChat = lazy(() => import('@/components/VoiceChat'));
 const VoicePage = lazy(() => import('@/pages/VoicePage'));
 const StoryInsights = lazy(() => import('@/components/StoryInsights'));
 const PerformanceDashboard = lazy(() => import('@/components/PerformanceDashboard'));
@@ -84,10 +83,9 @@ export const ROUTES: RouteDefinition[] = [
   // Advanced AI Chat Routes (2026)
   { path: '/ai-chat/insights', component: AIChatInsights, protected: true, feature: 'insights', featureTitle: 'AI-samtalsinsikter är en Premium-funktion' },
   // [D6] /voice = standalone voice recorder/transcription (VoiceRecorder, public route)
-  //       /voice-chat = premium AI voice conversation (VoiceChat + chatWithAI, premium)
-  //       These serve distinct purposes and are intentionally separate.
+  //       /voice-chat removed — voice is now integrated into /ai-chat (WorldClassAIChat)
+  //       with premium gate on mic button.
   { path: '/voice', component: VoicePage, protected: true },
-  { path: '/voice-chat', component: VoiceChat, protected: true, feature: 'voiceChat', featureTitle: 'Röstchatt är en Premium-funktion' },
   // [D6] /mood-logger removed — was identical to /mood-basic (both render SuperMoodLogger).
   //       Sidebar, BottomNav, and Dashboard all link to /mood-basic.
   { path: '/mood-basic', component: MoodLoggerBasicWrapper, protected: true },
