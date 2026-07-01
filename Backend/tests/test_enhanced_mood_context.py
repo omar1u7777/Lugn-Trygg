@@ -62,6 +62,10 @@ def test_prompt_includes_confidence(mock_getenv, ai_service, mock_openai_client)
         prompt = ai_service._build_enhanced_system_prompt("test", "u1")
     assert "konfidens: måttlig" in prompt
     assert "Baserat på dina senaste 3 loggningar" in prompt
+    assert "Mönster:" in prompt
+    assert "begränsad" in prompt
+    assert "ALDRIG" in prompt
+    assert "4 datapunkter" in prompt
 
 
 @patch('src.services.ai_service.os.getenv')
@@ -78,7 +82,9 @@ def test_safety_check_triggered(mock_getenv, ai_service, mock_openai_client):
         c.stream.return_value = moods
         prompt = ai_service._build_enhanced_system_prompt("test", "u1")
     assert "SÄKERHETSCHECK" in prompt
+    assert "MÅSTE" in prompt
     assert "professionell" in prompt
+    assert "EFTER reflektionsfrågan" in prompt
 
 
 @patch('src.services.ai_service.os.getenv')
