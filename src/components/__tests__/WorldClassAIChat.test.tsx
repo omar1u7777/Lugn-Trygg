@@ -20,6 +20,10 @@ vi.mock('react-i18next', () => {
     'aiChat.loadOlder': 'Ladda fler', 'aiChat.offline': 'Offline',
     'aiChat.reconnecting': 'Återansluter', 'aiChat.messagesLeft': '{{count}} kvar',
     'aiChat.stopSpeaking': 'Stoppa', 'aiChat.listenToMessage': 'Lyssna',
+    'aiChat.mindHelpline': 'Mind: 90101', 'aiChat.crisisTitle': 'Om du mår mycket dåligt',
+    'aiChat.crisisSos': '📞 SOS Alarm: 112', 'aiChat.crisisMind': '💙 Mind: 90101 (dygnet runt)',
+    'aiChat.crisisDisclaimer': 'Lugn & Trygg ersätter inte professionell vård.',
+    'aiChat.voicePremium': 'Röst är en Premium-funktion',
     'common.close': 'Stäng',
   };
   const t = (k: string, second?: string | { count?: number }) => {
@@ -70,6 +74,7 @@ const defaultUser = { user_id: 'user-1', email: 'test@test.com' };
 const defaultSub = {
   canSendMessage: () => true, incrementChatMessage: vi.fn(),
   getRemainingMessages: () => 10, plan: { tier: 'free', limits: { chatMessagesPerDay: 20 } },
+  isPremium: false,
 };
 const defaultStream = { isStreaming: false, currentMessage: null, streamMessage: vi.fn().mockResolvedValue(undefined), clearStreamingMessage: vi.fn() };
 const defaultVoice = { isListening: false, isSupported: false, startListening: vi.fn(), stopListening: vi.fn(), transcript: '', clearTranscript: vi.fn() };
@@ -233,26 +238,67 @@ describe('WorldClassAIChat', () => {
     });
   });
 
-  describe('Voice input', () => {
-    it('shows mic button when voice supported', async () => {
-      setupMocks({ voice: { isSupported: true } });
+  describe('Voice input — premium gate', () => {
+    it('shows active mic button for premium users when voice supported', async () => {
+      setupMocks({ voice: { isSupported: true }, subscription: { isPremium: true } });
       renderChat();
       await waitFor(() => expect(screen.getByRole('button', { name: 'Spela in' })).toBeInTheDocument());
     });
-    it('hides mic button when voice not supported', async () => {
-      setupMocks({ voice: { isSupported: false } });
+    it('shows PRO badge on mic for free users when voice supported', async () => {
+      setupMocks({ voice: { isSupported: true }, subscription: { isPremium: false } });
+      const { container } = renderChat();
+      await waitFor(() => expect(screen.getByText('PRO')).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: 'Spela in' })).not.toBeInTheDocument();
+    });
+    it('hides mic button entirely when voice not supported', async () => {
+      setupMocks({ voice: { isSupported: false }, subscription: { isPremium: true } });
       renderChat();
       await waitFor(() => expect(screen.queryByRole('button', { name: 'Spela in' })).not.toBeInTheDocument());
+      expect(screen.queryByText('PRO')).not.toBeInTheDocument();
     });
-    it('shows stop button when listening', async () => {
-      setupMocks({ voice: { isSupported: true, isListening: true } });
+    it('shows stop button when premium user is listening', async () => {
+      setupMocks({ voice: { isSupported: true, isListening: true }, subscription: { isPremium: true } });
       renderChat();
       await waitFor(() => expect(screen.getByRole('button', { name: 'Stoppa' })).toBeInTheDocument());
     });
-    it('shows listening placeholder when recording', async () => {
-      setupMocks({ voice: { isSupported: true, isListening: true } });
+    it('shows listening placeholder when premium user is recording', async () => {
+      setupMocks({ voice: { isSupported: true, isListening: true }, subscription: { isPremium: true } });
       renderChat();
       await waitFor(() => expect(screen.getByPlaceholderText('Lyssnar...')).toBeInTheDocument());
+    });
+  });
+
+  describe('Crisis banner', () => {
+    it('shows crisis banner with clickable 90101 and 112 when message has crisis sentiment', async () => {
+      setupMocks({ chatHistory: { conversation: [
+        { role: 'assistant', content: 'Du är inte ensam.', timestamp: new Date().toISOString(), sentiment: 'crisis' },
+      ] } });
+      const { container } = renderChat();
+      await waitFor(() => expect(screen.getByText('Du är inte ensam.')).toBeInTheDocument());
+      const sosLink = container.querySelector('a[href="tel:112"]');
+      expect(sosLink).toBeTruthy();
+      const mindCrisisLink = container.querySelector('a[href="tel:90101"]');
+      expect(mindCrisisLink).toBeTruthy();
+      expect(screen.getByText('Om du mår mycket dåligt')).toBeInTheDocument();
+    });
+    it('does not show crisis banner when no crisis messages', async () => {
+      setupMocks({ chatHistory: { conversation: [
+        { role: 'assistant', content: 'Allt är bra.', timestamp: new Date().toISOString() },
+      ] } });
+      const { container } = renderChat();
+      await waitFor(() => expect(screen.getByText('Allt är bra.')).toBeInTheDocument());
+      expect(container.querySelector('a[href="tel:112"]')).toBeNull();
+      expect(screen.queryByText('Om du mår mycket dåligt')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Footer crisis link', () => {
+    it('renders clickable tel:90101 link in footer', async () => {
+      const { container } = renderChat();
+      await waitFor(() => expect(screen.getByPlaceholderText('Skriv ditt meddelande...')).toBeInTheDocument());
+      const mindLinks = container.querySelectorAll('a[href="tel:90101"]');
+      expect(mindLinks.length).toBeGreaterThanOrEqual(1);
+      mindLinks.forEach(link => expect(link).toHaveAttribute('href', 'tel:90101'));
     });
   });
 

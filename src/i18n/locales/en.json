@@ -701,7 +701,13 @@
     "startRecording": "Start voice recording",
     "listening": "🎤 Listening...",
     "send": "Send message",
-    "errorShort": "Sorry, I couldn't respond right now. Please try again in a moment."
+    "errorShort": "Sorry, I couldn't respond right now. Please try again in a moment.",
+    "mindHelpline": "Mind: 90101",
+    "crisisTitle": "If you're feeling very unwell",
+    "crisisSos": "📞 SOS Alarm: 112",
+    "crisisMind": "💙 Mind: 90101 (24/7)",
+    "crisisDisclaimer": "Lugn & Trygg does not replace professional care. Seek help if you're feeling unwell.",
+    "voicePremium": "Voice is a Premium feature"
   },
   "voiceChat": {
     "title": "🎤 Voice Analysis & AI Therapist",
