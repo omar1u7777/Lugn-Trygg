@@ -1567,19 +1567,26 @@ Rådata (visa detta först, innan tolkning):
 {raw_entries}
 
 VIKTIGA INSTRUKTIONER FÖR SVARET:
-1. Börja med att referera konkreta data: "Baserat på dina senaste {len(mood_scores)} loggningar..."
-2. Visa vad datan faktiskt säger (scores, datum, anteckningar) INNAN du tolkar.
-3. Gör få tolkningar — låt användaren dra egna slutsatser.
-4. Om trenden bygger på färre än 5 loggningar, nämn att datan är begränsad."""
+1. Börja med: 'Baserat på dina senaste {len(mood_scores)} loggningar (konfidens: {confidence})...'
+2. Visa rådatan i en punktlista med datum, score och anteckningar INNAN någon tolkning.
+3. Efter rådatan, skriv en sektion märkt 'Mönster:' med 1-2 datadrivna observationer.
+4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.
+5. Dra ALDRIG slutsatser om mönster (t.ex. 'snabba humörväxlingar') baserat på färre än 4 datapunkter.
+6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: 'Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.'"""
                         logger.info(f"📊 Mood context added: avg={avg_mood:.1f}, trend={trend}, confidence={confidence}, entries={len(mood_scores)}")
 
                         # Safety check: low moods (<=3) combined with negative notes
                         if low_mood_count >= 2 and negative_notes:
-                            safety_check_context = f"""\n\nSÄKERHETSCHECK (aktiv):
+                            safety_check_context = f"""\n\nSÄKERHETSCHECK (aktiv — MÅSTE följas):
 Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.
-Lägg till en försiktig fråga i slutet av ditt svar, t.ex.:
-"Du har loggat flera låga värden den senaste tiden. Vill du prata med någon professionell? Jag kan hjälpa dig att hitta rätt stöd."
-Var inte alarmistisk — erbjud som ett val, inte ett krav."""
+Du MÅSTE lägga till detta i slutet av ditt svar (efter reflektionsfrågan):
+
+"Jag ser att du har loggat flera låga värden den senaste tiden. Om du vill prata med någon professionell kan jag hjälpa dig att hitta rätt stöd — det är helt upp till dig."
+
+Regler:
+- Erbjud som ett val, inte ett krav
+- Var inte alarmistisk
+- Placera EFTER reflektionsfrågan, inte före"""
                             logger.info(f"🛡️ Safety check triggered: {low_mood_count} low moods with notes")
                 except Exception as mood_err:
                     logger.warning(f"⚠️ Failed to fetch mood history: {mood_err}")
@@ -1925,19 +1932,24 @@ VIKTIGT: Svara ALLTID på svenska, kort och tydligt (max 150 ord). Var empatisk 
                         f"Rådata (visa detta först, innan tolkning):\n"
                         f"{raw_entries}\n\n"
                         "VIKTIGA INSTRUKTIONER FÖR SVARET:\n"
-                        f"1. Börja med att referera konkreta data: \"Baserat på dina senaste {len(mood_scores)} loggningar...\"\n"
-                        "2. Visa vad datan faktiskt säger (scores, datum, anteckningar) INNAN du tolkar.\n"
-                        "3. Gör få tolkningar — låt användaren dra egna slutsatser.\n"
-                        "4. Om trenden bygger på färre än 5 loggningar, nämn att datan är begränsad."
+                        f"1. Börja med: \"Baserat på dina senaste {len(mood_scores)} loggningar (konfidens: {confidence})...\"\n"
+                        "2. Visa rådatan i en punktlista med datum, score och anteckningar INNAN någon tolkning.\n"
+                        "3. Efter rådatan, skriv en sektion märkt \"Mönster:\" med 1-2 datadrivna observationer.\n"
+                        "4. Gör MAX 1 tolkning — formulera den som en fråga, inte ett påstående.\n"
+                        "5. Dra ALDRIG slutsatser om mönster (t.ex. \"snabba humörväxlingar\") baserat på färre än 4 datapunkter.\n"
+                        f"6. Om trenden bygger på färre än 5 loggningar, skriv uttryckligen: \"Notera: datan är begränsad till {len(mood_scores)} loggningar, trenden är indicativ.\""
                     )
 
                     if low_mood_count >= 2 and negative_notes:
                         safety_check_context = (
-                            f"\n\nSÄKERHETSCHECK (aktiv):\n"
+                            f"\n\nSÄKERHETSCHECK (aktiv — MÅSTE följas):\n"
                             f"Användaren har {low_mood_count} låga humörloggningar (≤3/10) med anteckningar.\n"
-                            "Lägg till en försiktig fråga i slutet av ditt svar, t.ex.:\n"
-                            "\"Du har loggat flera låga värden den senaste tiden. Vill du prata med någon professionell? Jag kan hjälpa dig att hitta rätt stöd.\"\n"
-                            "Var inte alarmistisk — erbjud som ett val, inte ett krav."
+                            "Du MÅSTE lägga till detta i slutet av ditt svar (efter reflektionsfrågan):\n\n"
+                            "\"Jag ser att du har loggat flera låga värden den senaste tiden. Om du vill prata med någon professionell kan jag hjälpa dig att hitta rätt stöd — det är helt upp till dig.\"\n\n"
+                            "Regler:\n"
+                            "- Erbjud som ett val, inte ett krav\n"
+                            "- Var inte alarmistisk\n"
+                            "- Placera EFTER reflektionsfrågan, inte före"
                         )
                         logger.info("🛡️ Safety check triggered (stream): %s low moods with notes", low_mood_count)
             except Exception as mood_err:
