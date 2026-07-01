@@ -18,8 +18,12 @@ type SupportedEnvKeys =
 // ⚠️ SECURITY: NO DEFAULT VALUES FOR SENSITIVE KEYS!
 // All sensitive configuration MUST be set via environment variables.
 // This prevents accidental exposure of credentials in source code.
+const isProd = typeof window !== 'undefined'
+  && !window.location.hostname.includes('localhost')
+  && !window.location.hostname.includes('127.0.0.1');
+
 const DEFAULTS: Record<SupportedEnvKeys, string | undefined> = {
-  VITE_BACKEND_URL: 'http://localhost:5001',  // Development default
+  VITE_BACKEND_URL: isProd ? '' : 'http://localhost:5001',  // Prod: empty = relative URLs via Vercel proxy
   VITE_FIREBASE_API_KEY: undefined,  // ✅ REQUIRED: Must be set via .env
   VITE_FIREBASE_AUTH_DOMAIN: undefined,  // ✅ REQUIRED: Must be set via .env
   VITE_FIREBASE_PROJECT_ID: undefined,  // ✅ REQUIRED: Must be set via .env
