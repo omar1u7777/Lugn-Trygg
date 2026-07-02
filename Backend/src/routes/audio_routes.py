@@ -222,6 +222,75 @@ AUDIO_LIBRARY = {
                 'url': 'https://upload.wikimedia.org/wikipedia/commons/c/ce/Ambient_-_Pad_-_Warm_%28ccbysa%29.ogg',
                 'description': 'Lugn musik för fokuserat arbete',
                 'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
+            },
+            {
+                'id': 'concentration-piano',
+                'title': 'Fokus Piano',
+                'title_en': 'Focus Piano',
+                'artist': 'Classical Focus',
+                'duration': '20:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Chopin_Nocturne_Op.9_No.2.ogg',
+                'description': 'Klassiskt piano för djup koncentration',
+                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+            }
+        ]
+    },
+    'sleep_stories': {
+        'id': 'sleep_stories',
+        'name': 'Sovsagor',
+        'name_en': 'Sleep Stories',
+        'icon': '📖',
+        'description': 'Lugnande berättelser för nedvarvning och sömn',
+        'tracks': [
+            {
+                'id': 'star-journey',
+                'title': 'Stjärnresan',
+                'title_en': 'Star Journey',
+                'artist': 'Lugn Trygg',
+                'duration': '12:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/34/Ambient_-_Pad_-_Ethereal_%28ccbysa%29.ogg',
+                'description': 'Lugn godnattsaga för nedvarvning — dröm dig bort bland stjärnorna',
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
+            },
+            {
+                'id': 'rainforest-rest',
+                'title': 'Regnskogens Vila',
+                'title_en': 'Rainforest Rest',
+                'artist': 'Lugn Trygg',
+                'duration': '15:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Karnataka_forest_soundscape.ogg',
+                'description': 'Mjuk berättelse med naturljud från regnskogen',
+                'license': 'CC BY 3.0 (Wikimedia Commons)'
+            },
+            {
+                'id': 'ocean-breath',
+                'title': 'Havets Andetag',
+                'title_en': 'Ocean Breath',
+                'artist': 'Lugn Trygg',
+                'duration': '20:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/7/73/Calm_sea_waves-Andres_Salasar.ogg',
+                'description': 'Djup vila med havsrytm och guidning',
+                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+            },
+            {
+                'id': 'moonlit-forest',
+                'title': 'Månlit Skog',
+                'title_en': 'Moonlit Forest',
+                'artist': 'Lugn Trygg',
+                'duration': '18:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Babbling_stream.ogg',
+                'description': 'Stillhet i en månlit skog med porlande bäck',
+                'license': 'CC BY 3.0 (Wikimedia Commons)'
+            },
+            {
+                'id': 'winter-calm',
+                'title': 'Vinterlugn',
+                'title_en': 'Winter Calm',
+                'artist': 'Lugn Trygg',
+                'duration': '14:00',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/6/69/Raindrop_1.ogg',
+                'description': 'Fräscht vinterlugn med mjuka regndroppar',
+                'license': 'CC0 - Public Domain (Wikimedia Commons)'
             }
         ]
     }

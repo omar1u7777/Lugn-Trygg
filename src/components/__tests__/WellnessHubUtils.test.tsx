@@ -202,8 +202,8 @@ describe('WellnessHub component', () => {
     render(<WellnessHub />);
 
     expect(await screen.findByText('wellnessHub.title')).toBeInTheDocument();
-    expect(screen.getByText('Guidade Meditationer')).toBeInTheDocument();
-    expect(screen.getByText('Andningsövningar')).toBeInTheDocument();
+    expect(screen.getByText('wellnessHub.guidedMeditations')).toBeInTheDocument();
+    expect(screen.getByText('wellnessHub.breathingExercisesTitle')).toBeInTheDocument();
     expect(screen.getByTestId('relaxing-sounds')).toBeInTheDocument();
     expect(screen.getByTestId('wellness-sleep-section')).toBeInTheDocument();
   });
@@ -234,12 +234,12 @@ describe('WellnessHub component', () => {
   it('filters content by category pills', async () => {
     render(<WellnessHub />);
 
-    await screen.findByText('Guidade Meditationer');
+    await screen.findByText('wellnessHub.guidedMeditations');
     fireEvent.click(screen.getByTestId('wellness-category-sounds'));
 
     expect(screen.getByTestId('relaxing-sounds')).toBeInTheDocument();
-    expect(screen.queryByText('Guidade Meditationer')).not.toBeInTheDocument();
-    expect(screen.queryByText('Andningsövningar')).not.toBeInTheDocument();
+    expect(screen.queryByText('wellnessHub.guidedMeditations')).not.toBeInTheDocument();
+    expect(screen.queryByText('wellnessHub.breathingExercisesTitle')).not.toBeInTheDocument();
   });
 
   it('opens goals modal and updates goals on onboarding completion', async () => {
@@ -260,14 +260,14 @@ describe('WellnessHub component', () => {
     render(<WellnessHub />);
 
     fireEvent.click(await screen.findByText('Morgonfokus'));
-    expect(screen.getByText('Spelar nu')).toBeInTheDocument();
+    expect(screen.getByText('wellnessHub.nowPlaying')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pausa meditation' }));
-    expect(screen.getByRole('button', { name: 'Fortsätt meditation' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'wellnessHub.pauseMeditation' }));
+    expect(screen.getByRole('button', { name: 'wellnessHub.resumeMeditation' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Avsluta meditation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'wellnessHub.stopMeditation' }));
     await waitFor(() => {
-      expect(screen.queryByText('Spelar nu')).not.toBeInTheDocument();
+      expect(screen.queryByText('wellnessHub.nowPlaying')).not.toBeInTheDocument();
     });
   }, 15000);
 });

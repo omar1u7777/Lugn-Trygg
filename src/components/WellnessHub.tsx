@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   SparklesIcon,
@@ -26,6 +26,7 @@ import { Button } from './ui/tailwind'; // Keep compatible
 import OptimizedImage from './ui/OptimizedImage';
 import { getWellnessHeroImageId } from '../config/env';
 import { logger } from '../utils/logger';
+const BreathingExercise = lazy(() => import('./recommendations/BreathingExercise').then(m => ({ default: m.BreathingExercise })));
 
 
 // ----------------------------------------------------------------------
@@ -146,6 +147,12 @@ const formatStreakLabel = (days: number): string => {
 // Components
 // ----------------------------------------------------------------------
 
+const SLEEP_STORY_URLS: Record<string, string> = {
+  's1': 'https://upload.wikimedia.org/wikipedia/commons/3/34/Ambient_-_Pad_-_Ethereal_%28ccbysa%29.ogg',
+  's2': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Karnataka_forest_soundscape.ogg',
+  's3': 'https://upload.wikimedia.org/wikipedia/commons/7/73/Calm_sea_waves-Andres_Salasar.ogg',
+};
+
 const CategoryPill: React.FC<{
   active: boolean;
   label: string;
@@ -257,6 +264,13 @@ const WellnessHub: React.FC = () => {
 
   // UI State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const [activeBreathingExercise, setActiveBreathingExercise] = useState<MeditationOption | null>(null);
+  const [showSleepPlayer, setShowSleepPlayer] = useState(false);
+  const [selectedSleepStory, setSelectedSleepStory] = useState<MeditationOption | null>(null);
+  const [sleepStoryPlaying, setSleepStoryPlaying] = useState(false);
+  const [sleepStoryTimeLeft, setSleepStoryTimeLeft] = useState(0);
+  const sleepStoryAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sleepStoryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ----------------------------------------------------------------------
   // Data Fetching
@@ -363,13 +377,13 @@ const WellnessHub: React.FC = () => {
       }));
     } catch (e) { logger.error('Failed to save meditation session:', e); }
 
-    stopMeditation();
+    resetMeditationState();
   };
 
   // Keep ref current so interval callback always calls latest completeMeditation
   completeMeditationRef.current = completeMeditation;
 
-  const stopMeditation = () => {
+  const resetMeditationState = () => {
     if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
     setIsMeditationActive(false);
     setSelectedMeditation(null);
@@ -377,6 +391,30 @@ const WellnessHub: React.FC = () => {
     setIsPaused(false);
     pausedDurationMsRef.current = 0;
     pauseStartTimeRef.current = null;
+  };
+
+  const stopMeditation = async () => {
+    // Save partial session if user started and at least some time elapsed
+    if (selectedMeditation && meditationStartTime && user?.user_id) {
+      const rawElapsedMs = new Date().getTime() - meditationStartTime.getTime();
+      const activeDurationMs = Math.max(0, rawElapsedMs - pausedDurationMsRef.current);
+      const duration = Math.round(activeDurationMs / 1000 / 60);
+      if (duration >= 1) {
+        try {
+          await saveMeditationSession({
+            type: selectedMeditation.type,
+            duration,
+            technique: selectedMeditation.title,
+            completedCycles: 1,
+            notes: 'Session stopped early by user'
+          });
+          setWellnessStats(prev => ({
+            ...applySessionCompletionStats(prev, selectedMeditation.type, duration)
+          }));
+        } catch (e) { logger.error('Failed to save partial meditation session:', e); }
+      }
+    }
+    resetMeditationState();
   };
 
   const startMeditation = (meditation: MeditationOption) => {
@@ -423,6 +461,60 @@ const WellnessHub: React.FC = () => {
     const s = secs % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
+
+  // ── Sleep Story Playback ──────────────────────────────────────────────
+
+  const stopSleepStory = useCallback(() => {
+    if (sleepStoryAudioRef.current) {
+      sleepStoryAudioRef.current.pause();
+      sleepStoryAudioRef.current = null;
+    }
+    if (sleepStoryTimerRef.current) {
+      clearInterval(sleepStoryTimerRef.current);
+      sleepStoryTimerRef.current = null;
+    }
+    setSleepStoryPlaying(false);
+    setSleepStoryTimeLeft(0);
+    setSelectedSleepStory(null);
+  }, []);
+
+  const playSleepStory = useCallback((story: MeditationOption) => {
+    stopSleepStory();
+    const url = SLEEP_STORY_URLS[story.id];
+    if (!url) return;
+
+    const audio = new Audio(url);
+    audio.volume = 0.6;
+    sleepStoryAudioRef.current = audio;
+
+    setSelectedSleepStory(story);
+    setSleepStoryTimeLeft(story.duration * 60);
+    setSleepStoryPlaying(true);
+
+    audio.play().catch((e) => logger.error('Sleep story playback failed:', e));
+
+    sleepStoryTimerRef.current = setInterval(() => {
+      setSleepStoryTimeLeft((prev) => {
+        if (prev <= 1) {
+          stopSleepStory();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [stopSleepStory]);
+
+  useEffect(() => {
+    return () => {
+      if (sleepStoryAudioRef.current) {
+        sleepStoryAudioRef.current.pause();
+        sleepStoryAudioRef.current = null;
+      }
+      if (sleepStoryTimerRef.current) {
+        clearInterval(sleepStoryTimerRef.current);
+      }
+    };
+  }, []);
 
 
   // ----------------------------------------------------------------------
@@ -618,8 +710,8 @@ const WellnessHub: React.FC = () => {
           <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-opacity duration-300">
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Spelar nu</h3>
-                <button onClick={stopMeditation} aria-label="Avsluta meditation" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">{t('wellnessHub.nowPlaying')}</h3>
+                <button onClick={stopMeditation} aria-label={t('wellnessHub.stopMeditation')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
                   <StopIcon className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
@@ -640,7 +732,7 @@ const WellnessHub: React.FC = () => {
               <div className="flex justify-center gap-6">
                 <button
                   onClick={togglePause}
-                  aria-label={isPaused ? 'Fortsätt meditation' : 'Pausa meditation'}
+                  aria-label={isPaused ? t('wellnessHub.resumeMeditation') : t('wellnessHub.pauseMeditation')}
                   className="w-16 h-16 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-lg shadow-primary-500/40 hover:scale-105 transition-transform"
                 >
                   {isPaused ? <PlayIcon className="w-8 h-8 ml-1" /> : <PauseIcon className="w-8 h-8" />}
@@ -656,7 +748,7 @@ const WellnessHub: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => setShowGoalsModal(false)}
-                aria-label="Stäng"
+                aria-label={t('wellnessHub.close')}
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <XMarkIcon className="w-6 h-6 text-gray-500" />
@@ -676,26 +768,72 @@ const WellnessHub: React.FC = () => {
           </div>
         )}
 
+        {/* Breathing Exercise Modal */}
+        {activeBreathingExercise && (
+          <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+              <button
+                onClick={() => setActiveBreathingExercise(null)}
+                aria-label={t('wellnessHub.close')}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <XMarkIcon className="w-6 h-6 text-gray-500" />
+              </button>
+              <div className="p-4 sm:p-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">{activeBreathingExercise.title}</h2>
+                <Suspense fallback={
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  </div>
+                }>
+                  <BreathingExercise
+                    {...(user?.user_id ? { userId: user.user_id } : {})}
+                    onComplete={(cycles) => {
+                      setWellnessStats(prev => ({
+                        ...applySessionCompletionStats(prev, 'breathing_exercise', activeBreathingExercise.duration)
+                      }));
+                      if (user?.user_id) {
+                        saveMeditationSession({
+                          type: 'breathing_exercise',
+                          duration: activeBreathingExercise.duration,
+                          technique: activeBreathingExercise.title,
+                          completedCycles: cycles,
+                          notes: 'Completed breathing exercise'
+                        }).catch(e => logger.error('Failed to save breathing session:', e));
+                      }
+                      setActiveBreathingExercise(null);
+                    }}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Categories Display */}
         {(activeCategory === 'all' || activeCategory === 'meditation') && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Guidade Meditationer</h2>
-              <Button variant="ghost" className="text-primary-600">Visa alla</Button>
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-8 rounded-full bg-primary-500" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.guidedMeditations')}</h2>
+              </div>
+              <Button variant="ghost" className="text-primary-600" onClick={() => setActiveCategory('meditation')}>{t('wellnessHub.viewAll')}</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {meditations.map(m => (
-                <div key={m.id} role="button" tabIndex={0} onClick={() => startMeditation(m)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(m); } }} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-primary-200 dark:hover:border-primary-700/50 hover:shadow-lg transition-all cursor-pointer">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div key={m.id} role="button" tabIndex={0} onClick={() => startMeditation(m)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(m); } }} className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:shadow-xl hover:shadow-primary-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary-50 dark:bg-primary-900/10 group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/20 text-primary-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
                       {m.icon}
                     </div>
-                    <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400">
-                      {m.duration} min
+                    <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <span className="text-[10px]">⏱</span> {m.duration} {t('wellnessHub.minutes')}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-primary-600 transition-colors">{m.title}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{m.description}</p>
+                  <h3 className="relative text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{m.title}</h3>
+                  <p className="relative text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{m.description}</p>
                 </div>
               ))}
             </div>
@@ -705,21 +843,25 @@ const WellnessHub: React.FC = () => {
         {(activeCategory === 'all' || activeCategory === 'breathing') && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Andningsövningar</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-8 rounded-full bg-accent-500" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.breathingExercisesTitle')}</h2>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {breathingExercises.map(b => (
-                <div key={b.id} role="button" tabIndex={0} onClick={() => startMeditation(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(b); } }} className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-200 dark:hover:border-accent-700/50 hover:shadow-lg transition-all cursor-pointer">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-accent-50 dark:bg-accent-900/20 text-accent-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div key={b.id} role="button" tabIndex={0} onClick={() => setActiveBreathingExercise(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveBreathingExercise(b); } }} className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-300 dark:hover:border-accent-700/50 hover:shadow-xl hover:shadow-accent-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-accent-50 dark:bg-accent-900/10 group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-100 to-accent-50 dark:from-accent-900/30 dark:to-accent-800/20 text-accent-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
                       {b.icon}
                     </div>
-                    <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400">
-                      {b.duration} min
+                    <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <span className="text-[10px]">⏱</span> {b.duration} {t('wellnessHub.minutes')}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-accent-600 transition-colors">{b.title}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{b.description}</p>
+                  <h3 className="relative text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">{b.title}</h3>
+                  <p className="relative text-sm text-gray-500 dark:text-gray-400">{b.description}</p>
                 </div>
               ))}
             </div>
@@ -728,8 +870,11 @@ const WellnessHub: React.FC = () => {
 
         {(activeCategory === 'all' || activeCategory === 'sounds') && (
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Avslappnande Ljud</h2>
-            <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-8 rounded-full bg-teal-500" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.relaxingSoundsTitle')}</h2>
+            </div>
+            <div className="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <RelaxingSounds onClose={() => { }} embedded />
             </div>
           </section>
@@ -738,8 +883,11 @@ const WellnessHub: React.FC = () => {
         {(activeCategory === 'all' || activeCategory === 'sleep') && (
           <section className="mb-12" data-testid="wellness-sleep-section">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sömn & Vila</h2>
-              <Button variant="ghost" className="text-primary-600">Spela sagor</Button>
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-8 rounded-full bg-indigo-500" />
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.sleepAndRest')}</h2>
+              </div>
+              <Button variant="ghost" className="text-primary-600" onClick={() => setShowSleepPlayer(true)}>{t('wellnessHub.playStories')}</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {sleepStories.map((story) => (
@@ -747,26 +895,107 @@ const WellnessHub: React.FC = () => {
                   key={story.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => startMeditation(story)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(story); } }}
-                  className="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-indigo-200 dark:hover:border-indigo-700/50 hover:shadow-lg transition-all cursor-pointer"
+                  onClick={() => playSleepStory(story)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playSleepStory(story); } }}
+                  className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-indigo-300 dark:hover:border-indigo-700/50 hover:shadow-xl hover:shadow-indigo-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-indigo-50 dark:bg-indigo-900/10 group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/30 dark:to-indigo-800/20 text-indigo-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
                       {story.icon}
                     </div>
-                    <span className="text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400">
-                      {story.duration} min
+                    <span className="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <span className="text-[10px]">⏱</span> {story.duration} {t('wellnessHub.minutes')}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">{story.title}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{story.description}</p>
+                  <h3 className="relative text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{story.title}</h3>
+                  <p className="relative text-sm text-gray-500 dark:text-gray-400">{story.description}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
       </div>
+
+      {/* Sleep Audio Player Modal */}
+      {showSleepPlayer && (
+        <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden relative">
+            <button
+              onClick={() => setShowSleepPlayer(false)}
+              aria-label={t('wellnessHub.close')}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
+              <XMarkIcon className="w-6 h-6 text-gray-500" />
+            </button>
+            <RelaxingSounds onClose={() => setShowSleepPlayer(false)} embedded />
+          </div>
+        </div>
+      )}
+
+      {/* Sleep Story Player Modal */}
+      {selectedSleepStory && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-white/20">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">{t('wellnessHub.sleepStory', 'Sovsaga')}</h3>
+              <button onClick={stopSleepStory} aria-label={t('wellnessHub.close')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                <XMarkIcon className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-indigo-200 to-indigo-100 dark:from-indigo-900/40 dark:to-indigo-800/30 flex items-center justify-center mb-6 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-indigo-900/40 animate-ping opacity-20" />
+                {selectedSleepStory.icon ? React.cloneElement(selectedSleepStory.icon as React.ReactElement, { className: 'w-16 h-16 text-indigo-600' }) : <MoonIcon className="w-16 h-16 text-indigo-600" />}
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedSleepStory.title}</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-center">{selectedSleepStory.description}</p>
+            </div>
+
+            <div className="text-5xl font-mono text-center font-bold text-indigo-600 dark:text-indigo-400 mb-8 tracking-wider">
+              {formatTime(sleepStoryTimeLeft)}
+            </div>
+
+            <div className="flex justify-center gap-6">
+              <button
+                onClick={() => {
+                  if (sleepStoryAudioRef.current) {
+                    if (sleepStoryPlaying) {
+                      sleepStoryAudioRef.current.pause();
+                      if (sleepStoryTimerRef.current) {
+                        clearInterval(sleepStoryTimerRef.current);
+                        sleepStoryTimerRef.current = null;
+                      }
+                      setSleepStoryPlaying(false);
+                    } else {
+                      sleepStoryAudioRef.current.play().catch(e => logger.error('Resume failed:', e));
+                      sleepStoryTimerRef.current = setInterval(() => {
+                        setSleepStoryTimeLeft((prev) => {
+                          if (prev <= 1) { stopSleepStory(); return 0; }
+                          return prev - 1;
+                        });
+                      }, 1000);
+                      setSleepStoryPlaying(true);
+                    }
+                  }
+                }}
+                aria-label={sleepStoryPlaying ? t('wellnessHub.pauseMeditation') : t('wellnessHub.resumeMeditation')}
+                className="w-16 h-16 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/40 hover:scale-105 transition-transform"
+              >
+                {sleepStoryPlaying ? <PauseIcon className="w-8 h-8" /> : <PlayIcon className="w-8 h-8 ml-1" />}
+              </button>
+              <button
+                onClick={stopSleepStory}
+                aria-label={t('wellnessHub.stopMeditation')}
+                className="w-16 h-16 rounded-full bg-gray-400 text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+              >
+                <StopIcon className="w-8 h-8" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

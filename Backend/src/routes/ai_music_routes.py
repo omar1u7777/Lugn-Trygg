@@ -3,8 +3,11 @@ AI Music Routes - API for AI-generated ambient soundscapes
 Provides real-time generated binaural beats, isochronic tones, and procedural ambient music
 """
 
+import io
 import logging
+import os
 
+import requests
 from flask import Blueprint, Response, g, request, stream_with_context
 
 from src.services.ai_music_service import SoundscapeType, get_ai_music_service
@@ -409,3 +412,126 @@ def _get_adaptive_recommendation(mood: str, time_of_day: str, activity: str) -> 
             'use_headphones': True  # For binaural beats
         }
     }
+
+
+# ─── MusicGen (Hugging Face) ──────────────────────────────────────────────────
+
+MUSICGEN_MODEL = "facebook/musicgen-small"
+MUSICGEN_API_URL = f"https://api-inference.huggingface.co/models/{MUSICGEN_MODEL}"
+
+# Prompt templates per soundscape type for MusicGen
+MUSICGEN_PROMPTS = {
+    'deep_sleep': "Calm deep sleep meditation music, soft ambient pads, no drums, very slow, peaceful, ethereal, 432Hz",
+    'meditation': "Gentle meditation music, soft drones, singing bowls, tranquil, mindful, no percussion, serene",
+    'focus': "Soft focus music, gentle ambient, light arpeggios, calm productivity, no vocals, steady",
+    'anxiety_relief': "Soothing anxiety relief music, warm pads, gentle nature sounds, calming, healing, peaceful",
+    'nature_sim': "Ambient nature soundscape with soft music, birds, gentle stream, wind, relaxing, organic",
+    'cosmic': "Cosmic ambient space music, deep drones, ethereal pads, expansive, meditative, otherworldly",
+}
+
+
+@ai_music_bp.route('/generate-musicgen', methods=['POST'])
+@AuthService.jwt_required
+@rate_limit_by_endpoint
+def generate_musicgen():
+    """
+    Generate real AI music using Meta's MusicGen model via Hugging Face Inference API.
+
+    Request body:
+    {
+        "type": "deep_sleep|meditation|focus|anxiety_relief|nature_sim|cosmic",
+        "duration": 30,         # seconds (MusicGen max ~30s per call)
+        "custom_prompt": "..."  # optional — override built-in prompt
+    }
+
+    Returns audio/wav directly as a blob.
+    """
+    hf_token = os.getenv('HUGGINGFACE_API_TOKEN')
+    if not hf_token:
+        return APIResponse.error(
+            "AI music generation is not configured. Set HUGGINGFACE_API_TOKEN.",
+            "MUSICGEN_NOT_CONFIGURED",
+            503
+        )
+
+    try:
+        data = request.get_json() or {}
+        soundscape_type = data.get('type', 'meditation')
+        custom_prompt = data.get('custom_prompt', '').strip()
+        duration = min(int(data.get('duration', 30)), 30)  # MusicGen max ~30s
+
+        # Build prompt
+        prompt = custom_prompt if custom_prompt else MUSICGEN_PROMPTS.get(
+            soundscape_type, MUSICGEN_PROMPTS['meditation']
+        )
+
+        # Call Hugging Face Inference API
+        response = requests.post(
+            MUSICGEN_API_URL,
+            headers={
+                "Authorization": f"Bearer {hf_token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": duration * 50,  # ~50 tokens per second
+                    "do_sample": True,
+                    "temperature": 0.8,
+                    "guidance_scale": 3.0,
+                }
+            },
+            timeout=120,
+        )
+
+        if response.status_code == 503:
+            return APIResponse.error(
+                "MusicGen model is loading on Hugging Face. Please try again in 30 seconds.",
+                "MUSICGEN_LOADING",
+                503
+            )
+
+        if not response.ok:
+            logger.error(f"MusicGen API error: {response.status_code} - {response.text[:200]}")
+            return APIResponse.error(
+                "Failed to generate AI music. Please try again.",
+                "MUSICGEN_ERROR",
+                502
+            )
+
+        # The response is raw audio bytes (wav format)
+        audio_bytes = response.content
+
+        if not audio_bytes or len(audio_bytes) < 100:
+            return APIResponse.error(
+                "MusicGen returned empty audio. Please try again.",
+                "MUSICGEN_EMPTY",
+                502
+            )
+
+        # Return audio directly
+        return Response(
+            audio_bytes,
+            mimetype='audio/wav',
+            headers={
+                'Content-Disposition': f'inline; filename=musicgen_{soundscape_type}.wav',
+                'Content-Length': len(audio_bytes),
+                'X-Track-Type': soundscape_type,
+                'X-Generator': 'musicgen-small',
+                'X-Duration': str(duration),
+            }
+        )
+
+    except requests.Timeout:
+        return APIResponse.error(
+            "MusicGen generation timed out. Please try a shorter duration.",
+            "MUSICGEN_TIMEOUT",
+            504
+        )
+    except Exception as e:
+        logger.exception(f"MusicGen generation failed: {e}")
+        return APIResponse.error(
+            "Failed to generate AI music",
+            "MUSICGEN_ERROR",
+            500
+        )
