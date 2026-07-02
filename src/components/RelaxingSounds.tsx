@@ -23,6 +23,8 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   const { t, i18n } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
   const fallbackUrlRef = useRef<string | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerBaseVolumeRef = useRef<number>(0.5);
   const [activeTab, setActiveTab] = useState<SoundTab>('library');
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
@@ -37,6 +39,88 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   const [audioError, setAudioError] = useState<string | null>(null);
   const [audioLoadingFallback, setAudioLoadingFallback] = useState(false);
   const [usingFallbackAudio, setUsingFallbackAudio] = useState(false);
+
+  // Sleep timer state
+  const [timerRemaining, setTimerRemaining] = useState<number>(0);
+  const [timerDuration, setTimerDuration] = useState<number>(0);
+
+  // ── Sleep timer with fade-out ────────────────────────────────────────────
+
+  const clearTimerInterval = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+  }, []);
+
+  const restoreVolume = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const baseVolume = timerBaseVolumeRef.current;
+    audio.volume = baseVolume;
+    setVolume(baseVolume);
+  }, []);
+
+  const cancelTimer = useCallback(() => {
+    clearTimerInterval();
+    setTimerRemaining(0);
+    setTimerDuration(0);
+    restoreVolume();
+  }, [clearTimerInterval, restoreVolume]);
+
+  const startTimer = useCallback((minutes: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    cancelTimer();
+    const seconds = minutes * 60;
+    timerBaseVolumeRef.current = audio.volume;
+    setTimerDuration(seconds);
+    setTimerRemaining(seconds);
+  }, [cancelTimer]);
+
+  // Countdown and fade-out effect
+  useEffect(() => {
+    if (timerRemaining <= 0) {
+      clearTimerInterval();
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    timerIntervalRef.current = setInterval(() => {
+      setTimerRemaining((prev) => {
+        const next = prev - 1;
+        const base = timerBaseVolumeRef.current;
+
+        // Fade out over the last 30 seconds
+        if (next <= 30 && next > 0) {
+          const fadeRatio = next / 30;
+          const targetVolume = Math.max(0.01, base * fadeRatio);
+          if (audioRef.current) {
+            audioRef.current.volume = targetVolume;
+          }
+          setVolume(targetVolume);
+        }
+
+        if (next <= 0) {
+          // Timer done: pause and restore volume
+          if (audioRef.current) {
+            audioRef.current.pause();
+          }
+          setIsPlaying(false);
+          setTimerDuration(0);
+          setTimeout(() => restoreVolume(), 50);
+          return 0;
+        }
+
+        return next;
+      });
+    }, 1000);
+
+    return () => clearTimerInterval();
+  }, [timerRemaining, clearTimerInterval, restoreVolume]);
 
   // Fetch audio library from backend
   const fetchAudioLibrary = useCallback(async () => {
@@ -72,8 +156,9 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         URL.revokeObjectURL(fallbackUrlRef.current);
         fallbackUrlRef.current = null;
       }
+      clearTimerInterval();
     };
-  }, [fetchAudioLibrary]);
+  }, [fetchAudioLibrary, clearTimerInterval]);
 
   const currentCategory = audioLibrary[selectedCategory];
   const currentPlaylist = useMemo(() => currentCategory?.tracks || [], [currentCategory]);
@@ -203,6 +288,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     setAudioError(null);
   };
 
+
   const togglePlay = async () => {
     if (!audioRef.current || !selectedTrack) return;
 
@@ -211,6 +297,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
+        cancelTimer(); // Stop sleep timer when user manually pauses
       } else {
         await audioRef.current.play();
         setIsPlaying(true);
@@ -235,6 +322,10 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
     }
+    // Update saved timer base volume unless we are currently fading out
+    if (timerRemaining > 30 || timerRemaining === 0) {
+      timerBaseVolumeRef.current = newVolume;
+    }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,6 +341,12 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')} `;
+  };
+
+  const formatTimerTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const containerClasses = embedded
@@ -468,6 +565,48 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                             onChange={handleSeek}
                             className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
                           />
+                        </div>
+                      )}
+
+                      {/* Sleep Timer */}
+                      {selectedTrack && (
+                        <div className="mb-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                              ⏰ {t('audio.sleepTimer', 'Sleeptimer')}
+                            </span>
+                            {timerRemaining > 0 && (
+                              <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                                {formatTimerTime(timerRemaining)} {t('audio.remaining', 'kvar')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {[15, 30, 60].map((minutes) => {
+                              const isActive = timerRemaining > 0 && timerDuration === minutes * 60;
+                              return (
+                                <button
+                                  key={minutes}
+                                  onClick={() => startTimer(minutes)}
+                                  disabled={!isPlaying}
+                                  className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[36px] ${
+                                    isActive
+                                      ? 'bg-primary-500 text-white'
+                                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50'
+                                  }`}
+                                >
+                                  {minutes} {t('audio.min', 'min')}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={cancelTimer}
+                              disabled={timerRemaining === 0}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 min-h-[36px]"
+                            >
+                              {t('audio.timerOff', 'Av')}
+                            </button>
+                          </div>
                         </div>
                       )}
 

@@ -511,11 +511,13 @@ export const AIMusicGenerator: React.FC = () => {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || isPreviewing || loadingCatalogue}
-          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors shadow-sm bg-indigo-600 hover:bg-indigo-700"
         >
           {isGenerating
             ? <><span className="animate-spin">⏳</span>{sv ? 'Genererar AI-ljud…' : 'Generating AI audio…'}</>
-            : <><span>🎵</span>{sv ? `Generera ${DURATIONS.find(d => d.value === selectedDuration)?.labelSv}` : `Generate ${DURATIONS.find(d => d.value === selectedDuration)?.label}`}</>}
+            : <><span>🎵</span>{
+              sv ? `Generera ${DURATIONS.find(d => d.value === selectedDuration)?.labelSv}` : `Generate ${DURATIONS.find(d => d.value === selectedDuration)?.label}`
+            }</>}
         </button>
       </div>
 
