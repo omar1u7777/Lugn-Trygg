@@ -74,6 +74,7 @@ export const BiofeedbackBreathingCircle: React.FC<BiofeedbackBreathingCircleProp
     cycleCount,
     totalSeconds,
     phaseSecondsLeft,
+    targetCycles,
     biofeedback,
     isConnecting,
     connectionError,
