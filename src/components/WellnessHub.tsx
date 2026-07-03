@@ -127,11 +127,14 @@ export const applySessionCompletionStats = (
 ): WellnessStats => {
   const safeDuration = Math.max(1, Math.round(durationMinutes));
 
+  const isMindfulness = sessionType === 'guided_meditation' || sessionType === 'soundscape';
+  const isBreathing = sessionType === 'breathing_exercise';
+
   return {
     ...prevStats,
-    meditationMinutes: prevStats.meditationMinutes + safeDuration,
-    breathingExercises: sessionType === 'breathing_exercise' ? prevStats.breathingExercises + 1 : prevStats.breathingExercises,
-    relaxationSessions: sessionType !== 'breathing_exercise' ? prevStats.relaxationSessions + 1 : prevStats.relaxationSessions,
+    meditationMinutes: isMindfulness ? prevStats.meditationMinutes + safeDuration : prevStats.meditationMinutes,
+    breathingExercises: isBreathing ? prevStats.breathingExercises + 1 : prevStats.breathingExercises,
+    relaxationSessions: !isBreathing && !isMindfulness ? prevStats.relaxationSessions + 1 : prevStats.relaxationSessions,
   };
 };
 
