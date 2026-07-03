@@ -221,7 +221,7 @@ describe('WellnessHub component', () => {
 
     expect(await screen.findByText('10m')).toBeInTheDocument();
     expect(screen.getByText('Sova bättre')).toBeInTheDocument();
-    expect(screen.getByText('1 dags streak')).toBeInTheDocument();
+    expect(screen.getByText('wellnessHub.streakDays')).toBeInTheDocument();
   });
 
   it('navigates to recommendations when recommendations pill is clicked', async () => {

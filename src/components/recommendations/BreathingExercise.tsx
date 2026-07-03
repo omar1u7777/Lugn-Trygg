@@ -150,14 +150,14 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
             onClick={() => setUseBiofeedbackMode(false)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${!useBiofeedbackMode ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-blue-100'}`}
           >
-            🫁 Grundläge
+            🫁 {t('breathing.basicMode', 'Grundläge')}
           </button>
           <button
             type="button"
             onClick={() => setUseBiofeedbackMode(true)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${useBiofeedbackMode ? 'bg-purple-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100'}`}
           >
-            💜 HRV Biofeedback
+            💜 {t('breathing.hrvBiofeedback', 'HRV Biofeedback')}
           </button>
         </div>
 
@@ -165,14 +165,14 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
         {useBiofeedbackMode && (
           <div className="mb-4">
             <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-3">
-              Välj andningsmönster — cirkeln animeras i realtid baserat på din andningsrytm.
+              {t('breathing.patternDescription', 'Välj andningsmönster — cirkeln animeras i realtid baserat på din andningsrytm.')}
             </p>
             <div className="flex flex-wrap justify-center gap-2 mb-4">
               {([
-                { key: 'coherence', label: '❤️ Koherens 6bpm', subtitle: '5-5' },
-                { key: 'relax', label: '😴 4-7-8', subtitle: '4-7-8' },
-                { key: 'energize', label: '⚡ Box', subtitle: '5-5-5-5' },
-                { key: 'sleep', label: '🌙 Sömn', subtitle: '4-6' },
+                { key: 'coherence', label: t('breathing.patterns.coherence', '❤️ Koherens 6bpm'), subtitle: '5-5' },
+                { key: 'relax', label: t('breathing.patterns.relax', '😴 4-7-8'), subtitle: '4-7-8' },
+                { key: 'energize', label: t('breathing.patterns.energize', '⚡ Box'), subtitle: '5-5-5-5' },
+                { key: 'sleep', label: t('breathing.patterns.sleep', '🌙 Sömn'), subtitle: '4-6' },
               ] as const).map(({ key, label, subtitle }) => (
                 <button
                   key={key}
@@ -202,7 +202,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
         {!useBiofeedbackMode && (<>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="font-semibold text-gray-900 dark:text-white text-center sm:text-left">
-            🫁 Interaktiv Andningsguide
+            🫁 {t('breathing.interactiveGuide', 'Interaktiv Andningsguide')}
           </h3>
           <div className="flex items-center gap-2">
             <button
@@ -210,32 +210,32 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
               onClick={() => setBreathingUseSound(prev => !prev)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${breathingUseSound ? 'bg-blue-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             >
-              {breathingUseSound ? '🔊 Ljud på' : '🔈 Ljud av'}
+              {breathingUseSound ? `🔊 ${t('breathing.soundOn', 'Ljud på')}` : `🔈 ${t('breathing.soundOff', 'Ljud av')}`}
             </button>
             <button
               type="button"
               onClick={() => setBreathingUseHaptics(prev => !prev)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${breathingUseHaptics ? 'bg-emerald-600 text-white' : 'bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
             >
-              {breathingUseHaptics ? '📳 Haptik på' : '📴 Haptik av'}
+              {breathingUseHaptics ? `📳 ${t('breathing.hapticsOn', 'Haptik på')}` : `📴 ${t('breathing.hapticsOff', 'Haptik av')}`}
             </button>
             <button
               type="button"
               onClick={() => setIsBreathingFullscreen(prev => !prev)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/70 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
-              {isBreathingFullscreen ? '🗗 Avsluta helskärm' : '🗖 Helskärm'}
+              {isBreathingFullscreen ? t('breathing.exitFullscreen', '🗗 Avsluta helskärm') : t('breathing.fullscreen', '🗖 Helskärm')}
             </button>
           </div>
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 text-center">
-          Följ cue-texten i cirkeln och siffrorna för att skapa ett lugnt andningsmönster.
+          {t('breathing.followInstructions', 'Följ cue-texten i cirkeln och siffrorna för att skapa ett lugnt andningsmönster.')}
         </p>
 
         <div className="mb-4 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg text-left">
           <label htmlFor="breathing-stress-before" className="text-sm font-medium text-rose-700 dark:text-rose-300 block mb-1">
-            Stress före start ({breathingStressBefore ?? 0}/100)
+            {t('breathing.stressBefore', 'Stress före start')} ({breathingStressBefore ?? 0}/100)
           </label>
           <input
             id="breathing-stress-before"
@@ -249,7 +249,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
             className="w-full accent-rose-600"
           />
           <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">
-            Sätt en snabb baslinje innan andningsrundan.
+            {t('breathing.stressBeforeHint', 'Sätt en snabb baslinje innan andningsrundan.')}
           </p>
         </div>
 
@@ -264,7 +264,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white/80 dark:bg-gray-700 text-gray-700 dark:text-gray-200'} ${isBreathingActive ? 'opacity-60 cursor-not-allowed' : 'hover:bg-indigo-100 dark:hover:bg-gray-600'}`}
             >
-              {cycleOption} cykler
+              {cycleOption} {t('breathing.cycles', 'cykler')}
             </button>
           ))}
         </div>
@@ -294,7 +294,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                 {breathingPhase === 'completed' ? '✓' : phaseSecondsLeft > 0 ? phaseSecondsLeft : '•'}
               </span>
               <span className="text-xs font-medium mt-1 opacity-90">
-                Cykel {Math.min(breathingCount + (isBreathingActive ? 1 : 0), targetCycles)} av {targetCycles}
+                {t('breathing.cycle', 'Cykel')} {Math.min(breathingCount + (isBreathingActive ? 1 : 0), targetCycles)} / {targetCycles}
               </span>
 
               {breathingPhase === 'inhale' && (
@@ -324,11 +324,11 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
             onClick={() => setShowBreathingScience(prev => !prev)}
             className="text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:underline"
           >
-            {showBreathingScience ? 'Dölj' : 'Visa'}: Varför 4-7-8?
+            {showBreathingScience ? t('breathing.hide', 'Dölj') : t('breathing.show', 'Visa')}: {t('breathing.why478', 'Varför 4-7-8?')}
           </button>
           {showBreathingScience && (
             <div className="mt-3 text-sm text-left bg-white/80 dark:bg-gray-800/70 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3 text-gray-700 dark:text-gray-300">
-              4-7-8-andning förlänger utandningen, vilket kan aktivera kroppens lugn- och återhämtningssystem. Tekniken kan hjälpa till att sänka upplevd stress, stabilisera andningsrytmen och skapa bättre fokus i stunden.
+              {t('breathing.science478', '4-7-8-andning förlänger utandningen, vilket kan aktivera kroppens lugn- och återhämtningssystem. Tekniken kan hjälpa till att sänka upplevd stress, stabilisera andningsrytmen och skapa bättre fokus i stunden.')}
             </div>
           )}
         </div>
@@ -336,7 +336,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
         {breathingPhase === 'completed' && (
           <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg text-left border border-emerald-100 dark:border-emerald-800">
             <label htmlFor="breathing-stress-after" className="text-sm font-medium text-emerald-700 dark:text-emerald-300 block mb-1">
-              Stress efter övningen ({breathingStressAfter ?? 0}/100)
+              {t('breathing.stressAfter', 'Stress efter övningen')} ({breathingStressAfter ?? 0}/100)
             </label>
             <input
               id="breathing-stress-after"
@@ -350,7 +350,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
             />
             {typeof breathingStressBefore === 'number' && typeof breathingStressAfter === 'number' && (
               <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">
-                Förändring: {breathingStressAfter - breathingStressBefore <= 0 ? '' : '+'}{breathingStressAfter - breathingStressBefore} poäng
+                {t('breathing.change', 'Förändring')}: {breathingStressAfter - breathingStressBefore <= 0 ? '' : '+'}{breathingStressAfter - breathingStressBefore} {t('breathing.points', 'poäng')}
               </p>
             )}
           </div>
@@ -363,13 +363,13 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
                 onClick={isBreathingPaused ? resumeBreathingExercise : pauseBreathingExercise}
                 className={`px-6 py-3 ${isBreathingPaused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'} text-white font-medium rounded-lg transition-colors`}
               >
-                {isBreathingPaused ? '▶️ Fortsätt' : '⏸️ Pausa'}
+                {isBreathingPaused ? t('breathing.resume', '▶️ Fortsätt') : t('breathing.pause', '⏸️ Pausa')}
               </button>
               <button
                 onClick={stopBreathingExercise}
                 className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
               >
-                ⏹️ Stoppa
+                {t('breathing.stop', '⏹️ Stoppa')}
               </button>
             </>
           ) : (
@@ -382,13 +382,13 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
               disabled={breathingStressBefore === null}
               className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
             >
-              {breathingPhase === 'completed' ? '🔁 Starta ny omgång' : '🚀 Starta andningsövning'}
+              {breathingPhase === 'completed' ? t('breathing.startNew', '🔁 Starta ny omgång') : t('breathing.startExercise', '🚀 Starta andningsövning')}
             </button>
           )}
         </div>
         {!isBreathingActive && breathingStressBefore === null && (
           <p className="text-center text-xs text-rose-600 dark:text-rose-300 mt-2">
-            Välj stressnivå före start för att kunna jämföra effekten efteråt.
+            {t('breathing.selectStressHint', 'Välj stressnivå före start för att kunna jämföra effekten efteråt.')}
           </p>
         )}
         </>)}

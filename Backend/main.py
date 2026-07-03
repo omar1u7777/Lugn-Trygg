@@ -160,7 +160,7 @@ def _get_cors_origins_list():
     if USE_PYDANTIC_SETTINGS:
         return settings.cors_allowed_origins_list
     else:
-        cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8081,http://localhost:19000,http://localhost:19001')
+        cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5173,https://lugn-trygg.vercel.app,https://*.vercel.app')
         return [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
 
 def is_origin_allowed(origin: str) -> bool:
@@ -292,7 +292,7 @@ try:
     from flask_socketio import SocketIO as _SocketIO
     _socketio_cors = os.getenv(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:3000,http://localhost:5173'
+        'http://localhost:3000,http://localhost:5173,https://lugn-trygg.vercel.app,https://*.vercel.app'
     ).split(',')
     socketio = _SocketIO(
         app,

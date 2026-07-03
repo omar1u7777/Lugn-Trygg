@@ -131,10 +131,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       if (Object.keys(library).length > 0) {
         setAudioLibrary(library);
         // Set first category as default if current doesn't exist
-        if (library[selectedCategory]) {
-          // Keep current
-        } else {
-          // Default to first
+        if (!library[selectedCategory]) {
           const firstKey = Object.keys(library)[0];
           if (firstKey) setSelectedCategory(firstKey);
         }
@@ -147,7 +144,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, t]);
+  }, [t]);
 
   useEffect(() => {
     fetchAudioLibrary();
@@ -510,7 +507,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{track.duration}</div>
                                 {selectedTrack?.id === track.id && (
                                   <div className="text-xs text-primary-600 dark:text-primary-400 mt-1">
-                                    {isPlaying ? '🔊 Spelar' : '⏸️ Pausad'}
+                                    {isPlaying ? `🔊 ${t('audio.playing', 'Spelar')}` : `⏸️ ${t('audio.paused', 'Pausad')}`}
                                   </div>
                                 )}
                               </div>
@@ -673,14 +670,14 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
           <button
             className="absolute top-4 right-4 min-h-[44px] min-w-[44px] bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg"
             onClick={onClose}
-            aria-label="Stäng"
+            aria-label={t('common.close', 'Stäng')}
           >
             ✕
           </button>
         )}
       </div>
 
-      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" />
+      <audio ref={audioRef} preload="metadata" />
     </div>
   );
 };
