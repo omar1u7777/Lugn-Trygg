@@ -28,6 +28,7 @@ const NETWORK_ERROR_MESSAGE = "Nätverksfel. Förfrågan sparad för senare synk
 export interface ApiConfig extends AxiosRequestConfig {
   startTime?: number;
   _retry?: boolean;
+  _csrfRetry?: boolean;
   retryCount?: number;
 }
 
@@ -363,6 +364,21 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
 
     if (error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('auth/refresh')) {
       return await handle401Error(error, originalRequest);
+    }
+
+    // 403 from CSRF middleware: token may be expired/missing while JWT is valid.
+    // Clear cached CSRF, fetch a fresh token, and retry the request once.
+    if (error.response.status === 403
+        && !originalRequest._csrfRetry
+        && originalRequest.headers?.[AUTHORIZATION_HEADER]
+        && error.response.data?.error?.includes('CSRF')) {
+      originalRequest._csrfRetry = true;
+      clearCsrfToken();
+      const freshCsrf = await getSharedCsrfToken();
+      if (freshCsrf) {
+        originalRequest.headers[CSRF_HEADER] = freshCsrf;
+        return api(originalRequest);
+      }
     }
 
     if (error.response.status === 429) {

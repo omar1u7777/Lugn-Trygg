@@ -73,6 +73,15 @@ class CSRFMiddleware:
         if not path.startswith("/api/"):
             return None
 
+        # Skip CSRF for JWT-authenticated requests.
+        # CSRF protection exists to prevent cross-site attacks that ride on
+        # the user's browser cookies.  JWT Bearer tokens are sent explicitly
+        # in the Authorization header — a CSRF attack cannot read or forge
+        # that header — so authenticated API calls are immune by design.
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return None
+
         cookie_token = request.cookies.get(CSRF_COOKIE_NAME, "")
         header_token = request.headers.get(CSRF_HEADER_NAME, "") or request.headers.get(CSRF_HEADER_NAME_LEGACY, "")
 
