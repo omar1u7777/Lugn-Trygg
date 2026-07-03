@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { logoutUser, refreshAccessToken } from "../api/auth";
 import ConsentModal from "../components/Auth/ConsentModal";
 import type { AuthContextProps, User } from "../types/index";
@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    // Ref to track if initialization has been attempted
    const hasInitializedRef = useRef(false);
    const navigate = useNavigate();
+   const location = useLocation();
 
   const getE2ETestAuthPayload = useCallback((): { token: string; user: User } | null => {
     return readE2ETestAuthPayload();
@@ -164,9 +165,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       logger.debug('✅ AUTH CONTEXT - Login successful:', { userId: userData.user_id });
 
-      // ✅ FIX: Only navigate if not already on dashboard to prevent redirect loops
-      if (window.location.pathname !== '/dashboard') {
-        navigate("/dashboard");
+      // ✅ FIX: Redirect to original page if available, otherwise /dashboard
+      const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      const redirectTo = fromPath && fromPath !== '/login' ? fromPath : '/dashboard';
+      if (window.location.pathname !== redirectTo) {
+        navigate(redirectTo);
         // Scroll to top after navigation
         window.scrollTo(0, 0);
       }
@@ -175,7 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logger.error('❌ AUTH CONTEXT - Login failed:', error);
       throw error;
     }
-  }, [navigate]);
+  }, [navigate, location]);
 
   // 🚪 Hantera utloggning och rensa användardata
   const handleLogout = useCallback(async () => {

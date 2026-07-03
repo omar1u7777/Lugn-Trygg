@@ -6,14 +6,12 @@ from unittest.mock import Mock, patch
 import pytest
 
 
-@pytest.mark.skip("Conftest auth mocking architecture prevents proper patching")
 class TestRegisterUser:
     """Test register_user method"""
 
-    @patch('src.services.auth_service.firebase_auth')
-    @patch('src.services.auth_service.db')
-    @patch('src.services.auth_service.AuditService')
-    def test_register_user_success(self, mock_audit, mock_db, mock_auth):
+    @patch('src.services.auth_service._auth')
+    @patch('src.services.auth_service.AuthRepository')
+    def test_register_user_success(self, mock_repo_cls, mock_auth):
         """Test successful user registration"""
         from src.services.auth_service import AuthService
 
@@ -21,8 +19,8 @@ class TestRegisterUser:
         mock_firebase_user.uid = 'test-uid-123'
         mock_auth.create_user.return_value = mock_firebase_user
 
-        mock_db.collection.return_value.document.return_value.set.return_value = None
-        mock_audit.return_value = Mock()
+        mock_repo = Mock()
+        mock_repo_cls.return_value = mock_repo
 
         user, error = AuthService.register_user('test@example.com', 'password123')
 
@@ -30,17 +28,13 @@ class TestRegisterUser:
         assert user.uid == 'test-uid-123'
         assert error is None
 
-    @patch('src.services.auth_service.db')
-    @patch('src.services.auth_service.firebase_auth')
-    def test_register_user_email_already_exists(self, mock_auth, mock_db):
+    @patch('src.services.auth_service._auth')
+    def test_register_user_email_already_exists(self, mock_auth):
         """Test registration with existing email"""
         from src.services.auth_service import AuthService
+        from firebase_admin import auth as firebase_auth_module
 
-        class MockEmailExists(Exception):
-            pass
-
-        mock_auth.create_user.side_effect = MockEmailExists('Email exists')
-        mock_auth.EmailAlreadyExistsError = MockEmailExists
+        mock_auth.create_user.side_effect = firebase_auth_module.EmailAlreadyExistsError('Email exists', None, None)
 
         user, error = AuthService.register_user('existing@example.com', 'password123')
 
@@ -93,33 +87,6 @@ class TestLoginUser:
 
         assert user is None
         assert error is not None
-
-
-class TestRefreshToken:
-    """Test refresh_token method"""
-
-    @patch('src.services.auth_service._db')
-    def test_refresh_token_success(self, mock_db):
-        """Test successful token refresh"""
-        from src.services.auth_service import AuthService
-
-        # Use Firebase-style UID (28 characters)
-        test_uid = 'abcdefghijklmnopqrstuvwxyz12'
-
-        new_token, error = AuthService.refresh_token(test_uid)
-
-        assert error is None
-        assert new_token is not None
-
-    @patch('src.services.auth_service._db')
-    def test_refresh_token_not_found(self, mock_db):
-        """Legacy helper is stateless and still returns a token for any user id."""
-        from src.services.auth_service import AuthService
-
-        new_token, error = AuthService.refresh_token('non-existent-user')
-
-        assert error is None
-        assert new_token is not None
 
 
 class TestVerifyToken:

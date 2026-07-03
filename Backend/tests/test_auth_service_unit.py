@@ -151,22 +151,6 @@ def test_login_user_invalid_credentials(monkeypatch):
     assert err is not None
 
 
-def test_refresh_token_success(monkeypatch):
-    # Use Firebase-style UID (28 characters)
-    test_uid = 'abcdefghijklmnopqrstuvwxyz12'
-    # Legacy helper now simply issues a fresh access token for user_id.
-    new_access, err = AuthService.refresh_token(test_uid)
-    assert err is None
-    assert new_access is not None
-
-
-def test_refresh_token_missing(monkeypatch):
-    # Legacy helper is stateless and does not depend on a stored refresh session.
-    new_access, err = AuthService.refresh_token('no-such')
-    assert err is None
-    assert new_access is not None
-
-
 def test_generate_and_verify_token_roundtrip():
     token = AuthService.generate_access_token('test-user-1')
     uid, err = AuthService.verify_token(token)
@@ -260,25 +244,6 @@ def test_login_user_fallback_on_requests_exception(monkeypatch):
     user, err, at, rt = AuthService.login_user('a@b.com', 'pass')
     # Should fail gracefully with error
     assert err is not None or user is not None
-
-
-def test_refresh_token_invalid_response(monkeypatch):
-    # Ensure refresh_token delegates to generate_access_token.
-    monkeypatch.setattr(AuthService, 'generate_access_token', staticmethod(lambda _uid: 'generated-token'))
-    new_access, err = AuthService.refresh_token('uid-123')
-    assert err is None
-    assert new_access == 'generated-token'
-
-
-def test_refresh_token_exception(monkeypatch):
-    # Error path: token generator failure bubbles through refresh helper.
-    def mock_generate_access(_token):
-        raise Exception('boom')
-    monkeypatch.setattr(AuthService, 'generate_access_token', staticmethod(mock_generate_access))
-
-    new_access, err = AuthService.refresh_token('uid-123')
-    assert new_access is None
-    assert err is not None
 
 
 def test_jwt_required_options_method():

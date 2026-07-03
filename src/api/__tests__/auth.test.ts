@@ -67,7 +67,6 @@ import {
   verify2FASetup,
   exportUserData,
   deleteAccount,
-  getCsrfToken,
   csrfManager,
 } from '../auth';
 
@@ -348,7 +347,7 @@ describe('deleteAccount', () => {
   });
 });
 
-describe('getCsrfToken', () => {
+describe('csrfManager.getToken', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     csrfManager.clear();
@@ -357,29 +356,29 @@ describe('getCsrfToken', () => {
   it('fetches and returns CSRF token', async () => {
     mockApi.get.mockResolvedValueOnce({ data: { data: { csrfToken: 'csrf-abc' } } });
 
-    const token = await getCsrfToken();
+    const token = await csrfManager.getToken();
     expect(token).toBe('csrf-abc');
   });
 
   it('uses cached token on second call', async () => {
     mockApi.get.mockResolvedValueOnce({ data: { data: { csrfToken: 'csrf-cached' } } });
 
-    await getCsrfToken();
-    await getCsrfToken(); // should use cache
+    await csrfManager.getToken();
+    await csrfManager.getToken(); // should use cache
     expect(mockApi.get).toHaveBeenCalledTimes(1);
   });
 
   it('throws when token response is empty', async () => {
     mockApi.get.mockResolvedValueOnce({ data: { data: {} } });
 
-    await expect(getCsrfToken()).rejects.toThrow();
+    await expect(csrfManager.getToken()).rejects.toThrow();
   });
 
   it('accepts csrf_token property as fallback', async () => {
     csrfManager.clear();
     mockApi.get.mockResolvedValueOnce({ data: { data: { csrf_token: 'csrf-alt' } } });
 
-    const token = await getCsrfToken();
+    const token = await csrfManager.getToken();
     expect(token).toBe('csrf-alt');
   });
 
@@ -387,7 +386,7 @@ describe('getCsrfToken', () => {
     csrfManager.clear();
     mockApi.get.mockResolvedValueOnce({ data: { csrfToken: 'csrf-flat' } });
 
-    const token = await getCsrfToken();
+    const token = await csrfManager.getToken();
     expect(token).toBe('csrf-flat');
   });
 });

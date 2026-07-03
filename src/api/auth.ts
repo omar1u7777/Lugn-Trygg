@@ -443,10 +443,3 @@ export const deleteAccount = async (userId: string, password: string): Promise<R
     throw createAuthError(error, "Account deletion failed");
   }
 };
-
-/**
- * @deprecated Use csrfManager.getToken() or the centralized csrf.ts module
- */
-export const getCsrfToken = async (): Promise<string> => {
-  return csrfManager.getToken();
-};

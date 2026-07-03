@@ -122,6 +122,8 @@ JWT_REFRESH_SECRET_KEY = _validate_jwt_key(
     "JWT_REFRESH_SECRET_KEY",
     get_env_variable("JWT_REFRESH_SECRET_KEY", required=True, hide_value=True),
 )
+JWT_ISSUER = cast(str, get_env_variable("JWT_ISSUER", "lugn-trygg", required=False))
+JWT_AUDIENCE = cast(str, get_env_variable("JWT_AUDIENCE", "lugn-trygg-web", required=False))
 ACCESS_TOKEN_EXPIRES = timedelta(
     minutes=cast(int, get_env_variable("JWT_EXPIRATION_MINUTES", 15, cast_type=int))
 )
@@ -353,6 +355,8 @@ class Config:
         self.DEBUG = DEBUG
         self.JWT_SECRET_KEY = JWT_SECRET_KEY
         self.JWT_REFRESH_SECRET_KEY = JWT_REFRESH_SECRET_KEY
+        self.JWT_ISSUER = JWT_ISSUER
+        self.JWT_AUDIENCE = JWT_AUDIENCE
         self.ACCESS_TOKEN_EXPIRES = ACCESS_TOKEN_EXPIRES
         self.REFRESH_TOKEN_EXPIRES = REFRESH_TOKEN_EXPIRES
         self.FIREBASE_WEB_API_KEY = FIREBASE_WEB_API_KEY

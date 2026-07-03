@@ -257,10 +257,13 @@ def auth_headers():
 
     import jwt
 
-    # Create a proper JWT token with correct signature
+    # Create a proper JWT token with correct signature and required claims
     payload = {
         "sub": "testuser1234567890ab",
-        "exp": datetime.now(UTC) + timedelta(hours=1)
+        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "type": "access",
+        "iss": "lugn-trygg",
+        "aud": "lugn-trygg-web",
     }
 
     # Use the same secret key as the app (from config)

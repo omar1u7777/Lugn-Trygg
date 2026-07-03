@@ -61,14 +61,21 @@ vi.mock('../../../hooks/useAccessibility', () => ({
   useAccessibility: () => accessibilityMock,
 }));
 
+const navigateMock = vi.hoisted(() => vi.fn());
+
 vi.mock('react-router-dom', () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useNavigate: () => navigateMock,
   Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
 }));
 
 describe('RegisterForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   const acceptRequiredConsents = () => {
@@ -263,6 +270,115 @@ describe('RegisterForm', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/e-postadressen är redan registrerad/i)).toBeInTheDocument();
+    });
+  });
+
+  // Bug 11: RegisterForm redirects to /login after successful registration
+  it('redirects to /login after successful registration', async () => {
+    vi.useFakeTimers();
+    registerUserMock.mockResolvedValue({
+      user: { id: '123', email: 'test@example.com' },
+    });
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    acceptRequiredConsents();
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(navigateMock).toHaveBeenCalledWith('/login');
+  });
+
+  // Bug 12: extractErrorMessage handles response.data.error format
+  it('extracts error message from response.data.error', async () => {
+    registerUserMock.mockRejectedValue({
+      response: { data: { error: 'Server error from API' } },
+    });
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    acceptRequiredConsents();
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/server error from api/i)).toBeInTheDocument();
+    });
+  });
+
+  // Bug 12: extractErrorMessage handles timeout errors
+  it('shows timeout error message from extractErrorMessage', async () => {
+    registerUserMock.mockRejectedValue({ message: 'Request timeout ECONNABORTED' });
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    acceptRequiredConsents();
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/servern svarar inte/i)).toBeInTheDocument();
+    });
+  });
+
+  // Bug 12: extractErrorMessage handles network errors
+  it('shows network error message from extractErrorMessage', async () => {
+    registerUserMock.mockRejectedValue({ message: 'Network Error' });
+
+    render(<RegisterForm />);
+
+    fireEvent.change(screen.getByPlaceholderText(/ange ditt namn/i), {
+      target: { value: 'Test User' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/ange din e-postadress/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/skapa ett starkt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/bekräfta ditt lösenord/i), {
+      target: { value: 'StrongPass1!' },
+    });
+    acceptRequiredConsents();
+    fireEvent.click(screen.getByRole('button', { name: /skapa konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/kunde inte ansluta/i)).toBeInTheDocument();
     });
   });
 });

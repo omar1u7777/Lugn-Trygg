@@ -88,22 +88,6 @@ class ChangePasswordRequest(BaseRequest):
     def validate_new_password(cls, v):
         return validate_password(v)
 
-class TwoFactorSetupRequest(BaseRequest):
-    """2FA setup request"""
-    method: str = Field(..., pattern=r'^(sms|app)$', description="2FA method (sms or app)")
-    phone_number: str | None = None
-
-    @field_validator('phone_number', mode='before')
-    @classmethod
-    def validate_phone_for_sms(cls, v, info):
-        if info.data.get('method') == 'sms' and not v:
-            raise ValueError('Phone number required for SMS 2FA')
-        return v
-
-class TwoFactorVerifyRequest(BaseRequest):
-    """2FA verification request"""
-    code: str = Field(..., min_length=6, max_length=6, pattern=r'^\d{6}$', description="6-digit verification code")
-
 # User profile schemas
 class UserProfile(BaseModel):
     """Complete user profile"""

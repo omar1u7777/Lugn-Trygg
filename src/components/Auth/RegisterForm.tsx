@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Input, Button, Typography } from "../ui/tailwind";
 import { PasswordInput } from "../ui/tailwind/PasswordInput";
 import { ArrowPathIcon, UserPlusIcon } from "@heroicons/react/24/outline";
@@ -8,8 +8,33 @@ import { useAccessibility } from "../../hooks/useAccessibility";
 import { logger } from '../../utils/logger';
 import { useTranslation } from 'react-i18next';
 
+const DEFAULT_ERROR = 'Registration failed';
+
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: string }).message || '';
+    if (message.includes('timeout') || message.includes('ECONNABORTED')) {
+      return 'Servern svarar inte just nu. Försök igen om några sekunder.';
+    }
+    if (message.includes('Network Error')) {
+      return 'Kunde inte ansluta till servern. Kontrollera din internetanslutning.';
+    }
+  }
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: { error?: unknown } } }).response;
+    if (response?.data?.error && typeof response.data.error === 'string') {
+      return response.data.error;
+    }
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return DEFAULT_ERROR;
+};
+
 const RegisterForm: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -108,11 +133,12 @@ const RegisterForm: React.FC = () => {
       setPassword("");
       setConfirmPassword("");
       setReferralCode("");
+
+      // Redirect to login after 2 seconds so user can sign in
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err: unknown) {
       logger.error("Registration error:", err);
-      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
-        ? String(err.response.data.error)
-        : err instanceof Error ? err.message : 'Registration failed';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       announceToScreenReader(`${t('registerForm.failedPrefix')} ${errorMessage}`, "assertive");
     } finally {

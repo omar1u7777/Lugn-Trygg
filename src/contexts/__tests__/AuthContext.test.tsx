@@ -5,6 +5,7 @@ import type { User } from '../../types';
 
 const {
   navigateMock,
+  locationMock,
   logoutUserMock,
   refreshAccessTokenMock,
   tokenSetAccessTokenMock,
@@ -14,6 +15,7 @@ const {
   secureRemoveItemMock,
 } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
+  locationMock: { pathname: '/login', state: null },
   logoutUserMock: vi.fn(),
   refreshAccessTokenMock: vi.fn(),
   tokenSetAccessTokenMock: vi.fn(),
@@ -25,6 +27,7 @@ const {
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
+  useLocation: () => locationMock,
 }));
 
 vi.mock('../../api/auth', () => ({
@@ -69,6 +72,8 @@ describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    locationMock.pathname = '/login';
+    locationMock.state = null;
 
     secureGetItemMock.mockResolvedValue(null);
     secureSetItemMock.mockResolvedValue(undefined);
@@ -140,6 +145,23 @@ describe('AuthContext', () => {
     expect(result.current.user).toEqual({ email: 'legacy@example.com', user_id: 'legacy-id' });
     expect(result.current.isLoggedIn).toBe(true);
     expect(navigateMock).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('redirects to original page when location.state.from is set', async () => {
+    locationMock.pathname = '/login';
+    locationMock.state = { from: { pathname: '/settings' } };
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isInitialized).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.login('access-token', 'user@example.com', 'uid-1');
+    });
+
+    expect(navigateMock).toHaveBeenCalledWith('/settings');
   });
 
   it('supports object-based login signature', async () => {
