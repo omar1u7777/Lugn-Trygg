@@ -60,14 +60,14 @@ describe('BreathingExercise', () => {
 
   it('should render basic mode by default', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
-    expect(screen.getByText('🫁 Grundläge')).toBeInTheDocument();
-    expect(screen.queryByText('💜 HRV Biofeedback')).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.basicMode/)).toBeInTheDocument();
+    expect(screen.queryByText(/breathing\.hrvBiofeedback/)).toBeInTheDocument();
   });
 
   it('should toggle between basic and biofeedback mode', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const biofeedbackButton = screen.getByText('💜 HRV Biofeedback');
+    const biofeedbackButton = screen.getByText(/breathing\.hrvBiofeedback/);
     fireEvent.click(biofeedbackButton);
     
     expect(screen.getByTestId('biofeedback-circle')).toBeInTheDocument();
@@ -75,15 +75,15 @@ describe('BreathingExercise', () => {
 
   it('should render cycle selector buttons', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
-    expect(screen.getByText('4 cykler')).toBeInTheDocument();
-    expect(screen.getByText('8 cykler')).toBeInTheDocument();
-    expect(screen.getByText('12 cykler')).toBeInTheDocument();
+    expect(screen.getByText(/4 breathing\.cycles/)).toBeInTheDocument();
+    expect(screen.getByText(/8 breathing\.cycles/)).toBeInTheDocument();
+    expect(screen.getByText(/12 breathing\.cycles/)).toBeInTheDocument();
   });
 
   it('should allow cycle selection', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const eightCyclesButton = screen.getByText('8 cykler');
+    const eightCyclesButton = screen.getByText(/8 breathing\.cycles/);
     fireEvent.click(eightCyclesButton);
     
     expect(eightCyclesButton).toHaveClass('bg-indigo-600');
@@ -91,13 +91,13 @@ describe('BreathingExercise', () => {
 
   it('should render stress before slider', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
-    expect(screen.getByLabelText(/Stress före start/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/breathing\.stressBefore/i)).toBeInTheDocument();
   });
 
   it('should update stress before value', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const stressSlider = screen.getByLabelText(/Stress före start/i);
+    const stressSlider = screen.getByLabelText(/breathing\.stressBefore/i);
     fireEvent.change(stressSlider, { target: { value: '50' } });
     
     expect(stressSlider).toHaveValue('50');
@@ -106,58 +106,58 @@ describe('BreathingExercise', () => {
   it('should toggle sound on/off', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const soundButton = screen.getByText('🔈 Ljud av');
+    const soundButton = screen.getByText(/breathing\.soundOff/);
     fireEvent.click(soundButton);
     
-    expect(screen.getByText('🔊 Ljud på')).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.soundOn/)).toBeInTheDocument();
   });
 
   it('should toggle haptics on/off', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const hapticsButton = screen.getByText('📳 Haptik på');
+    const hapticsButton = screen.getByText(/breathing\.hapticsOn/);
     fireEvent.click(hapticsButton);
     
-    expect(screen.getByText('📴 Haptik av')).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.hapticsOff/)).toBeInTheDocument();
   });
 
   it('should toggle fullscreen mode', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const fullscreenButton = screen.getByText('🗖 Helskärm');
+    const fullscreenButton = screen.getByText(/breathing\.fullscreen/);
     fireEvent.click(fullscreenButton);
     
-    expect(screen.getByText('🗗 Avsluta helskärm')).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.exitFullscreen/)).toBeInTheDocument();
   });
 
   it('should toggle science explanation', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const scienceButton = screen.getByText(/Visa.*Varför 4-7-8/i);
+    const scienceButton = screen.getByText(/breathing\.show.*breathing\.why478/i);
     fireEvent.click(scienceButton);
     
-    expect(screen.getByText(/4-7-8-andning förlänger utandningen/i)).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.science478/i)).toBeInTheDocument();
   });
 
   it('should render biofeedback pattern selector when in biofeedback mode', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const biofeedbackButton = screen.getByText('💜 HRV Biofeedback');
+    const biofeedbackButton = screen.getByText(/breathing\.hrvBiofeedback/);
     fireEvent.click(biofeedbackButton);
     
-    expect(screen.getByText('❤️ Koherens 6bpm')).toBeInTheDocument();
-    expect(screen.getByText('😴 4-7-8')).toBeInTheDocument();
-    expect(screen.getByText('⚡ Box')).toBeInTheDocument();
-    expect(screen.getByText('🌙 Sömn')).toBeInTheDocument();
+    expect(screen.getAllByText(/breathing\.patterns\.coherence/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/breathing\.patterns\.relax/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/breathing\.patterns\.energize/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/breathing\.patterns\.sleep/).length).toBeGreaterThan(0);
   });
 
   it('should select biofeedback pattern', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const biofeedbackButton = screen.getByText('💜 HRV Biofeedback');
+    const biofeedbackButton = screen.getByText(/breathing\.hrvBiofeedback/);
     fireEvent.click(biofeedbackButton);
     
-    const relaxPattern = screen.getByText('😴 4-7-8');
+    const relaxPattern = screen.getAllByText(/breathing\.patterns\.relax/)[0];
     fireEvent.click(relaxPattern);
     
     expect(relaxPattern).toHaveClass('bg-purple-600');
@@ -182,7 +182,7 @@ describe('BreathingExercise', () => {
 
     render(<BreathingExercise onComplete={mockOnComplete} initialStressBefore={50} />);
 
-    const startButton = screen.getByText('🚀 Starta andningsövning');
+    const startButton = screen.getByText(/breathing\.startExercise/);
     fireEvent.click(startButton);
 
     expect(mockStart).toHaveBeenCalled();
@@ -191,17 +191,17 @@ describe('BreathingExercise', () => {
   it('should disable start button when stress before is null', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const startButton = screen.getByText('🚀 Starta andningsövning');
+    const startButton = screen.getByText(/breathing\.startExercise/);
     expect(startButton).toBeDisabled();
   });
 
   it('should enable start button when stress before is set', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    const stressSlider = screen.getByLabelText(/Stress före start/i);
+    const stressSlider = screen.getByLabelText(/breathing\.stressBefore/i);
     fireEvent.change(stressSlider, { target: { value: '50' } });
     
-    const startButton = screen.getByText('🚀 Starta andningsövning');
+    const startButton = screen.getByText(/breathing\.startExercise/);
     expect(startButton).not.toBeDisabled();
   });
 
@@ -222,7 +222,7 @@ describe('BreathingExercise', () => {
 
     render(<BreathingExercise onComplete={mockOnComplete} initialStressBefore={50} />);
 
-    expect(screen.getByLabelText(/Stress efter övningen/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/breathing\.stressAfter/i)).toBeInTheDocument();
   });
 
   it('should calculate stress change when both values are set', () => {
@@ -242,10 +242,10 @@ describe('BreathingExercise', () => {
 
     render(<BreathingExercise onComplete={mockOnComplete} initialStressBefore={70} />);
 
-    const stressAfterSlider = screen.getByLabelText(/Stress efter övningen/i);
+    const stressAfterSlider = screen.getByLabelText(/breathing\.stressAfter/i);
     fireEvent.change(stressAfterSlider, { target: { value: '40' } });
 
-    expect(screen.getByText(/Förändring: -30 poäng/i)).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.change.*-30 breathing\.points/i)).toBeInTheDocument();
   });
 
   it('should render breathing circle with phase indicators', () => {
@@ -261,21 +261,21 @@ describe('BreathingExercise', () => {
   it('should use initial cycles prop', () => {
     render(<BreathingExercise onComplete={mockOnComplete} initialCycles={8} />);
     
-    const eightCyclesButton = screen.getByText('8 cykler');
+    const eightCyclesButton = screen.getByText(/8 breathing\.cycles/);
     expect(eightCyclesButton).toHaveClass('bg-indigo-600');
   });
 
   it('should use initial stress before prop', () => {
     render(<BreathingExercise onComplete={mockOnComplete} initialStressBefore={60} />);
     
-    const stressSlider = screen.getByLabelText(/Stress före start/i);
+    const stressSlider = screen.getByLabelText(/breathing\.stressBefore/i);
     expect(stressSlider).toHaveValue('60');
   });
 
   it('should pass userId to BiofeedbackBreathingCircle', () => {
     render(<BreathingExercise userId="test-user-123" onComplete={mockOnComplete} />);
     
-    const biofeedbackButton = screen.getByText('💜 HRV Biofeedback');
+    const biofeedbackButton = screen.getByText(/breathing\.hrvBiofeedback/);
     fireEvent.click(biofeedbackButton);
     
     const biofeedbackCircle = screen.getByTestId('biofeedback-circle');
@@ -285,6 +285,6 @@ describe('BreathingExercise', () => {
   it('should show warning when stress before is null and exercise not active', () => {
     render(<BreathingExercise onComplete={mockOnComplete} />);
     
-    expect(screen.getByText(/Välj stressnivå före start/i)).toBeInTheDocument();
+    expect(screen.getByText(/breathing\.selectStressHint/i)).toBeInTheDocument();
   });
 });

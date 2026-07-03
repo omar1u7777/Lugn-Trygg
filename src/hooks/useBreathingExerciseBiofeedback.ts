@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
 import { endBreathingSession, startBreathingSession } from '../api/biofeedback';
 import { logger } from '../utils/logger';
+import { getBackendUrl } from '../config/env';
+import { tokenStorage } from '../utils/secureStorage';
 
 // Biofeedback types
 export type BreathingPhase = 'prepare' | 'exhale' | 'inhale' | 'hold' | 'exhale2' | 'rest' | 'completed';
@@ -300,7 +302,16 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     setConnectionError(null);
 
     try {
-      const wsUrl = `${process.env.REACT_APP_WS_URL || 'wss://api.lugn-trygg.se'}/biofeedback?token=${token}`;
+      const backendUrl = getBackendUrl();
+      let wsBase: string;
+      if (backendUrl && backendUrl.startsWith('http')) {
+        wsBase = backendUrl.replace(/^http/, 'ws');
+      } else {
+        // Production with relative URLs — derive WS from current origin
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsBase = `${protocol}//${window.location.host}`;
+      }
+      const wsUrl = `${wsBase}/biofeedback?token=${token}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -345,25 +356,21 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
       };
 
       ws.onerror = (error) => {
-        logger.error('WebSocket error', error as Error);
-        setConnectionError('Kunde inte ansluta till biofeedback. Försök igen.');
+        logger.warn('Biofeedback WebSocket error — continuing in offline mode', error as Error);
         setIsConnecting(false);
       };
 
       ws.onclose = (event) => {
         logger.info('WebSocket closed', { code: event.code });
-        if (event.code !== 1000 && sessionRef.current) {
-          setConnectionError('Anslutningen till biofeedback bröts. Försök igen.');
-        }
         setIsConnecting(false);
       };
 
       wsRef.current = ws;
 
     } catch (error) {
-      logger.error('Failed to connect biofeedback', error as Error);
-      setConnectionError('Anslutningsfel');
+      logger.warn('Biofeedback WebSocket unavailable — continuing in offline mode', error as Error);
       setIsConnecting(false);
+      // Don't set connectionError — let the breathing exercise work without biofeedback
     }
   }, [useBiofeedback]);
 
@@ -372,7 +379,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     if (!useBiofeedback) return null;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = await tokenStorage.getAccessToken();
       const data = await startBreathingSession(patternId, duration);
 
       const newSession: BreathingSession = {
@@ -393,8 +400,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
 
       return newSession;
     } catch (error) {
-      logger.error('Failed to start biofeedback session', error as Error);
-      setConnectionError('Kunde inte starta biofeedback-session');
+      logger.warn('Biofeedback session unavailable — continuing in offline mode', error as Error);
     }
     
     return null;
@@ -410,7 +416,7 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     setRetryCount((prev) => prev + 1);
     setConnectionError(null);
 
-    const token = localStorage.getItem('token');
+    const token = await tokenStorage.getAccessToken();
     await connectBiofeedback(sessionRef.current.sessionId, token || '');
   }, [connectBiofeedback]);
 
@@ -424,10 +430,10 @@ export const useBreathingExerciseBiofeedback = (options: BiofeedbackOptions = {}
     setConnectionError(null);
     setRetryCount(0);
     
-    // Start backend session if biofeedback enabled
+    // Start backend session if biofeedback enabled (non-blocking)
     if (useBiofeedback && userId) {
       const patternId = pattern?.id || 'coherence';
-      await startBackendSession(userId, patternId, Math.ceil((targetCycles * cycleTotalTime) / 60));
+      void startBackendSession(userId, patternId, Math.ceil((targetCycles * cycleTotalTime) / 60));
     }
     
     // Get initial instruction

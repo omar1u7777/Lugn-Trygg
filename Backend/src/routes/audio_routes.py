@@ -28,7 +28,7 @@ MAX_SEARCH_LENGTH = 100
 
 # Curated audio library using VERIFIED working sources
 # Sources: Wikimedia Commons (CC0/CC-BY), with fallback to generated audio
-# All URLs tested and verified 2026-04-03
+# All URLs verified via Wikimedia Commons API 2026-07-03
 AUDIO_LIBRARY = {
     'nature': {
         'id': 'nature',
@@ -43,9 +43,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Forest Rain',
                 'artist': 'Nature Sounds',
                 'duration': '10:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/6/69/Raindrop_1.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Sound_of_rain.ogg',
                 'description': 'Mjukt regn mot fönster',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             },
             {
                 'id': 'ocean-waves',
@@ -53,9 +53,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Ocean Waves',
                 'artist': 'Nature Sounds',
                 'duration': '10:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/7/73/Calm_sea_waves-Andres_Salasar.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
                 'description': 'Lugna havsvågor mot stranden',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'birds-morning',
@@ -63,9 +63,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Morning Birds',
                 'artist': 'Nature Sounds',
                 'duration': '5:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Karnataka_forest_soundscape.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
                 'description': 'Fåglar som sjunger i gryningen',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'river-stream',
@@ -73,9 +73,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'River Stream',
                 'artist': 'Nature Sounds',
                 'duration': '8:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Babbling_stream.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/32/Hemlock_stream.ogg',
                 'description': 'Lugnt porlande vatten',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             }
         ]
     },
@@ -92,9 +92,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Deep Relaxation',
                 'artist': 'Ambient Generator',
                 'duration': '10:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Ambient_pad_-_warm_%28ccbysa%29.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/a/a8/Meditation_Gong.ogg',
                 'description': 'Lugn ambient musik för avslappning',
-                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             },
             {
                 'id': 'cosmic-drift',
@@ -102,9 +102,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Cosmic Drift',
                 'artist': 'Space Sounds',
                 'duration': '8:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/34/Ambient_-_Pad_-_Ethereal_%28ccbysa%29.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Ambient_Noise.ogg',
                 'description': 'Drömmande rymdljud för meditation',
-                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
+                'license': 'CC BY 2.5 (Wikimedia Commons)'
             },
             {
                 'id': 'healing-tones',
@@ -112,7 +112,7 @@ AUDIO_LIBRARY = {
                 'title_en': 'Healing Tones',
                 'artist': 'Wellness Audio',
                 'duration': '12:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/b/b4/Ambient_-_Pad_-_Warm_%28ccbysa%29.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Singing_bowl.ogg',
                 'description': 'Läkande frekvenser för avslappning',
                 'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             }
@@ -131,9 +131,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Zen Garden',
                 'artist': 'Meditation Music',
                 'duration': '10:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Meditation_BioSignal_2.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/a/a8/Meditation_Gong.ogg',
                 'description': 'Fredlig zenmusik för meditativ fokus',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             },
             {
                 'id': 'breath-focus',
@@ -141,9 +141,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Breath Focus',
                 'artist': 'Mindfulness Audio',
                 'duration': '8:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/87/Mindfulness.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Ambient_Noise.ogg',
                 'description': 'Musik för andningsövningar',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY 2.5 (Wikimedia Commons)'
             },
             {
                 'id': 'tibetan-bowls',
@@ -151,9 +151,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Tibetan Bowls',
                 'artist': 'Sound Healing',
                 'duration': '15:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Tibetan_bowl_meditation.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/17/Small_tibetan_singing_bowl.ogg',
                 'description': 'Resonerande tibetanska klangskålar',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             }
         ]
     },
@@ -170,9 +170,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Night Rain',
                 'artist': 'Sleep Sounds',
                 'duration': '30:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/6/69/Raindrop_1.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/4/41/Rain_against_the_window.ogg',
                 'description': 'Mjukt regn för sömn',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'white-noise',
@@ -180,9 +180,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'White Noise',
                 'artist': 'Sleep Sounds',
                 'duration': '60:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/0/0d/Whitenoise.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/a/aa/White_noise.ogg',
                 'description': 'Lugnande vitt brus för djup sömn',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'lullaby-piano',
@@ -190,9 +190,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Lullaby Piano',
                 'artist': 'Sleep Music',
                 'duration': '20:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Chopin_Nocturne_Op.9_No.2.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/12/Chopin%2C_Nocturne_in_C-sharp_minor%2C_Op._Posth.ogg',
                 'description': 'Mjuk pianomusik för sömn',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             }
         ]
     },
@@ -209,9 +209,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Study Beats',
                 'artist': 'Focus Music',
                 'duration': '15:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/f/f9/LoFi_Hip_Hop_Beats_Lo-Fi_Study_Music.ogg',
-                'description': 'Lo-fi beats för studier',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Chopin%2C_Nocturne_op_32_no_1.ogg',
+                'description': 'Klassiskt piano för studier',
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             },
             {
                 'id': 'deep-work',
@@ -219,7 +219,7 @@ AUDIO_LIBRARY = {
                 'title_en': 'Deep Work',
                 'artist': 'Productivity Sounds',
                 'duration': '25:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/c/ce/Ambient_-_Pad_-_Warm_%28ccbysa%29.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/6/66/Whitenoisesound.ogg',
                 'description': 'Lugn musik för fokuserat arbete',
                 'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
@@ -229,9 +229,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Focus Piano',
                 'artist': 'Classical Focus',
                 'duration': '20:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Chopin_Nocturne_Op.9_No.2.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Chopin%2C_Nocturne_op_32_no_1.ogg',
                 'description': 'Klassiskt piano för djup koncentration',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 4.0 (Wikimedia Commons)'
             }
         ]
     },
@@ -248,7 +248,7 @@ AUDIO_LIBRARY = {
                 'title_en': 'Star Journey',
                 'artist': 'Lugn Trygg',
                 'duration': '12:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/34/Ambient_-_Pad_-_Ethereal_%28ccbysa%29.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
                 'description': 'Lugn godnattsaga för nedvarvning — dröm dig bort bland stjärnorna',
                 'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
@@ -258,9 +258,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Rainforest Rest',
                 'artist': 'Lugn Trygg',
                 'duration': '15:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Karnataka_forest_soundscape.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
                 'description': 'Mjuk berättelse med naturljud från regnskogen',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'ocean-breath',
@@ -268,9 +268,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Ocean Breath',
                 'artist': 'Lugn Trygg',
                 'duration': '20:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/7/73/Calm_sea_waves-Andres_Salasar.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
                 'description': 'Djup vila med havsrytm och guidning',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'moonlit-forest',
@@ -278,9 +278,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Moonlit Forest',
                 'artist': 'Lugn Trygg',
                 'duration': '18:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Babbling_stream.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/3/32/Hemlock_stream.ogg',
                 'description': 'Stillhet i en månlit skog med porlande bäck',
-                'license': 'CC BY 3.0 (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             },
             {
                 'id': 'winter-calm',
@@ -288,9 +288,9 @@ AUDIO_LIBRARY = {
                 'title_en': 'Winter Calm',
                 'artist': 'Lugn Trygg',
                 'duration': '14:00',
-                'url': 'https://upload.wikimedia.org/wikipedia/commons/6/69/Raindrop_1.ogg',
+                'url': 'https://upload.wikimedia.org/wikipedia/commons/4/42/Rain_and_thunder.ogg',
                 'description': 'Fräscht vinterlugn med mjuka regndroppar',
-                'license': 'CC0 - Public Domain (Wikimedia Commons)'
+                'license': 'CC BY-SA 3.0 (Wikimedia Commons)'
             }
         ]
     }
@@ -522,9 +522,9 @@ def generate_audio():
         audio_type = request.args.get('type', 'ambient')
         brainwave = request.args.get('brainwave', 'alpha')
         try:
-            duration = min(int(request.args.get('duration', 600)), 3600)  # Max 1 hour
+            duration = min(int(request.args.get('duration', 120)), 120)  # Max 2 min for memory safety
         except (ValueError, TypeError):
-            duration = 600
+            duration = 120
 
         # Brainwave frequencies (Hz) - scientifically validated
         frequencies = {
@@ -536,7 +536,7 @@ def generate_audio():
         }
 
         freq = frequencies.get(brainwave, 10)  # Default to alpha
-        sample_rate = 44100  # CD quality
+        sample_rate = 22050  # Reduced from 44100 for memory efficiency on Render
 
         # Generate time array
         t = np.linspace(0, duration, int(duration * sample_rate))

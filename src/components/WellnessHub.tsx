@@ -135,12 +135,9 @@ export const applySessionCompletionStats = (
   };
 };
 
-const formatStreakLabel = (days: number): string => {
+const formatStreakLabel = (days: number, t: (key: string, options?: Record<string, unknown>) => string): string => {
   const normalized = Math.max(0, days);
-  if (normalized === 1) {
-    return '1 dags streak';
-  }
-  return `${normalized} dagars streak`;
+  return t('wellnessHub.streakDays', { count: normalized });
 };
 
 // ----------------------------------------------------------------------
@@ -148,9 +145,9 @@ const formatStreakLabel = (days: number): string => {
 // ----------------------------------------------------------------------
 
 const SLEEP_STORY_URLS: Record<string, string> = {
-  's1': 'https://upload.wikimedia.org/wikipedia/commons/3/34/Ambient_-_Pad_-_Ethereal_%28ccbysa%29.ogg',
-  's2': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Karnataka_forest_soundscape.ogg',
-  's3': 'https://upload.wikimedia.org/wikipedia/commons/7/73/Calm_sea_waves-Andres_Salasar.ogg',
+  's1': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+  's2': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
+  's3': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
 };
 
 const CategoryPill: React.FC<{
@@ -257,7 +254,7 @@ const WellnessHub: React.FC = () => {
   const [meditationTimeLeft, setMeditationTimeLeft] = useState(0);
   const [meditationStartTime, setMeditationStartTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const meditationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const meditationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
   const completeMeditationRef = useRef<() => Promise<void>>();
@@ -388,6 +385,7 @@ const WellnessHub: React.FC = () => {
     setIsMeditationActive(false);
     setSelectedMeditation(null);
     setMeditationTimeLeft(0);
+    setMeditationStartTime(null);
     setIsPaused(false);
     pausedDurationMsRef.current = 0;
     pauseStartTimeRef.current = null;
@@ -481,17 +479,34 @@ const WellnessHub: React.FC = () => {
   const playSleepStory = useCallback((story: MeditationOption) => {
     stopSleepStory();
     const url = SLEEP_STORY_URLS[story.id];
-    if (!url) return;
+    if (!url) {
+      logger.error('Sleep story playback failed: No URL for story', story.id);
+      return;
+    }
 
     const audio = new Audio(url);
     audio.volume = 0.6;
+    audio.preload = 'auto';
     sleepStoryAudioRef.current = audio;
 
     setSelectedSleepStory(story);
     setSleepStoryTimeLeft(story.duration * 60);
     setSleepStoryPlaying(true);
 
-    audio.play().catch((e) => logger.error('Sleep story playback failed:', e));
+    audio.addEventListener('error', () => {
+      logger.error('Sleep story playback failed: Audio load error for', story.id);
+      stopSleepStory();
+    });
+
+    audio.addEventListener('ended', () => {
+      logger.info('Sleep story ended naturally:', story.id);
+      stopSleepStory();
+    });
+
+    audio.play().catch((e) => {
+      logger.error('Sleep story playback failed:', e);
+      stopSleepStory();
+    });
 
     sleepStoryTimerRef.current = setInterval(() => {
       setSleepStoryTimeLeft((prev) => {
@@ -565,7 +580,7 @@ const WellnessHub: React.FC = () => {
               {/* Streak / Stats Badge */}
               <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full border border-orange-100 dark:border-orange-800/50">
                 <FireIcon className="w-5 h-5" />
-                <span className="font-semibold">{formatStreakLabel(wellnessStats.streakDays)}</span>
+                <span className="font-semibold">{formatStreakLabel(wellnessStats.streakDays, t)}</span>
               </div>
             </div>
           </header>
@@ -717,12 +732,12 @@ const WellnessHub: React.FC = () => {
               </div>
 
               <div className="flex flex-col items-center mb-8">
-                <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-primary-200 to-primary-100 flex items-center justify-center mb-6 relative">
+                <div className="w-40 h-40 rounded-full bg-gradient-to-tr from-primary-200 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/30 flex items-center justify-center mb-6 relative">
                   <div className={`absolute inset-0 rounded-full border-4 border-primary-100 ${!isPaused ? 'animate-ping' : ''} opacity-20`} />
                   {selectedMeditation.icon ? React.cloneElement(selectedMeditation.icon as React.ReactElement, { className: 'w-16 h-16 text-primary-600' }) : <SparklesIcon className="w-16 h-16 text-primary-600" />}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">{selectedMeditation.title}</h2>
-                <p className="text-gray-500 text-center">{selectedMeditation.description}</p>
+                <p className="text-gray-500 dark:text-gray-400 text-center">{selectedMeditation.description}</p>
               </div>
 
               <div className="text-5xl font-mono text-center font-bold text-primary-600 dark:text-primary-400 mb-8 tracking-wider">
