@@ -85,8 +85,8 @@ class TestAuthenticationFlowIntegration:
 
     def test_token_refresh_flow(self, client, auth_csrf_headers, mock_auth_service, mocker):
         """Test token refresh via POST /api/auth/refresh"""
-        mocker.patch('src.services.auth_service.AuthService.refresh_token',
-                    return_value=("new_token", None))
+        mocker.patch('src.services.auth_service.AuthService.rotate_refresh_token',
+                    return_value=({"access_token": "new_token", "refresh_token": "new_refresh"}, None))
 
         response = client.post('/api/auth/refresh', headers=auth_csrf_headers)
 

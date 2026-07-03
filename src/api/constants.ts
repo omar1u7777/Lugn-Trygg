@@ -18,7 +18,6 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: '/api/v1/auth/change-password',
     CONSENT: '/api/v1/auth/consent',
     SETUP_2FA: '/api/v1/auth/setup-2fa',
-    SETUP_2FA_BIOMETRIC: '/api/v1/auth/setup-2fa-biometric',
     VERIFY_2FA: '/api/v1/auth/verify-2fa',
     VERIFY_2FA_SETUP: '/api/v1/auth/verify-2fa-setup',
     EXPORT_DATA: '/api/v1/auth/export-data',

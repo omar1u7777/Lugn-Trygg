@@ -93,7 +93,7 @@ def _verify_current_password(email: str, password: str) -> bool:
         resp = requests.post(
             firebase_signin_url,
             json={"email": email, "password": password, "returnSecureToken": True},
-            timeout=10,
+            timeout=5,
         )
         return resp.status_code == 200
     except Exception as e:
@@ -121,11 +121,10 @@ def _get_totp_cipher():
 
 
 def _encrypt_totp_secret(secret: str) -> str:
-    """Encrypt a TOTP secret for storage. Falls back to plaintext only if no key is set."""
+    """Encrypt a TOTP secret for storage. Raises if encryption key is missing (HIPAA compliance)."""
     cipher = _get_totp_cipher()
     if not cipher:
-        logger.warning("HIPAA_ENCRYPTION_KEY missing; storing TOTP secret without encryption.")
-        return secret
+        raise RuntimeError("HIPAA_ENCRYPTION_KEY is not configured; cannot encrypt TOTP secret")
     return _TOTP_ENC_PREFIX + cipher.encrypt(secret.encode()).decode()
 
 
@@ -385,10 +384,20 @@ def verify_2fa():
 
         if not verified:
             audit_log('2fa_verification_failed', user_id, {'method': method})
+            # Track failed 2FA attempts for lockout enforcement
+            user_email = user_data.get('email')
+            if user_email:
+                AuthService.record_failed_attempt(user_email)
             return APIResponse.unauthorized('2FA verification failed')
 
-        # Generate a new token (note: AuthService does not support additional claims)
-        access_token_verified = AuthService.generate_access_token(user_id)
+        # Issue a full session pair (access + refresh) so the 2FA gate
+        # applies to the refresh cycle as well, not just the initial access token.
+        access_token_verified, refresh_token_verified = AuthService.issue_session_tokens(user_id)
+
+        # Reset failed attempts on successful 2FA
+        user_email = user_data.get('email')
+        if user_email:
+            AuthService.reset_failed_attempts(user_email)
 
         audit_log('2fa_verification_successful', user_id, {'method': method})
 
@@ -397,6 +406,7 @@ def verify_2fa():
         }
         response_tuple = APIResponse.success(response_data, '2FA verification successful')
         response = make_response(response_tuple[0], response_tuple[1])
+        _set_refresh_cookie(response, refresh_token_verified)
 
         return response
 
@@ -772,6 +782,12 @@ def confirm_password_reset(validated_data):
                 return APIResponse.error('Autentiseringstjänsten är tillfälligt otillgänglig', 'SERVICE_UNAVAILABLE', 503)
 
             auth.update_user(user_id, password=new_password)
+
+            # Security: revoke all active refresh sessions after password reset
+            # so a compromised session cannot survive a password change.
+            revoked, revoke_error = AuthService.revoke_all_sessions(user_id, reason='password_reset')
+            if revoke_error or not revoked:
+                logger.warning("Failed to revoke sessions after password reset for %s: %s", user_id, revoke_error)
 
             audit_log('password_reset_successful', user_id, {})
 

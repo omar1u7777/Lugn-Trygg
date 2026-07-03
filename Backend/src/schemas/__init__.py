@@ -16,8 +16,6 @@ from .auth import (
     RegisterRequest,
     RegisterResponse,
     ResetPasswordRequest,
-    TwoFactorSetupRequest,
-    TwoFactorVerifyRequest,
     UpdateProfileRequest,
     UserProfile,
 )
@@ -86,8 +84,6 @@ __all__ = [
     "ResetPasswordRequest",
     "ConfirmPasswordResetRequest",
     "ChangePasswordRequest",
-    "TwoFactorSetupRequest",
-    "TwoFactorVerifyRequest",
     "UpdateProfileRequest",
     "ConsentUpdateRequest",
     "DeleteAccountRequest",

@@ -44,6 +44,8 @@ _auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 from ..config import (
     ACCESS_TOKEN_EXPIRES,
     FIREBASE_WEB_API_KEY,
+    JWT_AUDIENCE,
+    JWT_ISSUER,
     JWT_REFRESH_SECRET_KEY,
     JWT_SECRET_KEY,
     LOCKOUT_DURATION_MINUTES_FIRST,
@@ -62,15 +64,7 @@ from ..utils.error_handling import (
     ValidationError,
     handle_service_errors,
 )
-from ..utils.password_utils import verify_password as utils_verify_password
 
-
-# Password reset request model
-class ConfirmPasswordResetRequest:
-    """Model for password reset confirmation request"""
-    def __init__(self, oob_code: str, new_password: str):
-        self.oob_code = oob_code
-        self.new_password = new_password
 
 logger = logging.getLogger(__name__)
 
@@ -259,8 +253,15 @@ class AuthService:
             return user, None, access_token, refresh_token
 
         except Exception as e:
-            # Record failed attempt
-            AuthService.record_failed_attempt(email)
+            # Only record failed attempts for credential errors, not infrastructure issues
+            error_str = str(e).lower()
+            is_credential_error = any(
+                code in error_str
+                for code in ('invalid_password', 'email_not_found', 'invalid_email',
+                             'user_disabled', 'operation_not_allowed')
+            )
+            if is_credential_error:
+                AuthService.record_failed_attempt(email)
 
             # Record security event for failed login
             tamper_detection_service.record_event(
@@ -280,21 +281,14 @@ class AuthService:
     @staticmethod
     def login_with_id_token(id_token: str) -> tuple[User | None, str | None, str | None, str | None]:
         """Verifierar Firebase ID-token och genererar JWT tokens med account lockout protection"""
-        email = None
         try:
-            # Extract email from token for lockout check (safe since we only use it for logging)
-            try:
-                import base64
-                if id_token and '.' in id_token:
-                    header, payload, signature = id_token.split('.')
-                    payload += '=' * (4 - len(payload) % 4)
-                    decoded_payload = base64.urlsafe_b64decode(payload)
-                    token_data = json.loads(decoded_payload)
-                    email = token_data.get('email')
-            except Exception:
-                email = None
+            # Verify ID token with Firebase Admin SDK FIRST — do not trust
+            # unverified JWT claims for security decisions (lockout check).
+            decoded_token = _auth.verify_id_token(id_token)
+            user_id = decoded_token['uid']
+            email = decoded_token.get('email')
 
-            # Check for account lockout before token verification
+            # Check for account lockout AFTER token verification using trusted email
             if email:
                 is_locked, lockout_message = AuthService.check_account_lockout(email)
                 if is_locked:
@@ -313,11 +307,6 @@ class AuthService:
                     )
 
                     return None, f"Account is locked out due to too many failed attempts. {lockout_message}", None, None
-
-            # Verify ID token with Firebase Admin SDK
-            decoded_token = _auth.verify_id_token(id_token)
-            user_id = decoded_token['uid']
-            email = decoded_token.get('email')
 
             # Get user data from Firebase Authentication
             user_record = _auth.get_user(user_id)
@@ -343,38 +332,12 @@ class AuthService:
             return user, None, access_token, refresh_token
 
         except Exception as e:
-            # Try to extract email from unverified token for failed attempt logging
-            # This is safe because we only use it for logging, not security decisions
-            try:
-                import base64
-                if id_token and '.' in id_token:
-                    header, payload, signature = id_token.split('.')
-                    payload += '=' * (4 - len(payload) % 4)
-                    decoded_payload = base64.urlsafe_b64decode(payload)
-                    token_data = json.loads(decoded_payload)
-                    unverified_email = token_data.get('email')
-                    if unverified_email:
-                        AuthService.record_failed_attempt(unverified_email)
-            except Exception:
-                # If we can't extract email, just log without recording failed attempt
-                pass
-
+            # Do NOT extract email from unverified token for failed attempt
+            # recording — an attacker could craft tokens with a victim's email
+            # to lock out their account (DoS).
             logger.exception(f"🔥 ID token verification failed: {str(e)}")
             return None, "Invalid ID token", None, None
 
-
-    @staticmethod
-    def refresh_token(user_id: str) -> tuple[str | None, str | None]:
-        """Legacy helper kept for compatibility. Prefer rotate_refresh_token()."""
-        try:
-            new_access_token = AuthService.generate_access_token(user_id)
-
-            logger.info(f"✅ Access token renewed for user: {user_id}")
-            return new_access_token, None
-
-        except Exception as e:
-            logger.exception(f"🔥 Token renewal failed: {str(e)}")
-            return None, "Internal error during token renewal"
 
     @staticmethod
     def generate_access_token(user_id: str) -> str:
@@ -383,7 +346,9 @@ class AuthService:
             "sub": user_id,
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + ACCESS_TOKEN_EXPIRES,
-            "type": "access"
+            "type": "access",
+            "iss": JWT_ISSUER,
+            "aud": JWT_AUDIENCE,
         }, JWT_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
@@ -394,7 +359,9 @@ class AuthService:
             "iat": datetime.now(UTC),
             "exp": datetime.now(UTC) + REFRESH_TOKEN_EXPIRES,
             "jti": secrets.token_hex(16),
-            "type": "refresh"
+            "type": "refresh",
+            "iss": JWT_ISSUER,
+            "aud": JWT_AUDIENCE,
         }, JWT_REFRESH_SECRET_KEY, algorithm="HS256")
 
     @staticmethod
@@ -404,6 +371,8 @@ class AuthService:
             JWT_REFRESH_SECRET_KEY,
             algorithms=["HS256"],
             options={"verify_exp": verify_exp},
+            issuer=JWT_ISSUER,
+            audience=JWT_AUDIENCE,
         )
 
     @staticmethod
@@ -555,9 +524,22 @@ class AuthService:
                 logger.warning("⚠️ Invalid token structure")
                 return None, "Invalid token format"
 
-            # Decode and verify token
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+            # Decode and verify token — require mandatory claims (exp, sub, type)
+            payload = jwt.decode(
+                token,
+                JWT_SECRET_KEY,
+                algorithms=["HS256"],
+                options={"require": ["exp", "sub", "type"]},
+                issuer=JWT_ISSUER,
+                audience=JWT_AUDIENCE,
+            )
             user_id = payload.get("sub")
+
+            # Verify token type claim — only access tokens are accepted
+            token_type = payload.get("type")
+            if token_type != "access":
+                logger.warning("⚠️ Invalid token type: %s", token_type)
+                return None, "Invalid token type"
 
             if not user_id:
                 logger.warning("⚠️ Token missing user_id (sub claim)")
@@ -930,9 +912,6 @@ class AuthService:
     @staticmethod
     def generate_password_reset_token(user_id: str) -> str:
         """Generate a secure password reset token"""
-        import secrets
-        from datetime import datetime, timedelta
-
         # Generate a cryptographically secure random token
         token = secrets.token_urlsafe(32)
 
@@ -1018,20 +997,6 @@ class AuthService:
         except Exception as e:
             logger.error(f"Failed to verify password reset token: {str(e)}")
             return None, "Token verification failed"
-
-    @staticmethod
-    def verify_password(password: str, hashed: str) -> bool:
-        """
-        Verify a password against its hash using bcrypt
-
-        Args:
-            password: Plain text password
-            hashed: Hashed password
-
-        Returns:
-            bool: True if password matches hash, False otherwise
-        """
-        return utils_verify_password(password, hashed)
 
     # Audit Integration
     @staticmethod

@@ -1,7 +1,8 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import WorldClassDashboardSkeleton from "../WorldClassDashboardSkeleton";import { logger } from '../../utils/logger';
+import WorldClassDashboardSkeleton from "../WorldClassDashboardSkeleton";
+import { logger } from '../../utils/logger';
 
 
 interface ProtectedRouteProps {
@@ -34,7 +35,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   // Not logged in at all
   if (!loggedIn) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Logged in but not admin when admin required

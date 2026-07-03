@@ -5,6 +5,7 @@ Verifies consent service endpoints work correctly
 
 import os
 import sys
+from unittest.mock import MagicMock
 
 # Add Backend directory to sys.path (one level up from tests/)
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,37 +14,40 @@ if backend_dir not in sys.path:
 
 import pytest
 
-# Import Flask app directly
-from main import app
-from src.services.auth_service import AuthService
+
+@pytest.fixture
+def mock_consent_service(mocker):
+    """Mock consent_service so tests don't require a real Firestore connection."""
+    mock = MagicMock()
+    mock.get_user_consents.return_value = {}
+    mock.grant_consent.return_value = True
+    mock.withdraw_consent.return_value = True
+    mock.validate_feature_access.return_value = {
+        'access_granted': True,
+        'missing_consents': []
+    }
+    mock.check_consent.return_value = {'has_consent': True}
+    mocker.patch('src.routes.consent_routes.consent_service', mock)
+    return mock
 
 
-@pytest.mark.skip(reason="Creates own test_client bypassing conftest fixtures; conftest globally patches jwt_required so 401 test cannot work")
-def test_consent_api():
-    """Test consent API endpoints"""
-    client = app.test_client()
+def test_consent_get_error_response(client, auth_headers, mock_auth_service, mock_consent_service):
+    """GET /api/v1/consent should return 404 when consent_service returns an error."""
+    mock_consent_service.get_user_consents.return_value = {'error': 'Firestore unavailable'}
+    response = client.get('/api/v1/consent', headers=auth_headers)
+    assert response.status_code == 404
 
-    # Test without auth - should get 401
-    print("Testing without auth...")
-    response = client.get('/api/consent')
-    print(f"Without auth: {response.status_code}")
-    assert response.status_code == 401, "Should require authentication"
 
-    # Generate test token
-    test_user_id = "test-consent-user-123"
-    token = AuthService.generate_access_token(test_user_id)
-    headers = {'Authorization': f'Bearer {token}'}
+def test_consent_get_with_auth(client, auth_headers, mock_auth_service, mock_consent_service):
+    """GET /api/v1/consent with auth should return 200 and consent list."""
+    response = client.get('/api/v1/consent', headers=auth_headers)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'data' in data
 
-    # Test GET consents (empty initially)
-    print("\nTesting GET /api/consent...")
-    response = client.get('/api/consent', headers=headers)
-    print(f"GET consents: {response.status_code}")
-    if response.status_code == 200:
-        data = response.get_json()
-        print(f"Consents data keys: {list(data.get('data', {}).keys())}")
 
-    # Test POST bulk consents
-    print("\nTesting POST /api/consent (bulk)...")
+def test_consent_bulk_grant(client, auth_headers, mock_auth_service, mock_consent_service):
+    """POST /api/v1/consent (bulk) should grant multiple consents."""
     consent_data = {
         'terms_of_service': True,
         'privacy_policy': True,
@@ -52,55 +56,43 @@ def test_consent_api():
         'marketing_consent': False,
         'analytics_consent': True
     }
-    response = client.post('/api/consent', json=consent_data, headers=headers)
-    print(f"POST bulk consents: {response.status_code}")
-    if response.status_code == 200:
-        data = response.get_json()
-        print(f"Granted: {data.get('data', {}).get('granted', [])}")
-        print(f"Failed: {data.get('data', {}).get('failed', [])}")
+    response = client.post('/api/v1/consent', json=consent_data, headers=auth_headers)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'data' in data
+    assert 'granted' in data['data']
 
-    # Test POST single consent
-    print("\nTesting POST /api/consent/analytics...")
+
+def test_consent_grant_single(client, auth_headers, mock_auth_service, mock_consent_service):
+    """POST /api/v1/consent/<type> should grant a single consent."""
     response = client.post(
-        '/api/consent/analytics',
+        '/api/v1/consent/analytics',
         json={'version': '1.0'},
-        headers=headers
+        headers=auth_headers
     )
-    print(f"POST single consent: {response.status_code}")
+    assert response.status_code == 200
 
-    # Test GET check consent
-    print("\nTesting GET /api/consent/check/analytics...")
-    response = client.get('/api/consent/check/analytics', headers=headers)
-    print(f"Check consent: {response.status_code}")
-    if response.status_code == 200:
-        data = response.get_json()
-        print(f"Has consent: {data.get('data', {}).get('has_consent', False)}")
 
-    # Test feature validation
-    print("\nTesting GET /api/consent/validate/mood_logging...")
-    response = client.get('/api/consent/validate/mood_logging', headers=headers)
-    print(f"Validate feature: {response.status_code}")
-    if response.status_code == 200:
-        data = response.get_json()
-        validation = data.get('data', {})
-        print(f"Access granted: {validation.get('access_granted', False)}")
-        print(f"Missing consents: {validation.get('missing_consents', [])}")
+def test_consent_check(client, auth_headers, mock_auth_service, mock_consent_service):
+    """GET /api/v1/consent/check/<type> should return consent status."""
+    response = client.get('/api/v1/consent/check/analytics', headers=auth_headers)
+    assert response.status_code == 200
 
-    # Test DELETE consent
-    print("\nTesting DELETE /api/consent/marketing...")
-    response = client.delete('/api/consent/marketing', headers=headers)
-    print(f"DELETE consent: {response.status_code}")
 
-    # Verify routes are registered
-    print("\n\n=== Consent Routes Registered ===")
-    with app.app_context():
-        consent_routes = [r for r in app.url_map.iter_rules() if '/consent' in r.rule]
-        for route in consent_routes:
-            print(f"  {route.methods} {route.rule}")
-        print(f"Total: {len(consent_routes)} consent endpoints")
+def test_consent_validate_feature(client, auth_headers, mock_auth_service, mock_consent_service):
+    """GET /api/v1/consent/validate/<feature> should return access validation."""
+    response = client.get('/api/v1/consent/validate/mood_logging', headers=auth_headers)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'data' in data
 
-    print("\n✅ All consent API tests completed!")
+
+def test_consent_withdraw(client, auth_headers, mock_auth_service, mock_consent_service):
+    """DELETE /api/v1/consent/<type> should withdraw consent."""
+    response = client.delete('/api/v1/consent/marketing', headers=auth_headers)
+    assert response.status_code == 200
+
 
 if __name__ == '__main__':
-    test_consent_api()
+    pytest.main([__file__, '-v'])
 
