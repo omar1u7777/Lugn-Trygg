@@ -151,7 +151,7 @@ describe('applySessionCompletionStats', () => {
     const result = applySessionCompletionStats(baseStats, 'guided_meditation', 15);
     expect(result.meditationMinutes).toBe(25);
     expect(result.breathingExercises).toBe(2); // unchanged
-    expect(result.relaxationSessions).toBe(4); // incremented
+    expect(result.relaxationSessions).toBe(3); // unchanged — guided_meditation is mindfulness, not relaxation
     expect(result.streakDays).toBe(5); // unchanged
   });
 
@@ -159,12 +159,13 @@ describe('applySessionCompletionStats', () => {
     const result = applySessionCompletionStats(baseStats, 'breathing_exercise', 5);
     expect(result.breathingExercises).toBe(3);
     expect(result.relaxationSessions).toBe(3); // NOT incremented for breathing
-    expect(result.meditationMinutes).toBe(15);
+    expect(result.meditationMinutes).toBe(10); // NOT incremented for breathing
   });
 
-  it('increments relaxationSessions for soundscape type', () => {
+  it('adds minutes for soundscape type without incrementing relaxation', () => {
     const result = applySessionCompletionStats(baseStats, 'soundscape', 20);
-    expect(result.relaxationSessions).toBe(4);
+    expect(result.meditationMinutes).toBe(30); // 10 + 20
+    expect(result.relaxationSessions).toBe(3); // unchanged — soundscape is mindfulness
     expect(result.breathingExercises).toBe(2); // unchanged
   });
 
