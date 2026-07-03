@@ -307,9 +307,13 @@ const WellnessHub: React.FC = () => {
 
       type SessionItem = { type?: string; duration?: number };
       (sessions as SessionItem[]).forEach((s) => {
-        mins += s.duration || 0;
-        if (s.type === 'breathing_exercise') breathing++;
-        else relax++;
+        if (s.type === 'breathing_exercise') {
+          breathing++;
+        } else if (s.type === 'guided_meditation' || s.type === 'soundscape') {
+          mins += s.duration || 0;
+        } else {
+          relax++;
+        }
       });
 
       const streak = calculateCurrentStreak([
@@ -633,7 +637,7 @@ const WellnessHub: React.FC = () => {
                 subtitle={t('wellnessHub.sleepSub')}
                 icon={<MoonIcon />}
                 accentColor="bg-indigo-500"
-                onClick={() => setActiveCategory('sleep')}
+                onClick={() => setShowSleepPlayer(true)}
               />
             </div>
 
@@ -649,8 +653,8 @@ const WellnessHub: React.FC = () => {
               >
                 <div className="mt-4 space-y-2" data-testid="wellness-goals-card">
                   {userGoals.length > 0 ? (
-                    userGoals.slice(0, 3).map((goal, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                    userGoals.slice(0, 3).map((goal) => (
+                      <div key={goal} className="flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 shadow-sm">
                         <span className="text-lg" aria-hidden="true">{getWellnessGoalIcon(goal)}</span>
                         {goal}
                       </div>

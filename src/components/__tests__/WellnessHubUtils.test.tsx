@@ -219,7 +219,7 @@ describe('WellnessHub component', () => {
 
     render(<WellnessHub />);
 
-    expect(await screen.findByText('10m')).toBeInTheDocument();
+    expect(await screen.findByText('6m')).toBeInTheDocument();
     expect(screen.getByText('Sova bättre')).toBeInTheDocument();
     expect(screen.getByText('wellnessHub.streakDays')).toBeInTheDocument();
   });
