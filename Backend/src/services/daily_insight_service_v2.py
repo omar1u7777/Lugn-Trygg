@@ -206,6 +206,56 @@ class DailyInsightGeneratorV2:
             }
         }
 
+    def _already_generated_today(self, user_id: str) -> list[TherapeuticInsight]:
+        """Check if insights were already generated today. Returns them if so."""
+        try:
+            from google.cloud.firestore import FieldFilter
+            today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            query = db.collection('insights').where(filter=FieldFilter('user_id', '==', user_id))
+            today_insights = []
+            for doc in query.stream():
+                data = doc.to_dict()
+                if data.get('status') != 'pending':
+                    continue
+                created = data.get('created_at')
+                if isinstance(created, datetime):
+                    if created.tzinfo is None:
+                        created = created.replace(tzinfo=UTC)
+                    if created >= today_start:
+                        today_insights.append(self._dict_to_insight(data))
+                elif isinstance(created, str):
+                    try:
+                        parsed = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=UTC)
+                        if parsed >= today_start:
+                            today_insights.append(self._dict_to_insight(data))
+                    except (ValueError, TypeError):
+                        continue
+            return today_insights
+        except Exception as e:
+            logger.error(f"Failed to check existing insights: {e}")
+            return []
+
+    def _dict_to_insight(self, data: dict) -> TherapeuticInsight:
+        """Convert a Firestore dict back to TherapeuticInsight."""
+        return TherapeuticInsight(
+            insight_id=data.get('insight_id', ''),
+            user_id=data.get('user_id', ''),
+            insight_type=InsightType(data.get('insight_type', 'opportunity')),
+            domain=TherapeuticDomain(data.get('domain', 'behavioral_activation')),
+            title=data.get('title', ''),
+            message=data.get('message', ''),
+            recommendation=data.get('recommendation', ''),
+            evidence=data.get('evidence', {}),
+            urgency=data.get('urgency', 'low'),
+            suggested_action=data.get('suggested_action', ''),
+            related_memories=data.get('related_memories', []),
+            created_at=data.get('created_at'),
+            values_alignment=data.get('values_alignment'),
+            behavioral_target=data.get('behavioral_target'),
+        )
+
     def generate_insights(self, user_id: str) -> list[TherapeuticInsight]:
         """
         Generate statistically-validated therapeutic insights.
@@ -216,12 +266,18 @@ class DailyInsightGeneratorV2:
         3. Effect size calculation for clinical relevance
         4. Multi-modal fusion with confidence weighting
         """
+        # BUG 3+7: Check if already generated today to prevent ID collision and rate-limit
+        existing = self._already_generated_today(user_id)
+        if existing:
+            logger.info(f"Returning {len(existing)} existing insights for {user_id} (already generated today)")
+            return self._prioritize_insights(existing)
+
         insights = []
 
         try:
             # Extended data collection
             memories = self._fetch_memories(user_id, days=self.analysis_window)
-            self._fetch_activity_patterns(user_id)
+            self._extract_activity_patterns(memories)
 
             if len(memories) < self.min_memories:
                 logger.info(f"Insufficient data for {user_id}, generating fallback insight")
@@ -263,10 +319,6 @@ class DailyInsightGeneratorV2:
                 memories, user_id
             )
             insights.extend(positive_insights)
-
-            # 7. Values-based ACT interventions
-            act_insights = self._generate_act_interventions(memories, user_id)
-            insights.extend(act_insights)
 
             # If user has enough logs but no real insights were generated yet,
             # show a positive encouragement insight to keep them engaged
@@ -517,7 +569,7 @@ class DailyInsightGeneratorV2:
     def _analyze_social_rhythm(self, memories: list[dict], user_id: str) -> TherapeuticInsight | None:
         """Analyze social connection patterns (Social Rhythm Metric)."""
         # Check for social memories in last 7 days
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(UTC) - timedelta(days=7)
 
         social_memories = [
             m for m in memories
@@ -703,12 +755,6 @@ class DailyInsightGeneratorV2:
 
         return insights
 
-    def _generate_act_interventions(self, memories: list[dict], user_id: str) -> list[TherapeuticInsight]:
-        """Generate Acceptance and Commitment Therapy based interventions."""
-        # Detect values-work alignment issues
-        # This is a simplified version - full ACT would require values assessment
-        return []
-
     def _prioritize_insights(self, insights: list[TherapeuticInsight]) -> list[TherapeuticInsight]:
         """Clinical prioritization of insights."""
         urgency_order = {'high': 0, 'medium': 1, 'low': 2}
@@ -771,11 +817,12 @@ class DailyInsightGeneratorV2:
             logger.error(f"Failed to fetch mood entries: {e}")
             return []
 
-    def get_pending_insights(self, user_id: str) -> list[dict]:
+    def get_pending_insights(self, user_id: str, max_age_days: int = 7) -> list[dict]:
         """Get pending insights for a user.
 
         #4: Falls back to single-field query if composite index is missing.
         #8: Simplified — always use single-field query + filter in Python to avoid index issues.
+        BUG 8: Filter out insights older than max_age_days to prevent stale insights.
         """
         try:
             from google.cloud.firestore import FieldFilter
@@ -785,12 +832,30 @@ class DailyInsightGeneratorV2:
                 filter=FieldFilter('user_id', '==', user_id)
             )
 
+            cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
             insights = []
             for doc in simple_query.stream():
                 data = doc.to_dict()
                 # Filter pending in memory
                 if data.get('status') != 'pending':
                     continue
+                # BUG 8: Filter by age — skip insights older than max_age_days
+                created = data.get('created_at')
+                if isinstance(created, datetime):
+                    if created.tzinfo is None:
+                        created = created.replace(tzinfo=UTC)
+                    if created < cutoff:
+                        continue
+                elif isinstance(created, str):
+                    try:
+                        parsed = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=UTC)
+                        if parsed < cutoff:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+
                 for key in ['created_at', 'dismissed_at', 'action_taken_at']:
                     if key in data and isinstance(data[key], datetime):
                         data[key] = data[key].isoformat()
@@ -804,49 +869,26 @@ class DailyInsightGeneratorV2:
             logger.error(f"Failed to fetch pending insights: {e}")
             return []
 
-    def _fetch_activity_patterns(self, user_id: str) -> dict:
-        """Fetch user activity patterns from mood entry tags.
+    def _extract_activity_patterns(self, memories: list[dict]) -> dict:
+        """Extract activity patterns from already-fetched mood entry tags.
 
-        #6: Replaces stub with real tag-based activity detection.
-        Reads tags from users/{user_id}/moods and aggregates counts.
-        #8: Avoid composite index by fetching without where filter, filter in Python.
+        BUG 4: Replaces _fetch_activity_patterns to avoid duplicate Firestore query.
+        Reads tags from the memories list fetched by _fetch_memories.
         """
         try:
-            # Use timezone-aware UTC to match Firestore's timezone-aware datetimes
-            cutoff = datetime.now(UTC) - timedelta(days=self.analysis_window)
-            cutoff_iso = cutoff.isoformat()
-
-            mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.order_by('timestamp', direction='DESCENDING')
-
             tag_counts: dict[str, int] = {}
-            for doc in query.stream():
-                data = doc.to_dict()
-                # Filter by cutoff in Python
-                ts = data.get('timestamp')
-                if ts is None:
-                    continue
-                if isinstance(ts, str):
-                    if ts < cutoff_iso:
-                        continue
-                elif isinstance(ts, datetime):
-                    # Normalize naive datetime to UTC to avoid comparison errors
-                    if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=UTC)
-                    if ts < cutoff:
-                        continue
-
+            for data in memories:
                 tags = data.get('tags', [])
                 if isinstance(tags, list):
                     for tag in tags:
                         if isinstance(tag, str) and tag:
                             tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
-            logger.debug(f"Activity patterns for {user_id}: {tag_counts}")
+            logger.debug(f"Activity patterns: {tag_counts}")
             return tag_counts
 
         except Exception as e:
-            logger.error(f"Failed to fetch activity patterns: {e}")
+            logger.error(f"Failed to extract activity patterns: {e}")
             return {}
 
     def _generate_onboarding_insight(self, user_id: str, current_count: int) -> TherapeuticInsight | None:

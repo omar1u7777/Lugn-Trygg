@@ -135,6 +135,14 @@ def insight_action_taken(insight_id: str):
         data = request.get_json() or {}
         action_taken = data.get('action', 'unknown')
 
+        # Verify ownership (same check as dismiss_insight)
+        insight_doc = db.collection('insights').document(insight_id).get()
+        if not insight_doc.exists:
+            return APIResponse.not_found("Insight not found")
+
+        if insight_doc.to_dict().get('user_id') != user_id:
+            return APIResponse.forbidden("Unauthorized")
+
         db.collection('insights').document(insight_id).update({
             'status': 'action_taken',
             'action_taken': action_taken,

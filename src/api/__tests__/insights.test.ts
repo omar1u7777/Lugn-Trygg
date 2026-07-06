@@ -64,4 +64,49 @@ describe('insights API', () => {
       await expect(markInsightActionTaken('i1', 'done')).rejects.toThrow();
     });
   });
+
+  describe('AbortSignal support (BUG 2)', () => {
+    it('generateInsights passes signal to axios', async () => {
+      const controller = new AbortController();
+      apiMock.post.mockResolvedValueOnce({ data: { data: { insights: [] } } });
+      await generateInsights('u1', controller.signal);
+      expect(apiMock.post).toHaveBeenCalledWith(
+        expect.any(String),
+        {},
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('getPendingInsights passes signal to axios', async () => {
+      const controller = new AbortController();
+      apiMock.get.mockResolvedValueOnce({ data: { data: { insights: [] } } });
+      await getPendingInsights('u1', controller.signal);
+      expect(apiMock.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('dismissInsight passes signal to axios', async () => {
+      const controller = new AbortController();
+      apiMock.post.mockResolvedValueOnce({ data: { success: true } });
+      await dismissInsight('i1', controller.signal);
+      expect(apiMock.post).toHaveBeenCalledWith(
+        expect.any(String),
+        {},
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('markInsightActionTaken passes signal to axios', async () => {
+      const controller = new AbortController();
+      apiMock.post.mockResolvedValueOnce({ data: { success: true } });
+      await markInsightActionTaken('i1', 'done', controller.signal);
+      expect(apiMock.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+  });
 });
