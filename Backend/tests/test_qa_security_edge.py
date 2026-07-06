@@ -9,12 +9,7 @@ for all four domains:
 Run: pytest tests/test_qa_security_edge.py -v
 """
 
-import json
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
-
+from unittest.mock import Mock, patch
 
 # ===========================================================================
 # AUTHENTICATION / UNAUTHORIZED ACCESS (401)
@@ -162,24 +157,15 @@ class TestEmptyDatabaseResults:
         assert memories == []
         assert len(memories) < gen.min_memories
 
-    @patch('src.services.daily_insight_service_v2.db')
-    def test_activity_patterns_with_no_tags_returns_empty(self, mock_db):
+    def test_activity_patterns_with_no_tags_returns_empty(self):
         """No mood entries → empty tag counts (not crash)."""
         from src.services.daily_insight_service_v2 import DailyInsightGeneratorV2
 
         gen = DailyInsightGeneratorV2()
 
-        mock_query = Mock()
-        mock_query.stream.return_value = []
-        mock_collection = Mock()
-        mock_collection.order_by.return_value = mock_query
-        mock_user_doc = Mock()
-        mock_user_doc.collection.return_value = mock_collection
-        mock_users = Mock()
-        mock_users.document.return_value = mock_user_doc
-        mock_db.collection.return_value = mock_users
-
-        result = gen._fetch_activity_patterns('user_empty')
+        # _extract_activity_patterns reads tags from memories in-memory,
+        # so an empty list yields an empty dict.
+        result = gen._extract_activity_patterns([])
         assert result == {}
 
     def test_get_pending_insights_empty_returns_empty_list(self, client, auth_headers, mock_auth_service, mock_db):
@@ -349,15 +335,15 @@ class TestFirestoreErrorHandling:
         result = gen._fetch_memories('user_error', days=14)
         assert result == []
 
-    @patch('src.services.daily_insight_service_v2.db')
-    def test_fetch_activity_patterns_handles_firestore_error(self, mock_db):
-        """_fetch_activity_patterns should return empty dict on Firestore error."""
+    def test_extract_activity_patterns_handles_malformed_memories(self):
+        """_extract_activity_patterns should return empty dict on malformed input."""
         from src.services.daily_insight_service_v2 import DailyInsightGeneratorV2
 
         gen = DailyInsightGeneratorV2()
-        mock_db.collection.side_effect = Exception("Firestore unavailable")
 
-        result = gen._fetch_activity_patterns('user_error')
+        # Pass memories with non-list tags to verify graceful handling
+        malformed_memories = [{'tags': 'not_a_list'}, {'no_tags': True}, {'tags': [None, 123, '']}]
+        result = gen._extract_activity_patterns(malformed_memories)
         assert result == {}
 
     @patch('src.services.daily_insight_service_v2.db')
