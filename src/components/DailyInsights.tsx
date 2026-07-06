@@ -300,8 +300,8 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
                   {insight.message}
                 </p>
 
-                {/* Recommendation block */}
-                {insight.recommendation && (
+                {/* Recommendation block — hidden when identical to the action button label */}
+                {insight.recommendation && insight.recommendation !== insight.suggested_action && (
                   <div className="bg-teal-50 dark:bg-teal-900/30 rounded-xl p-3 mb-4">
                     <p className="text-xs font-semibold text-teal-700 dark:text-teal-300 mb-0.5">
                       {t('insights.recommendation', 'Rekommendation')}
