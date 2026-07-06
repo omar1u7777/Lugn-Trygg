@@ -37,13 +37,13 @@ describe('WellnessHub logic', () => {
 
     const next = applySessionCompletionStats(prev, 'breathing_exercise', 4);
 
-    expect(next.meditationMinutes).toBe(14);
+    expect(next.meditationMinutes).toBe(10);
     expect(next.breathingExercises).toBe(3);
     expect(next.relaxationSessions).toBe(4);
     expect(next.streakDays).toBe(1);
   });
 
-  it('uses minimum 1 minute and increments relaxation for guided meditation', () => {
+  it('uses minimum 1 minute and increments meditation minutes for guided meditation', () => {
     const prev = {
       meditationMinutes: 0,
       breathingExercises: 0,
@@ -55,6 +55,6 @@ describe('WellnessHub logic', () => {
 
     expect(next.meditationMinutes).toBe(1);
     expect(next.breathingExercises).toBe(0);
-    expect(next.relaxationSessions).toBe(1);
+    expect(next.relaxationSessions).toBe(0);
   });
 });

@@ -24,23 +24,6 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from ..firebase_config import (
-    auth as firebase_auth,
-)
-from ..firebase_config import (
-    db,
-)
-from ..utils import convert_email_to_punycode  # Flyttad till utils.py
-from .tamper_detection_service import tamper_detection_service
-
-# Type checking imports for Pylance
-if TYPE_CHECKING:
-    from firebase_admin import auth as _firebase_auth_type
-    from google.cloud.firestore import Client as _FirestoreClient
-
-# Runtime type hints with None fallback for lazy initialization
-_db: "_FirestoreClient" = db  # type: ignore[assignment]
-_auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 from ..config import (
     ACCESS_TOKEN_EXPIRES,
     FIREBASE_WEB_API_KEY,
@@ -57,13 +40,26 @@ from ..config import (
     WEBAUTHN_RP_ID,
     WEBAUTHN_RP_NAME,
 )
+from ..firebase_config import auth as firebase_auth
+from ..firebase_config import db
 from ..models.user import User
 from ..repositories import AuthRepository
 from ..services.audit_service import AuditService
+from ..utils import convert_email_to_punycode  # Flyttad till utils.py
 from ..utils.error_handling import (
     ValidationError,
     handle_service_errors,
 )
+from .tamper_detection_service import tamper_detection_service
+
+# Type checking imports for Pylance
+if TYPE_CHECKING:
+    from firebase_admin import auth as _firebase_auth_type
+    from google.cloud.firestore import Client as _FirestoreClient
+
+# Runtime type hints with None fallback for lazy initialization
+_db: "_FirestoreClient" = db  # type: ignore[assignment]
+_auth: "_firebase_auth_type" = firebase_auth  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
