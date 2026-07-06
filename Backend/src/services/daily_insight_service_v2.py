@@ -211,12 +211,15 @@ class DailyInsightGeneratorV2:
         try:
             from google.cloud.firestore import FieldFilter
             today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-            query = db.collection('insights').where(filter=FieldFilter('user_id', '==', user_id))
+            # Filter by user_id AND status='pending' to reduce query size
+            query = db.collection('insights').where(
+                filter=FieldFilter('user_id', '==', user_id)
+            ).where(
+                filter=FieldFilter('status', '==', 'pending')
+            ).limit(10)
             today_insights = []
             for doc in query.stream():
                 data = doc.to_dict()
-                if data.get('status') != 'pending':
-                    continue
                 created = data.get('created_at')
                 if isinstance(created, datetime):
                     if created.tzinfo is None:
@@ -485,10 +488,18 @@ class DailyInsightGeneratorV2:
                 if improvement > 20 and activity_type == 'nature':
                     template = self.TEMPLATES['nature_ba_target']
 
-                    # Calculate correlation coefficient
+                    # Calculate correlation coefficient between
+                    # nature activity (1=yes, 0=no) and mood scores
+                    nature_indicator = [
+                        1.0 if self._categorize_activity(m) == 'nature' else 0.0
+                        for m in memories
+                    ]
+                    all_mood_scores = [
+                        float(m.get('ai_analysis', {}).get('sentiment_score') or 0)
+                        for m in memories
+                    ]
                     correlation = self._calculate_correlation(
-                        [len(activity_groups['nature'])] if 'nature' in activity_groups else [0],
-                        mood_scores
+                        nature_indicator, all_mood_scores
                     )
 
                     insights.append(TherapeuticInsight(
@@ -535,7 +546,7 @@ class DailyInsightGeneratorV2:
             if denom_x == 0 or denom_y == 0:
                 return 0.0
 
-            return numerator / (denom_x * denom_y) ** 0.5
+            return numerator / ((denom_x ** 0.5) * (denom_y ** 0.5))
 
         except Exception:
             return 0.0
@@ -587,16 +598,31 @@ class DailyInsightGeneratorV2:
         if len(recent_social) == 0 and len(memories) > 3:
             template = self.TEMPLATES['social_connection_deficit']
 
+            # Calculate actual days since last social contact
+            if social_memories:
+                social_timestamps = [
+                    _parse_timestamp(m.get('timestamp'))
+                    for m in social_memories
+                    if _parse_timestamp(m.get('timestamp'))
+                ]
+                if social_timestamps:
+                    latest_social = max(social_timestamps)
+                    days_since_social = max(1, (datetime.now(UTC) - latest_social).days)
+                else:
+                    days_since_social = self.analysis_window
+            else:
+                days_since_social = self.analysis_window
+
             return TherapeuticInsight(
                 insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_social",
                 user_id=user_id,
                 insight_type=InsightType.SOCIAL_ISOLATION,
                 domain=template['domain'],
                 title=template['title'],
-                message=template['message'].format(days_since_social=7),
+                message=template['message'].format(days_since_social=days_since_social),
                 recommendation=template['action'],
                 evidence={
-                    'days_without_social': 7,
+                    'days_without_social': days_since_social,
                     'social_memories_total': len(social_memories),
                     'method': 'social_rhythm_therapy'
                 },
@@ -624,7 +650,8 @@ class DailyInsightGeneratorV2:
                     continue
 
                 hour = ts.hour
-                score = entry.get('score', 5)
+                # Use sentiment_score for consistency with other analysis methods
+                score = float(entry.get('ai_analysis', {}).get('sentiment_score') or 0)
 
                 if 6 <= hour < 12:
                     morning_scores.append(score)
@@ -670,43 +697,48 @@ class DailyInsightGeneratorV2:
         if not memories:
             return None
 
-        recent = memories[0]
+        # Iterate over recent memories to find one with photo analysis data
+        # (not all mood entries have photos, so memories[0] may lack photo_analysis)
+        for recent in memories[:5]:
+            photo_analysis = recent.get('ai_analysis', {}).get('photo_analysis', {})
+            if not photo_analysis:
+                continue
 
-        photo_emotion = recent.get('ai_analysis', {}).get('photo_analysis', {}).get('emotion', 'neutral')
-        text_emotion = recent.get('ai_analysis', {}).get('primary_emotion', 'neutral')
-        sentiment = recent.get('ai_analysis', {}).get('sentiment_score', 0)
+            photo_emotion = photo_analysis.get('emotion', 'neutral')
+            text_emotion = recent.get('ai_analysis', {}).get('primary_emotion', 'neutral')
+            sentiment = recent.get('ai_analysis', {}).get('sentiment_score', 0)
 
-        # Define calm vs stressed states
-        calm_states = ['calm', 'peace', 'joy', 'happy']
-        stressed_states = ['stress', 'anxiety', 'sadness', 'anger', 'worry']
+            # Define calm vs stressed states
+            calm_states = ['calm', 'peace', 'joy', 'happy']
+            stressed_states = ['stress', 'anxiety', 'sadness', 'anger', 'worry']
 
-        photo_calm = any(s in photo_emotion.lower() for s in calm_states)
-        text_stressed = any(s in text_emotion.lower() for s in stressed_states) or sentiment < -0.3
+            photo_calm = any(s in photo_emotion.lower() for s in calm_states)
+            text_stressed = any(s in text_emotion.lower() for s in stressed_states) or sentiment < -0.3
 
-        if photo_calm and text_stressed:
-            template = self.TEMPLATES['contrast_mind_body']
+            if photo_calm and text_stressed:
+                template = self.TEMPLATES['contrast_mind_body']
 
-            return TherapeuticInsight(
-                insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_contrast",
-                user_id=user_id,
-                insight_type=InsightType.CONTRAST_DETECTED,
-                domain=template['domain'],
-                title=template['title'],
-                message=template['message'].format(
-                    body_state='lugn och ro',
-                    mind_state='oro eller stress'
-                ),
-                recommendation=template['action'],
-                evidence={
-                    'photo_emotion': photo_emotion,
-                    'text_emotion': text_emotion,
-                    'sentiment': sentiment,
-                    'contrast_type': 'mind_body_dissociation'
-                },
-                urgency='medium',
-                suggested_action=template['action'],
-                values_alignment=template['act_value']
-            )
+                return TherapeuticInsight(
+                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_contrast",
+                    user_id=user_id,
+                    insight_type=InsightType.CONTRAST_DETECTED,
+                    domain=template['domain'],
+                    title=template['title'],
+                    message=template['message'].format(
+                        body_state='lugn och ro',
+                        mind_state='oro eller stress'
+                    ),
+                    recommendation=template['action'],
+                    evidence={
+                        'photo_emotion': photo_emotion,
+                        'text_emotion': text_emotion,
+                        'sentiment': sentiment,
+                        'contrast_type': 'mind_body_dissociation'
+                    },
+                    urgency='medium',
+                    suggested_action=template['action'],
+                    values_alignment=template['act_value']
+                )
 
         return None
 
