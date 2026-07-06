@@ -68,12 +68,18 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const navigate = useNavigate();
   const [insights, setInsights] = useState<BackendInsight[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [actionStates, setActionStates] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
   const timeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const isMounted = useRef(true);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const MAX_RETRIES = 3;
+  const GENERATE_CACHE_KEY = 'insights_last_generate';
+  const GENERATE_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
 
   const loadInsights = useCallback(async () => {
     if (!userId) return;
@@ -89,16 +95,26 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
     setError(null);
     try {
       // Try pending insights first (already generated, no cost)
-      let pending = await getPendingInsights(userId);
+      let pending = await getPendingInsights(userId, controller.signal);
 
       // If none pending, trigger generation (runs v2 ML pipeline)
+      // BUG 12: Only generate if last generation was > 12 hours ago
       if (pending.length === 0 && !controller.signal.aborted) {
-        const generated = await generateInsights(userId);
-        pending = generated;
+        const lastGenerate = localStorage.getItem(GENERATE_CACHE_KEY);
+        const now = Date.now();
+        const shouldGenerate = !lastGenerate || (now - parseInt(lastGenerate, 10)) > GENERATE_COOLDOWN_MS;
+
+        if (shouldGenerate) {
+          setGenerating(true);
+          const generated = await generateInsights(userId, controller.signal);
+          pending = generated;
+          localStorage.setItem(GENERATE_CACHE_KEY, String(now));
+        }
       }
 
       if (!controller.signal.aborted) {
         setInsights(pending);
+        setRetryCount(0);
         trackEvent('daily_insights_viewed', { userId, count: pending.length });
       }
     } catch (err) {
@@ -106,10 +122,12 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         return; // Ignore abort errors
       }
       logger.error('Failed to load insights:', err);
+      setRetryCount(c => c + 1);
       setError('Kunde inte hämta insikter just nu. Försök igen.');
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);
+        setGenerating(false);
       }
     }
   }, [userId]);
@@ -150,8 +168,9 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       setActionStates(s => ({ ...s, [insightId]: 'done' }));
       trackEvent('insight_action_taken', { userId, insightId, action });
 
-      // Navigate to mood logging if action is "Logga månde nu" or similar
-      if (action.toLowerCase().includes('logga') || action.toLowerCase().includes('månde')) {
+      // Navigate to mood logging if action suggests it (multilingual)
+      const moodNavKeywords = ['logga', 'månde', 'mood', 'log', 'humør', 'logg'];
+      if (moodNavKeywords.some(kw => action.toLowerCase().includes(kw))) {
         navigate('/mood-basic');
       }
 
@@ -181,15 +200,19 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   }
 
   if (error) {
+    const maxRetriesReached = retryCount >= MAX_RETRIES;
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-800 p-6 text-center space-y-3">
         <ExclamationTriangleIcon className="w-8 h-8 text-rose-400 mx-auto" />
         <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
         <button
           onClick={loadInsights}
-          className="text-xs px-4 py-2 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 transition-colors"
+          disabled={maxRetriesReached}
+          className="text-xs px-4 py-2 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {t('common.retry', 'Försök igen')}
+          {maxRetriesReached
+            ? t('insights.retryLater', 'Försök igen senare')
+            : t('common.retry', 'Försök igen')}
         </button>
       </div>
     );
@@ -210,10 +233,10 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         </p>
         <button
           onClick={loadInsights}
-          disabled={loading}
+          disabled={generating}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? (
+          {generating ? (
             <>
               <ArrowPathIcon className="w-4 h-4 animate-spin" />
               {t('insights.generating', 'Genererar...')}

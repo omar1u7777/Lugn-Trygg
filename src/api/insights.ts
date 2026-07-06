@@ -33,10 +33,11 @@ export interface BackendInsight {
  * Trigger insight generation for a user.
  * Backend runs v2 statistical analysis and saves insights to Firestore.
  */
-export const generateInsights = async (userId: string): Promise<BackendInsight[]> => {
+export const generateInsights = async (userId: string, signal?: AbortSignal): Promise<BackendInsight[]> => {
   try {
     const response = await api.post(`${API_ENDPOINTS.INSIGHTS.GENERATE}/${userId}`, {}, {
       timeout: 60000, // 60s for ML pipeline; insight generation can be slow
+      signal,
     });
     return response.data.data?.insights || [];
   } catch (error: unknown) {
@@ -48,9 +49,9 @@ export const generateInsights = async (userId: string): Promise<BackendInsight[]
 /**
  * Get all pending insights for a user (already generated, not yet dismissed).
  */
-export const getPendingInsights = async (userId: string): Promise<BackendInsight[]> => {
+export const getPendingInsights = async (userId: string, signal?: AbortSignal): Promise<BackendInsight[]> => {
   try {
-    const response = await api.get(`${API_ENDPOINTS.INSIGHTS.PENDING}/${userId}`);
+    const response = await api.get(`${API_ENDPOINTS.INSIGHTS.PENDING}/${userId}`, { signal });
     return response.data.data?.insights || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
@@ -61,9 +62,9 @@ export const getPendingInsights = async (userId: string): Promise<BackendInsight
 /**
  * Dismiss an insight (user chose to ignore it).
  */
-export const dismissInsight = async (insightId: string): Promise<void> => {
+export const dismissInsight = async (insightId: string, signal?: AbortSignal): Promise<void> => {
   try {
-    await api.post(`${API_ENDPOINTS.INSIGHTS.DISMISS}/${insightId}`);
+    await api.post(`${API_ENDPOINTS.INSIGHTS.DISMISS}/${insightId}`, {}, { signal });
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);
@@ -75,10 +76,11 @@ export const dismissInsight = async (insightId: string): Promise<void> => {
  */
 export const markInsightActionTaken = async (
   insightId: string,
-  action: string = 'completed'
+  action: string = 'completed',
+  signal?: AbortSignal,
 ): Promise<void> => {
   try {
-    await api.post(`${API_ENDPOINTS.INSIGHTS.ACTION}/${insightId}`, { action });
+    await api.post(`${API_ENDPOINTS.INSIGHTS.ACTION}/${insightId}`, { action }, { signal });
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     throw ApiError.fromAxiosError(error);

@@ -298,3 +298,53 @@ class TestPendingInsightsRetrieval:
         result = gen.get_pending_insights('u1')
         assert result[0]['insight_id'] == 'new'
         assert result[1]['insight_id'] == 'old'
+
+
+# ---------------------------------------------------------------------------
+# BUG 1: Ownership check in insight_action_taken route
+# ---------------------------------------------------------------------------
+
+class TestInsightActionOwnership:
+    """BUG 1: insight_action_taken should verify ownership before updating."""
+
+    @patch('src.routes.insights_routes.db')
+    def test_action_denied_for_other_user_insight(self, mock_db):
+        """Should return 403 when user tries to action another user's insight."""
+        from src.routes.insights_routes import insight_action_taken
+        from flask import Flask, g
+
+        # Mock: insight belongs to user_b, not user_a
+        mock_doc = Mock()
+        mock_doc.exists = True
+        mock_doc.to_dict.return_value = {'user_id': 'user_b'}
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
+
+        app = Flask(__name__)
+        with app.test_request_context('/api/v1/insights/action/insight123',
+                                       json={'action': 'done'}):
+            g.user_id = 'user_a'
+            response = insight_action_taken('insight123')
+
+        # APIResponse returns (body, status_code) tuple
+        status = response[1] if isinstance(response, tuple) else response.status_code
+        assert status == 403
+
+    @patch('src.routes.insights_routes.db')
+    def test_action_returns_404_for_nonexistent_insight(self, mock_db):
+        """Should return 404 when insight doesn't exist."""
+        from src.routes.insights_routes import insight_action_taken
+        from flask import Flask, g
+
+        mock_doc = Mock()
+        mock_doc.exists = False
+        mock_db.collection.return_value.document.return_value.get.return_value = mock_doc
+
+        app = Flask(__name__)
+        with app.test_request_context('/api/v1/insights/action/nonexistent',
+                                       json={'action': 'done'}):
+            g.user_id = 'user_a'
+            response = insight_action_taken('nonexistent')
+
+        # APIResponse returns (body, status_code) tuple
+        status = response[1] if isinstance(response, tuple) else response.status_code
+        assert status == 404

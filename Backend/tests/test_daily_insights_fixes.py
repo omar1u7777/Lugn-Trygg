@@ -113,34 +113,21 @@ class TestNoneSentimentCoercion:
 
 
 class TestActivityPatterns:
-    """#6: _fetch_activity_patterns should return real data from mood tags."""
+    """BUG 4: _extract_activity_patterns should return real data from mood tags."""
 
-    @patch('src.services.daily_insight_service_v2.db')
-    def test_fetch_activity_patterns_returns_tag_data(self, mock_db, generator):
-        """Should return activity data from mood entries' tags field."""
+    def test_extract_activity_patterns_returns_tag_data(self, generator):
+        """Should return activity data from memories' tags field."""
         now = datetime.now()
-        mock_docs = []
-        for i in range(5):
-            doc = MagicMock()
-            doc.to_dict.return_value = {
+        memories = [
+            {
                 'tags': ['nature', 'exercise'] if i % 2 == 0 else ['social'],
                 'score': 5 + i,
                 'timestamp': (now - timedelta(days=i)).isoformat(),
             }
-            mock_docs.append(doc)
+            for i in range(5)
+        ]
 
-        # Mock: db.collection('users').document(user_id).collection('moods').order_by(...).stream()
-        mock_query = MagicMock()
-        mock_query.stream.return_value = mock_docs
-        mock_moods_collection = MagicMock()
-        mock_moods_collection.order_by.return_value = mock_query
-        mock_user_doc = MagicMock()
-        mock_user_doc.collection.return_value = mock_moods_collection
-        mock_users_collection = MagicMock()
-        mock_users_collection.document.return_value = mock_user_doc
-        mock_db.collection.return_value = mock_users_collection
-
-        result = generator._fetch_activity_patterns('user123')
+        result = generator._extract_activity_patterns(memories)
 
         # Should not be empty dict anymore
         assert isinstance(result, dict)
@@ -186,3 +173,118 @@ class TestPendingInsightsFallback:
         # Should only return pending insights, not dismissed ones
         assert len(result) == 1
         assert result[0]['insight_id'] == 'i1'
+
+    @patch('src.services.daily_insight_service_v2.db')
+    def test_old_pending_insights_filtered_by_ttl(self, mock_db, generator):
+        """BUG 8: Insights older than 7 days should not be returned."""
+        from datetime import UTC as UTC_TZ
+        # Recent pending doc (should be returned)
+        recent_doc = MagicMock()
+        recent_doc.to_dict.return_value = {
+            'insight_id': 'i1',
+            'user_id': 'user123',
+            'status': 'pending',
+            'title': 'Recent',
+            'created_at': datetime.now(UTC_TZ),
+        }
+        # Old pending doc (should be filtered out by TTL)
+        old_doc = MagicMock()
+        old_doc.to_dict.return_value = {
+            'insight_id': 'i2',
+            'user_id': 'user123',
+            'status': 'pending',
+            'title': 'Old',
+            'created_at': datetime.now(UTC_TZ) - timedelta(days=10),
+        }
+
+        mock_query = MagicMock()
+        mock_query.stream.return_value = [recent_doc, old_doc]
+        mock_collection = MagicMock()
+        mock_collection.where.return_value = mock_query
+        mock_db.collection.return_value = mock_collection
+
+        result = generator.get_pending_insights('user123')
+
+        # Should only return the recent insight
+        assert len(result) == 1
+        assert result[0]['insight_id'] == 'i1'
+
+
+class TestAlreadyGeneratedToday:
+    """BUG 3+7: generate_insights should return existing insights if already generated today."""
+
+    @patch('src.services.daily_insight_service_v2.db')
+    def test_returns_existing_insights_if_already_generated(self, mock_db, generator):
+        """Should return today's insights without regenerating."""
+        from datetime import UTC as UTC_TZ
+        from src.services.daily_insight_service_v2 import TherapeuticInsight, InsightType, TherapeuticDomain
+
+        # Mock: _already_generated_today finds one pending insight from today
+        today_insight_doc = MagicMock()
+        today_insight_doc.to_dict.return_value = {
+            'insight_id': 'user123_today_trend',
+            'user_id': 'user123',
+            'status': 'pending',
+            'insight_type': 'opportunity',
+            'domain': 'behavioral_activation',
+            'title': 'Test',
+            'message': 'Test message',
+            'recommendation': 'Test rec',
+            'evidence': {},
+            'urgency': 'low',
+            'suggested_action': 'Test action',
+            'related_memories': [],
+            'created_at': datetime.now(UTC_TZ),
+        }
+        mock_query = MagicMock()
+        mock_query.stream.return_value = [today_insight_doc]
+        mock_collection = MagicMock()
+        mock_collection.where.return_value = mock_query
+        mock_db.collection.return_value = mock_collection
+
+        result = generator._already_generated_today('user123')
+
+        assert len(result) == 1
+        assert result[0].insight_id == 'user123_today_trend'
+
+    @patch('src.services.daily_insight_service_v2.db')
+    def test_returns_empty_if_none_today(self, mock_db, generator):
+        """Should return empty list if no insights generated today."""
+        # Mock: no insights found
+        mock_query = MagicMock()
+        mock_query.stream.return_value = []
+        mock_collection = MagicMock()
+        mock_collection.where.return_value = mock_query
+        mock_db.collection.return_value = mock_collection
+
+        result = generator._already_generated_today('user123')
+        assert result == []
+
+
+class TestSocialRhythmTimezone:
+    """BUG 9: _analyze_social_rhythm should use timezone-aware datetime."""
+
+    def test_social_rhythm_no_crash_with_timezone_aware_timestamps(self, generator):
+        """Should not raise TypeError when comparing with timezone-aware timestamps."""
+        from datetime import UTC as UTC_TZ
+        memories = [
+            {
+                'id': f'm{i}',
+                'score': 5,
+                'note': 'Promenad med vän',
+                'timestamp': (datetime.now(UTC_TZ) - timedelta(days=i)).isoformat(),
+            }
+            for i in range(5)
+        ]
+
+        # Should not raise TypeError
+        result = generator._analyze_social_rhythm(memories, 'user123')
+        assert result is None or hasattr(result, 'insight_id')
+
+
+class TestActInterventionsRemoved:
+    """BUG 10: _generate_act_interventions should be removed."""
+
+    def test_method_does_not_exist(self, generator):
+        """The stub method should no longer exist on the generator."""
+        assert not hasattr(generator, '_generate_act_interventions')
