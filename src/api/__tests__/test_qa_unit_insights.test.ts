@@ -57,7 +57,7 @@ describe('getPendingInsights', () => {
       data: { data: { insights: [{ insight_id: 'i1', user_id: 'u1', insight_type: 'behavioral_activation', domain: 'activity', title: 'T', message: 'M', recommendation: 'R', evidence: {}, urgency: 'medium', suggested_action: 'A', related_memories: [], values_alignment: 'growth', behavioral_target: 'exercise', created_at: '2024-01-01', status: 'pending' }] } },
     });
     const result = await getPendingInsights('user123');
-    expect(api.get).toHaveBeenCalledWith('/api/v1/insights/pending/user123');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/insights/pending/user123', { signal: undefined });
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('pending');
     expect(result[0].behavioral_target).toBe('exercise');
@@ -79,7 +79,7 @@ describe('dismissInsight', () => {
   it('posts to dismiss endpoint with insightId', async () => {
     (api.post as ReturnType<typeof vi.fn>).mockResolvedValue({});
     await dismissInsight('insight123');
-    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/dismiss/insight123');
+    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/dismiss/insight123', {}, { signal: undefined });
   });
 
   it('throws on error', async () => {
@@ -97,13 +97,13 @@ describe('markInsightActionTaken', () => {
   it('posts action to endpoint with insightId', async () => {
     (api.post as ReturnType<typeof vi.fn>).mockResolvedValue({});
     await markInsightActionTaken('insight123', 'completed');
-    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/action/insight123', { action: 'completed' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/action/insight123', { action: 'completed' }, { signal: undefined });
   });
 
   it('defaults action to completed', async () => {
     (api.post as ReturnType<typeof vi.fn>).mockResolvedValue({});
     await markInsightActionTaken('insight123');
-    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/action/insight123', { action: 'completed' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/insights/action/insight123', { action: 'completed' }, { signal: undefined });
   });
 
   it('throws on error', async () => {
