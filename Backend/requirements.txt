@@ -115,7 +115,7 @@ pytz==2025.2
 pyotp==2.9.0
 qrcode[pil]==8.0
 webauthn==2.7.0
-pyOpenSSL==26.1.0
+pyOpenSSL==26.3.0
 
 # System Monitoring
 psutil==7.2.2
