@@ -79,7 +79,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
   const MAX_RETRIES = 3;
   const GENERATE_CACHE_KEY = 'insights_last_generate';
-  const GENERATE_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+  const GENERATE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes — backend already caches via _already_generated_today
 
   const loadInsights = useCallback(async () => {
     if (!userId) return;
@@ -98,7 +98,8 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       let pending = await getPendingInsights(userId, controller.signal);
 
       // If none pending, trigger generation (runs v2 ML pipeline)
-      // BUG 12: Only generate if last generation was > 12 hours ago
+      // Backend already caches via _already_generated_today(), so frontend cooldown
+      // is just a short anti-spam guard, not a hard 12h block.
       if (pending.length === 0 && !controller.signal.aborted) {
         const lastGenerate = localStorage.getItem(GENERATE_CACHE_KEY);
         const now = Date.now();
