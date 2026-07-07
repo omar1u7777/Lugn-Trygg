@@ -219,8 +219,9 @@ def save_journal_entry(user_id):
 
         # Sanitize and validate content
         content = input_sanitizer.sanitize(data.get('content', '')).strip()
-        if len(content) < 3:
-            return APIResponse.bad_request('Content must be at least 3 characters')
+        word_count = len(content.split())
+        if word_count < 3:
+            return APIResponse.bad_request('Content must contain at least 3 words')
         if len(content) > 5000:
             return APIResponse.bad_request('Content must be less than 5000 characters')
 
@@ -405,8 +406,9 @@ def update_journal_entry(user_id, entry_id):
 
         if 'content' in data:
             content = input_sanitizer.sanitize(data['content']).strip()
-            if len(content) < 3:
-                return APIResponse.bad_request('Content must be at least 3 characters')
+            word_count = len(content.split())
+            if word_count < 3:
+                return APIResponse.bad_request('Content must contain at least 3 words')
             if len(content) > 5000:
                 return APIResponse.bad_request('Content must be less than 5000 characters')
             update_data['content'] = content

@@ -5,6 +5,7 @@ Supports text, audio, and photos in a single memory entry
 
 import logging
 import os
+import re
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
@@ -38,17 +39,35 @@ from src.services.auth_service import AuthService
 from src.services.memory_analysis_service import get_memory_analysis_service
 from src.services.photo_analysis_service import get_photo_analysis_service
 from src.services.rate_limiting import rate_limit_by_endpoint
+from src.utils.input_sanitization import input_sanitizer
 from src.utils.response_utils import APIResponse
 
 logger = logging.getLogger(__name__)
 
 multimedia_memory_bp = Blueprint("multimedia_memory", __name__)
 
+# Validation patterns
+_USER_ID_PATTERN = re.compile(r'^[a-zA-Z0-9]{20,128}$')
+_MEMORY_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{10,100}$')
+_TAG_PATTERN = re.compile(r'^[a-zA-Z0-9åäöÅÄÖ\s-]{1,50}$')
+
 # Supported file types
 ALLOWED_AUDIO = {"mp3", "wav", "m4a", "webm"}
 ALLOWED_IMAGES = {"jpg", "jpeg", "png", "gif", "webp", "heic"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_PHOTOS_PER_MEMORY = 10
+MAX_CONTENT_LENGTH = 5000
+
+
+def _format_timestamp(ts) -> str:
+    """Format a timestamp for API response. Handles datetime, string, and None."""
+    if ts is None:
+        return datetime.now(UTC).isoformat()
+    if hasattr(ts, 'isoformat'):
+        return ts.isoformat()
+    if isinstance(ts, str):
+        return ts
+    return str(ts)
 
 
 def allowed_audio(filename: str) -> bool:
@@ -123,14 +142,26 @@ def create_multimedia_memory():
             return APIResponse.unauthorized("Authentication required")
 
         # Get text content
-        content = request.form.get('content', '').strip()
+        content = input_sanitizer.sanitize(request.form.get('content', '')).strip()
+
+        # Validate content length
+        if len(content) > MAX_CONTENT_LENGTH:
+            return APIResponse.bad_request(f"Content must be less than {MAX_CONTENT_LENGTH} characters")
 
         # Get metadata
         mood = request.form.get('mood', type=int)
         tags_str = request.form.get('tags', '')
-        location = request.form.get('location', '').strip()
+        location = input_sanitizer.sanitize(request.form.get('location', '')).strip()
 
         tags = [t.strip() for t in tags_str.split(',') if t.strip()] if tags_str else []
+
+        # Validate tags
+        if tags:
+            if len(tags) > 20:
+                return APIResponse.bad_request("Maximum 20 tags allowed")
+            for tag in tags:
+                if not _TAG_PATTERN.match(tag):
+                    return APIResponse.bad_request(f"Invalid tag format: '{tag}'")
 
         # Validate mood
         if mood is not None and not (1 <= mood <= 10):
@@ -432,29 +463,62 @@ def list_multimedia_memories(user_id: str):
     """List all multimedia memories for a user."""
     try:
         current_user = g.get('user_id')
+        if not current_user:
+            return APIResponse.unauthorized("Authentication required")
+
+        # Validate user_id format
+        if not _USER_ID_PATTERN.match(user_id):
+            return APIResponse.bad_request("Invalid user ID format")
+
         if user_id != current_user:
             return APIResponse.forbidden("Unauthorized access")
 
         # Query Firestore
         from google.cloud.firestore import FieldFilter
 
-        memories_query = db.collection('memories').where(
-            filter=FieldFilter('user_id', '==', user_id)
-        ).order_by('created_at', direction='DESCENDING').limit(50)
-
         memories = []
-        for doc in memories_query.stream():
-            data = doc.to_dict()
-            memories.append({
-                'id': doc.id,
-                'contentPreview': data.get('content', '')[:100],
-                'hasAudio': data.get('has_audio', False),
-                'photoCount': data.get('photo_count') or data.get('media', {}).get('photo_count', 0),
-                'mood': data.get('mood'),
-                'tags': data.get('tags', []),
-                'aiEmotion': data.get('ai_analysis', {}).get('primary_emotion'),
-                'createdAt': data.get('created_at', datetime.now(UTC)).isoformat()
-            })
+        try:
+            memories_query = db.collection('memories').where(
+                filter=FieldFilter('user_id', '==', user_id)
+            ).order_by('created_at', direction='DESCENDING').limit(50)
+
+            for doc in memories_query.stream():
+                data = doc.to_dict()
+                memories.append({
+                    'id': doc.id,
+                    'contentPreview': data.get('content', '')[:100],
+                    'hasAudio': data.get('has_audio', False),
+                    'photoCount': data.get('photo_count') or data.get('media', {}).get('photo_count', 0),
+                    'mood': data.get('mood'),
+                    'tags': data.get('tags', []),
+                    'aiEmotion': data.get('ai_analysis', {}).get('primary_emotion'),
+                    'createdAt': _format_timestamp(data.get('created_at'))
+                })
+        except Exception as index_err:
+            # Composite index may not be deployed — fall back to unordered query + Python sort
+            logger.warning(f"Ordered memory query failed ({type(index_err).__name__}), falling back to unordered query")
+            try:
+                fallback_query = db.collection('memories').where(
+                    filter=FieldFilter('user_id', '==', user_id)
+                ).limit(50)
+
+                for doc in fallback_query.stream():
+                    data = doc.to_dict()
+                    memories.append({
+                        'id': doc.id,
+                        'contentPreview': data.get('content', '')[:100],
+                        'hasAudio': data.get('has_audio', False),
+                        'photoCount': data.get('photo_count') or data.get('media', {}).get('photo_count', 0),
+                        'mood': data.get('mood'),
+                        'tags': data.get('tags', []),
+                        'aiEmotion': data.get('ai_analysis', {}).get('primary_emotion'),
+                        'createdAt': _format_timestamp(data.get('created_at'))
+                    })
+                # Sort in Python since Firestore couldn't order
+                memories.sort(key=lambda m: m.get('createdAt') or '', reverse=True)
+            except Exception as fallback_err:
+                logger.error(f"Fallback memory query also failed: {type(fallback_err).__name__}: {fallback_err}")
+                memories = []
 
         return APIResponse.success({
             'memories': memories,
@@ -473,6 +537,10 @@ def get_memory_detail(memory_id: str):
     """Get full details of a multimedia memory."""
     try:
         user_id = g.get('user_id')
+
+        # Validate memory_id format
+        if not _MEMORY_ID_PATTERN.match(memory_id):
+            return APIResponse.bad_request("Invalid memory ID format")
 
         # Fetch from Firestore
         memory_doc = db.collection('memories').document(memory_id).get()
@@ -497,7 +565,7 @@ def get_memory_detail(memory_id: str):
             'location': data.get('location'),
             'media': media,
             'aiAnalysis': data.get('ai_analysis'),
-            'createdAt': data.get('created_at', datetime.now(UTC)).isoformat()
+            'createdAt': _format_timestamp(data.get('created_at'))
         }
 
         return APIResponse.success(response, "Memory retrieved")

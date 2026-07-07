@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card } from './ui/tailwind';
 import { getJournalEntries } from '../api/api';
 import useAuth from '../hooks/useAuth';
@@ -28,6 +28,7 @@ interface JournalListProps {
 
 const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
   const { user } = useAuth();
+  const isMountedRef = useRef(true);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,10 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const loadJournalEntries = useCallback(async () => {
     if (!user?.user_id) {
@@ -49,14 +54,16 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
       logger.debug('📝 Loading journal entries for user:', user.user_id);
 
       const response = await getJournalEntries(user.user_id, 100);
+      if (!isMountedRef.current) return;
       logger.debug('✅ Journal entries loaded:', response.length);
 
       setEntries(response);
     } catch (error: unknown) {
+      if (!isMountedRef.current) return;
       logger.error('❌ Failed to load journal entries:', error);
       setError((error as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to load journal entries');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   }, [user?.user_id]);
 
@@ -64,16 +71,15 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
     loadJournalEntries();
   }, [loadJournalEntries, refreshTrigger]);
 
-  // Define categories based on tags
-  const categories = [
+  const categories = useMemo(() => [
     { id: 'all', name: 'Alla kategorier', icon: '📚' },
     { id: 'positive', name: 'Positiva känslor', icon: '😊', tags: ['Glad', 'Tacksam', 'Hoppfull', 'Energisk'] },
     { id: 'negative', name: 'Utmaningar', icon: '😔', tags: ['Ledsen', 'Stressad', 'Ångest', 'Överväldigad'] },
     { id: 'neutral', name: 'Reflektion', icon: '🤔', tags: ['Kalm', 'Trött'] },
     { id: 'growth', name: 'Personlig utveckling', icon: '🌱', tags: ['Hoppfull', 'Tacksam', 'Energisk'] }
-  ];
+  ], []);
 
-  const filteredEntries = entries
+  const filteredEntries = useMemo(() => entries
     .filter(entry => {
       const matchesSearch = searchTerm === '' ||
         entry.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,9 +97,9 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+    }), [entries, searchTerm, selectedTag, selectedCategory, sortBy, categories]);
 
-  const allTags = Array.from(new Set(entries.flatMap(entry => entry.tags)));
+  const allTags = useMemo(() => Array.from(new Set(entries.flatMap(entry => entry.tags))), [entries]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -137,6 +143,7 @@ const JournalList: React.FC<JournalListProps> = ({ refreshTrigger }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getJournalAnalytics = () => {

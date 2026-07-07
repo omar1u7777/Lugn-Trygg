@@ -238,6 +238,8 @@ class TestAlreadyGeneratedToday:
         }
         mock_query = MagicMock()
         mock_query.stream.return_value = [today_insight_doc]
+        mock_query.where.return_value = mock_query
+        mock_query.limit.return_value = mock_query
         mock_collection = MagicMock()
         mock_collection.where.return_value = mock_query
         mock_db.collection.return_value = mock_collection
@@ -253,6 +255,8 @@ class TestAlreadyGeneratedToday:
         # Mock: no insights found
         mock_query = MagicMock()
         mock_query.stream.return_value = []
+        mock_query.where.return_value = mock_query
+        mock_query.limit.return_value = mock_query
         mock_collection = MagicMock()
         mock_collection.where.return_value = mock_query
         mock_db.collection.return_value = mock_collection

@@ -101,7 +101,7 @@ describe('RelaxingSounds', () => {
     await waitFor(() => {
       expect(screen.getByText('Regnskog')).toBeInTheDocument();
     });
-    // Category names appear combined with icon emoji, use regex
+    // Category names appear with icon, use regex
     expect(screen.getAllByText(/Natur/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Meditation/i).length).toBeGreaterThan(0);
   });
@@ -294,7 +294,7 @@ describe('RelaxingSounds', () => {
     fireEvent.click(screen.getAllByText('Regnskog')[0]);
 
     // Click play button
-    const playBtn = screen.getByRole('button', { name: /▶️/i });
+    const playBtn = screen.getByRole('button', { name: /Spela/i });
     fireEvent.click(playBtn);
     await waitFor(() => expect(playMock).toHaveBeenCalled());
   });
@@ -346,7 +346,7 @@ describe('RelaxingSounds', () => {
     await waitFor(() => screen.getAllByText('Regnskog'));
 
     // Click next
-    const nextBtn = screen.getByRole('button', { name: /⏭️/i });
+    const nextBtn = screen.getByRole('button', { name: /Nästa/i });
     expect(nextBtn).not.toBeDisabled();
     fireEvent.click(nextBtn);
     // Should navigate to second track (Havsvågor)
@@ -364,7 +364,7 @@ describe('RelaxingSounds', () => {
     await waitFor(() => screen.getAllByText('Havsvågor'));
 
     // Click previous
-    const prevBtn = screen.getByRole('button', { name: /⏮️/i });
+    const prevBtn = screen.getByRole('button', { name: /Föregående/i });
     expect(prevBtn).not.toBeDisabled();
     fireEvent.click(prevBtn);
 
@@ -380,7 +380,7 @@ describe('RelaxingSounds', () => {
     // Select first track (index 0)
     fireEvent.click(screen.getAllByText('Regnskog')[0]);
 
-    const prevBtn = screen.getByRole('button', { name: /⏮️/i });
+    const prevBtn = screen.getByRole('button', { name: /Föregående/i });
     fireEvent.click(prevBtn);
 
     await waitFor(() => {
@@ -396,7 +396,7 @@ describe('RelaxingSounds', () => {
     // Select last track
     fireEvent.click(screen.getAllByText('Havsvågor')[0]);
 
-    const nextBtn = screen.getByRole('button', { name: /⏭️/i });
+    const nextBtn = screen.getByRole('button', { name: /Nästa/i });
     fireEvent.click(nextBtn);
 
     await waitFor(() => {
@@ -557,8 +557,8 @@ describe('RelaxingSounds', () => {
     render(<RelaxingSounds onClose={vi.fn()} />);
     await waitFor(() => screen.getByText('Regnskog'));
 
-    const prevBtn = screen.getByRole('button', { name: /⏮️/i });
-    const nextBtn = screen.getByRole('button', { name: /⏭️/i });
+    const prevBtn = screen.getByRole('button', { name: /Föregående/i });
+    const nextBtn = screen.getByRole('button', { name: /Nästa/i });
     expect(prevBtn).toBeDisabled();
     expect(nextBtn).toBeDisabled();
   });
@@ -575,7 +575,7 @@ describe('RelaxingSounds', () => {
 
     // Click play
     const playButtons = screen.getAllByRole('button');
-    const playBtn = playButtons.find(b => b.textContent?.includes('▶️') || b.getAttribute('aria-label') === null);
+    const playBtn = playButtons.find(b => b.getAttribute('aria-label')?.includes('Spela'));
     if (playBtn && !playBtn.disabled) {
       fireEvent.click(playBtn);
     }

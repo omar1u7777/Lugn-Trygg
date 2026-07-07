@@ -65,7 +65,7 @@ function getEmotionMeta(emotion: string): { emoji: string; label: string; bg: st
 const PRESET_TAGS = ['Familj', 'Vänner', 'Natur', 'Arbete', 'Hälsa', 'Resa', 'Hobby', 'Vila'];
 
 const MAX_PHOTOS = 10;
-const MAX_CONTENT = 2000;
+const MAX_CONTENT = 5000;
 const MAX_AUDIO_MINUTES = 5;
 
 // ─── Helper: format duration ─────────────────────────────────────────────────
@@ -129,6 +129,28 @@ const MemoryJournal: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const photosRef = useRef<PhotoPreview[]>([]);
+  const isMountedRef = useRef(true);
+
+  // Keep photosRef in sync for unmount cleanup
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+
+  // Cleanup all resources on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    };
+  }, []);
 
   // ── Load memories when switching to list ───────────────────────────────────
 
@@ -138,12 +160,14 @@ const MemoryJournal: React.FC = () => {
     setListError(null);
     try {
       const res = await api.get(`${API_ENDPOINTS.MEMORY_UNIFIED.LIST}/${user.user_id}`);
+      if (!isMountedRef.current) return;
       setMemories(res.data?.data?.memories ?? []);
     } catch (err: unknown) {
+      if (!isMountedRef.current) return;
       logger.error('Failed to load memories', { err });
       setListError('Kunde inte ladda minnen. Försök igen.');
     } finally {
-      setListLoading(false);
+      if (isMountedRef.current) setListLoading(false);
     }
   }, [user?.user_id]);
 
@@ -159,7 +183,16 @@ const MemoryJournal: React.FC = () => {
     setAudioError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      // Detect supported MIME type — Safari uses audio/mp4, Chrome uses audio/webm
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : '';
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      const actualType = recorder.mimeType || 'audio/webm';
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -167,7 +200,7 @@ const MemoryJournal: React.FC = () => {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: actualType });
         setAudioBlob(blob);
         stream.getTracks().forEach((t) => t.stop());
       };
@@ -232,12 +265,6 @@ const MemoryJournal: React.FC = () => {
     });
   };
 
-  // Revoke object URLs on unmount
-  useEffect(() => {
-    return () => {
-      photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Tags ───────────────────────────────────────────────────────────────────
 
@@ -290,9 +317,11 @@ const MemoryJournal: React.FC = () => {
       });
 
       const aiAnalysis: AiAnalysis = res.data?.data?.aiAnalysis ?? null;
+      if (!isMountedRef.current) return;
       setLastResult(aiAnalysis);
 
       // Reset form
+      if (!isMountedRef.current) return;
       setContent('');
       setMood(5);
       setMoodEnabled(false);
@@ -301,15 +330,17 @@ const MemoryJournal: React.FC = () => {
       setSelectedTags([]);
       clearAudio();
       photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      if (!isMountedRef.current) return;
       setPhotos([]);
 
       logger.info('Memory saved', { memoryId: res.data?.data?.memoryId });
     } catch (err: unknown) {
+      if (!isMountedRef.current) return;
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Kunde inte spara minnet. Försök igen.';
       setSubmitError(msg);
       logger.error('Memory save failed', { err });
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) setIsSubmitting(false);
     }
   };
 

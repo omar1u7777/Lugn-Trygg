@@ -120,6 +120,8 @@ def isolate_audit_env(monkeypatch):
     fake_db = FakeDB()
     monkeypatch.setattr(audit_mod, 'db', fake_db)
     monkeypatch.setattr(audit_mod, '_db', fake_db)
+    # Reset cached singleton so AuditService picks up the new env key
+    monkeypatch.setattr(audit_mod, '_audit_service_instance', None)
     yield
 
 
