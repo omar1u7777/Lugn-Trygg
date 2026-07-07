@@ -14,7 +14,8 @@ import {
   SunIcon,
   ArrowRightIcon,
   PencilSquareIcon,
-  XMarkIcon
+  XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import RelaxingSounds from './RelaxingSounds';
@@ -148,9 +149,16 @@ const formatStreakLabel = (days: number, t: (key: string, options?: Record<strin
 // ----------------------------------------------------------------------
 
 const SLEEP_STORY_URLS: Record<string, string> = {
-  's1': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+  's1': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
   's2': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
-  's3': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
+  's3': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+};
+
+// Audio URLs for guided meditations (ambient sounds as guided audio fallback)
+const MEDITATION_AUDIO_URLS: Record<string, string> = {
+  '1': 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Oceanwavescrushing.ogg',
+  '2': 'https://upload.wikimedia.org/wikipedia/commons/8/88/Meditation_im_Liegen_%2820_Min.%29.ogg',
+  '3': 'https://upload.wikimedia.org/wikipedia/commons/3/38/Birds_forest.ogg',
 };
 
 const CategoryPill: React.FC<{
@@ -238,6 +246,7 @@ const WellnessHub: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<'all' | 'meditation' | 'breathing' | 'sounds' | 'sleep'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // State
   const [wellnessStats, setWellnessStats] = useState<WellnessStats>({
@@ -261,11 +270,12 @@ const WellnessHub: React.FC = () => {
   const pausedDurationMsRef = useRef<number>(0);
   const pauseStartTimeRef = useRef<Date | null>(null);
   const completeMeditationRef = useRef<() => Promise<void>>();
+  const meditationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sleepSectionRef = useRef<HTMLElement | null>(null);
 
   // UI State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [activeBreathingExercise, setActiveBreathingExercise] = useState<MeditationOption | null>(null);
-  const [showSleepPlayer, setShowSleepPlayer] = useState(false);
   const [selectedSleepStory, setSelectedSleepStory] = useState<MeditationOption | null>(null);
   const [sleepStoryPlaying, setSleepStoryPlaying] = useState(false);
   const [sleepStoryTimeLeft, setSleepStoryTimeLeft] = useState(0);
@@ -351,7 +361,7 @@ const WellnessHub: React.FC = () => {
       abortControllerRef.current?.abort();
     };
   }, [fetchWellnessData]);
-  useEffect(() => { return () => { if (meditationTimerRef.current) clearInterval(meditationTimerRef.current); }; }, []);
+  useEffect(() => { return () => { if (meditationTimerRef.current) clearInterval(meditationTimerRef.current); if (meditationAudioRef.current) { meditationAudioRef.current.pause(); meditationAudioRef.current = null; } }; }, []);
 
   // ----------------------------------------------------------------------
   // Timer Logic
@@ -389,6 +399,10 @@ const WellnessHub: React.FC = () => {
 
   const resetMeditationState = () => {
     if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+    if (meditationAudioRef.current) {
+      meditationAudioRef.current.pause();
+      meditationAudioRef.current = null;
+    }
     setIsMeditationActive(false);
     setSelectedMeditation(null);
     setMeditationTimeLeft(0);
@@ -431,6 +445,23 @@ const WellnessHub: React.FC = () => {
     pausedDurationMsRef.current = 0;
     pauseStartTimeRef.current = null;
     if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+
+    // Play guided meditation audio
+    const audioUrl = MEDITATION_AUDIO_URLS[meditation.id];
+    if (audioUrl) {
+      if (meditationAudioRef.current) {
+        meditationAudioRef.current.pause();
+      }
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.6;
+      audio.preload = 'auto';
+      audio.loop = true;
+      meditationAudioRef.current = audio;
+      audio.play()?.catch((e) => {
+        logger.error('Meditation audio playback failed:', e);
+      });
+    }
+
     meditationTimerRef.current = setInterval(() => {
       setMeditationTimeLeft(prev => {
         if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
@@ -447,6 +478,9 @@ const WellnessHub: React.FC = () => {
       }
       pauseStartTimeRef.current = null;
       setIsPaused(false);
+      if (meditationAudioRef.current) {
+        meditationAudioRef.current.play()?.catch((e) => logger.error('Audio resume failed:', e));
+      }
       meditationTimerRef.current = setInterval(() => {
         setMeditationTimeLeft(prev => {
           if (prev <= 1) { completeMeditationRef.current?.(); return 0; }
@@ -456,6 +490,9 @@ const WellnessHub: React.FC = () => {
     } else {
       // Pause
       if (meditationTimerRef.current) clearInterval(meditationTimerRef.current);
+      if (meditationAudioRef.current) {
+        meditationAudioRef.current.pause();
+      }
       pauseStartTimeRef.current = new Date();
       setIsPaused(true);
     }
@@ -510,7 +547,7 @@ const WellnessHub: React.FC = () => {
       stopSleepStory();
     });
 
-    audio.play().catch((e) => {
+    audio.play()?.catch((e) => {
       logger.error('Sleep story playback failed:', e);
       stopSleepStory();
     });
@@ -566,6 +603,22 @@ const WellnessHub: React.FC = () => {
     { id: 's3', title: wdSl[2]?.title || 'Havets andetag', duration: 20, type: 'soundscape', description: wdSl[2]?.description || 'Djup vila med havsrytm och guidning', icon: <CloudIcon /> },
   ];
 
+  // Time-based daily recommendation (Fix 4)
+  const currentHour = new Date().getHours();
+  const dailyRecIndex = currentHour >= 5 && currentHour < 11 ? 2 : currentHour >= 11 && currentHour < 17 ? 0 : 1;
+  const dailyRec = meditations[dailyRecIndex] || meditations[0];
+  const dailyRecLabel = dailyRecIndex === 2 ? t('wellnessHub.morningFocus') : dailyRecIndex === 0 ? t('wellnessHub.quickRelax', 'Snabb avkoppling') : t('wellnessHub.deepSleep', 'Djup sömn');
+
+  // Search filtering (Fix 10)
+  const filterBySearch = (items: MeditationOption[]) => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter(m => m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
+  };
+  const filteredMeditations = filterBySearch(meditations);
+  const filteredBreathing = filterBySearch(breathingExercises);
+  const filteredSleepStories = filterBySearch(sleepStories);
+
   return (
     <div className="min-h-screen pb-20 bg-[#f8fafc] dark:bg-[#0f172a]">
       {/* 1. Header / Hero Section */}
@@ -583,11 +636,11 @@ const WellnessHub: React.FC = () => {
                 {t('wellnessHub.description')}
               </p>
             </div>
-            <div className="hidden sm:block">
-              {/* Streak / Stats Badge */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full border border-orange-100 dark:border-orange-800/50">
+            <div className="flex items-center gap-2">
+              {/* Streak / Stats Badge — always visible (Fix 5) */}
+              <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full border border-orange-100 dark:border-orange-800/50">
                 <FireIcon className="w-5 h-5" />
-                <span className="font-semibold">{formatStreakLabel(wellnessStats.streakDays, t)}</span>
+                <span className="font-semibold text-sm sm:text-base">{formatStreakLabel(wellnessStats.streakDays, t)}</span>
               </div>
             </div>
           </header>
@@ -602,13 +655,12 @@ const WellnessHub: React.FC = () => {
                 subtitle={t('wellnessHub.dailyRecSub')}
                 imageHtml={<OptimizedImage src={WELLNESS_HERO_IMAGE_ID} alt="Wellness" className="w-full h-full object-cover" width={800} height={400} fallbackSrc={WELLNESS_HERO_FALLBACK_SRC} />}
                 onClick={() => {
-                  const dailyRec = meditations[2];
                   if (dailyRec) startMeditation(dailyRec);
                 }}
               >
                 <div className="mt-4" data-testid="wellness-daily-recommendation">
                   <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-medium border border-white/20">
-                    10 min • {t('wellnessHub.morningFocus')}
+                    {dailyRec.duration} min • {dailyRecLabel}
                   </span>
                 </div>
               </BentoCard>
@@ -640,7 +692,7 @@ const WellnessHub: React.FC = () => {
                 subtitle={t('wellnessHub.sleepSub')}
                 icon={<MoonIcon />}
                 accentColor="bg-indigo-500"
-                onClick={() => setShowSleepPlayer(true)}
+                onClick={() => sleepSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
               />
             </div>
 
@@ -707,9 +759,20 @@ const WellnessHub: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Navigation Pills */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-3 pb-2">
+      {/* 2. Search Bar + Navigation Pills */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8">
+        {/* Search input (Fix 10) */}
+        <div className="relative mb-4">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('wellnessHub.search', 'Sök övningar...')}
+            className="w-full max-w-md pl-12 pr-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <div className="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
           <CategoryPill active={activeCategory === 'all'} label={t('wellnessHub.catAll')} icon={<SparklesIcon className="w-4 h-4" />} testId="wellness-category-all" onClick={() => setActiveCategory('all')} />
           <CategoryPill active={activeCategory === 'meditation'} label={t('wellnessHub.catMeditation')} icon={<HandRaisedIcon className="w-4 h-4" />} testId="wellness-category-meditation" onClick={() => setActiveCategory('meditation')} />
           <CategoryPill active={activeCategory === 'breathing'} label={t('wellnessHub.catBreathing')} icon={<CloudIcon className="w-4 h-4" />} testId="wellness-category-breathing" onClick={() => setActiveCategory('breathing')} />
@@ -747,8 +810,13 @@ const WellnessHub: React.FC = () => {
                 <p className="text-gray-500 dark:text-gray-400 text-center">{selectedMeditation.description}</p>
               </div>
 
-              <div className="text-5xl font-mono text-center font-bold text-primary-600 dark:text-primary-400 mb-8 tracking-wider">
+              <div className="text-5xl font-mono text-center font-bold text-primary-600 dark:text-primary-400 mb-4 tracking-wider">
                 {formatTime(meditationTimeLeft)}
+              </div>
+
+              {/* Progress bar (Fix 7) */}
+              <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-8">
+                <div className="h-full bg-primary-500 rounded-full transition-all duration-1000" style={{ width: `${((selectedMeditation.duration * 60 - meditationTimeLeft) / (selectedMeditation.duration * 60)) * 100}%` }} />
               </div>
 
               <div className="flex justify-center gap-6">
@@ -843,8 +911,14 @@ const WellnessHub: React.FC = () => {
               <Button variant="ghost" className="text-primary-600" onClick={() => setActiveCategory('meditation')}>{t('wellnessHub.viewAll')}</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {meditations.map(m => (
+              {filteredMeditations.map(m => (
                 <div key={m.id} role="button" tabIndex={0} onClick={() => startMeditation(m)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMeditation(m); } }} className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-primary-300 dark:hover:border-primary-700/50 hover:shadow-xl hover:shadow-primary-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden">
+                  {isMeditationActive && selectedMeditation?.id === m.id && (
+                    <span className="absolute top-3 right-3 px-2 py-1 bg-primary-500 text-white text-[10px] font-bold rounded-full flex items-center gap-1 z-10">
+                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                      {t('wellnessHub.nowPlaying')}
+                    </span>
+                  )}
                   <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary-50 dark:bg-primary-900/10 group-hover:scale-150 transition-transform duration-500" />
                   <div className="relative flex items-start justify-between mb-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/20 text-primary-600 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm">
@@ -871,7 +945,7 @@ const WellnessHub: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {breathingExercises.map(b => (
+              {filteredBreathing.map(b => (
                 <div key={b.id} role="button" tabIndex={0} onClick={() => setActiveBreathingExercise(b)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveBreathingExercise(b); } }} className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 hover:border-accent-300 dark:hover:border-accent-700/50 hover:shadow-xl hover:shadow-accent-100/50 dark:hover:shadow-slate-900/30 transition-all duration-300 cursor-pointer overflow-hidden">
                   <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-accent-50 dark:bg-accent-900/10 group-hover:scale-150 transition-transform duration-500" />
                   <div className="relative flex items-start justify-between mb-4">
@@ -903,16 +977,16 @@ const WellnessHub: React.FC = () => {
         )}
 
         {(activeCategory === 'all' || activeCategory === 'sleep') && (
-          <section className="mb-12" data-testid="wellness-sleep-section">
+          <section className="mb-12" data-testid="wellness-sleep-section" ref={sleepSectionRef}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-8 rounded-full bg-indigo-500" />
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('wellnessHub.sleepAndRest')}</h2>
               </div>
-              <Button variant="ghost" className="text-primary-600" onClick={() => setShowSleepPlayer(true)}>{t('wellnessHub.playStories')}</Button>
+              <Button variant="ghost" className="text-primary-600" onClick={() => sleepSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}>{t('wellnessHub.playStories')}</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sleepStories.map((story) => (
+              {filteredSleepStories.map((story) => (
                 <div
                   key={story.id}
                   role="button"
@@ -938,22 +1012,6 @@ const WellnessHub: React.FC = () => {
           </section>
         )}
       </div>
-
-      {/* Sleep Audio Player Modal */}
-      {showSleepPlayer && (
-        <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden relative">
-            <button
-              onClick={() => setShowSleepPlayer(false)}
-              aria-label={t('wellnessHub.close')}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <XMarkIcon className="w-6 h-6 text-gray-500" />
-            </button>
-            <RelaxingSounds onClose={() => setShowSleepPlayer(false)} embedded />
-          </div>
-        </div>
-      )}
 
       {/* Sleep Story Player Modal */}
       {selectedSleepStory && (
@@ -991,7 +1049,7 @@ const WellnessHub: React.FC = () => {
                       }
                       setSleepStoryPlaying(false);
                     } else {
-                      sleepStoryAudioRef.current.play().catch(e => logger.error('Resume failed:', e));
+                      sleepStoryAudioRef.current.play()?.catch(e => logger.error('Resume failed:', e));
                       sleepStoryTimerRef.current = setInterval(() => {
                         setSleepStoryTimeLeft((prev) => {
                           if (prev <= 1) { stopSleepStory(); return 0; }

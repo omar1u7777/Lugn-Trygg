@@ -208,7 +208,7 @@ def list_memories(user_id: str) -> Response | tuple[Response, int]:
             )
             return APIResponse.forbidden("You can only view your own memories")
 
-        # Query Firestore with FieldFilter (production) or fallback (test)
+        # Query Firestore
         try:
             from google.cloud.firestore import FieldFilter
             memories_ref = list(
@@ -218,10 +218,10 @@ def list_memories(user_id: str) -> Response | tuple[Response, int]:
                 .stream()
             )
         except (TypeError, ImportError):
-            # Fallback for test environments
+            # Fallback for test environments without FieldFilter
             memories_ref = list(
                 db.collection("memories")
-                .where(filter=FieldFilter("user_id", "==", user_id))
+                .where("user_id", "==", user_id)
                 .limit(100)
                 .stream()
             )

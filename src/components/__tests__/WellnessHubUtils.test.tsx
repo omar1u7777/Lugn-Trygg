@@ -261,14 +261,14 @@ describe('WellnessHub component', () => {
     render(<WellnessHub />);
 
     fireEvent.click(await screen.findByText('Morgonfokus'));
-    expect(screen.getByText('wellnessHub.nowPlaying')).toBeInTheDocument();
+    expect(screen.getAllByText('wellnessHub.nowPlaying').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'wellnessHub.pauseMeditation' }));
     expect(screen.getByRole('button', { name: 'wellnessHub.resumeMeditation' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'wellnessHub.stopMeditation' }));
     await waitFor(() => {
-      expect(screen.queryByText('wellnessHub.nowPlaying')).not.toBeInTheDocument();
+      expect(screen.queryAllByText('wellnessHub.nowPlaying').length).toBe(0);
     });
   }, 15000);
 });

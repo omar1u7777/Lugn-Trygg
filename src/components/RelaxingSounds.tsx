@@ -1,6 +1,15 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  BackwardIcon,
+  ForwardIcon,
+  PlayIcon,
+  PauseIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  XMarkIcon
+} from "@heroicons/react/24/outline";
+import {
   getAudioLibrary,
   type AudioTrack,
   type AudioLibrary
@@ -271,7 +280,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
       audioRef.current.src = selectedTrack.url;
       audioRef.current.load();
       if (isPlaying) {
-        audioRef.current.play().catch(() => {
+        audioRef.current.play()?.catch(() => {
           setAudioError(t('audio.playbackError', 'Kunde inte spela upp ljudet.'));
           setIsPlaying(false);
         });
@@ -612,31 +621,34 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                         <button
                           onClick={handlePreviousTrack}
                           disabled={!selectedTrack || currentPlaylist.length === 0}
+                          aria-label={t('audio.previous', 'Föregående')}
                           className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          ⏮️
+                          <BackwardIcon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                         </button>
 
                         <button
                           onClick={togglePlay}
                           disabled={!selectedTrack}
+                          aria-label={isPlaying ? t('audio.pause', 'Pausa') : t('audio.play', 'Spela')}
                           className="w-16 h-16 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                         >
-                          <span className="text-2xl">{isPlaying ? '⏸️' : '▶️'}</span>
+                          <span className="text-2xl">{isPlaying ? <PauseIcon className="w-7 h-7" /> : <PlayIcon className="w-7 h-7 ml-0.5" />}</span>
                         </button>
 
                         <button
                           onClick={handleNextTrack}
                           disabled={!selectedTrack || currentPlaylist.length === 0}
+                          aria-label={t('audio.next', 'Nästa')}
                           className="w-12 h-12 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          ⏭️
+                          <ForwardIcon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                         </button>
                       </div>
 
                       {/* Volume Control */}
                       <div className="flex items-center gap-3 mt-auto">
-                        <span className="text-sm text-slate-600 dark:text-slate-400">🔉</span>
+                        <SpeakerXMarkIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                         <input
                           type="range"
                           min="0"
@@ -646,7 +658,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
                           onChange={handleVolumeChange}
                           className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
                         />
-                        <span className="text-sm text-slate-600 dark:text-slate-400">🔊</span>
+                        <SpeakerWaveIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       </div>
 
                       {/* License Info */}
@@ -672,7 +684,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
             onClick={onClose}
             aria-label={t('common.close', 'Stäng')}
           >
-            ✕
+            <XMarkIcon className="w-5 h-5" />
           </button>
         )}
       </div>
