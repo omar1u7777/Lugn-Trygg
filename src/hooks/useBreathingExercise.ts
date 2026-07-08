@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExerciseTimer } from './useExerciseTimer';
-import { BREATHING_PHASES } from '../constants/recommendations';
+import { BREATHING_PHASES, BREATHING_TECHNIQUES } from '../constants/recommendations';
 
 export type BreathingPhase = 'prepare' | 'exhale' | 'inhale' | 'hold' | 'exhale2' | 'rest' | 'completed';
 
@@ -8,8 +8,10 @@ export const useBreathingExercise = (options: {
     onComplete?: (cycleCount: number) => void;
     onPhaseChange?: (phase: BreathingPhase, instruction: string, secondsLeft?: number) => void;
     targetCycles?: number;
+    technique?: string;
 } = {}) => {
-    const { onComplete, onPhaseChange, targetCycles: targetCyclesOption } = options;
+    const { onComplete, onPhaseChange, targetCycles: targetCyclesOption, technique } = options;
+    const phases = (technique && BREATHING_TECHNIQUES[technique]) || BREATHING_PHASES;
     const [phase, setPhase] = useState<BreathingPhase>('rest');
     const [cycleCount, setCycleCount] = useState(0);
     const [totalSeconds, setTotalSeconds] = useState(0);
@@ -17,7 +19,7 @@ export const useBreathingExercise = (options: {
     const completionTriggeredRef = useRef(false);
     const callbacksRef = useRef({ onComplete, onPhaseChange });
 
-    const cycleTotalTime = BREATHING_PHASES.reduce((sum, p) => sum + p.duration, 0);
+    const cycleTotalTime = phases.reduce((sum, p) => sum + p.duration, 0);
     const targetCycles = targetCyclesOption ?? 4;
 
     useEffect(() => {
@@ -65,8 +67,8 @@ export const useBreathingExercise = (options: {
 
         // Find current phase
         let elapsed = 0;
-        let currentPhase = BREATHING_PHASES[0];
-        for (const p of BREATHING_PHASES) {
+        let currentPhase = phases[0];
+        for (const p of phases) {
             if (currentCycleTime <= elapsed + p.duration) {
                 currentPhase = p;
                 break;
@@ -90,12 +92,12 @@ export const useBreathingExercise = (options: {
         setCycleCount(0);
         setTotalSeconds(0);
         setPhase('exhale');
-        setPhaseSecondsLeft(BREATHING_PHASES[0].duration);
+        setPhaseSecondsLeft(phases[0].duration);
         startTimer();
         callbacksRef.current.onPhaseChange?.(
-            BREATHING_PHASES[0].name as BreathingPhase,
-            BREATHING_PHASES[0].instruction,
-            BREATHING_PHASES[0].duration
+            phases[0].name as BreathingPhase,
+            phases[0].instruction,
+            phases[0].duration
         );
     }, [startTimer]);
 
