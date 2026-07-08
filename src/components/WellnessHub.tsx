@@ -52,9 +52,10 @@ interface MeditationOption {
   duration: number;
   type: 'guided_meditation' | 'breathing_exercise' | 'soundscape';
   description: string;
-  image?: string; // Placeholder for future images
+  image?: string;
   color?: string;
   icon?: React.ReactNode;
+  technique?: string;
 }
 
 interface ActivityRecord {
@@ -593,8 +594,8 @@ const WellnessHub: React.FC = () => {
   ];
 
   const breathingExercises: MeditationOption[] = [
-    { id: 'b1', title: wdBr[0]?.title || '4-7-8 Andning', duration: 4, type: 'breathing_exercise', description: wdBr[0]?.description || 'För ångestdämpning', icon: <CloudIcon /> },
-    { id: 'b2', title: wdBr[1]?.title || 'Fyrkantsandning', duration: 5, type: 'breathing_exercise', description: wdBr[1]?.description || 'För balans och lugn', icon: <StopIcon /> },
+    { id: 'b1', title: wdBr[0]?.title || '4-7-8 Andning', duration: 1, type: 'breathing_exercise', description: wdBr[0]?.description || 'För ångestdämpning', icon: <CloudIcon />, technique: '4-7-8' },
+    { id: 'b2', title: wdBr[1]?.title || 'Fyrkantsandning', duration: 1, type: 'breathing_exercise', description: wdBr[1]?.description || 'För balans och lugn', icon: <StopIcon />, technique: 'box' },
   ];
 
   const sleepStories: MeditationOption[] = [
@@ -878,6 +879,7 @@ const WellnessHub: React.FC = () => {
                 }>
                   <BreathingExercise
                     {...(user?.user_id ? { userId: user.user_id } : {})}
+                    {...(activeBreathingExercise.technique ? { technique: activeBreathingExercise.technique } : {})}
                     onComplete={(cycles) => {
                       setWellnessStats(prev => ({
                         ...applySessionCompletionStats(prev, 'breathing_exercise', activeBreathingExercise.duration)

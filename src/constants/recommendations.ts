@@ -9,7 +9,20 @@ export const BREATHING_PHASES: BreathingPhaseConfig[] = [
     { name: 'exhale2', duration: 8, instruction: 'Andas ut genom munnen...' }
 ];
 
-export const getBreathingPhases = (t: (key: string) => unknown): BreathingPhaseConfig[] => {
+export const BOX_BREATHING_PHASES: BreathingPhaseConfig[] = [
+    { name: 'inhale', duration: 4, instruction: 'Andas in genom näsan...' },
+    { name: 'hold', duration: 4, instruction: 'Håll andan...' },
+    { name: 'exhale', duration: 4, instruction: 'Andas ut genom munnen...' },
+    { name: 'exhale2', duration: 4, instruction: 'Håll andan efter utandning...' }
+];
+
+export const BREATHING_TECHNIQUES: Record<string, BreathingPhaseConfig[]> = {
+    '4-7-8': BREATHING_PHASES,
+    'box': BOX_BREATHING_PHASES,
+};
+
+export const getBreathingPhases = (t: (key: string) => unknown, technique?: string): BreathingPhaseConfig[] => {
+  if (technique && BREATHING_TECHNIQUES[technique]) return BREATHING_TECHNIQUES[technique];
   const phases = t('breathingPhases') as BreathingPhaseConfig[] | undefined;
   if (Array.isArray(phases) && phases.length > 0) return phases;
   return BREATHING_PHASES;

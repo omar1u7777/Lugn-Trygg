@@ -12,6 +12,7 @@ interface BreathingExerciseProps {
   onPhaseChange?: (phase: string, instruction: string) => void;
   initialCycles?: 4 | 8 | 12;
   initialStressBefore?: number | null;
+  technique?: string;
 }
 
 export const BreathingExercise: React.FC<BreathingExerciseProps> = ({ 
@@ -20,7 +21,8 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
   onStressChange,
   onPhaseChange,
   initialCycles = 4,
-  initialStressBefore = null 
+  initialStressBefore = null,
+  technique
 }) => {
   const { t } = useTranslation();
   
@@ -51,6 +53,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
     stop: stopBreathingExercise
   } = useBreathingExercise({
     targetCycles: selectedBreathingCycles,
+    technique,
     onComplete: (cycles) => {
       breathingOutcomeSyncedRef.current = false;
       onComplete?.(cycles);
@@ -58,7 +61,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({
     ...(onPhaseChange ? { onPhaseChange } : {})
   });
 
-  const phases = getBreathingPhases(t);
+  const phases = getBreathingPhases(t, technique);
   const currentPhase = phases.find(p => p.name === breathingPhase);
   const breathingCue = currentPhase || { title: breathingPhase, detail: '', icon: '🫁' };
 
