@@ -287,6 +287,7 @@ const MemoryJournal: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.user_id) return;
+    if (isSubmitting) return;
 
     if (!content.trim() && !audioBlob && photos.length === 0) {
       setSubmitError('Lägg till text, röstinspelning eller bilder för att spara ett minne.');

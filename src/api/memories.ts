@@ -24,7 +24,7 @@ export interface Memory {
  */
 export const getMemories = async (userId: string): Promise<Memory[]> => {
   try {
-    const response = await api.get(`${API_ENDPOINTS.MEMORY.LIST_MEMORIES}/${userId}`);
+    const response = await api.get(`${API_ENDPOINTS.MEMORY_UNIFIED.LIST}/${userId}`);
     return response.data.memories || [];
   } catch (error: unknown) {
     if (error instanceof ApiError) {
