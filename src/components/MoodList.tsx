@@ -614,7 +614,16 @@ const MoodList: React.FC<{ onClose?: () => void; inline?: boolean }> = ({ onClos
                 }
                 
                 const sentiment = (mood.sentiment || 'NEUTRAL').toUpperCase();
-                const score = mood.score ?? 0;
+                let score = mood.score ?? 0;
+                
+                // BUG E: Legacy sentiment_score was stored in -1 to +1 range but displayed as 1-10
+                // Detect values outside valid 1-10 range and convert them
+                if (score !== 0 && (score < 1 || score > 10)) {
+                  // Legacy sentiment_score (-1 to +1) → convert to 1-10 scale
+                  score = Math.round(((score + 1) / 2) * 9 + 1);
+                }
+                // BUG B: Format to avoid floating point precision artifacts
+                score = Math.round(score * 10) / 10;
                 
                 // Get emotions from either source
                 const analysis = mood.sentiment_analysis || mood.voice_analysis || mood.ai_analysis || {};

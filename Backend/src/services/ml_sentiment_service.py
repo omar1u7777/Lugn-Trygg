@@ -411,8 +411,12 @@ class MLSentimentService:
         positive = ["glad", "bra", "lycklig", "fantastisk", "nöjd", "tacksam", "happy", "great", "love"]
         negative = ["ledsen", "arg", "stressad", "deppig", "frustrerad", "dålig", "trött", "sad", "angry"]
         t = text.lower()
+        negations = ["inte ", "ej ", "aldrig ", "inga ", "ingen "]
+        has_negation = any(neg in t for neg in negations)
         p = sum(1 for w in positive if w in t)
         n = sum(1 for w in negative if w in t)
+        if has_negation:
+            p, n = n, p
         if p > n:
             sentiment, score = "POSITIVE", min(p * 0.25, 1.0)
         elif n > p:
