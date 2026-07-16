@@ -1160,6 +1160,16 @@ def setup_2fa():
         except ImportError as e:
             logger.error(f"Missing required packages for 2FA: {str(e)}")
             return APIResponse.error('2FA setup not available', 'SERVICE_UNAVAILABLE', 503)
+        except RuntimeError as e:
+            if 'HIPAA_ENCRYPTION_KEY' in str(e):
+                logger.error(f"2FA setup failed - HIPAA_ENCRYPTION_KEY not configured: {str(e)}")
+                return APIResponse.error(
+                    '2FA setup not available - encryption key not configured',
+                    'ENCRYPTION_KEY_MISSING',
+                    503
+                )
+            logger.error(f"2FA setup failed: {str(e)}")
+            return APIResponse.error('Failed to setup 2FA', 'TWO_FACTOR_SETUP_ERROR', 500)
         except Exception as e:
             logger.error(f"2FA setup failed: {str(e)}")
             return APIResponse.error('Failed to setup 2FA', 'TWO_FACTOR_SETUP_ERROR', 500)

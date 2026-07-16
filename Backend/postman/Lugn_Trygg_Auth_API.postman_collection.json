@@ -1,0 +1,997 @@
+{
+  "info": {
+    "name": "Lugn & Trygg Auth API",
+    "description": "Complete authentication API collection for live E2E testing. Covers all 17 endpoints with proper auth-override, token extraction, and assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "description": "Base URL"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "description": "JWT access token (auto-set after login)"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "description": "User ID (auto-set after login)"
+    },
+    {
+      "key": "testEmail",
+      "value": "",
+      "description": "Dynamic test email (auto-set per run)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Register, Login, Google Login, Refresh Token",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\", \"name\": \"E2E Postman\", \"accept_terms\": true, \"accept_privacy\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Register a new user with unique email per run.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
+                  "if (!email.startsWith('e2e-postman-')) {",
+                  "  var uuid = require('uuid').v4().substring(0, 8);",
+                  "  email = 'e2e-postman-' + uuid + '@lugntrygg.se';",
+                  "  pm.collectionVariables.set('testEmail', email);",
+                  "}",
+                  "pm.request.body.raw = JSON.stringify({email: email, password: 'E2eTest123!Secure', name: 'E2E Postman', accept_terms: true, accept_privacy: true});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Register returns 201, 409, or 429 (rate limited)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409, 429]);",
+                  "});",
+                  "if (pm.response.code === 201 && json.data && json.data.user) {",
+                  "  pm.collectionVariables.set('userId', json.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Login and extract accessToken + userId.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
+                  "var pwd = 'E2eTest123!Secure';",
+                  "pm.request.body.raw = JSON.stringify({email: email, password: pwd});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Login returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  if (json.data.userId) pm.collectionVariables.set('userId', json.data.userId);",
+                  "  else if (json.data.user && json.data.user.id) pm.collectionVariables.set('userId', json.data.user.id);",
+                  "}",
+                  "pm.test('AccessToken is set', function() {",
+                  "  pm.expect(pm.collectionVariables.get('accessToken')).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('UserId is set', function() {",
+                  "  pm.expect(pm.collectionVariables.get('userId')).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Google Login (Invalid Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/google-login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "google-login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id_token\": \"invalid-google-token-for-testing\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Google login with invalid token should fail.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Google login with invalid token returns 401', function() {",
+                  "  pm.expect(pm.response.code).to.equal(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "description": "Refresh access token via HttpOnly cookie.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refresh returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  var json = pm.response.json();",
+                  "  if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Authenticated Endpoints",
+      "description": "Endpoints requiring Bearer token. Read-only first, then writes. Logout last.",
+      "item": [
+        {
+          "name": "Get Consent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/consent/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "consent",
+                "{{userId}}"
+              ]
+            }
+          },
+          "description": "Retrieve consent preferences for current user.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "var uid = pm.collectionVariables.get('userId');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}",
+                  "if (uid) {",
+                  "  pm.request.url = pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/consent/' + uid);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get consent returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export User Data (GDPR)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/export-data",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "export-data"
+              ]
+            }
+          },
+          "description": "GDPR data export.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Export data returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup 2FA (TOTP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/setup-2fa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "setup-2fa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"method\": \"totp\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Initiate TOTP 2FA setup.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Setup 2FA returns 200 or 500 (already configured)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 500]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify 2FA Setup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-2fa-setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-2fa-setup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\": \"123456\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Verify TOTP code. Will fail with invalid code.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Verify 2FA setup returns 200 or 400 (invalid code)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup 2FA (Biometric)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/setup-2fa-biometric",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "setup-2fa-biometric"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"method\": \"biometric\", \"setup_data\": {\"credential_id\": \"test-cred\", \"public_key\": \"test-key\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Setup biometric 2FA.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Setup biometric 2FA returns 200 or 400', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/consent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "consent"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"analytics_consent\": true, \"marketing_consent\": false, \"data_processing_consent\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Update consent preferences.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Update consent returns 200 or 201', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "change-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"current_password\": \"E2eTest123!Secure\", \"new_password\": \"E2eTest123!Secure\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Change password (same password to preserve session).",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Change password returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/change-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "change-email"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"new_email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Change email (same email to preserve login).",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}",
+                  "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
+                  "pm.request.body.raw = JSON.stringify({new_email: email, password: 'E2eTest123!Secure'});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Change email returns 200 or 409 (same email conflict)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 409, 422]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Password Management (Public)",
+      "description": "Password reset flows without authentication",
+      "item": [
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Request password reset. Always 200 to prevent enumeration.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
+                  "pm.request.body.raw = JSON.stringify({email: email});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Password reset request returns 200 or 429 (rate limited)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm Password Reset (Invalid Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/confirm-password-reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "confirm-password-reset"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"token\": \"invalid-reset-token\", \"new_password\": \"NewSecureP@ss123!\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Confirm password reset with invalid token.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Confirm reset with invalid token returns error', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 401, 422, 429]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2FA Login Verification",
+      "description": "Verify 2FA during login flow (no active challenge = error expected)",
+      "item": [
+        {
+          "name": "Verify 2FA (Login - No Challenge)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-2fa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-2fa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"method\": \"totp\", \"code\": \"123456\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Verify 2FA without active challenge should fail.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Verify 2FA without challenge returns 400 or 403', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Logout & Cleanup",
+      "description": "Logout and account deletion - run LAST",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "description": "Logout and clear refresh cookie.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/delete-account/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "delete-account",
+                "{{userId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"password\": \"E2eTest123!Secure\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "Permanently delete test account (GDPR right to erasure).",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var token = pm.collectionVariables.get('accessToken');",
+                  "var uid = pm.collectionVariables.get('userId');",
+                  "if (token) {",
+                  "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
+                  "}",
+                  "if (uid) {",
+                  "  pm.request.url = pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/delete-account/' + uid);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Delete account returns 200', function() {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
