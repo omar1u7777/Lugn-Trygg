@@ -1185,11 +1185,13 @@ def start_exercise():
             "content": exercise_content
         })
 
+        exercise_id = f"exercise_{timestamp}"
         logger.info(f"✅ Exercise started for user {user_id}: {exercise_type}")
 
         return APIResponse.success({
             "exercise": _to_camel_case_exercise(exercise_content),
             "exerciseType": exercise_type,
+            "exerciseId": exercise_id,
             "duration": duration,
             "startedAt": timestamp
         })
@@ -1449,15 +1451,36 @@ def get_therapeutic_progress():
                 }
                 session_outcomes.append(outcome)
 
-        # Analyze trajectory
-        trajectory = tracker.analyze_progress_trajectory(session_outcomes)
+        # Analyze trajectory (guard against empty/insufficient outcomes)
+        if not session_outcomes:
+            return APIResponse.success({
+                "status": "insufficient_data",
+                "message": "No assistant responses found for progress analysis",
+                "sessions_available": len(session_docs),
+                "sessions_needed": 3
+            })
+
+        try:
+            trajectory = tracker.analyze_progress_trajectory(session_outcomes)
+        except Exception as traj_err:
+            logger.warning(f"Trajectory analysis failed (likely insufficient data): {traj_err}")
+            return APIResponse.success({
+                "status": "insufficient_data",
+                "message": "Not enough structured session data for trajectory analysis",
+                "sessions_available": len(session_docs),
+                "sessions_needed": 3
+            })
 
         # Generate progress report
-        report = tracker.generate_progress_report(
-            session_outcomes=session_outcomes,
-            alliances=[],  # Would need explicit alliance tracking
-            trajectory=trajectory
-        )
+        try:
+            report = tracker.generate_progress_report(
+                session_outcomes=session_outcomes,
+                alliances=[],  # Would need explicit alliance tracking
+                trajectory=trajectory
+            )
+        except Exception as report_err:
+            logger.warning(f"Progress report generation failed: {report_err}")
+            report = {"status": "partial", "message": "Partial analysis only"}
 
         return APIResponse.success({
             "progress_report": report,

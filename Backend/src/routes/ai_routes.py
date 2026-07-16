@@ -242,6 +242,24 @@ def generate_ai_mood_forecast():
 
         logger.info("Retrieved %d mood entries for forecasting", len(mood_history))
 
+        # Guard: insufficient data for forecasting
+        if len(mood_history) < 2:
+            return APIResponse.success({
+                "forecast": {
+                    "trend": "insufficient_data",
+                    "average_forecast": 0,
+                    "message": "Need at least 2 mood entries to generate a forecast"
+                },
+                "modelInfo": {"algorithm": "none", "reason": "insufficient_data"},
+                "currentAnalysis": {},
+                "riskFactors": [],
+                "recommendations": ["Log more mood entries to unlock AI forecasting"],
+                "confidence": 0.0,
+                "dataPointsUsed": len(mood_history),
+                "forecastPeriodDays": days_ahead,
+                "generatedAt": datetime.now(UTC).isoformat()
+            }, "Insufficient mood data for forecasting")
+
         # Generate forecast using sklearn ML model
         from src.services.ai_service import ai_services
 
