@@ -99,8 +99,8 @@ class SecurityHeadersMiddleware:
 
         directives = {
             'default-src': "'self'",
-            'script-src': f"'self' 'nonce-{resolved_nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
-            'style-src': f"'self' 'nonce-{resolved_nonce}' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
+            'script-src': f"'self' 'nonce-{resolved_nonce}' https://cdn.jsdelivr.net https://unpkg.com https://cdn.redoc.ly",
+            'style-src': f"'self' 'nonce-{resolved_nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
             'font-src': "'self' https://fonts.gstatic.com",
             'img-src': "'self' data: https: blob:",
             # CRITICAL FIX: Allow API connections for frontend (including backend API)
