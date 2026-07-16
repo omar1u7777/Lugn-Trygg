@@ -1,6 +1,7 @@
 import os
 import sys
 import types
+from functools import wraps
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,13 @@ sys.path.insert(0, backend_dir)
 os.environ['FLASK_ENV'] = 'development'
 os.environ['FLASK_DEBUG'] = 'True'
 os.environ['TESTING'] = 'True'
+os.environ['REDIS_URL'] = 'memory://'
+
+# Stub Redis early so that importing routes/services that eagerly connect to
+# Redis does not hang waiting for a real server during test collection.
+import redis as _redis_module  # noqa: E402
+_redis_module.Redis = MagicMock  # type: ignore[misc]
+_redis_module.from_url = MagicMock(return_value=MagicMock(ping=MagicMock()))  # type: ignore[attr-defined]
 
 # Set Firebase env vars for CI/test environments if not already set
 os.environ.setdefault('FIREBASE_WEB_API_KEY', 'test-firebase-web-api-key')
@@ -177,11 +185,11 @@ sys.modules['src.services.crisis_nlp'] = fake_crisis_nlp
 
 # Patch the jwt_required decorator BEFORE importing routes
 def mock_jwt_required(f):
+    @wraps(f)
     def wrapper(*args, **kwargs):
         from flask import g
         g.user_id = 'testuser1234567890ab'
         return f(*args, **kwargs)
-    wrapper.__name__ = f.__name__
     return wrapper
 
 # Import auth_service first to make sure it's in sys.modules before patching
@@ -293,6 +301,7 @@ def auth_csrf_headers(auth_headers, csrf_headers):
 _LEGACY_CSRF_MODULES = {
     'test_ai_helpers_routes.py',
     'test_ai_routes.py',
+    'test_ai_support_full_coverage.py',
     'test_challenges_routes.py',
     'test_chatbot_routes.py',
     'test_crisis_routes.py',

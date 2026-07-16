@@ -82,6 +82,16 @@ class TestSecurityHeadersMiddleware:
             server = resp.headers.get("X-Powered-By")
             assert server is None
 
+    def test_production_csp_uses_nonce_without_unsafe_inline_and_sets_hsts(self, sec_app, monkeypatch):
+        monkeypatch.setenv("FLASK_ENV", "production")
+        with sec_app.test_client() as client:
+            response = client.get("/test", base_url="https://api.lugntrygg.se")
+
+        csp = response.headers["Content-Security-Policy"]
+        assert "'unsafe-inline'" not in csp
+        assert "'nonce-" in csp
+        assert response.headers["Strict-Transport-Security"].startswith("max-age=31536000")
+
 
 class TestGetSecurityStatus:
     """Tests for get_security_status."""

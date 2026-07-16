@@ -41,6 +41,8 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: REDIS_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       # Azure OpenAI (alternative - uncomment if using Azure instead of OpenAI)

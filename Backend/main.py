@@ -15,6 +15,7 @@ from flask import Flask, g, jsonify, request
 # NOTE: flask_cors removed - we handle CORS manually for full control over allowed headers
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Initialize Sentry for production error tracking (must be before Flask app creation)
 from src.monitoring.sentry_config import init_sentry
@@ -99,6 +100,8 @@ else:
 
 # Initialize Flask app
 app = Flask(__name__)
+if os.getenv('FLASK_ENV', '').lower() == 'production':
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[assignment]
 
 # CRITICAL: Disable automatic OPTIONS handling so we can set CORS headers manually
 app.config['CORS_AUTOMATIC_OPTIONS'] = False
@@ -275,14 +278,10 @@ limiter = Limiter(
 # In-memory limits are per-process and reset on every container restart/redeploy.
 # With multiple Gunicorn workers each worker tracks its own counters independently,
 # making per-IP limits trivially bypassable by sending requests across workers.
-if os.getenv('FLASK_ENV', 'development').lower() == 'production' and not os.getenv('REDIS_URL'):
-    logger.warning(
-        "[B5] REDIS_URL is not set — rate limiting is using in-memory storage. "
-        "Consequences: (1) all rate-limit counters reset on every container restart; "
-        "(2) with multiple Gunicorn workers, each worker tracks limits independently "
-        "(limits are N× easier to bypass); "
-        "(3) OAuth state tokens are backed by per-process memory and lost on restart. "
-        "Set REDIS_URL (e.g. a free Upstash instance) to enable persistent distributed limits."
+if os.getenv('FLASK_ENV', 'development').lower() == 'production' and _storage_uri == 'memory://':
+    raise RuntimeError(
+        "REDIS_URL must reference a reachable shared Redis instance in production; "
+        "in-memory rate limiting is unsafe with multiple workers."
     )
 
 # [B2] Initialize SocketIO for WebSocket biofeedback (gevent async mode matches Dockerfile CMD)
@@ -821,6 +820,7 @@ try:
 
     # Health check endpoint (2026 compliant)
     @app.route('/health')
+    @limiter.exempt
     def health_check():
         """Health check endpoint - no versioning for compatibility"""
         health_data: dict[str, Any] = {
