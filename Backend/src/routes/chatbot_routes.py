@@ -144,6 +144,11 @@ def chat_with_ai():
             return APIResponse.bad_request("Message required")
 
         user_message = data["message"].strip()
+        # Explicit length check BEFORE sanitization (which truncates)
+        if len(user_message) > MAX_MESSAGE_LENGTH:
+            return APIResponse.bad_request(
+                f"Message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters"
+            )
         # Sanitize and cap message length
         user_message = input_sanitizer.sanitize(user_message, content_type='text', max_length=MAX_MESSAGE_LENGTH)
         if not user_message:
@@ -456,6 +461,10 @@ def chat_stream():
             return APIResponse.bad_request("Message required")
 
         user_message = data["message"].strip()
+        if len(user_message) > MAX_MESSAGE_LENGTH:
+            return APIResponse.bad_request(
+                f"Message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters"
+            )
         user_message = input_sanitizer.sanitize(user_message, content_type='text', max_length=MAX_MESSAGE_LENGTH)
         if not user_message:
             return APIResponse.bad_request("Message required")
