@@ -153,7 +153,7 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, selectedCategory]);
 
   useEffect(() => {
     fetchAudioLibrary();

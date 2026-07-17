@@ -85,7 +85,7 @@ export const useBreathingExercise = (options: {
             setPhase(nextPhaseName);
             callbacksRef.current.onPhaseChange?.(nextPhaseName, currentPhase.instruction, secondsLeft);
         }
-    }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, stopTimer, targetCycles]);
+    }, [cycleCount, totalSeconds, isActive, cycleTotalTime, phase, phases, stopTimer, targetCycles]);
 
     const start = useCallback(() => {
         completionTriggeredRef.current = false;
@@ -99,7 +99,7 @@ export const useBreathingExercise = (options: {
             phases[0].instruction,
             phases[0].duration
         );
-    }, [startTimer]);
+    }, [phases, startTimer]);
 
     const stop = useCallback(() => {
         completionTriggeredRef.current = false;
