@@ -934,11 +934,20 @@ try:
 
     @app.errorhandler(429)
     def rate_limit_exceeded(error):
-        return jsonify({
+        retry_after = error.description if isinstance(error.description, (int, float)) else 60
+        response = jsonify({
             'error': 'För många anrop',
             'message': 'För många förfrågningar. Försök igen senare.',
-            'retry_after': error.description
-        }), 429
+            'retry_after': retry_after
+        })
+        response.status_code = 429
+        response.headers['Retry-After'] = str(retry_after)
+        # Explicitly add CORS headers so frontend can read 429 responses
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
     @app.errorhandler(400)
     def bad_request(error):

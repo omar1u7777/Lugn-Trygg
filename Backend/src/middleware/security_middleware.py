@@ -245,10 +245,18 @@ class SecurityMiddleware:
 
     def _rate_limit_response(self):
         """Return rate limit exceeded response"""
-        return jsonify({
+        response = jsonify({
             "error": "For manga forfragningar",
             "retry_after": 3600
-        }), 429
+        })
+        response.status_code = 429
+        response.headers['Retry-After'] = '3600'
+        # Explicitly add CORS headers so frontend can read 429 responses
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
     def _get_client_ip(self) -> str:
         """Get real client IP address"""
@@ -370,7 +378,15 @@ class SecurityMiddleware:
             }
         )
 
-        return jsonify({"error": "For manga forfragningar", "retry_after": 3600}), 429
+        response = jsonify({"error": "For manga forfragningar", "retry_after": 3600})
+        response.status_code = 429
+        response.headers['Retry-After'] = '3600'
+        # Explicitly add CORS headers so frontend can read 429 responses
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
 # Global security service instance for decorator reuse
 _global_security_service: SecurityService | None = None
