@@ -1270,6 +1270,11 @@ def test_log_mood_audio_transcript_only(
 
 def _patch_mood_route_db(mocker, moods=None, user_exists=True):
     moods = moods or MagicMock()
+    # Ensure add() returns a tuple (None, doc_ref) with a string id
+    # so mood_entry['id'] is JSON-serializable after the production fix
+    _doc_ref = MagicMock()
+    _doc_ref.id = "mock-mood-id"
+    moods.add.return_value = (None, _doc_ref)
     user_doc = MagicMock()
     user_doc.exists = user_exists
     users_doc = MagicMock()
@@ -1514,6 +1519,9 @@ def test_log_mood_dedup_exception_non_blocking(
     moods.where.return_value = moods
     moods.limit.return_value = moods
     moods.stream.side_effect = Exception("firestore error")
+    _doc_ref = MagicMock()
+    _doc_ref.id = "mock-mood-id"
+    moods.add.return_value = (None, _doc_ref)
 
     user_doc = MagicMock()
     user_doc.exists = True

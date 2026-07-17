@@ -550,6 +550,7 @@ def log_mood() -> Response | tuple[Response, int]:
             # doc_ref is a tuple in some Firestore versions, get the document reference
             doc_id = doc_ref[1].id if isinstance(doc_ref, tuple) else doc_ref.id
             logger.info(f"✅ Mood entry saved to database with ID: {doc_id}")
+            mood_entry['id'] = doc_id
 
             # AUTO-AWARD XP for logging a mood
             try:
