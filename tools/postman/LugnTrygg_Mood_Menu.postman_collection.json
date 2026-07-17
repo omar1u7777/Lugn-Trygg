@@ -1,0 +1,440 @@
+{
+  "info": {
+    "_postman_id": "lugn-trygg-mood-menu",
+    "name": "Lugn & Trygg - Humör System Menu",
+    "description": "Postman collection for the Humör (Mood) system menu choices in the Lugn & Trygg app. Covers logging, retrieving, analyzing, and forecasting mood entries.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Get CSRF Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/csrf-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "csrf-token"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Log & Analyze",
+      "item": [
+        {
+          "name": "Analyze mood text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\": \"Idag känner jag mig glad och lugn!\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mood/analyze-text",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "analyze-text"]
+            },
+            "description": "Analyze text for sentiment and mood indicators."
+          },
+          "response": []
+        },
+        {
+          "name": "Log mood (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 8,\n  \"mood_text\": \"Glad\",\n  \"note\": \"Idag gick allt bra på jobbet.\",\n  \"tags\": [\"arbete\", \"familj\"],\n  \"valence\": 8,\n  \"arousal\": 5,\n  \"timestamp\": \"2026-07-15T08:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mood/log",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "log"]
+            },
+            "description": "Log a new mood entry via JSON payload."
+          },
+          "response": []
+        },
+        {
+          "name": "Log mood with voice (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "score",
+                  "value": "7",
+                  "type": "text"
+                },
+                {
+                  "key": "mood_text",
+                  "value": "Lugn",
+                  "type": "text"
+                },
+                {
+                  "key": "note",
+                  "value": "Morgonmeditation hjälpte.",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "[\"hälsa\"]",
+                  "type": "text"
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "/path/to/recording.webm"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mood/log",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "log"]
+            },
+            "description": "Log a mood entry with an audio recording."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Retrieve",
+      "item": [
+        {
+          "name": "Get mood history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get paginated mood history for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get mood by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/{{mood_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "{{mood_id}}"]
+            },
+            "description": "Get a specific mood entry by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get recent moods (last 7 days)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/recent",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "recent"]
+            },
+            "description": "Get moods logged in the last 7 days."
+          },
+          "response": []
+        },
+        {
+          "name": "Get today's mood",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/today",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "today"]
+            },
+            "description": "Check if a mood has been logged today."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Manage",
+      "item": [
+        {
+          "name": "Update mood",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"mood_text\": \"Uppdaterad känsla\", \"timestamp\": \"2026-07-15T08:00:00Z\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mood/{{mood_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "{{mood_id}}"]
+            },
+            "description": "Update an existing mood entry."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete mood",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrf_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/{{mood_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "{{mood_id}}"]
+            },
+            "description": "Delete a mood entry by ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Insights & Forecast",
+      "item": [
+        {
+          "name": "Get mood statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood-stats/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood-stats", "statistics"]
+            },
+            "description": "Get comprehensive mood statistics used by the statistics card."
+          },
+          "response": []
+        },
+        {
+          "name": "Get mood streaks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/streaks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "streaks"]
+            },
+            "description": "Get current and longest mood logging streaks."
+          },
+          "response": []
+        },
+        {
+          "name": "Get weekly analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/weekly-analysis",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "weekly-analysis"]
+            },
+            "description": "Get AI-generated weekly mood analysis and insights."
+          },
+          "response": []
+        },
+        {
+          "name": "Get predictive forecast",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mood/predictive-forecast?days_ahead=7",
+              "host": ["{{base_url}}"],
+              "path": ["api", "mood", "predictive-forecast"],
+              "query": [
+                {
+                  "key": "days_ahead",
+                  "value": "7"
+                }
+              ]
+            },
+            "description": "Get ML-based predictive mood forecast."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Ensure CSRF token is fetched before state-changing requests",
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "csrf_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mood_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,468 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - Authentication API",
+    "description": "Complete authentication system for Lugn & Trygg mental health platform.\n\nBase URL: {{base_url}}/api/v1/auth\n\nAuthentication: Bearer JWT tokens. Use the Login or Google Login endpoint to obtain tokens.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "description": "API base URL"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "description": "JWT access token (set automatically after login)"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "description": "Current user ID (set automatically after login)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Registration & Login",
+      "description": "Core authentication flows",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecureP@ss123!\",\n  \"name\": \"Test User\",\n  \"accept_terms\": true,\n  \"accept_privacy\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Register a new user account. Requires email, password, name, and acceptance of terms/privacy policy."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.access_token) {",
+                  "        pm.collectionVariables.set('access_token', jsonData.data.access_token);",
+                  "    }",
+                  "    if (jsonData.data && jsonData.data.user_id) {",
+                  "        pm.collectionVariables.set('user_id', jsonData.data.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecureP@ss123!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with email and password. Returns access token (and sets refresh cookie). If 2FA is enabled, returns requires_2fa flag."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.access_token) {",
+                  "        pm.collectionVariables.set('access_token', jsonData.data.access_token);",
+                  "    }",
+                  "    if (jsonData.data && jsonData.data.user_id) {",
+                  "        pm.collectionVariables.set('user_id', jsonData.data.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Google Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_token\": \"<google-oauth-id-token>\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/google-login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "google-login"]
+            },
+            "description": "Login or register using a Google OAuth ID token. Creates account if user doesn't exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.access_token) {",
+                  "        pm.collectionVariables.set('access_token', jsonData.data.access_token);",
+                  "    }",
+                  "    if (jsonData.data && jsonData.data.user_id) {",
+                  "        pm.collectionVariables.set('user_id', jsonData.data.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "Logout current user. Revokes refresh token and clears refresh cookie."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Token Management",
+      "description": "Refresh and manage JWT tokens",
+      "item": [
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Refresh the access token using the HTTP-only refresh cookie (lugn_trygg_refresh). No auth header needed - uses cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.access_token) {",
+                  "        pm.collectionVariables.set('access_token', jsonData.data.access_token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Password Management",
+      "description": "Password change and reset flows",
+      "item": [
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"OldP@ssword123!\",\n  \"new_password\": \"NewP@ssword456!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "change-password"]
+            },
+            "description": "Change password for authenticated user. Requires current password verification. Revokes all sessions after change."
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "reset-password"]
+            },
+            "description": "Request a password reset email. Sends reset link to the user's email address. No authentication required."
+          }
+        },
+        {
+          "name": "Confirm Password Reset",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"new_password\": \"NewSecureP@ss123!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/confirm-password-reset",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "confirm-password-reset"]
+            },
+            "description": "Confirm password reset using the token received via email. Sets the new password."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Email Management",
+      "description": "Change email address",
+      "item": [
+        {
+          "name": "Change Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_email\": \"newemail@example.com\",\n  \"current_password\": \"CurrentP@ss123!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/change-email",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "change-email"]
+            },
+            "description": "Change the authenticated user's email address. Requires current password verification."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Two-Factor Authentication (2FA)",
+      "description": "Setup and verify 2FA (TOTP and biometric/WebAuthn)",
+      "item": [
+        {
+          "name": "Setup 2FA (TOTP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"totp\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/setup-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "setup-2fa"]
+            },
+            "description": "Initialize 2FA setup. Returns TOTP secret and provisioning URI for authenticator apps."
+          }
+        },
+        {
+          "name": "Verify 2FA Setup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\",\n  \"method\": \"totp\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-2fa-setup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-2fa-setup"]
+            },
+            "description": "Verify 2FA setup by providing the TOTP code from authenticator app. Enables 2FA on the account."
+          }
+        },
+        {
+          "name": "Verify 2FA (Login)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"totp\",\n  \"code\": \"123456\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-2fa"]
+            },
+            "description": "Verify 2FA code during login. Called after login returns requires_2fa=true. Supports 'totp' and 'biometric' methods."
+          }
+        },
+        {
+          "name": "Setup 2FA Biometric (WebAuthn)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"register\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/setup-2fa-biometric",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "setup-2fa-biometric"]
+            },
+            "description": "Setup biometric 2FA using WebAuthn. Returns registration challenge for the client to process with the platform authenticator."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consent & Privacy",
+      "description": "GDPR consent management",
+      "item": [
+        {
+          "name": "Update Consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consent_analytics\": true,\n  \"consent_marketing\": false,\n  \"consent_research\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/consent",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "consent"]
+            },
+            "description": "Update user consent preferences (GDPR compliance). Requires authentication."
+          }
+        },
+        {
+          "name": "Get Consent",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/consent/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "consent", "{{user_id}}"]
+            },
+            "description": "Get current consent preferences for the authenticated user."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account Management",
+      "description": "Data export and account deletion",
+      "item": [
+        {
+          "name": "Export User Data",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/export-data",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "export-data"]
+            },
+            "description": "Export all user data (GDPR right to data portability). Returns all stored data for the authenticated user."
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"CurrentP@ss123!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/delete-account/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "delete-account", "{{user_id}}"]
+            },
+            "description": "Permanently delete user account and all associated data. Requires password confirmation. This action is irreversible."
+          }
+        }
+      ]
+    }
+  ]
+}
