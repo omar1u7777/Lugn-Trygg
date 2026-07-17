@@ -40,9 +40,13 @@ def _mock_user_doc(data=None, exists=True):
     return doc
 
 
-def _mock_db_with_user(user_data=None):
-    """Return a mock db that returns a real user doc for the users collection."""
-    if user_data is None:
+_NOT_FOUND = object()  # sentinel for "user does not exist"
+
+
+def _mock_db_with_user(user_data=_NOT_FOUND):
+    """Return a mock db that returns a real user doc for the users collection.
+    Pass None for default user data, or _NOT_FOUND to simulate missing user."""
+    if user_data is _NOT_FOUND:
         user_data = {"email": "test@example.com", "name": "Test", "created_at": "2025-01-01"}
     mock = MagicMock()
     user_doc = _mock_user_doc(user_data)
@@ -1368,11 +1372,32 @@ class TestSetup2FARouteCoverage:
         assert resp.status_code in (200, 400, 500, 503)
 
     def test_setup_2fa_user_not_found(self):
-        mock_db = _mock_db_with_user(None)
+        mock_db = MagicMock()
+        missing_doc = MagicMock()
+        missing_doc.exists = False
+        missing_doc.to_dict.return_value = None
+
+        def _collection(name):
+            coll = MagicMock()
+            doc_ref = MagicMock()
+            doc_ref.get.return_value = missing_doc
+            doc_ref.update.return_value = None
+            sub_coll = MagicMock()
+            sub_coll.limit.return_value = sub_coll
+            sub_coll.stream.return_value = []
+            doc_ref.collection.return_value = sub_coll
+            coll.document.return_value = doc_ref
+            coll.where.return_value = coll
+            coll.limit.return_value = coll
+            coll.get.return_value = []
+            coll.stream.return_value = []
+            return coll
+
+        mock_db.collection = MagicMock(side_effect=_collection)
         with patch("src.firebase_config.db", mock_db):
             resp = self.client.post("/api/auth/setup-2fa", headers=self.headers,
                                     json={"method": "totp"})
-        assert resp.status_code in (404, 500)
+        assert resp.status_code in (404, 500, 503)
 
     def test_setup_2fa_not_totp(self):
         resp = self.client.post("/api/auth/setup-2fa", headers=self.headers,

@@ -303,7 +303,8 @@ class TestMoodForecast:
 
     @patch("src.services.ai_service.ai_services")
     def test_forecast_fallback_method(self, mock_ai, client, mock_db):
-        _mock_user_subcollections(mock_db, extra_sub="forecasts")
+        moods = [_make_mood_doc()] * 5
+        _mock_user_subcollections(mock_db, moods_stream=moods, extra_sub="forecasts")
 
         mock_ai.predictive_mood_analytics.return_value = self._FALLBACK_RESULT
 
@@ -381,7 +382,8 @@ class TestMoodForecast:
 
     @patch("src.services.ai_service.ai_services")
     def test_forecast_sklearn_failure_uses_fallback(self, mock_ai, client, mock_db):
-        _mock_user_subcollections(mock_db, extra_sub="forecasts")
+        moods = [_make_mood_doc()] * 5
+        _mock_user_subcollections(mock_db, moods_stream=moods, extra_sub="forecasts")
 
         mock_ai.predictive_mood_forecasting_sklearn.side_effect = Exception("Model error")
         mock_ai.predictive_mood_analytics.return_value = self._FALLBACK_RESULT
