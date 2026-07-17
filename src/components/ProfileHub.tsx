@@ -26,7 +26,8 @@ import {
   HeartIcon,
   SparklesIcon,
   StarIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  GiftIcon
 } from '@heroicons/react/24/outline';
 
 interface TabPanelProps {
@@ -433,22 +434,24 @@ const ProfileHub: React.FC = () => {
       </div>
 
       {/* Subscription Status Card - REAL IMPLEMENTATION */}
-      <Card className={`mb-6 sm:mb-8 ${isPremium ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700'}`}>
+      <Card className={`mb-6 sm:mb-8 overflow-hidden ${isPremium ? 'bg-gradient-to-r from-accent-400 to-accent-500' : isTrial ? 'bg-gradient-to-r from-primary-500 to-primary-600' : 'bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-800 dark:to-primary-700'}`}>
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isPremium ? 'bg-white/20' : 'bg-gray-300 dark:bg-gray-600'}`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isPremium ? 'bg-white/20' : isTrial ? 'bg-white/20' : 'bg-primary-200 dark:bg-primary-900/40'}`}>
                 {isPremium ? (
                   <StarIcon className="w-8 h-8 text-white" />
+                ) : isTrial ? (
+                  <GiftIcon className="w-8 h-8 text-white" />
                 ) : (
-                  <CreditCardIcon className="w-8 h-8 text-gray-600 dark:text-gray-400" />
+                  <CreditCardIcon className="w-8 h-8 text-primary-600 dark:text-primary-300" />
                 )}
               </div>
               <div>
-                <h3 className={`text-xl sm:text-2xl font-bold ${isPremium ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                <h3 className={`text-xl sm:text-2xl font-bold ${isPremium ? 'text-white' : isTrial ? 'text-white' : 'text-primary-800 dark:text-primary-100'}`}>
                   {isPremium ? `⭐ ${t('profileHub.premiumMember')}` : isTrial ? `🎁 ${t('profileHub.trial')}` : `🆓 ${t('profileHub.freePlan')}`}
                 </h3>
-                <p className={`text-sm ${isPremium ? 'text-white/80' : 'text-gray-600 dark:text-gray-400'}`}>
+                <p className={`text-sm ${isPremium ? 'text-white/80' : isTrial ? 'text-white/80' : 'text-primary-700 dark:text-primary-200'}`}>
                   {isPremium
                     ? t('profileHub.unlimitedAccess')
                     : isTrial
@@ -472,14 +475,14 @@ const ProfileHub: React.FC = () => {
 
           {/* Usage bars for free users (not trial/premium) */}
           {!isPremium && !isTrial && (
-            <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+            <div className="mt-4 pt-4 border-t border-primary-200 dark:border-primary-700/50">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.moodLogs')}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{usage.moodLogs}/{plan.limits.moodLogsPerDay}</span>
+                    <span className="text-primary-700 dark:text-primary-200">{t('profileHub.moodLogs')}</span>
+                    <span className="font-medium text-primary-800 dark:text-primary-100">{usage.moodLogs}/{plan.limits.moodLogsPerDay}</span>
                   </div>
-                  <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
+                  <div className="w-full bg-primary-200/60 dark:bg-primary-900/40 rounded-full h-2">
                     <div
                       className="bg-primary-500 h-2 rounded-full transition-all"
                       style={{ width: `${Math.min((usage.moodLogs / plan.limits.moodLogsPerDay) * 100, 100)}%` }}
@@ -488,10 +491,10 @@ const ProfileHub: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.chatMessages')}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{usage.chatMessages}/{plan.limits.chatMessagesPerDay}</span>
+                    <span className="text-primary-700 dark:text-primary-200">{t('profileHub.chatMessages')}</span>
+                    <span className="font-medium text-primary-800 dark:text-primary-100">{usage.chatMessages}/{plan.limits.chatMessagesPerDay}</span>
                   </div>
-                  <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
+                  <div className="w-full bg-primary-200/60 dark:bg-primary-900/40 rounded-full h-2">
                     <div
                       className="bg-secondary-500 h-2 rounded-full transition-all"
                       style={{ width: `${Math.min((usage.chatMessages / plan.limits.chatMessagesPerDay) * 100, 100)}%` }}
@@ -500,10 +503,10 @@ const ProfileHub: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 dark:text-gray-300">{t('profileHub.history')}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{plan.limits.historyDays === -1 ? '∞' : `${plan.limits.historyDays} dagar`}</span>
+                    <span className="text-primary-700 dark:text-primary-200">{t('profileHub.history')}</span>
+                    <span className="font-medium text-primary-800 dark:text-primary-100">{plan.limits.historyDays === -1 ? '∞' : `${plan.limits.historyDays} dagar`}</span>
                   </div>
-                  <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
+                  <div className="w-full bg-primary-200/60 dark:bg-primary-900/40 rounded-full h-2">
                     <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: '100%' }} />
                   </div>
                 </div>
