@@ -1,0 +1,245 @@
+{
+  "info": {
+    "name": "Lugn & Trygg - AI Support",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "a7c2e4b1-9f4d-4e3b-8c1a-2d5f6e7b8c9d",
+    "description": "Comprehensive AI Support endpoints for the chatbot, therapeutic stories, mood forecasts, and advanced analytics. Use variables: base_url, token, user_id."
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:5001" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "session_id", "value": "session-001" }
+  ],
+  "item": [
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/chat", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","chat"] },
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Jag känner mig stressad idag\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Chat returns 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "pm.test('Response contains text', () => {",
+                  "  pm.expect(data.response).to.be.a('string');",
+                  "  pm.expect(data.response.length).to.be.above(0);",
+                  "});",
+                  "if (data.sessionId) pm.collectionVariables.set('session_id', data.sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat (legacy /message)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/message", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","message"] },
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Hej!\"\n}" }
+          }
+        },
+        {
+          "name": "Chat Stream",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Accept", "value": "text/event-stream" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/chat/stream", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","chat","stream"] },
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Jag behöver prata\"\n}" }
+          }
+        },
+        {
+          "name": "Close Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/session/close", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","session","close"] },
+            "body": { "mode": "raw", "raw": "{\n  \"session_id\": \"session-001\"\n}" }
+          }
+        },
+        {
+          "name": "History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/history?limit=20", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","history"], "query": [{"key": "limit", "value": "20"}] }
+          }
+        },
+        {
+          "name": "Analyze Patterns",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/analyze-patterns", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","analyze-patterns"] },
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Start Exercise",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/exercise", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","exercise"] },
+            "body": { "mode": "raw", "raw": "{\n  \"exercise_type\": \"breathing\"\n}" }
+          }
+        },
+        {
+          "name": "Complete Exercise",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/exercise/{{user_id}}/exercise-001/complete", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","exercise","{{user_id}}","exercise-001","complete"] },
+            "body": { "mode": "raw", "raw": "{\n  \"reflection\": \"Kändes bra\",\n  \"duration_minutes\": 5\n}" }
+          }
+        },
+        {
+          "name": "Framework Analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/analysis/framework", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","analysis","framework"] }
+          }
+        },
+        {
+          "name": "Progress Analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/analysis/progress", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","analysis","progress"] }
+          }
+        },
+        {
+          "name": "Quality Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/chatbot/analysis/quality", "host": ["{{base_url}}"], "path": ["api","v1","chatbot","analysis","quality"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Generate Story",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/ai/story", "host": ["{{base_url}}"], "path": ["api","v1","ai","story"] },
+            "body": { "mode": "raw", "raw": "{\n  \"locale\": \"sv\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Story returns 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "pm.test('Story has content', () => {",
+                  "  pm.expect(data.story || data.title).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate Forecast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/ai/forecast", "host": ["{{base_url}}"], "path": ["api","v1","ai","forecast"] },
+            "body": { "mode": "raw", "raw": "{\n  \"days_ahead\": 7\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Forecast returns 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const data = body.data || body;",
+                  "pm.test('Forecast has data', () => {",
+                  "  pm.expect(data.forecast || data.predictions).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Story History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/ai/stories", "host": ["{{base_url}}"], "path": ["api","v1","ai","stories"] }
+          }
+        },
+        {
+          "name": "Forecast History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/ai/forecasts", "host": ["{{base_url}}"], "path": ["api","v1","ai","forecasts"] }
+          }
+        }
+      ]
+    }
+  ]
+}

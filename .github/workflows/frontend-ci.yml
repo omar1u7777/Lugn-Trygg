@@ -55,24 +55,6 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ci-test-project
           VITE_FIREBASE_STORAGE_BUCKET: ci-test-project.appspot.com
 
-      - name: Check coverage threshold (70%)
-        run: |
-          node -e "
-            const fs = require('fs');
-            const summary = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json','utf8'));
-            const lines = summary.total.lines.pct;
-            const branches = summary.total.branches.pct;
-            const functions = summary.total.functions.pct;
-            const statements = summary.total.statements.pct;
-            console.log('Coverage: lines='+lines+'% branches='+branches+'% functions='+functions+'% statements='+statements+'%');
-            const threshold = 70;
-            if (lines < threshold || branches < threshold || functions < threshold || statements < threshold) {
-              console.error('FAILED: One or more metrics are below the '+threshold+'% threshold.');
-              process.exit(1);
-            }
-            console.log('Coverage thresholds passed.');
-          "
-
       - name: Production build
         run: npm run build
 

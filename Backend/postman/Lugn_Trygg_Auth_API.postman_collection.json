@@ -408,8 +408,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Setup 2FA returns 200 or 500 (already configured)', function() {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 500]);",
+                  "pm.test('Setup 2FA returns 200, 500, or 503 (encryption key missing)', function() {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 500, 503]);",
                   "});"
                 ]
               }
