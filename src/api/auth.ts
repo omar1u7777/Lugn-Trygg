@@ -8,8 +8,10 @@ import { getCsrfToken as getSharedCsrfToken, clearCsrfToken } from "./csrf";
 // TypeScript interfaces for API responses
 interface User {
   id: string;
+  user_id?: string;
   email: string;
   name?: string;
+  createdAt?: string;
   // Add additional user properties as needed
 }
 

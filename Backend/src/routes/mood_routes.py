@@ -1057,7 +1057,7 @@ def get_mood_streaks() -> Response | tuple[Response, int]:
             today = datetime.now(UTC).date()
             current_date = today
 
-            for _ in range(len(sorted_dates) + 1):  # +1 to check today
+            for _ in range(len(sorted_dates)):  # Check up to N consecutive days
                 date_str = current_date.strftime('%Y-%m-%d')
                 if date_str in logged_dates:
                     current_streak += 1
@@ -1385,12 +1385,11 @@ def _generate_weekly_insights(total_moods: int, average_sentiment: float, trend:
     else:
         insights.append(f"💡 You've logged {total_moods} time(s). Regular logging helps you understand your patterns.")
 
-    # Positive ratio
-    if total_moods > 0:
-        positive_ratio = positive_count / total_moods
-        if positive_ratio > 0.6:
-            insights.append("😊 The majority of your entries have been positive!")
-        elif negative_count > positive_count:
-            insights.append("💙 You've had more challenging days. Breathing and meditation can help.")
+    # Positive ratio — total_moods is always > 0 here (early return handles 0)
+    positive_ratio = positive_count / total_moods
+    if positive_ratio > 0.6:
+        insights.append("😊 The majority of your entries have been positive!")
+    elif negative_count > positive_count:
+        insights.append("💙 You've had more challenging days. Breathing and meditation can help.")
 
     return " ".join(insights)

@@ -3355,6 +3355,37 @@ def test_log_mood_dedup_different_score(client, mocker, auth_csrf_headers, mock_
     assert response.status_code == 201
 
 
+def test_get_moods_fallback_offset_zero(client, mocker, auth_csrf_headers):
+    """Branch 751->753: fallback query with offset=0, should skip .offset() call."""
+    from src.routes import mood_routes as mr
+    now = datetime.now(UTC)
+    docs = []
+    for i in range(5):
+        d = MagicMock()
+        d.id = f"mood-{i}"
+        d.to_dict.return_value = {"timestamp": (now - timedelta(days=i)).isoformat(), "score": 7, "sentiment": "POSITIVE"}
+        docs.append(d)
+    moods = MagicMock()
+    # Primary query fails to trigger fallback
+    order_mock = MagicMock()
+    limit_mock = MagicMock()
+    limit_mock.stream.side_effect = Exception("composite index missing")
+    order_mock.limit.return_value = limit_mock
+    moods.order_by.return_value = order_mock
+    # Fallback: limit(20).stream() — no offset call since offset=0
+    fallback_limit = MagicMock()
+    fallback_limit.stream.return_value = docs
+    moods.limit.return_value = fallback_limit
+    _patch_mood_route_db(mocker, moods=moods)
+    mr._mood_cache.clear()
+    mr._redis_client = None
+    mr._redis_unavailable = True
+    response = client.get("/api/mood", headers=auth_csrf_headers)
+    assert response.status_code == 200
+    # Verify fallback was used and offset was NOT called
+    fallback_limit.offset.assert_not_called()
+
+
 def test_get_recent_moods_fallback_with_offset(client, mocker, auth_csrf_headers):
     """Branch 751->753: fallback query with offset > 0 should apply offset."""
     from src.routes import mood_routes as mr

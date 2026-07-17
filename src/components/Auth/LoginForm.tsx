@@ -140,7 +140,12 @@ const LoginForm = () => {
       logger.debug('LOGIN - Calling loginUser API...');
       const data = await loginUser(email, password);
       logger.debug('LOGIN - Success', { userId: data.userId });
-      login(data.accessToken, email, data.userId);
+      login(data.accessToken, {
+        user_id: data.userId,
+        email: data.user.email || email,
+        name: data.user.name,
+        createdAt: data.user.createdAt,
+      });
       announceToScreenReader(MESSAGES.LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
       logger.error('LOGIN - Failed:', err);
@@ -174,7 +179,12 @@ const LoginForm = () => {
       const idToken = await user.getIdToken();
       const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { id_token: idToken });
       const data = response.data?.data || response.data;
-      login(data.accessToken, user.email ?? '', data.userId);
+      login(data.accessToken, {
+        user_id: data.userId,
+        email: data.user?.email ?? user.email ?? '',
+        name: data.user?.name,
+        createdAt: data.user?.createdAt,
+      });
       announceToScreenReader(MESSAGES.GOOGLE_LOGIN_SUCCESS, "polite");
     } catch (err: unknown) {
       logger.error('Google sign-in error:', err);

@@ -63,8 +63,8 @@ const PremiumUpsell: React.FC<PremiumUpsellProps> = ({
       if (plan?.name === 'premium') return false;
 
       const usagePercentage = {
-        moods: (usage.moodLogs / plan.limits.moodLogsPerDay) * 100,
-        chats: (usage.chatMessages / plan.limits.chatMessagesPerDay) * 100,
+        moods: plan.limits.moodLogsPerDay === -1 ? 0 : (usage.moodLogs / plan.limits.moodLogsPerDay) * 100,
+        chats: plan.limits.chatMessagesPerDay === -1 ? 0 : (usage.chatMessages / plan.limits.chatMessagesPerDay) * 100,
       };
 
       // Trigger conditions with psychological timing
