@@ -532,6 +532,12 @@ def rate_limit_by_endpoint(f):
                 response.headers['X-RateLimit-Reset'] = str(limit_info.get('reset', 0))
                 response.headers['Retry-After'] = str(limit_info.get('retry_after', 3600))
 
+                # Explicitly add CORS headers so frontend can read 429 responses
+                origin = request.headers.get('Origin', '')
+                if origin:
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+
                 return response
 
             # Record successful request

@@ -403,10 +403,10 @@ const handleErrorResponse = async (error: AxiosError): Promise<AxiosResponse | n
   throw error;
 };
 
-// Retry logic for transient errors (NOT 500 — server bugs won't self-resolve)
+// Retry logic for transient errors (NOT 429, NOT 500 — rate limits need backoff, server bugs won't self-resolve)
 const shouldRetry = (error: AxiosError): boolean => {
   const status = error.response?.status;
-  return !!(status && [408, 429, 502, 503, 504].includes(status));
+  return !!(status && [408, 502, 503, 504].includes(status));
 };
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
