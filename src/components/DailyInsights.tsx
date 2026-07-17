@@ -63,6 +63,8 @@ const DOMAIN_KEYS: readonly string[] = [
   'emotion_regulation',
 ] as const;
 
+const GENERATE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes — backend already caches via _already_generated_today
+
 export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -79,7 +81,6 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
   const MAX_RETRIES = 3;
   const GENERATE_CACHE_KEY = 'insights_last_generate';
-  const GENERATE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes — backend already caches via _already_generated_today
 
   const loadInsights = useCallback(async () => {
     if (!userId) return;

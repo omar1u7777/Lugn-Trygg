@@ -469,7 +469,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!compact) {
       screenReader(t('recommendations.announce.loadedCount', '{{count}} personaliserade rekommendationer laddade', { count: finalRecommendations.length }), 'polite');
     }
-  }, [compact, t, moodTrendData, completedRecommendationIds, userProgress.exercisesCompleted, cbtInsights?.streak?.current]);
+  }, [compact, t, moodTrendData, completedRecommendationIds, userProgress.exercisesCompleted, cbtInsights?.streak]);
 
   // Fetch wellness goals on mount
   useEffect(() => {
@@ -560,7 +560,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     void fetchMoodTrend();
 
     return () => { cancelled = true; };
-  }, [user?.user_id]);
+  }, [user?.user_id, user]);
 
   const hasTrackedPageViewRef = useRef(false);
 
