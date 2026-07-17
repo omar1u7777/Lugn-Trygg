@@ -69,6 +69,7 @@ describe('LoginForm', () => {
     apiMocks.loginUser.mockResolvedValue({
       accessToken: 'mock-token',
       userId: '123',
+      user: { id: '123', email: 'test@example.com' },
       email: 'test@example.com',
     });
 
@@ -84,7 +85,12 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(apiMocks.loginUser).toHaveBeenCalledWith('test@example.com', 'password123');
-      expect(authMock.login).toHaveBeenCalledWith('mock-token', 'test@example.com', '123');
+      expect(authMock.login).toHaveBeenCalledWith('mock-token', {
+        user_id: '123',
+        email: 'test@example.com',
+        name: undefined,
+        createdAt: undefined,
+      });
     });
   });
 
@@ -109,7 +115,7 @@ describe('LoginForm', () => {
 
     expect(await screen.findByText(/loggar in/i)).toBeInTheDocument();
 
-    resolvePromise?.({ accessToken: 'token', userId: 'user-1', email: 'test@example.com' });
+    resolvePromise?.({ accessToken: 'token', userId: 'user-1', user: { id: 'user-1', email: 'test@example.com' }, email: 'test@example.com' });
 
     await waitFor(() => {
       expect(authMock.login).toHaveBeenCalled();

@@ -451,13 +451,15 @@ const ProfileHub: React.FC = () => {
                 <p className={`text-sm ${isPremium ? 'text-white/80' : 'text-gray-600 dark:text-gray-400'}`}>
                   {isPremium
                     ? t('profileHub.unlimitedAccess')
-                    : `${getRemainingMoodLogs()} humörloggningar kvar idag • ${getRemainingMessages()} chattmeddelanden kvar`
+                    : isTrial
+                      ? t('profileHub.unlimitedAccess')
+                      : `${getRemainingMoodLogs()} humörloggningar kvar idag • ${getRemainingMessages()} chattmeddelanden kvar`
                   }
                 </p>
               </div>
             </div>
 
-            {!isPremium && (
+            {!isPremium && !isTrial && (
               <Button
                 variant="primary"
                 className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold"
@@ -468,8 +470,8 @@ const ProfileHub: React.FC = () => {
             )}
           </div>
 
-          {/* Usage bars for free users */}
-          {!isPremium && (
+          {/* Usage bars for free users (not trial/premium) */}
+          {!isPremium && !isTrial && (
             <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -499,10 +501,10 @@ const ProfileHub: React.FC = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-700 dark:text-gray-300">{t('profileHub.history')}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{plan.limits.historyDays} dagar</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{plan.limits.historyDays === -1 ? '∞' : `${plan.limits.historyDays} dagar`}</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
-                    <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${plan.limits.historyDays === -1 ? 100 : Math.min(100, 100)}%` }} />
+                    <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: '100%' }} />
                   </div>
                 </div>
               </div>
@@ -512,7 +514,7 @@ const ProfileHub: React.FC = () => {
       </Card>
 
       {/* Contextual Premium Upsell */}
-      {!isPremium && (
+      {!isPremium && !isTrial && (
         <PremiumUpsell
           usage={usage}
           stats={profileStats}

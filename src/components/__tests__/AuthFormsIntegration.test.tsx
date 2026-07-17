@@ -106,6 +106,7 @@ describe('🔐 Login Form Integration', () => {
     mockAPI.loginUser.mockResolvedValue({
       accessToken: 'test-token-123',
       userId: 'user-123',
+      user: { id: 'user-123', email: 'test@example.com' },
       email: 'test@example.com',
     });
     firebaseAuthModuleMocks.signInWithRedirect.mockReset();
@@ -193,7 +194,12 @@ describe('🔐 Login Form Integration', () => {
 
       await waitFor(() => {
         expect(mockAPI.loginUser).toHaveBeenCalledWith('test@example.com', 'TestPassword123!');
-        expect(mockLogin).toHaveBeenCalledWith('test-token-123', 'test@example.com', 'user-123');
+        expect(mockLogin).toHaveBeenCalledWith('test-token-123', {
+          user_id: 'user-123',
+          email: 'test@example.com',
+          name: undefined,
+          createdAt: undefined,
+        });
       });
     });
 

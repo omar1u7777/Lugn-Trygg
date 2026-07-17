@@ -89,11 +89,21 @@ def get_user_stats():
             if user_doc.exists:
                 user_data = user_doc.to_dict() or {}
                 created_at = user_data.get('createdAt') or user_data.get('created_at')
-                if created_at and hasattr(created_at, 'timestamp'):
-                    account_age = max(1, int((datetime.now(UTC).timestamp() - created_at.timestamp()) / 86400))
+                if created_at:
+                    if hasattr(created_at, 'timestamp'):
+                        account_age = max(1, int((datetime.now(UTC).timestamp() - created_at.timestamp()) / 86400))
+                    elif isinstance(created_at, str):
+                        try:
+                            parsed = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            account_age = max(1, int((datetime.now(UTC) - parsed).total_seconds() / 86400))
+                        except (ValueError, TypeError):
+                            pass
                 last_active = user_data.get('lastActiveAt') or user_data.get('last_active_at')
-                if last_active and hasattr(last_active, 'isoformat'):
-                    last_active_at = last_active.isoformat()
+                if last_active:
+                    if hasattr(last_active, 'isoformat'):
+                        last_active_at = last_active.isoformat()
+                    elif isinstance(last_active, str):
+                        last_active_at = last_active
         except Exception:
             pass
 

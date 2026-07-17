@@ -305,8 +305,10 @@ def login_user(validated_data):
             'userId': user.uid,
             'user': {
                 'id': user.uid,
+                'user_id': user.uid,
                 'email': user.email,
                 'name': user_data.get('name', 'Okänd'),
+                'createdAt': user_data.get('created_at'),
                 'twoFactorEnabled': user_data.get('two_factor_enabled', False),
                 'biometricEnabled': user_data.get('biometric_enabled', False)
             }
@@ -649,8 +651,10 @@ def google_login(validated_data=None):
             'userId': user_id,
             'user': {
                 'id': user_id,
+                'user_id': user_id,
                 'email': email,
                 'name': name,
+                'createdAt': user_data.get('created_at'),
                 'loginMethod': 'google'
             }
         }
