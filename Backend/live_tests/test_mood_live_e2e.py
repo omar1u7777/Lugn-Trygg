@@ -152,13 +152,14 @@ def test_live_log_mood_text(base_url: str, auth_session: requests.Session):
         f"Log mood failed: {response.status_code} {response.text[:400]}"
     )
     data = _extract_json(response)
-    # Verify response structure
+    # Verify response structure — moodEntry contains the id
     mood_data = data.get("data", data)
-    assert "moodId" in mood_data or "id" in mood_data or "mood_id" in mood_data, (
-        f"Missing mood ID in response: {data}"
+    mood_entry = mood_data.get("moodEntry", mood_data)
+    assert "id" in mood_entry, (
+        f"Missing mood ID in moodEntry: {data}"
     )
     # Store ID for cleanup
-    mood_id = mood_data.get("moodId") or mood_data.get("id") or mood_data.get("mood_id")
+    mood_id = mood_entry["id"]
     test_live_log_mood_text.mood_id = mood_id  # type: ignore[attr-defined]
 
 
@@ -430,7 +431,8 @@ def test_live_update_mood(base_url: str, auth_session: requests.Session):
     assert log_resp.status_code in (200, 201)
     log_data = _extract_json(log_resp)
     mood_data = log_data.get("data", log_data)
-    mood_id = mood_data.get("moodId") or mood_data.get("id") or mood_data.get("mood_id")
+    mood_entry = mood_data.get("moodEntry", mood_data)
+    mood_id = mood_entry.get("id")
     assert mood_id, f"Missing mood ID for update test: {log_data}"
 
     # Update the mood
@@ -472,7 +474,8 @@ def test_live_delete_mood(base_url: str, auth_session: requests.Session):
     assert log_resp.status_code in (200, 201)
     log_data = _extract_json(log_resp)
     mood_data = log_data.get("data", log_data)
-    mood_id = mood_data.get("moodId") or mood_data.get("id") or mood_data.get("mood_id")
+    mood_entry = mood_data.get("moodEntry", mood_data)
+    mood_id = mood_entry.get("id")
     assert mood_id, f"Missing mood ID for delete test: {log_data}"
 
     # Delete it

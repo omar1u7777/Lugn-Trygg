@@ -46,18 +46,18 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                 logger.warn('Could not load gratitude from backend, falling back to localStorage:', err);
             }
 
-            const saved = localStorage.getItem(`gratitude_challenge_${user.user_id}`);
-            if (saved) {
-                try {
+            try {
+                const saved = localStorage.getItem(`gratitude_challenge_${user.user_id}`);
+                if (saved) {
                     const parsed = JSON.parse(saved);
                     setEntries(parsed.entries || {});
                     setDay(parsed.currentDay || 1);
                     if (parsed.startDate) setStartDate(new Date(parsed.startDate));
                     setIsActive(true);
                     logger.debug('💾 Loaded gratitude challenge from localStorage:', parsed);
-                } catch (error) {
-                    logger.error('Failed to load gratitude challenge:', error);
                 }
+            } catch (error) {
+                logger.error('Failed to load gratitude challenge from localStorage:', error);
             }
         };
 
