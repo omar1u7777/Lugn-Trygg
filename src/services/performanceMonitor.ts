@@ -46,7 +46,7 @@ const PERFORMANCE_BUDGETS: PerformanceBudget[] = [
 const performanceObserver: PerformanceObserver | null = null;
 let navigationObserver: PerformanceObserver | null = null;
 let resourceObserver: PerformanceObserver | null = null;
-let interactionObserver: PerformanceObserver | null = null;
+const interactionObserver: PerformanceObserver | null = null;
 
 // Stored references for cleanup
 let memoryIntervalId: ReturnType<typeof setInterval> | null = null;

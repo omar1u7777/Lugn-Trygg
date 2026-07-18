@@ -1,27 +1,14 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { analytics } from '../services/analytics';
 import { useAccessibility } from '../hooks/useAccessibility';
 import useAuth from '../hooks/useAuth';
 import { getWellnessGoals } from '../api/dashboard';
-import { getNotificationSettings, updateNotificationSettings } from '../api/notifications';
-import { initializeMessaging } from '../services/notifications';
 import { saveMeditationSession, getMeditationSessions } from '../api/meditation';
 import { getMoods } from '../api/mood';
 import { logger } from '../utils/logger';
 import { personalizeRecommendations, analyzeMoodTrend, type PersonalizationContext, type MoodTrendData } from '../utils/recommendationPersonalization';
-import {
-  getCBTExercises,
-  getCBTInsights,
-  getCBTModules,
-  getPersonalizedSession,
-  type CBTExercise,
-  type CBTInsights,
-  type CBTModule,
-  type PersonalizedSession,
-  updateCBTProgress,
-} from '../api/cbt';
 import {
   LightBulbIcon,
   StarIcon
@@ -346,7 +333,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (!compact) {
       screenReader(t('recommendations.announce.loadedCount', '{{count}} personaliserade rekommendationer laddade', { count: finalRecommendations.length }), 'polite');
     }
-  }, [compact, t, moodTrendData, completedRecommendationIds, userProgress.exercisesCompleted, cbtInsights?.streak]);
+  }, [compact, t, moodTrendData, completedRecommendationIds, userProgress.exercisesCompleted, cbtInsights?.streak, setRecommendations]);
 
   // Fetch wellness goals on mount
   useEffect(() => {
@@ -402,7 +389,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
 
     fetchWellnessGoalsData();
-  }, [compact, resolvedWellnessGoals, user?.user_id, wellnessGoalsSignature]);
+  }, [compact, resolvedWellnessGoals, user?.user_id, wellnessGoalsSignature, setError, setLoading]);
 
   // Fetch mood data for personalization trend analysis
   useEffect(() => {
@@ -581,7 +568,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         window.history.replaceState({}, document.title);
       }
     }
-  }, [location.state, recommendations, selectedRecommendation]);
+  }, [location.state, recommendations, selectedRecommendation, setSelectedRecommendation]);
 
   // Notification settings functions are now provided by useNotificationSettings hook
 
@@ -720,6 +707,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     isPomodoroActive,
     stopPomodoroTimer,
     resetArticleState,
+    setSelectedRecommendation,
   ]);
 
   useEffect(() => {
@@ -733,7 +721,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showContentModal, showCrisisAlert, showNotificationSettings, handleCloseContentModal]);
+  }, [showContentModal, showCrisisAlert, showNotificationSettings, handleCloseContentModal, setShowNotificationSettings]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
