@@ -15,15 +15,14 @@ Or standalone:
 import json
 import os
 import sys
-import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
 
 import firebase_admin
+from dotenv import load_dotenv
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials, firestore
-from dotenv import load_dotenv
 
 load_dotenv()
 
