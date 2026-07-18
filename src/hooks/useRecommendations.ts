@@ -110,12 +110,16 @@ export const useRecommendations = ({ wellnessGoals = EMPTY_WELLNESS_GOALS }: Rec
 
   return {
     recommendations,
+    setRecommendations,
     loading,
+    setLoading,
     error,
+    setError,
     notificationPermission,
     meditationSessions,
     selectedRecommendation,
     feedback,
+    setFeedback,
     savedRecommendations,
     loadRecommendations,
     handleRecommendationClick,

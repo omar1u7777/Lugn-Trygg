@@ -18,8 +18,10 @@ workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
 worker_class = "gthread"
 threads = int(os.environ.get("GUNICORN_THREADS", 2))  # Threads per worker
 
-# Timeout settings - optimized for Render Starter
-timeout = 60  # Workers that hang for >60s get restarted
+# Timeout settings — 120s matches the backend SSE streaming timeout.
+# With timeout=60, gunicorn would kill streaming workers before the
+# backend's own 120s timeout fires, causing "Step is still running" hangs.
+timeout = 120
 graceful_timeout = 30
 keepalive = 10  # Increased keepalive for better connection reuse
 
