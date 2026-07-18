@@ -18,15 +18,13 @@ the full route handler logic without mocking Firestore.
 from __future__ import annotations
 
 import os
-import time
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 pytestmark = [pytest.mark.e2e, pytest.mark.emulator]
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def _emulator_running(host: str = "127.0.0.1", port: int = 8080) -> bool:
@@ -151,7 +149,7 @@ def test_emulator_create_and_read_mood(firestore_client):
     """Create a mood document and read it back from Firestore emulator."""
     db = firestore_client
     mood_id = _create_test_mood(db, TEST_USER_ID, score=8, text="Glad idag")
-    
+
     doc = db.collection("moods").document(mood_id).get()
     assert doc.exists, f"Mood document {mood_id} not found"
     data = doc.to_dict()
@@ -166,7 +164,7 @@ def test_emulator_query_moods_by_user(firestore_client):
     _create_test_mood(db, TEST_USER_ID, score=7, text="Mood 1", days_ago=2)
     _create_test_mood(db, TEST_USER_ID, score=5, text="Mood 2", days_ago=1)
     _create_test_mood(db, TEST_USER_ID, score=9, text="Mood 3", days_ago=0)
-    
+
     from firebase_admin import firestore as fs
     docs = list(
         db.collection("moods")
@@ -186,10 +184,10 @@ def test_emulator_update_mood(firestore_client):
     """Update a mood document in Firestore emulator."""
     db = firestore_client
     mood_id = _create_test_mood(db, TEST_USER_ID, score=5, text="Original")
-    
+
     doc_ref = db.collection("moods").document(mood_id)
     doc_ref.update({"mood_text": "Updated", "score": 8})
-    
+
     doc = doc_ref.get()
     data = doc.to_dict()
     assert data["mood_text"] == "Updated"
@@ -200,10 +198,10 @@ def test_emulator_delete_mood(firestore_client):
     """Delete a mood document from Firestore emulator."""
     db = firestore_client
     mood_id = _create_test_mood(db, TEST_USER_ID, score=3, text="To delete")
-    
+
     doc_ref = db.collection("moods").document(mood_id)
     doc_ref.delete()
-    
+
     doc = doc_ref.get()
     assert not doc.exists
 
@@ -221,7 +219,7 @@ def test_emulator_mood_with_tags(firestore_client):
         "tags": ["stress", "jobb", "deadline"],
         "created_at": datetime.now(UTC).isoformat(),
     })
-    
+
     doc = doc_ref.get()
     data = doc.to_dict()
     assert data["tags"] == ["stress", "jobb", "deadline"]
@@ -234,21 +232,21 @@ def test_emulator_mood_streak_calculation(firestore_client):
     # Create moods for 3 consecutive days including today
     for i in range(3):
         _create_test_mood(db, TEST_USER_ID, score=7, text=f"Day {i}", days_ago=i)
-    
+
     from firebase_admin import firestore as fs
     docs = list(
         db.collection("moods")
         .where(filter=fs.FieldFilter("user_id", "==", TEST_USER_ID))
         .stream()
     )
-    
+
     logged_dates = set()
     for doc in docs:
         data = doc.to_dict()
         ts = data.get("timestamp", "")
         if ts:
             logged_dates.add(ts[:10])
-    
+
     today = datetime.now(UTC).date()
     current_streak = 0
     current_date = today
@@ -259,7 +257,7 @@ def test_emulator_mood_streak_calculation(firestore_client):
             current_date -= timedelta(days=1)
         else:
             break
-    
+
     assert current_streak == 3, f"Expected streak=3, got {current_streak}"
 
 
@@ -269,21 +267,21 @@ def test_emulator_mood_streak_with_gap(firestore_client):
     # Today and 2 days ago (gap yesterday)
     _create_test_mood(db, TEST_USER_ID, score=7, text="Today", days_ago=0)
     _create_test_mood(db, TEST_USER_ID, score=7, text="2 days ago", days_ago=2)
-    
+
     from firebase_admin import firestore as fs
     docs = list(
         db.collection("moods")
         .where(filter=fs.FieldFilter("user_id", "==", TEST_USER_ID))
         .stream()
     )
-    
+
     logged_dates = set()
     for doc in docs:
         data = doc.to_dict()
         ts = data.get("timestamp", "")
         if ts:
             logged_dates.add(ts[:10])
-    
+
     today = datetime.now(UTC).date()
     current_streak = 0
     current_date = today
@@ -294,7 +292,7 @@ def test_emulator_mood_streak_with_gap(firestore_client):
             current_date -= timedelta(days=1)
         else:
             break
-    
+
     # Today is logged but yesterday is not → streak = 1
     assert current_streak == 1, f"Expected streak=1 (gap), got {current_streak}"
 
@@ -304,7 +302,7 @@ def test_emulator_pagination(firestore_client):
     db = firestore_client
     for i in range(10):
         _create_test_mood(db, TEST_USER_ID, score=5 + i % 5, text=f"Mood {i}", days_ago=i)
-    
+
     from firebase_admin import firestore as fs
     # Page 1: limit=5, offset=0
     page1 = list(
@@ -316,7 +314,7 @@ def test_emulator_pagination(firestore_client):
         .stream()
     )
     assert len(page1) == 5
-    
+
     # Page 2: limit=5, offset=5
     page2 = list(
         db.collection("moods")
@@ -327,7 +325,7 @@ def test_emulator_pagination(firestore_client):
         .stream()
     )
     assert len(page2) == 5
-    
+
     # Verify no overlap
     page1_ids = {doc.id for doc in page1}
     page2_ids = {doc.id for doc in page2}
@@ -340,7 +338,7 @@ def test_emulator_sentiment_filter(firestore_client):
     _create_test_mood(db, TEST_USER_ID, score=9, text="Positive", days_ago=0)
     _create_test_mood(db, TEST_USER_ID, score=2, text="Negative", days_ago=1)
     _create_test_mood(db, TEST_USER_ID, score=5, text="Neutral", days_ago=2)
-    
+
     from firebase_admin import firestore as fs
     positive_docs = list(
         db.collection("moods")

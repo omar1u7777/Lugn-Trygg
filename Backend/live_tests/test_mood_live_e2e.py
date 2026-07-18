@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -23,7 +23,7 @@ import requests
 
 pytestmark = [pytest.mark.e2e, pytest.mark.live]
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def _required_env(name: str) -> str:

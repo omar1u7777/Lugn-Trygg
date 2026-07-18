@@ -32,7 +32,7 @@ reg = requests.post(
 if reg.status_code == 201:
     print(f"[live-mood-e2e] registered user {EMAIL}")
 elif reg.status_code == 409:
-    print(f"[live-mood-e2e] user already exists, verifying password")
+    print("[live-mood-e2e] user already exists, verifying password")
     login = requests.post(
         f"{BASE_URL}/api/v1/auth/login",
         json={'email': EMAIL, 'password': PASSWORD},
