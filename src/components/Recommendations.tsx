@@ -23,17 +23,11 @@ import {
   updateCBTProgress,
 } from '../api/cbt';
 import {
-  HandThumbDownIcon,
-  HandThumbUpIcon,
-  PlayIcon,
   LightBulbIcon,
-  BookmarkIcon,
-  ShareIcon,
   StarIcon
 } from '@heroicons/react/24/outline';
-import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { Recommendation, RecommendationsProps } from '../types/recommendation';
-import { getRecommendationsPool, neuroscienceArticleSections, neuroscienceQuiz } from '../constants/recommendations';
+import { getRecommendationsPool } from '../constants/recommendations';
 import { getWellnessGoalIcon } from '../constants/wellnessGoals';
 import { BreathingExercise } from './recommendations/BreathingExercise';
 import { KBTExercise } from './recommendations/KBTExercise';
@@ -47,13 +41,17 @@ import { useArticleReading } from '../hooks/useArticleReading';
 import { useCBTExercises } from '../hooks/useCBTExercises';
 import { useNotificationSettings } from '../hooks/useNotificationSettings';
 import { useRecommendationFilters } from '../hooks/useRecommendationFilters';
+import { useRecommendations } from '../hooks/useRecommendations';
 import { CrisisAlertModal } from './recommendations/CrisisAlertModal';
 import { NotificationSettingsModal } from './recommendations/NotificationSettingsModal';
 import { CompactRecommendations } from './recommendations/CompactRecommendations';
+import { CBTSection } from './recommendations/CBTSection';
+import { DebugPanel } from './recommendations/DebugPanel';
+import { RecommendationCard } from './recommendations/RecommendationCard';
+import { ArticleReader } from './recommendations/ArticleReader';
 import {
   EMPTY_WELLNESS_GOALS,
   type RecommendationFeedback,
-  formatReadingTime,
   formatPomodoroTime,
 } from '../constants/recommendationsConstants';
 
@@ -66,10 +64,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const lastRecommendationsSignatureRef = useRef<string>('');
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+
+  // useRecommendations hook — manages recommendations, loading, error, feedback, and selected state
+  const {
+    recommendations,
+    setRecommendations,
+    loading,
+    setLoading,
+    error,
+    setError,
+    selectedRecommendation,
+    setSelectedRecommendation,
+    feedback: feedbackByRecommendation,
+    setFeedback: setFeedbackByRecommendation,
+  } = useRecommendations({ userId, wellnessGoals, compact });
+
   const [userPreferences] = useState<string[]>(['mindfulness', 'stress', 'anxiety']);
   const [fetchedWellnessGoals, setFetchedWellnessGoals] = useState<string[]>([]);
-  const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
   const [completedRecommendationIds, setCompletedRecommendationIds] = useState<Record<string, boolean>>({});
   const [moodTrendData, setMoodTrendData] = useState<MoodTrendData | null>(null);
@@ -118,11 +129,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   }, [handleLoadMeditationHistory, user?.user_id]);
 
-
-
-  const [loading, setLoading] = useState(!compact);
-  const [error, setError] = useState<string | null>(null);
-  const [feedbackByRecommendation, setFeedbackByRecommendation] = useState<Record<string, RecommendationFeedback | undefined>>({});
 
   // CBT Exercises hook
   const {
@@ -852,391 +858,56 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         </div>
 
         {/* Debug Panel */}
-        {showDebugTools && debugMode && (
-          <div className="mt-4 p-4 bg-black/20 rounded-lg text-xs font-mono">
-            <h4 className="font-bold mb-2">🐛 Debug Info:</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div>User ID: {user?.user_id || 'null'}</div>
-              <div>Goals: {JSON.stringify(fetchedWellnessGoals)}</div>
-              <div>Progress: {JSON.stringify(userProgress)}</div>
-              <div>Filters: {searchTerm}|{selectedCategory}|{sortBy}</div>
-            </div>
-          </div>
-        )}
+        <DebugPanel
+          showDebugTools={showDebugTools}
+          debugMode={debugMode}
+          userId={user?.user_id ?? null}
+          goals={fetchedWellnessGoals}
+          progress={userProgress as Record<string, unknown>}
+          filters={{ searchTerm, selectedCategory, sortBy }}
+        />
       </div>
 
       {/* CBT Backend Integration Overview */}
-      <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
-        {/* Disclaimer at top */}
-        <div className="mb-4 p-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800 text-xs text-yellow-800 dark:text-yellow-300">
-          <strong>{t('recommendations.cbt.disclaimerPrefix', '⚠️ Viktigt:')}</strong> {t('recommendations.cbt.disclaimerBody', 'Dessa KBT-övningar är ett komplement till — inte en ersättning för — professionell psykoterapi. Söker du vård, kontakta legitimerad psykolog eller psykoterapeut. Kris: 112 | Självmordslinjen: 0900-011 200 | 1177')}
-        </div>
-
-        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('recommendations.cbt.modulesTitle', 'KBT-moduler (Kognitiv Beteendeterapi)')}</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t('recommendations.cbt.modulesSubtitle', 'Evidensbaserade övningar anpassade till din nuvarande situation.')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {cbtLoading && <span className="text-sm text-blue-600 dark:text-blue-300">{t('recommendations.cbt.loading', 'Laddar...')}</span>}
-            <select
-              value={cbtCurrentMood}
-              onChange={(e) => setCbtCurrentMood(e.target.value)}
-              className="text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-1 focus:ring-2 focus:ring-primary-500"
-              aria-label={t('recommendations.cbt.selectMood', 'Välj ditt nuvarande mående')}
-            >
-              <option value="neutral">{t('recommendations.cbt.mood.neutral', 'Neutralt mående')}</option>
-              <option value="high_anxiety">{t('recommendations.cbt.mood.highAnxiety', 'Hög ångest')}</option>
-              <option value="low_mood">{t('recommendations.cbt.mood.lowMood', 'Nedstämd')}</option>
-              <option value="depression">{t('recommendations.cbt.mood.depression', 'Depression')}</option>
-              <option value="stress">{t('recommendations.cbt.mood.stress', 'Stress')}</option>
-              <option value="good">{t('recommendations.cbt.mood.good', 'Mår bra')}</option>
-            </select>
-          </div>
-        </div>
-
-        {cbtError && (
-          <div className="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300 text-sm">
-            {cbtError}
-          </div>
-        )}
-
-        {/* Progress stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.modules', 'Moduler')}</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtModules.length}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.exercisesDone', 'Övningar gjorda')}</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtInsights?.exercisesCompleted ?? 0}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.dayStreak', 'Dagstreak')}</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{cbtInsights?.streak.current ?? 0} 🔥</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{t('recommendations.cbt.totalProgress', 'Total progress')}</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{Math.round((cbtInsights?.overallProgress ?? 0) * 100)}%</p>
-          </div>
-        </div>
-
-        {/* Personalized session guidance */}
-        {cbtSession && (
-          <div className="mb-5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 p-4">
-            <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-1">{t('recommendations.cbt.recommendedSession', '🎯 Rekommenderad session för dig just nu')}</p>
-            <p className="text-sm text-teal-700 dark:text-teal-300 mb-2">{cbtSession.guidance}</p>
-            {cbtSession.motivationalElements.length > 0 && (
-              <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{cbtSession.motivationalElements[0]}</p>
-            )}
-          </div>
-        )}
-
-        {/* Module list with exercises */}
-        <div className="space-y-4">
-          {cbtModules.map((module) => {
-            const moduleExercises = cbtExercises.filter(ex => ex.moduleId === module.moduleId);
-            const diffBadge = module.difficultyLevel === 'beginner' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-              module.difficultyLevel === 'intermediate' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-              'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-            return (
-              <div key={module.moduleId} className={`rounded-lg border p-4 ${module.isLocked ? 'border-gray-200 dark:border-gray-700 opacity-60' : module.isCompleted ? 'border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">{module.title}</h3>
-                      {module.isCompleted && <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded-full">{t('recommendations.cbt.completed', '✅ Klar')}</span>}
-                      {module.isLocked && <span className="text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded-full">{t('recommendations.cbt.locked', '🔒 Kräver förkunskaper')}</span>}
-                    </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{module.description}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${diffBadge}`}>{module.difficultyLevel}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{module.estimatedDuration} min</span>
-                  </div>
-                </div>
-                {moduleExercises.length > 0 && !module.isLocked && (
-                  <div className="space-y-2 mt-3">
-                    {moduleExercises.map((ex) => (
-                      <div key={ex.exerciseId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
-                        <div>
-                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{ex.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{ex.type.replace(/_/g, ' ')} • {ex.duration} min</p>
-                        </div>
-                        {ex.exerciseId === 'thought_record_basic' ? (
-                          <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{t('recommendations.cbt.seeExerciseBelow', '↓ Se KBT-övning nedan')}</span>
-                        ) : (
-                          <button
-                            onClick={() => startCbtExercise(ex.exerciseId)}
-                            disabled={activeCbtExerciseId !== null}
-                            className="text-xs px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
-                          >
-                            {activeCbtExerciseId === ex.exerciseId ? t('recommendations.cbt.inProgress', 'Pågår...') : t('recommendations.cbt.startBtn', 'Starta')}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {module.isLocked && module.prerequisites.length > 0 && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    {t('recommendations.cbt.prerequisites', 'Slutför först:')} {module.prerequisites.join(', ')}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-          {!cbtLoading && cbtModules.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">{t('recommendations.cbt.requiresPremium', 'Moduler kräver premium-prenumeration.')}</p>
-          )}
-        </div>
-
-        {/* Behavioral Activation interactive exercise */}
-        {activeCbtExerciseId === 'behavioral_activation' && (
-          <div className="mt-6 rounded-xl border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">{t('recommendations.cbt.ba.title', '🌱 Beteendeaktivering')}</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
-            </div>
-            <div className="mb-3 flex gap-1">
-              {[1,2,3,4].map(s => (
-                <div key={s} className={`h-1.5 flex-1 rounded-full ${baStep >= s ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-600'}`} />
-              ))}
-            </div>
-
-            {baStep === 1 && (
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step1Title', 'Steg 1 av 4 — Identifiera aktiviteter')}</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  {t('recommendations.cbt.ba.step1Body', 'Skriv ner 2–3 aktiviteter du brukade gilla eller som gav dig en känsla av prestation, glädje eller lugn — även om du inte känt för dem på länge.')}
-                </p>
-                <textarea
-                  value={baActivities}
-                  onChange={(e) => setBaActivities(e.target.value)}
-                  placeholder={t('recommendations.cbt.ba.step1Placeholder', 'T.ex. promenera i parken, laga mat, ringa en vän, läsa, lyssna på musik...')}
-                  className="w-full p-3 min-h-[100px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
-                />
-                <button
-                  onClick={() => baActivities.trim().length >= 10 ? setBaStep(2) : announceToScreenReader(t('recommendations.announce.baWriteActivity', 'Skriv minst en aktivitet'), 'assertive')}
-                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                >{t('recommendations.cbt.next', 'Nästa →')}</button>
-              </div>
-            )}
-
-            {baStep === 2 && (
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step2Title', 'Steg 2 av 4 — Välj en aktivitet')}</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  {t('recommendations.cbt.ba.step2Body', 'Välj EN aktivitet att fokusera på. Vad kan hindra dig från att göra den? Skriv ner dina tankar och hinder.')}
-                </p>
-                <input
-                  value={baSelectedActivity}
-                  onChange={(e) => setBaSelectedActivity(e.target.value)}
-                  placeholder={t('recommendations.cbt.ba.step2ActivityPlaceholder', 'Vilken aktivitet väljer du?')}
-                  className="w-full p-3 mb-3 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400"
-                />
-                <textarea
-                  value={baBarriers}
-                  onChange={(e) => setBaBarriers(e.target.value)}
-                  placeholder={t('recommendations.cbt.ba.step2BarrierPlaceholder', 'Vad hindrar dig? T.ex. "Jag känner inte för det", "Det tar för lång tid", "Ingen mening"...')}
-                  className="w-full p-3 min-h-[80px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => baSelectedActivity.trim().length >= 3 ? setBaStep(3) : announceToScreenReader(t('recommendations.announce.baSelectActivity', 'Välj en aktivitet'), 'assertive')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
-                </div>
-              </div>
-            )}
-
-            {baStep === 3 && (
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step3Title', 'Steg 3 av 4 — Planera konkret')}</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  {t('recommendations.cbt.ba.step3Body', 'Planera aktiviteten specifikt: NÄR? VAR? HUR länge? Konkreta planer ökar sannolikheten att du faktiskt gör det.')}
-                </p>
-                <textarea
-                  value={baPlan}
-                  onChange={(e) => setBaPlan(e.target.value)}
-                  placeholder={`Jag ska ${baSelectedActivity || 'aktiviteten'} på [dag] kl [tid] på [plats] i [X] minuter.`}
-                  className="w-full p-3 min-h-[100px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => baPlan.trim().length >= 15 ? setBaStep(4) : announceToScreenReader(t('recommendations.announce.baDescribePlan', 'Beskriv planen med minst 15 tecken'), 'assertive')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
-                </div>
-              </div>
-            )}
-
-            {baStep === 4 && (
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.cbt.ba.step4Title', 'Steg 4 av 4 — Förväntan och reflektion')}</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                  {t('recommendations.cbt.ba.step4Body', 'Hur nöjd tror du att du kommer att vara efter aktiviteten? (Kom ihåg: Vår förväntan är ofta lägre än verkligheten vid depression.)')}
-                </p>
-                <div className="mb-4">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t('recommendations.cbt.ba.expectedSatisfaction', 'Förväntad nöjdhet (1 = låg, 10 = hög)')}</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button key={n} onClick={() => setBaPleasureRating(n)}
-                        className={`min-h-[44px] min-w-[44px] rounded-full text-sm font-medium transition-colors ${baPleasureRating === n ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100'}`}>
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <textarea
-                  value={baReflection}
-                  onChange={(e) => setBaReflection(e.target.value)}
-                  placeholder={t('recommendations.cbt.ba.step4ReflectionPlaceholder', 'Vad hindrade dig eller vad lärde du dig av att planera denna aktivitet?')}
-                  className="w-full p-3 min-h-[80px] rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-400 resize-none"
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setBaStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => {
-                      if (!baPleasureRating) { announceToScreenReader(t('recommendations.announce.baSelectPleasure', 'Välj en förväntad nöjdhet'), 'assertive'); return; }
-                      completeCbtExercise('behavioral_activation', 2);
-                      setBaStep(0);
-                    }}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
-                  >{t('recommendations.cbt.saveExercise', '✅ Spara övning')}</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Worry Time interactive exercise */}
-        {activeCbtExerciseId === 'worry_time' && (
-          <div className="mt-6 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-purple-900 dark:text-purple-200">{t('recommendations.cbt.wt.title', '⏰ Bekymmelsetid')}</h3>
-              <button onClick={() => setActiveCbtExerciseId(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 min-h-[44px] min-w-[44px] px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{t('recommendations.cbt.cancel', 'Avbryt')}</button>
-            </div>
-            <div className="mb-3 flex gap-1">
-              {[1,2,3,4].map(s => (
-                <div key={s} className={`h-1.5 flex-1 rounded-full ${wtStep >= s ? 'bg-purple-500' : 'bg-gray-200 dark:bg-gray-600'}`} />
-              ))}
-            </div>
-
-            {wtStep === 1 && (
-              <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step1Title', 'Steg 1 av 4 — Skriv ner dina bekymmer')}</p>
-                <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  {t('recommendations.cbt.wt.step1Body', 'Skriv ner alla bekymmer som dyker upp just nu. Att externalisera dem minskar deras känslomässiga laddning.')}
-                </p>
-                <textarea
-                  value={wtWorries}
-                  onChange={(e) => setWtWorries(e.target.value)}
-                  placeholder={t('recommendations.cbt.wt.step1Placeholder', 'T.ex. "Jag är orolig för ekonomin", "Jag vet inte om jobbet går bra", "Familjen mår inte bra"...')}
-                  className="w-full p-3 min-h-[110px] rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400 resize-none"
-                />
-                <button
-                  onClick={() => wtWorries.trim().length >= 10 ? setWtStep(2) : announceToScreenReader(t('recommendations.announce.wtWriteWorries', 'Skriv minst ett bekymmer'), 'assertive')}
-                  className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                >{t('recommendations.cbt.next', 'Nästa →')}</button>
-              </div>
-            )}
-
-            {wtStep === 2 && (
-              <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step2Title', 'Steg 2 av 4 — Schemalägg din bekymmelsetid')}</p>
-                <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  {t('recommendations.cbt.wt.step2Body', 'Välj en fast tid (20 min) varje dag att tillåta dig att bekymra dig. Utanför denna tid skjuter du upp bekymren. Forskning (Borkovec et al.) visar att detta minskar spontan oro med 30–50%.')}
-                </p>
-                <input
-                  value={wtScheduledTime}
-                  onChange={(e) => setWtScheduledTime(e.target.value)}
-                  placeholder={t('recommendations.cbt.wt.step2Placeholder', 'T.ex. kl 18:00 varje kväll i vardagsrummet')}
-                  className="w-full p-3 rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400"
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setWtStep(1)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => wtScheduledTime.trim().length >= 3 ? setWtStep(3) : announceToScreenReader(t('recommendations.announce.wtSpecifyTime', 'Ange en tid'), 'assertive')}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
-                </div>
-              </div>
-            )}
-
-            {wtStep === 3 && (
-              <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step3Title', 'Steg 3 av 4 — Övning i uppskjutning')}</p>
-                <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  {t('recommendations.cbt.wt.step3Body', 'När ett bekymmer dyker upp utanför din bekymmelsetid, påminn dig: "Det tar jag upp kl [tid]." Bekymret är noterat — du behöver inte tänka på det nu.')}
-                </p>
-                <div className="p-3 bg-purple-100 dark:bg-purple-800/30 rounded-lg mb-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={wtPostponeCommitted}
-                      onChange={(e) => setWtPostponeCommitted(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-400"
-                    />
-                    <span className="text-sm text-purple-800 dark:text-purple-200">
-                      {t('recommendations.cbt.wt.commitmentText', 'Jag förbinder mig att skjuta upp bekymmer till min schemalagda tid och påminna mig att de redan är noterade.')}
-                    </span>
-                  </label>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setWtStep(2)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => wtPostponeCommitted ? setWtStep(4) : announceToScreenReader(t('recommendations.announce.wtCheckboxRequired', 'Bocka i rutan för att fortsätta'), 'assertive')}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
-                  >{t('recommendations.cbt.next', 'Nästa →')}</button>
-                </div>
-              </div>
-            )}
-
-            {wtStep === 4 && (
-              <div>
-                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">{t('recommendations.cbt.wt.step4Title', 'Steg 4 av 4 — Reflektion')}</p>
-                <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                  {t('recommendations.cbt.wt.step4Body', 'Har du provat att hålla din bekymmelsetid? Vilka bekymmer löste sig av sig självt? Ofta inser vi att de flesta bekymmer antingen inte inträffar eller löser sig utan aktiv insats.')}
-                </p>
-                <textarea
-                  value={wtReflection}
-                  onChange={(e) => setWtReflection(e.target.value)}
-                  placeholder={t('recommendations.cbt.wt.step4Placeholder', 'Vad lärde du dig? Vilka bekymmer försvann? Hur kändes det att skjuta upp dem?')}
-                  className="w-full p-3 min-h-[90px] rounded-lg border border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-400 resize-none"
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setWtStep(3)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">{t('recommendations.cbt.back', '← Tillbaka')}</button>
-                  <button
-                    onClick={() => {
-                      if (wtReflection.trim().length < 10) { announceToScreenReader(t('recommendations.announce.wtWriteReflection', 'Skriv en kort reflektion'), 'assertive'); return; }
-                      completeCbtExercise('worry_time', 3);
-                      setWtStep(0);
-                    }}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg"
-                  >{t('recommendations.cbt.saveExercise', '✅ Spara övning')}</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Insights footer */}
-        {cbtInsights && cbtInsights.recommendedNextSteps.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('recommendations.cbt.recommendedNextSteps', '💡 Rekommenderade nästa steg:')}</p>
-            <ul className="space-y-1">
-              {cbtInsights.recommendedNextSteps.map((step, i) => (
-                <li key={i} className="text-xs text-gray-600 dark:text-gray-400">• {step}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+      <CBTSection
+        cbtModules={cbtModules}
+        cbtExercises={cbtExercises}
+        cbtInsights={cbtInsights}
+        cbtSession={cbtSession}
+        cbtLoading={cbtLoading}
+        cbtError={cbtError}
+        cbtCurrentMood={cbtCurrentMood}
+        setCbtCurrentMood={setCbtCurrentMood}
+        startCbtExercise={startCbtExercise}
+        completeCbtExercise={completeCbtExercise}
+        activeCbtExerciseId={activeCbtExerciseId}
+        setActiveCbtExerciseId={setActiveCbtExerciseId}
+        baStep={baStep}
+        setBaStep={setBaStep}
+        baActivities={baActivities}
+        setBaActivities={setBaActivities}
+        baSelectedActivity={baSelectedActivity}
+        setBaSelectedActivity={setBaSelectedActivity}
+        baBarriers={baBarriers}
+        setBaBarriers={setBaBarriers}
+        baPlan={baPlan}
+        setBaPlan={setBaPlan}
+        baPleasureRating={baPleasureRating}
+        setBaPleasureRating={setBaPleasureRating}
+        baReflection={baReflection}
+        setBaReflection={setBaReflection}
+        wtStep={wtStep}
+        setWtStep={setWtStep}
+        wtWorries={wtWorries}
+        setWtWorries={setWtWorries}
+        wtScheduledTime={wtScheduledTime}
+        setWtScheduledTime={setWtScheduledTime}
+        wtPostponeCommitted={wtPostponeCommitted}
+        setWtPostponeCommitted={setWtPostponeCommitted}
+        wtReflection={wtReflection}
+        setWtReflection={setWtReflection}
+        announceToScreenReader={announceToScreenReader}
+      />
 
       {/* Search and Filter Controls */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-6 sm:mb-8">
@@ -1473,263 +1144,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            {filteredRecommendations.map((recommendation) => {
-              return (
-              <div
+            {filteredRecommendations.map((recommendation) => (
+              <RecommendationCard
                 key={recommendation.id}
-                className={`relative rounded-lg border p-4 sm:p-6 hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-700 transition-all duration-300 group overflow-hidden ${getCategoryColor(recommendation.categoryKey)}`}
-              >
-                {/* Recommended for badge */}
-                {recommendation.primaryGoal && (
-                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs px-3 py-1.5 text-center font-medium">
-                    ✨ {t('recommendations.recommendedFor', 'Rekommenderas för')} {recommendation.primaryGoal}
-                  </div>
-                )}
-
-                {/* Header */}
-                <div className={`flex items-start justify-between mb-4 ${recommendation.primaryGoal ? 'mt-6' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl sm:text-3xl">
-                      {recommendation.image || getTypeIcon(recommendation.type)}
-                    </div>
-                    <div>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 mb-1">
-                        {recommendation.category}
-                      </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {recommendation.type}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleRecommendationAction(recommendation, 'save')}
-                      className={`p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center ${recommendation.saved
-                        ? 'text-yellow-600 dark:text-yellow-500'
-                        : 'text-gray-400 dark:text-gray-500'
-                        }`}
-                      aria-label="Save recommendation"
-                    >
-                      {recommendation.saved ? (
-                        <BookmarkIconSolid className="w-5 h-5" aria-hidden="true" />
-                      ) : (
-                        <BookmarkIcon className="w-5 h-5" aria-hidden="true" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleRecommendationAction(recommendation, 'share')}
-                      className="p-2 rounded-lg text-gray-400 dark:text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                      aria-label="Share recommendation"
-                    >
-                      <ShareIcon className="w-5 h-5" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="mb-4">
-                  {/* Progress bar for completion rate */}
-                  {(recommendation.completionRate !== undefined && recommendation.completionRate > 0 && recommendation.completionRate < 100) && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-primary-600 dark:text-primary-400 font-medium">
-                          ⏳ {t('recommendations.inProgress', 'Påbörjad')} - {recommendation.completionRate}% {t('recommendations.complete', 'klart')}
-                        </span>
-                        <span className="text-gray-400">
-                          {recommendation.lastAccessedAt && `${t('recommendations.lastAccessed', 'Senast')}: ${new Date(recommendation.lastAccessedAt).toLocaleDateString(i18n.language)}`}
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
-                          style={{ width: `${recommendation.completionRate}%` }}
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleRecommendationAction(recommendation, 'start')}
-                        className="mt-2 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline font-medium"
-                      >
-                        {t('recommendations.cta.continueWhereLeft', 'Fortsätt där du slutade →')}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Completion status badge */}
-                  {recommendation.completed && (
-                    <div className="flex items-center gap-1.5 mb-2 text-emerald-600 dark:text-emerald-400">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-medium">{t('recommendations.completedToday', 'Klar idag ✓')}</span>
-                      {recommendation.streak && recommendation.streak > 1 && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400 ml-1">
-                          🔥 {t('recommendations.streakDays', '{{count}} dagar i rad', { count: recommendation.streak })}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                    {recommendation.title}
-                  </h3>
-                  {getRecommendationMatchReason(recommendation) && (
-                    <p className="inline-flex items-center mb-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                      {getRecommendationMatchReason(recommendation)}
-                    </p>
-                  )}
-                  <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-3">
-                    {recommendation.description}
-                  </p>
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {recommendation.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Meta Info */}
-                  <div className="flex items-center justify-between text-xs sm:text-sm mb-3">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recommendation.difficulty) === 'success'
-                          ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300'
-                          : getDifficultyColor(recommendation.difficulty) === 'warning'
-                            ? 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-300'
-                            : 'bg-error-100 dark:bg-error-900/30 text-error-700 dark:text-error-300'
-                          } `}
-                      >
-                        {recommendation.difficulty}
-                      </span>
-                      {recommendation.duration && (
-                        <span className="text-gray-700 dark:text-gray-300 font-medium">
-                          {recommendation.duration} min
-                        </span>
-                      )}
-                    </div>
-
-                    {recommendation.rating && (
-                      <div className="flex items-center gap-1">
-                        <div className="flex items-center">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <StarIcon
-                              key={star}
-                              className={`w-3 h-3 sm:w-4 sm:h-4 ${star <= (recommendation.rating || 0)
-                                ? 'text-yellow-400 fill-current'
-                                : 'text-gray-300 dark:text-gray-600'
-                                } `}
-                              aria-hidden="true"
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                          ({recommendation.rating})
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="relative">
-                  <button
-                    onClick={() => handleRecommendationAction(recommendation, 'start')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-all duration-200 group-hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 min-h-[44px]"
-                  >
-                    <PlayIcon className="w-5 h-5" aria-hidden="true" />
-                    <span>
-                      {recommendation.completionRate && recommendation.completionRate > 0 && recommendation.completionRate < 100
-                        ? t('recommendations.cta.continueExercise', 'Fortsätt övningen →')
-                        : recommendation.type === 'meditation'
-                          ? t('recommendations.cta.doNow', 'Gör övningen nu ({{duration}} min) →', { duration: recommendation.duration || 5 })
-                          : recommendation.type === 'exercise'
-                            ? t('recommendations.cta.startTraining', 'Starta träningen nu →')
-                            : recommendation.type === 'article'
-                              ? t('recommendations.cta.readArticle', 'Läs artikeln (3 min) →')
-                              : recommendation.type === 'challenge'
-                                ? t('recommendations.cta.startChallenge', 'Påbörja utmaningen →')
-                                : t('recommendations.cta.exploreNow', 'Utforska nu →')}
-                    </span>
-                  </button>
-
-                  {/* Quick start button (appears on hover) */}
-                  {recommendation.type === 'meditation' && (
-                    <button
-                      onClick={() => handleRecommendationAction(recommendation, 'start')}
-                      className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-full p-2 hover:scale-110 z-10"
-                      title={t('recommendations.cta.quickStart', 'Starta direkt')}
-                      aria-label={t('recommendations.cta.quickStartAria', 'Starta övning direkt')}
-                    >
-                      <span className="text-lg">▶️</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Social proof - people doing this now */}
-                {recommendation.peopleDoingThisNow && recommendation.peopleDoingThisNow > 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 text-center mt-2 flex items-center justify-center gap-1">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    </span>
-                    🔥 {t('recommendations.peopleDoingNow', '{{count}} personer gör detta just nu', { count: recommendation.peopleDoingThisNow })}
-                  </p>
-                )}
-
-                {/* Social proof - users who completed today */}
-                {recommendation.dailyCompletions && recommendation.dailyCompletions > 0 && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-                    {recommendation.dailyCompletions.toLocaleString(i18n.language)} {t('recommendations.peopleDoingToday', 'personer har gjort detta idag')}
-                  </p>
-                )}
-
-                {/* Bottom progress bar (visual only) */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
-                    style={{ width: `${recommendation.completionRate || (recommendation.completed ? 100 : 0)}%` }}
-                  />
-                </div>
-
-                {/* Feedback */}
-                <div className="flex justify-center gap-2 mt-3">
-                  {(() => {
-                    const selectedFeedback = feedbackByRecommendation[recommendation.id];
-                    return (
-                      <>
-                  <button
-                    onClick={() => handleRecommendationFeedback(recommendation, 'helpful')}
-                    aria-pressed={selectedFeedback === 'helpful'}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-success-500 focus-visible:ring-offset-2 ${selectedFeedback === 'helpful'
-                      ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300'
-                      : 'text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20'
-                      }`}
-                  >
-                    <HandThumbUpIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>{selectedFeedback === 'helpful' ? t('recommendations.feedback.thanks', 'Tack för svar') : t('recommendations.feedback.helpful', 'Hjälpsam')}</span>
-                  </button>
-                  <button
-                    onClick={() => handleRecommendationFeedback(recommendation, 'not_relevant')}
-                    aria-pressed={selectedFeedback === 'not_relevant'}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2 ${selectedFeedback === 'not_relevant'
-                      ? 'bg-error-100 dark:bg-error-900/30 text-error-700 dark:text-error-300'
-                      : 'text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20'
-                      }`}
-                  >
-                    <HandThumbDownIcon className="w-4 h-4" aria-hidden="true" />
-                    <span>{selectedFeedback === 'not_relevant' ? t('recommendations.feedback.marked', 'Markerad') : t('recommendations.feedback.notRelevant', 'Inte relevant')}</span>
-                  </button>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            );
-          })}
+                recommendation={recommendation}
+                language={i18n.language}
+                feedbackByRecommendation={feedbackByRecommendation}
+                getCategoryColor={getCategoryColor}
+                getDifficultyColor={getDifficultyColor}
+                getTypeIcon={getTypeIcon}
+                getRecommendationMatchReason={getRecommendationMatchReason}
+                onAction={handleRecommendationAction}
+                onFeedback={handleRecommendationFeedback}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1841,243 +1269,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
               {/* Interactive Neuroscience Article */}
               {selectedRecommendation.id === 'focus-3' && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-6 mb-4 border-2 border-blue-200 dark:border-blue-800">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                    {t('recommendations.article.neuroscienceTitle', '🧠 Neurovetenskap: Så Fungerar Fokus')}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 text-center">
-                    {t('recommendations.article.neuroscienceDesc', 'Förstå hjärnans koncentrationsmekanismer och lär dig vetenskapligt beprövade strategier för bättre fokus.')}
-                  </p>
-
-                  {/* Reading Progress */}
-                  <div className="mb-6">
-                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      <span>{t('recommendations.article.readingProgress', 'Läsningsframsteg')}</span>
-                      <span>{articleProgress}% • {formatReadingTime(readingTime)} {t('recommendations.article.read', 'läst')}</span>
-                    </div>
-                    <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                        style={{ width: `${articleProgress}% ` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Article Content */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 max-h-96 overflow-y-auto">
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        {neuroscienceArticleSections[currentSection]?.title}
-                      </h4>
-
-                      <div
-                        className="text-gray-700 dark:text-gray-300 leading-relaxed [&_.highlight-box]:bg-blue-50 [&_.highlight-box]:dark:bg-blue-900/20 [&_.highlight-box]:border-l-4 [&_.highlight-box]:border-l-blue-500 [&_.highlight-box]:p-4 [&_.highlight-box]:my-4 [&_.highlight-box]:rounded-r-lg"
-                        dangerouslySetInnerHTML={{ __html: neuroscienceArticleSections[currentSection]?.content || '' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Section Navigation */}
-                  <div className="flex justify-between items-center mb-6">
-                    <button
-                      onClick={() => {
-                        const newSection = Math.max(0, currentSection - 1);
-                        setCurrentSection(newSection);
-                        updateArticleProgress(newSection, (newSection / neuroscienceArticleSections.length) * 100);
-                      }}
-                      disabled={currentSection === 0}
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      {t('recommendations.article.previous', '← Föregående')}
-                    </button>
-
-                    <div className="flex gap-1">
-                      {neuroscienceArticleSections.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setCurrentSection(index);
-                            updateArticleProgress(index, (index / neuroscienceArticleSections.length) * 100);
-                          }}
-                          className={`w-3 h-3 rounded-full transition-colors ${index === currentSection
-                            ? 'bg-blue-500'
-                            : index < currentSection
-                              ? 'bg-green-500'
-                              : 'bg-gray-300 dark:bg-gray-600'
-                            } `}
-                          aria-label={t('recommendations.article.goToSection', 'Gå till sektion {{index}}', { index: index + 1 })}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        if (currentSection < neuroscienceArticleSections.length - 1) {
-                          const newSection = currentSection + 1;
-                          setCurrentSection(newSection);
-                          updateArticleProgress(newSection, (newSection / neuroscienceArticleSections.length) * 100);
-                        } else {
-                          completeArticle();
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                    >
-                      {currentSection < neuroscienceArticleSections.length - 1 ? t('recommendations.article.next', 'Nästa →') : t('recommendations.article.complete', 'Slutför Artikel')}
-                    </button>
-                  </div>
-
-                  {/* Quiz Section */}
-                  {articleCompleted && !showQuiz && (
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-                      <h4 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
-                        {t('recommendations.article.completed', '🎉 Artikel Slutförd!')}
-                      </h4>
-                      <p className="text-green-700 dark:text-green-300 mb-4">
-                        {t('recommendations.article.completedQuizPrompt', 'Bra jobbat! Du har läst artikeln om neurovetenskap och fokus. Vill du testa dina kunskaper med ett kort quiz?')}
-                      </p>
-                      <button
-                        onClick={() => setShowQuiz(true)}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                      >
-                        {t('recommendations.quiz.takeQuiz', 'Ta Quizet')}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Quiz */}
-                  {showQuiz && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        {t('recommendations.quiz.quizTitle', '🧠 Kunskapstest: Neurovetenskap & Fokus')}
-                      </h4>
-
-                      {neuroscienceQuiz.map((question, qIndex) => (
-                        <div key={qIndex} className="mb-6">
-                          <h5 className="font-medium text-gray-900 dark:text-white mb-3">
-                            {qIndex + 1}. {question.question}
-                          </h5>
-                          <div className="space-y-2">
-                            {question.options.map((option, oIndex) => (
-                              <label key={oIndex} className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`question-${qIndex}`}
-                                  value={oIndex}
-                                  checked={quizAnswers[qIndex] === oIndex}
-                                  onChange={() => setQuizAnswers({ ...quizAnswers, [qIndex]: oIndex })}
-                                  className="w-4 h-4 text-blue-600"
-                                />
-                                <span className="text-gray-700 dark:text-gray-300">{option}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
-                      <button
-                        onClick={submitQuiz}
-                        disabled={Object.keys(quizAnswers).length < neuroscienceQuiz.length}
-                        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
-                      >
-                        {t('recommendations.quiz.submit', 'Skicka Svar')}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Quiz Results */}
-                  {typeof quizScore === 'number' && quizScore >= 0 && (
-                    <div className={`rounded-lg p-4 mb-6 ${quizScore >= 4
-                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                      : quizScore >= 2
-                        ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                        : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                      }`}>
-                      <h4 className={`text-lg font-semibold mb-2 ${quizScore >= 4
-                        ? 'text-green-800 dark:text-green-200'
-                        : quizScore >= 2
-                          ? 'text-yellow-800 dark:text-yellow-200'
-                          : 'text-red-800 dark:text-red-200'
-                        }`}>
-                        {quizScore >= 4 ? t('recommendations.quiz.excellent', '🎉 Utmärkt förståelse!') :
-                          quizScore >= 2 ? t('recommendations.quiz.goodBasic', '📚 Bra grundkunskaper!') : t('recommendations.quiz.moreReading', '📖 Mer läsning rekommenderas')}
-                      </h4>
-                      <p className={`mb-4 ${quizScore >= 4
-                        ? 'text-green-700 dark:text-green-300'
-                        : quizScore >= 2
-                          ? 'text-yellow-700 dark:text-yellow-300'
-                          : 'text-red-700 dark:text-red-300'
-                        }`}>
-                        {t('recommendations.quiz.youGotScore', 'Du fick')} <strong>{quizScore} {t('recommendations.quiz.outOf', 'av')} {neuroscienceQuiz.length} {t('recommendations.quiz.correct', 'rätt')}</strong>
-                        {quizScore >= 4 && t('recommendations.quiz.excellentDetail', ' - Du har utmärkt förståelse för neurovetenskapen bakom fokus!')}
-                        {quizScore >= 2 && quizScore < 4 && t('recommendations.quiz.goodBasicDetail', ' - Du har bra grundkunskaper. Fortsätt lära dig!')}
-                        {quizScore < 2 && t('recommendations.quiz.moreReadingDetail', ' - Läs gärna artikeln igen och fokusera på nyckelbegreppen.')}
-                      </p>
-
-                      {/* Detailed Answer Review */}
-                      <div className="space-y-3">
-                        <h5 className="font-semibold text-gray-900 dark:text-white">{t('recommendations.quiz.answerReview', '📋 Svarsgenomgång:')}</h5>
-                        {neuroscienceQuiz.map((question, index) => {
-                          const userAnswer = quizAnswers[index];
-                          const isCorrect = userAnswer === question.correct;
-                          return (
-                            <div key={question.question} className={`p-3 rounded-lg ${isCorrect
-                              ? 'bg-green-100 dark:bg-green-900/30'
-                              : 'bg-red-100 dark:bg-red-900/30'
-                              }`}>
-                              <div className="flex items-start gap-3">
-                                <span className={`text-lg ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                                  {isCorrect ? '✅' : '❌'}
-                                </span>
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-900 dark:text-white mb-1">
-                                    {t('recommendations.quiz.question', 'Fråga')} {index + 1}: {question.question}
-                                  </p>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                    <strong>{t('recommendations.quiz.yourAnswer', 'Ditt svar:')}</strong> {userAnswer !== undefined ? question.options[userAnswer] : t('recommendations.quiz.noAnswer', 'Inget svar')}
-                                  </p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    <strong>{t('recommendations.quiz.explanation', 'Förklaring:')}</strong> {question.explanation}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Learning Tips */}
-                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <h6 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">{t('recommendations.quiz.learningTips', '💡 Inlärningstips:')}</h6>
-                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                          <li>{t('recommendations.quiz.tip1', '• Fokusera på en uppgift åt gången för bättre inlärning')}</li>
-                          <li>{t('recommendations.quiz.tip2', '• Ta regelbundna pauser för att bearbeta information')}</li>
-                          <li>{t('recommendations.quiz.tip3', '• Applicera kunskapen praktiskt för bättre retention')}</li>
-                          <li>{t('recommendations.quiz.tip4', '• Återkom till artikeln när du behöver repetition')}</li>
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Control Buttons */}
-                  <div className="flex justify-center gap-3">
-                    {!articleCompleted ? (
-                      <button
-                        onClick={startArticleReading}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        {t('recommendations.article.startReading', '🚀 Börja Läsa')}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleCloseContentModal}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        {t('recommendations.article.close', '🎉 Stäng')}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <ArticleReader
+                  articleProgress={articleProgress}
+                  readingTime={readingTime}
+                  currentSection={currentSection}
+                  articleCompleted={articleCompleted}
+                  showQuiz={showQuiz}
+                  quizAnswers={quizAnswers}
+                  quizScore={quizScore}
+                  setCurrentSection={setCurrentSection}
+                  updateArticleProgress={updateArticleProgress}
+                  completeArticle={completeArticle}
+                  startArticleReading={startArticleReading}
+                  setShowQuiz={setShowQuiz}
+                  setQuizAnswers={setQuizAnswers}
+                  submitQuiz={submitQuiz}
+                  onClose={handleCloseContentModal}
+                />
               )}
 
               {/* Interactive Pomodoro Timer */}

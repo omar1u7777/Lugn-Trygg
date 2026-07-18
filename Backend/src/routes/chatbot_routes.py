@@ -365,22 +365,16 @@ def chat_with_ai():
                             MAX_RETRIES, alert.user_id, alert.risk_level, last_error,
                         )
 
-                    # Start escalation in background thread with timeout
+                    # Start escalation in background thread (fire-and-forget).
+                    # The daemon thread handles retries internally; we must NOT
+                    # join() here because that would block the response for up to
+                    # 60 s, exhausting gevent workers at 10k-user scale.
                     escalation_thread = threading.Thread(
                         target=escalate_async,
                         args=(crisis_alert,),
                         daemon=True
                     )
                     escalation_thread.start()
-
-                    # Set thread timeout to prevent hanging (60 seconds max for external services)
-                    escalation_thread.join(timeout=60.0)
-                    if escalation_thread.is_alive():
-                        logger.critical(
-                            "🚨 Crisis escalation thread timed out after 60s for user=%s. "
-                            "Requires manual review.",
-                            user_id
-                        )
 
                     # Store alert info in response for frontend
                     ai_response["crisis_escalation"] = {
@@ -434,6 +428,44 @@ def legacy_chat_message():
     if request.method == 'OPTIONS':
         return _preflight_response()
     return chat_with_ai()
+
+
+def escalate_async_stream(alert):
+    """Background crisis escalation for the streaming endpoint (fire-and-forget)."""
+    import asyncio
+    import time as _time
+    from src.services.crisis_escalation import get_crisis_escalation_service
+
+    MAX_RETRIES = 3
+    BASE_DELAY = 2.0
+    last_error = "unknown"
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            escalation_service = get_crisis_escalation_service()
+            result = loop.run_until_complete(escalation_service.escalate(alert))
+            if result.success:
+                logger.info(
+                    "✅ Streaming crisis escalation completed (attempt %d/%d) via: %s",
+                    attempt, MAX_RETRIES, [c.value for c in result.channels_used],
+                )
+                return
+            last_error = f"{len(result.failures)} channel(s) failed"
+            logger.error("❌ Streaming crisis escalation attempt %d/%d: %s", attempt, MAX_RETRIES, last_error)
+        except Exception as exc:
+            last_error = str(exc)
+            logger.exception("Streaming crisis escalation attempt %d/%d raised: %s", attempt, MAX_RETRIES, exc)
+        finally:
+            loop.close()
+        if attempt < MAX_RETRIES:
+            _time.sleep(BASE_DELAY * (2 ** (attempt - 1)))
+
+    logger.critical(
+        "🚨 STREAMING CRISIS ESCALATION FAILED after %d attempts for user=%s. REQUIRES MANUAL REVIEW.",
+        MAX_RETRIES, alert.user_id,
+    )
 
 
 @chatbot_bp.route("/chat/stream", methods=["POST", "OPTIONS"])
@@ -599,6 +631,47 @@ def chat_stream():
                             logger.warning("[B3] Failed to award XP for chatbot_conversation", exc_info=True)
                     except Exception as save_err:
                         logger.warning(f"Failed to save streamed response: {save_err}")
+
+                    # BUG 9 FIX: Trigger crisis escalation for streaming endpoint.
+                    # Previously only the non-streaming /chat endpoint escalated;
+                    # the streaming path detected crisis flags but never acted on
+                    # them — a critical patient safety gap in a mental health app.
+                    if crisis_detected:
+                        try:
+                            from src.services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+                            from src.services.crisis_intervention import crisis_intervention_service
+
+                            assessment = crisis_intervention_service.assess_text_crisis_risk(
+                                user_message,
+                                conversation_history[-3:] if conversation_history else [],
+                            )
+                            if assessment.overall_risk_level in ('critical', 'high'):
+                                logger.warning(
+                                    "🚨 CRISIS CONFIRMED via streaming chat: user=%s risk=%s",
+                                    user_id, assessment.overall_risk_level,
+                                )
+                                crisis_alert = CrisisAlert(
+                                    user_id=user_id,
+                                    risk_level=assessment.overall_risk_level,
+                                    risk_score=assessment.risk_score,
+                                    detected_indicators=[
+                                        ind.swedish_description for ind in assessment.active_indicators
+                                    ],
+                                    text_snippet=user_message[:200],
+                                    timestamp=datetime.now(UTC),
+                                    requires_immediate_action=assessment.overall_risk_level == 'critical',
+                                )
+                                import threading as _ct
+                                _ct.Thread(
+                                    target=escalate_async_stream,
+                                    args=(crisis_alert,),
+                                    daemon=True,
+                                ).start()
+                        except Exception as crisis_err:
+                            logger.exception(
+                                "Crisis escalation from streaming endpoint failed (non-blocking): %s",
+                                crisis_err,
+                            )
                     # Note: session summaries are generated when the frontend calls
                     # /session/close. We previously had a modular trigger here but it
                     # used the *truncated* conversation_history length and fired

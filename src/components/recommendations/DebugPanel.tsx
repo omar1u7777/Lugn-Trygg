@@ -1,31 +1,33 @@
 import React from 'react';
 
 interface DebugPanelProps {
-  debugMode: boolean;
   showDebugTools: boolean;
-  onToggle: () => void;
-  data: Record<string, unknown>;
+  debugMode: boolean;
+  userId: string | null;
+  goals: string[];
+  progress: Record<string, unknown>;
+  filters: { searchTerm: string; selectedCategory: string; sortBy: string };
 }
 
-export const DebugPanel: React.FC<DebugPanelProps> = ({ debugMode, showDebugTools, onToggle, data }) => {
-  if (!showDebugTools) return null;
+export const DebugPanel: React.FC<DebugPanelProps> = ({
+  showDebugTools,
+  debugMode,
+  userId,
+  goals,
+  progress,
+  filters,
+}) => {
+  if (!showDebugTools || !debugMode) return null;
 
   return (
-    <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono">
-      <label className="flex items-center gap-2 mb-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={debugMode}
-          onChange={onToggle}
-          className="rounded"
-        />
-        <span className="text-gray-700 dark:text-gray-300">Debug Mode</span>
-      </label>
-      {debugMode && (
-        <pre className="whitespace-pre-wrap break-all text-gray-600 dark:text-gray-400 max-h-48 overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      )}
+    <div className="mt-4 p-4 bg-black/20 rounded-lg text-xs font-mono">
+      <h4 className="font-bold mb-2">🐛 Debug Info:</h4>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div>User ID: {userId || 'null'}</div>
+        <div>Goals: {JSON.stringify(goals)}</div>
+        <div>Progress: {JSON.stringify(progress)}</div>
+        <div>Filters: {filters.searchTerm}|{filters.selectedCategory}|{filters.sortBy}</div>
+      </div>
     </div>
   );
 };

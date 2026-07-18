@@ -47,13 +47,13 @@ class ProductionApplication(BaseApplication):
 
             # Worker Processes (2-4 x num_cores for I/O bound apps)
             'workers': self.options.get('workers', 4),
-            'worker_class': 'sync',  # or 'gevent' for async
+            'worker_class': 'gthread',  # gthread for SSE streaming + concurrency
             'threads': self.options.get('threads', 4),
 
             # Worker Lifecycle
             'max_requests': 1000,  # Restart worker after N requests
             'max_requests_jitter': 50,
-            'timeout': 60,  # Worker timeout
+            'timeout': 120,  # 120s matches backend SSE streaming timeout
             'graceful_timeout': 30,
             'keepalive': 5,
 
