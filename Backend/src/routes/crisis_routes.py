@@ -35,7 +35,9 @@ def assess_crisis_risk():
     }
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
 
         # Build user context from request data
@@ -144,7 +146,9 @@ def get_safety_plan():
     GET /api/crisis/safety-plan
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Get user data for safety plan generation
         user_doc = db.collection('users').document(user_id).get()  # type: ignore
@@ -210,7 +214,9 @@ def update_safety_plan():
     }
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
 
         safety_plan = {
@@ -246,7 +252,9 @@ def get_intervention_protocol(risk_level: str):
     risk_level: low, medium, high, critical
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         valid_levels = ['low', 'medium', 'high', 'critical']
         if risk_level not in valid_levels:
@@ -289,7 +297,9 @@ def get_assessment_history():
     GET /api/crisis/history?limit=10
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         limit = int(request.args.get('limit', 10))
 
         # Get recent assessments
@@ -326,7 +336,9 @@ def get_crisis_indicators():
     GET /api/crisis/indicators
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         indicators = []
         for indicator in crisis_intervention_service.crisis_indicators.values():
@@ -381,7 +393,9 @@ def check_escalation():
     }
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
 
         # Get previous assessment

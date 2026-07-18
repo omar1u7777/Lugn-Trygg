@@ -13,6 +13,7 @@ export default defineConfig({
     setupFiles: "./src/setupTests.ts",
     dangerouslyForceExit: true,
     teardownTimeout: 30000,
+    fileParallelism: false,
     // Exclude E2E tests from Vitest (they use Playwright)
     exclude: [
       "**/node_modules/**",

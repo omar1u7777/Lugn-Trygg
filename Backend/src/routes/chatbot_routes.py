@@ -573,7 +573,10 @@ def chat_stream():
                 yield f"data: {_json.dumps({'error': 'Stream interrupted', 'content': ' [Avbruten] '})}\n\n"
                 yield "data: [DONE]\n\n"
             finally:
-                # Save AI response to Firestore after stream completes
+                # Save AI response to Firestore after stream completes.
+                # The request context may have been popped by the time the
+                # generator's finally block runs, so we must not rely on g or
+                # request here — use the variables captured above.
                 full_text = "".join(full_response)
                 if full_text:
                     try:
@@ -1057,7 +1060,7 @@ def get_chat_history():
     if request.method == 'OPTIONS':
         return _preflight_response()
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         if not user_id:
             return APIResponse.bad_request("User ID required")
 
@@ -1097,7 +1100,7 @@ def analyze_mood_patterns():
     if request.method == 'OPTIONS':
         return _preflight_response()
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         if not user_id:
             return APIResponse.bad_request("User ID required")
 
@@ -1153,7 +1156,9 @@ def start_exercise():
     if request.method == 'OPTIONS':
         return _preflight_response()
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(force=True, silent=False)
         if not data or "exercise_type" not in data:
             return APIResponse.bad_request("Exercise type required")
@@ -1218,7 +1223,10 @@ def complete_exercise(user_id, exercise_id):
         return _preflight_response()
     try:
         # Verify user owns this exercise
-        if g.user_id != user_id:
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
+        if current_user_id != user_id:
             return APIResponse.forbidden("Unauthorized")
 
         if not user_id or not exercise_id:
@@ -1350,7 +1358,9 @@ def get_therapeutic_framework_analysis():
         return APIResponse.error("Framework analysis unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Get recent conversations
         conversation_ref = db.collection("users").document(user_id).collection("conversations")
@@ -1424,7 +1434,9 @@ def get_therapeutic_progress():
         return APIResponse.error("Progress tracking unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         tracker = get_progress_tracker(user_id)
 
         # Get all conversation sessions
@@ -1524,7 +1536,9 @@ def get_conversation_quality_metrics():
         return APIResponse.error("Quality analysis unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Get recent conversation
         conversation_ref = db.collection("users").document(user_id).collection("conversations")

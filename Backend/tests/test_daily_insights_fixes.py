@@ -163,6 +163,7 @@ class TestPendingInsightsFallback:
 
         # Mock: db.collection('insights').where(user_id).stream() → returns both docs
         mock_query = MagicMock()
+        mock_query.limit.return_value = mock_query
         mock_query.stream.return_value = [pending_doc, dismissed_doc]
         mock_collection = MagicMock()
         mock_collection.where.return_value = mock_query
@@ -198,6 +199,7 @@ class TestPendingInsightsFallback:
         }
 
         mock_query = MagicMock()
+        mock_query.limit.return_value = mock_query
         mock_query.stream.return_value = [recent_doc, old_doc]
         mock_collection = MagicMock()
         mock_collection.where.return_value = mock_query

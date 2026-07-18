@@ -25,7 +25,7 @@
     "status": "Status",
     "offlineTitle": " You are offline!",
     "offlineMessage": "Check your internet connection and try again.",
-    "retry": " Try again",
+    "retry": "Try again",
     "pageNotFound": " Page not found!",
     "skipToContent": "Skip to main content",
     "skipToNavigation": "Skip to navigation",
@@ -1394,7 +1394,9 @@
     "subtitle": "Find your calm, one breath at a time.",
     "description": "Here you explore the full library. For personal suggestions, go to Recommendations.",
     "dailyRec": "Daily Recommendation",
-    "dailyRecSub": "Start your morning with clarity",
+    "dailyRecSubMorning": "Start your morning with clarity",
+    "dailyRecSubDay": "A short break to recharge",
+    "dailyRecSubEvening": "Wind down for a restful night",
     "morningFocus": "Morning Focus",
     "mindfulness": "Mindfulness",
     "breathingSessions": "Breathing sessions",
@@ -2073,6 +2075,16 @@
       "loading": "Calculating combined risk…",
       "error": "Could not calculate combined risk"
     }
+  },
+  "insights": {
+    "loading": "Analyzing your patterns…",
+    "noInsights": "No insights right now",
+    "noInsightsHint": "Log your mood regularly to generate personal insights over time.",
+    "generating": "Generating...",
+    "generate": "Generate insights",
+    "recommendation": "Recommendation",
+    "retryLater": "Try again later",
+    "error": "Could not fetch insights right now. Please try again."
   },
   "dailyInsights": {
     "minMoodsRequired": "At least 3 mood logs are needed to generate insights.",

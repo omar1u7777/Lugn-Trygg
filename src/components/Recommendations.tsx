@@ -42,6 +42,14 @@ import { MeditationSession } from './recommendations/MeditationSession';
 import { JournalingPrompt } from './recommendations/JournalingPrompt';
 import { usePomodoro } from '../hooks/usePomodoro';
 import { useGratitude } from '../hooks/useGratitude';
+import { useUserProgress } from '../hooks/useUserProgress';
+import { useArticleReading } from '../hooks/useArticleReading';
+import { useCBTExercises } from '../hooks/useCBTExercises';
+import { useNotificationSettings } from '../hooks/useNotificationSettings';
+import { useRecommendationFilters } from '../hooks/useRecommendationFilters';
+import { CrisisAlertModal } from './recommendations/CrisisAlertModal';
+import { NotificationSettingsModal } from './recommendations/NotificationSettingsModal';
+import { CompactRecommendations } from './recommendations/CompactRecommendations';
 import {
   EMPTY_WELLNESS_GOALS,
   type RecommendationFeedback,
@@ -68,54 +76,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const resolvedWellnessGoals = Array.isArray(wellnessGoals) ? wellnessGoals : EMPTY_WELLNESS_GOALS;
   const wellnessGoalsSignature = resolvedWellnessGoals.join('|');
   
-  // User progress state (must be before saveUserProgress which references it)
-  const [userProgress, setUserProgress] = useState({
-    exercisesCompleted: 0,
-    meditationMinutes: 0,
-    articlesRead: 0,
-    weeklyGoalProgress: 0
-  });
-  
-  // Save user progress to localStorage
-  const saveUserProgress = useCallback((progress: typeof userProgress) => {
-    if (user?.user_id) {
-      localStorage.setItem(`user_progress_${user.user_id}`, JSON.stringify(progress));
-      logger.debug('Saved user progress:', progress);
-    }
-  }, [user?.user_id]);
-  
-  // Update progress when user completes an activity
-  const updateProgress = useCallback((type: string, amount?: number) => {
-    logger.debug('📊 UPDATE PROGRESS called:', { type, amount, userId: user?.user_id });
-    setUserProgress(prev => {
-      const newProgress = { ...prev };
-
-      switch (type) {
-        case 'exercise':
-          newProgress.exercisesCompleted += amount ?? 1;
-          logger.debug('📊 Exercise completed, new count:', newProgress.exercisesCompleted);
-          break;
-        case 'meditation':
-          newProgress.meditationMinutes += amount ?? 0;
-          logger.debug('📊 Meditation minutes added', {
-            addedMinutes: amount,
-            totalMinutes: newProgress.meditationMinutes,
-          });
-          break;
-        case 'article':
-          newProgress.articlesRead += amount ?? 1;
-          logger.debug('📊 Article read, new count:', newProgress.articlesRead);
-          break;
-      }
-
-      // Calculate weekly goal progress (assuming 7 exercises/week goal)
-      newProgress.weeklyGoalProgress = Math.min((newProgress.exercisesCompleted / 7) * 100, 100);
-
-      logger.debug('📊 New progress state:', newProgress);
-      saveUserProgress(newProgress);
-      return newProgress;
-    });
-  }, [user?.user_id, saveUserProgress]);
+  // User progress hook
+  const { userProgress, updateProgress } = useUserProgress({ userId: user?.user_id });
 
   const [selectedBreathingCycles, _setSelectedBreathingCycles] = useState<4 | 8 | 12>(4);
   const [breathingStressBefore, setBreathingStressBefore] = useState<number | null>(null);
@@ -160,58 +122,23 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const [loading, setLoading] = useState(!compact);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'rating' | 'duration' | 'difficulty'>('rating');
   const [feedbackByRecommendation, setFeedbackByRecommendation] = useState<Record<string, RecommendationFeedback | undefined>>({});
-  const [cbtModules, setCbtModules] = useState<CBTModule[]>([]);
-  const [cbtSession, setCbtSession] = useState<PersonalizedSession | null>(null);
-  const [cbtInsights, setCbtInsights] = useState<CBTInsights | null>(null);
-  const [cbtExercises, setCbtExercises] = useState<CBTExercise[]>([]);
-  const [cbtLoading, setCbtLoading] = useState(false);
-  const [cbtError, setCbtError] = useState<string | null>(null);
-  const [cbtCurrentMood, setCbtCurrentMood] = useState<string>('neutral');
-  const [activeCbtExerciseId, setActiveCbtExerciseId] = useState<string | null>(null);
 
-  // Behavioral Activation exercise state
-  const [baStep, setBaStep] = useState(0);
-  const [baActivities, setBaActivities] = useState('');
-  const [baSelectedActivity, setBaSelectedActivity] = useState('');
-  const [baBarriers, setBaBarriers] = useState('');
-  const [baPlan, setBaPlan] = useState('');
-  const [baPleasureRating, setBaPleasureRating] = useState<number | null>(null);
-  const [baReflection, setBaReflection] = useState('');
-
-  // Worry Time exercise state
-  const [wtStep, setWtStep] = useState(0);
-  const [wtWorries, setWtWorries] = useState('');
-  const [wtScheduledTime, setWtScheduledTime] = useState('');
-  const [wtPostponeCommitted, setWtPostponeCommitted] = useState(false);
-  const [wtReflection, setWtReflection] = useState('');
-
-  const startCbtExercise = (exerciseId: string) => {
-    setActiveCbtExerciseId(exerciseId);
-    if (exerciseId === 'behavioral_activation') {
-      setBaStep(1); setBaActivities(''); setBaSelectedActivity('');
-      setBaBarriers(''); setBaPlan(''); setBaPleasureRating(null); setBaReflection('');
-    } else if (exerciseId === 'worry_time') {
-      setWtStep(1); setWtWorries(''); setWtScheduledTime('');
-      setWtPostponeCommitted(false); setWtReflection('');
-    }
-  };
-
-  const completeCbtExercise = (exerciseId: string, difficultyRating: number) => {
-    updateCBTProgress({
-      exerciseId,
-      successRate: 0.8,
-      timeSpent: exerciseId === 'behavioral_activation' ? 20 : 25,
-      difficultyRating,
-    }).catch((error) => {
-      logger.error('Failed to update CBT progress:', error);
-    });
-    setActiveCbtExerciseId(null);
-    announceToScreenReader(t('recommendations.announce.exerciseCompleted', 'Övning slutförd! Bra jobbat!'), 'polite');
-  };
+  // CBT Exercises hook
+  const {
+    cbtModules, cbtSession, cbtInsights, cbtExercises,
+    cbtLoading, cbtError, cbtCurrentMood, setCbtCurrentMood,
+    activeCbtExerciseId, setActiveCbtExerciseId,
+    startCbtExercise, completeCbtExercise,
+    baStep, setBaStep, baActivities, setBaActivities,
+    baSelectedActivity, setBaSelectedActivity,
+    baBarriers, setBaBarriers, baPlan, setBaPlan,
+    baPleasureRating, setBaPleasureRating, baReflection, setBaReflection,
+    wtStep, setWtStep, wtWorries, setWtWorries,
+    wtScheduledTime, setWtScheduledTime,
+    wtPostponeCommitted, setWtPostponeCommitted,
+    wtReflection, setWtReflection,
+  } = useCBTExercises({ userId: user?.user_id, announce: announceToScreenReader });
 
   const [debugMode, setDebugMode] = useState(false);
   const showDebugTools = import.meta.env.DEV;
@@ -227,18 +154,13 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   const [pomodoroHistory, setPomodoroHistory] = useState<PomodoroSession[]>([]);
   const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
 
-  // Daily Reminders State
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
-  const [notificationSettings, setNotificationSettings] = useState({
-    dailyRemindersEnabled: true,
-    reminderTime: '09:00',
-    fcmToken: false
-  });
-  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
-
-  // Gratitude Challenge State
-  // Gratitude Challenge State (Refactored to use useGratitude)
-  const [, setShowGratitudeModal] = useState(false);
+  // Notification Settings hook
+  const {
+    showNotificationSettings, setShowNotificationSettings,
+    notificationSettings,
+    isEnablingNotifications,
+    enableDailyReminders, disableDailyReminders, updateReminderTime,
+  } = useNotificationSettings({ userId: user?.user_id, announce: announceToScreenReader });
 
   // Gratitude Hook
   const {
@@ -308,15 +230,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   });
 
-  // Article Reading & Quiz State
-  const [articleProgress, setArticleProgress] = useState(0);
-  const [currentSection, setCurrentSection] = useState(0);
-  const [readingTime, setReadingTime] = useState(0);
-  const articleReadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [articleCompleted, setArticleCompleted] = useState(false);
-  const [quizAnswers, setQuizAnswers] = useState<{ [key: number]: number }>({});
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [quizScore, setQuizScore] = useState<number | null>(null);
+  // Article Reading hook
+  const {
+    articleProgress, currentSection, readingTime, articleCompleted,
+    quizAnswers, showQuiz, quizScore,
+    setQuizAnswers, setShowQuiz, setCurrentSection,
+    startArticleReading, updateArticleProgress, completeArticle, submitQuiz,
+    resetArticleState,
+  } = useArticleReading({ userId: user?.user_id, announce: announceToScreenReader, updateProgress });
 
   // Crisis Alert State
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
@@ -356,58 +277,8 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     return colors[categoryKey || ''] || 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
   }, []);
 
-  useEffect(() => {
-    if (!user?.user_id) {
-      setCbtModules([]);
-      setCbtSession(null);
-      setCbtInsights(null);
-      setCbtExercises([]);
-      setCbtError(null);
-      return;
-    }
+  // CBT data loading is now handled by useCBTExercises hook
 
-    let active = true;
-    const loadCbtData = async () => {
-      setCbtLoading(true);
-      setCbtError(null);
-      try {
-        const [modulesResult, sessionResult, insightsResult, exercisesResult] = await Promise.allSettled([
-          getCBTModules(),
-          getPersonalizedSession(cbtCurrentMood),
-          getCBTInsights(),
-          getCBTExercises(),
-        ]);
-
-        if (!active) return;
-
-        if (modulesResult.status === 'fulfilled') setCbtModules(modulesResult.value);
-        if (sessionResult.status === 'fulfilled') setCbtSession(sessionResult.value);
-        if (insightsResult.status === 'fulfilled') setCbtInsights(insightsResult.value);
-        if (exercisesResult.status === 'fulfilled') setCbtExercises(exercisesResult.value);
-
-        const hasAtLeastOneSuccess = [modulesResult, sessionResult, insightsResult, exercisesResult]
-          .some((item) => item.status === 'fulfilled');
-
-        if (!hasAtLeastOneSuccess) {
-          setCbtError(t('recommendations.cbt.errorLoad', 'CBT-data kunde inte laddas just nu. Försök igen senare.'));
-        }
-      } catch (error) {
-        logger.error('Failed to load CBT data', { error });
-        if (active) {
-          setCbtError(t('recommendations.cbt.errorLoadShort', 'CBT-data kunde inte laddas just nu.'));
-        }
-      } finally {
-        if (active) {
-          setCbtLoading(false);
-        }
-      }
-    };
-
-    loadCbtData();
-    return () => {
-      active = false;
-    };
-  }, [user?.user_id, cbtCurrentMood, t]);
 
   const loadRecommendations = useCallback((goals: string[], screenReader: typeof announceToScreenReader) => {
     const allRecommendations = getRecommendationsPool(t);
@@ -589,10 +460,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (articleReadingTimerRef.current) {
-        clearInterval(articleReadingTimerRef.current);
-        articleReadingTimerRef.current = null;
-      }
       pendingTimersRef.current.forEach(clearTimeout);
       pendingTimersRef.current = [];
     };
@@ -604,7 +471,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const startGratitudeChallenge = () => {
     startGratitudeLogic();
-    setShowGratitudeModal(true);
   };
 
   // Pomodoro functions provided by usePomodoro hook
@@ -612,126 +478,11 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
   const getPomodoroProgress = () => {
     const totalTime = pomodoroPhase === 'work' ? pomodoroWorkTime * 60 : pomodoroBreakTime * 60;
+    if (totalTime <= 0) return 0;
     return ((totalTime - pomodoroTimeLeft) / totalTime) * 100;
   };
 
-  const startArticleReading = () => {
-    logger.debug('🧠 Starting neuroscience article reading');
-
-    // Clear existing timer if any
-    if (articleReadingTimerRef.current) {
-      clearInterval(articleReadingTimerRef.current);
-    }
-
-    // Start reading timer
-    const timer = setInterval(() => {
-      setReadingTime(prev => prev + 1);
-    }, 1000);
-    articleReadingTimerRef.current = timer;
-
-    // Load saved progress
-    if (user?.user_id) {
-      const saved = localStorage.getItem(`article_progress_focus-3_${user.user_id}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setArticleProgress(parsed.progress || 0);
-          setCurrentSection(parsed.section || 0);
-          setReadingTime(parsed.readingTime || 0);
-          setArticleCompleted(parsed.completed || false);
-          logger.debug('💾 Loaded article progress:', parsed);
-        } catch(e) {
-          logger.error('Failed to load article progress', e as Error);
-        }
-      }
-    }
-  };
-
-  const updateArticleProgress = (section: number, progress: number) => {
-    setCurrentSection(section);
-    setArticleProgress(progress);
-
-    // Save progress
-    if (user?.user_id) {
-      const progressData = {
-        progress,
-        section,
-        readingTime,
-        completed: progress >= 100,
-        lastUpdated: new Date().toISOString()
-      };
-      localStorage.setItem(`article_progress_focus-3_${user.user_id}`, JSON.stringify(progressData));
-      logger.debug('💾 Saved article progress:', progressData);
-    }
-  };
-
-  const completeArticle = () => {
-    logger.debug('✅ Neuroscience article completed');
-
-    setArticleCompleted(true);
-    setArticleProgress(100);
-
-    // Stop reading timer
-    if (articleReadingTimerRef.current) {
-      clearInterval(articleReadingTimerRef.current);
-      articleReadingTimerRef.current = null;
-    }
-
-    // Calculate reading speed and provide feedback
-    const totalWords = neuroscienceArticleSections.reduce((total, section) => {
-      // Strip HTML tags and count words
-      const textContent = section.content.replace(/<[^>]*>/g, '');
-      return total + textContent.split(/\s+/).filter(word => word.length > 0).length;
-    }, 0);
-
-    const wordsPerMinute = readingTime > 0 ? Math.round((totalWords / readingTime) * 60) : 0;
-    const readingSpeed = wordsPerMinute > 250 ? 'fast' : wordsPerMinute > 150 ? 'normal' : 'slow';
-
-    logger.debug(`📊 Reading stats: ${totalWords} words in ${readingTime} s = ${wordsPerMinute} WPM (${readingSpeed})`);
-
-    // Update progress with bonus based on reading speed
-    const baseMinutes = 7;
-    const speedBonus = readingSpeed === 'fast' ? 2 : readingSpeed === 'normal' ? 1 : 0;
-    updateProgress('article', baseMinutes + speedBonus);
-
-    // Save completion with reading stats
-    if (user?.user_id) {
-      const completionData = {
-        progress: 100,
-        section: 4, // Last section
-        readingTime,
-        wordsPerMinute,
-        readingSpeed,
-        completed: true,
-        completedAt: new Date().toISOString()
-      };
-      localStorage.setItem(`article_progress_focus-3_${user.user_id}`, JSON.stringify(completionData));
-    }
-
-    announceToScreenReader(t('recommendations.announce.articleCompleted', 'Artikeln om neurovetenskap och fokus är nu slutförd!'), 'polite');
-  };
-
-  const submitQuiz = () => {
-    // Correct answers match the neuroscienceQuiz pool indexes: [DAN, Dopamine, Time, PFC, GrayMatter, Flow]
-    const correctAnswers = [1, 1, 3, 2, 2, 1];
-    let score = 0;
-
-    correctAnswers.forEach((correct, index) => {
-      if (quizAnswers[index] === correct) {
-        score++;
-      }
-    });
-
-    setQuizScore(score);
-    setShowQuiz(false);
-
-    // Update progress for quiz completion
-    updateProgress('exercise', 5);
-
-    announceToScreenReader(t('recommendations.announce.quizScore', 'Du fick {{score}} av {{total}} rätt på quizet', { score, total: correctAnswers.length }), 'polite');
-  };
-
-
+  // Article reading functions are now provided by useArticleReading hook
 
   // nextKbtPhase is now provided by useKBTExercise hook
 
@@ -747,41 +498,14 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   }, [handleLoadJournalHistory, handleLoadMeditationHistory, user?.user_id]);
 
-  const categories = useMemo(() => ['all', ...Array.from(new Set(recommendations.map(r => r.category))).sort()], [recommendations]);
-  const hasActiveFilters = useMemo(() => searchTerm.trim().length > 0 || selectedCategory !== 'all' || sortBy !== 'rating', [searchTerm, selectedCategory, sortBy]);
-  const filteredRecommendations = useMemo(() => {
-    let filtered = [...recommendations];
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(rec =>
-        rec.title.toLowerCase().includes(searchLower) ||
-        rec.description.toLowerCase().includes(searchLower) ||
-        rec.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
-        rec.category.toLowerCase().includes(searchLower)
-      );
-    }
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(rec => rec.category === selectedCategory);
-    }
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'rating': return (b.rating || 0) - (a.rating || 0);
-        case 'duration': return (a.duration || 0) - (b.duration || 0);
-        case 'difficulty': {
-          const difficultyOrder: Record<string, number> = { beginner: 1, intermediate: 2, advanced: 3 };
-          return (difficultyOrder[a.difficulty] ?? 1) - (difficultyOrder[b.difficulty] ?? 1);
-        }
-        default: return 0;
-      }
-    });
-    return filtered;
-  }, [recommendations, searchTerm, selectedCategory, sortBy]);
-
-  const sortLabel = sortBy === 'rating'
-    ? t('recommendations.sort.rating', 'Betyg')
-    : sortBy === 'duration'
-      ? t('recommendations.sort.duration', 'Längd')
-      : t('recommendations.sort.difficulty', 'Svårighetsgrad');
+  // Recommendation filters hook
+  const {
+    searchTerm, setSearchTerm,
+    selectedCategory, setSelectedCategory,
+    sortBy, setSortBy,
+    categories, hasActiveFilters,
+    filteredRecommendations, sortLabel,
+  } = useRecommendationFilters(recommendations);
 
   const getRecommendationMatchReason = (recommendation: Recommendation): string | null => {
     const recommendationText = `${recommendation.title} ${recommendation.description} ${recommendation.tags.join(' ')} ${recommendation.category}`.toLowerCase();
@@ -808,38 +532,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     return matchedPreference ? t('recommendations.matchReason.preference', 'Matchar intresse: {{preference}}', { preference: matchedPreference }) : null;
   };
 
-  // Load user progress from localStorage
-  // Save user progress to localStorage
-  // (Duplicate declaration removed)
-
-  // Load user progress from localStorage
-  const loadUserProgress = useCallback(() => {
-    logger.debug('📊 LOAD USER PROGRESS called, user:', user?.user_id);
-    if (user?.user_id) {
-      const storageKey = `user_progress_${user.user_id}`;
-      logger.debug('📊 Loading from localStorage key:', storageKey);
-      const saved = localStorage.getItem(storageKey);
-      logger.debug('📊 Raw localStorage data:', saved);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          logger.debug('📊 Parsed user progress:', parsed);
-          setUserProgress(parsed);
-        } catch (error) {
-          logger.error('Failed to load user progress:', error);
-        }
-      } else {
-        logger.debug('📊 No saved progress found in localStorage');
-      }
-    } else {
-      logger.debug('📊 No user ID available for loading progress');
-    }
-  }, [user?.user_id]);
-
-  // Load progress on mount
-  useEffect(() => {
-    loadUserProgress();
-  }, [loadUserProgress]);
+  // User progress loading is now handled by useUserProgress hook
 
   // Prevent background scroll when content modal is open.
   useEffect(() => {
@@ -884,120 +577,7 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     }
   }, [location.state, recommendations, selectedRecommendation]);
 
-  const loadNotificationSettings = useCallback(async () => {
-    if (!user?.user_id) return;
-
-    try {
-      const settings = await getNotificationSettings();
-      setNotificationSettings({
-        dailyRemindersEnabled: settings.dailyRemindersEnabled || false,
-        reminderTime: settings.reminderTime || '09:00',
-        fcmToken: settings.hasFcmToken || false
-      });
-    } catch (error) {
-      logger.error('Failed to load notification settings:', error);
-      // Keep default settings
-    }
-  }, [user?.user_id]);
-
-  // Load notification settings on mount
-  useEffect(() => {
-    loadNotificationSettings();
-  }, [loadNotificationSettings]);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert(t('recommendations.notifications.browserNotSupported', 'Denna webbläsare stödjer inte push-notiser'));
-      return false;
-    }
-
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-
-    if (Notification.permission === 'denied') {
-      alert(t('recommendations.notifications.blocked', 'Du har blockerat notiser. Aktivera dem i webbläsarens inställningar för att använda denna funktion.'));
-      return false;
-    }
-
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-  };
-
-  const enableDailyReminders = async () => {
-    if (!user?.user_id) return;
-
-    setIsEnablingNotifications(true);
-    try {
-      // Request browser notification permission
-      const hasPermission = await requestNotificationPermission();
-      if (!hasPermission) {
-        setIsEnablingNotifications(false);
-        return;
-      }
-
-      // Attempt real FCM token registration via Firebase Messaging SDK (non-blocking)
-      initializeMessaging().then(() => {
-        setNotificationSettings(prev => ({ ...prev, fcmToken: true }));
-      }).catch(err => {
-        logger.warn('FCM token registration failed (non-fatal):', err);
-      });
-
-      // Enable daily reminders in backend regardless of FCM status
-      await updateNotificationSettings({
-        dailyRemindersEnabled: true,
-        reminderTime: notificationSettings.reminderTime
-      });
-
-      setNotificationSettings(prev => ({ ...prev, dailyRemindersEnabled: true }));
-
-      alert(t('recommendations.notifications.enabled', '✅ Dagliga påminnelser aktiverade!\n\nDu kommer få en vänlig påminnelse varje dag kl. {{time}} att ta hand om din mentala hälsa.', { time: notificationSettings.reminderTime }));
-      announceToScreenReader(t('recommendations.announce.remindersEnabled', 'Dagliga påminnelser har aktiverats'), 'polite');
-
-    } catch (error) {
-      logger.error('Failed to enable daily reminders:', error);
-      alert(t('recommendations.notifications.enableFailed', 'Kunde inte aktivera dagliga påminnelser. Försök igen.'));
-    } finally {
-      setIsEnablingNotifications(false);
-    }
-  };
-
-  const disableDailyReminders = async () => {
-    if (!user?.user_id) return;
-
-    try {
-      await updateNotificationSettings({
-        dailyRemindersEnabled: false,
-        reminderTime: notificationSettings.reminderTime
-      });
-
-      setNotificationSettings(prev => ({ ...prev, dailyRemindersEnabled: false }));
-      alert(t('recommendations.notifications.disabled', 'Dagliga påminnelser har inaktiverats.'));
-      announceToScreenReader(t('recommendations.announce.remindersDisabled', 'Dagliga påminnelser har inaktiverats'), 'polite');
-
-    } catch (error) {
-      logger.error('Failed to disable daily reminders:', error);
-      alert(t('recommendations.notifications.disableFailed', 'Kunde inte inaktivera dagliga påminnelser. Försök igen.'));
-    }
-  };
-
-  const updateReminderTime = async (newTime: string) => {
-    if (!user?.user_id) return;
-
-    try {
-      await updateNotificationSettings({
-        dailyRemindersEnabled: notificationSettings.dailyRemindersEnabled,
-        reminderTime: newTime
-      });
-
-      setNotificationSettings(prev => ({ ...prev, reminderTime: newTime }));
-      announceToScreenReader(t('recommendations.announce.reminderTimeUpdated', 'Påminnelsetid uppdaterad till {{time}}', { time: newTime }), 'polite');
-
-    } catch (error) {
-      logger.error('Failed to update reminder time:', error);
-      alert(t('recommendations.notifications.updateTimeFailed', 'Kunde inte uppdatera påminnelsetiden. Försök igen.'));
-    }
-  };
+  // Notification settings functions are now provided by useNotificationSettings hook
 
   // handleThoughtChange is now defined using the hook and a wrapper for crisis detection
 
@@ -1091,7 +671,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
         break;
     }
 
-    announceToScreenReader(t('recommendations.announce.actionPerformed', 'Action {{action}} performed on {{title}}', { action, title: recommendation.title }), 'polite');
   };
 
   const handleRecommendationFeedback = (recommendation: Recommendation, feedback: RecommendationFeedback) => {
@@ -1120,19 +699,35 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
     if (isPomodoroActive) {
       stopPomodoroTimer();
     }
-    if (articleReadingTimerRef.current) {
-      clearInterval(articleReadingTimerRef.current);
-      articleReadingTimerRef.current = null;
-    }
     setBreathingStressBefore(null);
     setBreathingStressAfter(null);
+
+    // Reset article/quiz state via hook
+    resetArticleState();
+
+    // Reset Pomodoro settings panel
+    setPomodoroSettingsOpen(false);
 
     setShowContentModal(false);
     setSelectedRecommendation(null);
   }, [
     isPomodoroActive,
     stopPomodoroTimer,
+    resetArticleState,
   ]);
+
+  useEffect(() => {
+    if (!showContentModal && !showCrisisAlert && !showNotificationSettings) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showContentModal) handleCloseContentModal();
+        else if (showCrisisAlert) setShowCrisisAlert(false);
+        else if (showNotificationSettings) setShowNotificationSettings(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showContentModal, showCrisisAlert, showNotificationSettings, handleCloseContentModal]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -1172,144 +767,15 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
   };
 
   // Compact mode for dashboard - just show featured recommendations
-  // Compact mode for dashboard - just show featured recommendations
   if (compact) {
     return (
-      <div className="space-y-4">
-        {/* Loading State - Compact */}
-        {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-            <div className="h-40 rounded-[2rem] bg-gray-100 dark:bg-gray-800" />
-            <div className="h-40 rounded-[2rem] bg-gray-100 dark:bg-gray-800" />
-          </div>
-        )}
-
-        {/* Error State - Compact */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-[2rem] p-6 text-center">
-            <p className="text-red-700 dark:text-red-300">{t('recommendations.error.loadFailedCompact', 'Kunde inte ladda rekommendationer')}</p>
-          </div>
-        )}
-
-        {/* Featured Recommendations - Compact */}
-        {!loading && !error && (
-          <>
-          {moodTrendData && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-              <span className="text-sm">✨</span>
-              {moodTrendData.trend === 'declining'
-                ? t('recommendations.personalized.lowMood', 'Anpassat efter ditt humör — fokus på lättnad idag')
-                : moodTrendData.trend === 'improving'
-                  ? t('recommendations.personalized.improving', 'Anpassat efter ditt humör — du mår bättre, dags för tillväxt')
-                  : t('recommendations.personalized.stable', 'Anpassat efter ditt humör och dina mål')}
-            </p>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {recommendations.slice(0, 3).map((rec, index) => (
-              <div
-                key={rec.id}
-                className={`group relative overflow-hidden rounded-xl p-3 transition-all duration-300 hover:scale-[1.02] border border-transparent ${
-                  (rec.categoryKey || '').includes('Stress') || (rec.categoryKey || '').includes('Avslappning') || (rec.categoryKey || '').includes('Ångest')
-                    ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/10'
-                    : (rec.categoryKey || '').includes('Sömn')
-                      ? 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/10'
-                      : 'bg-white hover:bg-gray-50 dark:bg-slate-800/50'
-                }`}
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="absolute top-0 right-0 p-2 opacity-10 text-4xl group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 pointer-events-none">
-                  {rec.image}
-                </div>
-
-                <div className="relative z-10">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-gray-400">
-                      {rec.category}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                      {rec.duration} min
-                    </span>
-                  </div>
-
-                  <h3 className="text-sm font-serif font-bold text-gray-900 dark:text-gray-100 mb-1 leading-tight truncate">
-                    {rec.title}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 line-clamp-2">
-                    {rec.description}
-                  </p>
-
-                  {/* Status indicator */}
-                  {(rec.completionRate !== undefined && rec.completionRate > 0 && rec.completionRate < 100) && (
-                    <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mb-3">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                      </span>
-                      <span className="font-medium">{t('recommendations.compact.inProgress', '⏸️ Påbörjad - {{rate}}%', { rate: rec.completionRate })}</span>
-                    </div>
-                  )}
-                  {rec.completed && (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 mb-3">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="font-medium">{t('recommendations.compact.completedToday', '✓ Klar idag')}</span>
-                      {rec.streak && rec.streak > 1 && (
-                        <span className="text-amber-600 dark:text-amber-400 ml-1">{t('recommendations.compact.streakDays', '🔥 {{count}} dagar', { count: rec.streak })}</span>
-                      )}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      if (compact) {
-                        navigate('/recommendations', { state: { autoOpenRecId: rec.id } });
-                      } else {
-                        setSelectedRecommendation(rec);
-                      }
-                    }}
-                    className="flex items-center gap-2 font-medium text-primary-600 dark:text-primary-400 hover:underline group-hover:translate-x-1 transition-transform"
-                    aria-label={
-                      compact
-                        ? t('recommendations.compact.ariaCta', '{{label}} i rekommendationer', { label: getCompactCtaLabel(rec.type) })
-                        : rec.type === 'meditation'
-                          ? t('recommendations.compact.startSession', 'Starta passet')
-                          : t('recommendations.compact.readMore', 'Läs mer')
-                    }
-                  >
-                    {compact
-                      ? (rec.completionRate !== undefined && rec.completionRate > 0 && rec.completionRate < 100)
-                        ? t('recommendations.compact.continueExercise', 'Fortsätt övningen →')
-                        : rec.completed
-                          ? t('recommendations.compact.doAgain', 'Gör igen →')
-                          : rec.type === 'meditation'
-                            ? t('recommendations.compact.doExercise', 'Gör övningen ({{duration}} min) →', { duration: rec.duration || 5 })
-                            : rec.type === 'exercise'
-                              ? t('recommendations.compact.startExercise', 'Starta övningen ({{duration}} min) →', { duration: rec.duration || 10 })
-                              : rec.type === 'article'
-                                ? t('recommendations.compact.readArticle', 'Läs artikeln ({{duration}} min) →', { duration: rec.duration || 3 })
-                                : t('recommendations.compact.explore', 'Utforska →')
-                      : rec.type === 'meditation'
-                        ? t('recommendations.compact.startSession', 'Starta passet')
-                        : t('recommendations.compact.readMore', 'Läs mer')}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          </>
-        )}
-
-        {/* Empty State - Compact */}
-        {!loading && !error && recommendations.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">🔍</div>
-            <p className="text-gray-500 dark:text-gray-400">
-              {t('recommendations.compact.empty', 'Inga rekommendationer just nu.')}
-            </p>
-          </div>
-        )}
-      </div>
+      <CompactRecommendations
+        loading={loading}
+        error={error}
+        recommendations={recommendations}
+        moodTrendData={moodTrendData}
+        getCompactCtaLabel={getCompactCtaLabel}
+      />
     );
   }
 
@@ -2833,23 +2299,6 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
                     </div>
                   )}
 
-                  {/* Article Completion Message */}
-                  {articleCompleted && !showQuiz && (
-                    <div className="text-center mt-6">
-                      <div className="text-6xl mb-4">🧠</div>
-                      <h4 className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        {t('recommendations.article.completedTitle', 'Artikeln Slutförd!')}
-                      </h4>
-                      <p className="text-gray-700 dark:text-gray-300 mb-4">
-                        {t('recommendations.article.completedBody', 'Du har läst artikeln om neurovetenskap och fokus på {{time}}.', { time: formatReadingTime(readingTime) })}
-                      </p>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          {t('recommendations.article.knowledgePower', '🧠 Kunskap ger kraft: Genom att förstå hur din hjärna fungerar kan du bättre optimera dina fokus-strategier och förbättra din produktivitet.')}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -3180,155 +2629,20 @@ const Recommendations: React.FC<RecommendationsProps> = React.memo(({ userId, we
 
       {/* Crisis Alert Modal */}
       {showCrisisAlert && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg max-w-md w-full p-6">
-            <div className="text-center">
-              <div className="text-4xl mb-4">🚨</div>
-              <h3 className="text-xl font-bold text-red-700 dark:text-red-300 mb-4">
-                {t('recommendations.crisis.title', 'Vi är oroliga för din säkerhet')}
-              </h3>
-              <p className="text-red-600 dark:text-red-400 mb-6 text-sm">
-                {t('recommendations.crisis.body', 'Det låter som att du kan behöva omedelbar hjälp. Du är inte ensam, och det finns människor som vill hjälpa dig.')}
-              </p>
-
-              <div className="space-y-3 mb-6">
-                <a
-                  href="tel:112"
-                  className="block w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  {t('recommendations.crisis.callEmergency', '🚨 Ring 112 (Akut)')}
-                </a>
-                <a
-                  href="tel:0900011200"
-                  className="block w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  {t('recommendations.crisis.suicideHotline', '📞 Självmordslinjen: 0900-011 200')}
-                </a>
-                <a
-                  href="tel:1177"
-                  className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  {t('recommendations.crisis.healthcare', '🏥 Vårdguiden: 1177')}
-                </a>
-              </div>
-
-              <p className="text-xs text-red-500 dark:text-red-400 mb-4">
-                {t('recommendations.crisis.footer', 'Om du är i omedelbar fara, ring 112 genast. Hjälplinjer är konfidentiella och tillgängliga dygnet runt.')}
-              </p>
-
-              <button
-                onClick={() => setShowCrisisAlert(false)}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-sm underline"
-              >
-                {t('recommendations.crisis.continue', 'Fortsätt med övningen (rekommenderas inte)')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CrisisAlertModal onClose={() => setShowCrisisAlert(false)} />
       )}
 
       {/* Daily Reminders Settings Modal */}
       {showNotificationSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-4">🔔</div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                {t('recommendations.notifications.title', 'Dagliga Påminnelser')}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
-                {t('recommendations.notifications.subtitle', 'Få vänliga dagliga påminnelser att ta hand om din mentala hälsa')}
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              {/* Current Status */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {t('recommendations.notifications.status', 'Status:')}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${notificationSettings.dailyRemindersEnabled
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                    : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
-                    } `}>
-                    {notificationSettings.dailyRemindersEnabled ? t('recommendations.notifications.enabled', 'Aktiverad') : t('recommendations.notifications.disabled', 'Inaktiverad')}
-                  </span>
-                </div>
-
-                {notificationSettings.dailyRemindersEnabled && (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('recommendations.notifications.time', '📅 Tid: {{time}}', { time: notificationSettings.reminderTime })}
-                    {notificationSettings.fcmToken && t('recommendations.notifications.ready', ' • ✅ Notiser redo')}
-                  </div>
-                )}
-              </div>
-
-              {/* Time Setting */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('recommendations.notifications.reminderTime', '🕐 Påminnelsetid')}
-                </label>
-                <input
-                  type="time"
-                  value={notificationSettings.reminderTime}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, reminderTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Information */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                  {t('recommendations.notifications.whatHappens', 'ℹ️ Vad händer när du aktiverar?')}
-                </h4>
-                <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>{t('recommendations.notifications.bullet1', '• Du får en vänlig påminnelse varje dag')}</li>
-                  <li>{t('recommendations.notifications.bullet2', '• Påminnelsen innehåller motivation och tips')}</li>
-                  <li>{t('recommendations.notifications.bullet3', '• Du kan ändra tiden eller stänga av när som helst')}</li>
-                  <li>{t('recommendations.notifications.bullet4', '• All data hanteras säkert och konfidentiellt')}</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              {!notificationSettings.dailyRemindersEnabled ? (
-                <button
-                  onClick={enableDailyReminders}
-                  disabled={isEnablingNotifications}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
-                >
-                  {isEnablingNotifications ? t('recommendations.notifications.enabling', '⏳ Aktiverar...') : t('recommendations.notifications.enableBtn', '✅ Aktivera Dagliga Påminnelser')}
-                </button>
-              ) : (
-                <button
-                  onClick={disableDailyReminders}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                >
-                  {t('recommendations.notifications.disableBtn', '❌ Inaktivera Påminnelser')}
-                </button>
-              )}
-
-              <button
-                onClick={() => setShowNotificationSettings(false)}
-                className="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                {t('recommendations.notifications.close', 'Stäng')}
-              </button>
-            </div>
-
-            {/* Save Time Button (only show if time changed and enabled) */}
-            {notificationSettings.dailyRemindersEnabled && (
-              <button
-                onClick={() => updateReminderTime(notificationSettings.reminderTime)}
-                className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
-              >
-                {t('recommendations.notifications.saveNewTime', '💾 Spara Ny Tid')}
-              </button>
-            )}
-          </div>
-        </div>
+        <NotificationSettingsModal
+          notificationSettings={notificationSettings}
+          isEnablingNotifications={isEnablingNotifications}
+          onEnable={enableDailyReminders}
+          onDisable={disableDailyReminders}
+          onUpdateReminderTime={updateReminderTime}
+          onTimeChange={(time) => setNotificationSettings(prev => ({ ...prev, reminderTime: time }))}
+          onClose={() => setShowNotificationSettings(false)}
+        />
       )}
 
       {/* Professional Disclaimer */}

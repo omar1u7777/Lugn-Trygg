@@ -135,7 +135,7 @@ class TestAuthRoutesOuterExceptions:
         ],
     )
     def test_missing_g_user_id(self, endpoint, args, method):
-        """g.user_id missing -> AttributeError -> outer except returns 500."""
+        """g.user_id missing -> g.get returns None -> 401 unauthorized."""
         view = getattr(auth_routes_module, endpoint)
         original = _unwrap(view)
         with self.app.test_request_context(
@@ -146,7 +146,7 @@ class TestAuthRoutesOuterExceptions:
         ):
             response = original(*args)
         status = response[1] if isinstance(response, tuple) else response.status_code
-        assert status == 500
+        assert status == 401
 
     def test_register_outer_exception(self):
         original = _unwrap(auth_routes_module.register_user)
@@ -334,11 +334,15 @@ class TestAuthRoutesRemainingBranches:
     def test_setup_2fa_outer_exception(self):
         """Lines 1167-1169: setup_2fa outer exception."""
         original = _unwrap(auth_routes_module.setup_2fa)
+        mock_db = MagicMock()
+        mock_db.collection.return_value.document.return_value.get.side_effect = Exception("db boom")
         with self.app.test_request_context(
             "/api/v1/auth/setup-2fa", method="POST",
             data=json.dumps({"method": "totp"}), content_type="application/json"
         ):
-            response = original()
+            g.user_id = TEST_USER_ID
+            with patch("src.firebase_config.db", mock_db):
+                response = original()
         status = response[1] if isinstance(response, tuple) else response.status_code
         assert status == 500
 
@@ -476,10 +480,20 @@ class TestAuthRoutesRemainingBranches:
     def test_delete_account_outer_exception(self):
         """Lines 1460-1462: delete_account outer exception."""
         original = _unwrap(auth_routes_module.delete_account)
+        mock_db = MagicMock()
+        mock_db.collection.return_value.document.return_value.update.side_effect = Exception("db boom")
+        mock_user = MagicMock()
+        mock_user.email = "t@t.com"
         with self.app.test_request_context(
-            "/api/v1/auth/delete-account/testuser1234567890ab", method="DELETE"
+            "/api/v1/auth/delete-account/testuser1234567890ab", method="DELETE",
+            data=json.dumps({"password": "testpass"}),
+            content_type="application/json"
         ):
-            response = original(TEST_USER_ID)
+            g.user_id = TEST_USER_ID
+            with patch("src.firebase_config.db", mock_db):
+                with patch("src.routes.auth_routes.AuthService.verify_user_identity", return_value=(mock_user, None)):
+                    with patch("src.routes.auth_routes._verify_current_password", return_value=True):
+                        response = original(TEST_USER_ID)
         status = response[1] if isinstance(response, tuple) else response.status_code
         assert status == 500
 

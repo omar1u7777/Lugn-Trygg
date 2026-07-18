@@ -26,9 +26,13 @@ interface ThemeProviderProps {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     // Check for saved theme preference
-    const savedTheme = localStorage.getItem('lugn-trygg-theme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
+    try {
+      const savedTheme = localStorage.getItem('lugn-trygg-theme');
+      if (savedTheme) {
+        return savedTheme === 'dark';
+      }
+    } catch {
+      // localStorage unavailable (private browsing, quota exceeded) — use default
     }
 
     // Default to light mode on first visit for consistent auth entry experience.
@@ -76,7 +80,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
 
     // Persist theme preference
-    localStorage.setItem('lugn-trygg-theme', isDarkMode ? 'dark' : 'light');
+    try {
+      localStorage.setItem('lugn-trygg-theme', isDarkMode ? 'dark' : 'light');
+    } catch {
+      // localStorage unavailable — theme preference won't persist locally
+    }
 
   }, [isDarkMode]);
 
@@ -86,7 +94,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       // Only auto-switch if user hasn't manually set a preference
-      const savedTheme = localStorage.getItem('lugn-trygg-theme');
+      let savedTheme: string | null = null;
+      try {
+        savedTheme = localStorage.getItem('lugn-trygg-theme');
+      } catch {
+        // localStorage unavailable — allow system theme change
+      }
       if (!savedTheme) {
         setIsDarkMode(e.matches);
       }

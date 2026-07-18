@@ -168,8 +168,11 @@ def _validate_session(
         return None, APIResponse.forbidden("Invalid session. Please rejoin the room.")
 
     presence_data = presence_doc.to_dict() or {}
-    if presence_data.get('user_id') != g.user_id:
-        logger.warning(f"⚠️ Session impersonation attempt: user {g.user_id[:8]} tried session {session_id[:8]}")
+    current_user_id = g.get('user_id')
+    if not current_user_id:
+        return None, APIResponse.unauthorized('Authentication required')
+    if presence_data.get('user_id') != current_user_id:
+        logger.warning(f"⚠️ Session impersonation attempt: user {current_user_id[:8]} tried session {session_id[:8]}")
         return None, APIResponse.forbidden("Session does not belong to you")
 
     if expected_room_id and presence_data.get('room_id') != expected_room_id:
@@ -231,7 +234,9 @@ def join_room(room_id: str):
         if room_id not in CHAT_ROOMS:
             return APIResponse.not_found("Room not found")
 
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Generate anonymous identity for this session
         anonymous_name = _generate_anonymous_name()

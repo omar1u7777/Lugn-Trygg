@@ -368,7 +368,7 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
         user_ref.update({
             'status': new_status,
             'status_updated_at': datetime.now(UTC),
-            'status_updated_by': g.user_id
+            'status_updated_by': g.get('user_id')
         })
 
         logger.info(
@@ -379,7 +379,7 @@ def update_user_status(user_id: str) -> Response | tuple[Response, int]:
         )
 
         # Audit log
-        audit_log('admin_update_user_status', g.user_id, {
+        audit_log('admin_update_user_status', g.get('user_id'), {
             'target_user_id': user_id,
             'new_status': new_status
         })
@@ -505,7 +505,7 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
             'status': 'resolved',
             'resolution': action,
             'resolution_notes': notes,
-            'resolved_by': g.user_id,
+            'resolved_by': g.get('user_id'),
             'resolved_at': datetime.now(UTC)
         })
 
@@ -527,7 +527,7 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
                     db_handle.collection('users').document(author_id).update({
                         'status': 'banned',
                         'banned_at': datetime.now(UTC),
-                        'banned_by': g.user_id
+                        'banned_by': g.get('user_id')
                     })
 
         logger.info(
@@ -537,7 +537,7 @@ def resolve_report(report_id: str) -> Response | tuple[Response, int]:
             action,
         )
 
-        audit_log('admin_resolve_report', g.user_id, {
+        audit_log('admin_resolve_report', g.get('user_id'), {
             'report_id': report_id,
             'action': action,
             'content_type': report_data.get('content_type'),

@@ -263,26 +263,21 @@ def get_user_rank(user_id: str):
         user_streak = user_data.get('current_streak', 0)
         user_moods = user_data.get('mood_count', 0)
 
-        # Calculate XP rank from user_rewards collection with compatibility for legacy total_xp records.
+        # Calculate XP rank using indexed where queries (avoids full collection scan)
         xp_rank = 1
-        for rewards_doc in db.collection('user_rewards').select(['xp', 'total_xp']).stream():
-            rewards_data_doc = rewards_doc.to_dict() or {}
-            candidate_xp = rewards_data_doc.get('xp', rewards_data_doc.get('total_xp', 0))
-            if candidate_xp > user_xp:
-                xp_rank += 1
+        xp_higher_query = db.collection('user_rewards').where(filter=FieldFilter('xp', '>', user_xp)).get()
+        xp_rank += len(list(xp_higher_query))
 
         # Calculate streak rank from users collection
-        streak_rank_query = db.collection('users').where(filter=FieldFilter('current_streak', '>', user_streak)).stream()
+        streak_rank_query = db.collection('users').where(filter=FieldFilter('current_streak', '>', user_streak)).get()
         streak_rank = len(list(streak_rank_query)) + 1
 
         # Calculate mood count rank from users collection
-        mood_rank_query = db.collection('users').where(filter=FieldFilter('mood_count', '>', user_moods)).stream()
+        mood_rank_query = db.collection('users').where(filter=FieldFilter('mood_count', '>', user_moods)).get()
         mood_rank = len(list(mood_rank_query)) + 1
 
-        # Get total user count for percentile
-        total_users_users = len(list(db.collection('users').select([]).stream()))
-        total_users_rewards = len(list(db.collection('user_rewards').select([]).stream()))
-        total_users = max(total_users_users, total_users_rewards, 1)
+        # Get total user count for percentile (use users collection only, avoid scanning both)
+        total_users = len(list(db.collection('users').limit(10000).get()))
 
         return APIResponse.success(
             data={

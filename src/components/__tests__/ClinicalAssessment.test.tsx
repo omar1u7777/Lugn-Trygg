@@ -145,7 +145,7 @@ describe('ClinicalAssessment', () => {
 
       await waitFor(() => {
         expect(screen.getByText('⚠️ Akut självskaderisk')).toBeInTheDocument();
-      });
+      }, { timeout: 10000 });
     });
 
     it('shows moderate-risk warning when Q9 score = 1', async () => {

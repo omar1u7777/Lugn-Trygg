@@ -142,7 +142,7 @@ def analyze_mood_text():
         if not text:
             return APIResponse.bad_request("Text is required")
 
-        user_id = g.user_id
+        user_id = g.get('user_id')
 
         # Analyze using Swedish BERT
         nlp = get_mood_nlp()
@@ -201,7 +201,7 @@ def get_advanced_forecast():
         return _fallback_forecast_endpoint()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         days = min(int(request.args.get('days', 7)), 14)
         include_patterns = request.args.get('include_patterns', 'false').lower() == 'true'
 
@@ -283,7 +283,7 @@ def _fallback_forecast_endpoint():
     try:
         from src.services.predictive_service import predictive_service
 
-        user_id = g.user_id
+        user_id = g.get('user_id')
         days = min(int(request.args.get('days', 7)), 14)
 
         mood_docs = db.collection('users').document(user_id)\
@@ -347,6 +347,8 @@ def assess_phq9():
             'risk_level': result.risk_level.value,
             'suicidal_ideation': result.suicidal_ideation_flag,
             'self_harm_score': result.self_harm_score,
+            'item_scores': result.item_scores,
+            'interpretation': result.interpretation,
             'follow_up_timeframe': result.follow_up_timeframe,
             'recommendations': result.recommendations
         }
@@ -421,6 +423,8 @@ def assess_gad7():
             'total_score': result.total_score,
             'severity': result.severity,
             'risk_level': result.risk_level.value,
+            'item_scores': result.item_scores,
+            'interpretation': result.interpretation,
             'follow_up_timeframe': result.follow_up_timeframe,
             'recommendations': result.recommendations
         }
@@ -500,7 +504,9 @@ def comprehensive_clinical_assessment():
         return APIResponse.error("Clinical assessment unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Get recent PHQ-9 and GAD-7
         assessments = db.collection('users').document(user_id)\
@@ -603,7 +609,7 @@ def get_smart_prompts():
         return APIResponse.error("Service unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         journaling = get_micro_journaling_service(user_id)
 
         prompts = journaling.get_smart_prompts(n=3)
@@ -637,7 +643,7 @@ def get_quick_log_options():
         return APIResponse.error("Service unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         journaling = get_micro_journaling_service(user_id)
 
         options = journaling.get_quick_log_options()
@@ -668,7 +674,7 @@ def suggest_tags():
         note = data.get('note', '')
         current_tags = data.get('current_tags', [])
 
-        user_id = g.user_id
+        user_id = g.get('user_id')
         journaling = get_micro_journaling_service(user_id)
 
         suggestions = journaling.suggest_tags(note, current_tags)
@@ -700,7 +706,7 @@ def get_streak_status():
         return APIResponse.error("Service unavailable", "SERVICE_UNAVAILABLE", 503)
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
         gamification = get_streak_gamification(user_id)
 
         streak = gamification.calculate_streak()

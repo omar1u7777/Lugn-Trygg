@@ -28,6 +28,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   const [currentMessage, setCurrentMessage] = useState<StreamingMessage | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   // CRITICAL FIX: Use ref to avoid dependency issues with useCallback
   // Initialize with defensive empty object to prevent TDZ errors in production builds
   const optionsRef = useRef<UseStreamingChatOptions>({});
@@ -37,6 +38,16 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
   useEffect(() => {
     optionsRef.current = options || {};
   }, [options]);
+
+  // BUG 4 FIX: Abort any in-flight stream when the component unmounts.
+  // Without this, closing the chat mid-stream leaves the fetch and the
+  // backend OpenAI call running — a resource leak at 10k-user scale.
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      readerRef.current?.cancel()?.catch(() => {});
+    };
+  }, []);
 
   const streamMessage = useCallback(async (
     userId: string,
@@ -63,6 +74,13 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
 
     let accumulatedContent = '';
     let crisisDetected = false;
+
+    // CRITICAL FIX: 90s timeout prevents indefinite hang when backend is slow
+    // to send the first byte (Firestore query, OpenAI API, network issues).
+    const streamTimeoutId = setTimeout(() => {
+      logger.warn('Streaming timed out after 90s, aborting');
+      abortControllerRef.current?.abort();
+    }, 90_000);
 
     try {
       // Get real auth token from tokenStorage (same as axios client)
@@ -116,6 +134,7 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No readable stream from server');
+      readerRef.current = reader;
 
       const decoder = new TextDecoder();
       let buffer = '';
@@ -142,7 +161,6 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
             );
             // Use ref to access latest options without dependency issues
             optionsRef.current.onComplete?.(accumulatedContent, crisisDetected);
-            setIsStreaming(false);
             return;
           }
 
@@ -175,6 +193,9 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         logger.info('Stream cancelled by user');
+        // BUG 6 FIX: Explicitly cancel the reader to free the underlying
+        // TCP connection immediately, rather than waiting for GC.
+        Promise.resolve(readerRef.current?.cancel()).catch(() => {});
         return;
       }
       const error = err instanceof Error ? err : new Error('Streaming failed');
@@ -182,7 +203,9 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
       optionsRef.current.onError?.(error);
       logger.error('Streaming error:', error);
     } finally {
+      clearTimeout(streamTimeoutId);
       setIsStreaming(false);
+      readerRef.current = null;
     }
     // CRITICAL FIX: Empty dependency array - options accessed via ref to prevent recreating callback
   }, []);
@@ -191,6 +214,8 @@ export const useStreamingChat = (options: UseStreamingChatOptions = {}) => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    // BUG 6 FIX: Cancel the reader to release the underlying connection
+    Promise.resolve(readerRef.current?.cancel()).catch(() => {});
     setIsStreaming(false);
     // Mark current message as complete so it stays visible
     setCurrentMessage(prev => prev ? { ...prev, isComplete: true } : null);

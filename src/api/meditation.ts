@@ -36,15 +36,16 @@ export const saveMeditationSession = async (sessionData: {
  * @returns Promise resolving to meditation sessions data
  * @throws Error if meditation sessions retrieval fails
  */
-export const getMeditationSessions = async (limit: number = 50) => {
+export const getMeditationSessions = async (limit: number = 50, signal?: AbortSignal) => {
   logger.debug('getMeditationSessions called', { limit });
   try {
-    const response = await api.get(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions?limit=${limit}`);
+    const response = await api.get(`${API_ENDPOINTS.USERS.MEDITATION_SESSIONS}/meditation-sessions?limit=${limit}`, signal ? { signal } : undefined);
     // Handle APIResponse wrapper: { success: true, data: { sessions: [...], stats: {...} }, message: "..." }
     const responseData = response.data?.data || response.data;
     logger.debug('Meditation sessions retrieved:', responseData.sessions?.length || 0);
     return responseData;
   } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return { sessions: [] };
     logger.error("Get meditation sessions error:", error);
     throw new Error(getApiErrorMessage(error, "Failed to get meditation sessions"));
   }

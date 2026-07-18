@@ -25,7 +25,7 @@
     "status": "Status",
     "offlineTitle": " Du är offline!",
     "offlineMessage": "Kontrollera din internetanslutning och försök igen.",
-    "retry": " Försök igen",
+    "retry": "Försök igen",
     "pageNotFound": " Sidan hittades inte!",
     "skipToContent": "Hoppa till huvudinnehåll",
     "skipToNavigation": "Hoppa till navigation",
@@ -1392,7 +1392,9 @@
     "subtitle": "Hitta lugnet, ett andetag i taget.",
     "description": "Här utforskar du hela biblioteket. För personliga förslag, gå till Rekommendationer.",
     "dailyRec": "Dagens Rekommendation",
-    "dailyRecSub": "Börja din morgon med klarhet",
+    "dailyRecSubMorning": "Börja din morgon med klarhet",
+    "dailyRecSubDay": "En kort paus för återhämtning",
+    "dailyRecSubEvening": "Varva ner för en god natt",
     "morningFocus": "Morgonfokus",
     "mindfulness": "Mindfulness",
     "breathingSessions": "Andningspass",
@@ -2071,6 +2073,16 @@
       "loading": "Beräknar kombinerad risk…",
       "error": "Kunde inte beräkna kombinerad risk"
     }
+  },
+  "insights": {
+    "loading": "Analyserar dina mönster…",
+    "noInsights": "Inga insikter just nu",
+    "noInsightsHint": "Logga ditt mående regelbundet så genereras personliga insikter efter hand.",
+    "generating": "Genererar...",
+    "generate": "Generera insikter",
+    "recommendation": "Rekommendation",
+    "retryLater": "Försök igen senare",
+    "error": "Kunde inte hämta insikter just nu. Försök igen."
   },
   "dailyInsights": {
     "minMoodsRequired": "Minst 3 mood-loggar behövs för att generera insikter.",

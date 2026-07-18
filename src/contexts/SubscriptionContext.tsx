@@ -159,7 +159,8 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Check and reset daily usage if needed
   const checkAndResetDailyUsage = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
-    const stored = localStorage.getItem(getUsageStorageKey(user?.user_id));
+    let stored: string | null = null;
+    try { stored = localStorage.getItem(getUsageStorageKey(user?.user_id)); } catch { /* localStorage unavailable */ }
     
     if (stored) {
       try {
@@ -171,7 +172,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       } catch (e) {
         logger.warn('Failed to parse usage data:', e);
         // Clear corrupted data
-        localStorage.removeItem(getUsageStorageKey(user?.user_id));
+        try { localStorage.removeItem(getUsageStorageKey(user?.user_id)); } catch { /* localStorage unavailable */ }
       }
     }
     
@@ -182,7 +183,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       lastResetDate: today || '',
     };
     setUsage(newUsage);
-    localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(newUsage));
+    try { localStorage.setItem(getUsageStorageKey(user?.user_id), JSON.stringify(newUsage)); } catch { /* localStorage unavailable */ }
   }, [user?.user_id]);
 
   // Fetch subscription status from backend
@@ -283,11 +284,11 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
       setUsage(latestUsage);
       
       // Cache the result
-      localStorage.setItem(getSubscriptionCacheKey(user?.user_id), JSON.stringify({
+      try { localStorage.setItem(getSubscriptionCacheKey(user?.user_id), JSON.stringify({
         plan: newPlan,
         usage: latestUsage,
         timestamp: Date.now(),
-      }));
+      })); } catch { /* localStorage unavailable */ }
 
     } catch (error) {
       logger.warn('Failed to fetch subscription status, defaulting to free:', error);
@@ -392,7 +393,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Manual refresh
   const refreshSubscription = useCallback(async () => {
     setLoading(true);
-    localStorage.removeItem(getSubscriptionCacheKey(user?.user_id));
+    try { localStorage.removeItem(getSubscriptionCacheKey(user?.user_id)); } catch { /* localStorage unavailable */ }
     await fetchSubscription();
   }, [fetchSubscription, user?.user_id]);
 

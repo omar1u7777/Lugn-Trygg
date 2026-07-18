@@ -230,7 +230,7 @@ export async function getPrivacySettings(userId?: string): Promise<PrivacySettin
       const data = result.data || result;
       const settings = data.settings || data;
       // Cache to localStorage
-      localStorage.setItem('privacy_settings', JSON.stringify(settings));
+      try { localStorage.setItem('privacy_settings', JSON.stringify(settings)); } catch { /* localStorage unavailable */ }
       return { ...DEFAULT_PRIVACY_SETTINGS, ...settings };
     } catch (error) {
       logger.warn('Failed to fetch privacy settings from backend, using local cache:', error);
@@ -238,7 +238,8 @@ export async function getPrivacySettings(userId?: string): Promise<PrivacySettin
   }
   
   // Fallback to localStorage
-  const stored = localStorage.getItem('privacy_settings');
+  let stored: string | null = null;
+  try { stored = localStorage.getItem('privacy_settings'); } catch { /* localStorage unavailable */ }
   if (stored) {
     try {
       return { ...DEFAULT_PRIVACY_SETTINGS, ...JSON.parse(stored) };
@@ -252,7 +253,7 @@ export async function getPrivacySettings(userId?: string): Promise<PrivacySettin
 // Save user's privacy settings
 export async function savePrivacySettings(settings: PrivacySettings, userId?: string): Promise<void> {
   // Save to localStorage immediately
-  localStorage.setItem('privacy_settings', JSON.stringify(settings));
+  try { localStorage.setItem('privacy_settings', JSON.stringify(settings)); } catch { /* localStorage unavailable */ }
   
   // If userId provided, sync to backend using centralized API client
   if (userId) {
@@ -304,14 +305,16 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     logger.debug('✅ Backend deletion completed:', result);
     
     // Clear local storage after successful backend deletion
-    const keysToKeep = ['theme', 'language'];
-    const allKeys = Object.keys(localStorage);
-    
-    allKeys.forEach((key) => {
-      if (!keysToKeep.includes(key)) {
-        localStorage.removeItem(key);
-      }
-    });
+    try {
+      const keysToKeep = ['theme', 'language'];
+      const allKeys = Object.keys(localStorage);
+      
+      allKeys.forEach((key) => {
+        if (!keysToKeep.includes(key)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch { /* localStorage unavailable */ }
     
     logger.debug(`✅ All data for user ${userId} has been permanently deleted`);
   } catch (error) {

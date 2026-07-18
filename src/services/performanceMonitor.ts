@@ -46,7 +46,12 @@ const PERFORMANCE_BUDGETS: PerformanceBudget[] = [
 const performanceObserver: PerformanceObserver | null = null;
 let navigationObserver: PerformanceObserver | null = null;
 let resourceObserver: PerformanceObserver | null = null;
-const interactionObserver: PerformanceObserver | null = null;
+let interactionObserver: PerformanceObserver | null = null;
+
+// Stored references for cleanup
+let memoryIntervalId: ReturnType<typeof setInterval> | null = null;
+let clickHandler: ((event: MouseEvent) => void) | null = null;
+let submitHandler: ((event: SubmitEvent) => void) | null = null;
 
 // Core Web Vitals tracking
 const trackCoreWebVitals = () => {
@@ -236,13 +241,19 @@ const updateResourceBudgets = (entry: PerformanceResourceTiming) => {
   });
 };
 
+// Stored references for cleanup
+let memoryIntervalId: ReturnType<typeof setInterval> | null = null;
+let clickHandler: ((event: MouseEvent) => void) | null = null;
+let submitHandler: ((event: SubmitEvent) => void) | null = null;
+let loadHandler: (() => void) | null = null;
+
 // User interaction tracking
 const trackUserInteractions = () => {
   if (!ENABLE_USER_TIMING) return;
 
   try {
     // Track click interactions
-    document.addEventListener('click', (event) => {
+    clickHandler = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       const startTime = performance.now();
 
@@ -256,16 +267,18 @@ const trackUserInteractions = () => {
           id: target.id,
         });
       });
-    });
+    };
+    document.addEventListener('click', clickHandler);
 
     // Track form interactions
-    document.addEventListener('submit', (event) => {
+    submitHandler = (event: SubmitEvent) => {
       const form = event.target as HTMLFormElement;
       analytics.business.userInteraction('form-submit', 0, {
         formId: form.id,
         formClass: form.className,
       });
-    });
+    };
+    document.addEventListener('submit', submitHandler);
 
   } catch (error) {
     logger.warn('User interaction tracking failed:', error);
@@ -278,7 +291,7 @@ const trackMemoryUsage = () => {
 
   try {
     // Track memory usage every 30 seconds
-    setInterval(() => {
+    memoryIntervalId = setInterval(() => {
       if ('memory' in performance) {
         const memory = (performance as Performance & { memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
 
@@ -374,7 +387,8 @@ export function initializePerformanceMonitoring() {
     if (document.readyState === 'complete') {
       trackInitialPageLoad();
     } else {
-      window.addEventListener('load', trackInitialPageLoad);
+      loadHandler = trackInitialPageLoad;
+      window.addEventListener('load', loadHandler);
     }
 
     logger.debug('✅ Performance monitoring initialized');
@@ -423,6 +437,22 @@ export function cleanupPerformanceMonitoring() {
     }
     if (interactionObserver) {
       interactionObserver.disconnect();
+    }
+    if (memoryIntervalId) {
+      clearInterval(memoryIntervalId);
+      memoryIntervalId = null;
+    }
+    if (clickHandler) {
+      document.removeEventListener('click', clickHandler);
+      clickHandler = null;
+    }
+    if (submitHandler) {
+      document.removeEventListener('submit', submitHandler);
+      submitHandler = null;
+    }
+    if (loadHandler) {
+      window.removeEventListener('load', loadHandler);
+      loadHandler = null;
     }
   } catch (error) {
     logger.warn('Performance monitoring cleanup failed:', error);

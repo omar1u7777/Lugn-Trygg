@@ -270,6 +270,11 @@ const clearLocalAuthState = () => {
   } catch (storageError) {
     logger.warn('Failed to clear local auth state after refresh failure', { storageError });
   }
+  // Notify AuthContext to clear its React state and redirect to /login.
+  // Without this, the UI shows logged-in but all API calls silently fail.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth:force-logout'));
+  }
 };
 
 const refreshAccessTokenWithCookie = async (): Promise<string | null> => {

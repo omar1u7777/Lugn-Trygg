@@ -57,7 +57,9 @@ def grant_bulk_consents():
     }
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
 
         # Map frontend consent names to backend consent types
@@ -131,7 +133,9 @@ def get_user_consents():
     GET /api/consent
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         consents = consent_service.get_user_consents(user_id)
 
         if 'error' in consents:
@@ -155,7 +159,9 @@ def grant_consent(consent_type: str):
     Body: { "version": "1.0" } (optional)
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json(silent=True) or {}
         version = data.get('version', '1.0')
 
@@ -195,7 +201,9 @@ def withdraw_consent(consent_type: str):
     DELETE /api/consent/<consent_type>
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Map frontend consent type to backend if needed
         backend_type = CONSENT_TYPE_MAPPING.get(consent_type, consent_type)
@@ -232,7 +240,9 @@ def validate_feature_access(feature: str):
     GET /api/consent/validate/<feature>
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         validation = consent_service.validate_feature_access(user_id, feature)
 
         logger.info("🔍 Feature access validation for %s: %s", feature, validation.get('access_granted', False))
@@ -253,7 +263,9 @@ def check_consent(consent_type: str):
     GET /api/consent/check/<consent_type>
     """
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Map frontend consent type to backend if needed
         backend_type = CONSENT_TYPE_MAPPING.get(consent_type, consent_type)

@@ -89,6 +89,7 @@ class TherapeuticInsight:
     cognitive_distortion: str | None = None  # If detected
     behavioral_target: str | None = None  # What to increase
     values_alignment: str | None = None  # ACT values
+    status: str = 'pending'  # pending, dismissed, action_taken
 
 
 class DailyInsightGeneratorV2:
@@ -211,11 +212,10 @@ class DailyInsightGeneratorV2:
         try:
             from google.cloud.firestore import FieldFilter
             today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-            # Filter by user_id AND status='pending' to reduce query size
+            # Query by user_id only (single-field, no composite index needed)
+            # Check ALL statuses (incl dismissed/action_taken) to prevent regeneration loop
             query = db.collection('insights').where(
                 filter=FieldFilter('user_id', '==', user_id)
-            ).where(
-                filter=FieldFilter('status', '==', 'pending')
             ).limit(10)
             today_insights = []
             for doc in query.stream():
@@ -241,12 +241,24 @@ class DailyInsightGeneratorV2:
             return []
 
     def _dict_to_insight(self, data: dict) -> TherapeuticInsight:
-        """Convert a Firestore dict back to TherapeuticInsight."""
+        """Convert a Firestore dict back to TherapeuticInsight.
+        Safely handles invalid/legacy enum values from Firestore.
+        """
+        # Safely parse enums — fall back to defaults if value is invalid/legacy
+        try:
+            insight_type = InsightType(data.get('insight_type', 'opportunity'))
+        except ValueError:
+            insight_type = InsightType.OPPORTUNITY
+        try:
+            domain = TherapeuticDomain(data.get('domain', 'behavioral_activation'))
+        except ValueError:
+            domain = TherapeuticDomain.BEHAVIORAL_ACTIVATION
+
         return TherapeuticInsight(
             insight_id=data.get('insight_id', ''),
             user_id=data.get('user_id', ''),
-            insight_type=InsightType(data.get('insight_type', 'opportunity')),
-            domain=TherapeuticDomain(data.get('domain', 'behavioral_activation')),
+            insight_type=insight_type,
+            domain=domain,
             title=data.get('title', ''),
             message=data.get('message', ''),
             recommendation=data.get('recommendation', ''),
@@ -257,6 +269,7 @@ class DailyInsightGeneratorV2:
             created_at=data.get('created_at'),
             values_alignment=data.get('values_alignment'),
             behavioral_target=data.get('behavioral_target'),
+            status=data.get('status', 'pending'),
         )
 
     def generate_insights(self, user_id: str) -> list[TherapeuticInsight]:
@@ -273,7 +286,9 @@ class DailyInsightGeneratorV2:
         existing = self._already_generated_today(user_id)
         if existing:
             logger.info(f"Returning {len(existing)} existing insights for {user_id} (already generated today)")
-            return self._prioritize_insights(existing)
+            # Only return pending insights — dismissed/action_taken are excluded from display
+            pending_existing = [i for i in existing if i.status == 'pending']
+            return self._prioritize_insights(pending_existing)
 
         insights = []
 
@@ -327,7 +342,7 @@ class DailyInsightGeneratorV2:
             # show a positive encouragement insight to keep them engaged
             if len(insights) == 0 and len(memories) >= self.min_memories:
                 keep_logging_insight = TherapeuticInsight(
-                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_keep_logging",
+                    insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_keep_logging",
                     user_id=user_id,
                     insight_type=InsightType.MILESTONE,
                     domain=TherapeuticDomain.BEHAVIORAL_ACTIVATION,
@@ -338,7 +353,7 @@ class DailyInsightGeneratorV2:
                     urgency='low',
                     suggested_action='Logga mående nu',
                     related_memories=[],
-                    created_at=datetime.now()
+                    created_at=datetime.now(UTC)
                 )
                 insights.append(keep_logging_insight)
 
@@ -422,7 +437,7 @@ class DailyInsightGeneratorV2:
                 template = self.TEMPLATES['declining_trend']
 
                 return TherapeuticInsight(
-                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_trend",
+                    insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_trend",
                     user_id=user_id,
                     insight_type=InsightType.DECLINE_PATTERN,
                     domain=template['domain'],
@@ -503,7 +518,7 @@ class DailyInsightGeneratorV2:
                     )
 
                     insights.append(TherapeuticInsight(
-                        insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_nature",
+                        insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_nature",
                         user_id=user_id,
                         insight_type=InsightType.OPPORTUNITY,
                         domain=template['domain'],
@@ -614,7 +629,7 @@ class DailyInsightGeneratorV2:
                 days_since_social = self.analysis_window
 
             return TherapeuticInsight(
-                insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_social",
+                insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_social",
                 user_id=user_id,
                 insight_type=InsightType.SOCIAL_ISOLATION,
                 domain=template['domain'],
@@ -668,7 +683,7 @@ class DailyInsightGeneratorV2:
                 if morning_avg < evening_avg - 1.5:  # Morning dip
                     template = self.TEMPLATES['circadian_mood_pattern']
                     return TherapeuticInsight(
-                        insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_circadian",
+                        insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_circadian",
                         user_id=user_id,
                         insight_type=InsightType.CIRCADIAN_MISMATCH,
                         domain=template['domain'],
@@ -719,7 +734,7 @@ class DailyInsightGeneratorV2:
                 template = self.TEMPLATES['contrast_mind_body']
 
                 return TherapeuticInsight(
-                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_contrast",
+                    insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_contrast",
                     user_id=user_id,
                     insight_type=InsightType.CONTRAST_DETECTED,
                     domain=template['domain'],
@@ -765,7 +780,7 @@ class DailyInsightGeneratorV2:
                 event_type = self._categorize_activity(strongest) or 'positiv händelse'
 
                 insights.append(TherapeuticInsight(
-                    insight_id=f"{user_id}_{datetime.now().strftime('%Y%m%d')}_savoring",
+                    insight_id=f"{user_id}_{datetime.now(UTC).strftime('%Y%m%d')}_savoring",
                     user_id=user_id,
                     insight_type=InsightType.MILESTONE,
                     domain=template['domain'],
@@ -820,9 +835,10 @@ class DailyInsightGeneratorV2:
             cutoff = datetime.now(UTC) - timedelta(days=days)
             cutoff_iso = cutoff.isoformat()
 
-            # Fetch all moods ordered by timestamp DESC (no where filter = no index needed)
+            # Fetch recent moods ordered by timestamp DESC (no where filter = no index needed)
+            # Limit to 100 to cap fetch size — 14-day window × ~7 logs/day = ~98 max
             mood_ref = db.collection('users').document(user_id).collection('moods')
-            query = mood_ref.order_by('timestamp', direction='DESCENDING')
+            query = mood_ref.order_by('timestamp', direction='DESCENDING').limit(100)
 
             memories = []
             for doc in query.stream():
@@ -860,9 +876,10 @@ class DailyInsightGeneratorV2:
             from google.cloud.firestore import FieldFilter
 
             # Query by user_id only (single-field, no composite index needed)
+            # Limit to 50 to cap fetch — dismissed/old insights are filtered in Python
             simple_query = db.collection('insights').where(
                 filter=FieldFilter('user_id', '==', user_id)
-            )
+            ).limit(50)
 
             cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
             insights = []
@@ -929,7 +946,7 @@ class DailyInsightGeneratorV2:
         #5: Checks Firestore for existing onboarding insight today to avoid duplicates.
         """
         # Check if onboarding insight already exists for today
-        today_str = datetime.now().strftime('%Y%m%d')
+        today_str = datetime.now(UTC).strftime('%Y%m%d')
         expected_id = f"{user_id}_onboarding_{today_str}"
         try:
             existing = db.collection('insights').document(expected_id).get()
@@ -962,12 +979,22 @@ class DailyInsightGeneratorV2:
             urgency="low",
             suggested_action="Logga mående nu",
             related_memories=[],
-            created_at=datetime.now(),
+            created_at=datetime.now(UTC),
         )
 
     def _save_insight(self, insight: TherapeuticInsight):
-        """Save to Firestore."""
+        """Save to Firestore. Preserves dismissed/action_taken status on re-save."""
         try:
+            doc_ref = db.collection('insights').document(insight.insight_id)
+
+            # Check if already exists with a non-pending status — don't overwrite user actions
+            existing = doc_ref.get()
+            if existing.exists:
+                existing_status = existing.to_dict().get('status', 'pending')
+                if existing_status in ('dismissed', 'action_taken'):
+                    logger.info(f"Skipping re-save of {existing_status} insight {insight.insight_id}")
+                    return
+
             doc_data = {
                 'insight_id': insight.insight_id,
                 'user_id': insight.user_id,
@@ -982,7 +1009,7 @@ class DailyInsightGeneratorV2:
                 'related_memories': insight.related_memories,
                 'values_alignment': insight.values_alignment,
                 'behavioral_target': insight.behavioral_target,
-                'created_at': insight.created_at or datetime.now(),
+                'created_at': insight.created_at or datetime.now(UTC),
                 'status': 'pending',
                 'notification_sent': False,
                 'version': '2.0'
@@ -998,7 +1025,7 @@ class DailyInsightGeneratorV2:
         try:
             db.collection('insights').document(insight_id).update({
                 'notification_sent': True,
-                'sent_at': datetime.now()
+                'sent_at': datetime.now(UTC)
             })
             return True
         except Exception as e:
