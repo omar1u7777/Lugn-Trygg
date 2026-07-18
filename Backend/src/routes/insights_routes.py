@@ -3,7 +3,7 @@ Daily Insights Routes - API for proactive therapeutic insights
 """
 
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from flask import Blueprint, g, request
 

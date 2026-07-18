@@ -434,6 +434,7 @@ def escalate_async_stream(alert):
     """Background crisis escalation for the streaming endpoint (fire-and-forget)."""
     import asyncio
     import time as _time
+
     from src.services.crisis_escalation import get_crisis_escalation_service
 
     MAX_RETRIES = 3
@@ -638,7 +639,7 @@ def chat_stream():
                     # them — a critical patient safety gap in a mental health app.
                     if crisis_detected:
                         try:
-                            from src.services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+                            from src.services.crisis_escalation import CrisisAlert
                             from src.services.crisis_intervention import crisis_intervention_service
 
                             assessment = crisis_intervention_service.assess_text_crisis_risk(
