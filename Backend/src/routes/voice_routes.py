@@ -744,8 +744,8 @@ def get_voice_recordings():
         for doc in recordings:
             data = doc.to_dict()
             data['id'] = doc.id
-            if 'created_at' in data and hasattr(data['created_at'], 'seconds'):
-                data['created_at'] = data['created_at'].seconds
+            if 'created_at' in data and hasattr(data['created_at'], 'isoformat'):
+                data['created_at'] = data['created_at'].isoformat()
             recordings_list.append(data)
 
         logger.info(f"Retrieved {len(recordings_list)} voice recordings for user {user_id}")

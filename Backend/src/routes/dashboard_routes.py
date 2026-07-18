@@ -203,9 +203,12 @@ def get_dashboard_summary(user_id: str):
             return APIResponse.bad_request('Invalid user ID format')
 
         # Verify user owns this data
-        if g.user_id != user_id:
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
+        if current_user_id != user_id:
             logger.warning("❌ Dashboard - Unauthorized access attempt")
-            audit_log('unauthorized_dashboard_access', g.user_id, {
+            audit_log('unauthorized_dashboard_access', current_user_id, {
                 'attempted_user_id': user_id,
                 'endpoint': 'summary'
             })
@@ -645,8 +648,11 @@ def get_quick_stats(user_id: str):
             return APIResponse.bad_request('Invalid user ID format')
 
         # Verify user owns this data
-        if g.user_id != user_id:
-            audit_log('unauthorized_dashboard_access', g.user_id, {
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
+        if current_user_id != user_id:
+            audit_log('unauthorized_dashboard_access', current_user_id, {
                 'attempted_user_id': user_id,
                 'endpoint': 'quick-stats'
             })
@@ -731,7 +737,7 @@ def get_dashboard_legacy():
         return APIResponse.bad_request('User context missing')
 
     # Reuse the rich summary endpoint with the authenticated user id
-    return get_dashboard_summary(g.user_id)
+    return get_dashboard_summary(g.get('user_id'))
 
 
 @dashboard_bp.route('/stats', methods=['GET', 'OPTIONS'])
@@ -745,6 +751,6 @@ def get_dashboard_legacy_stats():
     if not getattr(g, 'user_id', None):
         return APIResponse.bad_request('User context missing')
 
-    return get_quick_stats(g.user_id)
+    return get_quick_stats(g.get('user_id'))
 
 

@@ -38,7 +38,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
                     setDay(parsed.currentDay || 1);
                     if (parsed.startDate) setStartDate(new Date(parsed.startDate));
                     setIsActive(true);
-                    localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(remoteData));
+                    try { localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(remoteData)); } catch { /* localStorage unavailable */ }
                     logger.debug('☁️ Loaded gratitude challenge from backend:', remoteData);
                     return;
                 }
@@ -47,7 +47,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
             }
 
             try {
-                const saved = localStorage.getItem(`gratitude_challenge_${user.user_id}`);
+                const saved = (() => { try { return localStorage.getItem(`gratitude_challenge_${user.user_id}`); } catch { return null; } })();
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     setEntries(parsed.entries || {});
@@ -72,7 +72,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
 
         // Re-load to ensure sync if restarting? Original did this.
         if (user?.user_id) {
-            const saved = localStorage.getItem(`gratitude_challenge_${user.user_id}`);
+            const saved = (() => { try { return localStorage.getItem(`gratitude_challenge_${user.user_id}`); } catch { return null; } })();
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -108,7 +108,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
             };
 
             if (user?.user_id) {
-                localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(challengeData));
+                try { localStorage.setItem(`gratitude_challenge_${user.user_id}`, JSON.stringify(challengeData)); } catch { /* localStorage unavailable */ }
                 api.post(API_ENDPOINTS.USERS.GRATITUDE, challengeData).catch(err => {
                     logger.warn('Could not sync gratitude entry to backend:', err);
                 });
@@ -130,7 +130,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
     const complete = useCallback(() => {
         logger.debug('🎉 Gratitude challenge completed!');
         if (user?.user_id) {
-            localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
+            try { localStorage.removeItem(`gratitude_challenge_${user.user_id}`); } catch { /* localStorage unavailable */ }
             api.post(API_ENDPOINTS.USERS.GRATITUDE, { completed: true, currentDay: 8 }).catch(err => {
                 logger.warn('Could not sync gratitude completion to backend:', err);
             });
@@ -146,7 +146,7 @@ export const useGratitude = ({ user, onProgress, announce }: UseGratitudeOptions
     const cancel = useCallback(() => {
         logger.debug('❌ Gratitude challenge cancelled');
         if (user?.user_id) {
-            localStorage.removeItem(`gratitude_challenge_${user.user_id}`);
+            try { localStorage.removeItem(`gratitude_challenge_${user.user_id}`); } catch { /* localStorage unavailable */ }
             api.delete(API_ENDPOINTS.USERS.GRATITUDE).catch(err => {
                 logger.warn('Could not clear gratitude data from backend:', err);
             });

@@ -6,6 +6,8 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tokenStorage } from '../utils/secureStorage';
+import { saveMeditationSession } from '../api/api';
+import { logger } from '../utils/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +116,8 @@ export const AIMusicGenerator: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const playbackStartRef = useRef<Date | null>(null);
+  const trackRef = useRef<GeneratedTrack | null>(null);
 
   // — AI Recommendation
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
@@ -147,6 +151,25 @@ export const AIMusicGenerator: React.FC = () => {
 
   // ── Audio events ──────────────────────────────────────────────────────────
 
+  // Keep ref in sync for unmount cleanup
+  trackRef.current = track;
+
+  const savePlaybackSession = useCallback(() => {
+    if (!playbackStartRef.current || !trackRef.current) return;
+    const elapsedMs = new Date().getTime() - playbackStartRef.current.getTime();
+    const elapsedMinutes = Math.round(elapsedMs / 1000 / 60);
+    if (elapsedMinutes < 1) return;
+    const t = trackRef.current;
+    saveMeditationSession({
+      type: 'soundscape',
+      duration: elapsedMinutes,
+      technique: `AI Music - ${t.type}`,
+      completedCycles: 1,
+      notes: 'AI-generated soundscape session'
+    }).catch(e => logger.error('Failed to save AI music session:', e));
+    playbackStartRef.current = null;
+  }, []);
+
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
@@ -169,8 +192,10 @@ export const AIMusicGenerator: React.FC = () => {
       el.removeEventListener('ended', onEnded);
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
+      savePlaybackSession();
+      el.pause();
     };
-  }, []);
+  }, [savePlaybackSession]);
 
   // Revoke old blob URLs to prevent memory leaks
   useEffect(() => {
@@ -299,10 +324,12 @@ export const AIMusicGenerator: React.FC = () => {
     if (!el) return;
     if (isPlaying) {
       el.pause();
+      savePlaybackSession();
     } else {
       await el.play();
+      if (!playbackStartRef.current) playbackStartRef.current = new Date();
     }
-  }, [isPlaying]);
+  }, [isPlaying, savePlaybackSession]);
 
   const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const el = audioRef.current;

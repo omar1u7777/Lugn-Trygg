@@ -251,7 +251,7 @@ class TestPendingInsightsRetrieval:
         mock_query = Mock()
         mock_query.stream.return_value = [pending_doc, dismissed_doc]
         mock_collection = Mock()
-        mock_collection.where.return_value = mock_query
+        mock_collection.where.return_value.limit.return_value = mock_query
         mock_db.collection.return_value = mock_collection
 
         result = gen.get_pending_insights('u1')
@@ -266,7 +266,7 @@ class TestPendingInsightsRetrieval:
         mock_query = Mock()
         mock_query.stream.return_value = []
         mock_collection = Mock()
-        mock_collection.where.return_value = mock_query
+        mock_collection.where.return_value.limit.return_value = mock_query
         mock_db.collection.return_value = mock_collection
 
         result = gen.get_pending_insights('u1')
@@ -292,7 +292,7 @@ class TestPendingInsightsRetrieval:
         mock_query = Mock()
         mock_query.stream.return_value = [doc_old, doc_new]
         mock_collection = Mock()
-        mock_collection.where.return_value = mock_query
+        mock_collection.where.return_value.limit.return_value = mock_query
         mock_db.collection.return_value = mock_collection
 
         result = gen.get_pending_insights('u1')

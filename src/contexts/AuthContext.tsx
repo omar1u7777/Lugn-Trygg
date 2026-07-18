@@ -199,7 +199,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [navigate]);
 
-  // 📦 Optimera prestanda genom att memo-isera autentiseringskontexten
+  // � Lyssna på force-logout från API-interceptor när token-refresh misslyckas
+  useEffect(() => {
+    const handleForceLogout = () => {
+      setTokenState(null);
+      setUserState(null);
+      tokenStorage.clearTokens();
+      navigate('/login');
+    };
+    window.addEventListener('auth:force-logout', handleForceLogout);
+    return () => window.removeEventListener('auth:force-logout', handleForceLogout);
+  }, [navigate]);
+
+  // �📦 Optimera prestanda genom att memo-isera autentiseringskontexten
   const value = useMemo<AuthContextProps>(
     () => ({ 
       user, 

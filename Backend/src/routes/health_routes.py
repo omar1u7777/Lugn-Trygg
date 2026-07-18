@@ -274,7 +274,9 @@ def advanced_health_check():
         return _preflight_response()
 
     # Check if user is admin
-    user_id = g.user_id
+    user_id = g.get('user_id')
+    if not user_id:
+        return APIResponse.unauthorized('Authentication required')
     try:
         user_doc = db.collection("users").document(user_id).get()
         if user_doc.exists:

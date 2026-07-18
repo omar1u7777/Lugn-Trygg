@@ -281,7 +281,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
   const { canSendMessage, incrementChatMessage, getRemainingMessages, plan, isPremium } = useSubscription();
 
   // Streaming hook - onComplete adds the completed AI message to messages state
-  const { isStreaming, currentMessage, streamMessage, clearStreamingMessage } = useStreamingChat({
+  const { isStreaming, currentMessage, streamMessage, stopStreaming, clearStreamingMessage } = useStreamingChat({
     onComplete: (fullMessage, crisisDetected) => {
       if (fullMessage.trim()) {
         const aiMsg: ChatMessage = {
@@ -296,6 +296,10 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
         clearDashboardCache();
       }
       clearStreamingMessage();
+      // FIX: Increment here instead of after await streamMessage() in handleSendMessage
+      // so the client-side counter only advances when the stream actually completes,
+      // not when it's aborted by a new message.
+      incrementChatMessage();
       announceToScreenReader(t('aiChat.newResponse'), 'polite');
     },
     onError: (error) => {
@@ -549,9 +553,8 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
 
     try {
       // Use real SSE streaming against /chatbot/chat/stream
+      // onComplete callback handles adding message to state + cache + incrementChatMessage
       await streamMessage(user.user_id, userMsg.content, messages);
-      // onComplete callback handles adding message to state + cache
-      incrementChatMessage();
     } catch (error: unknown) {
       if ((error instanceof Error && error.message === 'Daily limit reached') || 
           (error as { response?: { status?: number } })?.response?.status === 429) {
@@ -565,7 +568,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
     } finally {
       if (isMountedRef.current) setIsTyping(false);
     }
-  }, [isListening, transcript, inputMessage, user, canSendMore, t, stopListening, clearTranscript, addToCache, isOnline, streamMessage, messages, incrementChatMessage, isMountedRef]);
+  }, [isListening, transcript, inputMessage, user, canSendMore, t, stopListening, clearTranscript, addToCache, isOnline, streamMessage, messages, isMountedRef]);
 
   const quickSuggestions = [
     { text: t('aiChat.suggestions.stressed'), icon: <HeartIcon className="w-4 h-4" /> },
@@ -616,8 +619,9 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             )}
             <button
               onClick={() => {
-                // Cancel any in-progress speech and trigger a background session summary.
-                // Both are fire-and-forget so the close animation isn't blocked.
+                // BUG 5 FIX: Stop any in-flight stream before closing to prevent
+                // backend/OpenAI resources from lingering after the UI is gone.
+                stopStreaming();
                 try { stopSpeaking(); } catch { /* ignore */ }
                 void closeChatSession();
                 onClose();
@@ -823,7 +827,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
               placeholder={isListening ? t('aiChat.listening') : !isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
               aria-label={!isOnline ? t('aiChat.offlinePlaceholder') : t('aiChat.inputPlaceholder')}
-              disabled={!canSendMore || (isTyping && !isStreaming)}
+              disabled={!canSendMore || isTyping || isStreaming}
               readOnly={isListening}
               className="w-full pl-4 sm:pl-6 pr-12 sm:pr-14 py-2.5 sm:py-4 bg-white dark:bg-slate-800 border-0 rounded-[1.5rem] sm:rounded-[2rem] shadow-lg ring-1 ring-gray-100 dark:ring-gray-700 focus:ring-2 focus:ring-teal-500/50 transition-all resize-none text-sm sm:text-base text-gray-700 dark:text-gray-200 placeholder-gray-400 min-h-[2.75rem] sm:min-h-[3.5rem] max-h-24 sm:max-h-32 disabled:opacity-60"
             />
@@ -831,7 +835,7 @@ const WorldClassAIChat: React.FC<WorldClassAIChatProps> = ({ onClose }) => {
             <div className="absolute right-1.5 sm:right-2 bottom-1.5 sm:bottom-2">
               <button
                 onClick={handleSendMessage}
-                disabled={(!inputMessage.trim() && !transcript) || !canSendMore || (isTyping && !isStreaming)}
+                disabled={(!inputMessage.trim() && !transcript) || !canSendMore || isTyping || isStreaming}
                 aria-label={t('aiChat.send')}
                 className={`p-2 sm:p-3 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50 ${
                   !isOnline

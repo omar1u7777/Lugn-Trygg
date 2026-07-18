@@ -73,6 +73,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionStates, setActionStates] = useState<Record<string, 'idle' | 'loading' | 'done'>>({});
   const timeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
   const isMounted = useRef(true);
@@ -94,6 +95,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
     setLoading(true);
     setError(null);
+    setActionError(null);
     try {
       // Try pending insights first (already generated, no cost)
       let pending = await getPendingInsights(userId, controller.signal);
@@ -125,14 +127,14 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
       }
       logger.error('Failed to load insights:', err);
       setRetryCount(c => c + 1);
-      setError('Kunde inte hämta insikter just nu. Försök igen.');
+      setError(t('insights.error'));
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);
         setGenerating(false);
       }
     }
-  }, [userId]);
+  }, [userId, t]);
 
   useEffect(() => {
     loadInsights();
@@ -154,11 +156,14 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
     if (!userId) return;
     setActionStates(s => ({ ...s, [insightId]: 'loading' }));
     try {
-      await dismissInsight(insightId);
+      await dismissInsight(insightId, abortControllerRef.current?.signal);
       setInsights(prev => prev.filter(i => i.insight_id !== insightId));
       trackEvent('insight_dismissed', { userId, insightId });
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      logger.error('Failed to dismiss insight:', err);
       setActionStates(s => ({ ...s, [insightId]: 'idle' }));
+      setActionError(t('insights.error'));
     }
   };
 
@@ -166,7 +171,7 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
     if (!userId) return;
     setActionStates(s => ({ ...s, [insightId]: 'loading' }));
     try {
-      await markInsightActionTaken(insightId, action);
+      await markInsightActionTaken(insightId, action, abortControllerRef.current?.signal);
       setActionStates(s => ({ ...s, [insightId]: 'done' }));
       trackEvent('insight_action_taken', { userId, insightId, action });
 
@@ -185,8 +190,11 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
         delete timeoutRef.current[insightId];
       }, 1200);
       timeoutRef.current[insightId] = timeoutId;
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      logger.error('Failed to record insight action:', err);
       setActionStates(s => ({ ...s, [insightId]: 'idle' }));
+      setActionError(t('insights.error'));
     }
   };
 
@@ -256,6 +264,18 @@ export const DailyInsights: React.FC<DailyInsightsProps> = ({ userId }) => {
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-800 px-4 py-2 flex items-center justify-between">
+          <p className="text-xs text-rose-700 dark:text-rose-300">{actionError}</p>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-rose-400 hover:text-rose-600 text-sm"
+            aria-label={t('dailyInsights.close')}
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       <AnimatePresence mode="popLayout">
         {insights.map((insight, index) => {
           const urgency = insight.urgency ?? 'low';

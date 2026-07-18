@@ -300,6 +300,17 @@ def login_user(validated_data):
             logger.error(f"Failed to fetch/update user data during login: {str(db_error)}")
             return APIResponse.error("Inloggning misslyckades - databasfel", "INTERNAL_ERROR", 500)
 
+        # Normalize created_at to ISO string (Firestore may return a Timestamp object)
+        created_at_raw = user_data.get('created_at')
+        created_at_iso = None
+        if created_at_raw:
+            if isinstance(created_at_raw, str):
+                created_at_iso = created_at_raw
+            elif hasattr(created_at_raw, 'isoformat'):
+                created_at_iso = created_at_raw.isoformat()
+            else:
+                logger.warning(f"Unknown type for created_at in login: {type(created_at_raw)}")
+
         response_data = {
             'accessToken': access_token,
             'userId': user.uid,
@@ -308,7 +319,7 @@ def login_user(validated_data):
                 'user_id': user.uid,
                 'email': user.email,
                 'name': user_data.get('name', 'Okänd'),
-                'createdAt': user_data.get('created_at'),
+                'createdAt': created_at_iso,
                 'twoFactorEnabled': user_data.get('two_factor_enabled', False),
                 'biometricEnabled': user_data.get('biometric_enabled', False)
             }
@@ -342,7 +353,9 @@ def verify_2fa():
 
     try:
         from ..firebase_config import db
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
 
         if not data:
@@ -425,7 +438,9 @@ def setup_2fa_biometric():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
 
         if not data:
@@ -646,6 +661,17 @@ def google_login(validated_data=None):
 
         audit_log('google_login_successful', user_id, {'email': _mask_email(email)})
 
+        # Normalize created_at to ISO string (Firestore may return a Timestamp object)
+        google_created_raw = user_data.get('created_at')
+        google_created_iso = None
+        if google_created_raw:
+            if isinstance(google_created_raw, str):
+                google_created_iso = google_created_raw
+            elif hasattr(google_created_raw, 'isoformat'):
+                google_created_iso = google_created_raw.isoformat()
+            else:
+                logger.warning(f"Unknown type for created_at in google login: {type(google_created_raw)}")
+
         response_data = {
             'accessToken': access_token,
             'userId': user_id,
@@ -654,7 +680,7 @@ def google_login(validated_data=None):
                 'user_id': user_id,
                 'email': email,
                 'name': name,
-                'createdAt': user_data.get('created_at'),
+                'createdAt': google_created_iso,
                 'loginMethod': 'google'
             }
         }
@@ -677,7 +703,9 @@ def logout():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         refresh_token_cookie = request.cookies.get(REFRESH_COOKIE_NAME)
 
         # Remove refresh token from database
@@ -818,7 +846,9 @@ def update_consent(validated_data):
     if request.method == 'OPTIONS':
         return _preflight_response()
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         consent_data = {
             'analytics_consent': getattr(validated_data, 'analytics_consent', False),
@@ -871,7 +901,9 @@ def get_consent(user_id):
         if not USER_ID_PATTERN.match(user_id):
             return APIResponse.bad_request('Invalid user ID format')
 
-        current_user_id = g.user_id
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Users can only view their own consent
         if current_user_id != user_id:
@@ -960,7 +992,9 @@ def change_email():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
 
         if not data:
@@ -1046,7 +1080,9 @@ def change_password(validated_data):
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         current_password = validated_data.current_password
         new_password = validated_data.new_password
@@ -1096,7 +1132,9 @@ def setup_2fa():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
 
         if not data:
@@ -1191,7 +1229,9 @@ def verify_2fa_setup():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
 
         if not data:
@@ -1281,7 +1321,9 @@ def export_user_data():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         try:
             from ..firebase_config import db
@@ -1385,7 +1427,9 @@ def delete_account(user_id):
         if not USER_ID_PATTERN.match(user_id):
             return APIResponse.bad_request('Invalid user ID format')
 
-        current_user_id = g.user_id
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Users can only delete their own account
         if current_user_id != user_id:

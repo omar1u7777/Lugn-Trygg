@@ -385,7 +385,14 @@ def log_mood() -> Response | tuple[Response, int]:
         sentiment_analysis = None
         text_to_analyze = note or mood_text
         if text_to_analyze and text_to_analyze.strip():
-            sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(text_to_analyze)
+            try:
+                sentiment_analysis = _get_ai_services_module().ai_services.analyze_sentiment(text_to_analyze)
+                if not isinstance(sentiment_analysis, dict):
+                    logger.warning(f"Sentiment analysis returned non-dict: {type(sentiment_analysis)}")
+                    sentiment_analysis = None
+            except Exception as sent_err:
+                logger.warning(f"Sentiment analysis failed (non-blocking): {sent_err}")
+                sentiment_analysis = None
 
         # Analyze voice if provided
         voice_analysis = None
@@ -549,6 +556,9 @@ def log_mood() -> Response | tuple[Response, int]:
 
             # doc_ref is a tuple in some Firestore versions, get the document reference
             doc_id = doc_ref[1].id if isinstance(doc_ref, tuple) else doc_ref.id
+            # Ensure doc_id is JSON-serializable (guard against unexpected Firestore return types)
+            if not isinstance(doc_id, str):
+                doc_id = str(doc_id) if doc_id is not None else None
             logger.info(f"✅ Mood entry saved to database with ID: {doc_id}")
             mood_entry['id'] = doc_id
 

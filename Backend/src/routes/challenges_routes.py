@@ -373,7 +373,9 @@ def get_challenge(challenge_id: str):
 def join_challenge(challenge_id: str):
     """Join a challenge"""
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
         username = data.get('username', 'Anonymous')
         username = input_sanitizer.sanitize(username, content_type='text', max_length=80) or 'Anonymous'
@@ -495,7 +497,9 @@ def join_challenge(challenge_id: str):
 def leave_challenge(challenge_id: str):
     """Leave a challenge"""
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         _cleanup_expired_challenges()
 
@@ -552,7 +556,9 @@ def leave_challenge(challenge_id: str):
 def contribute_to_challenge(challenge_id: str):
     """Add contribution to a challenge (called when user logs mood, meditates, etc.)"""
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
         data = request.get_json() or {}
         contribution_type = (data.get('type') or 'mood').strip().lower()
         amount = data.get('amount', 1)
@@ -676,7 +682,10 @@ def get_user_challenges(user_id: str):
         return APIResponse.success({'status': 'ok'})
     try:
         # Users can only see their own challenges
-        if g.user_id != user_id:
+        current_user_id = g.get('user_id')
+        if not current_user_id:
+            return APIResponse.unauthorized('Authentication required')
+        if current_user_id != user_id:
             return APIResponse.forbidden('Unauthorized')
 
         _cleanup_expired_challenges()

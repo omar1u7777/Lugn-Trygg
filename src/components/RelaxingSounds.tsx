@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 import {
   getAudioLibrary,
+  saveMeditationSession,
   type AudioTrack,
   type AudioLibrary
 } from "../api/api";
@@ -48,6 +49,8 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   const [audioError, setAudioError] = useState<string | null>(null);
   const [audioLoadingFallback, setAudioLoadingFallback] = useState(false);
   const [usingFallbackAudio, setUsingFallbackAudio] = useState(false);
+  const playbackStartRef = useRef<Date | null>(null);
+  const selectedTrackRef = useRef<AudioTrack | null>(null);
 
   // Sleep timer state
   const [timerRemaining, setTimerRemaining] = useState<number>(0);
@@ -131,6 +134,25 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
     return () => clearTimerInterval();
   }, [timerRemaining, clearTimerInterval, restoreVolume]);
 
+  // Keep ref in sync for unmount cleanup
+  selectedTrackRef.current = selectedTrack;
+
+  const savePlaybackSession = useCallback(() => {
+    if (!playbackStartRef.current || !selectedTrackRef.current) return;
+    const elapsedMs = new Date().getTime() - playbackStartRef.current.getTime();
+    const elapsedMinutes = Math.round(elapsedMs / 1000 / 60);
+    if (elapsedMinutes < 1) return;
+    const track = selectedTrackRef.current;
+    saveMeditationSession({
+      type: 'soundscape',
+      duration: elapsedMinutes,
+      technique: track.title || track.titleEn || 'Ambient sound',
+      completedCycles: 1,
+      notes: 'Relaxing sounds session'
+    }).catch(e => logger.error('Failed to save relaxing sounds session:', e));
+    playbackStartRef.current = null;
+  }, []);
+
   // Fetch audio library from backend
   const fetchAudioLibrary = useCallback(async () => {
     setLoading(true);
@@ -163,8 +185,9 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         fallbackUrlRef.current = null;
       }
       clearTimerInterval();
+      savePlaybackSession();
     };
-  }, [fetchAudioLibrary, clearTimerInterval]);
+  }, [fetchAudioLibrary, clearTimerInterval, savePlaybackSession]);
 
   const currentCategory = audioLibrary[selectedCategory];
   const currentPlaylist = useMemo(() => currentCategory?.tracks || [], [currentCategory]);
@@ -289,6 +312,8 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
   }, [isPlaying, selectedTrack, t]);
 
   const selectTrack = (track: AudioTrack, index: number) => {
+    savePlaybackSession();
+    playbackStartRef.current = new Date();
     setSelectedTrack(track);
     setCurrentTrackIndex(index);
     setAudioError(null);
@@ -304,8 +329,10 @@ const RelaxingSounds: React.FC<RelaxingSoundsProps> = ({ onClose, embedded = fal
         audioRef.current.pause();
         setIsPlaying(false);
         cancelTimer(); // Stop sleep timer when user manually pauses
+        savePlaybackSession();
       } else {
         await audioRef.current.play();
+        if (!playbackStartRef.current) playbackStartRef.current = new Date();
         setIsPlaying(true);
       }
     } catch (err) {

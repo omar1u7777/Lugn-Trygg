@@ -3,7 +3,7 @@ Daily Insights Routes - API for proactive therapeutic insights
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 
 from flask import Blueprint, g, request
 
@@ -53,8 +53,8 @@ def generate_insights(user_id: str):
                     'related_memories': i.related_memories,
                     'values_alignment': i.values_alignment,
                     'behavioral_target': i.behavioral_target,
-                    'created_at': (i.created_at or datetime.now()).isoformat(),
-                    'status': 'pending',
+                    'created_at': (i.created_at or datetime.now(UTC)).isoformat(),
+                    'status': i.status,
                 }
                 for i in insights
             ]
@@ -115,7 +115,7 @@ def dismiss_insight(insight_id: str):
         # Update status
         db.collection('insights').document(insight_id).update({
             'status': 'dismissed',
-            'dismissed_at': datetime.now()
+            'dismissed_at': datetime.now(UTC)
         })
 
         return APIResponse.success(message="Insight dismissed")
@@ -146,7 +146,7 @@ def insight_action_taken(insight_id: str):
         db.collection('insights').document(insight_id).update({
             'status': 'action_taken',
             'action_taken': action_taken,
-            'action_taken_at': datetime.now()
+            'action_taken_at': datetime.now(UTC)
         })
 
         # Also log for analytics

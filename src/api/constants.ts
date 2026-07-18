@@ -228,8 +228,8 @@ export const API_ENDPOINTS = {
     GENERATE: '/api/v1/ai-music/generate',
     /** GET stream generated track - append /{trackId} */
     STREAM: '/api/v1/ai-music/stream',
-    /** GET adaptive recommendation */
-    RECOMMENDATION: '/api/v1/ai-music/recommendation',
+    /** POST adaptive recommendation */
+    RECOMMENDATION: '/api/v1/ai-music/adaptive-recommendation',
     /** GET adaptive soundscape by mood - append /{mood} */
     ADAPTIVE: '/api/v1/ai-music/adaptive',
     /** GET brainwave frequency info */

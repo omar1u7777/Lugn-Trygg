@@ -288,8 +288,12 @@ export const tokenStorage = {
 
 // Clean up legacy persisted tokens from previous versions.
 if (typeof window !== 'undefined') {
-  localStorage.removeItem('secure_token');
-  localStorage.removeItem('secure_refresh_token');
+  try {
+    localStorage.removeItem('secure_token');
+    localStorage.removeItem('secure_refresh_token');
+  } catch {
+    // localStorage may be unavailable in some test environments
+  }
 }
 
 /**

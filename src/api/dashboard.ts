@@ -166,10 +166,10 @@ export const getDashboardQuickStats = async (userId: string): Promise<QuickStats
  * @returns Promise resolving to wellness goals array
  * @throws Error if wellness goals retrieval fails
  */
-export const getWellnessGoals = async () => {
+export const getWellnessGoals = async (signal?: AbortSignal) => {
   logger.debug('getWellnessGoals called');
   try {
-    const response = await api.get(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`);
+    const response = await api.get(`${API_ENDPOINTS.USERS.WELLNESS_GOALS}/wellness-goals`, signal ? { signal } : undefined);
     // Handle APIResponse wrapper: { success: true, data: { wellnessGoals: [...] }, message: "..." }
     const responseData = response.data?.data || response.data;
     const goals = responseData.wellnessGoals ?? [];
@@ -180,6 +180,7 @@ export const getWellnessGoals = async () => {
     logger.debug('Wellness goals retrieved:', goals);
     return goals;
   } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return [];
     const apiError = error as Record<string, unknown>;
     logger.error('Get wellness goals error:', apiError);
     return [];

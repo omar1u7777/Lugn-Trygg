@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, Input, Snackbar } from './ui/tailwind';
 import { useTranslation } from 'react-i18next';
@@ -56,11 +56,32 @@ interface ProfileStats {
 
 const ProfileHub: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const { plan, isPremium, isTrial, usage, getRemainingMoodLogs, getRemainingMessages } = useSubscription();
   const [activeTab, setActiveTab] = useState(0);
-  
+
+  // Snackbar state (moved up to stabilize callbacks for useDebouncedSave)
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    variant: 'info' as 'success' | 'error' | 'warning' | 'info'
+  });
+
+  const showSnackbar = useCallback((message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setSnackbar({ open: true, message, variant });
+  }, []);
+
+  // Stabilized callbacks for debounced save (prevents infinite re-fetch loop)
+  const handleSaveSettings = useCallback(async (settings: Record<string, unknown>) => {
+    await updateUserPreferences(settings);
+    showSnackbar(t('profileHub.settingsSaved', 'Inställningar sparade'), 'success');
+  }, [showSnackbar, t]);
+
+  const handleSaveError = useCallback((error: Error) => {
+    showSnackbar(getApiErrorMessage(error, 'Kunde inte spara inställningar'), 'error');
+  }, [showSnackbar]);
+
   // DEBOUNCED: Use debounced save for settings
   const settingsManager = useDebouncedSave(
     {
@@ -70,17 +91,12 @@ const ProfileHub: React.FC = () => {
       publicProfile: false,
     },
     {
-      onSave: async (settings) => {
-        await updateUserPreferences(settings);
-        showSnackbar(t('profileHub.settingsSaved', 'Inställningar sparade'), 'success');
-      },
+      onSave: handleSaveSettings,
       delay: 1000,
-      onError: (error) => {
-        showSnackbar(getApiErrorMessage(error, 'Kunde inte spara inställningar'), 'error');
-      }
+      onError: handleSaveError,
     }
   );
-  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges } = settingsManager;
+  const { data: settings, updateData: updateSettings, isSaving: isSavingSettings, hasUnsavedChanges, cancelSave } = settingsManager;
   const [profileStats, setProfileStats] = useState<ProfileStats>({
     totalMoods: 0,
     totalConversations: 0,
@@ -112,13 +128,6 @@ const ProfileHub: React.FC = () => {
   // Loading and error states
   const [modalLoading, setModalLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  // Snackbar state
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    variant: 'info' as 'success' | 'error' | 'warning' | 'info'
-  });
 
   // 2FA setup data
   const [twoFactorSetup, setTwoFactorSetup] = useState<{
@@ -155,6 +164,7 @@ const ProfileHub: React.FC = () => {
             ...(typeof profile.preferences === 'object' ? profile.preferences : {}),
           };
           updateSettings(loadedSettings);
+          cancelSave();
         }
 
         // Use aggregated stats from backend
@@ -189,7 +199,7 @@ const ProfileHub: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [updateSettings, user?.createdAt, user?.user_id]);
+  }, [updateSettings, user?.createdAt, user?.user_id, cancelSave]);
 
   const _handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     logger.debug('👤 PROFILE HUB - Tab changed', { newTab: newValue });
@@ -203,9 +213,6 @@ const ProfileHub: React.FC = () => {
   };
 
   // Modal handlers
-  const showSnackbar = (message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
-    setSnackbar({ open: true, message, variant });
-  };
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -247,8 +254,10 @@ const ProfileHub: React.FC = () => {
       showSnackbar('E-postadressen uppdaterad!', 'success');
       setChangeEmailModal(false);
       setChangeEmailForm({ newEmail: '', password: '' });
-      // Refresh user data if needed
-      window.location.reload();
+      // Update user in context instead of full page reload
+      if (user) {
+        setUser({ ...user, email: newEmail });
+      }
     } catch (error: unknown) {
       showSnackbar(getApiErrorMessage(error, 'Kunde inte ändra e-post'), 'error');
     } finally {

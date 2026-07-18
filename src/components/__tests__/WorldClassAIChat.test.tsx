@@ -76,7 +76,7 @@ const defaultSub = {
   getRemainingMessages: () => 10, plan: { tier: 'free', limits: { chatMessagesPerDay: 20 } },
   isPremium: false,
 };
-const defaultStream = { isStreaming: false, currentMessage: null, streamMessage: vi.fn().mockResolvedValue(undefined), clearStreamingMessage: vi.fn() };
+const defaultStream = { isStreaming: false, currentMessage: null, streamMessage: vi.fn().mockResolvedValue(undefined), clearStreamingMessage: vi.fn(), stopStreaming: vi.fn() };
 const defaultVoice = { isListening: false, isSupported: false, startListening: vi.fn(), stopListening: vi.fn(), transcript: '', clearTranscript: vi.fn() };
 
 function setupMocks(o: { user?: unknown; streaming?: Partial<typeof defaultStream>; voice?: Partial<typeof defaultVoice>; subscription?: Partial<typeof defaultSub>; chatHistory?: unknown } = {}) {
@@ -165,6 +165,39 @@ describe('WorldClassAIChat', () => {
       fireEvent.change(ta, { target: { value: 'Test' } });
       await act(async () => { fireEvent.keyDown(ta, { key: 'Enter', shiftKey: false }); });
       await waitFor(() => expect(streamMessage).toHaveBeenCalled());
+    });
+    it('disables send button and textarea during streaming', async () => {
+      // BUG 2 regression: input must be disabled during isStreaming, not just isTyping
+      const streamMessage = vi.fn().mockResolvedValue(undefined);
+      setupMocks({ streaming: { isStreaming: true, streamMessage } });
+      renderChat();
+      await waitFor(() => expect(screen.getByPlaceholderText('Skriv ditt meddelande...')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: 'Skicka' })).toBeDisabled();
+      expect(screen.getByPlaceholderText('Skriv ditt meddelande...')).toBeDisabled();
+    });
+    it('calls incrementChatMessage on onComplete, not on send', async () => {
+      // BUG 3 regression: incrementChatMessage should be called by onComplete callback,
+      // not after streamMessage resolves in handleSendMessage
+      const incrementChatMessage = vi.fn();
+      let onCompleteCb: ((msg: string, crisis: boolean) => void) | null = null;
+      // setupMocks first (sets mockReturnValue), then override with mockImplementation
+      setupMocks({ subscription: { ...defaultSub, incrementChatMessage } });
+      // Capture the onComplete callback from the options passed to useStreamingChat
+      useStreamingChatMock.mockImplementation((opts: { onComplete?: (m: string, c: boolean) => void }) => {
+        onCompleteCb = opts.onComplete ?? null;
+        return { ...defaultStream, streamMessage: vi.fn().mockResolvedValue(undefined) };
+      });
+      renderChat();
+      await waitFor(() => expect(screen.getByPlaceholderText('Skriv ditt meddelande...')).toBeInTheDocument());
+      fireEvent.change(screen.getByPlaceholderText('Skriv ditt meddelande...'), { target: { value: 'Test' } });
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Skicka' })); });
+      // incrementChatMessage should NOT be called yet (stream not complete)
+      expect(incrementChatMessage).not.toHaveBeenCalled();
+      // Simulate stream completion
+      await act(async () => { onCompleteCb?.('AI response', false); });
+      expect(incrementChatMessage).toHaveBeenCalledTimes(1);
+      // Reset mock implementation for subsequent tests
+      useStreamingChatMock.mockReturnValue(defaultStream);
     });
     it('clicking suggestion fills input', async () => {
       renderChat();

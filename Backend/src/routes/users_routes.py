@@ -141,10 +141,11 @@ def get_user_profile():
         user_doc = user_ref.get()
         user_data = user_doc.to_dict() if getattr(user_doc, 'exists', False) else {}
 
+        email = user_data.get('email', '')
         profile = {
             "userId": user_id,
-            "displayName": user_data.get('displayName', 'Test User'),
-            "email": user_data.get('email', 'test@example.com'),
+            "displayName": user_data.get('displayName') or user_data.get('name') or (email.split('@')[0] if email else 'Användare'),
+            "email": email,
             "language": user_data.get('language', 'sv'),
             "timezone": user_data.get('timezone', 'Europe/Stockholm'),
             "preferences": user_data.get('preferences', {}),

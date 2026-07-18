@@ -172,7 +172,9 @@ def list_feedback():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Check if user is admin
         user_doc = db.collection("users").document(user_id).get()
@@ -228,7 +230,9 @@ def feedback_stats():
         return _preflight_response()
 
     try:
-        user_id = g.user_id
+        user_id = g.get('user_id')
+        if not user_id:
+            return APIResponse.unauthorized('Authentication required')
 
         # Check if user is admin
         user_doc = db.collection("users").document(user_id).get()
@@ -288,7 +292,7 @@ def get_user_feedback():
 
     try:
         # SECURITY: Get user_id from JWT token, not from query params
-        user_id = g.user_id
+        user_id = g.get('user_id')
 
         if not user_id:
             return APIResponse.unauthorized('Authentication required')

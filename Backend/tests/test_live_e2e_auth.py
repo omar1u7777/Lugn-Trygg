@@ -24,6 +24,10 @@ import requests
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
+# Skip all live e2e tests unless explicitly opted in via LIVE_E2E_BASE_URL
+_RUN_LIVE = bool(os.getenv("LIVE_E2E_BASE_URL"))
+pytestmark = pytest.mark.skipif(not _RUN_LIVE, reason="Set LIVE_E2E_BASE_URL to run live e2e tests")
+
 BASE_URL = os.getenv("LIVE_E2E_BASE_URL", "https://lugn-trygg-backend.onrender.com")
 TEST_EMAIL = os.getenv("LIVE_E2E_TEST_EMAIL", f"e2e-auth-test-{uuid.uuid4().hex[:8]}@lugntrygg.se")
 TEST_PASSWORD = os.getenv("LIVE_E2E_TEST_PASSWORD", "E2eTest123!Secure")

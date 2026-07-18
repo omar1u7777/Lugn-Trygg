@@ -25,7 +25,7 @@
     "status": "Status",
     "offlineTitle": " Du er offline!",
     "offlineMessage": "Sjekk internettforbindelsen din og prøv igjen.",
-    "retry": " Prøv igjen",
+    "retry": "Prøv igjen",
     "pageNotFound": " Siden ble ikke funnet!",
     "skipToContent": "Hopp til hovedinnhold",
     "skipToNavigation": "Hopp til navigasjon",
@@ -1394,7 +1394,9 @@
     "subtitle": "Finn roen, ett åndedrag om gangen.",
     "description": "Her utforsker du hele biblioteket. For personlige forslag, gå til Anbefalinger.",
     "dailyRec": "Dagens anbefaling",
-    "dailyRecSub": "Start morgenen din med klarhet",
+    "dailyRecSubMorning": "Start morgenen din med klarhet",
+    "dailyRecSubDay": "En kort pause for å hente seg",
+    "dailyRecSubEvening": "Slapp av for en god natt",
     "morningFocus": "Morgenfokus",
     "mindfulness": "Mindfulness",
     "breathingSessions": "Pusteøkter",
@@ -2016,6 +2018,16 @@
       "loading": "Beregner kombinert risiko…",
       "error": "Kunne ikke beregne kombinert risiko"
     }
+  },
+  "insights": {
+    "loading": "Analyserer mønstrene dine…",
+    "noInsights": "Ingen innsikt akkurat nå",
+    "noInsightsHint": "Logg humøret ditt regelmessig for å generere personlig innsikt over tid.",
+    "generating": "Genererer...",
+    "generate": "Generer innsikt",
+    "recommendation": "Anbefaling",
+    "retryLater": "Prøv igjen senere",
+    "error": "Kunne ikke hente innsikt akkurat nå. Prøv igjen."
   },
   "dailyInsights": {
     "minMoodsRequired": "Minst 3 humørlogger trengs for å generere innsikt.",
