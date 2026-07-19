@@ -15,6 +15,7 @@ export type User = {
   updatedAt?: Date | string | undefined;  // 🔹 Senaste uppdatering - kan vara undefined
   avatarUrl?: string;         // 🔹 (Valfritt) Profilbilds-URL
   isActive?: boolean;         // 🔹 Aktivt konto (default: true)
+  twoFactorEnabled?: boolean; // 🔹 Tvåfaktorsautentisering aktiverad
   lastLogin?: Date | string | undefined;  // 🔹 Senaste inloggning - kan vara undefined
   streak?: number;            // 🔹 (Valfritt) Antal dagar i följd
   goals?: string[];           // 🔹 (Valfritt) Användarens mål

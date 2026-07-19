@@ -342,6 +342,9 @@ const ProfileHub: React.FC = () => {
       setEnable2FAModal(false);
       setTwoFactorForm({ code: '' });
       setTwoFactorSetup(null);
+      if (user) {
+        setUser({ ...user, twoFactorEnabled: true });
+      }
     } catch (error: unknown) {
       showSnackbar(getApiErrorMessage(error, 'Kunde inte verifiera 2FA'), 'error');
     } finally {
@@ -601,9 +604,13 @@ const ProfileHub: React.FC = () => {
                       variant="primary"
                       className="bg-warning-600 hover:bg-warning-700"
                       onClick={handleEnable2FA}
-                      disabled={modalLoading}
+                      disabled={modalLoading || user?.twoFactorEnabled}
                     >
-                      {modalLoading ? t('profileHub.configuring') : t('profileHub.enable2FA')}
+                      {user?.twoFactorEnabled
+                        ? t('profileHub.2faEnabled', '2FA aktiverat')
+                        : modalLoading
+                          ? t('profileHub.configuring')
+                          : t('profileHub.enable2FA')}
                     </Button>
                   </div>
                 </Card>
