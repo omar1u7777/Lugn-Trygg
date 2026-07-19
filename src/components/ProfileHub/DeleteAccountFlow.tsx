@@ -94,6 +94,7 @@ const DeleteAccountFlow: React.FC<DeleteAccountFlowProps> = ({
       // Schedule deletion with cooling period (password re-authenticates the user)
       await onDelete(password);
       setPassword('');
+      setIsDeleting(false);
       setHasScheduled(true);
       setStep('cooldown');
       logger.info('🗑️ DELETE ACCOUNT - Deletion scheduled with cooling period');
