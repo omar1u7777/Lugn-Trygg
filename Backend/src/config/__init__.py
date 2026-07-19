@@ -83,6 +83,8 @@ COOKIE_SECURE = not DEBUG
 # Cross-site frontend/backend setup (Vercel -> Render) requires SameSite=None in HTTPS production.
 COOKIE_SAMESITE = "None" if COOKIE_SECURE else "Lax"
 
+_is_production = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
+
 _JWT_WEAK_PATTERNS = (
     "your-jwt-secret-key-here",
     "your-jwt-refresh-secret-key-here",
@@ -98,9 +100,10 @@ _JWT_WEAK_PATTERNS = (
 
 def _validate_jwt_key(var_name: str, value: str) -> str:
     """Reject JWT keys that are too short or contain known placeholder patterns."""
-    if len(value) < 32:
+    _min = 64 if _is_production else 32
+    if len(value) < _min:
         raise ValueError(
-            f"{var_name} must be at least 32 characters long. "
+            f"{var_name} must be at least {_min} characters long. "
             "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
         )
     lower = value.lower()
@@ -197,7 +200,6 @@ STRIPE_WEBHOOK_SECRET = get_env_variable("STRIPE_WEBHOOK_SECRET", "", hide_value
 ENCRYPTION_KEY = get_env_variable("ENCRYPTION_KEY", required=False, hide_value=True)
 
 # [C4] Enforce ENCRYPTION_KEY in production — must be present and not a placeholder
-_is_production = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
 if _is_production:
     if not ENCRYPTION_KEY:
         logger.critical(
@@ -266,12 +268,12 @@ GOOGLE_CLIENT_ID = get_env_variable("GOOGLE_CLIENT_ID", required=False, hide_val
 cors_origins_str = str(
     get_env_variable(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,https://lugn-trygg.vercel.app,https://*.vercel.app,https://www.lugntrygg.se",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:5173,https://lugn-trygg.vercel.app,https://www.lugntrygg.se",
     )
 ).strip()
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
-is_production = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
+is_production = _is_production
 webauthn_rp_id = os.getenv("WEBAUTHN_RP_ID")
 if is_production and not webauthn_rp_id:
     render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
@@ -403,6 +405,37 @@ logger.info(
 logger.info(f"✅ Tillåtna CORS-origins: {CORS_ALLOWED_ORIGINS}")
 logger.info("✅ Backend är korrekt konfigurerad men inga hemligheter visas i loggen.")
 
+
+def validate_security_config() -> list[str]:
+    """Return a list of non-fatal security configuration issues."""
+    issues: list[str] = []
+
+    if not JWT_SECRET_KEY or len(JWT_SECRET_KEY) < (64 if _is_production else 32):
+        issues.append("JWT_SECRET_KEY saknas eller är för kort")
+    if not JWT_REFRESH_SECRET_KEY or len(JWT_REFRESH_SECRET_KEY) < (64 if _is_production else 32):
+        issues.append("JWT_REFRESH_SECRET_KEY saknas eller är för kort")
+
+    if _is_production:
+        if not ENCRYPTION_KEY:
+            issues.append("ENCRYPTION_KEY saknas i produktion")
+        elif len(ENCRYPTION_KEY) < 32:
+            issues.append("ENCRYPTION_KEY är för kort i produktion")
+
+        _furl = FRONTEND_URL.strip()
+        if not _furl or "localhost" in _furl or "127.0.0.1" in _furl or not _furl.startswith("https://"):
+            issues.append("FRONTEND_URL måste vara en produktions-HTTPS-URL")
+
+        if CORS_ALLOWED_ORIGINS and all(
+            "localhost" in origin or "127.0.0.1" in origin for origin in CORS_ALLOWED_ORIGINS
+        ):
+            issues.append("CORS_ALLOWED_ORIGINS innehåller bara localhost-adresser i produktion")
+
+        if not webauthn_rp_id or webauthn_rp_id == "localhost":
+            issues.append("WEBAUTHN_RP_ID saknas eller är localhost i produktion")
+
+    return issues
+
+
 # 2026-Compliant: Export both old and new config for backward compatibility
 try:
     from typing import TYPE_CHECKING
@@ -411,8 +444,8 @@ try:
     from .settings import settings as new_settings
     settings = new_settings
 
-    __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings"]
+    __all__ = ["config", "get_env_variable", "Config", "Settings", "get_settings", "settings", "new_settings", "validate_security_config"]
     if TYPE_CHECKING:
         from .settings import Settings as SettingsType
 except ImportError:
-    __all__ = ["config", "get_env_variable", "Config"]
+    __all__ = ["config", "get_env_variable", "Config", "validate_security_config"]

@@ -173,7 +173,7 @@ class DeploymentManager:
     def _validate_configuration(self) -> bool:
         """Validate application configuration"""
         try:
-            from config.security_config import validate_security_config
+            from config import validate_security_config
             issues = validate_security_config()
 
             if issues:
