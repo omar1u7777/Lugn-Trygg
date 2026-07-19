@@ -52,6 +52,7 @@ const interactionObserver: PerformanceObserver | null = null;
 let memoryIntervalId: ReturnType<typeof setInterval> | null = null;
 let clickHandler: ((event: MouseEvent) => void) | null = null;
 let submitHandler: ((event: SubmitEvent) => void) | null = null;
+let loadHandler: (() => void) | null = null;
 
 // Core Web Vitals tracking
 const trackCoreWebVitals = () => {
@@ -240,12 +241,6 @@ const updateResourceBudgets = (entry: PerformanceResourceTiming) => {
     }
   });
 };
-
-// Stored references for cleanup
-let memoryIntervalId: ReturnType<typeof setInterval> | null = null;
-let clickHandler: ((event: MouseEvent) => void) | null = null;
-let submitHandler: ((event: SubmitEvent) => void) | null = null;
-let loadHandler: (() => void) | null = null;
 
 // User interaction tracking
 const trackUserInteractions = () => {
