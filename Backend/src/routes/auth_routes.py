@@ -1279,7 +1279,7 @@ def verify_2fa_setup():
 
             # Verify the code
             totp = pyotp.TOTP(temp_secret)
-            if not totp.verify(code):
+            if not totp.verify(code, valid_window=1):
                 audit_log('2fa_verification_failed', user_id, {'reason': 'invalid_code'})
                 return APIResponse.unauthorized('Invalid verification code')
 
