@@ -191,7 +191,7 @@ class SecurityTester:
         endpoint = f"{self.base_url}/api/health"
 
         responses = []
-        for i in range(150):  # More than typical rate limit
+        for _i in range(150):  # More than typical rate limit
             try:
                 response = self.session.get(endpoint)
                 responses.append(response.status_code)

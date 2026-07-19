@@ -40,11 +40,11 @@ def _write_json_file(path: Path, payload: Any) -> None:
 def backup_collection(collection_name: str, output_dir: Path) -> BackupResult:
     """
     Backup a single Firestore collection
-    
+
     Args:
         collection_name: Name of the collection to backup
         output_dir: Directory to save backup files
-        
+
     Returns:
         dict: Backup statistics
     """
@@ -97,10 +97,10 @@ def backup_collection(collection_name: str, output_dir: Path) -> BackupResult:
 def backup_all_collections(output_dir: Path) -> list[BackupResult]:
     """
     Backup all collections in Firestore
-    
+
     Args:
         output_dir: Directory to save backup files
-        
+
     Returns:
         list: List of backup statistics for each collection
     """
@@ -164,11 +164,11 @@ def backup_all_collections(output_dir: Path) -> list[BackupResult]:
 def restore_collection(collection_name: str, backup_file: Path) -> BackupResult:
     """
     Restore a collection from backup file
-    
+
     Args:
         collection_name: Name of the collection to restore
         backup_file: Path to backup JSON file
-        
+
     Returns:
         dict: Restore statistics
     """
