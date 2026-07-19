@@ -27,6 +27,11 @@
       "key": "testEmail",
       "value": "",
       "description": "Dynamic test email (auto-set per run)"
+    },
+    {
+      "key": "testPassword",
+      "value": "",
+      "description": "Test password (set in Postman environment)"
     }
   ],
   "item": [
@@ -58,7 +63,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\", \"name\": \"E2E Postman\", \"accept_terms\": true, \"accept_privacy\": true}",
+              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"{{testPassword}}\", \"name\": \"E2E Postman\", \"accept_terms\": true, \"accept_privacy\": true}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -79,7 +84,7 @@
                   "  email = 'e2e-postman-' + uuid + '@lugntrygg.se';",
                   "  pm.collectionVariables.set('testEmail', email);",
                   "}",
-                  "pm.request.body.raw = JSON.stringify({email: email, password: 'E2eTest123!Secure', name: 'E2E Postman', accept_terms: true, accept_privacy: true});"
+                  "pm.request.body.raw = JSON.stringify({email: email, password: pm.collectionVariables.get('testPassword') || 'CHANGEME', name: 'E2E Postman', accept_terms: true, accept_privacy: true});"
                 ]
               }
             },
@@ -124,7 +129,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\"}",
+              "raw": "{\"email\": \"e2e-postman@lugntrygg.se\", \"password\": \"{{testPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -140,7 +145,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
-                  "var pwd = 'E2eTest123!Secure';",
+                  "var pwd = pm.collectionVariables.get('testPassword') || 'CHANGEME';",
                   "pm.request.body.raw = JSON.stringify({email: email, password: pwd});"
                 ]
               }
@@ -617,7 +622,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"current_password\": \"E2eTest123!Secure\", \"new_password\": \"E2eTest123!Secure\"}",
+              "raw": "{\"current_password\": \"{{testPassword}}\", \"new_password\": \"{{testPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -676,7 +681,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"new_email\": \"e2e-postman@lugntrygg.se\", \"password\": \"E2eTest123!Secure\"}",
+              "raw": "{\"new_email\": \"e2e-postman@lugntrygg.se\", \"password\": \"{{testPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -696,7 +701,7 @@
                   "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
                   "}",
                   "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
-                  "pm.request.body.raw = JSON.stringify({new_email: email, password: 'E2eTest123!Secure'});"
+                  "pm.request.body.raw = JSON.stringify({new_email: email, password: pm.collectionVariables.get('testPassword') || 'CHANGEME'});"
                 ]
               }
             },
@@ -800,7 +805,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"token\": \"invalid-reset-token\", \"new_password\": \"NewSecureP@ss123!\"}",
+              "raw": "{\"token\": \"invalid-reset-token\", \"new_password\": \"{{testPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -952,7 +957,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\"password\": \"E2eTest123!Secure\"}",
+              "raw": "{\"password\": \"{{testPassword}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
