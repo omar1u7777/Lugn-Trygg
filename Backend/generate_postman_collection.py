@@ -12,13 +12,14 @@ collection = {
         {"key": "baseUrl", "value": "http://localhost:5000", "description": "Base URL"},
         {"key": "accessToken", "value": "", "description": "JWT access token (auto-set after login)"},
         {"key": "userId", "value": "", "description": "User ID (auto-set after login)"},
-        {"key": "testEmail", "value": "", "description": "Dynamic test email (auto-set per run)"}
+        {"key": "testEmail", "value": "", "description": "Dynamic test email (auto-set per run)"},
+        {"key": "testPassword", "value": "", "description": "Test password (set in Postman environment)"}
     ],
     "item": []
 }
 
 EMAIL = "e2e-postman@lugntrygg.se"
-PASSWORD = "E2eTest123!Secure"
+PASSWORD = "{{testPassword}}"
 
 
 # Pre-request script for Register: generate unique email per run
@@ -33,7 +34,7 @@ PREREQ_REGISTER = [{"listen": "prerequest", "script": {"type": "text/javascript"
 # Pre-request script for Login: use the registered email
 PREREQ_LOGIN = [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": [
     "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
-    "var pwd = 'E2eTest123!Secure';",
+    "var pwd = pm.collectionVariables.get('testPassword') || 'CHANGEME';",
     "pm.request.body.raw = JSON.stringify({email: email, password: pwd});"
 ]}}]
 
@@ -45,7 +46,7 @@ PREREQ_REGISTER_BODY = [{"listen": "prerequest", "script": {"type": "text/javasc
     "  email = 'e2e-postman-' + uuid + '@lugntrygg.se';",
     "  pm.collectionVariables.set('testEmail', email);",
     "}",
-    "pm.request.body.raw = JSON.stringify({email: email, password: 'E2eTest123!Secure', name: 'E2E Postman', accept_terms: true, accept_privacy: true});"
+    "pm.request.body.raw = JSON.stringify({email: email, password: pm.collectionVariables.get('testPassword') || 'CHANGEME', name: 'E2E Postman', accept_terms: true, accept_privacy: true});"
 ]}}]
 
 
@@ -278,7 +279,7 @@ authed_folder = {
                 "  pm.request.headers.upsert({key: 'Authorization', value: 'Bearer ' + token});",
                 "}",
                 "var email = pm.collectionVariables.get('testEmail') || 'e2e-postman@lugntrygg.se';",
-                "pm.request.body.raw = JSON.stringify({new_email: email, password: 'E2eTest123!Secure'});"
+                "pm.request.body.raw = JSON.stringify({new_email: email, password: pm.collectionVariables.get('testPassword') || 'CHANGEME'});"
             ]}}]
         ),
     ]
@@ -307,7 +308,7 @@ pwd_folder = {
         item(
             "Confirm Password Reset (Invalid Token)",
             req("POST", "/api/v1/auth/confirm-password-reset",
-                json.dumps({"token": "invalid-reset-token", "new_password": "NewSecureP@ss123!"})),
+                json.dumps({"token": "invalid-reset-token", "new_password": PASSWORD})),
             test_script([
                 "pm.test('Confirm reset with invalid token returns error', function() {",
                 "  pm.expect(pm.response.code).to.be.oneOf([400, 401, 422, 429]);",
