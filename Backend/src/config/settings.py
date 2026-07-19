@@ -5,8 +5,10 @@ Type-safe, validated configuration with automatic environment variable loading
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
+import os
 import tempfile
 from datetime import timedelta
 from pathlib import Path
@@ -151,7 +153,9 @@ class Settings(BaseSettings):
                 creds_json = json.loads(v)
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
                     json.dump(creds_json, tf)
-                    return tf.name
+                    temp_path = tf.name
+                atexit.register(lambda p=temp_path: os.remove(p) if os.path.exists(p) else None)
+                return temp_path
             except json.JSONDecodeError as exc:
                 raise ValueError(
                     "FIREBASE_CREDENTIALS contains invalid JSON. "
