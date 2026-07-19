@@ -361,11 +361,6 @@ const ProfileHub: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    // This is now handled by DeleteAccountFlow component
-    showSnackbar('Raderingsflöde startat', 'info');
-  };
-
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       {/* Identity Card Hero */}
@@ -924,46 +919,6 @@ const ProfileHub: React.FC = () => {
             disabled={modalLoading || !twoFactorSetup?.qrCode}
           >
             {modalLoading ? t('profileHub.verifying') : t('profileHub.enable2FA')}
-          </Button>
-        </DialogFooter>
-      </Dialog>
-
-      {/* Delete Account Modal */}
-      <Dialog open={deleteAccountModal} onClose={() => setDeleteAccountModal(false)}>
-        <DialogHeader onClose={() => setDeleteAccountModal(false)}>
-          <DialogTitle className="text-error-600">{t('profileHub.deleteAccount')}</DialogTitle>
-          <DialogDescription>{t('profileHub.deleteAccountDesc')}</DialogDescription>
-        </DialogHeader>
-        <DialogContent>
-          <div className="space-y-4">
-            <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg p-4">
-              <h4 className="font-semibold text-error-800 dark:text-error-200 mb-2">
-                {t('profileHub.whatWillBeDeleted')}
-              </h4>
-              <ul className="text-sm text-error-700 dark:text-error-300 space-y-1">
-                <li>• {t('profileHub.deleteItem1')}</li>
-                <li>• {t('profileHub.deleteItem2')}</li>
-                <li>• {t('profileHub.deleteItem3')}</li>
-                <li>• {t('profileHub.deleteItem4')}</li>
-                <li>• {t('profileHub.deleteItem5')}</li>
-              </ul>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t('profileHub.deleteNote')}
-            </p>
-          </div>
-        </DialogContent>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setDeleteAccountModal(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            className="bg-error-600 hover:bg-error-700"
-            onClick={handleDeleteAccount}
-            disabled={modalLoading}
-          >
-            {modalLoading ? t('profileHub.deleting') : t('profileHub.deleteAccount')}
           </Button>
         </DialogFooter>
       </Dialog>
