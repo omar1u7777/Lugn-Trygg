@@ -10,6 +10,7 @@ Handles complete deployment lifecycle including:
 - Rollback procedures
 """
 
+import importlib.util
 import logging
 import os
 import subprocess
@@ -128,15 +129,16 @@ class DeploymentManager:
 
     def _check_dependencies(self) -> bool:
         """Check if all required dependencies are installed"""
-        try:
-            import bcrypt
-            import firebase_admin
-            import flask
-            logger.info("✅ Python dependencies validated")
-            return True
-        except ImportError as e:
-            logger.error(f"Missing Python dependency: {e}")
+        missing = [
+            module for module in ('bcrypt', 'firebase_admin', 'flask')
+            if importlib.util.find_spec(module) is None
+        ]
+        if missing:
+            logger.error(f"Missing Python dependencies: {missing}")
             return False
+
+        logger.info("✅ Python dependencies validated")
+        return True
 
     def _check_database_connectivity(self) -> bool:
         """Check database connectivity"""
@@ -303,7 +305,7 @@ class DeploymentManager:
                 if response.status_code == 200:
                     logger.info("✅ Application is ready")
                     return True
-            except:
+            except Exception:
                 pass
 
             time.sleep(2)

@@ -608,22 +608,21 @@ def main():
         print("\n" + "="*60)
         print("SECURITY AUDIT RESULTS")
         print("="*60)
-        print("Total Checks: %d" % int(summary.get('total_checks', 0)))
-        print("Passed: %d" % int(summary.get('passed_checks', 0)))
-        print("Failed: %d" % int(summary.get('failed_checks', 0)))
-        print("Warnings: %d" % int(summary.get('warning_checks', 0)))
-        print(".1f")
-        print("Overall Status: %s" % str(summary.get('overall_status', 'unknown')).upper()[:20])
+        print(f"Total Checks: {summary.get('total_checks', 0)}")
+        print(f"Passed: {summary.get('passed_checks', 0)}")
+        print(f"Failed: {summary.get('failed_checks', 0)}")
+        print(f"Warnings: {summary.get('warning_checks', 0)}")
+        print(f"Overall Status: {str(summary.get('overall_status', 'unknown')).upper()[:20]}")
 
         if results['critical_issues']:
             print("\n\U0001f6a8 CRITICAL ISSUES:")
             for issue in results['critical_issues'][:5]:  # Show first 5
-                print("  \u2022 %s" % str(issue)[:200])
+                print(f"  \u2022 {str(issue)[:200]}")
 
         if results['recommendations']:
             print("\n\U0001f4a1 RECOMMENDATIONS:")
             for rec in results['recommendations'][:5]:  # Show first 5
-                print("  \u2022 %s" % str(rec)[:200])
+                print(f"  \u2022 {str(rec)[:200]}")
 
         print(f"\nDetailed results saved to: {args.output}")
 

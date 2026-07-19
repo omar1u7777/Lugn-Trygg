@@ -78,7 +78,7 @@ def check_env_file():
 
             # Check JWT secret strength
             if 'JWT_SECRET_KEY' in var:
-                lines = [l for l in env_content.split('\n') if l.startswith(var)]
+                lines = [line for line in env_content.split('\n') if line.startswith(var)]
                 if lines:
                     value = lines[0].split('=')[1].strip()
                     if len(value) < 32:
@@ -157,7 +157,7 @@ def check_frontend_build():
                 print_success(f"Bundle size OK: {total_size:.1f} KB")
             else:
                 print_warning(f"Bundle size large: {total_size:.1f} KB (target < 250KB)")
-    except:
+    except Exception:
         pass
 
     return True
@@ -182,7 +182,7 @@ def check_ssl_certificate():
     if domain and domain != 'localhost':
         try:
             req = urllib.request.Request(f'https://{domain}/api/health')
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, timeout=5):
                 print_success(f"HTTPS working on {domain}")
                 return True
         except Exception as e:
@@ -303,7 +303,6 @@ def check_security():
     print_header("8. Security Check")
 
     checks_passed = 0
-    total_checks = 4
 
     # Check if .env is in gitignore
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
