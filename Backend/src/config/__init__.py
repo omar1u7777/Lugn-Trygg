@@ -271,7 +271,7 @@ cors_origins_str = str(
 ).strip()
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
-is_production = os.getenv("FLASK_ENV", "development") == "production"
+is_production = os.getenv("FLASK_ENV", "production") == "production" and not DEBUG
 webauthn_rp_id = os.getenv("WEBAUTHN_RP_ID")
 if is_production and not webauthn_rp_id:
     render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
