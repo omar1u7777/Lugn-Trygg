@@ -294,6 +294,9 @@ class TestChatStream:
 
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        # Consume the SSE body so the stream_with_context request context is
+        # popped now, not later by GC during an unrelated test's request.
+        assert "data: [DONE]" in resp.get_data(as_text=True)
 
     @patch("src.routes.chatbot_routes.db")
     @patch("src.routes.chatbot_routes.SubscriptionService")
@@ -1367,8 +1370,11 @@ class TestChatStreamAdditionalBranches:
 
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        # ai_services is NOT mocked here, so don't consume the stream body;
+        # close() pops the stream_with_context request context deterministically
+        # without executing the generator (which would call the real AI service).
+        resp.close()
 
-    @pytest.mark.xfail(strict=False, reason="Flask stream_with_context context cleanup issue in test env — not a production bug")
     @patch("src.routes.chatbot_routes.db")
     @patch("src.routes.chatbot_routes.SubscriptionService")
     @patch("src.services.ai_service.ai_services")
@@ -1501,6 +1507,9 @@ class TestChatbotErrorBranches:
         mock_ai.generate_therapeutic_conversation_stream.return_value = _stream()
         resp = client.post(f"{BASE}/chat/stream", json={"message": "Hej"})
         assert resp.status_code == 200
+        # Consume the SSE body so the save-failure branch actually runs and the
+        # stream_with_context request context is popped deterministically.
+        assert "Hej" in resp.get_data(as_text=True)
 
     @patch("src.routes.chatbot_routes.db")
     @patch("src.services.session_summary_service.SessionSummaryService")
