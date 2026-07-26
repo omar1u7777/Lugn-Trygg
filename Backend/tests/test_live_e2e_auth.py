@@ -10,12 +10,13 @@ Minimizes Firebase mutations by:
 Usage:
   set LIVE_E2E_BASE_URL=https://lugn-trygg-backend.onrender.com
   set LIVE_E2E_TEST_EMAIL=e2e-test@lugntrygg.se
-  set LIVE_E2E_TEST_PASSWORD=E2eTest123!Secure
+  set LIVE_E2E_TEST_PASSWORD=<a-strong-password-from-your-secret-store>
   .venv\Scripts\python.exe -m pytest tests/test_live_e2e_auth.py -v --tb=short -s
 """
 
 import os
 import re
+import secrets
 import time
 import json
 import uuid
@@ -30,7 +31,9 @@ pytestmark = pytest.mark.skipif(not _RUN_LIVE, reason="Set LIVE_E2E_BASE_URL to 
 
 BASE_URL = os.getenv("LIVE_E2E_BASE_URL", "https://lugn-trygg-backend.onrender.com")
 TEST_EMAIL = os.getenv("LIVE_E2E_TEST_EMAIL", f"e2e-auth-test-{uuid.uuid4().hex[:8]}@lugntrygg.se")
-TEST_PASSWORD = os.getenv("LIVE_E2E_TEST_PASSWORD", "E2eTest123!Secure")
+# No hardcoded credential fallback — generate a fresh strong password when the
+# env var is not supplied (a committed live password was leaked here before).
+TEST_PASSWORD = os.getenv("LIVE_E2E_TEST_PASSWORD") or f"E2e-{secrets.token_urlsafe(16)}!"
 TEST_NAME = "E2E Test User"
 API_PREFIX = "/api/v1/auth"
 REQUEST_TIMEOUT = 30

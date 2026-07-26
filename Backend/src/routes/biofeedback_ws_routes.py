@@ -34,9 +34,13 @@ def register_biofeedback_websocket_handlers(socketio):
             token = request.args.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
             if token:
                 from src.services.auth_service import AuthService
-                payload = AuthService.verify_token(token)
-                if payload:
-                    user_id = payload.get('user_id')
+                # verify_token returns (user_id, error), not a dict — a
+                # 2-tuple is always truthy, so the old `if payload:` check
+                # always passed regardless of validity, then `.get()` on a
+                # tuple raised AttributeError (silently swallowed below),
+                # meaning request.user_id was NEVER set for any connection.
+                user_id, error = AuthService.verify_token(token)
+                if user_id and not error:
                     request.user_id = user_id
                     # Join user-specific room
                     from flask_socketio import join_room

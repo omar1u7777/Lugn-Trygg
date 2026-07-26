@@ -21,7 +21,14 @@ class AdvancedRateLimiter:
     Advanced rate limiting with multiple strategies and Redis backend
     """
 
+    # Subscription tier changes rarely; cache it so tier lookup does not add a
+    # Firestore read to every authenticated request.
+    TIER_CACHE_TTL = 600  # seconds
+
     def __init__(self, redis_url: str | None = None):
+        # user_id -> (tier, expires_at). Per-process fallback used only when
+        # Redis is unavailable; bounded in get_user_tier().
+        self._tier_cache: dict[str, tuple[str, float]] = {}
         self.redis_client = None
         if redis_url:
             try:
@@ -113,10 +120,40 @@ class AdvancedRateLimiter:
         self.last_adjustment = time.time()
 
     def get_user_tier(self, user_id: str | None = None) -> str:
-        """Determine user tier for rate limiting"""
+        """Determine user tier for rate limiting.
+
+        PERFORMANCE: this runs on EVERY authenticated request. Reading the user
+        document from Firestore each time added a full document read to every
+        API call. Subscription tier changes rarely, so the result is cached in
+        Redis for 10 minutes (with a per-process fallback cache when Redis is
+        unavailable). Cache failures always fall through to the live read.
+        """
         if not user_id:
             return 'free'
 
+        cache_key = f"ratelimit:tier:{user_id}"
+
+        # 1. Redis (shared across workers)
+        redis_client = None
+        try:
+            from ..redis_config import get_redis_client
+            redis_client = get_redis_client()
+            if redis_client is not None:
+                cached = redis_client.get(cache_key)
+                if cached is not None:
+                    return cached.decode('utf-8') if isinstance(cached, (bytes, bytearray)) else str(cached)
+        except Exception as cache_err:
+            logger.debug("Tier cache read failed: %s", cache_err)
+            redis_client = None
+
+        # 2. Per-process fallback (bounded) when Redis is down
+        import time as _time
+        now = _time.time()
+        local_entry = self._tier_cache.get(user_id)
+        if redis_client is None and local_entry and local_entry[1] > now:
+            return local_entry[0]
+
+        tier = 'free'
         try:
             # Check user's subscription status
             from ..firebase_config import db
@@ -131,14 +168,39 @@ class AdvancedRateLimiter:
                 if subscription.get('active'):
                     plan = subscription.get('plan', 'free')
                     if plan in ['premium', 'pro', 'enterprise']:
-                        return plan
+                        tier = plan
                     elif plan == 'basic':
-                        return 'free'
-
-            return 'free'
+                        tier = 'free'
         except Exception as e:
             logger.warning(f"Could not determine user tier: {e}")
             return 'free'
+
+        # Populate caches (never let a cache write break the request)
+        try:
+            if redis_client is not None:
+                redis_client.setex(cache_key, self.TIER_CACHE_TTL, tier)
+            else:
+                if len(self._tier_cache) > 5000:
+                    self._tier_cache.clear()
+                self._tier_cache[user_id] = (tier, now + self.TIER_CACHE_TTL)
+        except Exception as write_err:
+            logger.debug("Tier cache write failed: %s", write_err)
+
+        return tier
+
+    def invalidate_user_tier(self, user_id: str) -> None:
+        """Drop the cached tier after a subscription change so the new plan's
+        limits apply immediately instead of after the TTL."""
+        if not user_id:
+            return
+        self._tier_cache.pop(user_id, None)
+        try:
+            from ..redis_config import get_redis_client
+            client = get_redis_client()
+            if client is not None:
+                client.delete(f"ratelimit:tier:{user_id}")
+        except Exception as inval_err:
+            logger.debug("Tier cache invalidation failed: %s", inval_err)
 
     def get_endpoint_category(self, endpoint: str) -> str:
         """Categorize endpoint for rate limiting"""
@@ -532,11 +594,21 @@ def rate_limit_by_endpoint(f):
                 response.headers['X-RateLimit-Reset'] = str(limit_info.get('reset', 0))
                 response.headers['Retry-After'] = str(limit_info.get('retry_after', 3600))
 
-                # Explicitly add CORS headers so frontend can read 429 responses
+                # Explicitly add CORS headers so a legitimate frontend can
+                # read 429 responses — but only for an allow-listed origin.
+                # Reflecting Origin unconditionally here let ANY site do a
+                # credentialed fetch() and read this response once it tripped
+                # the '5 per minute' auth limit, bypassing the CORS allow-list.
+                # Lazy import: main.is_origin_allowed is a pure function (env
+                # vars only, no app-context dependency) — importing it lazily
+                # here avoids a circular import at module-load time, since
+                # main.py imports routes that import this module.
                 origin = request.headers.get('Origin', '')
                 if origin:
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    from main import is_origin_allowed
+                    if is_origin_allowed(origin):
+                        response.headers['Access-Control-Allow-Origin'] = origin
+                        response.headers['Access-Control-Allow-Credentials'] = 'true'
 
                 return response
 

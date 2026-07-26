@@ -1,12 +1,20 @@
 """Production security verification script."""
-import requests
-import json
 import base64
+import json
+import os
+import sys
 
-BASE = "https://lugn-trygg-backend.onrender.com"
+import requests
+
+BASE = os.getenv("VERIFY_BASE_URL", "https://lugn-trygg-backend.onrender.com")
 API = f"{BASE}/api/v1/auth"
-TEST_EMAIL = "e2e-verify@lugntrygg.se"
-TEST_PASSWORD = "E2eTest123!Secure"
+# Credentials come from the environment — never commit them. The previous
+# hardcoded password was a live credential leaked into the repo.
+TEST_EMAIL = os.getenv("E2E_TEST_EMAIL")
+TEST_PASSWORD = os.getenv("E2E_TEST_PASSWORD")
+if not TEST_EMAIL or not TEST_PASSWORD:
+    print("ERROR: set E2E_TEST_EMAIL and E2E_TEST_PASSWORD env vars before running.")
+    sys.exit(2)
 
 print("=" * 60)
 print("PRODUCTION SECURITY VERIFICATION")
