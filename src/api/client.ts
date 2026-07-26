@@ -1,9 +1,10 @@
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
 import { getBackendUrl } from "../config/env";
-import { tokenStorage } from "../utils/secureStorage";
+import { tokenStorage, purgeUserScopedStorage } from "../utils/secureStorage";
 import { logger } from "../utils/logger";
 import { API_ENDPOINTS } from "./constants";
 import { getCsrfToken as getSharedCsrfToken, clearCsrfToken, registerCsrfFetcher } from "./csrf";
+import { ApiError } from "./errors";
 
 // Constants for better maintainability
 const AUTHORIZATION_HEADER = "Authorization";
@@ -32,7 +33,12 @@ export interface ApiConfig extends AxiosRequestConfig {
   retryCount?: number;
 }
 
-interface ApiResponseWrapper<T> {
+/**
+ * THE canonical response envelope. All new backend endpoints must return this
+ * shape; the legacy bare-payload branch below exists only until the remaining
+ * endpoints are migrated and must not be extended with new tolerated formats.
+ */
+export interface ApiEnvelope<T> {
   status?: 'success' | 'error';
   success?: boolean;
   data?: T;
@@ -42,17 +48,30 @@ interface ApiResponseWrapper<T> {
 }
 
 /**
- * Normalize API payloads that can arrive as either:
- * - Wrapped: { status: 'success', data: {...}, timestamp: '...' }
- * - Wrapped: { success: true, data: {...} }
- * - Direct:  {...}
+ * Normalize API payloads to the canonical envelope contract.
+ *
+ * - Wrapped success ({ status:'success'|success:true, data }) → returns data.
+ * - Error-shaped envelope on a 2xx transport ({ status:'error' } or
+ *   { success:false }) → REJECTED with a typed ApiError instead of being
+ *   silently handed to the caller as if it were payload data.
+ * - Legacy bare payload → passed through unchanged (documented debt).
  */
-export const unwrapApiResponse = <T>(payload: ApiResponseWrapper<T> | T): T => {
+export const unwrapApiResponse = <T>(payload: ApiEnvelope<T> | T): T => {
   if (!payload || typeof payload !== 'object') {
     return payload as T;
   }
 
-  const candidate = payload as ApiResponseWrapper<T>;
+  const candidate = payload as ApiEnvelope<T>;
+
+  // Defensive contract enforcement: an error envelope must never masquerade
+  // as successful data just because the HTTP layer returned 2xx.
+  if (candidate.status === 'error' || candidate.success === false) {
+    throw new ApiError(candidate.error || candidate.message || 'Malformed API response envelope', {
+      code: 'MALFORMED_ENVELOPE',
+      data: payload,
+    });
+  }
+
   const hasWrapperMetadata =
     typeof candidate.status === 'string' ||
     typeof candidate.success === 'boolean' ||
@@ -209,7 +228,17 @@ const handleRateLimitError = async (error: AxiosError, originalRequest: ApiConfi
     endpoint: originalRequest.url,
     retryAfter,
   });
-  throw new Error(RATE_LIMIT_MESSAGE(retryAfter));
+  // Unified contract: ApiError with status + code so consumers can branch on
+  // error.code / error.response.status instead of parsing the Swedish message.
+  throw new ApiError(RATE_LIMIT_MESSAGE(retryAfter), {
+    status: 429,
+    code: 'RATE_LIMITED',
+    retryAfter,
+    data: error.response?.data,
+    url: originalRequest.url,
+    method: originalRequest.method,
+    cause: error,
+  });
 };
 
 const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig): Promise<never> => {
@@ -220,7 +249,12 @@ const handleTimeoutError = async (error: AxiosError, originalRequest: ApiConfig)
       originalRequest.url || '',
       originalRequest.data || {}
     );
-    throw new Error(OFFLINE_MESSAGE);
+    throw new ApiError(OFFLINE_MESSAGE, {
+      code: 'OFFLINE_QUEUED',
+      url: originalRequest.url,
+      method: originalRequest.method,
+      cause: error,
+    });
   }
   throw error;
 };
@@ -240,7 +274,12 @@ const handleNetworkError = async (error: AxiosError, originalRequest: ApiConfig)
       originalRequest.url || '',
       originalRequest.data || {}
     );
-    throw new Error(NETWORK_ERROR_MESSAGE);
+    throw new ApiError(NETWORK_ERROR_MESSAGE, {
+      code: 'OFFLINE_QUEUED',
+      url: originalRequest.url,
+      method: originalRequest.method,
+      cause: error,
+    });
   }
 
   await trackError('Network Error', {
@@ -267,6 +306,7 @@ const clearLocalAuthState = () => {
   try {
     localStorage.removeItem('secure_user');
     localStorage.removeItem('user');
+    purgeUserScopedStorage();
   } catch (storageError) {
     logger.warn('Failed to clear local auth state after refresh failure', { storageError });
   }
@@ -317,22 +357,31 @@ const handle401Error = async (error: AxiosError, originalRequest: ApiConfig): Pr
   isRefreshing = true;
   originalRequest._retry = true;
 
-  const newAccessToken = await refreshAccessTokenWithCookie();
-  if (newAccessToken) {
-    await tokenStorage.setAccessToken(newAccessToken);
-    api.defaults.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
-    originalRequest.headers = originalRequest.headers || {};
-    originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
-    logger.info("Token refreshed successfully");
+  // The critical section MUST always release the mutex and flush subscribers.
+  // Without the finally, an exception (e.g. from tokenStorage) would leave
+  // isRefreshing=true forever and queue every future 401 indefinitely.
+  let refreshedToken: string | null = null;
+  try {
+    const newAccessToken = await refreshAccessTokenWithCookie();
+    if (newAccessToken) {
+      await tokenStorage.setAccessToken(newAccessToken);
+      api.defaults.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers[AUTHORIZATION_HEADER] = `${BEARER_PREFIX}${newAccessToken}`;
+      logger.info("Token refreshed successfully");
+      refreshedToken = newAccessToken;
+    } else {
+      logger.warn("Token refresh failed, clearing local auth state");
+      clearLocalAuthState();
+    }
+  } finally {
     isRefreshing = false;
-    onRefreshed(newAccessToken);
-    return api(originalRequest);
+    onRefreshed(refreshedToken);
   }
 
-  logger.warn("Token refresh failed, clearing local auth state");
-  clearLocalAuthState();
-  isRefreshing = false;
-  onRefreshed(null);
+  if (refreshedToken) {
+    return api(originalRequest);
+  }
   throw error;
 };
 
@@ -429,6 +478,21 @@ const retryRequest = async (error: AxiosError): Promise<AxiosResponse> => {
   throw error;
 };
 
+/**
+ * Single normalization gateway: every rejection leaving the api client is an
+ * ApiError. Raw AxiosErrors never escape the interceptor, so consumers have
+ * exactly one error contract (status/code/data + axios-compatible .response).
+ */
+const normalizeToApiError = (err: unknown): Error => {
+  if (err instanceof ApiError) {
+    return err;
+  }
+  if (axios.isAxiosError(err)) {
+    return ApiError.fromAxiosError(err);
+  }
+  return err instanceof Error ? err : new ApiError(String(err));
+};
+
 // Response interceptor with modular error handling and retry logic
 api.interceptors.response.use(
   handleSuccessfulResponse,
@@ -439,9 +503,13 @@ api.interceptors.response.use(
     } catch (handledError) {
       // If not handled, check if we should retry
       if (shouldRetry(error)) {
-        return retryRequest(error);
+        try {
+          return await retryRequest(error);
+        } catch (retryError) {
+          throw normalizeToApiError(retryError);
+        }
       }
-      throw handledError;
+      throw normalizeToApiError(handledError);
     }
   }
 );
@@ -471,7 +539,11 @@ api.interceptors.request.use(
         // [S4] Block the request — sending state-changing requests without CSRF
         // protection is a security vulnerability. Never silently continue.
         logger.error('CSRF token unavailable. Request blocked.', { url: config.url, method });
-        return Promise.reject(new Error('CSRF token unavailable. Request blocked for security.'));
+        return Promise.reject(new ApiError('CSRF token unavailable. Request blocked for security.', {
+          code: 'CSRF_UNAVAILABLE',
+          url: config.url,
+          method,
+        }));
       }
       if (!config.headers[CSRF_HEADER]) {
         config.headers[CSRF_HEADER] = csrf;
