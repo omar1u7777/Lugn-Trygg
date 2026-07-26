@@ -232,8 +232,7 @@ def prometheus_metrics():
         # random. When PROMETHEUS_MULTIPROC_DIR is set (see gunicorn_config.py),
         # aggregate across all workers via the MultiProcessCollector.
         if os.getenv("PROMETHEUS_MULTIPROC_DIR"):
-            from prometheus_client import CollectorRegistry
-            from prometheus_client import multiprocess
+            from prometheus_client import CollectorRegistry, multiprocess
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
             metrics_output = generate_latest(registry)
