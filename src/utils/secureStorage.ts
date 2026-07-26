@@ -245,6 +245,45 @@ export const secureStorage = {
 };
 
 /**
+ * Registry of localStorage key prefixes that hold USER-SCOPED data written by
+ * feature modules (chat analytics, gratitude challenges, AI personality, …).
+ * In a mental-health app this data is sensitive: it MUST be purged on logout
+ * so nothing about the previous user survives on a shared device.
+ *
+ * Any feature that persists per-user data in localStorage must register its
+ * prefix here — this list is the single source of truth for logout cleanup.
+ */
+const USER_SCOPED_KEY_PREFIXES = [
+  'chat-analytics-',
+  'translation-cache-',
+  'preferred-language-',
+  'ai-personality-',
+  'gratitude_challenge_',
+  'user_progress_',
+  'article_progress_',
+  'lugn_trygg_favorite_stories_',
+  'lugn_trygg_daily_usage_',
+  'lugn_trygg_subscription_cache_',
+  'lugn-trygg-chat-cache',
+  'insights_last_generate',
+];
+
+/**
+ * Purge all user-scoped feature data from localStorage.
+ * Called from every logout path (explicit logout, forced logout on refresh
+ * failure, account deletion) to guarantee state synchronization.
+ */
+export function purgeUserScopedStorage(): void {
+  try {
+    Object.keys(localStorage)
+      .filter(key => USER_SCOPED_KEY_PREFIXES.some(prefix => key.startsWith(prefix)))
+      .forEach(key => localStorage.removeItem(key));
+  } catch (error) {
+    logger.warn('Failed to purge user-scoped storage on logout', { error });
+  }
+}
+
+/**
  * Token Storage - High-level API for auth tokens
  */
 export const tokenStorage = {

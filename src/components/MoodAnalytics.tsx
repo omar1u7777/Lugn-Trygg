@@ -1,9 +1,8 @@
-import React, { useState, useEffect, Suspense, useCallback } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../hooks/useAuth';
-import api, { getMoodStatistics } from '../api/api';
-import { API_ENDPOINTS } from '../api/constants';
+import { useMoodTelemetry } from '../hooks/useMoodTelemetry';
 import { LoadingSpinner } from './LoadingStates';
 import ErrorBoundary from './ErrorBoundary';
 import { Card, Button } from './ui/tailwind';
@@ -29,52 +28,9 @@ import { jsPDF } from 'jspdf';
 
 // Lazy load heavy components - Analytics charts now using placeholder
 
-interface ForecastData {
-  forecast: {
-    daily_predictions: number[];
-    average_forecast: number;
-    trend: string;
-    confidence_interval: {
-      lower: number;
-      upper: number;
-    };
-  };
-  modelInfo: {
-    algorithm: string;
-    training_rmse?: number;
-    data_points_used: number;
-  };
-  currentAnalysis: {
-    recent_average: number;
-    volatility: number;
-  };
-  riskFactors: string[];
-  recommendations: string[];
-  confidence: number;
-  ai_unavailable?: boolean;
-}
-
-interface MoodStatistics {
-  totalMoods: number;
-  averageSentiment: number;
-  currentStreak: number;
-  longestStreak: number;
-  positivePercentage: number;
-  negativePercentage: number;
-  neutralPercentage: number;
-  bestDay: string | null;
-  worstDay: string | null;
-  recentTrend: 'improving' | 'declining' | 'stable';
-}
-
-
 const MoodAnalytics: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [forecast, setForecast] = useState<ForecastData | null>(null);
-  const [statistics, setStatistics] = useState<MoodStatistics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [daysAhead, setDaysAhead] = useState(7);
@@ -82,33 +38,7 @@ const MoodAnalytics: React.FC = () => {
   // Tab state: 'overview' | 'daily' | 'weekly' | 'monthly'
   const [activeTab, setActiveTab] = useState<'overview' | 'daily' | 'weekly' | 'monthly'>('overview');
 
-  // Daily analytics state
-  interface DailyEntry { date: string; average: number | null; count: number }
-  interface DowEntry { day: string; average: number | null; count: number }
-  interface TagFreqEntry { tag: string; count: number }
-  interface DailyAnalytics {
-    days: number;
-    totalEntries: number;
-    dailyAverages: DailyEntry[];
-    hourlyDistribution: (number | null)[];
-    dayOfWeekAverages: DowEntry[];
-    tagFrequency: TagFreqEntry[];
-    intensityDistribution: { low: number; medium: number; high: number };
-  }
-  const [dailyAnalytics, setDailyAnalytics] = useState<DailyAnalytics | null>(null);
-  const [dailyLoading, setDailyLoading] = useState(false);
   const [dailyDays, setDailyDays] = useState(30);
-
-  // Monthly analytics state
-  interface MonthlyEntry { month: string; label: string; average: number | null; count: number }
-  interface MonthlyAnalytics {
-    months: number;
-    totalEntries: number;
-    monthlyData: MonthlyEntry[];
-    overallTrend: 'improving' | 'declining' | 'stable';
-  }
-  const [monthlyAnalytics, setMonthlyAnalytics] = useState<MonthlyAnalytics | null>(null);
-  const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [monthlyMonths, setMonthlyMonths] = useState(6);
 
   // Calendar state
@@ -117,69 +47,27 @@ const MoodAnalytics: React.FC = () => {
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const { moods, isLoading: moodsLoading, hasMore, loadMore } = useMoodData({ autoFetch: true, limit: 50 });
 
-  const loadStatistics = useCallback(async () => {
-    logger.debug('📊 MOOD ANALYTICS - Loading statistics', { userId: user?.user_id });
-    if (!user?.user_id) {
-      logger.warn('⚠️ MOOD ANALYTICS - No user ID');
-      return;
-    }
-    
-    try {
-      const stats = await getMoodStatistics(user.user_id);
-      logger.debug('✅ MOOD ANALYTICS - Statistics loaded', stats);
-      setStatistics(stats);
-    } catch (err) {
-      logger.error('❌ MOOD ANALYTICS - Failed to load statistics:', err);
-    }
-  }, [user?.user_id]);
-
-  const loadDailyAnalytics = useCallback(async () => {
-    if (!user?.user_id) return;
-    setDailyLoading(true);
-    try {
-      const response = await api.get(`${API_ENDPOINTS.MOOD.MOOD_DAILY}?days=${dailyDays}`);
-      const data = response.data?.data || response.data;
-      setDailyAnalytics(data);
-    } catch (err) {
-      logger.error('Failed to load daily analytics:', err);
-    } finally {
-      setDailyLoading(false);
-    }
-  }, [user?.user_id, dailyDays]);
-
-  const loadMonthlyAnalytics = useCallback(async () => {
-    if (!user?.user_id) return;
-    setMonthlyLoading(true);
-    try {
-      const response = await api.get(`${API_ENDPOINTS.MOOD.MOOD_MONTHLY}?months=${monthlyMonths}`);
-      const data = response.data?.data || response.data;
-      setMonthlyAnalytics(data);
-    } catch (err) {
-      logger.error('Failed to load monthly analytics:', err);
-    } finally {
-      setMonthlyLoading(false);
-    }
-  }, [user?.user_id, monthlyMonths]);
-
-  const loadForecast = useCallback(async () => {
-    logger.debug('🔮 MOOD ANALYTICS - Loading forecast', { daysAhead });
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get(`${API_ENDPOINTS.MOOD.PREDICTIVE_FORECAST}?days_ahead=${daysAhead}`);
-      logger.debug('✅ MOOD ANALYTICS - Forecast loaded', response.data);
-      setForecast(response.data);
-    } catch (err: unknown) {
-      logger.error('❌ MOOD ANALYTICS - Failed to load forecast:', err);
-      const errorMessage = err instanceof Error && 'response' in err && typeof err.response === 'object' && err.response && 'data' in err.response.data && typeof err.response.data === 'object' && err.response.data && 'error' in err.response.data
-        ? String(err.response.data.error)
-        : t('analytics.loadError');
-      setError(errorMessage);
-      setForecast(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [daysAhead, t]);
+  // All telemetry fetching lives in the hook — this component is view-only.
+  const {
+    statistics,
+    forecast,
+    forecastLoading: loading,
+    forecastError: error,
+    dailyAnalytics,
+    dailyLoading,
+    monthlyAnalytics,
+    monthlyLoading,
+    loadStatistics,
+    loadForecast,
+    loadDailyAnalytics,
+    loadMonthlyAnalytics,
+  } = useMoodTelemetry({
+    userId: user?.user_id,
+    daysAhead,
+    dailyDays,
+    monthlyMonths,
+    forecastErrorFallback: t('analytics.loadError'),
+  });
 
   useEffect(() => {
     logger.debug('📊 MOOD ANALYTICS - Component mounted', { userId: user?.user_id, daysAhead });
