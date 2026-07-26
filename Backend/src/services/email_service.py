@@ -76,6 +76,30 @@ class EmailService:
                 self.client = resend  # Mock resend
                 self.enabled = False
 
+    def send_plain_email(self, to_email: str, subject: str, body: str) -> bool:
+        """Send a plain-text email. Returns True on confirmed send.
+
+        Generic primitive used by operational alerts (e.g. breach notification
+        to the DPO inbox) that don't fit the domain-specific templates.
+        """
+        if not to_email:
+            return False
+        payload = {
+            "from": f"{self.from_name} <{self.from_email}>",
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }
+        try:
+            result = self._send_resend_payload(
+                payload,
+                auth_error_log="Resend auth error while sending plain email",
+            )
+            return bool(result.get("success"))
+        except Exception as send_err:
+            logger.exception("send_plain_email failed: %s", send_err)
+            return False
+
     @staticmethod
     def _is_resend_auth_error(error: Exception) -> bool:
         """Return True when the failure indicates invalid/unauthorized Resend credentials."""
