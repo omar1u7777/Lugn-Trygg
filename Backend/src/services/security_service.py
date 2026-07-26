@@ -16,10 +16,7 @@ from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
-from ..config import (
-    ENCRYPTION_KEY,
-    JWT_SECRET_KEY,
-)
+from ..config import ENCRYPTION_KEY
 
 # HIPAA_ENCRYPTION_KEY is optional and defined in security_config
 HIPAA_ENCRYPTION_KEY = os.getenv('HIPAA_ENCRYPTION_KEY', '')

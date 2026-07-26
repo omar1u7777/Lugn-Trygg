@@ -266,7 +266,7 @@ def chat_with_ai():
 
             # CRISIS INTERVENTION: Real escalation with SMS/email/push
             try:
-                from src.services.crisis_escalation import CrisisAlert, get_crisis_escalation_service
+                from src.services.crisis_escalation import CrisisAlert
 
                 # Use semantic crisis detector for better accuracy
                 from src.services.crisis_intervention import crisis_intervention_service
