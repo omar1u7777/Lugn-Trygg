@@ -29,8 +29,14 @@ except ImportError:
     FCM_AVAILABLE = False
 
 from src.firebase_config import db
+from src.middleware.error_handler import with_circuit_breaker
 
 logger = logging.getLogger(__name__)
+
+
+@with_circuit_breaker('fcm_push')
+def _fcm_send_message(message):
+    return messaging.send(message)
 
 
 class EscalationChannel(Enum):
@@ -131,16 +137,48 @@ class CrisisEscalationService:
             logger.warning("⚠️ SendGrid API key not configured")
             self.sendgrid_client = None
 
+    # Channels that reach a HUMAN. A dashboard document write is bookkeeping,
+    # not delivery — it must never make an escalation count as successful.
+    HUMAN_CHANNELS = frozenset({
+        EscalationChannel.SMS,
+        EscalationChannel.EMAIL,
+        EscalationChannel.PUSH,
+    })
+
+    def has_any_human_channel_configured(self) -> bool:
+        """True when at least one human-reaching channel CAN deliver.
+
+        FCM_AVAILABLE only means the firebase_admin package imported — it says
+        nothing about whether a Firebase app is actually initialized. Checking
+        it alone made this guard true in every deployment (firebase-admin is a
+        hard requirement), so the fast-fail branch in escalate() never fired
+        even with Twilio/SendGrid both unset — the misconfiguration was instead
+        discovered only after the full send attempt, at the end of escalate().
+        A real Firebase app is required for FCM to count as configured; whether
+        a GIVEN alert's user has an fcm_token is still checked per-send in
+        _send_push_notification (that's per-alert data, not global config).
+        """
+        twilio_ready = bool(self.twilio_client) and bool(self.twilio_phone)
+        sendgrid_ready = bool(self.sendgrid_client)
+        fcm_ready = False
+        if FCM_AVAILABLE:
+            try:
+                import firebase_admin
+                fcm_ready = bool(getattr(firebase_admin, "_apps", None))
+            except Exception:
+                fcm_ready = False
+        return twilio_ready or sendgrid_ready or fcm_ready
+
     async def escalate(self, alert: CrisisAlert) -> EscalationResult:
         """
         Execute full escalation protocol for a crisis alert.
 
-        Sequence:
-        1. Immediate SMS to user (grounding + resources)
-        2. SMS/Email to emergency contacts (if high/critical)
-        3. Push notification to user's device
-        4. Create dashboard alert for clinicians (Phase 6)
-        5. Persist crisis alert to database
+        DELIVERY ACCOUNTING CONTRACT: a channel is appended to channels_used
+        ONLY on confirmed delivery (provider accepted the message). Skipped
+        channels (unconfigured client, missing phone/token) are recorded as
+        failures, and success requires at least one HUMAN channel delivered —
+        never the dashboard write alone. This is what prevents the task queue
+        from marking crisis tasks "completed" that no human ever saw.
         """
         logger.warning(
             f"🚨 CRISIS ESCALATION: user={alert.user_id[:8]}... "
@@ -151,40 +189,78 @@ class CrisisEscalationService:
         failures = []
 
         try:
+            from src.utils.telemetry import telemetry
+
+            if not self.has_any_human_channel_configured():
+                # Nothing can reach a human — fail loudly and immediately so
+                # the caller/queue treats this as non-retryable configuration
+                # error rather than burning retries.
+                telemetry.critical(
+                    "crisis_no_human_channel_configured",
+                    "Crisis escalation invoked but NO human-reaching channel "
+                    "(Twilio/SendGrid/FCM) is configured — alert cannot reach anyone",
+                    user_id=alert.user_id[:8],
+                    risk_level=alert.risk_level,
+                )
+                alert_id = await self._persist_alert(alert)
+                try:
+                    await self._create_dashboard_alert(alert, alert_id)
+                    channels_used.append(EscalationChannel.DASHBOARD)
+                except Exception as dash_err:
+                    failures.append((EscalationChannel.DASHBOARD, str(dash_err)))
+                failures.append((EscalationChannel.SMS, "no_human_channel_configured"))
+                await self._log_escalation(alert, channels_used, failures, alert_id)
+                return EscalationResult(
+                    success=False,
+                    channels_used=channels_used,
+                    failures=failures,
+                    alert_id=alert_id,
+                )
+
             # 1. Persist alert to database immediately
             alert_id = await self._persist_alert(alert)
 
             # 2. Get user info including emergency contacts
             user_data = await self._get_user_data(alert.user_id)
 
-            # 3. Send immediate SMS to user
+            # 3. Send immediate SMS to user — count only confirmed delivery
             if alert.risk_level in ['high', 'critical']:
                 try:
-                    await self._send_user_sms(alert, user_data)
-                    channels_used.append(EscalationChannel.SMS)
+                    if await self._send_user_sms(alert, user_data):
+                        channels_used.append(EscalationChannel.SMS)
+                    else:
+                        failures.append((EscalationChannel.SMS, "skipped: Twilio or user phone not configured"))
                 except Exception as e:
                     logger.error(f"❌ Failed to send user SMS: {e}")
                     failures.append((EscalationChannel.SMS, str(e)))
 
-            # 4. Notify emergency contacts (critical/high only)
+            # 4. Notify emergency contacts (critical/high only) — per-contact
+            #    delivery counts, not blanket channel claims
             if alert.risk_level in ['high', 'critical'] and user_data.get('emergency_contacts'):
                 try:
-                    await self._notify_emergency_contacts(alert, user_data['emergency_contacts'])
-                    channels_used.append(EscalationChannel.EMAIL)
-                    channels_used.append(EscalationChannel.SMS)
+                    contact_result = await self._notify_emergency_contacts(alert, user_data['emergency_contacts'])
+                    if contact_result.get('sms_delivered', 0) > 0:
+                        channels_used.append(EscalationChannel.SMS)
+                    if contact_result.get('email_delivered', 0) > 0:
+                        channels_used.append(EscalationChannel.EMAIL)
+                    for err in contact_result.get('errors', []):
+                        failures.append((EscalationChannel.EMAIL, err))
                 except Exception as e:
                     logger.error(f"❌ Failed to notify emergency contacts: {e}")
                     failures.append((EscalationChannel.EMAIL, str(e)))
 
-            # 5. Send push notification
+            # 5. Send push notification — count only confirmed delivery
             try:
-                await self._send_push_notification(alert, user_data)
-                channels_used.append(EscalationChannel.PUSH)
+                if await self._send_push_notification(alert, user_data):
+                    channels_used.append(EscalationChannel.PUSH)
+                else:
+                    failures.append((EscalationChannel.PUSH, "skipped: FCM or device token not configured"))
             except Exception as e:
                 logger.warning(f"⚠️ Push notification failed: {e}")
                 failures.append((EscalationChannel.PUSH, str(e)))
 
-            # 6. Create dashboard alert (for Phase 6 clinician dashboard)
+            # 6. Create dashboard alert (for clinician dashboard) — recorded
+            #    but NEVER counted as human delivery
             try:
                 await self._create_dashboard_alert(alert, alert_id)
                 channels_used.append(EscalationChannel.DASHBOARD)
@@ -195,12 +271,19 @@ class CrisisEscalationService:
             # Log escalation
             await self._log_escalation(alert, channels_used, failures, alert_id)
 
-            success = len(channels_used) > 0
+            success = any(c in self.HUMAN_CHANNELS for c in channels_used)
 
             if success:
                 logger.info(f"✅ Crisis escalation completed: {len(channels_used)} channels")
             else:
-                logger.error("❌ Crisis escalation failed: all channels failed")
+                telemetry.critical(
+                    "crisis_escalation_no_human_reached",
+                    "Crisis escalation finished WITHOUT any confirmed human delivery",
+                    user_id=alert.user_id[:8],
+                    risk_level=alert.risk_level,
+                    failures=str([(c.value, e[:80]) for c, e in failures]),
+                )
+                logger.error("❌ Crisis escalation failed: no human-reaching channel delivered")
 
             return EscalationResult(
                 success=success,
@@ -270,11 +353,27 @@ class CrisisEscalationService:
             logger.error(f"Failed to fetch user data: {e}")
             return {}
 
-    async def _send_user_sms(self, alert: CrisisAlert, user_data: dict):
-        """Send immediate grounding SMS to the user."""
+    @with_circuit_breaker('twilio_sms')
+    def _twilio_create_message(self, **kwargs):
+        """Circuit-broken wrapper around the Twilio SDK call. Safe to trip on
+        repeated failures: each call happens inside a bounded per-task
+        execution window (see crisis_task_queue.EXECUTION_TIMEOUT_SECONDS),
+        so a wrapped call can never hang the breaker open forever."""
+        return self.twilio_client.messages.create(**kwargs)
+
+    @with_circuit_breaker('sendgrid_email')
+    def _sendgrid_send_message(self, message):
+        return self.sendgrid_client.send(message)
+
+    async def _send_user_sms(self, alert: CrisisAlert, user_data: dict) -> bool:
+        """Send immediate grounding SMS to the user.
+
+        Returns True only on confirmed provider acceptance; False when the
+        channel is skipped (unconfigured/no phone). Raises on send failure.
+        """
         if not self.twilio_client or not user_data.get('phone'):
             logger.warning("Cannot send user SMS - Twilio or phone not configured")
-            return
+            return False
 
         # Swedish messages based on risk level
         if alert.risk_level == 'critical':
@@ -291,19 +390,27 @@ class CrisisEscalationService:
             )
 
         try:
-            message = self.twilio_client.messages.create(
+            message = self._twilio_create_message(
                 body=message_body,
                 from_=self.twilio_phone,
                 to=user_data['phone']
             )
             logger.info(f"📱 User SMS sent: SID={message.sid}")
+            return True
         except Exception as e:
             logger.error(f"❌ Twilio SMS failed: {e}")
             raise
 
-    async def _notify_emergency_contacts(self, alert: CrisisAlert, contacts: list[dict]):
-        """Notify emergency contacts via SMS and email."""
+    async def _notify_emergency_contacts(self, alert: CrisisAlert, contacts: list[dict]) -> dict:
+        """Notify emergency contacts via SMS and email.
+
+        Returns per-channel delivery accounting:
+        {'sms_delivered': int, 'email_delivered': int, 'errors': [str, ...]}
+        so the caller can record exactly what was confirmed instead of
+        blanket-claiming both channels.
+        """
         user_name = "Användaren"  # Privacy - don't reveal full name
+        result: dict = {'sms_delivered': 0, 'email_delivered': 0, 'errors': []}
 
         for contact in contacts:
             contact_name = contact.get('name', 'Kontakt')
@@ -329,15 +436,17 @@ class CrisisEscalationService:
                             f"Kontakta personen snarast möjligt. "
                         )
 
-                    self.twilio_client.messages.create(
+                    self._twilio_create_message(
                         body=sms_body,
                         from_=self.twilio_phone,
                         to=phone
                     )
                     logger.info(f"📱 Emergency contact SMS sent to {contact_name[:3]}***")
+                    result['sms_delivered'] += 1
 
                 except Exception as e:
                     logger.error(f"❌ Failed to SMS contact {contact_name[:3]}***: {str(e)[:50]}")
+                    result['errors'].append(f"contact_sms: {str(e)[:80]}")
 
             # Email to contact
             if email and notify_email and self.sendgrid_client:
@@ -349,9 +458,13 @@ class CrisisEscalationService:
                         user_name=user_name
                     )
                     logger.info(f"📧 Emergency contact email sent to {contact_name[:3]}***")
+                    result['email_delivered'] += 1
 
                 except Exception as e:
                     logger.error(f"❌ Failed to email contact {contact_name[:3]}***: {str(e)[:50]}")
+                    result['errors'].append(f"contact_email: {str(e)[:80]}")
+
+        return result
 
     async def _send_contact_email(self, to_email: str, to_name: str,
                                    alert: CrisisAlert, user_name: str):
@@ -427,35 +540,29 @@ class CrisisEscalationService:
             html_content=Content("text/html", html_content)
         )
 
-        response = self.sendgrid_client.send(message)
+        response = self._sendgrid_send_message(message)
 
         if response.status_code not in [200, 202]:
             raise Exception(f"SendGrid returned {response.status_code}")
 
-    async def _send_push_notification(self, alert: CrisisAlert, user_data: dict):
-        """Send Firebase Cloud Messaging push notification."""
-        if not FCM_AVAILABLE or not user_data.get('fcm_token'):
-            return
+    @staticmethod
+    async def send_fcm(fcm_token: str | None, title: str, body: str,
+                       data: dict | None = None) -> bool:
+        """Send a Firebase Cloud Messaging push notification.
 
-        fcm_token = user_data['fcm_token']
-
-        if alert.risk_level == 'critical':
-            title = "🚨 Viktigt meddelande"
-            body = "Du verkar ha det tufft just nu. Tryck för att få stöd."
-        else:
-            title = "Lugn & Trygg"
-            body = "Vi ser att du har det svårt. Öppna appen för hjälp."
+        Generic primitive shared by crisis escalation and proactive
+        intervention pushes. Returns True on confirmed send, False when
+        skipped (FCM unavailable or no device token). Raises on send failure.
+        """
+        if not FCM_AVAILABLE or not fcm_token:
+            return False
 
         message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
                 body=body
             ),
-            data={
-                'type': 'crisis_intervention',
-                'risk_level': alert.risk_level,
-                'action': 'open_grounding'
-            },
+            data=data or {},
             token=fcm_token,
             android=messaging.AndroidConfig(
                 priority='high',
@@ -479,11 +586,36 @@ class CrisisEscalationService:
         )
 
         try:
-            response = messaging.send(message)
+            response = _fcm_send_message(message)
             logger.info(f"📲 Push notification sent: {response}")
+            return True
         except Exception as e:
             logger.error(f"❌ Push notification failed: {e}")
             raise
+
+    async def _send_push_notification(self, alert: CrisisAlert, user_data: dict) -> bool:
+        """Send a crisis-specific Firebase Cloud Messaging push notification.
+
+        Returns True on confirmed send, False when skipped (FCM unavailable or
+        no device token). Raises on send failure.
+        """
+        if alert.risk_level == 'critical':
+            title = "🚨 Viktigt meddelande"
+            body = "Du verkar ha det tufft just nu. Tryck för att få stöd."
+        else:
+            title = "Lugn & Trygg"
+            body = "Vi ser att du har det svårt. Öppna appen för hjälp."
+
+        return await self.send_fcm(
+            user_data.get('fcm_token'),
+            title,
+            body,
+            {
+                'type': 'crisis_intervention',
+                'risk_level': alert.risk_level,
+                'action': 'open_grounding',
+            },
+        )
 
     async def _create_dashboard_alert(self, alert: CrisisAlert, alert_id: str):
         """Create alert in clinician dashboard (Phase 6)."""
