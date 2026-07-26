@@ -10,6 +10,7 @@ from google.cloud import firestore
 
 from ..services.audit_service import audit_log
 from ..services.auth_service import AuthService
+from ..services.consent_service import consent_service
 from ..services.rate_limiting import rate_limit_by_endpoint
 from ..utils.input_sanitization import sanitize_text
 from ..utils.response_utils import APIResponse
@@ -58,6 +59,7 @@ except ImportError:
 @voice_bp.route('/transcribe', methods=['POST'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
+@consent_service.require_consent(['ai_processing'])
 def transcribe_audio():
     """
     Transcribe audio to text using Google Cloud Speech-to-Text
@@ -162,6 +164,7 @@ def transcribe_audio():
 @voice_bp.route('/analyze-emotion', methods=['POST'])
 @AuthService.jwt_required
 @rate_limit_by_endpoint
+@consent_service.require_consent(['ai_processing'])
 def analyze_voice_emotion():
     """
     Analyze emotion from voice recording using audio features
@@ -275,6 +278,36 @@ def analyze_voice_emotion():
                             "🚨 Crisis detected in voice transcript for user %s: risk=%s score=%.2f",
                             user_id, assessment.overall_risk_level, assessment.risk_score
                         )
+                        # DURABILITY: the crisisLevel/crisisMessage fields above are
+                        # only a same-response hint — if the client is offline,
+                        # killed, or ignores the field, the backend previously
+                        # recorded and escalated nothing. Route through the same
+                        # durable /crisis_tasks queue as chat/mood-log/WebSocket.
+                        from datetime import UTC, datetime
+
+                        from ..services.crisis_escalation import CrisisAlert
+                        from ..services.crisis_task_queue import (
+                            CrisisQueueUnavailableError,
+                            enqueue_crisis_escalation,
+                        )
+                        voice_crisis_alert = CrisisAlert(
+                            user_id=user_id,
+                            risk_level=assessment.overall_risk_level,
+                            risk_score=assessment.risk_score,
+                            detected_indicators=[
+                                ind.swedish_description for ind in assessment.active_indicators
+                            ],
+                            text_snippet=transcript[:200],
+                            timestamp=datetime.now(UTC),
+                            requires_immediate_action=assessment.overall_risk_level == 'critical',
+                        )
+                        try:
+                            enqueue_crisis_escalation(voice_crisis_alert)
+                        except CrisisQueueUnavailableError:
+                            logger.critical(
+                                "🚨 Voice-transcript crisis escalation could not be "
+                                "queued for user=%s. REQUIRES MANUAL REVIEW.", user_id,
+                            )
                 except Exception as crisis_err:
                     logger.warning(f"Crisis detection error: {crisis_err}")
 

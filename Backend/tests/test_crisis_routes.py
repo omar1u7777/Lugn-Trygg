@@ -233,16 +233,27 @@ class TestCrisisAssessment:
         assert len(payload["active_indicators"]) == 1
 
     def test_assess_critical_triggers_escalation(self, client, auth_headers, mock_db, mock_crisis_service):
-        """Critical risk level triggers _escalate_crisis."""
+        """Critical risk level triggers _escalate_crisis, which must enqueue the
+        durable /crisis_tasks escalation (SMS/email/push via CrisisEscalationService)
+        rather than the old standalone SMTP path that silently no-op'd whenever
+        SMTP_USER/SMTP_PASSWORD weren't set (which they never are in production)."""
         assessment = _make_assessment(overall_risk_level="critical", risk_score=0.98)
         mock_crisis_service.assess_crisis_risk.return_value = assessment
 
-        resp = client.post(
-            f"{BASE}/assess",
-            json={"mood_history": [1, 1, 1]},
-            headers=auth_headers,
-        )
+        with patch(
+            "src.services.crisis_task_queue.enqueue_crisis_escalation",
+            return_value="task-assess-1",
+        ) as mock_enqueue:
+            resp = client.post(
+                f"{BASE}/assess",
+                json={"mood_history": [1, 1, 1]},
+                headers=auth_headers,
+            )
         assert resp.status_code == 200
+        mock_enqueue.assert_called_once()
+        enqueued_alert = mock_enqueue.call_args.args[0]
+        assert enqueued_alert.risk_level == "critical"
+        assert enqueued_alert.requires_immediate_action is True
 
     def test_assess_no_auth(self, client, mock_db, mock_crisis_service):
         """Without explicit auth header — conftest bypasses auth so expect 200."""

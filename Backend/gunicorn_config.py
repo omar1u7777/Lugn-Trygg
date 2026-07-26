@@ -1,12 +1,37 @@
 import multiprocessing
 import os
 
-# Gunicorn PRODUCTION configuration optimized for 10k concurrent users
+# Signal to the app (imported AFTER this config file) that Gunicorn manages
+# the process lifecycle: import-time side effects that touch Firestore or
+# spawn threads must be suppressed in the arbiter and run per-worker via the
+# post_worker_init hook instead. See src/services/background_services.py.
+os.environ.setdefault("GUNICORN_MANAGED", "true")
+
+# PROMETHEUS_MULTIPROC_DIR (render.yaml) tells prometheus_client where to put
+# its per-worker mmap files, but nothing creates that directory — Render
+# containers are ephemeral, so it never pre-exists on a fresh deploy. Without
+# it, the FIRST label-less Prometheus metric constructed at import time in
+# src/routes/metrics_routes.py raises FileNotFoundError, main.py's top-level
+# import re-raises, and the whole process dies before Gunicorn can bind a
+# socket — a total outage. Must run here (before Gunicorn imports main:app),
+# not inside the app itself, since preload_app=True means the arbiter's
+# import happens immediately after this file is loaded.
+_prometheus_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+if _prometheus_dir:
+    os.makedirs(_prometheus_dir, exist_ok=True)
+
+# Gunicorn PRODUCTION configuration
 bind = f"0.0.0.0:{os.environ.get('PORT', 5001)}"
 
 # Worker configuration.
 # GUNICORN_WORKERS env var takes precedence so each deployment tier can tune this:
-#   Render Starter (512 MB)  → GUNICORN_WORKERS=1
+#   Render Starter (512 MB)  → GUNICORN_WORKERS=1 (render.yaml's current value —
+#     chosen because 2 workers' combined RSS on this tier was never
+#     load-tested and preload_app's copy-on-write sharing degrades quickly
+#     under CPython refcounting; an OOM kill is a worse failure mode for a
+#     crisis-support service than 1 worker's brief, graceful capacity dip
+#     during a max_requests recycle. Raise to 2 only after confirming real
+#     memory headroom on this plan.)
 #   Render Standard (2 GB)   → GUNICORN_WORKERS=3
 #   Large / self-hosted      → GUNICORN_WORKERS=<(2×cores)+1>
 # Fallback formula: (2×cores)+1 capped at 9 (used when the env var is not set).
@@ -16,13 +41,19 @@ workers = int(os.environ.get("GUNICORN_WORKERS", _default_workers))
 # properly patch ssl when aiohttp/urllib3/jwt already imported it in the
 # arbiter before forking.  gthread uses native threads with no patching.
 worker_class = "gthread"
-threads = int(os.environ.get("GUNICORN_THREADS", 2))  # Threads per worker
+# gthread threads are cheap for I/O-bound work (SSE streams, OpenAI calls,
+# Firestore RPCs all park the thread on I/O). The old default of 2 threads
+# meant 2 workers × 2 threads = 4 concurrent requests for the whole service —
+# a handful of 120s chat streams starved /health and triggered restart loops.
+threads = int(os.environ.get("GUNICORN_THREADS", 8))  # Threads per worker
 
 # Timeout settings — 120s matches the backend SSE streaming timeout.
 # With timeout=60, gunicorn would kill streaming workers before the
 # backend's own 120s timeout fires, causing "Step is still running" hangs.
 timeout = 120
-graceful_timeout = 30
+# graceful_timeout must cover the full SSE stream budget (120s): with the old
+# 30s, every max_requests worker recycle killed in-flight streams mid-response.
+graceful_timeout = 120
 keepalive = 10  # Increased keepalive for better connection reuse
 
 # Request handling - prevent memory leaks and optimize performance
@@ -69,6 +100,22 @@ def post_fork(server, worker):
     """Called just after a worker has been forked."""
     server.log.info(f"Worker {worker.pid} spawned")
 
+def post_worker_init(worker):
+    """Called in the WORKER process after it has initialized the application.
+
+    This is where all background services actually start: with
+    preload_app=True the arbiter imports the app but must stay passive
+    (no threads, no Firestore RPCs — threads don't survive fork() and a
+    pre-fork gRPC channel is fork-unsafe). Each worker bootstraps its own
+    Firestore warmup, one-off seeding (distributed-lock guarded) and the
+    insight/crisis background consumers here.
+    """
+    try:
+        from src.services.background_services import run_worker_bootstrap
+        run_worker_bootstrap(worker_pid=worker.pid)
+    except Exception as e:
+        worker.log.error(f"Worker {worker.pid} background bootstrap failed: {e}")
+
 def pre_fork(server, worker):
     """Called just before a worker is forked."""
     pass
@@ -78,8 +125,21 @@ def pre_exec(server):
     server.log.info("Forking new master process")
 
 def child_exit(server, worker):
-    """Called just after a worker has been exited."""
+    """Called just after a worker has been exited.
+
+    Also does Prometheus multiprocess cleanup: marks the exited worker's
+    metric files dead so aggregated /metrics stops counting it (only active
+    when PROMETHEUS_MULTIPROC_DIR is configured). NOTE: this function name is
+    a fixed Gunicorn hook — do not add a second def child_exit anywhere in
+    this file, Python silently keeps only the last definition.
+    """
     server.log.info(f"Worker {worker.pid} exited")
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        try:
+            from prometheus_client import multiprocess
+            multiprocess.mark_process_dead(worker.pid)
+        except Exception:
+            pass
 
 def worker_abort(worker):
     """Called when a worker times out."""
