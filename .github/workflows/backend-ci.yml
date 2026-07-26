@@ -112,14 +112,21 @@ jobs:
           path: bandit-report.json
           retention-days: 30
 
-      - name: Trivy filesystem scan
+      - name: pip-audit dependency vulnerability scan (BLOCKING on high/critical)
+        run: |
+          pip install pip-audit
+          pip-audit -r Backend/requirements.txt --strict
+
+      - name: Trivy filesystem scan (BLOCKING on CRITICAL)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: 'fs'
           scan-ref: './Backend'
           format: 'sarif'
           output: 'trivy-backend.sarif'
-          exit-code: '0'
+          severity: 'CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4
@@ -128,9 +135,8 @@ jobs:
         with:
           sarif_file: 'trivy-backend.sarif'
 
-      - name: Gitleaks secret scan
+      - name: Gitleaks secret scan (BLOCKING)
         uses: gitleaks/gitleaks-action@v2.3.7
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -221,7 +227,7 @@ jobs:
           BACKEND_URL: http://127.0.0.1:5003
           SERVICE_ACCOUNT_PATH: ${{ github.workspace }}/Backend/serviceAccountKey.json
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
-        run: python e2e_live_test.py
+        run: python tests/e2e_live_test.py
 
       - name: Upload production-like server log
         uses: actions/upload-artifact@v4

@@ -1,5 +1,15 @@
 # Kubernetes Manifests
 
+> ⚠️ **DEPRECATED / NOT THE LIVE DEPLOYMENT.** The production deployment is
+> **Render** (`render.yaml` + `Backend/gunicorn_config.py`), not Kubernetes.
+> These manifests are **unmaintained**: they probe endpoints that differ from
+> the app's real health paths, reference container images that no CI pipeline
+> builds, and their `backup-cronjob.yaml` points at a script path that does not
+> exist in the image. **Do not `kubectl apply` these as-is.** They are kept only
+> as a starting point IF the platform ever moves to k8s, at which point the
+> probe paths (`/health`), image build, and backup command must be reconciled
+> with the current backend. See `Backend/RUNBOOK.md` for the real deployment.
+
 This directory contains the raw manifests required to deploy the Lugn & Trygg stack without Helm. The files are split by concern so they can be applied individually or as a bundle.
 
 ## Files
