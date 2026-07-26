@@ -600,7 +600,13 @@ def log_mood() -> Response | tuple[Response, int]:
                             "🚨 CRISIS DETECTED via mood log: user=%s risk=%s score=%.2f",
                             user_id, assessment.overall_risk_level, assessment.risk_score
                         )
-                        # Persist alert for care team review
+                        # Persist a record for care-team review / ML feature counting
+                        # (mood_predictor.py's _get_crisis_count reads this collection).
+                        # This write alone is NOT escalation — see enqueue below, which is
+                        # the actual durable path that reaches a human. A mood-log crisis
+                        # signal (e.g. an explicit self-harm phrase typed into a mood note)
+                        # used to stop here silently; it must go through the same durable
+                        # /crisis_tasks queue as the chat and WebSocket crisis paths.
                         db.collection('crisis_alerts').add({
                             'user_id': user_id,
                             'risk_level': assessment.overall_risk_level,
@@ -616,6 +622,34 @@ def log_mood() -> Response | tuple[Response, int]:
                             'risk_level': assessment.overall_risk_level,
                             'risk_score': assessment.risk_score,
                         })
+                        try:
+                            from ..services.crisis_escalation import CrisisAlert
+                            from ..services.crisis_task_queue import (
+                                CrisisQueueUnavailableError,
+                                enqueue_crisis_escalation,
+                            )
+                            mood_crisis_alert = CrisisAlert(
+                                user_id=user_id,
+                                risk_level=assessment.overall_risk_level,
+                                risk_score=assessment.risk_score,
+                                detected_indicators=[
+                                    ind.swedish_description for ind in assessment.active_indicators
+                                ],
+                                text_snippet=crisis_text[:200] if crisis_text else '',
+                                timestamp=datetime.now(UTC),
+                                requires_immediate_action=assessment.overall_risk_level == 'critical',
+                            )
+                            enqueue_crisis_escalation(mood_crisis_alert)
+                        except CrisisQueueUnavailableError:
+                            logger.critical(
+                                "🚨 Mood-log crisis escalation could not be queued for "
+                                "user=%s. REQUIRES MANUAL REVIEW.", user_id,
+                            )
+                        except Exception as enqueue_err:
+                            logger.exception(
+                                "Mood-log crisis escalation enqueue failed (non-blocking): %s",
+                                enqueue_err,
+                            )
             except Exception as crisis_err:
                 logger.warning(f"Crisis detection failed (non-blocking): {crisis_err}")
 

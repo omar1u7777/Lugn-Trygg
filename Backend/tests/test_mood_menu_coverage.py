@@ -354,22 +354,34 @@ def test_log_mood_audio_multipart(
 def test_log_mood_crisis_detected(
     client, mock_firestore, auth_csrf_headers, mock_ai_services, mock_subscription_ok, mocker
 ):
+    """A critical/high risk mood-log crisis signal must reach the durable
+    escalation queue, not just an inert crisis_alerts document — this is the
+    same durable path used by the chat and WebSocket crisis surfaces."""
     fake_crisis = Mock()
     fake_crisis.assess_crisis_risk.return_value = SimpleNamespace(
         overall_risk_level="critical",
         risk_score=0.95,
+        active_indicators=[],
     )
     mocker.patch("src.services.crisis_intervention.crisis_intervention_service", fake_crisis)
-    response = client.post(
-        "/api/mood/log",
-        json={
-            "score": 2,
-            "note": "Jag vill inte leva längre",
-            "timestamp": "2026-07-15T08:00:00Z",
-        },
-        headers=auth_csrf_headers,
-    )
+    with patch(
+        "src.services.crisis_task_queue.enqueue_crisis_escalation",
+        return_value="task-mood-log-1",
+    ) as mock_enqueue:
+        response = client.post(
+            "/api/mood/log",
+            json={
+                "score": 2,
+                "note": "Jag vill inte leva längre",
+                "timestamp": "2026-07-15T08:00:00Z",
+            },
+            headers=auth_csrf_headers,
+        )
     assert response.status_code == 201
+    mock_enqueue.assert_called_once()
+    enqueued_alert = mock_enqueue.call_args.args[0]
+    assert enqueued_alert.risk_level == "critical"
+    assert enqueued_alert.requires_immediate_action is True
 
 
 # ---------------------------------------------------------------------------

@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     flask_env: str = Field(default="production", alias="FLASK_ENV")
     flask_debug: bool = Field(default=False, alias="FLASK_DEBUG")
     port: int = Field(default=5001, alias="PORT")
+    # Request body size cap — bound to Flask's MAX_CONTENT_LENGTH at bootstrap.
+    # 1 KB floor prevents accidentally rejecting all bodies; 256 MB ceiling
+    # prevents an env typo from disabling the cap entirely.
+    max_content_length: int = Field(
+        default=16 * 1024 * 1024,
+        alias="MAX_CONTENT_LENGTH",
+        ge=1024,
+        le=256 * 1024 * 1024,
+    )
 
     # JWT Configuration
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY", min_length=32)
