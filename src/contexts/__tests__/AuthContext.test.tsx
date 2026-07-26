@@ -45,6 +45,7 @@ vi.mock('../../utils/secureStorage', () => ({
     setItem: secureSetItemMock,
     removeItem: secureRemoveItemMock,
   },
+  purgeUserScopedStorage: vi.fn(),
 }));
 
 vi.mock('../../components/Auth/ConsentModal', () => ({

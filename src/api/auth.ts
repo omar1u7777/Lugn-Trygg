@@ -1,6 +1,7 @@
 import axios from "axios";
 import { tokenStorage } from "@/utils/secureStorage";
 import { api } from "@/api/client";
+import { isApiError } from "@/api/errors";
 import { API_ENDPOINTS } from "@/api/constants";
 import { logger } from "@/utils/logger";
 import { getCsrfToken as getSharedCsrfToken, clearCsrfToken } from "./csrf";
@@ -26,6 +27,20 @@ interface LoginResponse {
   user: User;
   userId: string;
 }
+
+/** Returned by loginUser when the account has 2FA enabled: no session is
+ *  granted until the second factor is verified via verifyTwoFactor(). */
+export interface TwoFactorRequired {
+  requires2FA: true;
+  pendingToken: string;
+  userId: string;
+  user: Partial<User>;
+}
+
+export type LoginResult = LoginResponse | TwoFactorRequired;
+
+export const isTwoFactorRequired = (r: LoginResult): r is TwoFactorRequired =>
+  (r as TwoFactorRequired).requires2FA === true;
 
 interface RegisterResponse {
   user: User;
@@ -64,12 +79,18 @@ export const csrfManager = {
   },
 };
 
-// Helper function for extracting error messages and creating AuthError
+// Helper function for extracting error messages and creating AuthError.
+// Handles the unified ApiError contract from the api client interceptor as
+// well as raw AxiosError from code that bypasses the shared client.
 const createAuthError = (error: unknown, defaultMessage: string): AuthError => {
   let message = defaultMessage;
   let statusCode: number | undefined;
 
-  if (axios.isAxiosError(error) && error.response?.data) {
+  if (isApiError(error)) {
+    const data = error.data as ApiError | undefined;
+    message = data?.message || data?.error || error.message || message;
+    statusCode = error.status;
+  } else if (axios.isAxiosError(error) && error.response?.data) {
     const data = error.response.data as ApiError;
     message = data.message || data.error || message;
     statusCode = error.response.status;
@@ -136,9 +157,9 @@ const INITIAL_RETRY_DELAY_MS = 1000;
  * @returns Promise resolving to user data including tokens
  * @throws AuthError if login fails after all retries
  */
-export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
+export const loginUser = async (email: string, password: string): Promise<LoginResult> => {
   let lastError: unknown;
-  
+
   for (let attempt = 1; attempt <= MAX_LOGIN_RETRIES; attempt++) {
     try {
       logger.debug(`LOGIN - Attempt ${attempt}/${MAX_LOGIN_RETRIES}`, { email });
@@ -146,6 +167,19 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
 
       // Backend returns: { success: true, message: "...", data: { accessToken, user, userId } }
       const responseData = response.data?.data || response.data;
+
+      // 2FA gate: the account has 2FA enabled and no session was granted. Return
+      // the pending token; the caller must collect a code and call verifyTwoFactor.
+      if (responseData?.requires2FA === true && typeof responseData?.pendingToken === 'string') {
+        logger.debug('LOGIN - 2FA required');
+        return {
+          requires2FA: true,
+          pendingToken: responseData.pendingToken,
+          userId: responseData.userId,
+          user: responseData.user ?? {},
+        };
+      }
+
       const validatedData = validateLoginResponse(responseData);
 
       await tokenStorage.setAccessToken(validatedData.accessToken);
@@ -162,14 +196,17 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
     } catch (error: unknown) {
       lastError = error;
       
-      // Check if it's a timeout or network error that might be transient
-      const isRetryableError = axios.isAxiosError(error) && (
-        error.code === 'ECONNABORTED' ||
-        error.code === 'ETIMEDOUT' ||
-        error.message?.includes('timeout') ||
-        error.message?.includes('Network Error') ||
-        error.response?.status === 408 ||
-        error.response?.status === 504
+      // Check if it's a timeout or network error that might be transient.
+      // Works for both the unified ApiError (which mirrors axios's .response
+      // shape) and raw AxiosError from non-interceptor paths.
+      const transientCandidate = error as { code?: string; message?: string; response?: { status?: number } };
+      const isRetryableError = (axios.isAxiosError(error) || isApiError(error)) && (
+        transientCandidate.code === 'ECONNABORTED' ||
+        transientCandidate.code === 'ETIMEDOUT' ||
+        transientCandidate.message?.includes('timeout') ||
+        transientCandidate.message?.includes('Network Error') ||
+        transientCandidate.response?.status === 408 ||
+        transientCandidate.response?.status === 504
       );
       
       if (!isRetryableError || attempt === MAX_LOGIN_RETRIES) {
@@ -370,6 +407,35 @@ export const verify2FASetup = async (code: string): Promise<Record<string, unkno
     return response.data;
   } catch (error: unknown) {
     throw createAuthError(error, "2FA verification failed");
+  }
+};
+
+/**
+ * Completes login for a 2FA-enabled account by exchanging the short-lived
+ * pending token (from loginUser's TwoFactorRequired result) plus a TOTP code
+ * for a full session. On success the access token is stored and returned.
+ */
+export const verifyTwoFactor = async (pendingToken: string, code: string): Promise<LoginResponse> => {
+  try {
+    const response = await api.post(
+      API_ENDPOINTS.AUTH.VERIFY_2FA,
+      { method: 'totp', code },
+      { headers: { Authorization: `Bearer ${pendingToken}` } }
+    );
+    const responseData = response.data?.data || response.data;
+    const accessToken = responseData?.accessToken;
+    if (!accessToken || typeof accessToken !== 'string') {
+      throw new Error('2FA verification did not return a session');
+    }
+    await tokenStorage.setAccessToken(accessToken);
+    try {
+      await csrfManager.getToken();
+    } catch (csrfError) {
+      logger.warn('Failed to fetch CSRF token after 2FA', { csrfError });
+    }
+    return responseData as LoginResponse;
+  } catch (error: unknown) {
+    throw createAuthError(error, '2FA verification failed');
   }
 };
 
