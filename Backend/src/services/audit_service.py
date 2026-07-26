@@ -18,15 +18,32 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     def __init__(self):
-        # CRITICAL: HIPAA encryption key MUST be set in environment
+        # CRITICAL: HIPAA/GDPR audit encryption key MUST be set in production.
+        # Without it, audit logging silently disables itself — so login,
+        # crisis-detection and breach events would go UNRECORDED, and the
+        # encrypt path would fall back to writing PHI in plaintext. In
+        # production that is a compliance failure, so we fail closed.
         self.encryption_key = os.getenv('HIPAA_ENCRYPTION_KEY')
+        _is_production = os.getenv('FLASK_ENV', 'development').lower() == 'production'
         if not self.encryption_key:
+            if _is_production:
+                raise RuntimeError(
+                    "HIPAA_ENCRYPTION_KEY is required in production: audit logging "
+                    "(login/crisis/breach events) must never be silently disabled. "
+                    "Generate a Fernet key: python -c \"from cryptography.fernet import "
+                    "Fernet; print(Fernet.generate_key().decode())\""
+                )
             logger.warning("⚠️ HIPAA_ENCRYPTION_KEY not set - audit logging will be disabled")
             self.cipher = None
         else:
             try:
                 self.cipher = Fernet(self.encryption_key.encode())
             except Exception as e:
+                if _is_production:
+                    raise RuntimeError(
+                        f"HIPAA_ENCRYPTION_KEY is invalid (not a valid Fernet key): {e}. "
+                        "Audit logging cannot be secured; refusing to start."
+                    ) from e
                 logger.error(f"Failed to initialize encryption cipher: {e}")
                 self.cipher = None
 
