@@ -91,23 +91,58 @@ def create_mock_collection():
 
     return mock_collection
 
-def create_mock_transaction(*args, **kwargs):
-    """Mock transaction factory returned by db.transaction()"""
-    def transaction_func(func):
-        # Just call the function directly for testing
-        return func()
-    return transaction_func
+class _FakeFirestoreTransaction:
+    """A fake that satisfies the real google.cloud.firestore transactional
+    decorator contract (_read_only/_max_attempts/_clean_up/_begin/_id/
+    _commit/_rollback) so production code using @firestore.transactional +
+    db.transaction() can be exercised in tests without a live backend.
 
-def create_mock_run_in_transaction(*args, **kwargs):
-    """Mock db.run_in_transaction(func, *args, **kwargs)."""
-    func = args[0]
-    func_args = args[1:]
-    mock_txn = MagicMock()
-    return func(mock_txn, *func_args, **kwargs)
+    Reads/writes go through the mocked doc refs exactly as in production; the
+    transaction object itself is a no-op coordinator.
+    """
+    _read_only = False
+    _max_attempts = 1
+
+    def __init__(self):
+        self._id = None
+        self.writes = []
+
+    def _clean_up(self):
+        self._id = None
+
+    def _begin(self, retry_id=None):
+        self._id = b"fake-txn-id"
+
+    def _commit(self):
+        return []
+
+    def _rollback(self):
+        self._id = None
+
+    def set(self, reference, document_data, **kwargs):
+        # Record only (matches the previous MagicMock no-op semantics); does
+        # not eagerly write so tests keep control of the mocked ref state.
+        self.writes.append((reference, document_data))
+
+    def update(self, reference, field_updates, **kwargs):
+        self.writes.append((reference, field_updates))
+
+    def delete(self, reference, **kwargs):
+        self.writes.append((reference, None))
+
+
+def create_mock_transaction(*args, **kwargs):
+    """Mock transaction object returned by db.transaction()."""
+    return _FakeFirestoreTransaction()
 
 mock_db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
 mock_db.transaction = MagicMock(side_effect=create_mock_transaction)
-mock_db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
+# NOTE: deliberately no `mock_db.run_in_transaction` — that method does not
+# exist on the real google.cloud.firestore.Client (it silently raised
+# AttributeError in production for the lifetime of the bug it caused; see
+# subscription_service.py's comment on _run_quota_transaction). Keeping a
+# working fake for a non-existent API would let a reintroduced call to it
+# pass tests silently instead of failing the way the real client does.
 _shared_mock_db = mock_db
 
 
@@ -125,7 +160,7 @@ def _ensure_shared_mock_db() -> MagicMock:
     # Keep default behavior stable between tests
     db_obj.collection = MagicMock(side_effect=lambda name: create_mock_collection())
     db_obj.transaction = MagicMock(side_effect=create_mock_transaction)
-    db_obj.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
+    # No run_in_transaction here either — see the note by _shared_mock_db above.
 
     firebase_module.db = db_obj
 
@@ -396,12 +431,10 @@ def _reset_shared_mock_db():
     db.reset_mock()
     # Restore the default side_effect so db.collection('x') returns a proper mock chain
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
-    db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
     yield
     # Post-test cleanup: reset again to be safe
     db.reset_mock()
     db.collection = MagicMock(side_effect=lambda name: create_mock_collection())
-    db.run_in_transaction = MagicMock(side_effect=create_mock_run_in_transaction)
 
 
 @pytest.fixture(autouse=True)
