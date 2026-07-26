@@ -53,6 +53,15 @@ TOTAL_MOODS = None
 TOTAL_MEMORIES = None
 HEALTH_CHECK_DURATION = None
 
+if PROMETHEUS_AVAILABLE and prom is not None and os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+    # Defense in depth: gunicorn_config.py creates this directory before the
+    # arbiter imports the app, but construct it here too in case this module
+    # is ever imported via a different entrypoint — a label-less metric's
+    # __init__ opens an mmap file under this path immediately, and a missing
+    # directory would crash the whole import (see gunicorn_config.py for the
+    # full explanation of why this matters).
+    os.makedirs(os.environ["PROMETHEUS_MULTIPROC_DIR"], exist_ok=True)
+
 if PROMETHEUS_AVAILABLE and prom is not None:
     # HTTP metrics
     REQUEST_COUNT = prom.Counter(
@@ -218,8 +227,18 @@ def prometheus_metrics():
         # Update business metrics from database
         _update_business_metrics_from_db()
 
-        # Generate latest metrics
-        metrics_output = generate_latest()
+        # Under multi-worker Gunicorn each worker has its own in-process
+        # registry, so a scrape would return only ONE worker's numbers at
+        # random. When PROMETHEUS_MULTIPROC_DIR is set (see gunicorn_config.py),
+        # aggregate across all workers via the MultiProcessCollector.
+        if os.getenv("PROMETHEUS_MULTIPROC_DIR"):
+            from prometheus_client import CollectorRegistry
+            from prometheus_client import multiprocess
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)
+            metrics_output = generate_latest(registry)
+        else:
+            metrics_output = generate_latest()
         return Response(metrics_output, mimetype=PROM_CONTENT_TYPE)
 
     except Exception:
@@ -252,9 +271,44 @@ def business_metrics():
             f'lugn_trygg_business_kpis{{kpi="total_moods"}} {stats.get("total_moods", 0)}',
             f'lugn_trygg_business_kpis{{kpi="total_memories"}} {stats.get("total_memories", 0)}',
             f'lugn_trygg_business_kpis{{kpi="total_achievements"}} {stats.get("total_achievements", 0)}',
-            ""
         ]
 
+        # Crisis queue health — the most important patient-safety pipeline signal.
+        try:
+            from src.services.crisis_task_queue import get_queue_health
+            q = get_queue_health()
+            counts = q.get("counts", {})
+            metrics_lines += [
+                "# HELP lugn_trygg_crisis_queue Crisis escalation queue depth by status",
+                "# TYPE lugn_trygg_crisis_queue gauge",
+                f'lugn_trygg_crisis_queue{{status="pending"}} {counts.get("pending", 0)}',
+                f'lugn_trygg_crisis_queue{{status="processing"}} {counts.get("processing", 0)}',
+                f'lugn_trygg_crisis_queue{{status="failed"}} {counts.get("failed", 0)}',
+                "# HELP lugn_trygg_crisis_oldest_pending_seconds Age of oldest pending crisis task",
+                "# TYPE lugn_trygg_crisis_oldest_pending_seconds gauge",
+                f'lugn_trygg_crisis_oldest_pending_seconds {q.get("oldest_pending_age_seconds", 0)}',
+            ]
+        except Exception:
+            logger.warning("Crisis queue metrics unavailable", exc_info=True)
+
+        # Degraded-fallback / critical-event counters from telemetry.
+        try:
+            from src.utils.telemetry import telemetry
+            tstats = telemetry.get_stats()
+            metrics_lines.append("# HELP lugn_trygg_degradations Degraded-fallback occurrences")
+            metrics_lines.append("# TYPE lugn_trygg_degradations counter")
+            for key, count in tstats.get("degradations", {}).items():
+                safe = key.replace('"', '').replace('\\', '')
+                metrics_lines.append(f'lugn_trygg_degradations{{kind="{safe}"}} {count}')
+            metrics_lines.append("# HELP lugn_trygg_criticals Critical operational events")
+            metrics_lines.append("# TYPE lugn_trygg_criticals counter")
+            for key, count in tstats.get("criticals", {}).items():
+                safe = key.replace('"', '').replace('\\', '')
+                metrics_lines.append(f'lugn_trygg_criticals{{event="{safe}"}} {count}')
+        except Exception:
+            logger.warning("Telemetry metrics unavailable", exc_info=True)
+
+        metrics_lines.append("")
         return Response('\n'.join(metrics_lines), mimetype=PROM_CONTENT_TYPE)
 
     except Exception:
@@ -266,37 +320,59 @@ def business_metrics():
 # Database Stats Functions (replaces mock data)
 # ============================================================================
 
+# Cache business stats so a Prometheus scrape never streams the whole DB.
+_business_stats_cache: dict[str, Any] = {"value": None, "expires": 0.0}
+_BUSINESS_STATS_TTL = 300  # 5 minutes
+
+
+def _collection_count(collection_name: str) -> int:
+    """Count a collection via Firestore's server-side count() aggregation —
+    reads a single aggregate result instead of streaming every document."""
+    agg = db.collection(collection_name).count()
+    result = agg.get()
+    # count().get() → list[list[AggregationResult]]; the value is at [0][0].
+    try:
+        return int(result[0][0].value)
+    except (IndexError, TypeError, AttributeError):
+        # Some client/mocks return a flat list of AggregationResults.
+        try:
+            return int(result[0].value)
+        except (IndexError, TypeError, AttributeError):
+            return 0
+
+
 def _get_business_stats_from_db() -> dict[str, int]:
     """
-    Get real business statistics from Firestore.
-    Uses collection counts for accurate metrics.
+    Get real business statistics from Firestore using count() AGGREGATION
+    (not document streaming) and a 5-minute cache. The old implementation
+    streamed up to 80,000 documents per call for four gauge values.
     """
+    import time as _time
+
+    now = _time.time()
+    cached = _business_stats_cache.get("value")
+    if cached is not None and _business_stats_cache.get("expires", 0) > now:
+        return cached
+
     stats = {
         "total_users": 0,
         "total_moods": 0,
         "total_memories": 0,
-        "total_achievements": 0
+        "total_achievements": 0,
     }
 
     try:
-        # Count users (limit query to avoid timeout)
-        users_count = len(list(db.collection("users").limit(10000).stream()))
-        stats["total_users"] = users_count
-
-        # Count moods
-        moods_count = len(list(db.collection("moods").limit(50000).stream()))
-        stats["total_moods"] = moods_count
-
-        # Count memories
-        memories_count = len(list(db.collection("memories").limit(10000).stream()))
-        stats["total_memories"] = memories_count
-
-        # Count achievements
-        achievements_count = len(list(db.collection("achievements").limit(10000).stream()))
-        stats["total_achievements"] = achievements_count
-
+        stats["total_users"] = _collection_count("users")
+        stats["total_moods"] = _collection_count("moods")
+        stats["total_memories"] = _collection_count("memories")
+        stats["total_achievements"] = _collection_count("achievements")
+        _business_stats_cache["value"] = stats
+        _business_stats_cache["expires"] = now + _BUSINESS_STATS_TTL
     except Exception as e:
         logger.warning(f"Error fetching business stats: {e}")
+        # Serve the last known good value rather than a stream fallback.
+        if cached is not None:
+            return cached
 
     return stats
 
